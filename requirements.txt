@@ -1,0 +1,8 @@
+ccxt==2.0.90
+pandas
+requests
+typing
+argparse
+colorama
+rich
+pybit

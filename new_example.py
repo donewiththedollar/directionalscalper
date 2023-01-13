@@ -10,9 +10,11 @@ from telegram_status import notifier
 from colorama import init, Fore, Back, Style
 from rich.live import Live
 from rich.table import Table
+import tylerapi
+from tylerapi import *
 
 # Booleans and stuff
-version = "1.1.0 alpha"
+version = "1.0.5 alpha"
 long_mode = False
 short_mode = False
 violent_mode = False
@@ -32,6 +34,9 @@ botname = config.config_botname
 exchange = ccxt.bybit(
     {"enableRateLimit": True, "apiKey": config.api_key, "secret": config.api_secret}
 )
+
+
+print(tylerapi.get_asset_total_volume_5m('DOGEUSDT', tylerapi.api_data))
 
 # Command line arguments
 parser = argparse.ArgumentParser(description="CCXT Scalper",
@@ -66,7 +71,6 @@ class VolumeData(TypedDict):
     symbol: str
     volume: float
     distance: float
-    ma_order: float
 
 # get_1m_data() [0]3 high, [1]3 low, [2]6 high, [3]6 low, [4]10 vol
 def get_1m_data():
@@ -113,12 +117,14 @@ def get_balance():
     dex_wallet = round(float(dex["USDT"]["wallet_balance"]), 2)
     dex_equity = round(float(dex["USDT"]["equity"]), 2)
 
+
 # get_orderbook() [0]bid, [1]ask
 def get_orderbook():
     ob = exchange.fetch_order_book(symbol)
     bid = ob["bids"][0][0]
     ask = ob["asks"][0][0]
     return bid, ask
+
 
 # get_market_data() [0]precision, [1]leverage, [2]min_trade_qty
 def get_market_data():
@@ -136,30 +142,19 @@ def get_api_data() -> Dict[str, VolumeData]:
 
     parsed = {}
     for x in data:
-        vd: VolumeData = {"symbol": x[0], "volume": x[1], "distance": x[2], "ma_order": x[3]}
+        vd: VolumeData = {"symbol": x[0], "volume": x[1], "distance": x[2]}
         parsed[vd["symbol"]] = vd
     return parsed
 
-def get_current_ma_order(symbol: str, volume_data: Dict[str, VolumeData]) -> bool:
-    symbol_data = volume_data[symbol]
-    return symbol_data["ma_order"]
+# def tyler_get_api_data() -> Dict[str, VolumeData]:
+#     data = requests.get("http://13.127.240.18/data/quantdata.json")
 
-ma_order = get_current_ma_order(symbol, get_api_data())
+#     parsed = {}
+#     for x in data:
+#         vd: TylerVolumeData = {"symbol": x[0], "volume": x[1], "distance": x[2]}
+#         parsed[vd["symbol"]] = vd
+#     return parsed    
 
-def check_ma_order():
-    if ma_order == "Short":
-        try:
-            what_is_ma_order = False
-        except:
-            pass
-    else:
-        if ma_order == "Long":
-            try:
-                what_is_ma_order = True
-            except:
-                pass
-
-print(ma_order)
 
 def get_current_volume_data(symbol: str, volume_data: Dict[str, VolumeData]) -> bool:
     symbol_data = volume_data[symbol]
@@ -174,6 +169,7 @@ def get_volume_data(symbol: str, volume_data: Dict[str, VolumeData]) -> bool:
     symbol_data = volume_data[symbol]
     return symbol_data["volume"] > min_volume and symbol_data["distance"] > min_distance
     #return symbol_data["volume"] > 15000 and symbol_data["distance"] > 0.15
+    
 
 def get_stack_volume_data(symbol: str, volume_data: Dict[str, VolumeData]) -> bool:
     symbol_data = volume_data[symbol]
@@ -182,7 +178,6 @@ def get_stack_volume_data(symbol: str, volume_data: Dict[str, VolumeData]) -> bo
 def get_violent_volume_data(symbol: str, volume_data: Dict[str, VolumeData]) -> bool:
     symbol_data = volume_data[symbol]
     return symbol_data["volume"] > violent_volume and symbol_data["distance"] > violent_distance
-
 
 def get_short_positions():
     global short_pos_qty, short_pos_price, short_symbol_realised, short_symbol_cum_realised, short_pos_unpl, short_pos_unpl_pct, short_liq_price
@@ -323,6 +318,13 @@ def display_current_volume_data():
     except:
         return False
 
+def tyler_display_current_vol_data():
+    try:
+        tylerapi.get_asset_total_volume_5m(symbol, tylerapi.api_data)
+        return tylerapi.get_asset_total_volume_5m(symbol, tylerapi.api_data())
+    except:
+        return False
+
 def display_current_distance_data():
     try:
         get_api_data()
@@ -356,7 +358,9 @@ except:
 # Attempt to set leverage
 try:
     exchange.set_leverage(
-        leverage=get_market_data()[1],
+        # buyLeverage = get_market_data()[1],
+        # sellLeverage=get_market_data()[1],
+        leverage = get_market_data()[1],
         symbol=symbol,
     )
     print(Fore.YELLOW +'Leverage set'+ Style.RESET_ALL)
@@ -412,18 +416,23 @@ high_vol_stack_trade_qty = (
 
 vol_condition_true = volume_condition() == True
 
+
+tyler_total_volume = tylerapi.get_asset_total_volume_5m(symbol,tylerapi.api_data)
+tyler_5m_spread = tylerapi.get_asset_5m_spread(symbol, tylerapi.api_data)
+
 def generate_table_vol() -> Table:
     table = Table(width=50)
     table.add_column("Condition", justify="center")
     table.add_column("Config", justify="center")
     table.add_column("Current", justify="center")
     table.add_column("Status")
-    table.add_row(f"Min Vol.", str(min_volume), str(display_current_volume_data()).split('.')[0], "[red]TOO LOW" if display_current_volume_data() < min_volume else "[green]VOL. OK")
-    table.add_row(f"High Vol.", str(high_volume), str(), "[green]:heavy_check_mark:" if display_current_volume_data() > high_volume else "off")
-    table.add_row(f"Violent Vol.", str(violent_volume), str(), "[green]:heavy_check_mark:" if display_current_volume_data() > violent_volume else "off")
+    table.add_row(f"Min Vol.", str(min_volume), str(tyler_total_volume).split('.')[0], "[red]TOO LOW" if tyler_total_volume < min_volume else "[green]VOL. OK")
+#    table.add_row(f"Min Vol.", str(min_volume), str(display_current_volume_data()).split('.')[0], "[red]TOO LOW" if display_current_volume_data() < min_volume else "[green]VOL. OK")
+    table.add_row(f"High Vol.", str(high_volume), str(), "[green]:heavy_check_mark:" if tyler_total_volume > high_volume else "off")
+    table.add_row(f"Violent Vol.", str(violent_volume), str(), "[green]:heavy_check_mark:" if tyler_total_volume > violent_volume else "off")
     table.add_row()
-    table.add_row(f"Min Dist.", str(min_distance), str(display_current_distance_data()), "[red]TOO SMALL" if display_current_distance_data() < min_distance else "[green]DIST. OK")
-    table.add_row(f"High Dist.", str(high_distance), str(), "[green]:heavy_check_mark:" if display_current_distance_data() > high_distance else "off")
+    table.add_row(f"Min Dist.", str(min_distance), str(tyler_5m_spread), "[red]TOO SMALL" if tyler_5m_spread < min_distance else "[green]DIST. OK")
+    table.add_row(f"High Dist.", str(high_distance), str(), "[green]:heavy_check_mark:" if tyler_5m_spread > high_distance else "off")
     table.add_row(f"Violent Dist.", str(violent_distance), str(), "[green]:heavy_check_mark:" if display_current_distance_data() > violent_distance else "off")
     table.add_row(f"Trading:", str(volume_condition() == True), str(), "[green]:heavy_check_mark:" if volume_condition() else "off")
     table.add_row(f"Long mode:", str(long_mode), str(), "[green]:heavy_check_mark:" if long_mode == True else "off")
@@ -452,7 +461,6 @@ def generate_table_pos() -> Table:
     table.add_row(f"Entry size", str(trade_qty))
     table.add_row(f"Long liq price", str(long_liq_price))
     table.add_row(f"Short liq price", str(short_liq_price))
-    table.add_row(f"MA Order", str(ma_order))
     return table
 #        print(Fore.LIGHTYELLOW_EX + 'Size / Max:',short_pos_qty,' | ',max_trade_qty,'')
 def generate_main_table() -> Table:
@@ -480,8 +488,6 @@ with Live(generate_main_table(), refresh_per_second=2) as live:
             time.sleep(0.01)
             get_long_positions()
             time.sleep(0.01)
-            #check_ma_order()
-            #time.sleep(0.01)
         except:
             pass
 
@@ -522,10 +528,11 @@ with Live(generate_main_table(), refresh_per_second=2) as live:
         #LONG: Initial entry logic
         if (
             long_mode == True
-            and volume_condition() == True
+            #and volume_condition() == True
+            and tyler_total_volume > min_volume
+            and tyler_5m_spread > min_distance
             and long_pos_qty == 0
             and long_pos_qty < max_trade_qty
-            and ma_order == 'Long'
         ):
             try:
                 exchange.create_limit_buy_order(symbol, trade_qty, current_bid)
@@ -539,10 +546,11 @@ with Live(generate_main_table(), refresh_per_second=2) as live:
         #SHORT: Initial entry logic
         if (
             trade_condition() == True
-            and volume_condition() == True
+            #and volume_condition() == True
+            and tyler_total_volume > min_volume
+            and tyler_5m_spread > min_distance
             and short_pos_qty == 0
             and short_pos_qty < max_trade_qty
-            and ma_order == 'Short'
         ):
             try:
                 exchange.create_limit_sell_order(symbol, trade_qty, current_ask)
@@ -612,9 +620,10 @@ with Live(generate_main_table(), refresh_per_second=2) as live:
         if (
             long_mode == True
             and long_pos_qty != 0
-            and volume_condition() == True
+            #and volume_condition() == True
+            and tyler_total_volume > min_volume
+            and tyler_5m_spread > min_distance
             and add_long_trade_condition() == True
-            and ma_order == 'Long'
         ):
             try:
                 cancel_entry()
@@ -630,9 +639,10 @@ with Live(generate_main_table(), refresh_per_second=2) as live:
         if (
             short_pos_qty != 0
             #and short_pos_qty < max_trade_qty
-            and volume_condition() == True
+            #and volume_condition() == True
+            and tyler_total_volume > min_volume
+            and tyler_5m_spread > min_distance
             and add_short_trade_condition() == True
-            and ma_order == 'Short'
         ):
             try:
                 cancel_entry()
@@ -644,25 +654,26 @@ with Live(generate_main_table(), refresh_per_second=2) as live:
             except:
                 pass
 
-        # SHORT: Stack violent orders if pos > 0 and pos > max_trade_qty and vol condition true, also added trade_condition() check to prevent violent bottom shorts
-        if (
-            short_pos_qty != 0
-            #and short_pos_qty > half_max_size
-            and short_pos_qty < max_trade_qty
-            and violent_vol_dist_condition() == True
-            and add_short_trade_condition() == True
-            and ma_order == 'Short'
-        ):
-            try:
-                cancel_entry()
-                time.sleep(0.05)
-            except:
-                pass
-            try:
-                exchange.create_limit_sell_order(symbol, violent_trade_qty, current_ask)
-                violent_mode = True
-            except:
-                pass
+        # # SHORT: Stack violent orders if pos > 0 and pos > max_trade_qty and vol condition true, also added trade_condition() check to prevent violent bottom shorts
+        # if (
+        #     short_pos_qty != 0
+        #     #and short_pos_qty > half_max_size
+        #     and short_pos_qty < max_trade_qty
+        #     #and violent_vol_dist_condition() == True
+        #     and tyler_total_volume > min_volume
+        #     and tyler_5m_spread > min_distance
+        #     and add_short_trade_condition() == True
+        # ):
+        #     try:
+        #         cancel_entry()
+        #         time.sleep(0.05)
+        #     except:
+        #         pass
+        #     try:
+        #         exchange.create_limit_sell_order(symbol, violent_trade_qty, current_ask)
+        #         violent_mode = True
+        #     except:
+        #         pass
 
         # LONG Stack violent orders if pos > 0 and pos > max_trade_qty and vol condition true, also added trade_condition() check to prevent violent bottom shorts
         # if (
@@ -694,36 +705,34 @@ with Live(generate_main_table(), refresh_per_second=2) as live:
         #     except:
         #         pass
 
-        # SHORT: Stack 2x your input lot size when vol is high
-        if (
-            short_pos_qty != 0
-            and high_vol_dist_condition() == True
-            and ma_order == 'Short'
-        ):
-            try:
-                cancel_entry()
-                time.sleep(0.05)
-            except:
-                pass
-            try:
-                exchange.create_limit_sell_order(symbol, high_vol_stack_trade_qty, current_ask)
-                high_vol_stack_mode = True
-            except:
-                pass
+        # # SHORT: Stack 2x your input lot size when vol is high
+        # if (
+        #     short_pos_qty != 0
+        #     and high_vol_dist_condition() == True
+        # ):
+        #     try:
+        #         cancel_entry()
+        #         time.sleep(0.05)
+        #     except:
+        #         pass
+        #     try:
+        #         exchange.create_limit_sell_order(symbol, high_vol_stack_trade_qty, current_ask)
+        #         high_vol_stack_mode = True
+        #     except:
+        #         pass
 
-        # LONG: Stack 2x your input lot size when vol is high
-        if (
-            long_pos_qty != 0
-            and high_vol_dist_condition() == True
-            and ma_order == 'Long'
-        ):
-            try:
-                cancel_entry()
-                time.sleep(0.05)
-            except:
-                pass
-            try:
-                exchange.create_limit_buy_order(symbol, high_vol_stack_trade_qty, current_bid)
-                high_vol_stack_mode = True
-            except:
-                pass
+        # # LONG: Stack 2x your input lot size when vol is high
+        # if (
+        #     long_pos_qty != 0
+        #     and high_vol_dist_condition() == True
+        # ):
+        #     try:
+        #         cancel_entry()
+        #         time.sleep(0.05)
+        #     except:
+        #         pass
+        #     try:
+        #         exchange.create_limit_buy_order(symbol, high_vol_stack_trade_qty, current_bid)
+        #         high_vol_stack_mode = True
+        #     except:
+        #         pass
