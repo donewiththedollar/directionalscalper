@@ -22,7 +22,7 @@ persistent_mode = False
 violent_mode = False
 high_vol_stack_mode = False
 
-global symbol
+#global symbol
 
 print(Fore.LIGHTCYAN_EX +'',version,'connecting to exchange'+ Style.RESET_ALL)
 
@@ -437,7 +437,7 @@ def generate_main_table() -> Table:
 # Long entry logic if long enabled
 def initial_long_entry(current_bid):
     if (
-        long_mode == True
+        #long_mode == True
         and long_trade_condition() == True
         and find_1m_1x_volume() > min_volume
         and find_5m_spread() > min_distance
@@ -461,7 +461,7 @@ def initial_long_entry(current_bid):
 def initial_short_entry(current_ask):
 
     if (
-        short_mode == True
+        #short_mode == True
         and short_trade_condition() == True
         and find_1m_1x_volume() > min_volume
         and find_5m_spread() > min_distance
