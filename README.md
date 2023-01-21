@@ -8,3 +8,7 @@
 > long, short, hedge, persistent
 * To do:
 > In the middle of a refactor and code review
+
+### Links
+* API: http://13.127.240.18/data/quantdata.json
+* Dashboard: http://15.236.37.33:8501/
