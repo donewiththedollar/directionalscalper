@@ -14,7 +14,7 @@ import tylerapi
 from tylerapi import *
 
 # Booleans and stuff
-version = "1.1.0 alpha"
+version = "Tyler's Scalper v1.0"
 long_mode = False
 short_mode = False
 hedge_mode = False
@@ -63,20 +63,47 @@ required=True)
 
 args = parser.parse_args()
 
+if args.mode == 'long_mode':
+    long_mode = True
+else:
+    pass
+
+if args.mode == 'short_mode':
+    short_mode = True
+else:
+    pass
+
+if args.mode == 'hedge_mode':
+    hedge_mode = True
+else:
+    pass
+
 if args.symbol:
     symbol= (args.symbol)
 else:
     symbol = input('Instrument undefined. \nInput instrument:')
 
+if args.iqty:
+    trade_qty= (args.iqty)
+else:
+    trade_qty= input('Lot size:')
+
 # Functions
 
 # Get min vol data
 
-def get_min_vol_dist_data(symbol) -> bool:
-    spread5m = tylerapi.get_asset_5m_spread(symbol, tylerapi.api_data)
-    volume5m = tylerapi.get_asset_total_volume_5m(symbol, tylerapi.api_data)
+# def get_min_vol_dist_data(symbol) -> bool:
+#     spread5m = tylerapi.get_asset_5m_spread(symbol, tylerapi.api_data)
+#     volume5m = tylerapi.get_asset_total_volume_5m(symbol, tylerapi.api_data)
 
-    return volume5m > min_volume and spread5m > min_distance
+#     return volume5m > min_volume and spread5m > min_distance
+
+def get_min_vol_dist_data(symbol) -> bool:
+    tylerapi.grab_api_data()
+    spread5m = tylerapi.get_asset_5m_spread(symbol, tylerapi.grab_api_data())
+    volume1m = tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
+
+    return volume1m > min_volume and spread5m > min_distance
 
 # get_1m_data() [0]3 high, [1]3 low, [2]6 high, [3]6 low, [4]10 vol
 def get_1m_data():
@@ -227,9 +254,9 @@ def cancel_close():
         exchange.cancel_order(symbol=symbol, id=order_id)
 
 
-def trade_condition():
-    trade_condition = get_orderbook()[0] > get_1m_data()[0]
-    return trade_condition
+def short_trade_condition():
+    short_trade_condition = get_orderbook()[0] > get_1m_data()[0]
+    return short_trade_condition
 
 def long_trade_condition():
     long_trade_condition = get_orderbook()[0] < get_1m_data()[0]
@@ -317,25 +344,312 @@ short_pos_unpl_pct=0
 #     trade_qty * 2
 #     )
 
+
+# Define Tyler API Func for ease of use later on
+vol_condition_true = get_min_vol_dist_data(symbol) == True
+tyler_total_volume_1m = tylerapi.get_asset_total_volume_1m(symbol,tylerapi.grab_api_data())
+tyler_total_volume_5m = tylerapi.get_asset_total_volume_5m(symbol,tylerapi.grab_api_data())
+tyler_1x_volume_1m = tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
+tyler_1x_volume_5m = tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
+#tyler_5m_spread = tylerapi.get_asset_5m_spread(symbol, tylerapi.grab_api_data())
+tyler_1m_spread = tylerapi.get_asset_1m_spread(symbol, tylerapi.grab_api_data())
+#tyler_trend = tylerapi.get_asset_trend(symbol, tylerapi.grab_api_data())
+
+def find_trend():
+    tylerapi.grab_api_data()
+    tyler_trend = tylerapi.get_asset_trend(symbol, tylerapi.grab_api_data())
+
+    return tyler_trend
+
+def find_5m_spread():
+    tylerapi.grab_api_data()
+    tyler_spread = tylerapi.get_asset_5m_spread(symbol, tylerapi.grab_api_data())
+
+    return tyler_spread
+
+def find_mode():
+    mode = args.mode
+
+    return mode
+
+
+# Generate table
+def generate_table_vol() -> Table:
+    table = Table(width=50)
+    table.add_column("Condition", justify="center")
+    table.add_column("Config", justify="center")
+    table.add_column("Current", justify="center")
+    table.add_column("Status")
+    table.add_row(f"Trading:", str(get_min_vol_dist_data(symbol) == True), str(), "[green]:heavy_check_mark:" if get_min_vol_dist_data(symbol) else "off")
+    table.add_row(f"Min Vol.", str(min_volume), str(tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())).split('.')[0], "[red]TOO LOW" if tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data()) < min_volume else "[green]VOL. OK")
+    table.add_row()
+    table.add_row(f"Min Dist.", str(min_distance), str(find_5m_spread()), "[red]TOO SMALL" if find_5m_spread() < min_distance else "[green]DIST. OK")
+    table.add_row(f"Mode", str(find_mode()))
+    # table.add_row(f"Long mode:", str(long_mode), str(), "[green]:heavy_check_mark:" if long_mode == True else "off")
+    # table.add_row(f"Short mode:", str(short_mode), str(), "[green]:heavy_check_mark:" if short_mode == True else "off")
+    # table.add_row(f"Hedge mode:", str(hedge_mode), str(), "[green]:heavy_check_mark:" if hedge_mode == True else "off")
+#    table.add_row(f"Telegram:", str(tgnotif))
+    return table
+
+get_short_positions()
+get_long_positions()
+
+def generate_table_info() -> Table:
+    table = Table(show_header=False, width=50)
+    table.add_column(justify="center")
+    table.add_column(justify="center")
+    table.add_row(f"Symbol", str(symbol))
+    table.add_row(f"Balance", str(dex_wallet))
+    table.add_row(f"Equity", str(dex_equity))
+    table.add_row(f"Realised cum.", f"[red]{str(short_symbol_cum_realised)}" if short_symbol_cum_realised < 0 else f"[green]{str(short_symbol_cum_realised)}")
+    table.add_row(f"Realised recent", f"[red]{str(short_symbol_realised)}" if short_symbol_realised < 0 else f"[green]{str(short_symbol_realised)}")
+    table.add_row(f"Unrealised USDT", f"[red]{str(short_pos_unpl)}" if short_pos_unpl < 0 else f"[green]{str(short_pos_unpl + short_pos_unpl_pct)}")
+    table.add_row(f"Unrealised %", f"[red]{str(short_pos_unpl_pct)}" if short_pos_unpl_pct < 0 else f"[green]{str(short_pos_unpl_pct)}")
+    table.add_row(f"Entry size", str(trade_qty))
+    table.add_row(f"Long size", str(long_pos_qty))
+    table.add_row(f"Short size", str(short_pos_qty))
+    table.add_row(f"Long pos price: ", str(long_pos_price))
+    table.add_row(f"Long liq price", str(long_liq_price))
+    table.add_row(f"Short pos price: ", str(short_pos_price))
+    table.add_row(f"Short liq price", str(short_liq_price))
+    table.add_row(f"Max", str(max_trade_qty))
+    table.add_row(f"0.001x", str(round(max_trade_qty/500, int(float(get_market_data()[2])))))
+    #table.add_row(f"Trend:", str(tyler_trend))
+    table.add_row(f"Trend:", str(find_trend()))
+
+    return table
+
+def generate_main_table() -> Table:
+    table = Table(show_header=False, box=None, title=version)
+    table.add_row(generate_table_info()),
+    table.add_row(generate_table_vol())
+    return table
+
+def trade_func(symbol):
+    with Live(generate_main_table(), refresh_per_second=2) as live:
+        while True:
+            try:
+                tylerapi.grab_api_data()
+                time.sleep(0.01)
+                get_1m_data()
+                time.sleep(0.01)
+                get_5m_data()
+                time.sleep(0.01)
+                get_balance()
+                time.sleep(0.01)
+                get_orderbook()
+                time.sleep(0.01)
+                long_trade_condition()
+                time.sleep(0.01)
+                short_trade_condition()
+                time.sleep(0.01)
+                get_short_positions()
+                time.sleep(0.01)
+                get_long_positions()
+                time.sleep(0.01)
+
+            except:
+                pass
+
+            try: 
+                get_min_vol_dist_data(symbol)
+                tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
+                time.sleep(30)
+            except:
+                pass
+
+            live.update(generate_main_table())
+            current_bid = get_orderbook()[0]
+            current_ask = get_orderbook()[1]
+            long_open_pos_qty = long_pos_qty
+            short_open_pos_qty = short_pos_qty
+            reduce_only = {"reduce_only": True}
+
+            short_profit_price = round(
+                short_pos_price - (get_5m_data()[2] - get_5m_data()[3]),
+                int(get_market_data()[0]),
+            )
+
+            long_profit_price = round(
+                long_pos_price + (get_5m_data()[2] - get_5m_data()[3]),
+                int(get_market_data()[0]),
+            )
+
+            # Long entry logic if long enabled
+            if (
+                long_mode == True
+                and long_trade_condition() == True
+                and tyler_total_volume_5m > min_volume
+                and find_5m_spread() > min_distance
+                and long_pos_qty == 0
+                and long_pos_qty < max_trade_qty
+                and find_trend() == 'short'
+            ):
+                try:
+                    exchange.create_limit_buy_order(
+                        symbol,
+                        trade_qty,
+                        current_bid
+                    )
+                    time.sleep(0.01)
+                except:
+                    pass
+            else:
+                pass
+
+            # Short entry logic if short enabled
+            if (
+                short_mode == True
+                and short_trade_condition() == True
+                and tyler_total_volume_5m > min_volume
+                and find_5m_spread() > min_distance
+                and short_pos_qty == 0
+                and short_pos_qty < max_trade_qty
+                and find_trend() == 'long'
+            ):
+                try:
+                    exchange.create_limit_sell_order(
+                        symbol,
+                        trade_qty,
+                        current_ask
+                    )
+                    time.sleep(0.01)
+                except:
+                    pass
+            else:
+                pass
+
+            #LONG: Take profit logic
+            # if (
+            #     long_mode == True
+            #     and long_pos_qty > 0
+            # ):
+            if long_pos_qty > 0:
+                try:
+                    get_open_orders()
+                    time.sleep(0.05)
+                except:
+                    pass
+
+                if long_profit_price != 0 or long_pos_price != 0:
+
+                    try:
+                        cancel_close()
+                        time.sleep(0.05)
+                    except:
+                        pass
+                    try:
+                        exchange.create_limit_sell_order(
+                            symbol, long_open_pos_qty, long_profit_price, reduce_only
+                        )
+                        time.sleep(0.05)
+                    except:
+                        pass
+
+            #SHORT: Take profit logic
+            if short_pos_qty > 0:
+                try:
+                    get_open_orders()
+                    time.sleep(0.05)
+                except:
+                    pass
+
+                if short_profit_price != 0 or short_pos_price != 0:
+
+                    try:
+                        cancel_close()
+                        time.sleep(0.05)
+                    except:
+                        pass
+                    try:
+                        exchange.create_limit_buy_order(
+                            symbol, short_open_pos_qty, short_profit_price, reduce_only
+                        )
+                        time.sleep(0.05)
+                    except:
+                        pass
+
+            #HEDGE: Full mode
+            if hedge_mode == True:
+                try:
+                    if find_trend() == 'long':
+                        if (
+                            short_trade_condition() == True
+                            and tyler_total_volume_5m > min_volume
+                            and find_5m_spread() > min_distance
+                            and short_pos_qty < max_trade_qty
+                        ):
+                            try:
+                                exchange.create_limit_sell_order(
+                                    symbol,
+                                    trade_qty,
+                                    current_ask
+                                )
+                                time.sleep(0.01)
+                            except:
+                                pass
+                    elif find_trend() == 'short':
+                        if (
+                            long_trade_condition() == True
+                            and tyler_total_volume_5m > min_volume
+                            and find_5m_spread() > min_distance
+                            and long_pos_qty < max_trade_qty
+                        ):
+                            try:
+                                exchange.create_limit_buy_order(
+                                    symbol,
+                                    trade_qty,
+                                    current_bid
+                                )
+                                time.sleep(0.01)
+                            except:
+                                pass
+                    if get_orderbook()[1] < get_1m_data()[0] or get_orderbook()[1] < get_5m_data()[0]:
+                        try:
+                            cancel_entry()
+                            time.sleep(0.05)
+                        except:
+                            pass
+                except:
+                    pass
+
+
+            if get_orderbook()[1] < get_1m_data()[0] or get_orderbook()[1] < get_5m_data()[0]:
+                try:
+                    cancel_entry()
+                    time.sleep(0.05)
+                except:
+                    pass
+
+
+
+
+
 def long_mode_func(symbol):
     long_mode == True
     print(Fore.LIGHTCYAN_EX +"Long mode enabled for", symbol + Style.RESET_ALL)
     leverage_verification(symbol)
+    trade_func(symbol)
     #print(tylerapi.get_asset_total_volume_5m(symbol, tylerapi.api_data))
 
 def short_mode_func(symbol):
     short_mode == True
     print(Fore.LIGHTCYAN_EX +"Short mode enabled for", symbol + Style.RESET_ALL)
     leverage_verification(symbol)
+    trade_func(symbol)
 
 def hedge_mode_func(symbol):
     hedge_mode == True
     print(Fore.LIGHTCYAN_EX +"Hedge mode enabled for", symbol + Style.RESET_ALL)
     leverage_verification(symbol)
+    trade_func(symbol)
 
 # Put trading logic here, in a loop with the table most likely as well in here
 # The idea is to use things like and long_mode == True as a filter to create an algorithm with many modes
 
+# TO DO: 
+
+# Add a terminal like console / hotkeys for entries and so forth.
 
 # Argument declaration
 if args.mode == 'long_mode':
