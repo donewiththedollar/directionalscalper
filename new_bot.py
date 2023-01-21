@@ -14,17 +14,17 @@ import tylerapi
 from tylerapi import *
 
 # Booleans and stuff
-version = "Tyler's Scalper v1.0"
+version = "Directional Scalper v1.0a"
 long_mode = False
 short_mode = False
 hedge_mode = False
+persistent_mode = False
 violent_mode = False
 high_vol_stack_mode = False
 
 global symbol
 
-print(Fore.LIGHTCYAN_EX +'CCXT Scalper ',version,' connecting to exchange'+ Style.RESET_ALL)
-
+print(Fore.LIGHTCYAN_EX +'',version,'connecting to exchange'+ Style.RESET_ALL)
 
 min_volume = config.config_min_volume
 min_distance = config.config_min_distance
@@ -34,11 +34,6 @@ violent_volume = config.config_violent_volume
 violent_distance = config.config_violent_distance
 botname = config.config_botname
 
-# class VolumeData(TypedDict):
-#     symbol: str 
-#     volume: float 
-#     distance: float
-
 exchange = ccxt.bybit(
     {"enableRateLimit": True, "apiKey": config.api_key, "secret": config.api_secret}
 )
@@ -46,9 +41,10 @@ exchange = ccxt.bybit(
 parser = argparse.ArgumentParser(description='Scalper supports 3 modes')
 
 parser.add_argument('--mode', type=str, help='Mode to use', 
-choices=['long_mode', 
-'short_mode', 
-'hedge_mode'],
+choices=['long', 
+'short', 
+'hedge',
+'persistent'],
 required=True)
 
 parser.add_argument('--symbol', type=str, help='Specify symbol',
@@ -63,18 +59,23 @@ required=True)
 
 args = parser.parse_args()
 
-if args.mode == 'long_mode':
+if args.mode == 'long':
     long_mode = True
 else:
     pass
 
-if args.mode == 'short_mode':
+if args.mode == 'short':
     short_mode = True
 else:
     pass
 
-if args.mode == 'hedge_mode':
+if args.mode == 'hedge':
     hedge_mode = True
+else:
+    pass
+
+if args.mode == 'persistent':
+    persistent_mode = True
 else:
     pass
 
@@ -340,16 +341,19 @@ short_symbol_realised=0
 short_pos_unpl=0
 short_pos_unpl_pct=0
 
-# high_vol_stack_trade_qty = (
-#     trade_qty * 2
-#     )
+long_symbol_cum_realised=0
+long_symbol_realised=0
+long_pos_unpl=0
+long_pos_unpl_pct=0
 
 
 # Define Tyler API Func for ease of use later on
+# Should turn these into functions and reduce calls
+
 vol_condition_true = get_min_vol_dist_data(symbol) == True
 tyler_total_volume_1m = tylerapi.get_asset_total_volume_1m(symbol,tylerapi.grab_api_data())
 tyler_total_volume_5m = tylerapi.get_asset_total_volume_5m(symbol,tylerapi.grab_api_data())
-tyler_1x_volume_1m = tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
+#tyler_1x_volume_1m = tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
 tyler_1x_volume_5m = tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
 #tyler_5m_spread = tylerapi.get_asset_5m_spread(symbol, tylerapi.grab_api_data())
 tyler_1m_spread = tylerapi.get_asset_1m_spread(symbol, tylerapi.grab_api_data())
@@ -367,11 +371,16 @@ def find_5m_spread():
 
     return tyler_spread
 
+def find_1m_1x_volume():
+    tylerapi.grab_api_data()
+    tyler_1x_volume_1m = tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
+
+    return tyler_1x_volume_1m
+
 def find_mode():
     mode = args.mode
 
     return mode
-
 
 # Generate table
 def generate_table_vol() -> Table:
@@ -425,6 +434,54 @@ def generate_main_table() -> Table:
     table.add_row(generate_table_vol())
     return table
 
+# Long entry logic if long enabled
+def initial_long_entry(current_bid):
+    if (
+        long_mode == True
+        and long_trade_condition() == True
+        and find_1m_1x_volume() > min_volume
+        and find_5m_spread() > min_distance
+        and long_pos_qty == 0
+        and long_pos_qty < max_trade_qty
+        and find_trend() == 'short'
+    ):
+        try:
+            exchange.create_limit_buy_order(
+                symbol,
+                trade_qty,
+                current_bid
+            )
+            time.sleep(0.01)
+        except:
+            pass
+    else:
+        pass
+
+# Short entry logic if short enabled
+def initial_short_entry(current_ask):
+
+    if (
+        short_mode == True
+        and short_trade_condition() == True
+        and find_1m_1x_volume() > min_volume
+        and find_5m_spread() > min_distance
+        and short_pos_qty == 0
+        and short_pos_qty < max_trade_qty
+        and find_trend() == 'long'
+    ):
+        try:
+            exchange.create_limit_sell_order(
+                symbol,
+                trade_qty,
+                current_ask
+            )
+            time.sleep(0.01)
+        except:
+            pass
+    else:
+        pass
+
+
 def trade_func(symbol):
     with Live(generate_main_table(), refresh_per_second=2) as live:
         while True:
@@ -475,6 +532,8 @@ def trade_func(symbol):
                 int(get_market_data()[0]),
             )
 
+            add_trade_qty = trade_qty
+
             # Long entry logic if long enabled
             if (
                 long_mode == True
@@ -496,6 +555,25 @@ def trade_func(symbol):
                     pass
             else:
                 pass
+
+            # Add to long if long enabled
+            if (
+                long_pos_qty != 0
+                #and short_pos_qty < max_trade_qty
+                and find_1m_1x_volume() > min_volume
+                and add_long_trade_condition() == True
+                and find_trend() == 'short'
+            ):
+                try:
+                    cancel_entry()
+                    time.sleep(0.05)
+                except:
+                    pass
+                try:
+                    exchange.create_limit_sell_order(symbol, add_trade_qty, current_bid)
+                except:
+                    pass
+
 
             # Short entry logic if short enabled
             if (
@@ -519,11 +597,25 @@ def trade_func(symbol):
             else:
                 pass
 
+            # Add to short if short enabled
+            if (
+                short_pos_qty != 0
+                #and short_pos_qty < max_trade_qty
+                and find_1m_1x_volume() > min_volume
+                and add_short_trade_condition() == True
+                and find_trend() == 'long'
+            ):
+                try:
+                    cancel_entry()
+                    time.sleep(0.05)
+                except:
+                    pass
+                try:
+                    exchange.create_limit_sell_order(symbol, add_trade_qty, current_ask)
+                except:
+                    pass
+
             #LONG: Take profit logic
-            # if (
-            #     long_mode == True
-            #     and long_pos_qty > 0
-            # ):
             if long_pos_qty > 0:
                 try:
                     get_open_orders()
@@ -573,9 +665,57 @@ def trade_func(symbol):
             if hedge_mode == True:
                 try:
                     if find_trend() == 'long':
+                        initial_short_entry(current_ask)
+                        if (
+                            find_1m_1x_volume() > min_volume
+                            and find_5m_spread() > min_distance
+                            and short_pos_qty < max_trade_qty
+                            and add_short_trade_condition() == True
+                        ):
+                            try:
+                                exchange.create_limit_sell_order(
+                                    symbol,
+                                    trade_qty,
+                                    current_ask
+                                )
+                                time.sleep(0.01)
+                            except:
+                                pass
+                    elif find_trend() == 'short':
+                        initial_long_entry(current_bid)
+                        if (
+                            find_1m_1x_volume() > min_volume
+                            and find_5m_spread() > min_distance
+                            and long_pos_qty < max_trade_qty
+                            and add_long_trade_condition() == True
+                        ):
+                            try:
+                                exchange.create_limit_buy_order(
+                                    symbol,
+                                    trade_qty,
+                                    current_bid
+                                )
+                                time.sleep(0.01)
+                            except:
+                                pass
+                    if get_orderbook()[1] < get_1m_data()[0] or get_orderbook()[1] < get_5m_data()[0]:
+                        try:
+                            cancel_entry()
+                            time.sleep(0.05)
+                        except:
+                            pass
+                except:
+                    pass
+
+            
+
+            #PERSISTENT HEDGE: Full mode
+            if persistent_mode == True:
+                try:
+                    if find_trend() == 'long':
                         if (
                             short_trade_condition() == True
-                            and tyler_total_volume_5m > min_volume
+                            and find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
                             and short_pos_qty < max_trade_qty
                         ):
@@ -591,7 +731,7 @@ def trade_func(symbol):
                     elif find_trend() == 'short':
                         if (
                             long_trade_condition() == True
-                            and tyler_total_volume_5m > min_volume
+                            and find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
                             and long_pos_qty < max_trade_qty
                         ):
@@ -622,9 +762,7 @@ def trade_func(symbol):
                     pass
 
 
-
-
-
+# Mode functions
 def long_mode_func(symbol):
     long_mode == True
     print(Fore.LIGHTCYAN_EX +"Long mode enabled for", symbol + Style.RESET_ALL)
@@ -644,29 +782,36 @@ def hedge_mode_func(symbol):
     leverage_verification(symbol)
     trade_func(symbol)
 
-# Put trading logic here, in a loop with the table most likely as well in here
-# The idea is to use things like and long_mode == True as a filter to create an algorithm with many modes
+def persistent_mode_func(symbol):
+    persistent_mode == True
+    print(Fore.LIGHTCYAN_EX +"Persistent hedge mode enabled for", symbol + Style.RESET_ALL)
+    leverage_verification(symbol)
+    trade_func(symbol)
+
 
 # TO DO: 
 
-# Add a terminal like console / hotkeys for entries and so forth.
+# Add a terminal like console / hotkeys for entries
 
 # Argument declaration
-if args.mode == 'long_mode':
+if args.mode == 'long':
     if args.symbol:
         long_mode_func(args.symbol)
     else:
         symbol = input('Instrument undefined. \nInput instrument:')
-elif args.mode == 'short_mode':
+elif args.mode == 'short':
     if args.symbol:
         short_mode_func(args.symbol)
     else:
         symbol = input('Instrument undefined. \nInput instrument:')
-elif args.mode == 'hedge_mode':
+elif args.mode == 'hedge':
     if args.symbol:
         hedge_mode_func(args.symbol)
     else:
         symbol = input('Instrument undefined. \nInput instrument:')
+elif args.mode == 'persistent':
+    if args.symbol:
+        persistent_mode_func(args.symbol)
 
 if args.tg == 'on':
     if args.tg:
