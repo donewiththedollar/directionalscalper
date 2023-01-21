@@ -438,7 +438,7 @@ def generate_main_table() -> Table:
 def initial_long_entry(current_bid):
     if (
         #long_mode == True
-        and long_trade_condition() == True
+        long_trade_condition() == True
         and find_1m_1x_volume() > min_volume
         and find_5m_spread() > min_distance
         and long_pos_qty == 0
@@ -462,7 +462,7 @@ def initial_short_entry(current_ask):
 
     if (
         #short_mode == True
-        and short_trade_condition() == True
+        short_trade_condition() == True
         and find_1m_1x_volume() > min_volume
         and find_5m_spread() > min_distance
         and short_pos_qty == 0
