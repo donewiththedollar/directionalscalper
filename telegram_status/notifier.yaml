@@ -1,0 +1,10 @@
+session_name: telegram status
+windows:
+- window_name: telegram bot status
+  layout: tiled
+  shell_command_before: 
+    - cd ~/
+  panes:
+    - shell_command:
+      - cd ~/telegram_status
+      - python3 notifier.py
