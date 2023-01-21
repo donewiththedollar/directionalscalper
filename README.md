@@ -3,6 +3,7 @@
 ![](https://github.com/donewiththedollar/directional-scalper/blob/main/directional-scalper.gif)
 ### Instructions
 * Starting the bot
+> pip3 install -r requirements.txt
 > python3 new_bot.py --mode hedge --symbol GALAUSDT --tg off --iqty 3
 * There are four modes:
 > long, short, hedge, persistent
