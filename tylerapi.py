@@ -24,9 +24,17 @@ from typing import TypedDict, Dict
 #     for x in data:
 #         td: TylerData = {"symbol": x[0], }
 
-tyler_api_unparsed = requests.get("http://13.127.240.18/data/quantdata.json")
 
-api_data = tyler_api_unparsed.json()
+def grab_api_data():
+    tyler_api_unparsed = requests.get("http://13.127.240.18/data/quantdata.json")
+
+    api_data = tyler_api_unparsed.json()
+
+    return api_data
+    
+# tyler_api_unparsed = requests.get("http://13.127.240.18/data/quantdata.json")
+
+# api_data = tyler_api_unparsed.json()
 
 def get_asset_data(symbol, data):
     for asset in data:
