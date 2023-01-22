@@ -14,11 +14,12 @@ import tylerapi
 from tylerapi import *
 
 # Booleans and stuff
-version = "Directional Scalper v1.0a"
+version = "Directional Scalper v1.0.1"
 long_mode = False
 short_mode = False
 hedge_mode = False
 persistent_mode = False
+longbias_mode = False
 violent_mode = False
 high_vol_stack_mode = False
 
@@ -38,13 +39,14 @@ exchange = ccxt.bybit(
     {"enableRateLimit": True, "apiKey": config.api_key, "secret": config.api_secret}
 )
 
-parser = argparse.ArgumentParser(description='Scalper supports 3 modes')
+parser = argparse.ArgumentParser(description='Scalper supports 5 modes')
 
 parser.add_argument('--mode', type=str, help='Mode to use', 
 choices=['long', 
 'short', 
 'hedge',
-'persistent'],
+'persistent',
+'longbias'],
 required=True)
 
 parser.add_argument('--symbol', type=str, help='Specify symbol',
@@ -76,6 +78,11 @@ else:
 
 if args.mode == 'persistent':
     persistent_mode = True
+else:
+    pass
+
+if args.mode == 'longbias':
+    longbias_mode = True
 else:
     pass
 
@@ -534,6 +541,30 @@ def trade_func(symbol):
 
             add_trade_qty = trade_qty
 
+
+            #Longbias mode
+            if longbias_mode == True:
+                try:
+                    if find_trend() == 'long':
+                        initial_long_entry(current_bid)
+                        if (
+                            find_1m_1x_volume() > min_volume
+                            and find_5m_spread() > min_distance
+                            and short_pos_qty < max_trade_qty
+                            and add_short_trade_condition() == True
+                        ):
+                            try:
+                                exchange.create_limit_buy_order(
+                                    symbol,
+                                    trade_qty,
+                                    current_bid
+                                )
+                                time.sleep(0.01)
+                            except:
+                                pass
+                except:
+                    pass
+
             # Long entry logic if long enabled
             if (
                 long_mode == True
@@ -559,7 +590,7 @@ def trade_func(symbol):
             # Add to long if long enabled
             if (
                 long_pos_qty != 0
-                #and short_pos_qty < max_trade_qty
+                and short_pos_qty < max_trade_qty
                 and long_mode == True
                 and find_1m_1x_volume() > min_volume
                 and add_long_trade_condition() == True
@@ -790,6 +821,11 @@ def persistent_mode_func(symbol):
     leverage_verification(symbol)
     trade_func(symbol)
 
+def longbias_mode_func(symbol):
+    longbias_mode == True
+    print(Fore.LIGHTCYAN_EX +"Longbias mode enabled for", symbol + Style.RESET_ALL)
+    leverage_verification(symbol)
+    trade_func(symbol)
 
 # TO DO: 
 
@@ -814,6 +850,13 @@ elif args.mode == 'hedge':
 elif args.mode == 'persistent':
     if args.symbol:
         persistent_mode_func(args.symbol)
+    else:
+        symbol = input('Instrument undefined. \nInput instrument:')
+elif args.mode == 'longbias':
+    if args.symbol:
+        longbias_mode_func(args.symbol)
+    else:
+        symbol = input('Instrument undefined. \nInput instrument:')
 
 if args.tg == 'on':
     if args.tg:
