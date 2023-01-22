@@ -560,6 +560,7 @@ def trade_func(symbol):
             if (
                 long_pos_qty != 0
                 #and short_pos_qty < max_trade_qty
+                and long_mode == True
                 and find_1m_1x_volume() > min_volume
                 and add_long_trade_condition() == True
                 and find_trend() == 'short'
@@ -601,6 +602,7 @@ def trade_func(symbol):
             if (
                 short_pos_qty != 0
                 #and short_pos_qty < max_trade_qty
+                and short_mode == True
                 and find_1m_1x_volume() > min_volume
                 and add_short_trade_condition() == True
                 and find_trend() == 'long'
