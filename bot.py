@@ -150,12 +150,19 @@ def get_5m_data():
 
 def get_balance():
     global dex_balance, dex_upnl, dex_wallet, dex_equity
-    dex = exchange.fetch_balance()["info"]["result"]
-    dex_balance = dex["USDT"]["available_balance"]
-    dex_pnl = dex["USDT"]["realised_pnl"]
-    dex_upnl = dex["USDT"]["unrealised_pnl"]
-    dex_wallet = round(float(dex["USDT"]["wallet_balance"]), 2)
-    dex_equity = round(float(dex["USDT"]["equity"]), 2)
+    try:
+        dex = exchange.fetch_balance()["info"]["result"]
+        dex_balance = dex["USDT"]["available_balance"]
+        dex_pnl = dex["USDT"]["realised_pnl"]
+        dex_upnl = dex["USDT"]["unrealised_pnl"]
+        dex_wallet = round(float(dex["USDT"]["wallet_balance"]), 2)
+        dex_equity = round(float(dex["USDT"]["equity"]), 2)
+    except KeyError as e:
+        print(f"Error: {e}")
+    except ValueError as e:
+        print(f"Error: {e}")
+    except:
+        print("An unknown error occured")
 
 # get_orderbook() [0]bid, [1]ask
 def get_orderbook():
