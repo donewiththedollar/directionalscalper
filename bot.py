@@ -14,7 +14,7 @@ import tylerapi
 from tylerapi import *
 
 # Booleans and stuff
-version = "Directional Scalper v1.0.1"
+version = "Directional Scalper v1.0.2"
 long_mode = False
 short_mode = False
 hedge_mode = False
@@ -22,6 +22,7 @@ persistent_mode = False
 longbias_mode = False
 violent_mode = False
 high_vol_stack_mode = False
+leverage_verified = False
 
 #global symbol
 
@@ -29,10 +30,6 @@ print(Fore.LIGHTCYAN_EX +'',version,'connecting to exchange'+ Style.RESET_ALL)
 
 min_volume = config.config_min_volume
 min_distance = config.config_min_distance
-high_volume = config.config_high_volume
-high_distance = config.config_high_distance
-violent_volume = config.config_violent_volume
-violent_distance = config.config_violent_distance
 botname = config.config_botname
 
 exchange = ccxt.bybit(
@@ -306,8 +303,10 @@ def leverage_verification(symbol):
             symbol=symbol
         )
         print(Fore.LIGHTYELLOW_EX +'Position mode changed to BothSide'+ Style.RESET_ALL)
+        leverage_verified == True
     except:
         print(Fore.YELLOW +'Position mode unchanged'+ Style.RESET_ALL)
+        leverage_verified == True
         pass
     # Set margin mode
     try:
@@ -316,8 +315,10 @@ def leverage_verification(symbol):
             symbol=symbol
         )
         print(Fore.LIGHTYELLOW_EX +'Margin mode set to cross'+ Style.RESET_ALL)
+        leverage_verified == True
     except:
         print(Fore.YELLOW +'Margin mode unchanged'+ Style.RESET_ALL)
+        leverage_verified == True
     # Set leverage
     try:
         exchange.set_leverage(
@@ -325,9 +326,21 @@ def leverage_verification(symbol):
             symbol=symbol
         )
         print(Fore.YELLOW +'Leverage set'+ Style.RESET_ALL)
+        leverage_verified == True
     except:
         print(Fore.YELLOW +"Leverage not modified, current leverage is", get_market_data()[1])
-        pass
+        leverage_verified == True
+        pass  
+
+if leverage_verified == False:
+    try:
+        leverage_verification()
+    except KeyError as e:
+        print(f"Error: {e}")
+    except ValueError as e:
+        print(f"Error: {e}")
+    except:
+        print("An unknown error occured")
 
 get_balance()
 
