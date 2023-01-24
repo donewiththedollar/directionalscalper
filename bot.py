@@ -159,7 +159,7 @@ def get_balance():
     except ValueError as e:
         print(f"Error: {e}")
     except:
-        print("An unknown error occured")
+        print("An unknown error occured in get_balance()")
 
 # get_orderbook() [0]bid, [1]ask
 def get_orderbook():
@@ -341,7 +341,7 @@ if leverage_verified == False:
     except ValueError as e:
         print(f"Error: {e}")
     except:
-        print("An unknown error occured")
+        print("An unknown error occured in leverage verification")
 
 get_balance()
 
