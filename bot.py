@@ -13,6 +13,10 @@ from rich.table import Table
 import tylerapi
 from tylerapi import *
 
+# To do : 
+# Add a 5 minute mode for 
+
+
 # Booleans and stuff
 version = "Directional Scalper v1.0.2"
 long_mode = False
@@ -392,6 +396,12 @@ def find_trend():
     tyler_trend = tylerapi.get_asset_trend(symbol, tylerapi.grab_api_data())
 
     return tyler_trend
+
+def find_1m_spread():
+    tylerapi.grab_api_data()
+    tyler_1m_spread = tylerapi.get_asset_1m_spread(symbol, tylerapi.get_api_data())
+
+    return tyler_1m_spread
 
 def find_5m_spread():
     tylerapi.grab_api_data()
