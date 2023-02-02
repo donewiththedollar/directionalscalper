@@ -338,7 +338,7 @@ def leverage_verification(symbol):
 
 if leverage_verified == False:
     try:
-        leverage_verification()
+        leverage_verification(symbol)
         leverage_verified == True
     except KeyError as e:
         print(f"Error: {e}")
