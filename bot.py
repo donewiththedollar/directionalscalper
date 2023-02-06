@@ -772,7 +772,6 @@ def trade_func(symbol):
                     pass
 
             
-
             #PERSISTENT HEDGE: Full mode
             if persistent_mode == True:
                 try:
