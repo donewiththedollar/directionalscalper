@@ -55,7 +55,7 @@ def get_asset_total_volume_1m(symbol, data):
     asset_data = get_asset_data(symbol, data)
     
     if asset_data:
-        return asset_data['1m Volume (USDT)']
+        return asset_data['1m 1x Volume (USDT)']
     return None
 
 # print(get_asset_total_volume_1m('BTCUSDT', api_data))
@@ -73,7 +73,7 @@ def get_asset_total_volume_5m(symbol, data):
     asset_data = get_asset_data(symbol, data)
     
     if asset_data:
-        return asset_data['5m Volume (USDT)']
+        return asset_data['5m 1x Volume (USDT)']
     return None
 
 # print(get_asset_total_volume_5m('BTCUSDT', api_data))
