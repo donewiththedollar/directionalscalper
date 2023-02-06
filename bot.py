@@ -18,7 +18,7 @@ from tylerapi import *
 
 
 # Booleans and stuff
-version = "Directional Scalper v1.0.2"
+version = "Directional Scalper v1.0.3"
 long_mode = False
 short_mode = False
 hedge_mode = False
