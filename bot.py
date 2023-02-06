@@ -633,7 +633,7 @@ def trade_func(symbol):
                 except:
                     pass
                 try:
-                    exchange.create_limit_sell_order(symbol, add_trade_qty, current_bid)
+                    exchange.create_limit_buy_order(symbol, add_trade_qty, current_bid)
                 except:
                     pass
 
