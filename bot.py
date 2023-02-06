@@ -13,11 +13,7 @@ from rich.table import Table
 import tylerapi
 from tylerapi import *
 
-# To do : 
-# Add a 5 minute mode for 
-
-
-# Booleans and stuff
+# Bools
 version = "Directional Scalper v1.0.3"
 long_mode = False
 short_mode = False
@@ -27,8 +23,6 @@ longbias_mode = False
 violent_mode = False
 high_vol_stack_mode = False
 leverage_verified = False
-
-#global symbol
 
 print(Fore.LIGHTCYAN_EX +'',version,'connecting to exchange'+ Style.RESET_ALL)
 
@@ -99,14 +93,7 @@ else:
 
 # Functions
 
-# Get min vol data
-
-# def get_min_vol_dist_data(symbol) -> bool:
-#     spread5m = tylerapi.get_asset_5m_spread(symbol, tylerapi.api_data)
-#     volume5m = tylerapi.get_asset_total_volume_5m(symbol, tylerapi.api_data)
-
-#     return volume5m > min_volume and spread5m > min_distance
-
+# Get min vol & spread data from API
 def get_min_vol_dist_data(symbol) -> bool:
     tylerapi.grab_api_data()
     spread5m = tylerapi.get_asset_5m_spread(symbol, tylerapi.grab_api_data())
