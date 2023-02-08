@@ -26,11 +26,14 @@ from typing import TypedDict, Dict
 
 
 def grab_api_data():
-    tyler_api_unparsed = requests.get("http://13.127.240.18/data/quantdata.json")
+    try:
+        tyler_api_unparsed = requests.get("http://13.127.240.18/data/quantdata.json")
 
-    api_data = tyler_api_unparsed.json()
+        api_data = tyler_api_unparsed.json()
 
-    return api_data
+        return api_data
+    except json.decoder.JSONDecodeError:
+        pass
     
 # tyler_api_unparsed = requests.get("http://13.127.240.18/data/quantdata.json")
 
