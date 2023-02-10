@@ -8,6 +8,7 @@ from pybit import usdt_perpetual
 #from pybit.usdt_perpetual import HTTP
 from pybit import HTTP
 from uuid import uuid4
+import config
 from config import *
 import time
 
@@ -22,15 +23,15 @@ def notify_message(message):
 
 exchange = ccxt.bybit(
     {
-        'apiKey':api_key,
-        'secret':api_secret
+        'apiKey':config.api_key,
+        'secret':config.api_secret
     }
 )
 
 ws_perp = usdt_perpetual.WebSocket(
     test=False,
-    api_key=api_key,
-    api_secret=api_secret,
+    api_key=config.api_key,
+    api_secret=config.api_secret,
     domain=domain
 )
 
@@ -39,8 +40,8 @@ def main():
     try:
         session = HTTP(
             endpoint="https://api.bybit.com",
-            api_key=api_key,
-            api_secret=api_secret,
+            api_key=config.api_key,
+            api_secret=config.api_secret,
         )
         notify_message(
                 f"Fleet 2 is running")
