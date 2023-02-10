@@ -15,8 +15,8 @@ import time
 
 def notify_message(message):
     import telegram
-    telegram_http_api = "5713502024:AAHj3VRYcOWrAN2DlqU0hMGhtNB7Etii6qI"
-    telegram_user_id = "1281751562"
+    telegram_http_api = ""
+    telegram_user_id = ""
 
     tgbot = telegram.Bot(token=telegram_http_api)
     tgbot.send_message(chat_id=telegram_user_id, text=message, parse_mode='HTML')
