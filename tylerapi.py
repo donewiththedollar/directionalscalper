@@ -2,29 +2,6 @@ import requests
 import json
 from typing import TypedDict, Dict
 
-# response = requests.get("http://13.127.240.18/data/quantdataj.json")
-
-# data = response.json()
-
-# assets = data["Assets"]
-
-# print(assets)
-
-
-# class TylerData(TypedDict):
-#     symbol: str
-#     volume: float
-#     distance: float
-
-# def tyler_api_data() -> Dict[str, TylerData]:
-#     data = requests.get("http://13.127.240.18/data/quantdataj.json").json()
-    
-#     parsed = {}
-    
-#     for x in data:
-#         td: TylerData = {"symbol": x[0], }
-
-
 def grab_api_data():
     try:
         tyler_api_unparsed = requests.get("http://13.127.240.18/data/quantdata.json")
