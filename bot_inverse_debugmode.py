@@ -132,11 +132,14 @@ if tg_notifications == True:
 # Functions
 
 def get_min_vol_dist_data(symbol) -> bool:
-    tylerapi.grab_api_data()
-    spread5m = tylerapi.get_asset_5m_spread(symbol, tylerapi.grab_api_data())
-    volume1m = tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
+    try:
+        tylerapi.grab_api_data()
+        spread5m = tylerapi.get_asset_5m_spread(symbol, tylerapi.grab_api_data())
+        volume1m = tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
 
-    return volume1m > min_volume and spread5m > min_distance
+        return volume1m > min_volume and spread5m > min_distance
+    except:
+        pass
 
    
 def find_decimals(value):
