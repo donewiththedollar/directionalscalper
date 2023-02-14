@@ -6,3 +6,4 @@ argparse
 colorama
 rich
 pybit
+telebot
