@@ -16,6 +16,5 @@ config_min_distance = 0.15
 config_botname = 'botnameherefortg'
 
 symbol = 'BTCUSD'
-csize = 2
 min_fee = 0.17
 divider = 7
