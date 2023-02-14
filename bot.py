@@ -296,20 +296,6 @@ def add_long_trade_condition():
     add_long_trade_condition = long_pos_price > get_1m_data()[3]
     return add_long_trade_condition
 
-
-def tg_notification(msg):
-    if args.tg == 'on':
-        try:
-            notifier.notify_message(msg)
-            print(Fore.GREEN +'Telegram message sent'+ Style.RESET_ALL)
-        except:
-            pass
-    else:
-        try:
-            print(Fore.RED +'Telegram disabled'+ Style.RESET_ALL)
-        except:
-            pass 
-
 def leverage_verification(symbol):
     try:
         exchange.set_position_mode(
