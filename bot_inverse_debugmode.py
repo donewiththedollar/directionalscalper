@@ -8,7 +8,6 @@ import requests
 import math
 from typing import TypedDict, Dict
 import argparse
-from telegram_status import notifier
 from colorama import init, Fore, Back, Style
 from rich.live import Live
 from rich.table import Table
