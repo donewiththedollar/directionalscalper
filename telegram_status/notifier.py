@@ -23,15 +23,15 @@ def notify_message(message):
 
 exchange = ccxt.bybit(
     {
-        'apiKey':config.api_key,
-        'secret':config.api_secret
+        'apiKey':config.bybit_api_key,
+        'secret':config.bybit_api_secret
     }
 )
 
 ws_perp = usdt_perpetual.WebSocket(
     test=False,
-    api_key=config.api_key,
-    api_secret=config.api_secret,
+    api_key=config.bybit_api_key,
+    api_secret=config.bybit_api_secret,
     domain=domain
 )
 
@@ -40,8 +40,8 @@ def main():
     try:
         session = HTTP(
             endpoint="https://api.bybit.com",
-            api_key=config.api_key,
-            api_secret=config.api_secret,
+            api_key=config.bybit_api_key,
+            api_secret=config.bybit_api_secret,
         )
         notify_message(
                 f"Fleet 2 is running")
