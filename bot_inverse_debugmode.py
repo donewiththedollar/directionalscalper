@@ -14,6 +14,27 @@ from rich.live import Live
 from rich.table import Table
 import tylerapi
 from tylerapi import *
+import telebot
+
+bot = telebot.TeleBot("6079948538:AAFuDS2GfSrSNlplbWAb8mGyFcpyUhXcWMo", parse_mode=None)
+
+@bot.message_handler(commands=['start', 'help'])
+def send_welcome(message):
+	bot.reply_to(message, "Howdy, how are you doing?")
+
+@bot.message_handler(func=lambda message: True)
+def echo_all(message):
+	bot.reply_to(message, message.text)
+
+# 1.Get token from botfather after creating new bot, send a message to your new bot
+# 2. Go to https://api.telegram.org/bot<bot_token>/getUpdates 
+# 3. Replacing <bot_token> with your token from the botfather after creating new bot
+# 4. Look for chat id and copy the chat id below
+
+chat_id = ''
+
+def sendmessage(message):
+    bot.send_message(chat_id, message)
 
 # Booleans 
 version = "Directional Scalper v1.0.4"
@@ -353,19 +374,6 @@ def inverse_short_trade_condition():
 def add_inverse_short_trade_condition():
     add_inverse_short_trade_condition = sell_position_prce < get_1m_data()[3]
     return add_inverse_short_trade_condition
-
-def tg_notification(msg):
-    if args.tg == 'on':
-        try:
-            notifier.notify_message(msg)
-            print(Fore.GREEN +'Telegram message sent'+ Style.RESET_ALL)
-        except:
-            pass
-    else:
-        try:
-            print(Fore.RED +'Telegram disabled'+ Style.RESET_ALL)
-        except:
-            pass 
 
 def leverage_verification(symbol):
     if inverse_mode == False:
