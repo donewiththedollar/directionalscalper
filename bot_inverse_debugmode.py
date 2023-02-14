@@ -25,8 +25,9 @@ persistent_mode = False
 longbias_mode = False
 inverse_mode = False
 leverage_verified = False
-limit_sell_order_id = 0
 inverse_trading_status = 0
+
+limit_sell_order_id = 0
 
 print(Fore.LIGHTCYAN_EX +'',version,'connecting to exchange'+ Style.RESET_ALL)
 
@@ -111,6 +112,7 @@ def get_min_vol_dist_data(symbol) -> bool:
 
     return volume1m > min_volume and spread5m > min_distance
 
+   
 def find_decimals(value):
     return (abs(decimal.Decimal(str(value)).as_tuple().exponent))
 
@@ -221,12 +223,12 @@ def get_balance():
 
 # get_orderbook() [0]bid, [1]ask
 def get_orderbook():
-    global bid
-    global ask
     ob = exchange.fetch_order_book(symbol)
     bid = ob["bids"][0][0]
     ask = ob["asks"][0][0]
     return bid, ask
+
+get_orderbook()
 
 # get_market_data() [0]precision, [1]leverage, [2]min_trade_qty
 def get_market_data():
@@ -344,6 +346,13 @@ def add_long_trade_condition():
     add_long_trade_condition = long_pos_price > get_1m_data()[3]
     return add_long_trade_condition
 
+def inverse_short_trade_condition():
+    inverse_short_trade_condition = get_orderbook()[0] > get_1m_data()[0]
+    return inverse_short_trade_condition
+
+def add_inverse_short_trade_condition():
+    add_inverse_short_trade_condition = sell_position_prce < get_1m_data()[3]
+    return add_inverse_short_trade_condition
 
 def tg_notification(msg):
     if args.tg == 'on':
@@ -551,6 +560,19 @@ def initial_short_entry(current_ask):
     else:
         pass
 
+def calc_tp_price():
+    try:
+        get_inverse_sell_position()
+        tp_price = float((100 - min_fee) * sell_position_prce / 100)
+        tp_price = math.ceil(tp_price * 2) / 2
+
+        #print(f"TP price:", tp_price)
+
+        return tp_price
+    except:
+        print("Calc TP exception")
+        pass
+
 def inverse_cancel_orders():
     try:
         if limit_sell_order_id != 0:
@@ -564,8 +586,29 @@ def inverse_cancel_orders():
     except:
         pass
 
+def inverse_limit_short_with_cancel_order(current_ask):
+    open_orders = exchange.fetch_open_orders(symbol)
+    if len(open_orders) > 0:
+        print('Debug: Cancelling open orders...')
+        for order in open_orders:
+            exchange.cancel_order(order['id'], symbol)
+    try:
+        get_orderbook()
+        inverse_perps_sell = invpcl.place_active_order(
+            side = 'Sell',
+            symbol = symbol,
+            order_type = 'Limit',
+            qty = trade_qty,
+            price = current_ask,
+            reduce_only = False, time_in_force = 'GoodTillCancel', close_on_trigger = False, post_only = True
+        )
+        print(f"Debug: Limit short placed")
+    except:
+        pass
+
 def inverse_limit_short(current_ask):
     try:
+        get_orderbook()
         inverse_perps_sell = invpcl.place_active_order(
             side = 'Sell',
             symbol = symbol,
@@ -594,7 +637,58 @@ def inverse_initial_short_entry(current_ask):
     else:
         pass
 
+order_ids = []
+
+def place_new_limit_short(price): # Place new order selecting entry price (current_ask for short)
+    global order_ids
+    try:
+        for order_id in order_ids:
+            invpcl.cancel_active_order(
+                symbol=symbol,
+                order_id = order_id,
+            )
+        order = invpcl.place_active_order(
+            side = 'Sell',
+            symbol = symbol,
+            order_type = 'Limit',
+            qty = trade_qty,
+            price = price,
+            reduce_only = False,
+            time_in_force = 'GootTillCancel',
+            close_on_trigger = False,
+            post_only = False
+        )
+        order_id = order['result']['order_id']
+        order_ids.append(order_id)
+        print("Limit short placed")
+        time.sleep(0.05)
+    except:
+        print("Error in placing limit short")
+        pass
+
+def place_new_market_short():
+    try:
+        invpcl.place_active_order(
+            side = 'Sell',
+            symbol = symbol,
+            order_type = 'Market',
+            qty = trade_qty,
+            time_in_force = 'GoodTillCancel',
+            reduce_only = True,
+            close_on_trigger = True
+        )
+        print("Initial market short placed")
+    except:
+        print("Market short exception")
+        pass
+
+
 global lot_size_market_tp
+#global tp_price
+
+
+get_inverse_sell_position()
+inverse_get_balance()
 
 def generate_inverse_table_vol() -> Table:
     inverse_table = Table(width=50)
@@ -615,6 +709,7 @@ def generate_inverse_table_vol() -> Table:
 #  inv_perp_wallet_balance, inv_perp_realised_pnl, inv_perp_unrealised_pnl, inv_perp_cum_realised_pnl
 #global sell_position_size, sell_position_prce
 #global dex_btc_balance, dex_btc_upnl, dex_btc_wallet, dex_btc_equity
+
 def generate_inverse_table_info() -> Table:
     inverse_table = Table(show_header=False, width=50)
     inverse_table.add_column(justify="center")
@@ -623,7 +718,7 @@ def generate_inverse_table_info() -> Table:
     inverse_table.add_row(f"Balance", str(dex_btc_balance))
     inverse_table.add_row(f"Equity", str(dex_btc_equity))
     #inverse_table.add_row(f"Realised cum.", f"[red]{str(inv_perp_cum_realised_pnl)}" if inv_perp_cum_realised_pnl < 0 else f"[green]{str(short_symbol_cum_realised)}")
-    inverse_table.add_row(f"Realised cum.", f"[red]{float(inv_perp_cum_realised_pnl)}" if inv_perp_cum_realised_pnl < 0 else f"[green]{float(short_symbol_cum_realised)}")
+    inverse_table.add_row(f"Realised cum.", f"[red]{format(inv_perp_cum_realised_pnl, '.8f')}" if inv_perp_cum_realised_pnl < 0 else f"[green]{format(inv_perp_cum_realised_pnl, '.8f')}")
     #inverse_table.add_row(f"Unrealized PNL.", f"[red]{dex_btc_upnl}" if dex_btc_upnl < 0 else f"[green]{dex_btc_upnl}")
     #inverse_table.add_row(f"Realised recent", f"[red]{str(inv_perp_realised_pnl)}" if inv_perp_realised_pnl < 0 else f"[green]{str(inv_perp_realised_pnl)}")
     #inverse_table.add_row(f"Unrealised BTC", f"[red]{str(inv_perp_unrealised_pnl)}" if inv_perp_unrealised_pnl < 0 else f"[green]{str(short_pos_unpl + short_pos_unpl_pct)}")
@@ -633,7 +728,7 @@ def generate_inverse_table_info() -> Table:
     inverse_table.add_row(f"Short pos size", str(sell_position_size))
     inverse_table.add_row(f"Trend:", str(find_trend()))
     inverse_table.add_row(f"Entry price", str(sell_position_prce))
-    inverse_table.add_row(f"Take profit", str(tp_price))
+    inverse_table.add_row(f"Take profit", str(calc_tp_price()))
     #inverse_table.add_row(f"Bid:", str)
     return inverse_table
 
@@ -701,7 +796,11 @@ def trade_func(symbol):
                     time.sleep(0.01)
                     get_inverse_sell_position()
                     time.sleep(0.01)
+                    get_inverse_symbols()
+                    time.sleep(0.01)
                     inverse_get_balance()
+                    time.sleep(0.01)
+                    get_orderbook()
                     time.sleep(0.01)
                 tylerapi.grab_api_data()
                 time.sleep(0.01)
@@ -753,18 +852,26 @@ def trade_func(symbol):
                 add_trade_qty = trade_qty
             elif inverse_mode == True:
                 live.update(generate_main_table())
+                find_decimals(min_trading_qty)
                 decimal_for_tp_size  = find_decimals(min_trading_qty)
+                get_orderbook()
                 current_bid = get_orderbook()[0]
                 current_ask = get_orderbook()[1]
                 #print(f"Current bid", current_bid)
 
                 reduce_only = {"reduce_only": True}
+
+                get_inverse_sell_position()
                 #global sell_position_size, sell_position_prce
                 inverse_short_profit_price = round(
                     sell_position_prce - (get_5m_data()[2] - get_5m_data()[3]),
                     int(get_market_data()[0]),
                 )
                 print(f"Short profit price:", inverse_short_profit_price)
+
+                calculated_tp_price = calc_tp_price()
+
+                print(f"Recalculated TP price {calculated_tp_price}")
 
                 if sell_position_size / divider < min_trading_qty:
                     lot_size_market_tp = sell_position_size
@@ -781,14 +888,14 @@ def trade_func(symbol):
                 # tp_price = float((100 - min_fee) * sell_position_prce / 100)
                 # tp_price = math.ceil(tp_price * 2) / 2
 
-                print(f"TP price:", tp_price)
+                #print(f"TP price:", tp_price)
 # get_5m_data() [0]3 high, [1]3 low, [2]6 high, [3]6 low
                 ma6high = get_5m_data()[2]
                 ma6low = get_5m_data()[3]
                 avr_price = (ma6high + ma6low) / 2
-                print(f"MA6 High:", ma6high)
-                print(f"MA6 Low:", ma6low)
-                print(f"Avg price:", avr_price)
+                # print(f"MA6 High:", ma6high)
+                # print(f"MA6 Low:", ma6low)
+                # print(f"Avg price:", avr_price)
 
         
 
@@ -948,88 +1055,67 @@ def trade_func(symbol):
                         except:
                             pass
 
-            try:
-                get_inverse_sell_position()
-            except:
-                pass
-
             #Inverse perps BTCUSD only
             if inverse_mode == True:
+                try:
+                    get_inverse_sell_position()
+                except:
+                    pass
                 limit_sell_order_id = 0
                 # First entry
                 if sell_position_size == 0 and sell_position_prce == 0:
-                    if limit_sell_order_id != 0:
-                        try:
-                            cancel_limit_sell_entry = invpcl.cancel_active_order(
-                                symbol = symbol,
-                                order_id = limit_sell_order_id
-                            )
-                        except:
-                            pass
                     try:
-                        limit_sell = invpcl.place_active_order(
-                            side = 'Sell',
-                            symbol = symbol,
-                            order_type = 'Limit',
-                            qty = trade_qty,
-                            price = current_ask,
-                            reduce_only = False, time_in_force = 'GoodTillCancel', close_on_trigger = False, post_only = True
-                        )
-                        print(f"Limit sell:", limit_sell)
-                        limit_sell_order_id = limit_sell['result']['order_id']
-                        rate_limit = limit_sell['rate_limit']
+                        inverse_limit_short_with_cancel_order(current_ask)
                     except:
                         pass
 
                 # Additional entry
-                if sell_position_size > 0 and\
-                    sell_position_prce > 0 and\
-                        avr_price > sell_position_prce:
+                if (
+                    sell_position_size > 0
+                    and inverse_short_trade_condition() == True
+                    ):
+                    try:
+                        #inverse_limit_short(current_ask)
+                        inverse_limit_short_with_cancel_order(current_ask)
+                    except:
+                        pass
+                else:
+                    print(f"Not time for additional entry, condition not met yet")
+                    pass
 
-                        if limit_sell_order_id != 0:
-                            try:
-                                cancel_limit_sell_entry = invpcl.cancel_active_order(
-                                    symbol = symbol,
-                                    order_id = limit_sell_order_id
-                                )
-                            except:
-                                pass
-
-                        try:
-                            limit_sell = invpcl.place_active_order(
-                                side = 'Sell',
-                                symbol = symbol,
-                                order_type = 'Limit',
-                                qty = trade_qty,
-                                price = current_ask,
-                                reduce_only = False, time_in_force = 'GoodTillCancel', close_on_trigger = False, post_only = True
-                            )
-                            #print(f"Limit sell data:", limit_sell)
-                            limit_sell_order_id = limit_sell['result']['order_id']
-                            rate_limit = limit_sell['rate_limit']
-                            print(f"Limit sell placed")
-                            #print(f"ID:", limit_sell_order_id)
-                        except:
-                            print(f"Post only not met in additional entry")
-                            pass
                 # Take profit for inverse
+                if sell_position_size > 0:
+                    try:
+                        # get_orderbook()
+                        # current_bid = get_orderbook()[0]
+                        # current_ask = get_orderbook()[1]
+                        if float(current_bid) < float(calc_tp_price()):
+                            try: 
+                                get_inverse_sell_position()
+                                # Take profit logic first
+                                invpcl.place_active_order(
+                                    side = 'Buy',
+                                    symbol = symbol,
+                                    order_type = 'Market',
+                                    qty = lot_size_market_tp,
+                                    time_in_force = 'GoodTilCancel', reduce_only = True, close_on_trigger = True
+                                )
+                                print(f"Placed order at: {calc_tp_price()}")
+                            except:
+                                print(f"Error in placing TP")
+                        else:
+                            print(f"You have position but not time for TP")
+                            print(f"Current bid", current_bid)
+                    except:
+                        pass
+
                 try:
-                    if float(current_bid) < float(tp_price):
+                    if get_orderbook()[1] < get_1m_data()[0] or get_orderbook()[1] < get_5m_data()[0]:
                         try:
-                            get_inverse_sell_position()
-                            # Take profit logic first
-                            place_buy_market_tp_order = invpcl.place_active_order(
-                                side = 'Buy',
-                                symbol = symbol,
-                                order_type = 'Market',
-                                qty = lot_size_market_tp,
-                                time_in_force = 'GoodTilCancel', reduce_only = True, close_on_trigger = True
-                            )
+                            cancel_entry()
+                            print(f"Canceled entry")
                         except:
-                            print(f"Error in placing TP")
-                    else:
-                        print(f"Waiting for current price < tp_price")
-                        print(f"Current bid", current_bid)
+                            pass
                 except:
                     pass
 
@@ -1082,41 +1168,6 @@ def trade_func(symbol):
                             pass
                 except:
                     pass
-
-
-            # if inverse_mode == True:
-            #     try:
-            #         if sell_position_size == 0 and sell_position_prce == 0:
-            #             # Cancel sell limit first if it exists
-            #             if limit_sell_order_id !=0:
-            #                 try:
-            #                     cancel_limit_sell_entry = invpcl.cancel_active_order(
-            #                         symbol = symbol,
-            #                         order_id = limit_sell_order_id
-            #                     )
-            #                 except:
-            #                     pass
-            #             try:
-            #                 limit_sell = invpcl.place_active_order(
-            #                     side = 'Sell',
-            #                     symbol = symbol,
-            #                     order_type = 'Limit',
-            #                     qty = csize,
-            #                     price = ask_price,
-            #                     reduce_only = False, time_in_force = 'GoodTillCancel', close_on_trigger = False, post_only = True
-            #                 )
-            #             except:
-            #                 pass
-            #     except:
-            #         pass
-
-            # if inverse_mode == True:
-            #     try:
-            #         print(f"Debug: ", inv_perp_equity)
-            #         print(f"Debug min price", min_price)
-            #     except:
-            #         pass
-            
 
             #PERSISTENT HEDGE: Full mode
             if persistent_mode == True:
