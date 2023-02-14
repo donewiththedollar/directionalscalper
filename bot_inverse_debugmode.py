@@ -668,7 +668,6 @@ def place_new_limit_short(price): # Place new order selecting entry price (curre
             side = 'Sell',
             symbol = symbol,
             order_type = 'Limit',
-            #qty = csize,
             qty = trade_qty,
             price = price,
             reduce_only = False,
