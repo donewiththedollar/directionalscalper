@@ -14,15 +14,6 @@ from tylerapi import *
 import telebot
 
 bot_api_token = ''
-bot = telebot.TeleBot(bot_api_token, parse_mode=None)
-
-@bot.message_handler(commands=['start', 'help'])
-def send_welcome(message):
-	bot.reply_to(message, "Howdy, how are you doing?")
-
-@bot.message_handler(func=lambda message: True)
-def echo_all(message):
-	bot.reply_to(message, message.text)
 
 # 1.Get token from botfather after creating new bot, send a message to your new bot
 # 2. Go to https://api.telegram.org/bot<bot_token>/getUpdates 
@@ -44,6 +35,7 @@ longbias_mode = False
 violent_mode = False
 high_vol_stack_mode = False
 leverage_verified = False
+tg_notifications = False
 
 print(Fore.LIGHTCYAN_EX +'',version,'connecting to exchange'+ Style.RESET_ALL)
 
@@ -113,6 +105,22 @@ if args.iqty:
     trade_qty= (args.iqty)
 else:
     trade_qty= input('Lot size:')
+
+if args.tg == 'on':
+    tg_notifications = True
+else:
+    pass
+
+if tg_notifications == True:
+    bot = telebot.TeleBot(bot_api_token, parse_mode=None)
+
+    @bot.message_handler(commands=['start', 'help'])
+    def send_welcome(message):
+        bot.reply_to(message, "Howdy, how are you doing?")
+
+    @bot.message_handler(func=lambda message: True)
+    def echo_all(message):
+        bot.reply_to(message, message.text)
 
 # Functions
 
