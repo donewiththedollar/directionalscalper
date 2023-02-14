@@ -16,15 +16,6 @@ from tylerapi import *
 import telebot
 
 bot_api_token = ''
-bot = telebot.TeleBot(bot_api_token, parse_mode=None)
-
-@bot.message_handler(commands=['start', 'help'])
-def send_welcome(message):
-	bot.reply_to(message, "Howdy, how are you doing?")
-
-@bot.message_handler(func=lambda message: True)
-def echo_all(message):
-	bot.reply_to(message, message.text)
 
 # 1.Get token from botfather after creating new bot, send a message to your new bot
 # 2. Go to https://api.telegram.org/bot<bot_token>/getUpdates 
@@ -47,6 +38,7 @@ longbias_mode = False
 inverse_mode = False
 leverage_verified = False
 inverse_trading_status = 0
+tg_notifications = False
 
 limit_sell_order_id = 0
 
@@ -123,6 +115,17 @@ if args.iqty:
     trade_qty= (args.iqty)
 else:
     trade_qty= input('Lot size:')
+
+if tg_notifications == True:
+    bot = telebot.TeleBot(bot_api_token, parse_mode=None)
+
+    @bot.message_handler(commands=['start', 'help'])
+    def send_welcome(message):
+        bot.reply_to(message, "Howdy, how are you doing?")
+
+    @bot.message_handler(func=lambda message: True)
+    def echo_all(message):
+        bot.reply_to(message, message.text)
 
 # Functions
 
@@ -611,6 +614,7 @@ def inverse_limit_short_with_cancel_order(current_ask):
             reduce_only = False, time_in_force = 'GoodTillCancel', close_on_trigger = False, post_only = True
         )
         print(f"Debug: Limit short placed")
+        sendmessage("Limit short placed")
     except:
         pass
 
@@ -650,6 +654,9 @@ order_ids = []
 def place_new_limit_short(price): # Place new order selecting entry price (current_ask for short)
     global order_ids
     try:
+        # get_orderbook()
+        # current_bid = get_orderbook()[0]
+        # current_ask = get_orderbook()[1]
         for order_id in order_ids:
             invpcl.cancel_active_order(
                 symbol=symbol,
@@ -659,6 +666,7 @@ def place_new_limit_short(price): # Place new order selecting entry price (curre
             side = 'Sell',
             symbol = symbol,
             order_type = 'Limit',
+            #qty = csize,
             qty = trade_qty,
             price = price,
             reduce_only = False,
@@ -1109,6 +1117,7 @@ def trade_func(symbol):
                                     time_in_force = 'GoodTilCancel', reduce_only = True, close_on_trigger = True
                                 )
                                 print(f"Placed order at: {calc_tp_price()}")
+                                sendmessage("Market take profit placed")
                             except:
                                 print(f"Error in placing TP")
                         else:
@@ -1176,6 +1185,41 @@ def trade_func(symbol):
                             pass
                 except:
                     pass
+
+
+            # if inverse_mode == True:
+            #     try:
+            #         if sell_position_size == 0 and sell_position_prce == 0:
+            #             # Cancel sell limit first if it exists
+            #             if limit_sell_order_id !=0:
+            #                 try:
+            #                     cancel_limit_sell_entry = invpcl.cancel_active_order(
+            #                         symbol = symbol,
+            #                         order_id = limit_sell_order_id
+            #                     )
+            #                 except:
+            #                     pass
+            #             try:
+            #                 limit_sell = invpcl.place_active_order(
+            #                     side = 'Sell',
+            #                     symbol = symbol,
+            #                     order_type = 'Limit',
+            #                     qty = csize,
+            #                     price = ask_price,
+            #                     reduce_only = False, time_in_force = 'GoodTillCancel', close_on_trigger = False, post_only = True
+            #                 )
+            #             except:
+            #                 pass
+            #     except:
+            #         pass
+
+            # if inverse_mode == True:
+            #     try:
+            #         print(f"Debug: ", inv_perp_equity)
+            #         print(f"Debug min price", min_price)
+            #     except:
+            #         pass
+            
 
             #PERSISTENT HEDGE: Full mode
             if persistent_mode == True:
