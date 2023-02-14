@@ -15,7 +15,8 @@ import tylerapi
 from tylerapi import *
 import telebot
 
-bot = telebot.TeleBot("6079948538:AAFuDS2GfSrSNlplbWAb8mGyFcpyUhXcWMo", parse_mode=None)
+bot_api_token = ''
+bot = telebot.TeleBot(bot_api_token, parse_mode=None)
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):

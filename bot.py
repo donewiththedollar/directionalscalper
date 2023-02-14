@@ -6,12 +6,33 @@ import time
 import requests
 from typing import TypedDict, Dict
 import argparse
-from telegram_status import notifier
 from colorama import init, Fore, Back, Style
 from rich.live import Live
 from rich.table import Table
 import tylerapi
 from tylerapi import *
+import telebot
+
+bot_api_token = ''
+bot = telebot.TeleBot(bot_api_token, parse_mode=None)
+
+@bot.message_handler(commands=['start', 'help'])
+def send_welcome(message):
+	bot.reply_to(message, "Howdy, how are you doing?")
+
+@bot.message_handler(func=lambda message: True)
+def echo_all(message):
+	bot.reply_to(message, message.text)
+
+# 1.Get token from botfather after creating new bot, send a message to your new bot
+# 2. Go to https://api.telegram.org/bot<bot_token>/getUpdates 
+# 3. Replacing <bot_token> with your token from the botfather after creating new bot
+# 4. Look for chat id and copy the chat id below
+
+chat_id = ''
+
+def sendmessage(message):
+    bot.send_message(chat_id, message)
 
 # Bools
 version = "Directional Scalper v1.0.3"
