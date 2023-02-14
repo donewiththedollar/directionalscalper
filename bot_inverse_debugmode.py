@@ -140,7 +140,6 @@ def get_min_vol_dist_data(symbol) -> bool:
         return volume1m > min_volume and spread5m > min_distance
     except:
         pass
-
    
 def find_decimals(value):
     return (abs(decimal.Decimal(str(value)).as_tuple().exponent))

@@ -126,11 +126,15 @@ if tg_notifications == True:
 
 # Get min vol & spread data from API
 def get_min_vol_dist_data(symbol) -> bool:
-    tylerapi.grab_api_data()
-    spread5m = tylerapi.get_asset_5m_spread(symbol, tylerapi.grab_api_data())
-    volume1m = tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
+    try:
 
-    return volume1m > min_volume and spread5m > min_distance
+        tylerapi.grab_api_data()
+        spread5m = tylerapi.get_asset_5m_spread(symbol, tylerapi.grab_api_data())
+        volume1m = tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
+
+        return volume1m > min_volume and spread5m > min_distance
+    except:
+        pass
 
 # get_1m_data() [0]3 high, [1]3 low, [2]6 high, [3]6 low, [4]10 vol
 def get_1m_data():
