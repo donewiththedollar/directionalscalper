@@ -172,16 +172,19 @@ def get_inverse_balance():
     inv_perp_cum_realised_pnl = get_inverse_balance['result']['BTC']['cum_realised_pnl']
 
 def get_inverse_sell_position():
-    position = invpcl.my_position(symbol=symbol)
-    # print(position)
-    if position['result']['side'] == 'None':
-        global sell_position_size, sell_position_prce
-        sell_position_size = 0
-        sell_position_prce = 0
-    if position['result']['side'] == 'Sell':
-        sell_position_size = float(position['result']['size'])
-        sell_position_prce = float(position['result']['entry_price'])
-
+    try:
+        position = invpcl.my_position(symbol=symbol)
+        # print(position)
+        if position['result']['side'] == 'None':
+            global sell_position_size, sell_position_prce
+            sell_position_size = 0
+            sell_position_prce = 0
+        if position['result']['side'] == 'Sell':
+            sell_position_size = float(position['result']['size'])
+            sell_position_prce = float(position['result']['entry_price'])
+    except:
+        pass
+    
 # get_1m_data() [0]3 high, [1]3 low, [2]6 high, [3]6 low, [4]10 vol
 def get_1m_data():
     timeframe = "1m"
@@ -251,10 +254,13 @@ def get_balance():
 
 # get_orderbook() [0]bid, [1]ask
 def get_orderbook():
-    ob = exchange.fetch_order_book(symbol)
-    bid = ob["bids"][0][0]
-    ask = ob["asks"][0][0]
-    return bid, ask
+    try:
+        ob = exchange.fetch_order_book(symbol)
+        bid = ob["bids"][0][0]
+        ask = ob["asks"][0][0]
+        return bid, ask
+    except:
+        pass
 
 get_orderbook()
 
@@ -553,7 +559,6 @@ def initial_long_entry(current_bid):
 
 # Short entry logic if short enabled
 def initial_short_entry(current_ask):
-
     if (
         #short_mode == True
         short_trade_condition() == True
