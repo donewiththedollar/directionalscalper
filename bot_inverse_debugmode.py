@@ -1115,7 +1115,11 @@ def trade_func(symbol):
                         # get_orderbook()
                         # current_bid = get_orderbook()[0]
                         # current_ask = get_orderbook()[1]
-                        if float(current_bid) < float(calc_tp_price()):
+                        #if float(current_bid) < float(calc_tp_price()):
+                        if (
+                            find_trend() == 'long'
+                            and float(current_bid) < float(calc_tp_price())
+                        ):
                             try: 
                                 get_inverse_sell_position()
                                 # Take profit logic first
@@ -1130,6 +1134,7 @@ def trade_func(symbol):
                                 sendmessage("Market take profit placed")
                             except:
                                 print(f"Error in placing TP")
+                                pass
                         else:
                             print(f"You have position but not time for TP")
                             print(f"Current bid", current_bid)
