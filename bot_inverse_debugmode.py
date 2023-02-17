@@ -1099,6 +1099,7 @@ def trade_func(symbol):
                 if (
                     sell_position_size > 0
                     and inverse_short_trade_condition() == True
+                    and find_trend() == 'long'
                     ):
                     try:
                         #inverse_limit_short(current_ask)
@@ -1115,11 +1116,7 @@ def trade_func(symbol):
                         # get_orderbook()
                         # current_bid = get_orderbook()[0]
                         # current_ask = get_orderbook()[1]
-                        #if float(current_bid) < float(calc_tp_price()):
-                        if (
-                            find_trend() == 'long'
-                            and float(current_bid) < float(calc_tp_price())
-                        ):
+                        if float(current_bid) < float(calc_tp_price()):
                             try: 
                                 get_inverse_sell_position()
                                 # Take profit logic first
