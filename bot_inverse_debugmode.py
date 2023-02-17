@@ -15,17 +15,21 @@ import tylerapi
 from tylerapi import *
 import telebot
 
-bot_api_token = ''
+telegram_output = False
 
-# 1.Get token from botfather after creating new bot, send a message to your new bot
-# 2. Go to https://api.telegram.org/bot<bot_token>/getUpdates 
-# 3. Replacing <bot_token> with your token from the botfather after creating new bot
-# 4. Look for chat id and copy the chat id below
+bot = telebot.TeleBot("6079948538:AAFuDS2GfSrSNlplbWAb8mGyFcpyUhXcWMo", parse_mode=None)
 
-chat_id = ''
+@bot.message_handler(commands=['start', 'help'])
+def send_welcome(message):
+	bot.reply_to(message, "Howdy, how are you doing?")
+
+@bot.message_handler(func=lambda message: True)
+def echo_all(message):
+	bot.reply_to(message, message.text)
 
 def sendmessage(message):
-    bot.send_message(chat_id, message)
+    bot.send_message(1281751562, message)
+
 
 # Booleans 
 version = "Directional Scalper v1.0.4"
@@ -38,7 +42,6 @@ longbias_mode = False
 inverse_mode = False
 leverage_verified = False
 inverse_trading_status = 0
-tg_notifications = False
 
 limit_sell_order_id = 0
 
@@ -49,9 +52,7 @@ min_distance = config.config_min_distance
 botname = config.config_botname
 
 exchange = ccxt.bybit(
-    {"enableRateLimit": True,
-     "apiKey": config.bybit_api_key,
-     "secret": config.bybit_api_secret}
+    {"enableRateLimit": True, "apiKey": config.api_key, "secret": config.api_secret}
 )
 
 parser = argparse.ArgumentParser(description='Scalper supports 6 modes')
@@ -118,16 +119,16 @@ if args.iqty:
 else:
     trade_qty= input('Lot size:')
 
-if tg_notifications == True:
-    bot = telebot.TeleBot(bot_api_token, parse_mode=None)
+if args.tg == 'on' or 'true':
+    telegram_output = True
+    if inverse_mode == True:
+        sendmessage("Inverse scalper started")
+    elif hedge_mode == True:
+        sendmessage("Hedge mode enabled")
+else:
+    print("Telegram disabled")
+    pass
 
-    @bot.message_handler(commands=['start', 'help'])
-    def send_welcome(message):
-        bot.reply_to(message, "Howdy, how are you doing?")
-
-    @bot.message_handler(func=lambda message: True)
-    def echo_all(message):
-        bot.reply_to(message, message.text)
 
 # Functions
 
@@ -140,20 +141,24 @@ def get_min_vol_dist_data(symbol) -> bool:
         return volume1m > min_volume and spread5m > min_distance
     except:
         pass
+
    
 def find_decimals(value):
     return (abs(decimal.Decimal(str(value)).as_tuple().exponent))
 
 def get_inverse_symbols():
-    get_symbols = unauth.query_symbol()
-    for asset in get_symbols['result']:
-        if asset['name'] == symbol:
-            global price_scale, tick_size, min_price, min_trading_qty, qty_step
-            price_scale     = asset['price_scale']
-            tick_size       = float(asset['price_filter']['tick_size'])
-            min_price       = asset['price_filter']['min_price']
-            min_trading_qty = asset['lot_size_filter']['min_trading_qty']
-            qty_step        = asset['lot_size_filter']['qty_step']
+    try:
+        get_symbols = unauth.query_symbol()
+        for asset in get_symbols['result']:
+            if asset['name'] == symbol:
+                global price_scale, tick_size, min_price, min_trading_qty, qty_step
+                price_scale     = asset['price_scale']
+                tick_size       = float(asset['price_filter']['tick_size'])
+                min_price       = asset['price_filter']['min_price']
+                min_trading_qty = asset['lot_size_filter']['min_trading_qty']
+                qty_step        = asset['lot_size_filter']['qty_step']
+    except:
+        pass
 
 # Get inverse balance info, uPNL, cum pnl
 def get_inverse_balance():
@@ -184,7 +189,7 @@ def get_inverse_sell_position():
             sell_position_prce = float(position['result']['entry_price'])
     except:
         pass
-    
+
 # get_1m_data() [0]3 high, [1]3 low, [2]6 high, [3]6 low, [4]10 vol
 def get_1m_data():
     timeframe = "1m"
@@ -254,13 +259,10 @@ def get_balance():
 
 # get_orderbook() [0]bid, [1]ask
 def get_orderbook():
-    try:
-        ob = exchange.fetch_order_book(symbol)
-        bid = ob["bids"][0][0]
-        ask = ob["asks"][0][0]
-        return bid, ask
-    except:
-        pass
+    ob = exchange.fetch_order_book(symbol)
+    bid = ob["bids"][0][0]
+    ask = ob["asks"][0][0]
+    return bid, ask
 
 get_orderbook()
 
@@ -559,6 +561,7 @@ def initial_long_entry(current_bid):
 
 # Short entry logic if short enabled
 def initial_short_entry(current_ask):
+
     if (
         #short_mode == True
         short_trade_condition() == True
@@ -675,6 +678,7 @@ def place_new_limit_short(price): # Place new order selecting entry price (curre
             side = 'Sell',
             symbol = symbol,
             order_type = 'Limit',
+            #qty = csize,
             qty = trade_qty,
             price = price,
             reduce_only = False,
@@ -684,7 +688,6 @@ def place_new_limit_short(price): # Place new order selecting entry price (curre
         )
         order_id = order['result']['order_id']
         order_ids.append(order_id)
-        print("Limit short placed")
         time.sleep(0.05)
     except:
         print("Error in placing limit short")
@@ -886,16 +889,15 @@ def trade_func(symbol):
                 reduce_only = {"reduce_only": True}
 
                 get_inverse_sell_position()
-                #global sell_position_size, sell_position_prce
-                inverse_short_profit_price = round(
-                    sell_position_prce - (get_5m_data()[2] - get_5m_data()[3]),
-                    int(get_market_data()[0]),
-                )
-                print(f"Short profit price:", inverse_short_profit_price)
+                # inverse_short_profit_price = round(
+                #     sell_position_prce - (get_5m_data()[2] - get_5m_data()[3]),
+                #     int(get_market_data()[0]),
+                # )
+                # print(f"Short profit price:", inverse_short_profit_price)
 
-                calculated_tp_price = calc_tp_price()
+                # calculated_tp_price = calc_tp_price()
 
-                print(f"Recalculated TP price {calculated_tp_price}")
+                # print(f"Recalculated TP price {calculated_tp_price}")
 
                 if sell_position_size / divider < min_trading_qty:
                     lot_size_market_tp = sell_position_size
