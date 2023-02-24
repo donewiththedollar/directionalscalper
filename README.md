@@ -18,4 +18,4 @@
 
 ### Links
 * API: http://13.127.240.18/data/quantdata.json
-* Dashboard: http://15.236.37.33:8501/
+* Dashboard: https://tradesimple.xyz
