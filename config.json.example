@@ -1,0 +1,13 @@
+{
+  "exchange": "bybit",
+  "exchange_api_key": "",
+  "exchange_api_secret": "",
+  "min_volume": 15000,
+  "min_distance": 0.15,
+  "bot_name": "",
+  "symbol": "BTCUSD",
+  "min_fee": 0.17,
+  "divider": 7,
+  "telegram_api_token": "",
+  "telegram_chat_id": ""
+}

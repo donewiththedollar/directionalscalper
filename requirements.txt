@@ -1,9 +1,10 @@
-ccxt==2.0.90
-pandas
-requests
-typing
 argparse
 colorama
-rich
+ccxt==2.0.90
+pandas
 pybit
+pydantic
+requests
+rich
 telebot
+typing

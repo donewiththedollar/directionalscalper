@@ -1,20 +1,63 @@
-from pybit import inverse_perpetual
+import json
+from enum import Enum
 
-# Bybit API keys
-bybit_api_key = ''
-bybit_api_secret = ''
+from pydantic import BaseModel, ValidationError, validator
 
-endpoint = 'https://api.bybit.com'
-domain = 'bybit'
 
-unauth = inverse_perpetual.HTTP(endpoint=endpoint)
-invpcl = inverse_perpetual.HTTP(endpoint=endpoint, api_key=bybit_api_key, api_secret=bybit_api_secret)
+class Exchanges(Enum):
+    BYBIT = "bybit"
 
-config_min_volume = 15000
-config_min_distance = 0.15
 
-config_botname = 'botnameherefortg'
+class Config(BaseModel):
+    exchange: str = Exchanges.BYBIT.value  # type: ignore
+    exchange_api_key: str
+    exchange_api_secret: str
+    min_volume: int = 15000
+    min_distance: float = 0.15
+    bot_name: str
+    symbol: str
+    min_fee: float = 0.17
+    divider: int = 7
+    telegram_api_token: str = ""
+    telegram_chat_id: str = ""
 
-symbol = 'BTCUSD'
-min_fee = 0.17
-divider = 7
+    @validator("min_volume")
+    def minimum_min_volume(cls, v):
+        if v < 0.0:
+            raise ValueError("min_volume must be greater than 0")
+        return v
+
+    @validator("min_distance")
+    def minimum_min_distance(cls, v):
+        if v < 0.0:
+            raise ValueError("min_distance must be greater than 0")
+        return v
+
+    @validator("min_fee")
+    def minimum_min_fee(cls, v):
+        if v < 0.0:
+            raise ValueError("min_fee must be greater than 0")
+        return v
+
+    @validator("divider")
+    def minimum_divider(cls, v):
+        if v < 0:
+            raise ValueError("divier must be greater than 0")
+        return v
+
+
+def load_config(path):
+    if not path.is_file():
+        raise ValueError(f"{path} does not exist")
+    else:
+        f = open(path)
+        try:
+            data = json.load(f)
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                f"ERROR: Invalid JSON: {exc.msg}, line {exc.lineno}, column {exc.colno}"
+            )
+        try:
+            return Config(**data)
+        except ValidationError as e:
+            raise ValueError(f"{e}")
