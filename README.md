@@ -1,5 +1,6 @@
 # Directional Scalper
 ## A hedge scalping strategy based on directional analysis using a quantitative approach
+## Supports Bybit only, other exchanges coming soon
 ## Now includes inverse perpetuals in debug mode
 ![](https://github.com/donewiththedollar/directional-scalper/blob/main/directional-scalper.gif)
 ### Instructions
