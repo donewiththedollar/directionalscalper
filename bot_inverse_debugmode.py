@@ -90,9 +90,9 @@ dex_balance, dex_pnl, dex_upnl, dex_wallet, dex_equity = 0, 0, 0, 0, 0
 
 print(Fore.LIGHTCYAN_EX + "", version, "connecting to exchange" + Style.RESET_ALL)
 
-min_volume = config.config_min_volume
-min_distance = config.config_min_distance
-botname = config.config_botname
+min_volume = config.min_volume
+min_distance = config.min_distance
+botname = config.bot_name
 
 exchange = ccxt.bybit(
     {"enableRateLimit": True, "apiKey": config.api_key, "secret": config.api_secret}
