@@ -17,6 +17,15 @@ from rich.table import Table
 import tylerapi
 from config import load_config
 
+# 1. Create config.json from config.json.example
+# 2. Enter exchange_api_key and exchange_api_secret
+# 3. Check/fill all other options. For telegram see below
+
+# 1. Get token from botfather after creating new bot, send a message to your new bot
+# 2. Go to https://api.telegram.org/bot<bot_token>/getUpdates
+# 3. Replacing <bot_token> with your token from the botfather after creating new bot
+# 4. Look for chat id and copy the chat id into config.json
+
 config_file = Path(Path().resolve(), "config.json")
 config = load_config(path=config_file)
 
@@ -28,6 +37,10 @@ logging.basicConfig(
 
 log = logging.getLogger(__name__)
 
+
+def sendmessage(message):
+    bot.send_message(config.telegram_chat_id, message)
+
 endpoint = "https://api.bybit.com"
 unauth = inverse_perpetual.HTTP(endpoint=endpoint)
 invpcl = inverse_perpetual.HTTP(
@@ -35,25 +48,6 @@ invpcl = inverse_perpetual.HTTP(
     api_key=config.exchange_api_key,
     api_secret=config.exchange_api_secret,
 )
-
-telegram_output = False
-
-bot = telebot.TeleBot("6079948538:AAFuDS2GfSrSNlplbWAb8mGyFcpyUhXcWMo", parse_mode=None)
-
-
-@bot.message_handler(commands=["start", "help"])
-def send_welcome(message):
-    bot.reply_to(message, "Howdy, how are you doing?")
-
-
-@bot.message_handler(func=lambda message: True)
-def echo_all(message):
-    bot.reply_to(message, message.text)
-
-
-def sendmessage(message):
-    bot.send_message(1281751562, message)
-
 
 # Booleans
 version = "Directional Scalper v1.0.4"
@@ -143,14 +137,19 @@ if args.iqty:
 else:
     trade_qty = input("Lot size:")
 
-if args.tg == "on" or "true":
-    telegram_output = True
-    if inverse_mode:
-        sendmessage("Inverse scalper started")
-    elif hedge_mode:
-        sendmessage("Hedge mode enabled")
-else:
-    print("Telegram disabled")
+if args.tg == "on":
+    tg_notifications = True
+
+if tg_notifications:
+    bot = telebot.TeleBot(config.telegram_api_token, parse_mode=None)
+
+    @bot.message_handler(commands=["start", "help"])
+    def send_welcome(message):
+        bot.reply_to(message, "Howdy, how are you doing?")
+
+    @bot.message_handler(func=lambda message: True)
+    def echo_all(message):
+        bot.reply_to(message, message.text)
 
 
 # Functions
