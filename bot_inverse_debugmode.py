@@ -95,7 +95,7 @@ min_distance = config.min_distance
 botname = config.bot_name
 
 exchange = ccxt.bybit(
-    {"enableRateLimit": True, "apiKey": config.api_key, "secret": config.api_secret}
+    {"enableRateLimit": True, "apiKey": config.exchange_api_key, "secret": config.exchange_api_secret}
 )
 
 parser = argparse.ArgumentParser(description="Scalper supports 6 modes")
