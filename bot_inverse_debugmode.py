@@ -1025,15 +1025,6 @@ def trade_func(symbol):  # noqa
                 reduce_only = {"reduce_only": True}
 
                 get_inverse_sell_position()
-                # inverse_short_profit_price = round(
-                #     sell_position_prce - (get_5m_data()[2] - get_5m_data()[3]),
-                #     int(get_market_data()[0]),
-                # )
-                # print("Short profit price:", inverse_short_profit_price)
-
-                # calculated_tp_price = calc_tp_price()
-
-                # print("Recalculated TP price {calculated_tp_price}")
 
                 if sell_position_size / config.divider < min_trading_qty:
                     lot_size_market_tp = sell_position_size
@@ -1051,18 +1042,6 @@ def trade_func(symbol):  # noqa
                         (sell_position_size / config.divider), decimal_for_tp_size
                     )
                     print("Market TP size (3):", lot_size_market_tp)
-
-                # tp_price = float((100 - config.min_fee) * sell_position_prce / 100)
-                # tp_price = math.ceil(tp_price * 2) / 2
-
-                # print("TP price:", tp_price)
-                # get_5m_data() [0]3 high, [1]3 low, [2]6 high, [3]6 low
-                # ma6high = get_5m_data()[2]
-                # ma6low = get_5m_data()[3]
-                # avr_price = (ma6high + ma6low) / 2
-                # print("MA6 High:", ma6high)
-                # print("MA6 Low:", ma6low)
-                # print("Avg price:", avr_price)
 
             # Longbias mode
             if longbias_mode:
