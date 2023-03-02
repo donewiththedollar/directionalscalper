@@ -14,7 +14,7 @@ exchange = ccxt.bybit(
 # exchange = ccxt.bybit()
 client = usdt_perpetual.HTTP(endpoint=endpoint,api_key=api_key,api_secret=api_secret)
 
-symbols_list = ['ACHUSDT','ICXUSDT','GMTUSDT','GALAUSDT','1000BONKUSDT','BTCUSDT', 'FXSUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'BCHUSDT', 'MATICUSDT', 'DOTUSDT', 'ADAUSDT', 'LINKUSDT', 'FTMUSDT', 'DOGEUSDT', 'ATOMUSDT', 'AVAXUSDT', 'EOSUSDT', 'LTCUSDT', 'NEARUSDT', 'AXSUSDT', 'SANDUSDT', 'SOLUSDT', 'OPUSDT', 'APTUSDT', 'APEUSDT', 'ETCUSDT', 'GALUSDT', 'MANAUSDT', 'DYDXUSDT', 'SUSHIUSDT', 'XTZUSDT', 'HBARUSDT', 'LUNA2USDT', 'BITUSDT']
+symbols_list = ['XEMUSDT', 'NKNUSDT', 'CFXUSDT', 'COCOSUSDT', 'HIGHUSDT', 'BLURUSDT', 'BUSDUSDT', 'HOOKUSDT', 'GFTUSDT', 'FETUSDT', 'COREUSDT', 'AGIXUSDT', 'ZECUSDT', 'IOTXUSDT', 'OMGUSDT', 'KSMUSDT', 'TRXUSDT', 'VETUSDT', 'ICPUSDT', 'CROUSDT', 'BTCUSD','BTC/USD:BTC','SHIB1000USDT','OCEANUSDT','GRTUSDT','CHZUSDT','SCUSDT','BLZUSDT','IMXUSDT','RSRUSDT','RNDRUSDT','LDOUSDT','ACHUSDT','ICXUSDT','GMTUSDT','GALAUSDT','1000BONKUSDT','BTCUSDT', 'FXSUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'BCHUSDT', 'MATICUSDT', 'DOTUSDT', 'ADAUSDT', 'LINKUSDT', 'FTMUSDT', 'DOGEUSDT', 'ATOMUSDT', 'AVAXUSDT', 'EOSUSDT', 'LTCUSDT', 'NEARUSDT', 'AXSUSDT', 'SANDUSDT', 'SOLUSDT', 'OPUSDT', 'APTUSDT', 'APEUSDT', 'ETCUSDT', 'GALUSDT', 'MANAUSDT', 'DYDXUSDT', 'SUSHIUSDT', 'XTZUSDT', 'HBARUSDT', 'LUNA2USDT', 'BITUSDT']
 
 prices_list = []
 candle_high_close_1m = []
@@ -361,7 +361,7 @@ for symbol in symbols_list:
     funding_rate_results.append(returned_funding)
     
 
-analysis_data = {'Assets': ['ACHUSDT','ICXUSDT','GMTUSDT','GALAUSDT','1000BONKUSDT','BTCUSDT', 'FXSUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'BCHUSDT', 'MATICUSDT', 'DOTUSDT', 'ADAUSDT', 'LINKUSDT', 'FTMUSDT', 'DOGEUSDT', 'ATOMUSDT', 'AVAXUSDT', 'EOSUSDT', 'LTCUSDT', 'NEARUSDT', 'AXSUSDT', 'SANDUSDT', 'SOLUSDT', 'OPUSDT', 'APTUSDT', 'APEUSDT', 'ETCUSDT', 'GALUSDT', 'MANAUSDT', 'DYDXUSDT', 'SUSHIUSDT', 'XTZUSDT', 'HBARUSDT', 'LUNA2USDT', 'BITUSDT'],
+analysis_data = {'Assets': ['XEMUSDT', 'NKNUSDT', 'CFXUSDT', 'COCOSUSDT', 'HIGHUSDT', 'BLURUSDT', 'BUSDUSDT', 'HOOKUSDT', 'GFTUSDT', 'FETUSDT', 'COREUSDT', 'AGIXUSDT', 'ZECUSDT', 'IOTXUSDT', 'OMGUSDT', 'KSMUSDT', 'TRXUSDT', 'VETUSDT', 'ICPUSDT', 'CROUSDT', 'BTCUSD','BTC/USD:BTC','SHIB1000USDT','OCEANUSDT','GRTUSDT','CHZUSDT','SCUSDT','BLZUSDT','IMXUSDT','RSRUSDT','RNDRUSDT','LDOUSDT','ACHUSDT','ICXUSDT','GMTUSDT','GALAUSDT','1000BONKUSDT','BTCUSDT', 'FXSUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'BCHUSDT', 'MATICUSDT', 'DOTUSDT', 'ADAUSDT', 'LINKUSDT', 'FTMUSDT', 'DOGEUSDT', 'ATOMUSDT', 'AVAXUSDT', 'EOSUSDT', 'LTCUSDT', 'NEARUSDT', 'AXSUSDT', 'SANDUSDT', 'SOLUSDT', 'OPUSDT', 'APTUSDT', 'APEUSDT', 'ETCUSDT', 'GALUSDT', 'MANAUSDT', 'DYDXUSDT', 'SUSHIUSDT', 'XTZUSDT', 'HBARUSDT', 'LUNA2USDT', 'BITUSDT'],
 'Price': prices_list,
 '1m 1x Volume (USDT)': onexvolumes_1m,
 '5m 1x Volume (USDT)': onexvolumes_5m,
@@ -379,27 +379,35 @@ analysis_data = {'Assets': ['ACHUSDT','ICXUSDT','GMTUSDT','GALAUSDT','1000BONKUS
 df = pd.DataFrame(analysis_data)
 
 df.sort_values(by=['1m 1x Volume (USDT)', '5m Spread'], inplace=True, ascending= [False, False])
-# while True:
-# print(df)
 
-    # time.sleep(30)
-
-#df.to_csv('data/quantdata.db')
-
-#### WORKING ######
 df.to_csv('data/quantdata.csv')
-#df.to_json('data/quantdataj.json')
-### END WORKING ######
 
-## TESTING ###
 df.to_json('data/quantdata.json', orient='records')
 
+
 df_what_to_trade = df[df["1m 1x Volume (USDT)"] > 15000]
+
+# df_what_to_trade_filtered_by_spread = df_what_to_trade[df['5m Spread'] > round(config_min_distance)]
+
+#df_what_to_trade = df[df["1m 1x Volume (USDT)"] > 15000 & df["5m Spread"] > 0.15]
 
 #df_what_to_trade.sort_values(by=['1m 1x Volume (USDT)', '5m Spread'], inplace=True, ascending= [False, False])
 
 # print("What to trade:")
 # print(df_what_to_trade)
 
-df_what_to_trade.to_csv('data/whattotrade.csv')
-df_what_to_trade.to_json('data/whattotrade.json', orient='records')
+# df_what_to_trade_filtered_by_spread.to_csv('data/whattotrade.csv')
+# df_what_to_trade_filtered_by_spread.to_json('data/whattotrade.json', orient='records')
+
+# df_what_to_trade.to_csv('data/whattotrade.csv')
+# df_what_to_trade.to_json('data/whattotrade.json', orient='records')
+
+# df_what_negative_funding = df[df["Funding"] < 0]
+
+# df_what_negative_funding.to_csv('data/negativefunding.csv')
+# df_what_negative_funding.to_json('data/negativefunding.json', orient='records')
+
+# df_what_positive_funding = df[df["Funding"] > 0]
+
+# df_what_positive_funding.to_csv('data/positivefunding.csv')
+# df_what_positive_funding.to_json('data/positivefunding.json', orient='records')
