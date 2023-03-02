@@ -2,35 +2,14 @@ import json
 
 import requests  # type: ignore
 
-# def grab_api_data():
-#     try:
-#         tyler_api_unparsed = requests.get("http://13.127.240.18/data/quantdata.json")
-#         tyler_api_unparsed.raise_for_status()
-
-#         if not tyler_api_unparsed.text:
-#             raise Exception("The API response is empty")
-
-#         api_data = tyler_api_unparsed.json()
-
-#         return api_data
-#     except requests.exceptions.RequestException as e:
-#         raise Exception("Error in retrieving data from api: {}".format(str(e))) from e
-#     except json.decoder.JSONDecodeError as e:
-#         raise Exception("Error in parsing the JSON data: {}".format(str(e))) from e
-
 def grab_api_data():
     try:
-        tyler_api_unparsed = requests.get("http://13.127.240.18/data/quantdata.json")
+        tyler_api_unparsed = requests.get("http://api.tradesimple.xyz/data/quantdata.json")
         api_data = tyler_api_unparsed.json()
         return api_data
     except (json.decoder.JSONDecodeError, requests.exceptions.RequestException):
         #print("Error retrieving API data. Returning None...")
         return None
-
-# tyler_api_unparsed = requests.get("http://13.127.240.18/data/quantdata.json")
-
-# api_data = tyler_api_unparsed.json()
-
 
 def get_asset_data(symbol, data):
     for asset in data:
