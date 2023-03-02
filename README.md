@@ -17,5 +17,5 @@
 > Finish inverse perps mode for long and short
 
 ### Links
-* API: http://13.127.240.18/data/quantdata.json
+* API: http://api.tradesimple.xyz/data/quantdata.json
 * Dashboard: https://tradesimple.xyz
