@@ -28,8 +28,6 @@ onexvolumes_30m = []
 
 avg_true_range_1m = []
 
-#Testing 
-
 ma_order = []
 ma_order_pct = []
 ma_high_5m = []

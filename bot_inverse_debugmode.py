@@ -153,8 +153,6 @@ if tg_notifications:
 
 
 # Functions
-
-
 def get_min_vol_dist_data(symbol) -> bool:
     try:
         tylerapi.grab_api_data()
@@ -294,13 +292,18 @@ def get_balance():
 
 # get_orderbook() [0]bid, [1]ask
 def get_orderbook():
-    ob = exchange.fetch_order_book(symbol)
-    bid = ob["bids"][0][0]
-    ask = ob["asks"][0][0]
-    return bid, ask
+    try:
+        ob = exchange.fetch_order_book(symbol)
+        bid = ob["bids"][0][0]
+        ask = ob["asks"][0][0]
+        return bid, ask
+    except:
+        pass
 
-
-get_orderbook()
+try:
+    get_orderbook()
+except:
+    pass
 
 
 # get_market_data() [0]precision, [1]leverage, [2]min_trade_qty
