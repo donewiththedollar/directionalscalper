@@ -1,7 +1,11 @@
 # Directional Scalper
 ## A hedge scalping strategy based on directional analysis using a quantitative approach
 ## Supports Bybit only, other exchanges coming soon
-## Now includes inverse perpetuals in debug mode
+
+### Links
+* Dashboard: https://tradesimple.xyz
+* API: http://api.tradesimple.xyz/data/quantdata.json
+
 ![](https://github.com/donewiththedollar/directional-scalper/blob/main/directional-scalper.gif)
 ### Instructions
 * Install requirements
@@ -15,8 +19,5 @@
 * There are five modes:
 > long, short, hedge, persistent, inverse
 * To do:
-> Finish inverse perps mode for long and short
-
-### Links
-* API: http://api.tradesimple.xyz/data/quantdata.json
-* Dashboard: https://tradesimple.xyz
+> Finish inverse perps mode for both long and short
+> Instance manager
