@@ -16,6 +16,11 @@
 * Inverse is currently short only, used as a hedge against your BTC balance, to accumulate BTC with no risk, no losses
 > python3 bot_inverse_debugmode.py --mode inverse --symbol BTCUSD --iqty 1 --tg off
 
+
+### Docker
+To run the bot inside docker container use the following command:
+> docker-compose run directional-scalper python3 bot.py --mode hedge --symbol GALAUSDT --iqty 1 --tg off
+
 * There are five modes:
 > long, short, hedge, persistent, inverse
 * To do:
