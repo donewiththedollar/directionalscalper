@@ -23,17 +23,7 @@ from config import load_config
 # 3. Replacing <bot_token> with your token from the botfather after creating new bot
 # 4. Look for chat id and copy the chat id into config.json
 
-config_file = Path(Path().resolve(), "config.json")
-config = load_config(path=config_file)
-
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    level=os.environ.get("LOGLEVEL", "INFO"),
-)
-
 log = logging.getLogger(__name__)
-
 
 def sendmessage(message):
     bot.send_message(config.telegram_chat_id, message)
@@ -52,18 +42,6 @@ leverage_verified = False
 tg_notifications = False
 
 print(Fore.LIGHTCYAN_EX + "", version, "connecting to exchange" + Style.RESET_ALL)
-
-min_volume = config.min_volume
-min_distance = config.min_distance
-botname = config.bot_name
-
-exchange = ccxt.bybit(
-    {
-        "enableRateLimit": True,
-        "apiKey": config.exchange_api_key,
-        "secret": config.exchange_api_secret,
-    }
-)
 
 dex_balance, dex_pnl, dex_upnl, dex_wallet, dex_equity = 0, 0, 0, 0, 0
 (
@@ -91,6 +69,10 @@ parser.add_argument("--iqty", type=str, help="Initial entry quantity", required=
 
 parser.add_argument(
     "--tg", type=str, help="TG Notifications", choices=["on", "off"], required=True
+)
+
+parser.add_argument(
+    "--config", type=str, help="Config file. Example: my_config.json", required=False
 )
 
 args = parser.parse_args()
@@ -130,6 +112,34 @@ if tg_notifications:
     def echo_all(message):
         bot.reply_to(message, message.text)
 
+
+config_file = "config.json"
+if args.config:
+    config_file = args.config
+
+# Load config
+print("Loading config: " + config_file)
+config_file = Path(Path().resolve(), config_file)
+config = load_config(path=config_file)
+
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    level=os.environ.get("LOGLEVEL", "INFO"),
+)
+
+
+min_volume = config.min_volume
+min_distance = config.min_distance
+botname = config.bot_name
+
+exchange = ccxt.bybit(
+    {
+        "enableRateLimit": True,
+        "apiKey": config.exchange_api_key,
+        "secret": config.exchange_api_secret,
+    }
+)
 
 # Functions
 
