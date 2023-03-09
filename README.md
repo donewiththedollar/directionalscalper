@@ -22,7 +22,7 @@
 
 ### Starting the bot
 * Hedge mode is recommended, but you can of course use the other modes as well. Low lot size is recommended.
-> python3 bot.py --mode hedge --symbol GALAUSDT --iqty 1 --tg off
+> python3 bot.py --mode hedge --symbol GALAUSDT --iqty 1 --tg off --config config.json
 * Starting the bot in debug mode for inverse perpetuals BTCUSD
 * Inverse is currently short only, used as a hedge against your BTC balance, to accumulate BTC with no risk, no losses
 > python3 bot_inverse_debugmode.py --mode inverse --symbol BTCUSD --iqty 1 --tg off
