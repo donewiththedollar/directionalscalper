@@ -516,6 +516,9 @@ get_long_positions()
 
 
 def generate_table_info() -> Table:
+
+    total_unpl = short_pos_unpl + long_pos_unpl
+    total_unpl_pct = short_pos_unpl_pct + long_pos_unpl_pct
     table = Table(show_header=False, width=50)
     table.add_column(justify="center")
     table.add_column(justify="center")
@@ -536,15 +539,15 @@ def generate_table_info() -> Table:
     )
     table.add_row(
         "Unrealised USDT",
-        f"[red]{str(short_pos_unpl)}"
-        if short_pos_unpl < 0
-        else f"[green]{str(short_pos_unpl + short_pos_unpl_pct)}",
+        f"[red]{str(total_unpl)}"
+        if total_unpl < 0
+        else f"[green]{str(total_unpl)}",
     )
     table.add_row(
         "Unrealised %",
-        f"[red]{str(short_pos_unpl_pct)}"
-        if short_pos_unpl_pct < 0
-        else f"[green]{str(short_pos_unpl_pct)}",
+        f"[red]{str(total_unpl_pct)}"
+        if total_unpl_pct < 0
+        else f"[green]{str(total_unpl_pct)}",
     )
     table.add_row("Entry size", str(trade_qty))
     table.add_row("Long size", str(long_pos_qty))
