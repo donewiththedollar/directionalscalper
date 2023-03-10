@@ -532,7 +532,13 @@ def generate_table_info() -> Table:
         else f"[green]{str(short_symbol_cum_realised)}",
     )
     table.add_row(
-        "Realised recent",
+        "Long Realised recent",
+        f"[red]{str(long_symbol_realised)}"
+        if long_symbol_realised < 0
+        else f"[green]{str(long_symbol_realised)}",
+    )
+    table.add_row(
+        "Short Realised recent",
         f"[red]{str(short_symbol_realised)}"
         if short_symbol_realised < 0
         else f"[green]{str(short_symbol_realised)}",
