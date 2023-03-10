@@ -356,14 +356,14 @@ def leverage_verification(symbol):
         )
     except Exception as e:
         print(Fore.YELLOW + "Position mode unchanged" + Style.RESET_ALL)
-        log.warning(f"{e}")
+        #log.warning(f"{e}")
     # Set margin mode
     try:
         exchange.set_margin_mode(marginMode="cross", symbol=symbol)
         print(Fore.LIGHTYELLOW_EX + "Margin mode set to cross" + Style.RESET_ALL)
     except Exception as e:
         print(Fore.YELLOW + "Margin mode unchanged" + Style.RESET_ALL)
-        log.warning(f"{e}")
+        #log.warning(f"{e}")
     # Set leverage
     try:
         exchange.set_leverage(leverage=get_market_data()[1], symbol=symbol)
@@ -373,7 +373,7 @@ def leverage_verification(symbol):
             Fore.YELLOW + "Leverage not modified, current leverage is",
             get_market_data()[1],
         )
-        log.warning(f"{e}")
+        #log.warning(f"{e}")
 
 
 if not leverage_verified:
