@@ -1112,7 +1112,7 @@ def trade_func(symbol):  # noqa
             except Exception as e:
                 log.warning(f"{e}")
 
-            if not inverse_mode:
+            if not inverse_mode and not inverse_mode_long:
                 live.update(generate_main_table())
                 current_bid = get_orderbook()[0]
                 current_ask = get_orderbook()[1]
@@ -1144,22 +1144,24 @@ def trade_func(symbol):  # noqa
 
                 get_inverse_sell_position()
 
+                print("Calculating Market TP Sizes..")
+
                 if sell_position_size / config.divider < min_trading_qty:
                     lot_size_market_tp = sell_position_size
-                    print(f"Market TP size (1): {lot_size_market_tp}")
+                    print(f"Short Market TP size (1): {lot_size_market_tp}")
 
                 if (
                     sell_position_size / config.divider
                     < min_trading_qty * config.divider
                 ):
                     lot_size_market_tp = sell_position_size
-                    print(f"Market TP size (2): {lot_size_market_tp}")
+                    print(f"Short Market TP size (2): {lot_size_market_tp}")
 
                 else:
                     lot_size_market_tp = round(
                         (sell_position_size / config.divider), decimal_for_tp_size
                     )
-                    print("Market TP size (3):", lot_size_market_tp)
+                    print(f"Short Market TP size (3):, {lot_size_market_tp}")
             elif inverse_mode_long:
                 live.update(generate_main_table())
                 find_decimals(min_trading_qty)
@@ -1175,20 +1177,20 @@ def trade_func(symbol):  # noqa
 
                 if buy_position_size / config.divider < min_trading_qty:
                     lot_size_market_tp = buy_position_size
-                    print(f"Market TP size (1): {lot_size_market_tp}")
+                    print(f"Long Market TP size (1): {lot_size_market_tp}")
 
                 if (
                     buy_position_size / config.divider
                     < min_trading_qty * config.divider
                 ):
                     lot_size_market_tp = buy_position_size
-                    print(f"Market TP size (2): {lot_size_market_tp}")
+                    print(f"Long Market TP size (2): {lot_size_market_tp}")
 
                 else:
                     lot_size_market_tp = round(
-                        (sell_position_size / config.divider), decimal_for_tp_size
+                        (buy_position_size / config.divider), decimal_for_tp_size
                     )
-                    print("Market TP size (3):", lot_size_market_tp)
+                    print(f"Long Market TP size (3): {lot_size_market_tp}")
 
 
             # Longbias mode
