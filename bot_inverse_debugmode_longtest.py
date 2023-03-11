@@ -1442,7 +1442,7 @@ def trade_func(symbol):  # noqa
                         # get_orderbook()
                         # current_bid = get_orderbook()[0]
                         # current_ask = get_orderbook()[1]
-                        if float(current_bid) < float(calc_tp_price_long()):
+                        if float(current_ask) > float(calc_tp_price_long()):
                             try:
                                 get_inverse_buy_position()
                                 # Take profit logic first
