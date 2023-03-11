@@ -159,38 +159,45 @@ def get_min_vol_dist_data(symbol) -> bool:
 
 # get_1m_data() [0]3 high, [1]3 low, [2]6 high, [3]6 low, [4]10 vol
 def get_1m_data():
-    timeframe = "1m"
-    num_bars = 20
-    bars = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=num_bars)
-    df = pd.DataFrame(bars, columns=["Time", "Open", "High", "Low", "Close", "Volume"])
-    df["Time"] = pd.to_datetime(df["Time"], unit="ms")
-    df["MA_3_High"] = df.High.rolling(3).mean()
-    df["MA_3_Low"] = df.Low.rolling(3).mean()
-    df["MA_6_High"] = df.High.rolling(6).mean()
-    df["MA_6_Low"] = df.Low.rolling(6).mean()
-    get_1m_data_3_high = df["MA_3_High"].iat[-1]
-    get_1m_data_3_low = df["MA_3_Low"].iat[-1]
-    get_1m_data_6_high = df["MA_6_High"].iat[-1]
-    get_1m_data_6_low = df["MA_6_Low"].iat[-1]
-    return get_1m_data_3_high, get_1m_data_3_low, get_1m_data_6_high, get_1m_data_6_low
+    try: 
+        timeframe = "1m"
+        num_bars = 20
+        bars = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=num_bars)
+        df = pd.DataFrame(bars, columns=["Time", "Open", "High", "Low", "Close", "Volume"])
+        df["Time"] = pd.to_datetime(df["Time"], unit="ms")
+        df["MA_3_High"] = df.High.rolling(3).mean()
+        df["MA_3_Low"] = df.Low.rolling(3).mean()
+        df["MA_6_High"] = df.High.rolling(6).mean()
+        df["MA_6_Low"] = df.Low.rolling(6).mean()
+        get_1m_data_3_high = df["MA_3_High"].iat[-1]
+        get_1m_data_3_low = df["MA_3_Low"].iat[-1]
+        get_1m_data_6_high = df["MA_6_High"].iat[-1]
+        get_1m_data_6_low = df["MA_6_Low"].iat[-1]
+        return get_1m_data_3_high, get_1m_data_3_low, get_1m_data_6_high, get_1m_data_6_low
+    except Exception as e:
+        log.warning(f"{e}")
+
 
 
 # get_5m_data() [0]3 high, [1]3 low, [2]6 high, [3]6 low
 def get_5m_data():
-    timeframe = "5m"
-    num_bars = 20
-    bars = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=num_bars)
-    df = pd.DataFrame(bars, columns=["Time", "Open", "High", "Low", "Close", "Volume"])
-    df["Time"] = pd.to_datetime(df["Time"], unit="ms")
-    df["MA_3_High"] = df.High.rolling(3).mean()
-    df["MA_3_Low"] = df.Low.rolling(3).mean()
-    df["MA_6_High"] = df.High.rolling(6).mean()
-    df["MA_6_Low"] = df.Low.rolling(6).mean()
-    get_5m_data_3_high = df["MA_3_High"].iat[-1]
-    get_5m_data_3_low = df["MA_3_Low"].iat[-1]
-    get_5m_data_6_high = df["MA_6_High"].iat[-1]
-    get_5m_data_6_low = df["MA_6_Low"].iat[-1]
-    return get_5m_data_3_high, get_5m_data_3_low, get_5m_data_6_high, get_5m_data_6_low
+    try:
+        timeframe = "5m"
+        num_bars = 20
+        bars = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=num_bars)
+        df = pd.DataFrame(bars, columns=["Time", "Open", "High", "Low", "Close", "Volume"])
+        df["Time"] = pd.to_datetime(df["Time"], unit="ms")
+        df["MA_3_High"] = df.High.rolling(3).mean()
+        df["MA_3_Low"] = df.Low.rolling(3).mean()
+        df["MA_6_High"] = df.High.rolling(6).mean()
+        df["MA_6_Low"] = df.Low.rolling(6).mean()
+        get_5m_data_3_high = df["MA_3_High"].iat[-1]
+        get_5m_data_3_low = df["MA_3_Low"].iat[-1]
+        get_5m_data_6_high = df["MA_6_High"].iat[-1]
+        get_5m_data_6_low = df["MA_6_Low"].iat[-1]
+        return get_5m_data_3_high, get_5m_data_3_low, get_5m_data_6_high, get_5m_data_6_low
+    except Exception as e:
+        log.warning(f"{e}")
 
 
 def get_balance():
@@ -235,97 +242,110 @@ def get_market_data():
 
 
 def get_short_positions():
-    global short_pos_qty, short_pos_price, short_symbol_realised, short_symbol_cum_realised, short_pos_unpl, short_pos_unpl_pct, short_liq_price
-    pos_dict = exchange.fetch_positions([symbol])
-    pos_dict = pos_dict[1]
-    short_pos_qty = float(pos_dict["contracts"])
-    short_symbol_realised = round(float(pos_dict["info"]["realised_pnl"] or 0), 2)
-    short_symbol_cum_realised = round(
-        float(pos_dict["info"]["cum_realised_pnl"] or 0), 2
-    )
-    short_pos_unpl = round(float(pos_dict["info"]["unrealised_pnl"] or 0), 2)
-    short_pos_unpl_pct = round(float(pos_dict["percentage"] or 0), 2)
-    short_pos_price = pos_dict["entryPrice"] or 0
-    short_liq_price = pos_dict["liquidationPrice"] or 0
-
+    try:
+        global short_pos_qty, short_pos_price, short_symbol_realised, short_symbol_cum_realised, short_pos_unpl, short_pos_unpl_pct, short_liq_price
+        pos_dict = exchange.fetch_positions([symbol])
+        pos_dict = pos_dict[1]
+        short_pos_qty = float(pos_dict["contracts"])
+        short_symbol_realised = round(float(pos_dict["info"]["realised_pnl"] or 0), 2)
+        short_symbol_cum_realised = round(
+            float(pos_dict["info"]["cum_realised_pnl"] or 0), 2
+        )
+        short_pos_unpl = round(float(pos_dict["info"]["unrealised_pnl"] or 0), 2)
+        short_pos_unpl_pct = round(float(pos_dict["percentage"] or 0), 2)
+        short_pos_price = pos_dict["entryPrice"] or 0
+        short_liq_price = pos_dict["liquidationPrice"] or 0
+    except Exception as e:
+        log.warning(f"{e}")
 
 def get_long_positions():
-    global long_pos_qty, long_pos_price, long_symbol_realised, long_symbol_cum_realised, long_pos_unpl, long_pos_unpl_pct, long_liq_price
-    pos_dict = exchange.fetch_positions(
-        [symbol]
-    )  # TODO: We can fetch it just once to save some API time
-    pos_dict = pos_dict[0]
-    long_pos_qty = float(pos_dict["contracts"])
-    long_symbol_realised = round(float(pos_dict["info"]["realised_pnl"]), 2)
-    long_symbol_cum_realised = round(float(pos_dict["info"]["cum_realised_pnl"]), 2)
-    long_pos_unpl = float(pos_dict["info"]["unrealised_pnl"] or 0)
-    long_pos_unpl_pct = round(float(pos_dict["percentage"] or 0), 2)
-    long_pos_price = pos_dict["entryPrice"] or 0
-    long_liq_price = pos_dict["liquidationPrice"] or 0
+    try:
+        global long_pos_qty, long_pos_price, long_symbol_realised, long_symbol_cum_realised, long_pos_unpl, long_pos_unpl_pct, long_liq_price
+        pos_dict = exchange.fetch_positions(
+            [symbol]
+        )  # TODO: We can fetch it just once to save some API time
+        pos_dict = pos_dict[0]
+        long_pos_qty = float(pos_dict["contracts"])
+        long_symbol_realised = round(float(pos_dict["info"]["realised_pnl"]), 2)
+        long_symbol_cum_realised = round(float(pos_dict["info"]["cum_realised_pnl"]), 2)
+        long_pos_unpl = float(pos_dict["info"]["unrealised_pnl"] or 0)
+        long_pos_unpl_pct = round(float(pos_dict["percentage"] or 0), 2)
+        long_pos_price = pos_dict["entryPrice"] or 0
+        long_liq_price = pos_dict["liquidationPrice"] or 0
+    except Exception as e:
+        log.warning(f"{e}")
 
 
 # get_open_orders() [0]order_id, [1]order_price, [2]order_qty
 def get_open_orders():
-    order = exchange.fetch_open_orders(symbol)
-    order_status = order[0]["info"]["order_status"]
-    order_side = order[0]["info"]["side"]
-    reduce_only = order[0]["info"]["reduce_only"]
-    if (
-        order_status == "New"
-        and order_status != "Filled"
-        and order_side == "Buy"
-        and reduce_only
-    ):
-        order_id = order[0]["info"]["order_id"]
-        order_price = order[0]["info"]["price"]
-        order_qty = order[0]["info"]["qty"]
-    else:
-        return 0, 0, 0
-    return order_id, order_price, order_qty
+    try:
+        order = exchange.fetch_open_orders(symbol)
+        order_status = order[0]["info"]["order_status"]
+        order_side = order[0]["info"]["side"]
+        reduce_only = order[0]["info"]["reduce_only"]
+        if (
+            order_status == "New"
+            and order_status != "Filled"
+            and order_side == "Buy"
+            and reduce_only
+        ):
+            order_id = order[0]["info"]["order_id"]
+            order_price = order[0]["info"]["price"]
+            order_qty = order[0]["info"]["qty"]
+        else:
+            return 0, 0, 0
+        return order_id, order_price, order_qty
+    except Exception as e:
+        log.warning(f"{e}")
 
 
 def cancel_entry():
-    order = exchange.fetch_open_orders(symbol)
-    order_id = order[0]["info"]["order_id"]
-    order_status = order[0]["info"]["order_status"]
-    order_side = order[0]["info"]["side"]
-    reduce_only = order[0]["info"]["reduce_only"]
-    if (
-        order_status != "Filled"
-        and order_side == "Buy"
-        and order_status != "Cancelled"
-        and not reduce_only
-    ):
-        exchange.cancel_order(symbol=symbol, id=order_id)
-    elif (
-        order_status != "Filled"
-        and order_side == "Sell"
-        and order_status != "Cancelled"
-        and not reduce_only
-    ):
-        exchange.cancel_order(symbol=symbol, id=order_id)
-
+    try:
+        order = exchange.fetch_open_orders(symbol)
+        order_id = order[0]["info"]["order_id"]
+        order_status = order[0]["info"]["order_status"]
+        order_side = order[0]["info"]["side"]
+        reduce_only = order[0]["info"]["reduce_only"]
+        if (
+            order_status != "Filled"
+            and order_side == "Buy"
+            and order_status != "Cancelled"
+            and not reduce_only
+        ):
+            exchange.cancel_order(symbol=symbol, id=order_id)
+        elif (
+            order_status != "Filled"
+            and order_side == "Sell"
+            and order_status != "Cancelled"
+            and not reduce_only
+        ):
+            exchange.cancel_order(symbol=symbol, id=order_id)
+    except Exception as e:
+        log.warning(f"{e}")
 
 def cancel_close():
-    order = exchange.fetch_open_orders(symbol)
-    order_id = order[0]["info"]["order_id"]
-    order_status = order[0]["info"]["order_status"]
-    order_side = order[0]["info"]["side"]
-    reduce_only = order[0]["info"]["reduce_only"]
-    if (
-        order_status != "Filled"
-        and order_side == "Buy"
-        and order_status != "Cancelled"
-        and reduce_only
-    ):
-        exchange.cancel_order(symbol=symbol, id=order_id)
-    elif (
-        order_status != "Filled"
-        and order_side == "Sell"
-        and order_status != "Cancelled"
-        and reduce_only
-    ):
-        exchange.cancel_order(symbol=symbol, id=order_id)
+    try:
+        order = exchange.fetch_open_orders(symbol)
+        order_id = order[0]["info"]["order_id"]
+        order_status = order[0]["info"]["order_status"]
+        order_side = order[0]["info"]["side"]
+        reduce_only = order[0]["info"]["reduce_only"]
+        if (
+            order_status != "Filled"
+            and order_side == "Buy"
+            and order_status != "Cancelled"
+            and reduce_only
+        ):
+            exchange.cancel_order(symbol=symbol, id=order_id)
+        elif (
+            order_status != "Filled"
+            and order_side == "Sell"
+            and order_status != "Cancelled"
+            and reduce_only
+        ):
+            exchange.cancel_order(symbol=symbol, id=order_id)
+    except Exception as e:
+        log.warning(f"{e}")
 
 
 def short_trade_condition():
