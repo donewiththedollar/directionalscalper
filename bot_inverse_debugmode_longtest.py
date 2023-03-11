@@ -50,8 +50,7 @@ invpcl = inverse_perpetual.HTTP(
 )
 
 # Booleans
-version = "Directional Scalper v1.0.4"
-inverse_mode_version = "Inverse Perps Directional Scalper v1.0.4"
+version = "Directional Scalper v1.0.7"
 long_mode = False
 short_mode = False
 hedge_mode = False
@@ -1052,7 +1051,7 @@ def generate_main_table() -> Table:
         table.add_row(generate_table_vol())
         return table
     if inverse_mode or inverse_mode_long:
-        inverse_table = Table(show_header=False, box=None, title=inverse_mode_version)
+        inverse_table = Table(show_header=False, box=None, title=version)
         inverse_table.add_row(generate_inverse_table_info()),
         inverse_table.add_row(generate_inverse_table_vol())
         return inverse_table
