@@ -3,6 +3,7 @@ import json
 import requests  # type: ignore
 
 def grab_api_data():
+    # print("grab api data")
     try:
         tyler_api_unparsed = requests.get("http://api.tradesimple.xyz/data/quantdata.json")
         api_data = tyler_api_unparsed.json()

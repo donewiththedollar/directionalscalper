@@ -14,6 +14,8 @@ from rich.table import Table
 import tylerapi
 from config import load_config
 
+from util import tables
+
 # 1. Create config.json from config.json.example
 # 2. Enter exchange_api_key and exchange_api_secret
 # 3. Check/fill all other options. For telegram see below
@@ -492,111 +494,9 @@ def find_mode():
     return mode
 
 
-# Generate table
-def generate_table_vol() -> Table:
-    table = Table(width=50)
-    table.add_column("Condition", justify="center")
-    table.add_column("Config", justify="center")
-    table.add_column("Current", justify="center")
-    table.add_column("Status")
-    table.add_row(
-        "Trading:",
-        str(get_min_vol_dist_data(symbol)),
-        str(),
-        "[green]:heavy_check_mark:" if get_min_vol_dist_data(symbol) else "off",
-    )
-    table.add_row(
-        "Min Vol.",
-        str(min_volume),
-        str(tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())).split(
-            "."
-        )[0],
-        "[red]TOO LOW"
-        if tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
-        < min_volume
-        else "[green]VOL. OK",
-    )
-    table.add_row()
-    table.add_row(
-        "Min Dist.",
-        str(min_distance),
-        str(find_5m_spread()),
-        "[red]TOO SMALL" if find_5m_spread() < min_distance else "[green]DIST. OK",
-    )
-    table.add_row("Mode", str(find_mode()))
-    # table.add_row(f"Long mode:", str(long_mode), str(), "[green]:heavy_check_mark:" if long_mode else "off")
-    # table.add_row(f"Short mode:", str(short_mode), str(), "[green]:heavy_check_mark:" if short_mode else "off")
-    # table.add_row(f"Hedge mode:", str(hedge_mode), str(), "[green]:heavy_check_mark:" if hedge_mode else "off")
-    #    table.add_row(f"Telegram:", str(tgnotif))
-    return table
-
 
 get_short_positions()
 get_long_positions()
-
-
-def generate_table_info() -> Table:
-
-    total_unpl = short_pos_unpl + long_pos_unpl
-    total_unpl_pct = short_pos_unpl_pct + long_pos_unpl_pct
-    table = Table(show_header=False, width=50)
-    table.add_column(justify="center")
-    table.add_column(justify="center")
-    table.add_row("Symbol", str(symbol))
-    table.add_row("Balance", str(dex_wallet))
-    table.add_row("Equity", str(dex_equity))
-    table.add_row(
-        "Realised cum.",
-        f"[red]{str(short_symbol_cum_realised)}"
-        if short_symbol_cum_realised < 0
-        else f"[green]{str(short_symbol_cum_realised)}",
-    )
-    table.add_row(
-        "Long Realised recent",
-        f"[red]{str(long_symbol_realised)}"
-        if long_symbol_realised < 0
-        else f"[green]{str(long_symbol_realised)}",
-    )
-    table.add_row(
-        "Short Realised recent",
-        f"[red]{str(short_symbol_realised)}"
-        if short_symbol_realised < 0
-        else f"[green]{str(short_symbol_realised)}",
-    )
-    table.add_row(
-        "Unrealised USDT",
-        f"[red]{str(total_unpl)}"
-        if total_unpl < 0
-        else f"[green]{str(total_unpl)}",
-    )
-    table.add_row(
-        "Unrealised %",
-        f"[red]{str(total_unpl_pct)}"
-        if total_unpl_pct < 0
-        else f"[green]{str(total_unpl_pct)}",
-    )
-    table.add_row("Entry size", str(trade_qty))
-    table.add_row("Long size", str(long_pos_qty))
-    table.add_row("Short size", str(short_pos_qty))
-    table.add_row("Long pos price: ", str(long_pos_price))
-    table.add_row("Long liq price", str(long_liq_price))
-    table.add_row("Short pos price: ", str(short_pos_price))
-    table.add_row("Short liq price", str(short_liq_price))
-    table.add_row("Max", str(max_trade_qty))
-    table.add_row(
-        "0.001x", str(round(max_trade_qty / 500, int(float(get_market_data()[2]))))
-    )
-    # table.add_row("Trend:", str(tyler_trend))
-    table.add_row("Trend:", str(find_trend()))
-
-    return table
-
-
-def generate_main_table() -> Table:
-    table = Table(show_header=False, box=None, title=version)
-    table.add_row(generate_table_info()),
-    table.add_row(generate_table_vol())
-    return table
 
 
 # Long entry logic if long enabled
@@ -638,6 +538,16 @@ def initial_short_entry(current_ask):
     else:
         pass
 
+def generate_main_table():
+    min_vol_dist_data = get_min_vol_dist_data(symbol)
+    mode = find_mode()
+    trend = find_trend()
+    market_data = get_market_data()
+    return tables.generate_main_table(version, short_pos_unpl, long_pos_unpl, short_pos_unpl_pct, long_pos_unpl_pct, symbol, dex_wallet, 
+                        dex_equity, short_symbol_cum_realised, long_symbol_realised, short_symbol_realised,
+                        trade_qty, long_pos_qty, short_pos_qty, long_pos_price, long_liq_price, short_pos_price, 
+                        short_liq_price, max_trade_qty, market_data, trend, min_vol_dist_data,
+                        min_volume, min_distance, mode)
 
 def trade_func(symbol):  # noqa
     with Live(generate_main_table(), refresh_per_second=2) as live:
