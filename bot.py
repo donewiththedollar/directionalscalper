@@ -30,7 +30,7 @@ def sendmessage(message):
 
 
 # Bools
-version = "Directional Scalper v1.0.3"
+version = "Directional Scalper v1.0.7"
 long_mode = False
 short_mode = False
 hedge_mode = False

@@ -17,6 +17,15 @@ from rich.table import Table
 import tylerapi
 from config import load_config
 
+# 1. Create config.json from config.json.example
+# 2. Enter exchange_api_key and exchange_api_secret
+# 3. Check/fill all other options. For telegram see below
+
+# 1. Get token from botfather after creating new bot, send a message to your new bot
+# 2. Go to https://api.telegram.org/bot<bot_token>/getUpdates
+# 3. Replacing <bot_token> with your token from the botfather after creating new bot
+# 4. Look for chat id and copy the chat id into config.json
+
 config_file = Path(Path().resolve(), "config.json")
 config = load_config(path=config_file)
 
@@ -28,6 +37,10 @@ logging.basicConfig(
 
 log = logging.getLogger(__name__)
 
+
+def sendmessage(message):
+    bot.send_message(config.telegram_chat_id, message)
+
 endpoint = "https://api.bybit.com"
 unauth = inverse_perpetual.HTTP(endpoint=endpoint)
 invpcl = inverse_perpetual.HTTP(
@@ -36,37 +49,19 @@ invpcl = inverse_perpetual.HTTP(
     api_secret=config.exchange_api_secret,
 )
 
-telegram_output = False
-
-bot = telebot.TeleBot("6079948538:AAFuDS2GfSrSNlplbWAb8mGyFcpyUhXcWMo", parse_mode=None)
-
-
-@bot.message_handler(commands=["start", "help"])
-def send_welcome(message):
-    bot.reply_to(message, "Howdy, how are you doing?")
-
-
-@bot.message_handler(func=lambda message: True)
-def echo_all(message):
-    bot.reply_to(message, message.text)
-
-
-def sendmessage(message):
-    bot.send_message(1281751562, message)
-
-
 # Booleans
-version = "Directional Scalper v1.0.4"
-inverse_mode_version = "Inverse Perps Directional Scalper v1.0.4"
+version = "Directional Scalper v1.1.0"
+inverse_mode_version = "Inverse Perps Directional Scalper v1.1.0"
 long_mode = False
 short_mode = False
 hedge_mode = False
 persistent_mode = False
 longbias_mode = False
 inverse_mode = False
-inverselong_mode = False
+inverse_mode_long = False
 leverage_verified = False
 inverse_trading_status = 0
+tg_notifications = False
 
 limit_sell_order_id = 0
 
@@ -82,22 +77,16 @@ dex_balance, dex_pnl, dex_upnl, dex_wallet, dex_equity = 0, 0, 0, 0, 0
 
 (
     sell_position_prce,
+    buy_position_prce,
     dex_btc_upnl,
     dex_btc_equity,
     dex_btc_balance,
     inv_perp_cum_realised_pnl,
     sell_position_size,
-) = (0, 0, 0, 0, 0, 0)
+    buy_position_size,
+) = (0, 0, 0, 0, 0, 0, 0, 0)
 
 print(Fore.LIGHTCYAN_EX + "", version, "connecting to exchange" + Style.RESET_ALL)
-
-min_volume = config.min_volume
-min_distance = config.min_distance
-botname = config.bot_name
-
-exchange = ccxt.bybit(
-    {"enableRateLimit": True, "apiKey": config.api_key, "secret": config.api_secret}
-)
 
 parser = argparse.ArgumentParser(description="Scalper supports 6 modes")
 
@@ -105,15 +94,7 @@ parser.add_argument(
     "--mode",
     type=str,
     help="Mode to use",
-    choices=[
-        "long",
-        "short",
-        "hedge",
-        "persistent",
-        "longbias",
-        "inverse",
-        "inverselong",
-    ],
+    choices=["long", "short", "hedge", "persistent", "longbias", "inverse-long", "inverse-short"],
     required=True,
 )
 
@@ -123,6 +104,10 @@ parser.add_argument("--iqty", type=str, help="Initial entry quantity", required=
 
 parser.add_argument(
     "--tg", type=str, help="TG Notifications", choices=["on", "off"], required=True
+)
+
+parser.add_argument(
+    "--config", type=str, help="Config file. Example: my_config.json", required=False
 )
 
 args = parser.parse_args()
@@ -137,11 +122,13 @@ elif args.mode == "persistent":
     persistent_mode = True
 elif args.mode == "longbias":
     longbias_mode = True
-elif args.mode == "inverse":
+
+if args.mode == "inverse-short":
     inverse_mode = True
     # symbol = 'BTC/USD:BTC'
-elif args.mode == "inverselong":
-    inverselong_mode = True
+
+if args.mode == "inverse-long":
+    inverse_mode_long = True
 
 if args.symbol:
     symbol = args.symbol
@@ -153,15 +140,37 @@ if args.iqty:
 else:
     trade_qty = input("Lot size:")
 
-if args.tg == "on" or args.tg == "true":
-    telegram_output = True
-    if inverse_mode:
-        sendmessage("Inverse scalper started")
-    elif hedge_mode:
-        sendmessage("Hedge mode enabled")
-else:
-    print("Telegram disabled")
+if args.tg == "on":
+    tg_notifications = True
 
+if tg_notifications:
+    bot = telebot.TeleBot(config.telegram_api_token, parse_mode=None)
+
+    @bot.message_handler(commands=["start", "help"])
+    def send_welcome(message):
+        bot.reply_to(message, "Howdy, how are you doing?")
+
+    @bot.message_handler(func=lambda message: True)
+    def echo_all(message):
+        bot.reply_to(message, message.text)
+
+config_file = "config.json"
+if args.config:
+    config_file = args.config
+
+# Load config
+print("Loading config: " + config_file)
+config_file = Path(Path().resolve(), config_file)
+config = load_config(path=config_file)
+
+
+min_volume = config.min_volume
+min_distance = config.min_distance
+botname = config.bot_name
+
+exchange = ccxt.bybit(
+    {"enableRateLimit": True, "apiKey": config.exchange_api_key, "secret": config.exchange_api_secret}
+)
 
 # Functions
 
@@ -199,21 +208,24 @@ def get_inverse_symbols():
 
 # Get inverse balance info, uPNL, cum pnl
 def get_inverse_balance():
-    get_inverse_balance = invpcl.get_wallet_balance(coin="BTC")
-    global inv_perp_equity, inv_perp_available_balance, inv_perp_used_margin, inv_perp_order_margin, inv_perp_order_margin, inv_perp_position_margin, inv_perp_occ_closing_fee, inv_perp_occ_funding_fee, inv_perp_wallet_balance, inv_perp_realised_pnl, inv_perp_unrealised_pnl, inv_perp_cum_realised_pnl
-    inv_perp_equity = get_inverse_balance["result"]["BTC"]["equity"]
-    inv_perp_available_balance = get_inverse_balance["result"]["BTC"][
-        "available_balance"
-    ]
-    inv_perp_used_margin = get_inverse_balance["result"]["BTC"]["used_margin"]
-    inv_perp_order_margin = get_inverse_balance["result"]["BTC"]["order_margin"]
-    inv_perp_position_margin = get_inverse_balance["result"]["BTC"]["position_margin"]
-    inv_perp_occ_closing_fee = get_inverse_balance["result"]["BTC"]["occ_closing_fee"]
-    inv_perp_occ_funding_fee = get_inverse_balance["result"]["BTC"]["occ_funding_fee"]
-    inv_perp_wallet_balance = get_inverse_balance["result"]["BTC"]["wallet_balance"]
-    inv_perp_realised_pnl = get_inverse_balance["result"]["BTC"]["realised_pnl"]
-    inv_perp_unrealised_pnl = get_inverse_balance["result"]["BTC"]["unrealised_pnl"]
-    inv_perp_cum_realised_pnl = get_inverse_balance["result"]["BTC"]["cum_realised_pnl"]
+    try:
+        get_inverse_balance = invpcl.get_wallet_balance(coin="BTC")
+        global inv_perp_equity, inv_perp_available_balance, inv_perp_used_margin, inv_perp_order_margin, inv_perp_order_margin, inv_perp_position_margin, inv_perp_occ_closing_fee, inv_perp_occ_funding_fee, inv_perp_wallet_balance, inv_perp_realised_pnl, inv_perp_unrealised_pnl, inv_perp_cum_realised_pnl
+        inv_perp_equity = get_inverse_balance["result"]["BTC"]["equity"]
+        inv_perp_available_balance = get_inverse_balance["result"]["BTC"][
+            "available_balance"
+        ]
+        inv_perp_used_margin = get_inverse_balance["result"]["BTC"]["used_margin"]
+        inv_perp_order_margin = get_inverse_balance["result"]["BTC"]["order_margin"]
+        inv_perp_position_margin = get_inverse_balance["result"]["BTC"]["position_margin"]
+        inv_perp_occ_closing_fee = get_inverse_balance["result"]["BTC"]["occ_closing_fee"]
+        inv_perp_occ_funding_fee = get_inverse_balance["result"]["BTC"]["occ_funding_fee"]
+        inv_perp_wallet_balance = get_inverse_balance["result"]["BTC"]["wallet_balance"]
+        inv_perp_realised_pnl = get_inverse_balance["result"]["BTC"]["realised_pnl"]
+        inv_perp_unrealised_pnl = get_inverse_balance["result"]["BTC"]["unrealised_pnl"]
+        inv_perp_cum_realised_pnl = get_inverse_balance["result"]["BTC"]["cum_realised_pnl"]
+    except Exception as e:
+        long.warning(f"{e}")
 
 
 def get_inverse_sell_position():
@@ -230,41 +242,60 @@ def get_inverse_sell_position():
     except Exception as e:
         log.warning(f"{e}")
 
+def get_inverse_buy_position():
+    try:
+        position = invpcl.my_position(symbol=symbol)
+
+        if position["result"]["side"] == "None":
+            global buy_position_size, buy_position_prce
+            buy_position_size = 0
+            buy_position_prce = 0
+        if position["result"]["side"] == "Buy":
+            buy_position_size = float(position["result"]["size"])
+            buy_position_prce = float(position["result"]["entry_price"])
+    except Exception as e:
+        log.warning(f"{e}")
 
 # get_1m_data() [0]3 high, [1]3 low, [2]6 high, [3]6 low, [4]10 vol
 def get_1m_data():
-    timeframe = "1m"
-    num_bars = 20
-    bars = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=num_bars)
-    df = pd.DataFrame(bars, columns=["Time", "Open", "High", "Low", "Close", "Volume"])
-    df["Time"] = pd.to_datetime(df["Time"], unit="ms")
-    df["MA_3_High"] = df.High.rolling(3).mean()
-    df["MA_3_Low"] = df.Low.rolling(3).mean()
-    df["MA_6_High"] = df.High.rolling(6).mean()
-    df["MA_6_Low"] = df.Low.rolling(6).mean()
-    get_1m_data_3_high = df["MA_3_High"].iat[-1]
-    get_1m_data_3_low = df["MA_3_Low"].iat[-1]
-    get_1m_data_6_high = df["MA_6_High"].iat[-1]
-    get_1m_data_6_low = df["MA_6_Low"].iat[-1]
-    return get_1m_data_3_high, get_1m_data_3_low, get_1m_data_6_high, get_1m_data_6_low
+    try:
+        timeframe = "1m"
+        num_bars = 20
+        bars = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=num_bars)
+        df = pd.DataFrame(bars, columns=["Time", "Open", "High", "Low", "Close", "Volume"])
+        df["Time"] = pd.to_datetime(df["Time"], unit="ms")
+        df["MA_3_High"] = df.High.rolling(3).mean()
+        df["MA_3_Low"] = df.Low.rolling(3).mean()
+        df["MA_6_High"] = df.High.rolling(6).mean()
+        df["MA_6_Low"] = df.Low.rolling(6).mean()
+        get_1m_data_3_high = df["MA_3_High"].iat[-1]
+        get_1m_data_3_low = df["MA_3_Low"].iat[-1]
+        get_1m_data_6_high = df["MA_6_High"].iat[-1]
+        get_1m_data_6_low = df["MA_6_Low"].iat[-1]
+        return get_1m_data_3_high, get_1m_data_3_low, get_1m_data_6_high, get_1m_data_6_low
+    except Exception as e:
+        log.warning(f"{e}")
 
 
 # get_5m_data() [0]3 high, [1]3 low, [2]6 high, [3]6 low
 def get_5m_data():
-    timeframe = "5m"
-    num_bars = 20
-    bars = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=num_bars)
-    df = pd.DataFrame(bars, columns=["Time", "Open", "High", "Low", "Close", "Volume"])
-    df["Time"] = pd.to_datetime(df["Time"], unit="ms")
-    df["MA_3_High"] = df.High.rolling(3).mean()
-    df["MA_3_Low"] = df.Low.rolling(3).mean()
-    df["MA_6_High"] = df.High.rolling(6).mean()
-    df["MA_6_Low"] = df.Low.rolling(6).mean()
-    get_5m_data_3_high = df["MA_3_High"].iat[-1]
-    get_5m_data_3_low = df["MA_3_Low"].iat[-1]
-    get_5m_data_6_high = df["MA_6_High"].iat[-1]
-    get_5m_data_6_low = df["MA_6_Low"].iat[-1]
-    return get_5m_data_3_high, get_5m_data_3_low, get_5m_data_6_high, get_5m_data_6_low
+    try:
+        timeframe = "5m"
+        num_bars = 20
+        bars = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=num_bars)
+        df = pd.DataFrame(bars, columns=["Time", "Open", "High", "Low", "Close", "Volume"])
+        df["Time"] = pd.to_datetime(df["Time"], unit="ms")
+        df["MA_3_High"] = df.High.rolling(3).mean()
+        df["MA_3_Low"] = df.Low.rolling(3).mean()
+        df["MA_6_High"] = df.High.rolling(6).mean()
+        df["MA_6_Low"] = df.Low.rolling(6).mean()
+        get_5m_data_3_high = df["MA_3_High"].iat[-1]
+        get_5m_data_3_low = df["MA_3_Low"].iat[-1]
+        get_5m_data_6_high = df["MA_6_High"].iat[-1]
+        get_5m_data_6_low = df["MA_6_Low"].iat[-1]
+        return get_5m_data_3_high, get_5m_data_3_low, get_5m_data_6_high, get_5m_data_6_low
+    except Exception as e:
+        log.warning(f"{e}")
 
 
 def inverse_get_balance():
@@ -305,13 +336,19 @@ def get_balance():
 
 # get_orderbook() [0]bid, [1]ask
 def get_orderbook():
-    ob = exchange.fetch_order_book(symbol)
-    bid = ob["bids"][0][0]
-    ask = ob["asks"][0][0]
-    return bid, ask
+    try:
+        ob = exchange.fetch_order_book(symbol)
+        bid = ob["bids"][0][0]
+        ask = ob["asks"][0][0]
+        return bid, ask
+    except:
+        pass
 
-
-get_orderbook()
+try:
+    get_orderbook()
+    print("Orderbook query resolved")
+except:
+    pass
 
 
 # get_market_data() [0]precision, [1]leverage, [2]min_trade_qty
@@ -327,7 +364,7 @@ def get_market_data():
 
 
 def get_short_positions():
-    if not inverse_mode and not inverselong_mode:
+    if not inverse_mode or inverse_mode_long:
         global short_pos_qty, short_pos_price, short_symbol_realised, short_symbol_cum_realised, short_pos_unpl, short_pos_unpl_pct, short_liq_price
         pos_dict = exchange.fetch_positions([symbol])
         pos_dict = pos_dict[1]
@@ -343,7 +380,7 @@ def get_short_positions():
 
 
 def get_long_positions():
-    if not inverse_mode and not inverselong_mode:
+    if not inverse_mode or inverse_mode_long:
         global long_pos_qty, long_pos_price, long_symbol_realised, long_symbol_cum_realised, long_pos_unpl, long_pos_unpl_pct, long_liq_price
         pos_dict = exchange.fetch_positions(
             [symbol]
@@ -373,7 +410,8 @@ def get_open_orders():
         order_id = order[0]["info"]["order_id"]
         order_price = order[0]["info"]["price"]
         order_qty = order[0]["info"]["qty"]
-
+    else:
+        pass
     return order_id, order_price, order_qty
 
 
@@ -421,38 +459,47 @@ def cancel_close():
         exchange.cancel_order(symbol=symbol, id=order_id)
 
 
+### LINEAR ###
+
 def short_trade_condition():
     short_trade_condition = get_orderbook()[0] > get_1m_data()[0]
     return short_trade_condition
-
 
 def long_trade_condition():
     long_trade_condition = get_orderbook()[0] < get_1m_data()[0]
     return long_trade_condition
 
-
 def add_short_trade_condition():
     add_short_trade_condition = short_pos_price < get_1m_data()[3]
     return add_short_trade_condition
-
 
 def add_long_trade_condition():
     add_long_trade_condition = long_pos_price > get_1m_data()[3]
     return add_long_trade_condition
 
+## INVERSE ###
+
+# get_1m_data() [0]3 high, [1]3 low, [2]6 high, [3]6 low, [4]10 vol
 
 def inverse_short_trade_condition():
     inverse_short_trade_condition = get_orderbook()[0] > get_1m_data()[0]
     return inverse_short_trade_condition
 
-
 def add_inverse_short_trade_condition():
     add_inverse_short_trade_condition = sell_position_prce < get_1m_data()[3]
     return add_inverse_short_trade_condition
 
+def inverse_long_trade_condition():
+    inverse_long_trade_condition = get_orderbook()[1] > get_1m_data()[0]
+    return inverse_long_trade_condition
+
+def add_inverse_long_trade_condition():
+    add_inverse_long_trade_condition = buy_position_prce < get_1m_data()[3]
+    return add_inverse_long_trade_condition
+
 
 def leverage_verification(symbol):
-    if not inverse_mode and not inverselong_mode:
+    if not inverse_mode and not inverse_mode_long:
         try:
             exchange.set_position_mode(hedged="BothSide", symbol=symbol)
             print(
@@ -464,7 +511,7 @@ def leverage_verification(symbol):
             print(Fore.YELLOW + "Position mode unchanged" + Style.RESET_ALL)
             log.warning(f"{e}")
         # Set margin mode
-        if not inverse_mode:
+        if not inverse_mode or inverse_mode_long:
             try:
                 exchange.set_margin_mode(marginMode="cross", symbol=symbol)
                 print(
@@ -485,9 +532,10 @@ def leverage_verification(symbol):
             log.warning(f"{e}")
 
 
-if not leverage_verified and not inverse_mode and not inverselong_mode:
+if not leverage_verified and not inverse_mode and not inverse_mode_long:
     try:
         leverage_verification(symbol)
+        print("Verification passed")
     except KeyError as e:
         print(f"Error: {e}")
     except ValueError as e:
@@ -498,7 +546,7 @@ if not leverage_verified and not inverse_mode and not inverselong_mode:
 
 
 # get_inverse_balance()
-if not inverse_mode and not inverselong_mode:
+if not inverse_mode and not inverse_mode_long:
     get_balance()
     max_trade_qty = round(
         (float(dex_equity) / float(get_orderbook()[1]))
@@ -517,12 +565,18 @@ if not inverse_mode and not inverselong_mode:
     )
     print(f"0.005x : {round(max_trade_qty/200, int(float(get_market_data()[2])))}")
     print(f"0.001x : {round(max_trade_qty/500, int(float(get_market_data()[2])))}")
-
 elif inverse_mode:
     inverse_get_balance()
     get_inverse_sell_position()  # Pybit
     get_inverse_balance()  # Pybit
     tp_price = float((100 - config.min_fee) * sell_position_prce / 100)
+    tp_price = math.ceil(tp_price * 2) / 2
+elif inverse_mode_long:
+    print("Trying to get inverse data step 1")
+    inverse_get_balance()
+    get_inverse_buy_position()
+    get_inverse_balance()
+    tp_price = float((100 - config.min_fee) * buy_position_prce / 100)
     tp_price = math.ceil(tp_price * 2) / 2
 
 # Fix for the first run when variable is not yet assigned
@@ -535,6 +589,7 @@ long_symbol_cum_realised = 0
 long_symbol_realised = 0
 long_pos_unpl = 0
 long_pos_unpl_pct = 0
+
 
 # Define Tyler API Func for ease of use later on
 # Should turn these into functions and reduce calls
@@ -560,7 +615,7 @@ def find_trend():
 
 def find_1m_spread():
     tylerapi.grab_api_data()
-    tyler_1m_spread = tylerapi.get_asset_1m_spread(symbol, tylerapi.grab_api_data())
+    tyler_1m_spread = tylerapi.get_asset_1m_spread(symbol, tylerapi.get_api_data())
 
     return tyler_1m_spread
 
@@ -588,15 +643,16 @@ def find_mode():
 
 
 # Load all necessary data for the road ahead
-if inverse_mode or inverselong_mode:
+if inverse_mode or inverse_mode_long:
     try:
         inverse_get_balance()
         get_inverse_symbols()
         get_inverse_sell_position()
+        get_inverse_buy_position()
         dex_btc_upnl_pct = round((float(dex_btc_upnl) / float(dex_btc_equity)) * 100, 2)
     except Exception as e:
         log.warning(f"{e}")
-elif not inverse_mode or not inverselong_mode:
+elif not inverse_mode:
     try:
         get_short_positions()
         get_long_positions()
@@ -607,7 +663,6 @@ elif not inverse_mode or not inverselong_mode:
 # Long entry logic if long enabled
 def initial_long_entry(current_bid):
     if (
-        # long_mode
         long_trade_condition()
         and find_1m_1x_volume() > min_volume
         and find_5m_spread() > min_distance
@@ -646,7 +701,18 @@ def calc_tp_price():
         tp_price = float((100 - config.min_fee) * sell_position_prce / 100)
         tp_price = math.ceil(tp_price * 2) / 2
 
-        # print(f"TP price:", tp_price)
+        # print("TP price:", tp_price)
+
+        return tp_price
+    except Exception as e:
+        print("Calc TP exception")
+        log.warning(f"{e}")
+
+def calc_tp_price_long():
+    try:
+        get_inverse_buy_position()
+        tp_price = float((100 - config.min_fee) * buy_position_prce / 100)
+        tp_price = math.ceil(tp_price * 2) / 2
 
         return tp_price
     except Exception as e:
@@ -661,6 +727,31 @@ def inverse_cancel_orders():
                 invpcl.cancel_active_order(symbol=symbol, order_id=limit_sell_order_id)
             except Exception as e:
                 log.warning(f"{e}")
+    except Exception as e:
+        log.warning(f"{e}")
+
+
+def inverse_limit_long_with_cancel_order(current_bid):
+    open_orders = exchange.fetch_open_orders(symbol)
+    if len(open_orders) > 0:
+        print("Debug: Cancelling open orders...")
+        for order in open_orders:
+            exchange.cancel_order(order["id"], symbol)
+    try:
+        get_orderbook()
+        invpcl.place_active_order(
+            side="Buy",
+            symbol=symbol,
+            order_type="Limit",
+            qty=trade_qty,
+            price=current_bid,
+            reduce_only=False,
+            time_in_force="GoodTillCancel",
+            close_on_trigger=False,
+            post_only=True,
+        )
+        print("Debug: Limit long placed")
+        sendmessage("Limit long placed")
     except Exception as e:
         log.warning(f"{e}")
 
@@ -780,8 +871,12 @@ global lot_size_market_tp
 # global tp_price
 
 
-get_inverse_sell_position()
-inverse_get_balance()
+if inverse_mode:
+    get_inverse_sell_position()
+    inverse_get_balance()
+elif inverse_mode_long:
+    get_inverse_buy_position()
+    inverse_get_balance()
 
 
 def generate_inverse_table_vol() -> Table:
@@ -814,7 +909,7 @@ def generate_inverse_table_vol() -> Table:
         str(find_5m_spread()),
         "[red]TOO SMALL" if find_5m_spread() < min_distance else "[green]DIST. OK",
     )
-    inverse_table.add_row("Mode", str(find_mode()))
+    inverse_table.add_row(f"Mode {find_mode()}")
 
     return inverse_table
 
@@ -831,9 +926,9 @@ def generate_inverse_table_info() -> Table:
     inverse_table = Table(show_header=False, width=50)
     inverse_table.add_column(justify="center")
     inverse_table.add_column(justify="center")
-    inverse_table.add_row("Symbol", str(symbol))
-    inverse_table.add_row("Balance", str(dex_btc_balance))
-    inverse_table.add_row("Equity", str(dex_btc_equity))
+    inverse_table.add_row(f"Symbol {symbol}")
+    inverse_table.add_row(f"Balance {dex_btc_balance}")
+    inverse_table.add_row(f"Equity {dex_btc_equity}")
     # inverse_table.add_row(f"Realised cum.", f"[red]{str(inv_perp_cum_realised_pnl)}" if inv_perp_cum_realised_pnl < 0 else f"[green]{str(short_symbol_cum_realised)}")
     inverse_table.add_row(
         "Realised cum.",
@@ -852,10 +947,15 @@ def generate_inverse_table_info() -> Table:
         else f"[green]{dex_btc_upnl_pct}",
     )
     inverse_table.add_row("Entry size", str(trade_qty))
-    inverse_table.add_row("Short pos size", str(sell_position_size))
     inverse_table.add_row("Trend:", str(find_trend()))
-    inverse_table.add_row("Entry price", str(sell_position_prce))
-    inverse_table.add_row("Take profit", str(calc_tp_price()))
+    if inverse_mode:
+        inverse_table.add_row("Short pos size", str(sell_position_size))
+        inverse_table.add_row("Entry price", str(sell_position_prce))
+        inverse_table.add_row("Take profit", str(calc_tp_price()))
+    elif inverse_mode_long:
+        inverse_table.add_row("Long pos size", str(buy_position_size))
+        inverse_table.add_row("Entry price", str(buy_position_prce))
+        inverse_table.add_row("Take profit", str(calc_tp_price_long()))
     # inverse_table.add_row(f"Bid:", str)
     return inverse_table
 
@@ -941,19 +1041,21 @@ def generate_table_info() -> Table:
     table.add_row(
         "0.001x", str(round(max_trade_qty / 500, int(float(get_market_data()[2]))))
     )
-    # table.add_row("Trend:", str(tyler_trend))
+    # table.add_row(f"Trend:", str(tyler_trend))
     table.add_row("Trend:", str(find_trend()))
 
     return table
 
 
 def generate_main_table() -> Table:
-    if not inverse_mode and not inverselong_mode:
+    if not inverse_mode and not inverse_mode_long:
+        print("Not inverse mode")
         table = Table(show_header=False, box=None, title=version)
         table.add_row(generate_table_info()),
         table.add_row(generate_table_vol())
         return table
-    elif inverse_mode or inverselong_mode:
+    if inverse_mode or inverse_mode_long:
+        print("Generating table for inverse")
         inverse_table = Table(show_header=False, box=None, title=inverse_mode_version)
         inverse_table.add_row(generate_inverse_table_info()),
         inverse_table.add_row(generate_inverse_table_vol())
@@ -964,10 +1066,22 @@ def trade_func(symbol):  # noqa
     with Live(generate_main_table(), refresh_per_second=2) as live:
         while True:
             try:
+                print("Trade func loaded")
                 if inverse_mode:
                     get_inverse_balance()
                     time.sleep(0.01)
                     get_inverse_sell_position()
+                    time.sleep(0.01)
+                    get_inverse_symbols()
+                    time.sleep(0.01)
+                    inverse_get_balance()
+                    time.sleep(0.01)
+                    get_orderbook()
+                    time.sleep(0.01)
+                elif inverse_mode_long:
+                    get_inverse_balance()
+                    time.sleep(0.01)
+                    get_inverse_buy_position()
                     time.sleep(0.01)
                     get_inverse_symbols()
                     time.sleep(0.01)
@@ -989,7 +1103,7 @@ def trade_func(symbol):  # noqa
                 time.sleep(0.01)
                 short_trade_condition()
                 time.sleep(0.01)
-                if inverse_mode and not inverselong_mode:
+                if not inverse_mode:
                     get_short_positions()
                     time.sleep(0.01)
                     get_long_positions()
@@ -1004,7 +1118,7 @@ def trade_func(symbol):  # noqa
             except Exception as e:
                 log.warning(f"{e}")
 
-            if not inverse_mode and not inverselong_mode:
+            if not inverse_mode:
                 live.update(generate_main_table())
                 current_bid = get_orderbook()[0]
                 current_ask = get_orderbook()[1]
@@ -1023,38 +1137,58 @@ def trade_func(symbol):  # noqa
                 )
 
                 add_trade_qty = trade_qty
-            elif inverse_mode or inverselong_mode:
+            elif inverse_mode:
                 live.update(generate_main_table())
                 find_decimals(min_trading_qty)
                 decimal_for_tp_size = find_decimals(min_trading_qty)
                 get_orderbook()
                 current_bid = get_orderbook()[0]
                 current_ask = get_orderbook()[1]
-                # print(f"Current bid", current_bid)
+                # print("Current bid", current_bid)
 
                 reduce_only = {"reduce_only": True}
 
                 get_inverse_sell_position()
-                # inverse_short_profit_price = round(
-                #     sell_position_prce - (get_5m_data()[2] - get_5m_data()[3]),
-                #     int(get_market_data()[0]),
-                # )
-                # print(f"Short profit price:", inverse_short_profit_price)
-
-                # calculated_tp_price = calc_tp_price()
-
-                # print(f"Recalculated TP price {calculated_tp_price}")
 
                 if sell_position_size / config.divider < min_trading_qty:
                     lot_size_market_tp = sell_position_size
-                    print("Market TP size (1):", lot_size_market_tp)
+                    print(f"Market TP size (1): {lot_size_market_tp}")
 
                 if (
                     sell_position_size / config.divider
                     < min_trading_qty * config.divider
                 ):
                     lot_size_market_tp = sell_position_size
-                    print("Market TP size (2):", lot_size_market_tp)
+                    print(f"Market TP size (2): {lot_size_market_tp}")
+
+                else:
+                    lot_size_market_tp = round(
+                        (sell_position_size / config.divider), decimal_for_tp_size
+                    )
+                    print("Market TP size (3):", lot_size_market_tp)
+            elif inverse_mode_long:
+                live.update(generate_main_table())
+                find_decimals(min_trading_qty)
+                decimal_for_tp_size = find_decimals(min_trading_qty)
+                get_orderbook()
+                current_bid = get_orderbook()[0]
+                current_ask = get_orderbook()[1]
+                # print("Current bid", current_bid)
+
+                reduce_only = {"reduce_only": True}
+
+                get_inverse_buy_position()
+
+                if buy_position_size / config.divider < min_trading_qty:
+                    lot_size_market_tp = buy_position_size
+                    print(f"Market TP size (1): {lot_size_market_tp}")
+
+                if (
+                    buy_position_size / config.divider
+                    < min_trading_qty * config.divider
+                ):
+                    lot_size_market_tp = buy_position_size
+                    print(f"Market TP size (2): {lot_size_market_tp}")
 
                 else:
                     lot_size_market_tp = round(
@@ -1062,17 +1196,6 @@ def trade_func(symbol):  # noqa
                     )
                     print("Market TP size (3):", lot_size_market_tp)
 
-                # tp_price = float((100 - min_fee) * sell_position_prce / 100)
-                # tp_price = math.ceil(tp_price * 2) / 2
-
-                # print(f"TP price:", tp_price)
-                # get_5m_data() [0]3 high, [1]3 low, [2]6 high, [3]6 low
-                # ma6high = get_5m_data()[2]
-                # ma6low = get_5m_data()[3]
-                # avr_price = (ma6high + ma6low) / 2
-                # print(f"MA6 High:", ma6high)
-                # print(f"MA6 Low:", ma6low)
-                # print(f"Avg price:", avr_price)
 
             # Longbias mode
             if longbias_mode:
@@ -1114,7 +1237,6 @@ def trade_func(symbol):  # noqa
             # Add to long if long enabled
             if (
                 not inverse_mode
-                and not inverselong_mode
                 and long_pos_qty != 0
                 and short_pos_qty < max_trade_qty
                 and long_mode
@@ -1151,7 +1273,6 @@ def trade_func(symbol):  # noqa
             # Add to short if short enabled
             if (
                 not inverse_mode
-                and inverselong_mode
                 and short_pos_qty != 0
                 # and short_pos_qty < max_trade_qty
                 and short_mode
@@ -1170,7 +1291,7 @@ def trade_func(symbol):  # noqa
                     log.warning(f"{e}")
 
             # LONG: Take profit logic
-            if not inverse_mode and not inverselong_mode:
+            if not inverse_mode:
                 if long_pos_qty > 0:
                     try:
                         get_open_orders()
@@ -1220,13 +1341,7 @@ def trade_func(symbol):  # noqa
                         except Exception as e:
                             log.warning(f"{e}")
 
-            if inverselong_mode:
-                try:
-                    get_inverse_sell_position()
-                except Exception as e:
-                    log.warning(f"{e}")
-
-            # Inverse perps BTCUSD only
+            # Short entry Inverse perps BTCUSD only
             if inverse_mode:
                 try:
                     get_inverse_sell_position()
@@ -1244,7 +1359,7 @@ def trade_func(symbol):  # noqa
                 if (
                     sell_position_size > 0
                     and inverse_short_trade_condition()
-                    and find_trend() == "short"
+                    and find_trend() == "long"
                 ):
                     try:
                         # inverse_limit_short(current_ask)
@@ -1253,9 +1368,36 @@ def trade_func(symbol):  # noqa
                         log.warning(f"{e}")
                 else:
                     print("Not time for additional entry, condition not met yet")
-                    pass
 
-                # Take profit for inverse
+            # Long entry Inverse perps BTCUSD only
+            if inverse_mode_long:
+                try:
+                    get_inverse_buy_position()
+                except Exception as e:
+                    log.warning(f"{e}")
+                # limit_sell_order_id = 0
+                # First entry
+                if buy_position_size == 0 and buy_position_prce == 0:
+                    try:
+                        inverse_limit_long_with_cancel_order(current_bid)
+                    except Exception as e:
+                        log.warning(f"{e}")
+
+                # Additional entry
+                if (
+                    buy_position_size > 0
+                    and inverse_long_trade_condition()
+                    and find_trend() == "short"
+                ):
+                    try:
+                        # inverse_limit_short(current_ask)
+                        inverse_limit_long_with_cancel_order(current_bid)
+                    except Exception as e:
+                        log.warning(f"{e}")
+                else:
+                    print("Not time for additional entry, condition not met yet")
+
+                # Short Take profit for inverse
                 if sell_position_size > 0:
                     try:
                         # get_orderbook()
@@ -1281,7 +1423,7 @@ def trade_func(symbol):  # noqa
                                 log.warning(f"{e}")
                         else:
                             print("You have position but not time for TP")
-                            print("Current bid", current_bid)
+                            print(f"Current bid {current_bid}")
                     except Exception as e:
                         log.warning(f"{e}")
 
@@ -1289,6 +1431,49 @@ def trade_func(symbol):  # noqa
                     if (
                         get_orderbook()[1] < get_1m_data()[0]
                         or get_orderbook()[1] < get_5m_data()[0]
+                    ):
+                        try:
+                            cancel_entry()
+                            print("Canceled entry")
+                        except Exception as e:
+                            log.warning(f"{e}")
+                except Exception as e:
+                    log.warning(f"{e}")
+
+                # Long Take profit for inverse
+                if buy_position_size > 0:
+                    try:
+                        # get_orderbook()
+                        # current_bid = get_orderbook()[0]
+                        # current_ask = get_orderbook()[1]
+                        if float(current_bid) < float(calc_tp_price()):
+                            try:
+                                get_inverse_buy_position()
+                                # Take profit logic first
+                                invpcl.place_active_order(
+                                    side="Sell",
+                                    symbol=symbol,
+                                    order_type="Market",
+                                    qty=lot_size_market_tp,
+                                    time_in_force="GoodTilCancel",
+                                    reduce_only=True,
+                                    close_on_trigger=True,
+                                )
+                                print(f"Placed order at: {calc_tp_price()}")
+                                sendmessage("Market take profit placed")
+                            except Exception as e:
+                                print("Error in placing TP")
+                                log.warning(f"{e}")
+                        else:
+                            print("You have position but not time for TP")
+                            print(f"Current bid {current_bid}")
+                    except Exception as e:
+                        log.warning(f"{e}")
+
+                try:
+                    if (
+                        get_orderbook()[0] < get_1m_data()[0]
+                        or get_orderbook()[0] < get_5m_data()[0]
                     ):
                         try:
                             cancel_entry()
@@ -1373,10 +1558,10 @@ def trade_func(symbol):  # noqa
             #     except Exception as e:
             #         log.warning(f"{e}")
 
-            # if inverse_mode :
+            # if inverse_mode:
             #     try:
-            #         print(f"Debug: ", inv_perp_equity)
-            #         print(f"Debug min price", min_price)
+            #         print("Debug: ", inv_perp_equity)
+            #         print("Debug min price", min_price)
             #     except Exception as e:
             #         log.warning(f"{e}")
 
@@ -1505,7 +1690,12 @@ elif args.mode == "longbias":
         longbias_mode_func(args.symbol)
     else:
         symbol = input("Instrument undefined. \nInput instrument:")
-elif args.mode == "inverse":
+elif args.mode == "inverse-short":
+    if args.symbol:
+        inverse_mode_func(args.symbol)
+    else:
+        symbol = input("Inverse mode only works with BTCUSD. \nInput BTCUSD here:")
+elif args.mode == "inverse-long":
     if args.symbol:
         inverse_mode_func(args.symbol)
     else:
