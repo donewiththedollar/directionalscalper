@@ -1442,7 +1442,7 @@ def trade_func(symbol):  # noqa
                         # get_orderbook()
                         # current_bid = get_orderbook()[0]
                         # current_ask = get_orderbook()[1]
-                        if float(current_bid) < float(calc_tp_price()):
+                        if float(current_bid) < float(calc_tp_price_long()):
                             try:
                                 get_inverse_buy_position()
                                 # Take profit logic first
@@ -1455,7 +1455,7 @@ def trade_func(symbol):  # noqa
                                     reduce_only=True,
                                     close_on_trigger=True,
                                 )
-                                print(f"Placed long market order at: {calc_tp_price()}")
+                                print(f"Placed long market order at: {calc_tp_price_long()}")
                                 sendmessage("Long market take profit placed")
                             except Exception as e:
                                 print("Error in placing TP")
