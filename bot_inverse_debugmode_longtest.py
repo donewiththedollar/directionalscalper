@@ -27,14 +27,6 @@ from config import load_config
 # 3. Replacing <bot_token> with your token from the botfather after creating new bot
 # 4. Look for chat id and copy the chat id into config.json
 
-config_file = Path(Path().resolve(), "config.json")
-config = load_config(path=config_file)
-
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    level=os.environ.get("LOGLEVEL", "INFO"),
-)
 
 log = logging.getLogger(__name__)
 
@@ -42,16 +34,9 @@ log = logging.getLogger(__name__)
 def sendmessage(message):
     bot.send_message(config.telegram_chat_id, message)
 
-endpoint = "https://api.bybit.com"
-unauth = inverse_perpetual.HTTP(endpoint=endpoint)
-invpcl = inverse_perpetual.HTTP(
-    endpoint=endpoint,
-    api_key=config.exchange_api_key,
-    api_secret=config.exchange_api_secret,
-)
 
 # Booleans
-version = "Directional Scalper v1.0.7"
+version = "Directional Scalper v1.0.8"
 long_mode = False
 short_mode = False
 hedge_mode = False
@@ -147,6 +132,21 @@ else:
 if args.tg == "on":
     tg_notifications = True
 
+config_file = "config.json"
+if args.config:
+    config_file = args.config
+
+# Load config
+print("Loading config: " + config_file)
+config_file = Path(Path().resolve(), config_file)
+config = load_config(path=config_file)
+
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    level=os.environ.get("LOGLEVEL", "INFO"),
+)
+
 if tg_notifications:
     bot = telebot.TeleBot(config.telegram_api_token, parse_mode=None)
 
@@ -158,22 +158,25 @@ if tg_notifications:
     def echo_all(message):
         bot.reply_to(message, message.text)
 
-config_file = "config.json"
-if args.config:
-    config_file = args.config
-
-# Load config
-print("Loading config: " + config_file)
-config_file = Path(Path().resolve(), config_file)
-config = load_config(path=config_file)
-
 
 min_volume = config.min_volume
 min_distance = config.min_distance
 botname = config.bot_name
 
+endpoint = "https://api.bybit.com"
+unauth = inverse_perpetual.HTTP(endpoint=endpoint)
+invpcl = inverse_perpetual.HTTP(
+    endpoint=endpoint,
+    api_key=config.exchange_api_key,
+    api_secret=config.exchange_api_secret,
+)
+
 exchange = ccxt.bybit(
-    {"enableRateLimit": True, "apiKey": config.exchange_api_key, "secret": config.exchange_api_secret}
+    {
+        "enableRateLimit": True,
+        "apiKey": config.exchange_api_key,
+        "secret": config.exchange_api_secret,
+    }
 )
 
 # Functions
