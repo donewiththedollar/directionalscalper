@@ -139,7 +139,7 @@ def find_5m_spread(symbol):
 
 
 def generate_inverse_table_info(symbol, dex_btc_balance, dex_btc_equity, inv_perp_cum_realised_pnl, dex_btc_upnl_pct,
-                                trade_qty, sell_position_size, trend, sell_position_prce, tp_price) -> Table:
+                                trade_qty, position_size, trend, position_prce, tp_price, is_long) -> Table:
     inverse_table = Table(show_header=False, width=50)
     inverse_table.add_column(justify="right")
     inverse_table.add_column(justify="left")
@@ -164,9 +164,12 @@ def generate_inverse_table_info(symbol, dex_btc_balance, dex_btc_equity, inv_per
         else f"[green]{'{:.2f}%'.format(dex_btc_upnl_pct)}",
     )
     inverse_table.add_row("Entry size", str(trade_qty))
-    inverse_table.add_row("Short pos size", str(sell_position_size))
     inverse_table.add_row("Trend:", str(trend))
-    inverse_table.add_row("Entry price", str(sell_position_prce))
+    inverse_table.add_row("Entry price", str(position_prce))
     inverse_table.add_row("Take profit", '${:.8f}'.format(tp_price))
+    if is_long:
+        inverse_table.add_row("Long pos size", str(position_size))
+    else:
+        inverse_table.add_row("Short pos size", str(position_size))
     # inverse_table.add_row(f"Bid:", str)
     return inverse_table
