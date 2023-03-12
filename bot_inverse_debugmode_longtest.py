@@ -13,6 +13,7 @@ from colorama import Fore, Style
 from pybit import inverse_perpetual
 from rich.live import Live
 from rich.table import Table
+from util import tables
 
 import tylerapi
 from config import load_config
@@ -84,6 +85,8 @@ dex_balance, dex_pnl, dex_upnl, dex_wallet, dex_equity = 0, 0, 0, 0, 0
     sell_position_size,
     buy_position_size,
 ) = (0, 0, 0, 0, 0, 0, 0, 0)
+
+max_trade_qty = 0
 
 print(Fore.LIGHTCYAN_EX + "", version, "connecting to exchange" + Style.RESET_ALL)
 
@@ -875,187 +878,37 @@ elif inverse_mode_long:
     get_inverse_buy_position()
     inverse_get_balance()
 
-
-def generate_inverse_table_vol() -> Table:
-    inverse_table = Table(width=50)
-    inverse_table.add_column("Condition", justify="center")
-    inverse_table.add_column("Config", justify="center")
-    inverse_table.add_column("Current", justify="center")
-    inverse_table.add_column("Status")
-    inverse_table.add_row(
-        "Trading:",
-        str(get_min_vol_dist_data(symbol)),
-        str(),
-        "[green]:heavy_check_mark:" if get_min_vol_dist_data(symbol) else "off",
-    )
-    inverse_table.add_row(
-        "Min Vol.",
-        str(min_volume),
-        str(tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())).split(
-            "."
-        )[0],
-        "[red]TOO LOW"
-        if tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
-        < min_volume
-        else "[green]VOL. OK",
-    )
-    inverse_table.add_row()
-    inverse_table.add_row(
-        "Min Dist.",
-        str(min_distance),
-        str(find_5m_spread()),
-        "[red]TOO SMALL" if find_5m_spread() < min_distance else "[green]DIST. OK",
-    )
-    inverse_table.add_row(f"Mode {find_mode()}")
-
-    return inverse_table
-
-
-#  global dex_btc_balance, dex_btc_upnl, dex_btc_wallet, dex_btc_equity
-#    global inv_perp_equity, inv_perp_available_balance, inv_perp_used_margin, inv_perp_order_margin,
-# inv_perp_order_margin, inv_perp_position_margin, inv_perp_occ_closing_fee, inv_perp_occ_funding_fee,
-#  inv_perp_wallet_balance, inv_perp_realised_pnl, inv_perp_unrealised_pnl, inv_perp_cum_realised_pnl
-# global sell_position_size, sell_position_prce
-# global dex_btc_balance, dex_btc_upnl, dex_btc_wallet, dex_btc_equity
-
-
-def generate_inverse_table_info() -> Table:
-    inverse_table = Table(show_header=False, width=50)
-    inverse_table.add_column(justify="center")
-    inverse_table.add_column(justify="center")
-    inverse_table.add_row(f"Symbol {symbol}")
-    inverse_table.add_row(f"Balance {dex_btc_balance}")
-    inverse_table.add_row(f"Equity {dex_btc_equity}")
-    # inverse_table.add_row(f"Realised cum.", f"[red]{str(inv_perp_cum_realised_pnl)}" if inv_perp_cum_realised_pnl < 0 else f"[green]{str(short_symbol_cum_realised)}")
-    inverse_table.add_row(
-        "Realised cum.",
-        f"[red]{format(inv_perp_cum_realised_pnl, '.8f')}"
-        if inv_perp_cum_realised_pnl < 0
-        else f"[green]{format(inv_perp_cum_realised_pnl, '.8f')}",
-    )
-    # inverse_table.add_row(f"Unrealized PNL.", f"[red]{dex_btc_upnl}" if dex_btc_upnl < 0 else f"[green]{dex_btc_upnl}")
-    # inverse_table.add_row(f"Realised recent", f"[red]{str(inv_perp_realised_pnl)}" if inv_perp_realised_pnl < 0 else f"[green]{str(inv_perp_realised_pnl)}")
-    # inverse_table.add_row(f"Unrealised BTC", f"[red]{str(inv_perp_unrealised_pnl)}" if inv_perp_unrealised_pnl < 0 else f"[green]{str(short_pos_unpl + short_pos_unpl_pct)}")
-    # inverse_table.add_row(f"Unrealised BTC", f"[red]{str(dex_btc_upnl)}" if dex_btc_upnl < 0 else f"[green]{str(dex_btc_upnl + dex_btc_upnl_pct)}")
-    inverse_table.add_row(
-        "Unrealised %",
-        f"[red]{dex_btc_upnl_pct}"
-        if dex_btc_upnl_pct < 0
-        else f"[green]{dex_btc_upnl_pct}",
-    )
-    inverse_table.add_row("Entry size", str(trade_qty))
-    inverse_table.add_row("Trend:", str(find_trend()))
-    if inverse_mode:
-        inverse_table.add_row("Short pos size", str(sell_position_size))
-        inverse_table.add_row("Entry price", str(sell_position_prce))
-        inverse_table.add_row("Take profit", str(calc_tp_price()))
-    elif inverse_mode_long:
-        inverse_table.add_row("Long pos size", str(buy_position_size))
-        inverse_table.add_row("Entry price", str(buy_position_prce))
-        inverse_table.add_row("Take profit", str(calc_tp_price_long()))
-    # inverse_table.add_row(f"Bid:", str)
-    return inverse_table
-
-
 # Generate table
-def generate_table_vol() -> Table:
-    table = Table(width=50)
-    table.add_column("Condition", justify="center")
-    table.add_column("Config", justify="center")
-    table.add_column("Current", justify="center")
-    table.add_column("Status")
-    table.add_row(
-        "Trading:",
-        str(get_min_vol_dist_data(symbol)),
-        str(),
-        "[green]:heavy_check_mark:" if get_min_vol_dist_data(symbol) else "off",
-    )
-    table.add_row(
-        "Min Vol.",
-        str(min_volume),
-        str(tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())).split(
-            "."
-        )[0],
-        "[red]TOO LOW"
-        if tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
-        < min_volume
-        else "[green]VOL. OK",
-    )
-    table.add_row()
-    table.add_row(
-        "Min Dist.",
-        str(min_distance),
-        str(find_5m_spread()),
-        "[red]TOO SMALL" if find_5m_spread() < min_distance else "[green]DIST. OK",
-    )
-    table.add_row("Mode", str(find_mode()))
-    # table.add_row(f"Long mode:", str(long_mode), str(), "[green]:heavy_check_mark:" if long_mode else "off")
-    # table.add_row(f"Short mode:", str(short_mode), str(), "[green]:heavy_check_mark:" if short_mode else "off")
-    # table.add_row(f"Hedge mode:", str(hedge_mode), str(), "[green]:heavy_check_mark:" if hedge_mode else "off")
-    #    table.add_row(f"Telegram:", str(tgnotif))
-    return table
-
-
-def generate_table_info() -> Table:
-    table = Table(show_header=False, width=50)
-    table.add_column(justify="center")
-    table.add_column(justify="center")
-    table.add_row("Symbol", str(symbol))
-    table.add_row("Balance", str(dex_wallet))
-    table.add_row("Equity", str(dex_equity))
-    table.add_row(
-        "Realised cum.",
-        f"[red]{str(short_symbol_cum_realised)}"
-        if short_symbol_cum_realised < 0
-        else f"[green]{str(short_symbol_cum_realised)}",
-    )
-    table.add_row(
-        "Realised recent",
-        f"[red]{str(short_symbol_realised)}"
-        if short_symbol_realised < 0
-        else f"[green]{str(short_symbol_realised)}",
-    )
-    table.add_row(
-        "Unrealised USDT",
-        f"[red]{str(short_pos_unpl)}"
-        if short_pos_unpl < 0
-        else f"[green]{str(short_pos_unpl + short_pos_unpl_pct)}",
-    )
-    table.add_row(
-        "Unrealised %",
-        f"[red]{str(short_pos_unpl_pct)}"
-        if short_pos_unpl_pct < 0
-        else f"[green]{str(short_pos_unpl_pct)}",
-    )
-    table.add_row("Entry size", str(trade_qty))
-    table.add_row("Long size", str(long_pos_qty))
-    table.add_row("Short size", str(short_pos_qty))
-    table.add_row("Long pos price: ", str(long_pos_price))
-    table.add_row("Long liq price", str(long_liq_price))
-    table.add_row("Short pos price: ", str(short_pos_price))
-    table.add_row("Short liq price", str(short_liq_price))
-    table.add_row("Max", str(max_trade_qty))
-    table.add_row(
-        "0.001x", str(round(max_trade_qty / 500, int(float(get_market_data()[2]))))
-    )
-    # table.add_row(f"Trend:", str(tyler_trend))
-    table.add_row("Trend:", str(find_trend()))
-
-    return table
-
-
 def generate_main_table() -> Table:
-    if not inverse_mode and not inverse_mode_long:
-        table = Table(show_header=False, box=None, title=version)
-        table.add_row(generate_table_info()),
-        table.add_row(generate_table_vol())
-        return table
-    if inverse_mode or inverse_mode_long:
-        inverse_table = Table(show_header=False, box=None, title=version)
-        inverse_table.add_row(generate_inverse_table_info()),
-        inverse_table.add_row(generate_inverse_table_vol())
-        return inverse_table
+    if inverse_mode:
+        return generate_inverse_table()
+    elif inverse_mode_long:
+        return generate_inverse_table()
+    else:
+        return generate_table()
 
+
+def generate_inverse_table():
+    min_vol_dist_data = get_min_vol_dist_data(symbol)
+    mode = find_mode()
+    trend = find_trend()
+    tp_price = calc_tp_price()
+    inverse_table = Table(show_header=False, box=None, title=version)
+    inverse_table.add_row(tables.generate_inverse_table_info(symbol, dex_btc_balance, dex_btc_equity, inv_perp_cum_realised_pnl, dex_btc_upnl_pct,
+                                trade_qty, sell_position_size, trend, sell_position_prce, tp_price)),
+    inverse_table.add_row(tables.generate_table_vol(min_vol_dist_data, min_volume, min_distance, symbol, mode))
+    return inverse_table 
+
+def generate_table():
+    min_vol_dist_data = get_min_vol_dist_data(symbol)
+    mode = find_mode()
+    trend = find_trend()
+    market_data = get_market_data()
+    return tables.generate_main_table(version, short_pos_unpl, long_pos_unpl, short_pos_unpl_pct, long_pos_unpl_pct, symbol, dex_wallet, 
+                        dex_equity, short_symbol_cum_realised, long_symbol_realised, short_symbol_realised,
+                        trade_qty, long_pos_qty, short_pos_qty, long_pos_price, long_liq_price, short_pos_price, 
+                        short_liq_price, max_trade_qty, market_data, trend, min_vol_dist_data,
+                        min_volume, min_distance, mode)
 
 def trade_func(symbol):  # noqa
     with Live(generate_main_table(), refresh_per_second=2) as live:
