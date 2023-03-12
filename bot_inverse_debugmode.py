@@ -84,6 +84,8 @@ dex_balance, dex_pnl, dex_upnl, dex_wallet, dex_equity = 0, 0, 0, 0, 0
 ) = (0, 0, 0, 0, 0, 0)
 
 max_trade_qty = 0
+dex_btc_upnl = 0
+dex_btc_upnl_pct = 0
 
 print(Fore.LIGHTCYAN_EX + "", version, "connecting to exchange" + Style.RESET_ALL)
 
@@ -787,16 +789,16 @@ def generate_main_table() -> Table:
     else:
         return generate_table()
 
-
 def generate_inverse_table():
     min_vol_dist_data = get_min_vol_dist_data(symbol)
-    mode = find_mode()
     trend = find_trend()
-    tp_price = calc_tp_price()
+   
     inverse_table = Table(show_header=False, box=None, title=version)
-    inverse_table.add_row(tables.generate_inverse_table_info(symbol, dex_btc_balance, dex_btc_equity, inv_perp_cum_realised_pnl, dex_btc_upnl_pct,
-                                trade_qty, sell_position_size, trend, sell_position_prce, tp_price)),
-    inverse_table.add_row(tables.generate_table_vol(min_vol_dist_data, min_volume, min_distance, symbol, mode))
+    if inverse_mode:
+        tp_price = calc_tp_price()
+        inverse_table.add_row(tables.generate_inverse_table_info(symbol, dex_btc_balance, dex_btc_equity, inv_perp_cum_realised_pnl, dex_btc_upnl_pct,
+                                trade_qty, sell_position_size, trend, sell_position_prce, tp_price, False))
+    inverse_table.add_row(tables.generate_table_vol(min_vol_dist_data, min_volume, min_distance, symbol, True))
     return inverse_table 
 
 def generate_table():
