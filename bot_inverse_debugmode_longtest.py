@@ -1246,7 +1246,7 @@ def trade_func(symbol):  # noqa
                 if (
                     buy_position_size > 0
                     and inverse_long_trade_condition()
-                    and find_trend() == "long"
+                    and find_trend() == "short"
                 ):
                     try:
                         # inverse_limit_short(current_ask)
