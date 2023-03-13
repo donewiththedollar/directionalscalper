@@ -1218,7 +1218,8 @@ def trade_func(symbol):  # noqa
                 if (
                     sell_position_size > 0
                     and inverse_short_trade_condition()
-                    and find_trend() == "long"
+                    and find_trend() == "short"
+                    and current_ask > sell_position_prce
                 ):
                     try:
                         # inverse_limit_short(current_ask)
@@ -1246,7 +1247,8 @@ def trade_func(symbol):  # noqa
                 if (
                     buy_position_size > 0
                     and inverse_long_trade_condition()
-                    and find_trend() == "short"
+                    and find_trend() == "long"
+                    and current_bid < buy_position_prce
                 ):
                     try:
                         # inverse_limit_short(current_ask)
