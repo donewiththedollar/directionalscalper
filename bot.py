@@ -743,13 +743,14 @@ def trade_func(symbol):  # noqa
             # HEDGE: Full mode
             if hedge_mode:
                 try:
-                    if find_trend() == "long":
+                    if find_trend() == "short":
                         initial_short_entry(current_ask)
                         if (
                             find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
                             and short_pos_qty < max_trade_qty
                             and add_short_trade_condition()
+                            and current_ask > short_pos_price
                         ):
                             try:
                                 exchange.create_limit_sell_order(
@@ -765,6 +766,7 @@ def trade_func(symbol):  # noqa
                             and find_5m_spread() > min_distance
                             and long_pos_qty < max_trade_qty
                             and add_long_trade_condition()
+                            and current_bid < long_pos_price
                         ):
                             try:
                                 exchange.create_limit_buy_order(
