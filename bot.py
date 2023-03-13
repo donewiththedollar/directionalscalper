@@ -759,7 +759,7 @@ def trade_func(symbol):  # noqa
                                 time.sleep(0.01)
                             except Exception as e:
                                 log.warning(f"{e}")
-                    elif find_trend() == "short":
+                    elif find_trend() == "long":
                         initial_long_entry(current_bid)
                         if (
                             find_1m_1x_volume() > min_volume
