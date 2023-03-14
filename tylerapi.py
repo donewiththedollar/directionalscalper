@@ -2,15 +2,24 @@ import json
 
 import requests  # type: ignore
 
+# def grab_api_data():
+#     # print("grab api data")
+#     try:
+#         tyler_api_unparsed = requests.get("http://api.tradesimple.xyz/data/quantdata.json")
+#         api_data = tyler_api_unparsed.json()
+#         return api_data
+#     except (json.decoder.JSONDecodeError, requests.exceptions.RequestException):
+#         #print("Error retrieving API data. Returning None...")
+#         return None
+
 def grab_api_data():
-    # print("grab api data")
     try:
-        tyler_api_unparsed = requests.get("http://api.tradesimple.xyz/data/quantdata.json")
-        api_data = tyler_api_unparsed.json()
-        return api_data
-    except (json.decoder.JSONDecodeError, requests.exceptions.RequestException):
-        #print("Error retrieving API data. Returning None...")
-        return None
+        response = requests.get("http://api.tradesimple.xyz/data/quantdata.json")
+        response.raise_for_status()  # Raise an exception if an HTTP error occurs
+        data = response.json()
+    except (requests.exceptions.HTTPError, json.JSONDecodeError):
+        data = None
+    return data
 
 def get_asset_data(symbol, data):
     for asset in data:
