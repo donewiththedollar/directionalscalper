@@ -977,8 +977,11 @@ def trade_func(symbol):  # noqa
 
             if not inverse_mode and not inverse_mode_long:
                 live.update(generate_main_table())
-                current_bid = get_orderbook()[0]
-                current_ask = get_orderbook()[1]
+                try:
+                    current_bid = get_orderbook()[0]
+                    current_ask = get_orderbook()[1]
+                except Exception as e:
+                    log.warning(f"{e}")
                 long_open_pos_qty = long_pos_qty
                 short_open_pos_qty = short_pos_qty
                 reduce_only = {"reduce_only": True}
@@ -999,8 +1002,12 @@ def trade_func(symbol):  # noqa
                 find_decimals(min_trading_qty)
                 decimal_for_tp_size = find_decimals(min_trading_qty)
                 get_orderbook()
-                current_bid = get_orderbook()[0]
-                current_ask = get_orderbook()[1]
+                try:
+                    current_bid = get_orderbook()[0]
+                    current_ask = get_orderbook()[1]
+                except Exception as e:
+                    log.warning(f"{e}")
+
                 # print("Current bid", current_bid)
 
                 reduce_only = {"reduce_only": True}

@@ -583,8 +583,11 @@ def trade_func(symbol):  # noqa
                 log.warning(f"{e}")
 
             live.update(generate_main_table())
-            current_bid = get_orderbook()[0]
-            current_ask = get_orderbook()[1]
+            try:
+                current_bid = get_orderbook()[0]
+                current_ask = get_orderbook()[1]
+            except Exception as e:
+                log.warning(f"{e}")
             long_open_pos_qty = long_pos_qty
             short_open_pos_qty = short_pos_qty
             reduce_only = {"reduce_only": True}
