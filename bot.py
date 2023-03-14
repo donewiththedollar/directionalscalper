@@ -633,7 +633,7 @@ def trade_func(symbol):  # noqa
                 and find_5m_spread() > min_distance
                 and long_pos_qty == 0
                 and long_pos_qty < max_trade_qty
-                and find_trend() == "short"
+                and find_trend() == "long"
             ):
                 try:
                     exchange.create_limit_buy_order(symbol, trade_qty, current_bid)
@@ -650,7 +650,8 @@ def trade_func(symbol):  # noqa
                 and long_mode
                 and find_1m_1x_volume() > min_volume
                 and add_long_trade_condition()
-                and find_trend() == "short"
+                and find_trend() == "long"
+                and current_bid < long_pos_price
             ):
                 try:
                     cancel_entry()
@@ -670,7 +671,7 @@ def trade_func(symbol):  # noqa
                 and find_5m_spread() > min_distance
                 and short_pos_qty == 0
                 and short_pos_qty < max_trade_qty
-                and find_trend() == "long"
+                and find_trend() == "short"
             ):
                 try:
                     exchange.create_limit_sell_order(symbol, trade_qty, current_ask)
@@ -687,7 +688,8 @@ def trade_func(symbol):  # noqa
                 and short_mode
                 and find_1m_1x_volume() > min_volume
                 and add_short_trade_condition()
-                and find_trend() == "long"
+                and find_trend() == "short"
+                and current_ask > short_pos_price
             ):
                 try:
                     cancel_entry()
