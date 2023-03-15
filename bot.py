@@ -583,8 +583,11 @@ def trade_func(symbol):  # noqa
                 log.warning(f"{e}")
 
             live.update(generate_main_table())
-            current_bid = get_orderbook()[0]
-            current_ask = get_orderbook()[1]
+            try:
+                current_bid = get_orderbook()[0]
+                current_ask = get_orderbook()[1]
+            except Exception as e:
+                log.warning(f"{e}")
             long_open_pos_qty = long_pos_qty
             short_open_pos_qty = short_pos_qty
             reduce_only = {"reduce_only": True}
@@ -609,7 +612,7 @@ def trade_func(symbol):  # noqa
                         if (
                             find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
-                            and short_pos_qty < max_trade_qty
+                            and long_pos_qty < max_trade_qty
                             and add_short_trade_condition()
                         ):
                             try:
@@ -630,7 +633,7 @@ def trade_func(symbol):  # noqa
                 and find_5m_spread() > min_distance
                 and long_pos_qty == 0
                 and long_pos_qty < max_trade_qty
-                and find_trend() == "short"
+                and find_trend() == "long"
             ):
                 try:
                     exchange.create_limit_buy_order(symbol, trade_qty, current_bid)
@@ -643,11 +646,12 @@ def trade_func(symbol):  # noqa
             # Add to long if long enabled
             if (
                 long_pos_qty != 0
-                and short_pos_qty < max_trade_qty
+                and long_pos_qty < max_trade_qty
                 and long_mode
                 and find_1m_1x_volume() > min_volume
                 and add_long_trade_condition()
-                and find_trend() == "short"
+                and find_trend() == "long"
+                and current_bid < long_pos_price
             ):
                 try:
                     cancel_entry()
@@ -667,7 +671,7 @@ def trade_func(symbol):  # noqa
                 and find_5m_spread() > min_distance
                 and short_pos_qty == 0
                 and short_pos_qty < max_trade_qty
-                and find_trend() == "long"
+                and find_trend() == "short"
             ):
                 try:
                     exchange.create_limit_sell_order(symbol, trade_qty, current_ask)
@@ -684,7 +688,8 @@ def trade_func(symbol):  # noqa
                 and short_mode
                 and find_1m_1x_volume() > min_volume
                 and add_short_trade_condition()
-                and find_trend() == "long"
+                and find_trend() == "short"
+                and current_ask > short_pos_price
             ):
                 try:
                     cancel_entry()
@@ -743,13 +748,14 @@ def trade_func(symbol):  # noqa
             # HEDGE: Full mode
             if hedge_mode:
                 try:
-                    if find_trend() == "long":
+                    if find_trend() == "short":
                         initial_short_entry(current_ask)
                         if (
                             find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
                             and short_pos_qty < max_trade_qty
                             and add_short_trade_condition()
+                            and current_ask > short_pos_price
                         ):
                             try:
                                 exchange.create_limit_sell_order(
@@ -758,13 +764,14 @@ def trade_func(symbol):  # noqa
                                 time.sleep(0.01)
                             except Exception as e:
                                 log.warning(f"{e}")
-                    elif find_trend() == "short":
+                    elif find_trend() == "long":
                         initial_long_entry(current_bid)
                         if (
                             find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
                             and long_pos_qty < max_trade_qty
                             and add_long_trade_condition()
+                            and current_bid < long_pos_price
                         ):
                             try:
                                 exchange.create_limit_buy_order(

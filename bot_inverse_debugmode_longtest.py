@@ -232,7 +232,7 @@ def get_inverse_balance():
         inv_perp_unrealised_pnl = get_inverse_balance["result"]["BTC"]["unrealised_pnl"]
         inv_perp_cum_realised_pnl = get_inverse_balance["result"]["BTC"]["cum_realised_pnl"]
     except Exception as e:
-        long.warning(f"{e}")
+        log.warning(f"{e}")
 
 
 def get_inverse_sell_position():
@@ -977,8 +977,11 @@ def trade_func(symbol):  # noqa
 
             if not inverse_mode and not inverse_mode_long:
                 live.update(generate_main_table())
-                current_bid = get_orderbook()[0]
-                current_ask = get_orderbook()[1]
+                try:
+                    current_bid = get_orderbook()[0]
+                    current_ask = get_orderbook()[1]
+                except Exception as e:
+                    log.warning(f"{e}")
                 long_open_pos_qty = long_pos_qty
                 short_open_pos_qty = short_pos_qty
                 reduce_only = {"reduce_only": True}
@@ -999,8 +1002,12 @@ def trade_func(symbol):  # noqa
                 find_decimals(min_trading_qty)
                 decimal_for_tp_size = find_decimals(min_trading_qty)
                 get_orderbook()
-                current_bid = get_orderbook()[0]
-                current_ask = get_orderbook()[1]
+                try:
+                    current_bid = get_orderbook()[0]
+                    current_ask = get_orderbook()[1]
+                except Exception as e:
+                    log.warning(f"{e}")
+
                 # print("Current bid", current_bid)
 
                 reduce_only = {"reduce_only": True}
@@ -1218,7 +1225,8 @@ def trade_func(symbol):  # noqa
                 if (
                     sell_position_size > 0
                     and inverse_short_trade_condition()
-                    and find_trend() == "long"
+                    and find_trend() == "short"
+                    and current_ask > sell_position_prce
                 ):
                     try:
                         # inverse_limit_short(current_ask)
@@ -1246,7 +1254,8 @@ def trade_func(symbol):  # noqa
                 if (
                     buy_position_size > 0
                     and inverse_long_trade_condition()
-                    and find_trend() == "short"
+                    and find_trend() == "long"
+                    and current_bid < buy_position_prce
                 ):
                     try:
                         # inverse_limit_short(current_ask)
@@ -1347,15 +1356,17 @@ def trade_func(symbol):  # noqa
             # places initial short entry
             # Checks if volume is ok and spread is ok,
             # Checks position quantity and comapres to max trade qty
+            # HEDGE: Full mode
             if hedge_mode:
                 try:
-                    if find_trend() == "long":
+                    if find_trend() == "short":
                         initial_short_entry(current_ask)
                         if (
                             find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
                             and short_pos_qty < max_trade_qty
                             and add_short_trade_condition()
+                            and current_ask > short_pos_price
                         ):
                             try:
                                 exchange.create_limit_sell_order(
@@ -1364,13 +1375,14 @@ def trade_func(symbol):  # noqa
                                 time.sleep(0.01)
                             except Exception as e:
                                 log.warning(f"{e}")
-                    elif find_trend() == "short":
+                    elif find_trend() == "long":
                         initial_long_entry(current_bid)
                         if (
                             find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
                             and long_pos_qty < max_trade_qty
                             and add_long_trade_condition()
+                            and current_bid < long_pos_price
                         ):
                             try:
                                 exchange.create_limit_buy_order(

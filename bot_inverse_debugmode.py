@@ -914,7 +914,7 @@ def trade_func(symbol):  # noqa
                         if (
                             find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
-                            and short_pos_qty < max_trade_qty
+                            and long_pos_qty < max_trade_qty
                             and add_short_trade_condition()
                         ):
                             try:
@@ -947,7 +947,7 @@ def trade_func(symbol):  # noqa
             if (
                 not inverse_mode
                 and long_pos_qty != 0
-                and short_pos_qty < max_trade_qty
+                and long_pos_qty < max_trade_qty
                 and long_mode
                 and find_1m_1x_volume() > min_volume
                 and add_long_trade_condition()
