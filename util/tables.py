@@ -5,13 +5,13 @@ import tylerapi
 def generate_main_table(version, short_pos_unpl, long_pos_unpl, short_pos_unpl_pct, long_pos_unpl_pct, symbol, dex_wallet, 
                         dex_equity, short_symbol_cum_realised, long_symbol_realised, short_symbol_realised,
                         trade_qty, long_pos_qty, short_pos_qty, long_pos_price, long_liq_price, short_pos_price, 
-                        short_liq_price, max_trade_qty, market_data, trend, min_vol_dist_data,
+                        short_liq_price, max_trade_qty, num_decimals, market_data, trend, min_vol_dist_data,
                         min_volume, min_distance, mode) -> Table:
     table = Table(show_header=False, box=None, title=version)
     table.add_row(generate_table_info(short_pos_unpl, long_pos_unpl, short_pos_unpl_pct, long_pos_unpl_pct, symbol, dex_wallet, 
                         dex_equity, short_symbol_cum_realised, long_symbol_realised, short_symbol_realised,
                         trade_qty, long_pos_qty, short_pos_qty, long_pos_price, long_liq_price, short_pos_price, 
-                        short_liq_price, max_trade_qty, market_data, trend)),
+                        short_liq_price, max_trade_qty, num_decimals, market_data, trend)),
     table.add_row(generate_table_vol(min_vol_dist_data, min_volume, min_distance, symbol, mode))
     return table
 
@@ -58,7 +58,7 @@ def generate_table_vol(min_vol_dist_data, min_volume, min_distance, symbol, mode
 def generate_table_info(short_pos_unpl, long_pos_unpl, short_pos_unpl_pct, long_pos_unpl_pct, symbol, dex_wallet, 
                         dex_equity, short_symbol_cum_realised, long_symbol_realised, short_symbol_realised,
                         trade_qty, long_pos_qty, short_pos_qty, long_pos_price, long_liq_price, short_pos_price, 
-                        short_liq_price, max_trade_qty, market_data, trend) -> Table:
+                        short_liq_price, max_trade_qty, num_decimals, market_data, trend) -> Table:
     total_unpl = short_pos_unpl + long_pos_unpl
     total_unpl_pct = short_pos_unpl_pct + long_pos_unpl_pct
     table = Table(show_header=False, width=50)
@@ -106,7 +106,7 @@ def generate_table_info(short_pos_unpl, long_pos_unpl, short_pos_unpl_pct, long_
     table.add_row("Short liquidation price", '${:.2f}'.format(short_liq_price))
     table.add_row("Max", '{:.2f}'.format(max_trade_qty))
     table.add_row(
-        "0.001x", str(round(max_trade_qty / 500, int(float(market_data[2]))))
+        "0.001x", str(round(max_trade_qty / 500, num_decimals))
     )
     # table.add_row("Trend:", str(tyler_trend))
     table.add_row("Trend", str(trend))

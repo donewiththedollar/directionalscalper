@@ -234,12 +234,12 @@ def get_orderbook():
 # get_market_data() [0]precision, [1]leverage, [2]min_trade_qty
 def get_market_data():
     global leverage
+    global num_decimals
     exchange.load_markets()
     precision = exchange.market(symbol)["info"]["price_scale"]
     leverage = exchange.market(symbol)["info"]["leverage_filter"]["max_leverage"]
-    min_trade_qty = exchange.market(symbol)["info"]["lot_size_filter"][
-        "min_trading_qty"
-    ]
+    min_trade_qty = exchange.market(symbol)["info"]["lot_size_filter"]["min_trading_qty"]
+    num_decimals = str(min_trade_qty)[::-1].find('.')
     return precision, leverage, min_trade_qty
 
 
@@ -421,12 +421,13 @@ current_leverage = get_market_data()[1]
 print(f"Min Trade Qty: {get_market_data()[2]}")
 print(Fore.LIGHTYELLOW_EX + "1x:", max_trade_qty, " ")
 print(
-    Fore.LIGHTCYAN_EX + "0.01x ",
-    round(max_trade_qty / 100, int(float(get_market_data()[2]))),
+    Fore.LIGHTCYAN_EX + "0.010x : ~",
+    round(max_trade_qty / 100, num_decimals),
     "",
 )
-print(f"0.005x : {round(max_trade_qty / 200, int(float(get_market_data()[2])))}")
-print(f"0.001x : {round(max_trade_qty / 500, int(float(get_market_data()[2])))}")
+print(f"0.005x : ~ {round(max_trade_qty / 200, num_decimals)}")
+print(f"0.001x : ~ {round(max_trade_qty / 500, num_decimals)}")
+
 
 # Fix for the first run when variable is not yet assigned
 short_symbol_cum_realised = 0
@@ -546,7 +547,7 @@ def generate_main_table():
     return tables.generate_main_table(version, short_pos_unpl, long_pos_unpl, short_pos_unpl_pct, long_pos_unpl_pct, symbol, dex_wallet, 
                         dex_equity, short_symbol_cum_realised, long_symbol_realised, short_symbol_realised,
                         trade_qty, long_pos_qty, short_pos_qty, long_pos_price, long_liq_price, short_pos_price, 
-                        short_liq_price, max_trade_qty, market_data, trend, min_vol_dist_data,
+                        short_liq_price, max_trade_qty, num_decimals, market_data, trend, min_vol_dist_data,
                         min_volume, min_distance, mode)
 
 def trade_func(symbol):  # noqa
