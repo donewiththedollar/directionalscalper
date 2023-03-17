@@ -110,18 +110,6 @@ else:
 if args.tg == "on":
     tg_notifications = True
 
-if tg_notifications:
-    bot = telebot.TeleBot(config.telegram_api_token, parse_mode=None)
-
-    @bot.message_handler(commands=["start", "help"])
-    def send_welcome(message):
-        bot.reply_to(message, "Howdy, how are you doing?")
-
-    @bot.message_handler(func=lambda message: True)
-    def echo_all(message):
-        bot.reply_to(message, message.text)
-
-
 config_file = "config.json"
 if args.config:
     config_file = args.config
@@ -137,6 +125,16 @@ logging.basicConfig(
     level=os.environ.get("LOGLEVEL", "INFO"),
 )
 
+if tg_notifications:
+    bot = telebot.TeleBot(config.telegram_api_token, parse_mode=None)
+
+    @bot.message_handler(commands=["start", "help"])
+    def send_welcome(message):
+        bot.reply_to(message, "Howdy, how are you doing?")
+
+    @bot.message_handler(func=lambda message: True)
+    def echo_all(message):
+        bot.reply_to(message, message.text)
 
 min_volume = config.min_volume
 min_distance = config.min_distance
@@ -240,14 +238,17 @@ def get_orderbook():
 
 # get_market_data() [0]precision, [1]leverage, [2]min_trade_qty
 def get_market_data():
-    global leverage
-    exchange.load_markets()
-    precision = exchange.market(symbol)["info"]["price_scale"]
-    leverage = exchange.market(symbol)["info"]["leverage_filter"]["max_leverage"]
-    min_trade_qty = exchange.market(symbol)["info"]["lot_size_filter"][
-        "min_trading_qty"
-    ]
-    return precision, leverage, min_trade_qty
+    try:
+        global leverage
+        exchange.load_markets()
+        precision = exchange.market(symbol)["info"]["price_scale"]
+        leverage = exchange.market(symbol)["info"]["leverage_filter"]["max_leverage"]
+        min_trade_qty = exchange.market(symbol)["info"]["lot_size_filter"][
+            "min_trading_qty"
+        ]
+        return precision, leverage, min_trade_qty
+    except:
+        pass
 
 
 def get_short_positions():
