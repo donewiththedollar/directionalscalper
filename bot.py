@@ -32,11 +32,13 @@ def sendmessage(message):
 
 
 # Bools
-version = "Directional Scalper v1.0.7"
+version = "Directional Scalper v1.0.9"
 long_mode = False
 short_mode = False
 hedge_mode = False
 persistent_mode = False
+btclinear_long_mode = False
+btclinear_short_mode = False
 longbias_mode = False
 violent_mode = False
 high_vol_stack_mode = False
@@ -61,7 +63,7 @@ parser.add_argument(
     "--mode",
     type=str,
     help="Mode to use",
-    choices=["long", "short", "hedge", "persistent", "longbias"],
+    choices=["long", "short", "hedge", "persistent", "longbias", "btclinear-long", "btclinear-short"],
     required=True,
 )
 
@@ -89,6 +91,11 @@ elif args.mode == "persistent":
     persistent_mode = True
 elif args.mode == "longbias":
     longbias_mode = True
+elif args.mode == "btclinear-long":
+    btclinear_long_mode = True
+elif args.mode == "btclinear-short":
+    btclinear_short_mode = True
+
 
 if args.symbol:
     symbol = args.symbol
@@ -508,10 +515,45 @@ def initial_long_entry(current_bid):
         and find_5m_spread() > min_distance
         and long_pos_qty == 0
         and long_pos_qty < max_trade_qty
-        and find_trend() == "short"
+        and find_trend() == "long"
     ):
         try:
             exchange.create_limit_buy_order(symbol, trade_qty, current_bid)
+            time.sleep(0.01)
+        except Exception as e:
+            log.warning(f"{e}")
+    else:
+        pass
+
+def initial_long_entry_linear_btc(current_bid):
+    if (
+        # long_mode
+        long_trade_condition()
+        and find_1m_1x_volume() > min_volume
+        and find_5m_spread() > min_distance
+        and long_pos_qty == 0
+        and find_trend() == "long"
+    ):
+        try:
+            exchange.create_limit_buy_order(symbol, trade_qty, current_bid)
+            time.sleep(0.01)
+        except Exception as e:
+            log.warning(f"{e}")
+    else:
+        pass
+
+# Short entry logic if short enabled
+def initial_short_entry_linear_btc(current_ask):
+    if (
+        # short_mode
+        short_trade_condition()
+        and find_1m_1x_volume() > min_volume
+        and find_5m_spread() > min_distance
+        and short_pos_qty == 0
+        and find_trend() == "short"
+    ):
+        try:
+            exchange.create_limit_sell_order(symbol, trade_qty, current_ask)
             time.sleep(0.01)
         except Exception as e:
             log.warning(f"{e}")
@@ -528,7 +570,7 @@ def initial_short_entry(current_ask):
         and find_5m_spread() > min_distance
         and short_pos_qty == 0
         and short_pos_qty < max_trade_qty
-        and find_trend() == "long"
+        and find_trend() == "short"
     ):
         try:
             exchange.create_limit_sell_order(symbol, trade_qty, current_ask)
@@ -702,7 +744,13 @@ def trade_func(symbol):  # noqa
                     log.warning(f"{e}")
 
             # LONG: Take profit logic
-            if long_pos_qty > 0:
+            if (
+                long_pos_qty > 0
+                and hedge_mode == True or
+                long_mode == True or
+                longbias_mode == True or
+                btclinear_long_mode == True
+            ):
                 try:
                     get_open_orders()
                     time.sleep(0.05)
@@ -724,7 +772,12 @@ def trade_func(symbol):  # noqa
                         log.warning(f"{e}")
 
             # SHORT: Take profit logic
-            if short_pos_qty > 0:
+            if (
+                short_pos_qty > 0
+                and hedge_mode == True or
+                short_mode == True or
+                btclinear_short_mode == True
+            ):
                 try:
                     get_open_orders()
                     time.sleep(0.05)
@@ -744,6 +797,24 @@ def trade_func(symbol):  # noqa
                         time.sleep(0.05)
                     except Exception as e:
                         log.warning(f"{e}")
+
+            # Linear BTC modes
+            if btclinear_long_mode:
+                try:
+                    if find_trend() == "long":
+                        initial_long_entry_linear_btc(current_bid)
+                except Exception as e:
+                    log.warning(f"{e}")
+
+                    if (
+                        get_orderbook()[1] < get_1m_data()[0]
+                        or get_orderbook()[1] < get_5m_data()[0]
+                    ):
+                        try:
+                            cancel_entry()
+                            time.sleep(0.05)
+                        except Exception as e:
+                            log.warning(f"{e}")
 
             # HEDGE: Full mode
             if hedge_mode:
@@ -880,6 +951,16 @@ def longbias_mode_func(symbol):
     leverage_verification(symbol)
     trade_func(symbol)
 
+def linearbtclong_mode_func(symbol):
+    print(Fore.LIGHTCYAN_EX + "BTC Linear LONG mode enabled", symbol + Style.RESET_ALL)
+    leverage_verification(symbol)
+    trade_func(symbol)
+
+def linearbtcshort_mode_func(symbol):
+    print(Fore.LIGHTCYAN_EX + "BTC Linear SHORT mode enabled", symbol + Style.RESET_ALL)
+    leverage_verification(symbol)
+    trade_func(symbol)
+    
 
 # TO DO:
 
@@ -911,6 +992,18 @@ elif args.mode == "longbias":
         longbias_mode_func(args.symbol)
     else:
         symbol = input("Instrument undefined. \nInput instrument:")
+elif args.mode == "btclinear-long":
+    if args.symbol:
+        linearbtclong_mode_func(args.symbol)
+    else:
+        symbol = input("Instrument undefined. \nInput instrument:")
+elif args.mode == "btclinear-short":
+    if args.symbol:
+        linearbtcshort_mode_func(args.symbol)
+    else:
+        symbol = input("Instrument undefined. \nInput instrument:")
+
+        
 
 if args.tg == "on":
     if args.tg:
