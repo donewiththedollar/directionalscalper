@@ -594,15 +594,18 @@ def initial_short_entry(current_ask):
         pass
 
 def generate_main_table():
-    min_vol_dist_data = get_min_vol_dist_data(symbol)
-    mode = find_mode()
-    trend = find_trend()
-    market_data = get_market_data()
-    return tables.generate_main_table(version, short_pos_unpl, long_pos_unpl, short_pos_unpl_pct, long_pos_unpl_pct, symbol, dex_wallet, 
-                        dex_equity, short_symbol_cum_realised, long_symbol_realised, short_symbol_realised,
-                        trade_qty, long_pos_qty, short_pos_qty, long_pos_price, long_liq_price, short_pos_price, 
-                        short_liq_price, max_trade_qty, market_data, trend, min_vol_dist_data,
-                        min_volume, min_distance, mode)
+    try:
+        min_vol_dist_data = get_min_vol_dist_data(symbol)
+        mode = find_mode()
+        trend = find_trend()
+        market_data = get_market_data()
+        return tables.generate_main_table(version, short_pos_unpl, long_pos_unpl, short_pos_unpl_pct, long_pos_unpl_pct, symbol, dex_wallet, 
+                            dex_equity, short_symbol_cum_realised, long_symbol_realised, short_symbol_realised,
+                            trade_qty, long_pos_qty, short_pos_qty, long_pos_price, long_liq_price, short_pos_price, 
+                            short_liq_price, max_trade_qty, market_data, trend, min_vol_dist_data,
+                            min_volume, min_distance, mode)
+    except:
+        pass
 
 def trade_func(symbol):  # noqa
     with Live(generate_main_table(), refresh_per_second=2) as live:
