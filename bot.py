@@ -512,9 +512,11 @@ def find_mode():
     return mode
 
 
-
-get_short_positions()
-get_long_positions()
+try:
+    get_short_positions()
+    get_long_positions()
+except:
+    pass
 
 
 # Long entry logic if long enabled
