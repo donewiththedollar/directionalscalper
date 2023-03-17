@@ -466,33 +466,44 @@ tyler_1m_spread = tylerapi.get_asset_1m_spread(symbol, tylerapi.grab_api_data())
 
 
 def find_trend():
-    tylerapi.grab_api_data()
-    tyler_trend = tylerapi.get_asset_trend(symbol, tylerapi.grab_api_data())
+    try:
+        tylerapi.grab_api_data()
+        tyler_trend = tylerapi.get_asset_trend(symbol, tylerapi.grab_api_data())
 
-    return tyler_trend
+        return tyler_trend
+    except:
+        pass
 
 
 def find_1m_spread():
-    tylerapi.grab_api_data()
-    tyler_1m_spread = tylerapi.get_asset_1m_spread(symbol, tylerapi.grab_api_data())
+    try:
+        tylerapi.grab_api_data()
+        tyler_1m_spread = tylerapi.get_asset_1m_spread(symbol, tylerapi.grab_api_data())
 
-    return tyler_1m_spread
+        return tyler_1m_spread
+    except:
+        pass
 
 
 def find_5m_spread():
-    tylerapi.grab_api_data()
-    tyler_spread = tylerapi.get_asset_5m_spread(symbol, tylerapi.grab_api_data())
+    try:
+        tylerapi.grab_api_data()
+        tyler_spread = tylerapi.get_asset_5m_spread(symbol, tylerapi.grab_api_data())
 
-    return tyler_spread
+        return tyler_spread
+    except:
+        pass
 
 
 def find_1m_1x_volume():
-    tylerapi.grab_api_data()
-    tyler_1x_volume_1m = tylerapi.get_asset_volume_1m_1x(
-        symbol, tylerapi.grab_api_data()
-    )
-
-    return tyler_1x_volume_1m
+    try:
+        tylerapi.grab_api_data()
+        tyler_1x_volume_1m = tylerapi.get_asset_volume_1m_1x(
+            symbol, tylerapi.grab_api_data()
+        )
+        return tyler_1x_volume_1m
+    except:
+        pass
 
 
 def find_mode():
