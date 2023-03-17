@@ -32,13 +32,14 @@ def sendmessage(message):
 
 
 # Bools
-version = "Directional Scalper v1.0.9"
+version = "Directional Scalper v1.1.0"
 long_mode = False
 short_mode = False
 hedge_mode = False
 persistent_mode = False
 btclinear_long_mode = False
 btclinear_short_mode = False
+deleveraging_mode = False
 longbias_mode = False
 violent_mode = False
 high_vol_stack_mode = False
@@ -70,6 +71,8 @@ parser.add_argument(
 parser.add_argument("--symbol", type=str, help="Specify symbol", required=True)
 
 parser.add_argument("--iqty", type=str, help="Initial entry quantity", required=True)
+
+parser.add_argument("--deleverage", type=str, help="Deleveraging enabled", choices=["on", "off"], required=False)
 
 parser.add_argument(
     "--tg", type=str, help="TG Notifications", choices=["on", "off"], required=True
@@ -109,6 +112,9 @@ else:
 
 if args.tg == "on":
     tg_notifications = True
+
+if args.deleverage == "on":
+    deleveraging_mode = True
 
 config_file = "config.json"
 if args.config:
@@ -594,6 +600,26 @@ def initial_short_entry(current_ask):
     else:
         pass
 
+def calculate_long_profit_prices(long_pos_price, price_difference, price_scale):
+    try:
+        long_profit_prices = []
+        profit_multipliers = [0.3, 0.6, 1.0]
+        for multiplier in profit_multipliers:
+            profit_price = long_pos_price + (price_difference * multiplier)
+            long_profit_prices.append(round(profit_price, price_scale))
+        return long_profit_prices
+    except:
+        pass
+
+def calculate_short_profit_prices(short_pos_price, price_difference, price_scale):
+    short_profit_prices = []
+    profit_multipliers = [0.3, 0.6, 1.0]
+    for multiplier in profit_multipliers:
+        profit_price = short_pos_price - (price_difference * multiplier)
+        short_profit_prices.append(round(profit_price, price_scale))
+    return short_profit_prices
+
+
 def generate_main_table():
     try:
         min_vol_dist_data = get_min_vol_dist_data(symbol)
@@ -660,6 +686,17 @@ def trade_func(symbol):  # noqa
                 long_pos_price + (get_5m_data()[2] - get_5m_data()[3]),
                 int(get_market_data()[0]),
             )
+
+            # Calculate long_profit_prices
+            price_difference = get_5m_data()[2] - get_5m_data()[3]
+            price_scale = int(get_market_data()[0])
+            long_profit_prices = calculate_long_profit_prices(long_pos_price, price_difference, price_scale)
+
+            # Calculate short_profit_prices
+            price_difference = get_5m_data()[2] - get_5m_data()[3]
+            price_scale = int(get_market_data()[0])
+            short_profit_prices = calculate_short_profit_prices(short_pos_price, price_difference, price_scale)
+
 
             add_trade_qty = trade_qty
 
@@ -760,9 +797,44 @@ def trade_func(symbol):  # noqa
                 except Exception as e:
                     log.warning(f"{e}")
 
+            # LONG: Deleveraging Take profit logic
+            if (
+                deleveraging_mode == True
+                and long_pos_qty > 0
+                and hedge_mode == True or
+                long_mode == True or
+                longbias_mode == True or
+                btclinear_long_mode == True
+            ):
+                try:
+                    get_open_orders()
+                    time.sleep(0.05)
+                except Exception as e:
+                    log.warning(f"{e}")
+
+                if long_profit_price != 0 or long_pos_price != 0:
+                    try:
+                        cancel_close()
+                        time.sleep(0.05)
+                    except Exception as e:
+                        log.warning(f"{e}")
+
+                    # Create separate limit sell orders for each take profit level
+                    position_size = long_open_pos_qty / len(long_profit_prices)
+                    for profit_price in long_profit_prices:
+                        try:
+                            exchange.create_limit_sell_order(
+                                symbol, position_size, profit_price, reduce_only
+                            )
+                            time.sleep(0.05)
+                        except Exception as e:
+                            log.warning(f"{e}")
+                            
+
             # LONG: Take profit logic
             if (
-                long_pos_qty > 0
+                deleveraging_mode == False
+                and long_pos_qty > 0
                 and hedge_mode == True or
                 long_mode == True or
                 longbias_mode == True or
@@ -788,9 +860,41 @@ def trade_func(symbol):  # noqa
                     except Exception as e:
                         log.warning(f"{e}")
 
+            # SHORT: Deleveraging Take profit logic
+            if (
+                deleveraging_mode == True
+                and short_pos_qty > 0
+                and hedge_mode == True or
+                short_mode == True or
+                btclinear_short_mode == True
+            ):
+                try:
+                    get_open_orders()
+                    time.sleep(0.05)
+                except Exception as e:
+                    log.warning(f"{e}")
+
+                if short_profit_price != 0 or short_pos_price != 0:
+                    try:
+                        cancel_close()
+                        time.sleep(0.05)
+                    except Exception as e:
+                        log.warning(f"{e}")
+                    # Create separate limit buy orders for each take profit level
+                    position_size = short_open_pos_qty / len(short_profit_prices)
+                    for profit_price in short_profit_prices:
+                        try:
+                            exchange.create_limit_buy_order(
+                                symbol, position_size, profit_price, reduce_only
+                            )
+                            time.sleep(0.05)
+                        except Exception as e:
+                            log.warning(f"{e}")
+
             # SHORT: Take profit logic
             if (
-                short_pos_qty > 0
+                deleveraging_mode == False
+                and short_pos_qty > 0
                 and hedge_mode == True or
                 short_mode == True or
                 btclinear_short_mode == True
