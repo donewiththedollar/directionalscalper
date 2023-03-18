@@ -74,6 +74,8 @@ parser.add_argument("--iqty", type=str, help="Initial entry quantity", required=
 
 parser.add_argument("--deleverage", type=str, help="Deleveraging enabled", choices=["on", "off"], required=False)
 
+parser.add_argument("--avoidfees", type=str, help="Avoid all fees", choices=["on", "off"], required=False)
+
 parser.add_argument(
     "--tg", type=str, help="TG Notifications", choices=["on", "off"], required=True
 )
@@ -130,6 +132,10 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
     level=os.environ.get("LOGLEVEL", "INFO"),
 )
+
+if args.avoidfees == "on":
+    config.avoid_fees = True
+    print("Avoiding fees")
 
 if tg_notifications:
     bot = telebot.TeleBot(config.telegram_api_token, parse_mode=None)
@@ -600,6 +606,26 @@ def initial_short_entry(current_ask):
     else:
         pass
 
+# Calculate for fees
+def calculate_min_price_increment(pos_price, taker_fee_rate):
+    return pos_price * taker_fee_rate * 2
+
+def calculate_long_profit_prices_avoidfees(long_pos_price, price_difference, price_scale, min_price_increment):
+    long_profit_prices = []
+    profit_multipliers = [min_price_increment * 2, min_price_increment * 4, min_price_increment * 6]
+    for multiplier in profit_multipliers:
+        profit_price = long_pos_price + (price_difference * multiplier)
+        long_profit_prices.append(round(profit_price, price_scale))
+    return long_profit_prices
+
+def calculate_short_profit_prices_avoidfees(short_pos_price, price_difference, price_scale, min_price_increment):
+    short_profit_prices = []
+    profit_multipliers = [min_price_increment * 2, min_price_increment * 4, min_price_increment * 6]
+    for multiplier in profit_multipliers:
+        profit_price = short_pos_price - (price_difference * multiplier)
+        short_profit_prices.append(round(profit_price, price_scale))
+    return short_profit_prices
+
 def calculate_long_profit_prices(long_pos_price, price_difference, price_scale):
     try:
         long_profit_prices = []
@@ -687,15 +713,26 @@ def trade_func(symbol):  # noqa
                 int(get_market_data()[0]),
             )
 
+            if config.avoid_fees == True:
+                taker_fee_rate = 0.00075  # Update this to the current taker fee rate for the contract type
+                min_price_increment_long = calculate_min_price_increment(long_pos_price, taker_fee_rate)
+                min_price_increment_short = calculate_min_price_increment(short_pos_price, taker_fee_rate)
+
             # Calculate long_profit_prices
             price_difference = get_5m_data()[2] - get_5m_data()[3]
             price_scale = int(get_market_data()[0])
-            long_profit_prices = calculate_long_profit_prices(long_pos_price, price_difference, price_scale)
+            if config.avoid_fees == True:
+                long_profit_prices = calculate_long_profit_prices_avoidfees(long_pos_price, price_difference, price_scale, min_price_increment_long)
+            else:
+                long_profit_prices = calculate_long_profit_prices(long_pos_price, price_difference, price_scale)
 
             # Calculate short_profit_prices
             price_difference = get_5m_data()[2] - get_5m_data()[3]
             price_scale = int(get_market_data()[0])
-            short_profit_prices = calculate_short_profit_prices(short_pos_price, price_difference, price_scale)
+            if config.avoid_fees == True:
+                short_profit_prices = calculate_short_profit_prices_avoidfees(short_pos_price, price_difference, price_scale, min_price_increment_short)
+            else:
+                short_profit_prices = calculate_short_profit_prices(short_pos_price, price_difference, price_scale)
 
 
             add_trade_qty = trade_qty

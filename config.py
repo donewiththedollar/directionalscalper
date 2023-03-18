@@ -20,6 +20,7 @@ class Config(BaseModel):
     divider: int = 7
     telegram_api_token: str = ""
     telegram_chat_id: str = ""
+    avoid_fees: bool = False
 
     @validator("min_volume")
     def minimum_min_volume(cls, v):
@@ -44,7 +45,6 @@ class Config(BaseModel):
         if v < 0:
             raise ValueError("divier must be greater than 0")
         return v
-
 
 def load_config(path):
     if not path.is_file():

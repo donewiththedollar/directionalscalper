@@ -9,5 +9,6 @@
   "min_fee": 0.17,
   "divider": 7,
   "telegram_api_token": "",
-  "telegram_chat_id": ""
+  "telegram_chat_id": "",
+  "avoid_fees": false
 }
