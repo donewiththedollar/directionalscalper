@@ -716,7 +716,7 @@ def trade_func(symbol):  # noqa
             )
 
             if config.avoid_fees == True:
-                taker_fee_rate = 0.00090  # Update this to the current taker fee rate for the contract type
+                taker_fee_rate = 0.0009  # Update this to the current taker fee rate for the contract type
                 min_price_increment_long = calculate_min_price_increment(long_pos_price, taker_fee_rate)
                 min_price_increment_short = calculate_min_price_increment(short_pos_price, taker_fee_rate)
 
