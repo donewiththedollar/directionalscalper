@@ -117,6 +117,8 @@ if args.tg == "on":
 
 if args.deleverage == "on":
     deleveraging_mode = True
+else:
+    deleveraging_mode = False
 
 config_file = "config.json"
 if args.config:
