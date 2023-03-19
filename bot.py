@@ -1066,15 +1066,29 @@ def trade_func(symbol):  # noqa
                 except Exception as e:
                     log.warning(f"{e}")
 
-            if (
-                get_orderbook()[1] < get_1m_data()[0]
-                or get_orderbook()[1] < get_5m_data()[0]
-            ):
-                try:
-                    cancel_entry()
-                    time.sleep(0.05)
-                except Exception as e:
-                    log.warning(f"{e}")
+            orderbook_data = get_orderbook()
+            data_1m = get_1m_data()
+            data_5m = get_5m_data()
+
+            if orderbook_data is not None and data_1m is not None and data_5m is not None:
+                if orderbook_data[1] < data_1m[0] or orderbook_data[1] < data_5m[0]:
+                    try:
+                        cancel_entry()
+                        time.sleep(0.05)
+                    except Exception as e:
+                        log.warning(f"{e}")
+            else:
+                log.warning("One or more functions returned None")
+                
+            # if (
+            #     get_orderbook()[1] < get_1m_data()[0]
+            #     or get_orderbook()[1] < get_5m_data()[0]
+            # ):
+            #     try:
+            #         cancel_entry()
+            #         time.sleep(0.05)
+            #     except Exception as e:
+            #         log.warning(f"{e}")
 
 
 # Mode functions
