@@ -153,6 +153,7 @@ if tg_notifications:
 min_volume = config.min_volume
 min_distance = config.min_distance
 botname = config.bot_name
+linear_taker_fee = config.linear_taker_fee
 
 exchange = ccxt.bybit(
     {
@@ -716,7 +717,8 @@ def trade_func(symbol):  # noqa
             )
 
             if config.avoid_fees == True:
-                taker_fee_rate = 0.17  # Update this to the current taker fee rate for the contract type
+                #taker_fee_rate = 0.17  # Update this to the current taker fee rate for the contract type
+                taker_fee_rate = linear_taker_fee
                 min_price_increment_long = calculate_min_price_increment(long_pos_price, taker_fee_rate)
                 min_price_increment_short = calculate_min_price_increment(short_pos_price, taker_fee_rate)
 

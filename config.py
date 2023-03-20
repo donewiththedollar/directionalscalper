@@ -21,6 +21,8 @@ class Config(BaseModel):
     telegram_api_token: str = ""
     telegram_chat_id: str = ""
     avoid_fees: bool = False
+    linear_taker_fee: float = 0.17
+
 
     @validator("min_volume")
     def minimum_min_volume(cls, v):
@@ -44,6 +46,12 @@ class Config(BaseModel):
     def minimum_divider(cls, v):
         if v < 0:
             raise ValueError("divier must be greater than 0")
+        return v
+
+    @validator("linear_taker_fee")
+    def minimum_linear_taker_fee(cls, v):
+        if v < 0.0:
+            raise ValueError("linear_taker_fee must be greater than 0")
         return v
 
 def load_config(path):
