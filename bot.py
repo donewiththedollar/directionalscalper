@@ -843,6 +843,7 @@ def trade_func(symbol):  # noqa
                 and hedge_mode == True or
                 long_mode == True or
                 longbias_mode == True or
+                aggressive_mode == True or
                 btclinear_long_mode == True
             ):
                 try:
@@ -877,6 +878,7 @@ def trade_func(symbol):  # noqa
                 and hedge_mode == True or
                 long_mode == True or
                 longbias_mode == True or
+                aggressive_mode == True or
                 btclinear_long_mode == True
             ):
                 try:
@@ -905,6 +907,7 @@ def trade_func(symbol):  # noqa
                 and short_pos_qty > 0
                 and hedge_mode == True or
                 short_mode == True or
+                aggressive_mode == True or
                 btclinear_short_mode == True
             ):
                 try:
@@ -936,6 +939,7 @@ def trade_func(symbol):  # noqa
                 and short_pos_qty > 0
                 and hedge_mode == True or
                 short_mode == True or
+                aggressive_mode == True or
                 btclinear_short_mode == True
             ):
                 try:
