@@ -839,6 +839,7 @@ def trade_func(symbol):  # noqa
             # LONG: Deleveraging Take profit logic
             if (
                 deleveraging_mode == True
+                or config.avoid_fees == True
                 and long_pos_qty > 0
                 and hedge_mode == True or
                 long_mode == True or
@@ -904,6 +905,7 @@ def trade_func(symbol):  # noqa
             # SHORT: Deleveraging Take profit logic
             if (
                 deleveraging_mode == True
+                or config.avoid_fees == True
                 and short_pos_qty > 0
                 and hedge_mode == True or
                 short_mode == True or
@@ -1027,7 +1029,7 @@ def trade_func(symbol):  # noqa
                 except Exception as e:
                     log.warning(f"{e}")
 
-            # Agressive HEDGE: Full mode
+            # Aggressive HEDGE: Full mode
             if aggressive_mode:
                 try:
                     if find_trend() == "short":
