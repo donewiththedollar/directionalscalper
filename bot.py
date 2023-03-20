@@ -36,7 +36,7 @@ version = "Directional Scalper v1.1.0"
 long_mode = False
 short_mode = False
 hedge_mode = False
-persistent_mode = False
+aggressive_mode = False
 btclinear_long_mode = False
 btclinear_short_mode = False
 deleveraging_mode = False
@@ -64,7 +64,7 @@ parser.add_argument(
     "--mode",
     type=str,
     help="Mode to use",
-    choices=["long", "short", "hedge", "persistent", "longbias", "btclinear-long", "btclinear-short"],
+    choices=["long", "short", "hedge", "aggressive", "longbias", "btclinear-long", "btclinear-short"],
     required=True,
 )
 
@@ -92,8 +92,8 @@ elif args.mode == "short":
     short_mode = True
 elif args.mode == "hedge":
     hedge_mode = True
-elif args.mode == "persistent":
-    persistent_mode = True
+elif args.mode == "aggressive":
+    aggressive_mode = True
 elif args.mode == "longbias":
     longbias_mode = True
 elif args.mode == "btclinear-long":
@@ -1023,15 +1023,16 @@ def trade_func(symbol):  # noqa
                 except Exception as e:
                     log.warning(f"{e}")
 
-            # PERSISTENT HEDGE: Full mode
-            if persistent_mode:
+            # Agressive HEDGE: Full mode
+            if aggressive_mode:
                 try:
-                    if find_trend() == "long":
+                    if find_trend() == "short":
+                        initial_short_entry(current_ask)
                         if (
-                            short_trade_condition()
-                            and find_1m_1x_volume() > min_volume
+                            find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
-                            and short_pos_qty < max_trade_qty
+                            and add_short_trade_condition()
+                            and current_ask > short_pos_price
                         ):
                             try:
                                 exchange.create_limit_sell_order(
@@ -1040,12 +1041,13 @@ def trade_func(symbol):  # noqa
                                 time.sleep(0.01)
                             except Exception as e:
                                 log.warning(f"{e}")
-                    elif find_trend() == "short":
+                    elif find_trend() == "long":
+                        initial_long_entry(current_bid)
                         if (
-                            long_trade_condition()
-                            and find_1m_1x_volume() > min_volume
+                            find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
-                            and long_pos_qty < max_trade_qty
+                            and add_long_trade_condition()
+                            and current_bid < long_pos_price
                         ):
                             try:
                                 exchange.create_limit_buy_order(
@@ -1111,9 +1113,9 @@ def hedge_mode_func(symbol):
     trade_func(symbol)
 
 
-def persistent_mode_func(symbol):
+def aggressive_mode_func(symbol):
     print(
-        Fore.LIGHTCYAN_EX + "Persistent hedge mode enabled for",
+        Fore.LIGHTCYAN_EX + "Aggressive hedge mode enabled for",
         symbol + Style.RESET_ALL,
     )
     leverage_verification(symbol)
@@ -1156,9 +1158,9 @@ elif args.mode == "hedge":
         hedge_mode_func(args.symbol)
     else:
         symbol = input("Instrument undefined. \nInput instrument:")
-elif args.mode == "persistent":
+elif args.mode == "aggressive":
     if args.symbol:
-        persistent_mode_func(args.symbol)
+        aggressive_mode_func(args.symbol)
     else:
         symbol = input("Instrument undefined. \nInput instrument:")
 elif args.mode == "longbias":
