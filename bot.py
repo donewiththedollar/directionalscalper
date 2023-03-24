@@ -609,24 +609,40 @@ def initial_short_entry(current_ask):
     else:
         pass
 
+def get_current_price(exchange, symbol):
+    ticker = exchange.fetch_ticker(symbol)
+    current_price = (ticker['bid'] + ticker['ask']) / 2
+    return current_price
+
 # Calculate for fees
 def calculate_min_price_increment(pos_price, taker_fee_rate):
     return pos_price * taker_fee_rate * 2
 
-def calculate_long_profit_prices_avoidfees(long_pos_price, price_difference, price_scale, min_price_increment):
+def calculate_long_profit_prices_avoidfees(long_pos_price, price_difference, price_scale, min_price_increment, taker_fee_rate, long_order_value):
     long_profit_prices = []
     profit_multipliers = [min_price_increment * 2, min_price_increment * 4, min_price_increment * 6]
     for multiplier in profit_multipliers:
         profit_price = long_pos_price + (price_difference * multiplier)
-        long_profit_prices.append(round(profit_price, price_scale))
+        rounded_profit_price = round(profit_price, price_scale)
+        if multiplier == min_price_increment * 2:
+            fees = long_order_value * taker_fee_rate
+            if (rounded_profit_price - long_pos_price) * long_order_value <= fees:
+                rounded_profit_price += min_price_increment
+        long_profit_prices.append(rounded_profit_price)
     return long_profit_prices
 
-def calculate_short_profit_prices_avoidfees(short_pos_price, price_difference, price_scale, min_price_increment):
+
+def calculate_short_profit_prices_avoidfees(short_pos_price, price_difference, price_scale, min_price_increment, taker_fee_rate, short_order_value):
     short_profit_prices = []
     profit_multipliers = [min_price_increment * 2, min_price_increment * 4, min_price_increment * 6]
     for multiplier in profit_multipliers:
         profit_price = short_pos_price - (price_difference * multiplier)
-        short_profit_prices.append(round(profit_price, price_scale))
+        rounded_profit_price = round(profit_price, price_scale)
+        if multiplier == min_price_increment * 2:
+            fees = short_order_value * taker_fee_rate
+            if (short_pos_price - rounded_profit_price) * short_order_value <= fees:
+                rounded_profit_price -= min_price_increment
+        short_profit_prices.append(rounded_profit_price)
     return short_profit_prices
 
 def calculate_long_profit_prices(long_pos_price, price_difference, price_scale):
@@ -716,26 +732,27 @@ def trade_func(symbol):  # noqa
                 int(get_market_data()[0]),
             )
 
-            if config.avoid_fees == True:
-                #taker_fee_rate = 0.17  # Update this to the current taker fee rate for the contract type
+            if config.avoid_fees:
                 taker_fee_rate = config.linear_taker_fee
+                current_price = get_current_price(exchange, symbol)
+                long_order_value = current_price * long_open_pos_qty
+                short_order_value = current_price * short_open_pos_qty
                 min_price_increment_long = calculate_min_price_increment(long_pos_price, taker_fee_rate)
                 min_price_increment_short = calculate_min_price_increment(short_pos_price, taker_fee_rate)
 
-            # Calculate long_profit_prices
-            price_difference = get_5m_data()[2] - get_5m_data()[3]
-            price_scale = int(get_market_data()[0])
-            if config.avoid_fees == True:
-                long_profit_prices = calculate_long_profit_prices_avoidfees(long_pos_price, price_difference, price_scale, min_price_increment_long)
+                # Calculate long_profit_prices
+                price_difference = get_5m_data()[2] - get_5m_data()[3]
+                price_scale = int(get_market_data()[0])
+                long_profit_prices = calculate_long_profit_prices_avoidfees(
+                    long_pos_price, price_difference, price_scale, min_price_increment_long, taker_fee_rate, long_order_value
+                )
+
+                # Calculate short_profit_prices
+                short_profit_prices = calculate_short_profit_prices_avoidfees(
+                    short_pos_price, price_difference, price_scale, min_price_increment_short, taker_fee_rate, short_order_value
+                )
             else:
                 long_profit_prices = calculate_long_profit_prices(long_pos_price, price_difference, price_scale)
-
-            # Calculate short_profit_prices
-            price_difference = get_5m_data()[2] - get_5m_data()[3]
-            price_scale = int(get_market_data()[0])
-            if config.avoid_fees == True:
-                short_profit_prices = calculate_short_profit_prices_avoidfees(short_pos_price, price_difference, price_scale, min_price_increment_short)
-            else:
                 short_profit_prices = calculate_short_profit_prices(short_pos_price, price_difference, price_scale)
 
 
