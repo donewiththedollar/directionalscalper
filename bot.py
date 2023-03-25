@@ -770,8 +770,13 @@ def trade_func(symbol):  # noqa
                     short_pos_price, price_difference, price_scale, min_price_increment_short, taker_fee_rate, short_order_value
                 )
             else:
-                long_profit_prices = calculate_long_profit_prices(long_pos_price, price_difference, price_scale)
-                short_profit_prices = calculate_short_profit_prices(short_pos_price, price_difference, price_scale)
+                if deleveraging_mode:
+                    taker_fee_rate = config.linear_taker_fee
+                    # Calculate long_profit_prices
+                    price_difference = get_5m_data()[2] - get_5m_data()[3]
+                    price_scale = int(get_market_data()[0])
+                    long_profit_prices = calculate_long_profit_prices(long_pos_price, price_difference, price_scale)
+                    short_profit_prices = calculate_short_profit_prices(short_pos_price, price_difference, price_scale)
 
 
             add_trade_qty = trade_qty
