@@ -884,6 +884,7 @@ def trade_func(symbol):  # noqa
                 or config.avoid_fees == True
                 and long_pos_qty > 0
                 and hedge_mode == True or
+                violent_mode == True or
                 long_mode == True or
                 longbias_mode == True or
                 aggressive_mode == True or
@@ -917,6 +918,7 @@ def trade_func(symbol):  # noqa
             # LONG: Take profit logic
             if (
                 deleveraging_mode == False
+                or config.avoid_fees == False
                 and long_pos_qty > 0
                 and hedge_mode == True or
                 long_mode == True or
@@ -951,6 +953,7 @@ def trade_func(symbol):  # noqa
                 or config.avoid_fees == True
                 and short_pos_qty > 0
                 and hedge_mode == True or
+                violent_mode == True or
                 short_mode == True or
                 aggressive_mode == True or
                 btclinear_short_mode == True
@@ -981,6 +984,7 @@ def trade_func(symbol):  # noqa
             # SHORT: Take profit logic
             if (
                 deleveraging_mode == False
+                and config.avoid_fees == False
                 and short_pos_qty > 0
                 and hedge_mode == True or
                 short_mode == True or
