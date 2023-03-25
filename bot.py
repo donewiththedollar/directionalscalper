@@ -64,7 +64,7 @@ parser.add_argument(
     "--mode",
     type=str,
     help="Mode to use",
-    choices=["long", "short", "hedge", "aggressive", "longbias", "btclinear-long", "btclinear-short"],
+    choices=["long", "short", "hedge", "aggressive", "longbias", "btclinear-long", "btclinear-short", "violent"],
     required=True,
 )
 
@@ -75,6 +75,8 @@ parser.add_argument("--iqty", type=str, help="Initial entry quantity", required=
 parser.add_argument("--deleverage", type=str, help="Deleveraging enabled", choices=["on", "off"], required=False)
 
 parser.add_argument("--avoidfees", type=str, help="Avoid all fees", choices=["on", "off"], required=False)
+
+# parser.add_arguemnt("--violent", type=str, help="Violent mode", choices=["on", "off"], required=False)
 
 parser.add_argument(
     "--tg", type=str, help="TG Notifications", choices=["on", "off"], required=True
@@ -100,6 +102,8 @@ elif args.mode == "btclinear-long":
     btclinear_long_mode = True
 elif args.mode == "btclinear-short":
     btclinear_short_mode = True
+elif args.mode == "violent":
+    violent_mode = True
 
 
 if args.symbol:
@@ -119,6 +123,7 @@ if args.deleverage == "on":
     deleveraging_mode = True
 else:
     deleveraging_mode = False
+
 
 config_file = "config.json"
 if args.config:
@@ -731,6 +736,19 @@ def trade_func(symbol):  # noqa
                 long_pos_price + (get_5m_data()[2] - get_5m_data()[3]),
                 int(get_market_data()[0]),
             )
+            if violent_mode:
+                print(f"Violent trade qty calculating")
+                short_violent_trade_qty = (
+                    short_open_pos_qty
+                    * (get_1m_data()[3] - short_pos_price)
+                    / (get_orderbook()[1] - get_1m_data()[3])
+                )
+
+                long_violent_trade_qty = (
+                    long_open_pos_qty
+                    * (get_1m_data()[3] - long_pos_price)
+                    / (get_orderbook()[1] - get_1m_data()[3])
+                )
 
             if config.avoid_fees:
                 taker_fee_rate = config.linear_taker_fee
@@ -899,7 +917,8 @@ def trade_func(symbol):  # noqa
                 long_mode == True or
                 longbias_mode == True or
                 aggressive_mode == True or
-                btclinear_long_mode == True
+                btclinear_long_mode == True or
+                violent_mode == True
             ):
                 try:
                     get_open_orders()
@@ -961,7 +980,8 @@ def trade_func(symbol):  # noqa
                 and hedge_mode == True or
                 short_mode == True or
                 aggressive_mode == True or
-                btclinear_short_mode == True
+                btclinear_short_mode == True or
+                violent_mode == True
             ):
                 try:
                     get_open_orders()
@@ -1000,6 +1020,53 @@ def trade_func(symbol):  # noqa
                             time.sleep(0.05)
                         except Exception as e:
                             log.warning(f"{e}")
+
+            # HEDGE: Full mode
+            if violent_mode:
+                try:
+                    if find_trend() == "short":
+                        initial_short_entry(current_ask)
+                        if (
+                            find_1m_1x_volume() > min_volume
+                            and find_5m_spread() > min_distance
+                            #and short_pos_qty < max_trade_qty
+                            and add_short_trade_condition()
+                            and current_ask > short_pos_price
+                        ):
+                            try:
+                                exchange.create_limit_sell_order(
+                                    symbol, short_violent_trade_qty, current_ask
+                                )
+                                time.sleep(0.01)
+                            except Exception as e:
+                                log.warning(f"{e}")
+                    elif find_trend() == "long":
+                        initial_long_entry(current_bid)
+                        if (
+                            find_1m_1x_volume() > min_volume
+                            and find_5m_spread() > min_distance
+                            #and long_pos_qty < max_trade_qty
+                            and add_long_trade_condition()
+                            and current_bid < long_pos_price
+                        ):
+                            try:
+                                exchange.create_limit_buy_order(
+                                    symbol, long_violent_trade_qty, current_bid
+                                )
+                                time.sleep(0.01)
+                            except Exception as e:
+                                log.warning(f"{e}")
+                    if (
+                        get_orderbook()[1] < get_1m_data()[0]
+                        or get_orderbook()[1] < get_5m_data()[0]
+                    ):
+                        try:
+                            cancel_entry()
+                            time.sleep(0.05)
+                        except Exception as e:
+                            log.warning(f"{e}")
+                except Exception as e:
+                    log.warning(f"{e}")
 
             # HEDGE: Full mode
             if hedge_mode:
@@ -1161,6 +1228,12 @@ def linearbtcshort_mode_func(symbol):
     print(Fore.LIGHTCYAN_EX + "BTC Linear SHORT mode enabled", symbol + Style.RESET_ALL)
     leverage_verification(symbol)
     trade_func(symbol)
+
+def violent_mode_func(symbol):
+    print(Fore.LIGHTCYAN_EX + "Violent mode enabled use at your own risk muahaha", symbol + Style.RESET_ALL)
+    leverage_verification(symbol)
+    trade_func(symbol)
+
     
 
 # TO DO:
@@ -1201,6 +1274,11 @@ elif args.mode == "btclinear-long":
 elif args.mode == "btclinear-short":
     if args.symbol:
         linearbtcshort_mode_func(args.symbol)
+    else:
+        symbol = input("Instrument undefined. \nInput instrument:")
+elif args.mode == "violent":
+    if args.symbol:
+        violent_mode_func(args.symbol)
     else:
         symbol = input("Instrument undefined. \nInput instrument:")
 
