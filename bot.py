@@ -727,15 +727,36 @@ def trade_func(symbol):  # noqa
             short_open_pos_qty = short_pos_qty
             reduce_only = {"reduce_only": True}
 
-            short_profit_price = round(
-                short_pos_price - (get_5m_data()[2] - get_5m_data()[3]),
-                int(get_market_data()[0]),
-            )
+            five_min_data = get_5m_data()
+            market_data = get_market_data()
 
-            long_profit_price = round(
-                long_pos_price + (get_5m_data()[2] - get_5m_data()[3]),
-                int(get_market_data()[0]),
-            )
+            if five_min_data is not None and market_data is not None:
+                short_profit_price = round(
+                    short_pos_price - (five_min_data[2] - five_min_data[3]),
+                    int(market_data[0]),
+                )
+            else:
+                pass
+
+            if five_min_data is not None and market_data is not None:
+                long_profit_price = round(
+                    long_pos_price + (five_min_data[2] - five_min_data[3]),
+                    int(market_data[0]),
+                )
+            else:
+                pass
+    
+            # short_profit_price = round(
+            #     short_pos_price - (get_5m_data()[2] - get_5m_data()[3]),
+            #     int(get_market_data()[0]),
+            # )
+
+            # long_profit_price = round(
+            #     long_pos_price + (get_5m_data()[2] - get_5m_data()[3]),
+            #     int(get_market_data()[0]),
+            # )
+
+
             if violent_mode:
                 short_violent_trade_qty = (
                     short_open_pos_qty
@@ -1238,7 +1259,7 @@ def linearbtcshort_mode_func(symbol):
     trade_func(symbol)
 
 def violent_mode_func(symbol):
-    print(Fore.LIGHTCYAN_EX + "Violent mode enabled use at your own risk muahaha", symbol + Style.RESET_ALL)
+    print(Fore.LIGHTCYAN_EX + "Violent mode enabled use at your own risk use LOW lot size", symbol + Style.RESET_ALL)
     leverage_verification(symbol)
     trade_func(symbol)
 
