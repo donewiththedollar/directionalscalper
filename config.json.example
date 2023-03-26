@@ -11,5 +11,5 @@
   "telegram_api_token": "",
   "telegram_chat_id": "",
   "avoid_fees": false,
-  "linear_taker_fee": 0.34
+  "linear_taker_fee": 0.17
 }
