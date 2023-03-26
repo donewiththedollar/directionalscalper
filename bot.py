@@ -737,7 +737,6 @@ def trade_func(symbol):  # noqa
                 int(get_market_data()[0]),
             )
             if violent_mode:
-                print(f"Violent trade qty calculating")
                 short_violent_trade_qty = (
                     short_open_pos_qty
                     * (get_1m_data()[3] - short_pos_price)
