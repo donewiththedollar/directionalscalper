@@ -444,6 +444,8 @@ max_trade_qty = round(
     int(float(get_market_data()[2])),
 )
 
+violent_max_trade_qty = max_trade_qty * 10
+
 current_leverage = get_market_data()[1]
 
 print(f"Min Trade Qty: {get_market_data()[2]}")
@@ -1050,7 +1052,7 @@ def trade_func(symbol):  # noqa
                         except Exception as e:
                             log.warning(f"{e}")
 
-            # HEDGE: Full mode
+            # Violent: Full mode
             if violent_mode:
                 try:
                     if find_trend() == "short":
@@ -1061,6 +1063,7 @@ def trade_func(symbol):  # noqa
                             #and short_pos_qty < max_trade_qty
                             and add_short_trade_condition()
                             and current_ask > short_pos_price
+                            and short_pos_qty < violent_max_trade_qty
                         ):
                             try:
                                 exchange.create_limit_sell_order(
@@ -1077,6 +1080,7 @@ def trade_func(symbol):  # noqa
                             #and long_pos_qty < max_trade_qty
                             and add_long_trade_condition()
                             and current_bid < long_pos_price
+                            and long_pos_qty < violent_max_trade_qty
                         ):
                             try:
                                 exchange.create_limit_buy_order(
