@@ -22,7 +22,7 @@ class Config(BaseModel):
     telegram_chat_id: str = ""
     avoid_fees: bool = False
     linear_taker_fee: float = 0.17
-    wallet_exposure: float = 0.10
+    wallet_exposure: float = 1.00
 
 
     @validator("min_volume")
