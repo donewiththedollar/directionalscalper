@@ -1060,35 +1060,45 @@ def trade_func(symbol):  # noqa
                         if (
                             find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
-                            #and short_pos_qty < max_trade_qty
+                            # and short_pos_qty < max_trade_qty
                             and add_short_trade_condition()
                             and current_ask > short_pos_price
-                            and short_pos_qty < violent_max_trade_qty
                         ):
+                            trade_size = (
+                                short_violent_trade_qty
+                                if short_pos_qty < violent_max_trade_qty
+                                else trade_qty
+                            )
                             try:
                                 exchange.create_limit_sell_order(
-                                    symbol, short_violent_trade_qty, current_ask
+                                    symbol, trade_size, current_ask
                                 )
                                 time.sleep(0.01)
                             except Exception as e:
                                 log.warning(f"{e}")
+
                     elif find_trend() == "long":
                         initial_long_entry(current_bid)
                         if (
                             find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
-                            #and long_pos_qty < max_trade_qty
+                            # and long_pos_qty < max_trade_qty
                             and add_long_trade_condition()
                             and current_bid < long_pos_price
-                            and long_pos_qty < violent_max_trade_qty
                         ):
+                            trade_size = (
+                                long_violent_trade_qty
+                                if long_pos_qty < violent_max_trade_qty
+                                else trade_qty
+                            )
                             try:
                                 exchange.create_limit_buy_order(
-                                    symbol, long_violent_trade_qty, current_bid
+                                    symbol, trade_size, current_bid
                                 )
                                 time.sleep(0.01)
                             except Exception as e:
                                 log.warning(f"{e}")
+
                     if (
                         get_orderbook()[1] < get_1m_data()[0]
                         or get_orderbook()[1] < get_5m_data()[0]
@@ -1100,6 +1110,7 @@ def trade_func(symbol):  # noqa
                             log.warning(f"{e}")
                 except Exception as e:
                     log.warning(f"{e}")
+
 
             # HEDGE: Full mode
             if hedge_mode:
