@@ -159,6 +159,7 @@ min_volume = config.min_volume
 min_distance = config.min_distance
 botname = config.bot_name
 linear_taker_fee = config.linear_taker_fee
+wallet_exposure = config.wallet_exposure
 
 exchange = ccxt.bybit(
     {
@@ -436,10 +437,19 @@ if not leverage_verified:
     except Exception as e:
         print(f"An unknown error occured in leverage verification: {e}")
         log.warning(f"{e}")
+        
 get_balance()
 
+# max_trade_qty = round(
+#     (float(dex_equity) / float(get_orderbook()[1]))
+#     / (100 / float(get_market_data()[1])),
+#     int(float(get_market_data()[2])),
+# )
+
+# Implement basic wallet exposure
+
 max_trade_qty = round(
-    (float(dex_equity) / float(get_orderbook()[1]))
+    (float(dex_equity) * wallet_exposure / float(get_orderbook()[1]))
     / (100 / float(get_market_data()[1])),
     int(float(get_market_data()[2])),
 )
