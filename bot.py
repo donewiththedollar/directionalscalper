@@ -13,7 +13,6 @@ from rich.table import Table
 
 import tylerapi
 from config import load_config
-
 from util import tables
 
 # 1. Create config.json from config.json.example
@@ -26,6 +25,7 @@ from util import tables
 # 4. Look for chat id and copy the chat id into config.json
 
 log = logging.getLogger(__name__)
+
 
 def sendmessage(message):
     bot.send_message(config.telegram_chat_id, message)
@@ -64,7 +64,16 @@ parser.add_argument(
     "--mode",
     type=str,
     help="Mode to use",
-    choices=["long", "short", "hedge", "aggressive", "longbias", "btclinear-long", "btclinear-short", "violent"],
+    choices=[
+        "long",
+        "short",
+        "hedge",
+        "aggressive",
+        "longbias",
+        "btclinear-long",
+        "btclinear-short",
+        "violent",
+    ],
     required=True,
 )
 
@@ -72,9 +81,21 @@ parser.add_argument("--symbol", type=str, help="Specify symbol", required=True)
 
 parser.add_argument("--iqty", type=str, help="Initial entry quantity", required=True)
 
-parser.add_argument("--deleverage", type=str, help="Deleveraging enabled", choices=["on", "off"], required=False)
+parser.add_argument(
+    "--deleverage",
+    type=str,
+    help="Deleveraging enabled",
+    choices=["on", "off"],
+    required=False,
+)
 
-parser.add_argument("--avoidfees", type=str, help="Avoid all fees", choices=["on", "off"], required=False)
+parser.add_argument(
+    "--avoidfees",
+    type=str,
+    help="Avoid all fees",
+    choices=["on", "off"],
+    required=False,
+)
 
 # parser.add_arguemnt("--violent", type=str, help="Violent mode", choices=["on", "off"], required=False)
 
@@ -130,9 +151,9 @@ if args.config:
     config_file = args.config
 
 # Load config
-print("Loading config: " + config_file)
-config_file = Path(Path().resolve(), config_file)
-config = load_config(path=config_file)
+print(f"Loading config: {config_file}")
+config_file_path = Path(Path().resolve(), config_file)
+config = load_config(path=config_file_path)
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -154,6 +175,7 @@ if tg_notifications:
     @bot.message_handler(func=lambda message: True)
     def echo_all(message):
         bot.reply_to(message, message.text)
+
 
 min_volume = config.min_volume
 min_distance = config.min_distance
@@ -187,11 +209,13 @@ def get_min_vol_dist_data(symbol) -> bool:
 
 # get_1m_data() [0]3 high, [1]3 low, [2]6 high, [3]6 low, [4]10 vol
 def get_1m_data():
-    try: 
+    try:
         timeframe = "1m"
         num_bars = 20
         bars = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=num_bars)
-        df = pd.DataFrame(bars, columns=["Time", "Open", "High", "Low", "Close", "Volume"])
+        df = pd.DataFrame(
+            bars, columns=["Time", "Open", "High", "Low", "Close", "Volume"]
+        )
         df["Time"] = pd.to_datetime(df["Time"], unit="ms")
         df["MA_3_High"] = df.High.rolling(3).mean()
         df["MA_3_Low"] = df.Low.rolling(3).mean()
@@ -201,10 +225,14 @@ def get_1m_data():
         get_1m_data_3_low = df["MA_3_Low"].iat[-1]
         get_1m_data_6_high = df["MA_6_High"].iat[-1]
         get_1m_data_6_low = df["MA_6_Low"].iat[-1]
-        return get_1m_data_3_high, get_1m_data_3_low, get_1m_data_6_high, get_1m_data_6_low
+        return (
+            get_1m_data_3_high,
+            get_1m_data_3_low,
+            get_1m_data_6_high,
+            get_1m_data_6_low,
+        )
     except Exception as e:
         log.warning(f"{e}")
-
 
 
 # get_5m_data() [0]3 high, [1]3 low, [2]6 high, [3]6 low
@@ -213,7 +241,9 @@ def get_5m_data():
         timeframe = "5m"
         num_bars = 20
         bars = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=num_bars)
-        df = pd.DataFrame(bars, columns=["Time", "Open", "High", "Low", "Close", "Volume"])
+        df = pd.DataFrame(
+            bars, columns=["Time", "Open", "High", "Low", "Close", "Volume"]
+        )
         df["Time"] = pd.to_datetime(df["Time"], unit="ms")
         df["MA_3_High"] = df.High.rolling(3).mean()
         df["MA_3_Low"] = df.Low.rolling(3).mean()
@@ -223,7 +253,12 @@ def get_5m_data():
         get_5m_data_3_low = df["MA_3_Low"].iat[-1]
         get_5m_data_6_high = df["MA_6_High"].iat[-1]
         get_5m_data_6_low = df["MA_6_Low"].iat[-1]
-        return get_5m_data_3_high, get_5m_data_3_low, get_5m_data_6_high, get_5m_data_6_low
+        return (
+            get_5m_data_3_high,
+            get_5m_data_3_low,
+            get_5m_data_6_high,
+            get_5m_data_6_low,
+        )
     except Exception as e:
         log.warning(f"{e}")
 
@@ -248,13 +283,13 @@ def get_balance():
 
 # get_orderbook() [0]bid, [1]ask
 def get_orderbook():
-    try:      
+    try:
         ob = exchange.fetch_order_book(symbol)
         bid = ob["bids"][0][0]
         ask = ob["asks"][0][0]
         return bid, ask
-    except:
-        pass
+    except Exception as e:
+        log.warning(f"{e}")
 
 
 # get_market_data() [0]precision, [1]leverage, [2]min_trade_qty
@@ -268,8 +303,8 @@ def get_market_data():
             "min_trading_qty"
         ]
         return precision, leverage, min_trade_qty
-    except:
-        pass
+    except Exception as e:
+        log.warning(f"{e}")
 
 
 def get_short_positions():
@@ -288,6 +323,7 @@ def get_short_positions():
         short_liq_price = pos_dict["liquidationPrice"] or 0
     except Exception as e:
         log.warning(f"{e}")
+
 
 def get_long_positions():
     try:
@@ -354,6 +390,7 @@ def cancel_entry():
     except Exception as e:
         log.warning(f"{e}")
 
+
 def cancel_close():
     try:
         order = exchange.fetch_open_orders(symbol)
@@ -407,14 +444,14 @@ def leverage_verification(symbol):
         )
     except Exception as e:
         print(Fore.YELLOW + "Position mode unchanged" + Style.RESET_ALL)
-        #log.warning(f"{e}")
+        log.debug(f"{e}")
     # Set margin mode
     try:
         exchange.set_margin_mode(marginMode="cross", symbol=symbol)
         print(Fore.LIGHTYELLOW_EX + "Margin mode set to cross" + Style.RESET_ALL)
     except Exception as e:
         print(Fore.YELLOW + "Margin mode unchanged" + Style.RESET_ALL)
-        #log.warning(f"{e}")
+        log.debug(f"{e}")
     # Set leverage
     try:
         exchange.set_leverage(leverage=get_market_data()[1], symbol=symbol)
@@ -424,7 +461,7 @@ def leverage_verification(symbol):
             Fore.YELLOW + "Leverage not modified, current leverage is",
             get_market_data()[1],
         )
-        #log.warning(f"{e}")
+        log.debug(f"{e}")
 
 
 if not leverage_verified:
@@ -504,8 +541,8 @@ def find_trend():
         tyler_trend = tylerapi.get_asset_trend(symbol, tylerapi.grab_api_data())
 
         return tyler_trend
-    except:
-        pass
+    except Exception as e:
+        log.warning(f"{e}")
 
 
 def find_1m_spread():
@@ -514,8 +551,8 @@ def find_1m_spread():
         tyler_1m_spread = tylerapi.get_asset_1m_spread(symbol, tylerapi.grab_api_data())
 
         return tyler_1m_spread
-    except:
-        pass
+    except Exception as e:
+        log.warning(f"{e}")
 
 
 def find_5m_spread():
@@ -524,8 +561,8 @@ def find_5m_spread():
         tyler_spread = tylerapi.get_asset_5m_spread(symbol, tylerapi.grab_api_data())
 
         return tyler_spread
-    except:
-        pass
+    except Exception as e:
+        log.warning(f"{e}")
 
 
 def find_1m_1x_volume():
@@ -535,8 +572,8 @@ def find_1m_1x_volume():
             symbol, tylerapi.grab_api_data()
         )
         return tyler_1x_volume_1m
-    except:
-        pass
+    except Exception as e:
+        log.warning(f"{e}")
 
 
 def find_mode():
@@ -548,8 +585,8 @@ def find_mode():
 try:
     get_short_positions()
     get_long_positions()
-except:
-    pass
+except Exception as e:
+    log.warning(f"{e}")
 
 
 # Long entry logic if long enabled
@@ -568,8 +605,7 @@ def initial_long_entry(current_bid):
             time.sleep(0.01)
         except Exception as e:
             log.warning(f"{e}")
-    else:
-        pass
+
 
 def initial_long_entry_linear_btc(current_bid):
     if (
@@ -585,8 +621,7 @@ def initial_long_entry_linear_btc(current_bid):
             time.sleep(0.01)
         except Exception as e:
             log.warning(f"{e}")
-    else:
-        pass
+
 
 # Short entry logic if short enabled
 def initial_short_entry_linear_btc(current_ask):
@@ -603,8 +638,6 @@ def initial_short_entry_linear_btc(current_ask):
             time.sleep(0.01)
         except Exception as e:
             log.warning(f"{e}")
-    else:
-        pass
 
 
 # Short entry logic if short enabled
@@ -623,21 +656,33 @@ def initial_short_entry(current_ask):
             time.sleep(0.01)
         except Exception as e:
             log.warning(f"{e}")
-    else:
-        pass
+
 
 def get_current_price(exchange, symbol):
     ticker = exchange.fetch_ticker(symbol)
-    current_price = (ticker['bid'] + ticker['ask']) / 2
+    current_price = (ticker["bid"] + ticker["ask"]) / 2
     return current_price
+
 
 # Calculate for fees
 def calculate_min_price_increment(pos_price, taker_fee_rate):
     return pos_price * taker_fee_rate * 2
 
-def calculate_long_profit_prices_avoidfees(long_pos_price, price_difference, price_scale, min_price_increment, taker_fee_rate, long_order_value):
+
+def calculate_long_profit_prices_avoidfees(
+    long_pos_price,
+    price_difference,
+    price_scale,
+    min_price_increment,
+    taker_fee_rate,
+    long_order_value,
+):
     long_profit_prices = []
-    profit_multipliers = [min_price_increment * 2, min_price_increment * 4, min_price_increment * 6]
+    profit_multipliers = [
+        min_price_increment * 2,
+        min_price_increment * 4,
+        min_price_increment * 6,
+    ]
     for multiplier in profit_multipliers:
         profit_price = long_pos_price + (price_difference * multiplier)
         rounded_profit_price = round(profit_price, price_scale)
@@ -649,9 +694,20 @@ def calculate_long_profit_prices_avoidfees(long_pos_price, price_difference, pri
     return long_profit_prices
 
 
-def calculate_short_profit_prices_avoidfees(short_pos_price, price_difference, price_scale, min_price_increment, taker_fee_rate, short_order_value):
+def calculate_short_profit_prices_avoidfees(
+    short_pos_price,
+    price_difference,
+    price_scale,
+    min_price_increment,
+    taker_fee_rate,
+    short_order_value,
+):
     short_profit_prices = []
-    profit_multipliers = [min_price_increment * 2, min_price_increment * 4, min_price_increment * 6]
+    profit_multipliers = [
+        min_price_increment * 2,
+        min_price_increment * 4,
+        min_price_increment * 6,
+    ]
     for multiplier in profit_multipliers:
         profit_price = short_pos_price - (price_difference * multiplier)
         rounded_profit_price = round(profit_price, price_scale)
@@ -662,6 +718,7 @@ def calculate_short_profit_prices_avoidfees(short_pos_price, price_difference, p
         short_profit_prices.append(rounded_profit_price)
     return short_profit_prices
 
+
 def calculate_long_profit_prices(long_pos_price, price_difference, price_scale):
     try:
         long_profit_prices = []
@@ -670,8 +727,9 @@ def calculate_long_profit_prices(long_pos_price, price_difference, price_scale):
             profit_price = long_pos_price + (price_difference * multiplier)
             long_profit_prices.append(round(profit_price, price_scale))
         return long_profit_prices
-    except:
-        pass
+    except Exception as e:
+        log.warning(f"{e}")
+
 
 def calculate_short_profit_prices(short_pos_price, price_difference, price_scale):
     short_profit_prices = []
@@ -688,13 +746,37 @@ def generate_main_table():
         mode = find_mode()
         trend = find_trend()
         market_data = get_market_data()
-        return tables.generate_main_table(version, short_pos_unpl, long_pos_unpl, short_pos_unpl_pct, long_pos_unpl_pct, symbol, dex_wallet, 
-                            dex_equity, short_symbol_cum_realised, long_symbol_realised, short_symbol_realised,
-                            trade_qty, long_pos_qty, short_pos_qty, long_pos_price, long_liq_price, short_pos_price, 
-                            short_liq_price, max_trade_qty, market_data, trend, min_vol_dist_data,
-                            min_volume, min_distance, mode)
-    except:
-        pass
+        table_data = {
+            "version": version,
+            "short_pos_unpl": short_pos_unpl,
+            "long_pos_unpl": long_pos_unpl,
+            "short_pos_unpl_pct": short_pos_unpl_pct,
+            "long_pos_unpl_pct": long_pos_unpl_pct,
+            "symbol": symbol,
+            "dex_wallet": dex_wallet,
+            "dex_equity": dex_equity,
+            "short_symbol_cum_realised": short_symbol_cum_realised,
+            "long_symbol_realised": long_symbol_realised,
+            "short_symbol_realised": short_symbol_realised,
+            "trade_qty": trade_qty,
+            "long_pos_qty": long_pos_qty,
+            "short_pos_qty": short_pos_qty,
+            "long_pos_price": long_pos_price,
+            "long_liq_price": long_liq_price,
+            "short_pos_price": short_pos_price,
+            "short_liq_price": short_liq_price,
+            "max_trade_qty": max_trade_qty,
+            "market_data": market_data,
+            "trend": trend,
+            "min_vol_dist_data": min_vol_dist_data,
+            "min_volume": min_volume,
+            "min_distance": min_distance,
+            "mode": mode,
+        }
+        return tables.generate_main_table(data=table_data)
+    except Exception as e:
+        log.warning(f"{e}")
+
 
 def trade_func(symbol):  # noqa
     with Live(generate_main_table(), refresh_per_second=2) as live:
@@ -747,17 +829,13 @@ def trade_func(symbol):  # noqa
                     short_pos_price - (five_min_data[2] - five_min_data[3]),
                     int(market_data[0]),
                 )
-            else:
-                pass
 
             if five_min_data is not None and market_data is not None:
                 long_profit_price = round(
                     long_pos_price + (five_min_data[2] - five_min_data[3]),
                     int(market_data[0]),
                 )
-            else:
-                pass
-    
+
             # short_profit_price = round(
             #     short_pos_price - (get_5m_data()[2] - get_5m_data()[3]),
             #     int(get_market_data()[0]),
@@ -767,7 +845,6 @@ def trade_func(symbol):  # noqa
             #     long_pos_price + (get_5m_data()[2] - get_5m_data()[3]),
             #     int(get_market_data()[0]),
             # )
-
 
             if violent_mode:
                 short_violent_trade_qty = (
@@ -787,19 +864,33 @@ def trade_func(symbol):  # noqa
                 current_price = get_current_price(exchange, symbol)
                 long_order_value = current_price * long_open_pos_qty
                 short_order_value = current_price * short_open_pos_qty
-                min_price_increment_long = calculate_min_price_increment(long_pos_price, taker_fee_rate)
-                min_price_increment_short = calculate_min_price_increment(short_pos_price, taker_fee_rate)
+                min_price_increment_long = calculate_min_price_increment(
+                    long_pos_price, taker_fee_rate
+                )
+                min_price_increment_short = calculate_min_price_increment(
+                    short_pos_price, taker_fee_rate
+                )
 
                 # Calculate long_profit_prices
                 price_difference = get_5m_data()[2] - get_5m_data()[3]
                 price_scale = int(get_market_data()[0])
                 long_profit_prices = calculate_long_profit_prices_avoidfees(
-                    long_pos_price, price_difference, price_scale, min_price_increment_long, taker_fee_rate, long_order_value
+                    long_pos_price,
+                    price_difference,
+                    price_scale,
+                    min_price_increment_long,
+                    taker_fee_rate,
+                    long_order_value,
                 )
 
                 # Calculate short_profit_prices
                 short_profit_prices = calculate_short_profit_prices_avoidfees(
-                    short_pos_price, price_difference, price_scale, min_price_increment_short, taker_fee_rate, short_order_value
+                    short_pos_price,
+                    price_difference,
+                    price_scale,
+                    min_price_increment_short,
+                    taker_fee_rate,
+                    short_order_value,
                 )
             else:
                 if deleveraging_mode:
@@ -807,9 +898,12 @@ def trade_func(symbol):  # noqa
                     # Calculate long_profit_prices
                     price_difference = get_5m_data()[2] - get_5m_data()[3]
                     price_scale = int(get_market_data()[0])
-                    long_profit_prices = calculate_long_profit_prices(long_pos_price, price_difference, price_scale)
-                    short_profit_prices = calculate_short_profit_prices(short_pos_price, price_difference, price_scale)
-
+                    long_profit_prices = calculate_long_profit_prices(
+                        long_pos_price, price_difference, price_scale
+                    )
+                    short_profit_prices = calculate_short_profit_prices(
+                        short_pos_price, price_difference, price_scale
+                    )
 
             add_trade_qty = trade_qty
 
@@ -849,8 +943,6 @@ def trade_func(symbol):  # noqa
                     time.sleep(0.01)
                 except Exception as e:
                     log.warning(f"{e}")
-            else:
-                pass
 
             # Add to long if long enabled
             if (
@@ -887,8 +979,6 @@ def trade_func(symbol):  # noqa
                     time.sleep(0.01)
                 except Exception as e:
                     log.warning(f"{e}")
-            else:
-                pass
 
             # Add to short if short enabled
             if (
@@ -912,15 +1002,16 @@ def trade_func(symbol):  # noqa
 
             # LONG: Deleveraging Take profit logic
             if (
-                deleveraging_mode == True
-                or config.avoid_fees == True
+                (deleveraging_mode or config.avoid_fees)
                 and long_pos_qty > 0
-                and hedge_mode == True or
-                violent_mode == True or
-                long_mode == True or
-                longbias_mode == True or
-                aggressive_mode == True or
-                btclinear_long_mode == True
+                and (
+                    hedge_mode
+                    or violent_mode
+                    or long_mode
+                    or longbias_mode
+                    or aggressive_mode
+                    or btclinear_long_mode
+                )
             ):
                 try:
                     get_open_orders()
@@ -945,19 +1036,19 @@ def trade_func(symbol):  # noqa
                             time.sleep(0.05)
                         except Exception as e:
                             log.warning(f"{e}")
-                            
 
             # LONG: Take profit logic
             if (
-                deleveraging_mode == False
-                or config.avoid_fees == False
+                (not deleveraging_mode or not config.avoid_fees)
                 and long_pos_qty > 0
-                and hedge_mode == True or
-                long_mode == True or
-                longbias_mode == True or
-                aggressive_mode == True or
-                btclinear_long_mode == True or
-                violent_mode == True
+                and (
+                    hedge_mode
+                    or long_mode
+                    or longbias_mode
+                    or aggressive_mode
+                    or btclinear_long_mode
+                    or violent_mode
+                )
             ):
                 try:
                     get_open_orders()
@@ -981,14 +1072,14 @@ def trade_func(symbol):  # noqa
 
             # SHORT: Deleveraging Take profit logic
             if (
-                deleveraging_mode == True
-                or config.avoid_fees == True
+                deleveraging_mode
+                or config.avoid_fees
                 and short_pos_qty > 0
-                and hedge_mode == True or
-                violent_mode == True or
-                short_mode == True or
-                aggressive_mode == True or
-                btclinear_short_mode == True
+                and hedge_mode
+                or violent_mode
+                or short_mode
+                or aggressive_mode
+                or btclinear_short_mode
             ):
                 try:
                     get_open_orders()
@@ -1015,14 +1106,15 @@ def trade_func(symbol):  # noqa
 
             # SHORT: Take profit logic
             if (
-                deleveraging_mode == False
-                and config.avoid_fees == False
+                (not deleveraging_mode and not config.avoid_fees)
                 and short_pos_qty > 0
-                and hedge_mode == True or
-                short_mode == True or
-                aggressive_mode == True or
-                btclinear_short_mode == True or
-                violent_mode == True
+                and (
+                    hedge_mode
+                    or short_mode
+                    or aggressive_mode
+                    or btclinear_short_mode
+                    or violent_mode
+                )
             ):
                 try:
                     get_open_orders()
@@ -1121,7 +1213,6 @@ def trade_func(symbol):  # noqa
                 except Exception as e:
                     log.warning(f"{e}")
 
-
             # HEDGE: Full mode
             if hedge_mode:
                 try:
@@ -1218,7 +1309,11 @@ def trade_func(symbol):  # noqa
             data_1m = get_1m_data()
             data_5m = get_5m_data()
 
-            if orderbook_data is not None and data_1m is not None and data_5m is not None:
+            if (
+                orderbook_data is not None
+                and data_1m is not None
+                and data_5m is not None
+            ):
                 if orderbook_data[1] < data_1m[0] or orderbook_data[1] < data_5m[0]:
                     try:
                         cancel_entry()
@@ -1227,7 +1322,7 @@ def trade_func(symbol):  # noqa
                         log.warning(f"{e}")
             else:
                 log.warning("One or more functions returned None")
-                
+
             # if (
             #     get_orderbook()[1] < get_1m_data()[0]
             #     or get_orderbook()[1] < get_5m_data()[0]
@@ -1273,22 +1368,28 @@ def longbias_mode_func(symbol):
     leverage_verification(symbol)
     trade_func(symbol)
 
+
 def linearbtclong_mode_func(symbol):
     print(Fore.LIGHTCYAN_EX + "BTC Linear LONG mode enabled", symbol + Style.RESET_ALL)
     leverage_verification(symbol)
     trade_func(symbol)
+
 
 def linearbtcshort_mode_func(symbol):
     print(Fore.LIGHTCYAN_EX + "BTC Linear SHORT mode enabled", symbol + Style.RESET_ALL)
     leverage_verification(symbol)
     trade_func(symbol)
 
+
 def violent_mode_func(symbol):
-    print(Fore.LIGHTCYAN_EX + "Violent mode enabled use at your own risk use LOW lot size", symbol + Style.RESET_ALL)
+    print(
+        Fore.LIGHTCYAN_EX
+        + "Violent mode enabled use at your own risk use LOW lot size",
+        symbol + Style.RESET_ALL,
+    )
     leverage_verification(symbol)
     trade_func(symbol)
 
-    
 
 # TO DO:
 
@@ -1336,7 +1437,6 @@ elif args.mode == "violent":
     else:
         symbol = input("Instrument undefined. \nInput instrument:")
 
-        
 
 if args.tg == "on":
     if args.tg:
