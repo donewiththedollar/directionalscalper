@@ -13,10 +13,10 @@ from colorama import Fore, Style
 from pybit import inverse_perpetual
 from rich.live import Live
 from rich.table import Table
-from util import tables
 
 import tylerapi
 from config import load_config
+from util import tables
 
 # 1. Create config.json from config.json.example
 # 2. Enter exchange_api_key and exchange_api_secret
@@ -73,7 +73,7 @@ dex_balance, dex_pnl, dex_upnl, dex_wallet, dex_equity = 0, 0, 0, 0, 0
 
 max_trade_qty = 0
 dex_btc_upnl = 0
-dex_btc_upnl_pct = 0
+dex_btc_upnl_pct = 0.0
 
 print(Fore.LIGHTCYAN_EX + "", version, "connecting to exchange" + Style.RESET_ALL)
 
@@ -83,7 +83,15 @@ parser.add_argument(
     "--mode",
     type=str,
     help="Mode to use",
-    choices=["long", "short", "hedge", "persistent", "longbias", "inverse-long", "inverse-short"],
+    choices=[
+        "long",
+        "short",
+        "hedge",
+        "persistent",
+        "longbias",
+        "inverse-long",
+        "inverse-short",
+    ],
     required=True,
 )
 
@@ -136,10 +144,9 @@ config_file = "config.json"
 if args.config:
     config_file = args.config
 
-# Load config
-print("Loading config: " + config_file)
-config_file = Path(Path().resolve(), config_file)
-config = load_config(path=config_file)
+print(f"Loading config: {config_file}")
+config_file_path = Path(Path().resolve(), config_file)
+config = load_config(path=config_file_path)
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -224,13 +231,21 @@ def get_inverse_balance():
         ]
         inv_perp_used_margin = get_inverse_balance["result"]["BTC"]["used_margin"]
         inv_perp_order_margin = get_inverse_balance["result"]["BTC"]["order_margin"]
-        inv_perp_position_margin = get_inverse_balance["result"]["BTC"]["position_margin"]
-        inv_perp_occ_closing_fee = get_inverse_balance["result"]["BTC"]["occ_closing_fee"]
-        inv_perp_occ_funding_fee = get_inverse_balance["result"]["BTC"]["occ_funding_fee"]
+        inv_perp_position_margin = get_inverse_balance["result"]["BTC"][
+            "position_margin"
+        ]
+        inv_perp_occ_closing_fee = get_inverse_balance["result"]["BTC"][
+            "occ_closing_fee"
+        ]
+        inv_perp_occ_funding_fee = get_inverse_balance["result"]["BTC"][
+            "occ_funding_fee"
+        ]
         inv_perp_wallet_balance = get_inverse_balance["result"]["BTC"]["wallet_balance"]
         inv_perp_realised_pnl = get_inverse_balance["result"]["BTC"]["realised_pnl"]
         inv_perp_unrealised_pnl = get_inverse_balance["result"]["BTC"]["unrealised_pnl"]
-        inv_perp_cum_realised_pnl = get_inverse_balance["result"]["BTC"]["cum_realised_pnl"]
+        inv_perp_cum_realised_pnl = get_inverse_balance["result"]["BTC"][
+            "cum_realised_pnl"
+        ]
     except Exception as e:
         log.warning(f"{e}")
 
@@ -249,6 +264,7 @@ def get_inverse_sell_position():
     except Exception as e:
         log.warning(f"{e}")
 
+
 def get_inverse_buy_position():
     try:
         position = invpcl.my_position(symbol=symbol)
@@ -263,13 +279,16 @@ def get_inverse_buy_position():
     except Exception as e:
         log.warning(f"{e}")
 
+
 # get_1m_data() [0]3 high, [1]3 low, [2]6 high, [3]6 low, [4]10 vol
 def get_1m_data():
     try:
         timeframe = "1m"
         num_bars = 20
         bars = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=num_bars)
-        df = pd.DataFrame(bars, columns=["Time", "Open", "High", "Low", "Close", "Volume"])
+        df = pd.DataFrame(
+            bars, columns=["Time", "Open", "High", "Low", "Close", "Volume"]
+        )
         df["Time"] = pd.to_datetime(df["Time"], unit="ms")
         df["MA_3_High"] = df.High.rolling(3).mean()
         df["MA_3_Low"] = df.Low.rolling(3).mean()
@@ -279,7 +298,12 @@ def get_1m_data():
         get_1m_data_3_low = df["MA_3_Low"].iat[-1]
         get_1m_data_6_high = df["MA_6_High"].iat[-1]
         get_1m_data_6_low = df["MA_6_Low"].iat[-1]
-        return get_1m_data_3_high, get_1m_data_3_low, get_1m_data_6_high, get_1m_data_6_low
+        return (
+            get_1m_data_3_high,
+            get_1m_data_3_low,
+            get_1m_data_6_high,
+            get_1m_data_6_low,
+        )
     except Exception as e:
         log.warning(f"{e}")
 
@@ -290,7 +314,9 @@ def get_5m_data():
         timeframe = "5m"
         num_bars = 20
         bars = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=num_bars)
-        df = pd.DataFrame(bars, columns=["Time", "Open", "High", "Low", "Close", "Volume"])
+        df = pd.DataFrame(
+            bars, columns=["Time", "Open", "High", "Low", "Close", "Volume"]
+        )
         df["Time"] = pd.to_datetime(df["Time"], unit="ms")
         df["MA_3_High"] = df.High.rolling(3).mean()
         df["MA_3_Low"] = df.Low.rolling(3).mean()
@@ -300,7 +326,12 @@ def get_5m_data():
         get_5m_data_3_low = df["MA_3_Low"].iat[-1]
         get_5m_data_6_high = df["MA_6_High"].iat[-1]
         get_5m_data_6_low = df["MA_6_Low"].iat[-1]
-        return get_5m_data_3_high, get_5m_data_3_low, get_5m_data_6_high, get_5m_data_6_low
+        return (
+            get_5m_data_3_high,
+            get_5m_data_3_low,
+            get_5m_data_6_high,
+            get_5m_data_6_low,
+        )
     except Exception as e:
         log.warning(f"{e}")
 
@@ -348,13 +379,14 @@ def get_orderbook():
         bid = ob["bids"][0][0]
         ask = ob["asks"][0][0]
         return bid, ask
-    except:
-        pass
+    except Exception as e:
+        log.warning(f"{e}")
+
 
 try:
     get_orderbook()
-except:
-    pass
+except Exception as e:
+    log.warning(f"{e}")
 
 
 # get_market_data() [0]precision, [1]leverage, [2]min_trade_qty
@@ -467,37 +499,46 @@ def cancel_close():
 
 ### LINEAR ###
 
+
 def short_trade_condition():
     short_trade_condition = get_orderbook()[0] > get_1m_data()[0]
     return short_trade_condition
+
 
 def long_trade_condition():
     long_trade_condition = get_orderbook()[0] < get_1m_data()[0]
     return long_trade_condition
 
+
 def add_short_trade_condition():
     add_short_trade_condition = short_pos_price < get_1m_data()[3]
     return add_short_trade_condition
+
 
 def add_long_trade_condition():
     add_long_trade_condition = long_pos_price > get_1m_data()[3]
     return add_long_trade_condition
 
+
 ## INVERSE ###
 
 # get_1m_data() [0]3 high, [1]3 low, [2]6 high, [3]6 low, [4]10 vol
+
 
 def inverse_short_trade_condition():
     inverse_short_trade_condition = get_orderbook()[0] > get_1m_data()[0]
     return inverse_short_trade_condition
 
+
 def add_inverse_short_trade_condition():
     add_inverse_short_trade_condition = sell_position_prce < get_1m_data()[3]
     return add_inverse_short_trade_condition
 
+
 def inverse_long_trade_condition():
     inverse_long_trade_condition = get_orderbook()[1] > get_1m_data()[0]
     return inverse_long_trade_condition
+
 
 def add_inverse_long_trade_condition():
     add_inverse_long_trade_condition = buy_position_prce < get_1m_data()[3]
@@ -554,10 +595,12 @@ if not leverage_verified and not inverse_mode and not inverse_mode_long:
 # get_inverse_balance()
 if not inverse_mode and not inverse_mode_long:
     get_balance()
-    max_trade_qty = round(
-        (float(dex_equity) / float(get_orderbook()[1]))
-        / (100 / float(get_market_data()[1])),
-        int(float(get_market_data()[2])),
+    max_trade_qty = int(
+        round(
+            (float(dex_equity) / float(get_orderbook()[1]))
+            / (100 / float(get_market_data()[1])),
+            int(float(get_market_data()[2])),
+        )
     )
 
     current_leverage = get_market_data()[1]
@@ -712,6 +755,7 @@ def calc_tp_price():
     except Exception as e:
         print("Calc TP exception")
         log.warning(f"{e}")
+
 
 def calc_tp_price_long():
     try:
@@ -883,6 +927,7 @@ elif inverse_mode_long:
     get_inverse_buy_position()
     inverse_get_balance()
 
+
 # Generate table
 def generate_main_table() -> Table:
     if inverse_mode:
@@ -896,29 +941,84 @@ def generate_main_table() -> Table:
 def generate_inverse_table():
     min_vol_dist_data = get_min_vol_dist_data(symbol)
     trend = find_trend()
-   
+
     inverse_table = Table(show_header=False, box=None, title=version)
     if inverse_mode:
         tp_price = calc_tp_price()
-        inverse_table.add_row(tables.generate_inverse_table_info(symbol, dex_btc_balance, dex_btc_equity, inv_perp_cum_realised_pnl, dex_btc_upnl_pct,
-                                trade_qty, sell_position_size, trend, sell_position_prce, tp_price, False))
+        inverse_table.add_row(
+            tables.generate_inverse_table_info(
+                symbol,
+                dex_btc_balance,
+                dex_btc_equity,
+                inv_perp_cum_realised_pnl,
+                dex_btc_upnl_pct,
+                trade_qty,
+                sell_position_size,
+                trend,
+                sell_position_prce,
+                tp_price,
+                False,
+            )
+        )
     elif inverse_mode_long:
         tp_price = calc_tp_price_long()
-        inverse_table.add_row(tables.generate_inverse_table_info(symbol, dex_btc_balance, dex_btc_equity, inv_perp_cum_realised_pnl, dex_btc_upnl_pct,
-                                trade_qty, sell_position_size, trend, buy_position_prce, tp_price, inverse_mode_long))
-    inverse_table.add_row(tables.generate_table_vol(min_vol_dist_data, min_volume, min_distance, symbol, True))
-    return inverse_table 
+        inverse_table.add_row(
+            tables.generate_inverse_table_info(
+                symbol,
+                dex_btc_balance,
+                dex_btc_equity,
+                inv_perp_cum_realised_pnl,
+                dex_btc_upnl_pct,
+                trade_qty,
+                sell_position_size,
+                trend,
+                buy_position_prce,
+                tp_price,
+                inverse_mode_long,
+            )
+        )
+    inverse_table.add_row(
+        tables.generate_table_vol(
+            min_vol_dist_data, min_volume, min_distance, symbol, True
+        )
+    )
+    return inverse_table
+
 
 def generate_table():
     min_vol_dist_data = get_min_vol_dist_data(symbol)
     mode = find_mode()
     trend = find_trend()
     market_data = get_market_data()
-    return tables.generate_main_table(version, short_pos_unpl, long_pos_unpl, short_pos_unpl_pct, long_pos_unpl_pct, symbol, dex_wallet, 
-                        dex_equity, short_symbol_cum_realised, long_symbol_realised, short_symbol_realised,
-                        trade_qty, long_pos_qty, short_pos_qty, long_pos_price, long_liq_price, short_pos_price, 
-                        short_liq_price, max_trade_qty, market_data, trend, min_vol_dist_data,
-                        min_volume, min_distance, mode)
+    table_data = {
+        "version": version,
+        "short_pos_unpl": short_pos_unpl,
+        "long_pos_unpl": long_pos_unpl,
+        "short_pos_unpl_pct": short_pos_unpl_pct,
+        "long_pos_unpl_pct": long_pos_unpl_pct,
+        "symbol": symbol,
+        "dex_wallet": dex_wallet,
+        "dex_equity": dex_equity,
+        "short_symbol_cum_realised": short_symbol_cum_realised,
+        "long_symbol_realised": long_symbol_realised,
+        "short_symbol_realised": short_symbol_realised,
+        "trade_qty": trade_qty,
+        "long_pos_qty": long_pos_qty,
+        "short_pos_qty": short_pos_qty,
+        "long_pos_price": long_pos_price,
+        "long_liq_price": long_liq_price,
+        "short_pos_price": short_pos_price,
+        "short_liq_price": short_liq_price,
+        "max_trade_qty": max_trade_qty,
+        "market_data": market_data,
+        "trend": trend,
+        "min_vol_dist_data": min_vol_dist_data,
+        "min_volume": min_volume,
+        "min_distance": min_distance,
+        "mode": mode,
+    }
+    return tables.generate_main_table(data=table_data)
+
 
 def trade_func(symbol):  # noqa
     with Live(generate_main_table(), refresh_per_second=2) as live:
@@ -1061,7 +1161,6 @@ def trade_func(symbol):  # noqa
                         (buy_position_size / config.divider), decimal_for_tp_size
                     )
                     print(f"Long Market TP size (3): {lot_size_market_tp}")
-
 
             # Longbias mode
             if longbias_mode:
@@ -1327,7 +1426,9 @@ def trade_func(symbol):  # noqa
                                     reduce_only=True,
                                     close_on_trigger=True,
                                 )
-                                print(f"Placed long market order at: {calc_tp_price_long()}")
+                                print(
+                                    f"Placed long market order at: {calc_tp_price_long()}"
+                                )
                                 sendmessage("Long market take profit placed")
                             except Exception as e:
                                 print("Error in placing TP")

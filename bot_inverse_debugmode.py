@@ -13,10 +13,10 @@ from colorama import Fore, Style
 from pybit import inverse_perpetual
 from rich.live import Live
 from rich.table import Table
-from util import tables
 
 import tylerapi
 from config import load_config
+from util import tables
 
 # 1. Create config.json from config.json.example
 # 2. Enter exchange_api_key and exchange_api_secret
@@ -41,6 +41,7 @@ log = logging.getLogger(__name__)
 
 def sendmessage(message):
     bot.send_message(config.telegram_chat_id, message)
+
 
 endpoint = "https://api.bybit.com"
 unauth = inverse_perpetual.HTTP(endpoint=endpoint)
@@ -84,8 +85,7 @@ dex_balance, dex_pnl, dex_upnl, dex_wallet, dex_equity = 0, 0, 0, 0, 0
 ) = (0, 0, 0, 0, 0, 0)
 
 max_trade_qty = 0
-dex_btc_upnl = 0
-dex_btc_upnl_pct = 0
+dex_btc_upnl_pct = 0.0
 
 print(Fore.LIGHTCYAN_EX + "", version, "connecting to exchange" + Style.RESET_ALL)
 
@@ -94,7 +94,11 @@ min_distance = config.min_distance
 botname = config.bot_name
 
 exchange = ccxt.bybit(
-    {"enableRateLimit": True, "apiKey": config.exchange_api_key, "secret": config.exchange_api_secret}
+    {
+        "enableRateLimit": True,
+        "apiKey": config.exchange_api_key,
+        "secret": config.exchange_api_secret,
+    }
 )
 
 parser = argparse.ArgumentParser(description="Scalper supports 6 modes")
@@ -304,13 +308,14 @@ def get_orderbook():
         bid = ob["bids"][0][0]
         ask = ob["asks"][0][0]
         return bid, ask
-    except:
-        pass
+    except Exception as e:
+        log.warning(f"{e}")
+
 
 try:
     get_orderbook()
-except:
-    pass
+except Exception as e:
+    log.debug(f"{e}")
 
 
 # get_market_data() [0]precision, [1]leverage, [2]min_trade_qty
@@ -500,10 +505,12 @@ if not leverage_verified and not inverse_mode:
 # get_inverse_balance()
 if not inverse_mode:
     get_balance()
-    max_trade_qty = round(
-        (float(dex_equity) / float(get_orderbook()[1]))
-        / (100 / float(get_market_data()[1])),
-        int(float(get_market_data()[2])),
+    max_trade_qty = int(
+        round(
+            (float(dex_equity) / float(get_orderbook()[1]))
+            / (100 / float(get_market_data()[1])),
+            int(float(get_market_data()[2])),
+        )
     )
 
     current_leverage = get_market_data()[1]
@@ -782,6 +789,7 @@ global lot_size_market_tp
 get_inverse_sell_position()
 inverse_get_balance()
 
+
 # Generate table
 def generate_main_table() -> Table:
     if inverse_mode:
@@ -789,28 +797,70 @@ def generate_main_table() -> Table:
     else:
         return generate_table()
 
+
 def generate_inverse_table():
     min_vol_dist_data = get_min_vol_dist_data(symbol)
     trend = find_trend()
-   
+
     inverse_table = Table(show_header=False, box=None, title=version)
     if inverse_mode:
         tp_price = calc_tp_price()
-        inverse_table.add_row(tables.generate_inverse_table_info(symbol, dex_btc_balance, dex_btc_equity, inv_perp_cum_realised_pnl, dex_btc_upnl_pct,
-                                trade_qty, sell_position_size, trend, sell_position_prce, tp_price, False))
-    inverse_table.add_row(tables.generate_table_vol(min_vol_dist_data, min_volume, min_distance, symbol, True))
-    return inverse_table 
+        inverse_table.add_row(
+            tables.generate_inverse_table_info(
+                symbol,
+                dex_btc_balance,
+                dex_btc_equity,
+                inv_perp_cum_realised_pnl,
+                dex_btc_upnl_pct,
+                trade_qty,
+                sell_position_size,
+                trend,
+                sell_position_prce,
+                tp_price,
+                False,
+            )
+        )
+    inverse_table.add_row(
+        tables.generate_table_vol(
+            min_vol_dist_data, min_volume, min_distance, symbol, True
+        )
+    )
+    return inverse_table
+
 
 def generate_table():
     min_vol_dist_data = get_min_vol_dist_data(symbol)
     mode = find_mode()
     trend = find_trend()
     market_data = get_market_data()
-    return tables.generate_main_table(version, short_pos_unpl, long_pos_unpl, short_pos_unpl_pct, long_pos_unpl_pct, symbol, dex_wallet, 
-                        dex_equity, short_symbol_cum_realised, long_symbol_realised, short_symbol_realised,
-                        trade_qty, long_pos_qty, short_pos_qty, long_pos_price, long_liq_price, short_pos_price, 
-                        short_liq_price, max_trade_qty, market_data, trend, min_vol_dist_data,
-                        min_volume, min_distance, mode)
+    table_data = {
+        "version": version,
+        "short_pos_unpl": short_pos_unpl,
+        "long_pos_unpl": long_pos_unpl,
+        "short_pos_unpl_pct": short_pos_unpl_pct,
+        "long_pos_unpl_pct": long_pos_unpl_pct,
+        "symbol": symbol,
+        "dex_wallet": dex_wallet,
+        "dex_equity": dex_equity,
+        "short_symbol_cum_realised": short_symbol_cum_realised,
+        "long_symbol_realised": long_symbol_realised,
+        "short_symbol_realised": short_symbol_realised,
+        "trade_qty": trade_qty,
+        "long_pos_qty": long_pos_qty,
+        "short_pos_qty": short_pos_qty,
+        "long_pos_price": long_pos_price,
+        "long_liq_price": long_liq_price,
+        "short_pos_price": short_pos_price,
+        "short_liq_price": short_liq_price,
+        "max_trade_qty": max_trade_qty,
+        "market_data": market_data,
+        "trend": trend,
+        "min_vol_dist_data": min_vol_dist_data,
+        "min_volume": min_volume,
+        "min_distance": min_distance,
+        "mode": mode,
+    }
+    return tables.generate_main_table(data=table_data)
 
 
 def trade_func(symbol):  # noqa
