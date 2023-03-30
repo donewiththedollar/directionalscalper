@@ -1,5 +1,6 @@
 import argparse
 import logging
+import logging.handlers as handlers
 import os
 import time
 from pathlib import Path
@@ -24,7 +25,15 @@ from util import tables
 # 3. Replacing <bot_token> with your token from the botfather after creating new bot
 # 4. Look for chat id and copy the chat id into config.json
 
-log = logging.getLogger(__name__)
+
+log = logging.getLogger("ds_bot")
+formatter = logging.Formatter(
+    "%(asctime)s - %(filename)s:%(lineno)s - %(funcName)20s() - %(message)s"
+)
+logHandler = handlers.RotatingFileHandler("ds.log", maxBytes=5000, backupCount=5)
+logHandler.setFormatter(formatter)
+log.setLevel(logging.INFO)
+log.addHandler(logHandler)
 
 
 def sendmessage(message):
@@ -154,12 +163,6 @@ if args.config:
 print(f"Loading config: {config_file}")
 config_file_path = Path(Path().resolve(), config_file)
 config = load_config(path=config_file_path)
-
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    level=os.environ.get("LOGLEVEL", "INFO"),
-)
 
 if args.avoidfees == "on":
     config.avoid_fees = True
