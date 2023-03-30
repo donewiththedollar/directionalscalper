@@ -23,6 +23,7 @@ class Config(BaseModel):
     avoid_fees: bool = False
     linear_taker_fee: float = 0.17
     wallet_exposure: float = 1.00
+    violent_multiplier: float = 2.00
 
 
     @validator("min_volume")

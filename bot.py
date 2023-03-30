@@ -182,6 +182,7 @@ min_distance = config.min_distance
 botname = config.bot_name
 linear_taker_fee = config.linear_taker_fee
 wallet_exposure = config.wallet_exposure
+violent_multiplier = config.violent_multiplier
 
 exchange = ccxt.bybit(
     {
@@ -491,7 +492,7 @@ max_trade_qty = round(
     int(float(get_market_data()[2])),
 )
 
-violent_max_trade_qty = max_trade_qty * 2
+violent_max_trade_qty = max_trade_qty * violent_multiplier
 
 current_leverage = get_market_data()[1]
 
