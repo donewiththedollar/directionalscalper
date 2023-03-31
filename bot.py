@@ -199,8 +199,12 @@ exchange = ccxt.bybit(
 def get_min_vol_dist_data(symbol) -> bool:
     try:
         tylerapi.grab_api_data()
-        spread5m = tylerapi.get_asset_5m_spread(symbol, tylerapi.grab_api_data())
-        volume1m = tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
+        spread5m = tylerapi.get_asset_value(
+            symbol=symbol, data=tylerapi.grab_api_data(), value="5mSpread"
+        )
+        volume1m = tylerapi.get_asset_value(
+            symbol=symbol, data=tylerapi.grab_api_data(), value="1mVol"
+        )
 
         return volume1m > min_volume and spread5m > min_distance
     except Exception as e:
@@ -491,16 +495,20 @@ long_pos_unpl_pct = 0
 # Should turn these into functions and reduce calls
 
 vol_condition_true = get_min_vol_dist_data(symbol)
-tyler_total_volume_1m = tylerapi.get_asset_total_volume_1m(
-    symbol, tylerapi.grab_api_data()
+tyler_total_volume_1m = tylerapi.get_asset_value(
+    symbol=symbol, data=tylerapi.grab_api_data(), value="1mVol"
 )
-tyler_total_volume_5m = tylerapi.get_asset_total_volume_5m(
-    symbol, tylerapi.grab_api_data()
+tyler_total_volume_5m = tylerapi.get_asset_value(
+    symbol=symbol, data=tylerapi.grab_api_data(), value="5mVol"
 )
 # tyler_1x_volume_1m = tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
-tyler_1x_volume_5m = tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
+tyler_1x_volume_5m = tylerapi.get_asset_value(
+    symbol=symbol, data=tylerapi.grab_api_data(), value="1mVol"
+)
 # tyler_5m_spread = tylerapi.get_asset_5m_spread(symbol, tylerapi.grab_api_data())
-tyler_1m_spread = tylerapi.get_asset_1m_spread(symbol, tylerapi.grab_api_data())
+tyler_1m_spread = tylerapi.get_asset_value(
+    symbol=symbol, data=tylerapi.grab_api_data(), value="1mSpread"
+)
 
 
 # tyler_trend = tylerapi.get_asset_trend(symbol, tylerapi.grab_api_data())
@@ -509,7 +517,9 @@ tyler_1m_spread = tylerapi.get_asset_1m_spread(symbol, tylerapi.grab_api_data())
 def find_trend():
     try:
         tylerapi.grab_api_data()
-        tyler_trend = tylerapi.get_asset_trend(symbol, tylerapi.grab_api_data())
+        tyler_trend = tylerapi.get_asset_value(
+            symbol=symbol, data=tylerapi.grab_api_data(), value="Trend"
+        )
 
         return tyler_trend
     except Exception as e:
@@ -519,7 +529,9 @@ def find_trend():
 def find_1m_spread():
     try:
         tylerapi.grab_api_data()
-        tyler_1m_spread = tylerapi.get_asset_1m_spread(symbol, tylerapi.grab_api_data())
+        tyler_1m_spread = tylerapi.get_asset_value(
+            symbol=symbol, data=tylerapi.grab_api_data(), value="1mSpread"
+        )
 
         return tyler_1m_spread
     except Exception as e:
@@ -529,7 +541,9 @@ def find_1m_spread():
 def find_5m_spread():
     try:
         tylerapi.grab_api_data()
-        tyler_spread = tylerapi.get_asset_5m_spread(symbol, tylerapi.grab_api_data())
+        tyler_spread = tylerapi.get_asset_value(
+            symbol=symbol, data=tylerapi.grab_api_data(), value="5mSpread"
+        )
 
         return tyler_spread
     except Exception as e:
@@ -539,8 +553,8 @@ def find_5m_spread():
 def find_1m_1x_volume():
     try:
         tylerapi.grab_api_data()
-        tyler_1x_volume_1m = tylerapi.get_asset_volume_1m_1x(
-            symbol, tylerapi.grab_api_data()
+        tyler_1x_volume_1m = tylerapi.get_asset_value(
+            symbol=symbol, data=tylerapi.grab_api_data(), value="1mVol"
         )
         return tyler_1x_volume_1m
     except Exception as e:
@@ -777,7 +791,9 @@ def trade_func(symbol):  # noqa
 
             try:
                 get_min_vol_dist_data(symbol)
-                tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
+                tylerapi.get_asset_value(
+                    symbol=symbol, data=tylerapi.grab_api_data(), value="1mVol"
+                )
                 time.sleep(30)
             except Exception as e:
                 log.warning(f"{e}")
