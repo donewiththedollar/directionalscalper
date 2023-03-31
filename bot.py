@@ -1,7 +1,6 @@
 import argparse
 import logging
 import logging.handlers as handlers
-import os
 import time
 from pathlib import Path
 
@@ -10,7 +9,6 @@ import pandas as pd
 import telebot
 from colorama import Fore, Style
 from rich.live import Live
-from rich.table import Table
 
 import tylerapi
 from config import load_config
@@ -135,7 +133,6 @@ elif args.mode == "btclinear-short":
 elif args.mode == "violent":
     violent_mode = True
 
-
 if args.symbol:
     symbol = args.symbol
 else:
@@ -153,7 +150,6 @@ if args.deleverage == "on":
     deleveraging_mode = True
 else:
     deleveraging_mode = False
-
 
 config_file = "config.json"
 if args.config:
@@ -195,6 +191,7 @@ exchange = ccxt.bybit(
     }
 )
 
+
 # Functions
 
 
@@ -211,11 +208,9 @@ def get_min_vol_dist_data(symbol) -> bool:
         return False
 
 
-# get_1m_data() [0]3 high, [1]3 low, [2]6 high, [3]6 low, [4]10 vol
-def get_1m_data():
+# get_m_data(timeframe="1m") [0]3 high, [1]3 low, [2]6 high, [3]6 low, [4]10 vol
+def get_m_data(timeframe: str = "1m", num_bars: int = 20):
     try:
-        timeframe = "1m"
-        num_bars = 20
         bars = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=num_bars)
         df = pd.DataFrame(
             bars, columns=["Time", "Open", "High", "Low", "Close", "Volume"]
@@ -225,43 +220,15 @@ def get_1m_data():
         df["MA_3_Low"] = df.Low.rolling(3).mean()
         df["MA_6_High"] = df.High.rolling(6).mean()
         df["MA_6_Low"] = df.Low.rolling(6).mean()
-        get_1m_data_3_high = df["MA_3_High"].iat[-1]
-        get_1m_data_3_low = df["MA_3_Low"].iat[-1]
-        get_1m_data_6_high = df["MA_6_High"].iat[-1]
-        get_1m_data_6_low = df["MA_6_Low"].iat[-1]
+        get_data_3_high = df["MA_3_High"].iat[-1]
+        get_data_3_low = df["MA_3_Low"].iat[-1]
+        get_data_6_high = df["MA_6_High"].iat[-1]
+        get_data_6_low = df["MA_6_Low"].iat[-1]
         return (
-            get_1m_data_3_high,
-            get_1m_data_3_low,
-            get_1m_data_6_high,
-            get_1m_data_6_low,
-        )
-    except Exception as e:
-        log.warning(f"{e}")
-
-
-# get_5m_data() [0]3 high, [1]3 low, [2]6 high, [3]6 low
-def get_5m_data():
-    try:
-        timeframe = "5m"
-        num_bars = 20
-        bars = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=num_bars)
-        df = pd.DataFrame(
-            bars, columns=["Time", "Open", "High", "Low", "Close", "Volume"]
-        )
-        df["Time"] = pd.to_datetime(df["Time"], unit="ms")
-        df["MA_3_High"] = df.High.rolling(3).mean()
-        df["MA_3_Low"] = df.Low.rolling(3).mean()
-        df["MA_6_High"] = df.High.rolling(6).mean()
-        df["MA_6_Low"] = df.Low.rolling(6).mean()
-        get_5m_data_3_high = df["MA_3_High"].iat[-1]
-        get_5m_data_3_low = df["MA_3_Low"].iat[-1]
-        get_5m_data_6_high = df["MA_6_High"].iat[-1]
-        get_5m_data_6_low = df["MA_6_Low"].iat[-1]
-        return (
-            get_5m_data_3_high,
-            get_5m_data_3_low,
-            get_5m_data_6_high,
-            get_5m_data_6_low,
+            get_data_3_high,
+            get_data_3_low,
+            get_data_6_high,
+            get_data_6_low,
         )
     except Exception as e:
         log.warning(f"{e}")
@@ -421,22 +388,22 @@ def cancel_close():
 
 
 def short_trade_condition():
-    short_trade_condition = get_orderbook()[0] > get_1m_data()[0]
+    short_trade_condition = get_orderbook()[0] > get_m_data(timeframe="1m")[0]
     return short_trade_condition
 
 
 def long_trade_condition():
-    long_trade_condition = get_orderbook()[0] < get_1m_data()[0]
+    long_trade_condition = get_orderbook()[0] < get_m_data(timeframe="1m")[0]
     return long_trade_condition
 
 
 def add_short_trade_condition():
-    add_short_trade_condition = short_pos_price < get_1m_data()[3]
+    add_short_trade_condition = short_pos_price < get_m_data(timeframe="1m")[3]
     return add_short_trade_condition
 
 
 def add_long_trade_condition():
-    add_long_trade_condition = long_pos_price > get_1m_data()[3]
+    add_long_trade_condition = long_pos_price > get_m_data(timeframe="1m")[3]
     return add_long_trade_condition
 
 
@@ -788,9 +755,9 @@ def trade_func(symbol):  # noqa
             try:
                 tylerapi.grab_api_data()
                 time.sleep(0.01)
-                get_1m_data()
+                get_m_data(timeframe="1m")
                 time.sleep(0.01)
-                get_5m_data()
+                get_m_data(timeframe="5m")
                 time.sleep(0.01)
                 get_balance()
                 time.sleep(0.01)
@@ -825,7 +792,7 @@ def trade_func(symbol):  # noqa
             short_open_pos_qty = short_pos_qty
             reduce_only = {"reduce_only": True}
 
-            five_min_data = get_5m_data()
+            five_min_data = get_m_data(timeframe="5m")
             market_data = get_market_data()
 
             if five_min_data is not None and market_data is not None:
@@ -841,26 +808,26 @@ def trade_func(symbol):  # noqa
                 )
 
             # short_profit_price = round(
-            #     short_pos_price - (get_5m_data()[2] - get_5m_data()[3]),
+            #     short_pos_price - (get_m_data(timeframe="5m")[2] - get_m_data(timeframe="5m")[3]),
             #     int(get_market_data()[0]),
             # )
 
             # long_profit_price = round(
-            #     long_pos_price + (get_5m_data()[2] - get_5m_data()[3]),
+            #     long_pos_price + (get_m_data(timeframe="5m")[2] - get_m_data(timeframe="5m")[3]),
             #     int(get_market_data()[0]),
             # )
 
             if violent_mode:
                 short_violent_trade_qty = (
                     short_open_pos_qty
-                    * (get_1m_data()[3] - short_pos_price)
-                    / (get_orderbook()[1] - get_1m_data()[3])
+                    * (get_m_data(timeframe="1m")[3] - short_pos_price)
+                    / (get_orderbook()[1] - get_m_data(timeframe="1m")[3])
                 )
 
                 long_violent_trade_qty = (
                     long_open_pos_qty
-                    * (get_1m_data()[3] - long_pos_price)
-                    / (get_orderbook()[1] - get_1m_data()[3])
+                    * (get_m_data(timeframe="1m")[3] - long_pos_price)
+                    / (get_orderbook()[1] - get_m_data(timeframe="1m")[3])
                 )
 
             if config.avoid_fees:
@@ -876,7 +843,9 @@ def trade_func(symbol):  # noqa
                 )
 
                 # Calculate long_profit_prices
-                price_difference = get_5m_data()[2] - get_5m_data()[3]
+                price_difference = (
+                    get_m_data(timeframe="5m")[2] - get_m_data(timeframe="5m")[3]
+                )
                 price_scale = int(get_market_data()[0])
                 long_profit_prices = calculate_long_profit_prices_avoidfees(
                     long_pos_price,
@@ -900,7 +869,9 @@ def trade_func(symbol):  # noqa
                 if deleveraging_mode:
                     taker_fee_rate = config.linear_taker_fee
                     # Calculate long_profit_prices
-                    price_difference = get_5m_data()[2] - get_5m_data()[3]
+                    price_difference = (
+                        get_m_data(timeframe="5m")[2] - get_m_data(timeframe="5m")[3]
+                    )
                     price_scale = int(get_market_data()[0])
                     long_profit_prices = calculate_long_profit_prices(
                         long_pos_price, price_difference, price_scale
@@ -1149,8 +1120,8 @@ def trade_func(symbol):  # noqa
                     log.warning(f"{e}")
 
                     if (
-                        get_orderbook()[1] < get_1m_data()[0]
-                        or get_orderbook()[1] < get_5m_data()[0]
+                        get_orderbook()[1] < get_m_data(timeframe="1m")[0]
+                        or get_orderbook()[1] < get_m_data(timeframe="5m")[0]
                     ):
                         try:
                             cancel_entry()
@@ -1206,8 +1177,8 @@ def trade_func(symbol):  # noqa
                                 log.warning(f"{e}")
 
                     if (
-                        get_orderbook()[1] < get_1m_data()[0]
-                        or get_orderbook()[1] < get_5m_data()[0]
+                        get_orderbook()[1] < get_m_data(timeframe="1m")[0]
+                        or get_orderbook()[1] < get_m_data(timeframe="5m")[0]
                     ):
                         try:
                             cancel_entry()
@@ -1253,8 +1224,8 @@ def trade_func(symbol):  # noqa
                             except Exception as e:
                                 log.warning(f"{e}")
                     if (
-                        get_orderbook()[1] < get_1m_data()[0]
-                        or get_orderbook()[1] < get_5m_data()[0]
+                        get_orderbook()[1] < get_m_data(timeframe="1m")[0]
+                        or get_orderbook()[1] < get_m_data(timeframe="5m")[0]
                     ):
                         try:
                             cancel_entry()
@@ -1298,8 +1269,8 @@ def trade_func(symbol):  # noqa
                             except Exception as e:
                                 log.warning(f"{e}")
                     if (
-                        get_orderbook()[1] < get_1m_data()[0]
-                        or get_orderbook()[1] < get_5m_data()[0]
+                        get_orderbook()[1] < get_m_data(timeframe="1m")[0]
+                        or get_orderbook()[1] < get_m_data(timeframe="5m")[0]
                     ):
                         try:
                             cancel_entry()
@@ -1310,8 +1281,8 @@ def trade_func(symbol):  # noqa
                     log.warning(f"{e}")
 
             orderbook_data = get_orderbook()
-            data_1m = get_1m_data()
-            data_5m = get_5m_data()
+            data_1m = get_m_data(timeframe="1m")
+            data_5m = get_m_data(timeframe="5m")
 
             if (
                 orderbook_data is not None
@@ -1328,8 +1299,8 @@ def trade_func(symbol):  # noqa
                 log.warning("One or more functions returned None")
 
             # if (
-            #     get_orderbook()[1] < get_1m_data()[0]
-            #     or get_orderbook()[1] < get_5m_data()[0]
+            #     get_orderbook()[1] < get_m_data(timeframe="1m")[0]
+            #     or get_orderbook()[1] < get_m_data(timeframe="5m")[0]
             # ):
             #     try:
             #         cancel_entry()
@@ -1440,7 +1411,6 @@ elif args.mode == "violent":
         violent_mode_func(args.symbol)
     else:
         symbol = input("Instrument undefined. \nInput instrument:")
-
 
 if args.tg == "on":
     if args.tg:
