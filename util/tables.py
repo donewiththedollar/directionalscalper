@@ -46,11 +46,12 @@ def generate_table_vol(
             "Min Vol.",
             str(min_volume),
             str(
-                tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
+                tylerapi.get_asset_value(
+            symbol=symbol, data=tylerapi.grab_api_data(), value="1mVol")
             ).split(".")[0],
             "[red]TOO LOW"
-            if tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
-            < min_volume
+            if tylerapi.get_asset_value(
+            symbol=symbol, data=tylerapi.grab_api_data(), value="1mVol") < min_volume
             else "[green]VOL. OK",
         )
         table.add_row()
@@ -149,7 +150,8 @@ def find_1m_spread(symbol):
 def find_5m_spread(symbol):
     try:
         tylerapi.grab_api_data()
-        tyler_spread = tylerapi.get_asset_5m_spread(symbol, tylerapi.grab_api_data())
+        tyler_spread = tylerapi.get_asset_value(
+            symbol=symbol, data=tylerapi.grab_api_data(), value="1mSpread")
 
         return tyler_spread
     except Exception as e:
