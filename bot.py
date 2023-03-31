@@ -198,12 +198,12 @@ exchange = ccxt.bybit(
 # Get min vol & spread data from API
 def get_min_vol_dist_data(symbol) -> bool:
     try:
-        tylerapi.grab_api_data()
+        api_data = tylerapi.grab_api_data()
         spread5m = tylerapi.get_asset_value(
-            symbol=symbol, data=tylerapi.grab_api_data(), value="5mSpread"
+            symbol=symbol, data=api_data, value="5mSpread"
         )
         volume1m = tylerapi.get_asset_value(
-            symbol=symbol, data=tylerapi.grab_api_data(), value="1mVol"
+            symbol=symbol, data=api_data, value="1mVol"
         )
 
         return volume1m > min_volume and spread5m > min_distance
@@ -494,20 +494,21 @@ long_pos_unpl_pct = 0
 # Define Tyler API Func for ease of use later on
 # Should turn these into functions and reduce calls
 
+api_data = tylerapi.grab_api_data()
 vol_condition_true = get_min_vol_dist_data(symbol)
 tyler_total_volume_1m = tylerapi.get_asset_value(
-    symbol=symbol, data=tylerapi.grab_api_data(), value="1mVol"
+    symbol=symbol, data=api_data, value="1mVol"
 )
 tyler_total_volume_5m = tylerapi.get_asset_value(
-    symbol=symbol, data=tylerapi.grab_api_data(), value="5mVol"
+    symbol=symbol, data=api_data, value="5mVol"
 )
 # tyler_1x_volume_1m = tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
 tyler_1x_volume_5m = tylerapi.get_asset_value(
-    symbol=symbol, data=tylerapi.grab_api_data(), value="1mVol"
+    symbol=symbol, data=api_data, value="5mVol"
 )
 # tyler_5m_spread = tylerapi.get_asset_5m_spread(symbol, tylerapi.grab_api_data())
 tyler_1m_spread = tylerapi.get_asset_value(
-    symbol=symbol, data=tylerapi.grab_api_data(), value="1mSpread"
+    symbol=symbol, data=api_data, value="1mSpread"
 )
 
 
@@ -516,9 +517,9 @@ tyler_1m_spread = tylerapi.get_asset_value(
 
 def find_trend():
     try:
-        tylerapi.grab_api_data()
+        api_data = tylerapi.grab_api_data()
         tyler_trend = tylerapi.get_asset_value(
-            symbol=symbol, data=tylerapi.grab_api_data(), value="Trend"
+            symbol=symbol, data=api_data, value="Trend"
         )
 
         return tyler_trend
@@ -540,9 +541,9 @@ def find_1m_spread():
 
 def find_5m_spread():
     try:
-        tylerapi.grab_api_data()
+        api_data = tylerapi.grab_api_data()
         tyler_spread = tylerapi.get_asset_value(
-            symbol=symbol, data=tylerapi.grab_api_data(), value="5mSpread"
+            symbol=symbol, data=api_data, value="5mSpread"
         )
 
         return tyler_spread
@@ -552,9 +553,9 @@ def find_5m_spread():
 
 def find_1m_1x_volume():
     try:
-        tylerapi.grab_api_data()
+        api_data = tylerapi.grab_api_data()
         tyler_1x_volume_1m = tylerapi.get_asset_value(
-            symbol=symbol, data=tylerapi.grab_api_data(), value="1mVol"
+            symbol=symbol, data=api_data, value="1mVol"
         )
         return tyler_1x_volume_1m
     except Exception as e:
@@ -1135,15 +1136,15 @@ def trade_func(symbol):  # noqa
                 except Exception as e:
                     log.warning(f"{e}")
 
-                    if (
-                        get_orderbook()[1] < get_m_data(timeframe="1m")[0]
-                        or get_orderbook()[1] < get_m_data(timeframe="5m")[0]
-                    ):
-                        try:
-                            cancel_entry()
-                            time.sleep(0.05)
-                        except Exception as e:
-                            log.warning(f"{e}")
+                if (
+                    get_orderbook()[1] < get_m_data(timeframe="1m")[0]
+                    or get_orderbook()[1] < get_m_data(timeframe="5m")[0]
+                ):
+                    try:
+                        cancel_entry()
+                        time.sleep(0.05)
+                    except Exception as e:
+                        log.warning(f"{e}")
 
             # Violent: Full mode
             if violent_mode:
