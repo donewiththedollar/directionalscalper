@@ -40,7 +40,13 @@ To run the bot inside docker container use the following command:
 > docker-compose run directional-scalper python3 bot.py --mode hedge --symbol GALAUSDT --iqty 1 --tg off
 
 * There are five modes:
-> long, short, hedge, persistent, inverse
+> long, short, hedge, persistent, inverse, violent
 * To do:
-> Finish inverse perps mode for both long and short
 > Instance manager
+
+
+### Donations
+If you would like to show your appreciation for this project through donations, there are a few addresses here to choose from
+* **BTC**: bc1qu5p292xs9jvu0vuanjcpsqszmg4hkmrrahdpj7
+* **XMR**: 42wS15cGdMmU4xciT4PV6XaqtEuc2PXn3DP5ymNb1BkDVU3j2TXzdkze2iSMqc64KhCsGC4FpU866P38QneBNqQi4ui1Cvg
+* **DOGE**: D9iNDsVpJaXqChmveCUsvnM87sQo5Tcia6
