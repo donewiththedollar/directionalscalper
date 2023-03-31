@@ -1,7 +1,9 @@
 import json
+import logging
 
 import requests  # type: ignore
 
+log = logging.getLogger(__name__)
 # def grab_api_data():
 #     # print("grab api data")
 #     try:
@@ -12,183 +14,50 @@ import requests  # type: ignore
 #         #print("Error retrieving API data. Returning None...")
 #         return None
 
+
 def grab_api_data():
+    data = None
     try:
         response = requests.get("http://api.tradesimple.xyz/data/quantdata.json")
         response.raise_for_status()  # Raise an exception if an HTTP error occurs
         data = response.json()
-    except (requests.exceptions.HTTPError, json.JSONDecodeError):
-        data = None
+    except (requests.exceptions.HTTPError, json.JSONDecodeError) as e:
+        log.warning(f"{e}")
     return data
 
-def get_asset_data(symbol, data):
+
+def get_asset_data(symbol: str, data):
     try:
         for asset in data:
             if asset["Assets"] == symbol:
                 return asset
         return None
-    except:
-        pass
+    except Exception as e:
+        log.warning(f"{e}")
 
 
-def get_asset_price(symbol, data):
+def get_asset_value(symbol: str, data, value: str):
     try:
         asset_data = get_asset_data(symbol, data)
-
-        if asset_data:
-            return asset_data["Price"]
+        if asset_data is not None:
+            if value == "Price" and "Price" in asset_data:
+                return asset_data["Price"]
+            if value == "1mVol" and "1m 1x Volume (USDT)" in asset_data:
+                return asset_data["1m 1x Volume (USDT)"]
+            if value == "5mVol" and "5m 1x Volume (USDT)" in asset_data:
+                return asset_data["5m 1x Volume (USDT)"]
+            if value == "1mSpread" and "1m Spread" in asset_data:
+                return asset_data["1m Spread"]
+            if value == "5mSpread" and "5m Spread" in asset_data:
+                return asset_data["5m Spread"]
+            if value == "15mSpread" and "15m Spread" in asset_data:
+                return asset_data["15m Spread"]
+            if value == "30mSpread" and "30m Spread" in asset_data:
+                return asset_data["30m Spread"]
+            if value == "Trend" and "Trend" in asset_data:
+                return asset_data["Trend"]
+            if value == "Funding" and "Funding" in asset_data:
+                return asset_data["Funding"]
         return None
-    except:
-        pass
-        
-
-
-# print(get_asset_price('BTCUSDT', api_data))
-
-
-def get_asset_total_volume_1m(symbol, data):
-    try:
-
-        asset_data = get_asset_data(symbol, data)
-
-        if asset_data:
-            return asset_data["1m 1x Volume (USDT)"]
-        return None
-    except:
-        pass
-
-
-# print(get_asset_total_volume_1m('BTCUSDT', api_data))
-
-
-def get_asset_volume_1m_1x(symbol, data):
-    try:
-        asset_data = get_asset_data(symbol, data)
-
-        if asset_data:
-            return asset_data["1m 1x Volume (USDT)"]
-        return None
-    except:
-        pass
-
-
-# print(get_asset_volume_1m_1x('BTCUSDT', api_data))
-
-
-def get_asset_total_volume_5m(symbol, data):
-    try:
-        asset_data = get_asset_data(symbol, data)
-
-        if asset_data:
-            return asset_data["5m 1x Volume (USDT)"]
-        return None
-    except:
-        pass
-
-
-# print(get_asset_total_volume_5m('BTCUSDT', api_data))
-
-
-def get_asset_volume_5m_1x(symbol, data):
-    try:
-        asset_data = get_asset_data(symbol, data)
-
-        if asset_data:
-            return asset_data["5m 1x Volume (USDT)"]
-        return None
-    except:
-        pass
-
-
-# print(get_asset_volume_5m_1x('BTCUSDT', api_data))
-
-
-def get_asset_1m_spread(symbol, data):
-    try:
-        asset_data = get_asset_data(symbol, data)
-
-        if asset_data:
-            return asset_data["1m Spread"]
-        return None
-    except:
-        pass
-
-
-# print(get_asset_1m_spread('BTCUSDT', api_data))
-
-
-def get_asset_5m_spread(symbol, data):
-    try:
-        asset_data = get_asset_data(symbol, data)
-
-        if asset_data:
-            return asset_data["5m Spread"]
-        return None
-    except:
-        pass
-
-
-# print(get_asset_5m_spread('BTCUSDT', api_data))
-
-
-def get_asset_15m_spread(symbol, data):
-    try:
-        asset_data = get_asset_data(symbol, data)
-
-        if asset_data:
-            return asset_data["15m Spread"]
-        return None
-    except:
-        pass
-
-# print(get_asset_15m_spread('BTCUSDT', api_data))
-
-
-def get_asset_30m_spread(symbol, data):
-    try:
-        asset_data = get_asset_data(symbol, data)
-
-        if asset_data:
-            return asset_data["30m Spread"]
-        return None
-    except:
-        pass
-
-
-# print(get_asset_15m_spread('BTCUSDT', api_data))
-
-
-def get_asset_trend(symbol, data):
-    try:
-        asset_data = get_asset_data(symbol, data)
-
-        if asset_data:
-            return asset_data["Trend"]
-        return None
-    except:
-        pass
-
-
-# print(get_asset_trend('APTUSDT', api_data))
-
-
-def get_asset_trend_pct(symbol, data):
-    try:
-        asset_data = get_asset_data(symbol, data)
-
-        if asset_data:
-            return asset_data["trend%"]
-        return None
-    except:
-        pass
-
-
-def get_asset_funding_rate(symbol, data):
-    try:
-        asset_data = get_asset_data(symbol, data)
-
-        if asset_data:
-            return asset_data["Funding"]
-        return None
-    except:
-        pass
+    except Exception as e:
+        log.warning(f"{e}")
