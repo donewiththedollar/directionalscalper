@@ -151,7 +151,7 @@ def find_5m_spread(symbol):
     try:
         tylerapi.grab_api_data()
         tyler_spread = tylerapi.get_asset_value(
-            symbol=symbol, data=tylerapi.grab_api_data(), value="1mSpread")
+            symbol=symbol, data=tylerapi.grab_api_data(), value="5mSpread")
 
         return tyler_spread
     except Exception as e:
