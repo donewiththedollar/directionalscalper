@@ -142,7 +142,7 @@ def generate_table_info(data: dict) -> Table:
 
 
 def trade_qty_001x(max_trade_qty, market_data):
-    trade_qty_001x = round(max_trade_qty / 500, int(float(market_data[2])))
+    trade_qty_001x = max_trade_qty / 500
     return "{:.5g}".format(trade_qty_001x)
 
 
