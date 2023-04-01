@@ -508,15 +508,15 @@ violent_max_trade_qty = max_trade_qty * violent_multiplier
 
 current_leverage = get_market_data()[1]
 
-trade_qty_01x = max_trade_qty / 100
+trade_qty_01x = round(max_trade_qty / 100, int(float(get_market_data()[2])))
 print(f"Min Trade Qty: {get_market_data()[2]}")
 print(Fore.LIGHTYELLOW_EX + "1x :", "{:.5g}".format(max_trade_qty), "")
 print(Fore.LIGHTCYAN_EX + "0.01x : ", "{:.5g}".format(trade_qty_01x), "")
 
-trade_qty_005x = max_trade_qty / 200
+trade_qty_005x = round(max_trade_qty / 200, int(float(get_market_data()[2])))
 print(f"0.005x : {'{:.5g}'.format(trade_qty_005x)}")
 
-trade_qty_001x = max_trade_qty / 500
+trade_qty_001x = round(max_trade_qty / 500, int(float(get_market_data()[2])))
 print(f"0.001x : {'{:.5g}'.format(trade_qty_001x)}")
 
 # Fix for the first run when variable is not yet assigned
