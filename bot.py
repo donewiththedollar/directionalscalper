@@ -880,17 +880,21 @@ def trade_func(symbol):  # noqa
             # )
 
             if violent_mode:
-                short_violent_trade_qty = (
-                    short_open_pos_qty
-                    * (get_m_data(timeframe="1m")[3] - short_pos_price)
-                    / (get_orderbook()[1] - get_m_data(timeframe="1m")[3])
-                )
+                denominator = get_orderbook()[1] - get_m_data(timeframe="1m")[3]
+                if denominator == 0:
+                    short_violent_trade_qty, long_violent_trade_qty = 0, 0
+                else:
+                    short_violent_trade_qty = (
+                        short_open_pos_qty
+                        * (get_m_data(timeframe="1m")[3] - short_pos_price)
+                        / denominator
+                    )
 
-                long_violent_trade_qty = (
-                    long_open_pos_qty
-                    * (get_m_data(timeframe="1m")[3] - long_pos_price)
-                    / (get_orderbook()[1] - get_m_data(timeframe="1m")[3])
-                )
+                    long_violent_trade_qty = (
+                        long_open_pos_qty
+                        * (get_m_data(timeframe="1m")[3] - long_pos_price)
+                        / denominator
+                    )
 
             if config.avoid_fees:
                 taker_fee_rate = config.linear_taker_fee
