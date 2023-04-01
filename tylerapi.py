@@ -1,22 +1,37 @@
 import json
 import logging
-
+import datetime
 import requests  # type: ignore
 
 log = logging.getLogger(__name__)
-# def grab_api_data():
-#     # print("grab api data")
-#     try:
-#         tyler_api_unparsed = requests.get("http://api.tradesimple.xyz/data/quantdata.json")
-#         api_data = tyler_api_unparsed.json()
-#         return api_data
-#     except (json.decoder.JSONDecodeError, requests.exceptions.RequestException):
-#         #print("Error retrieving API data. Returning None...")
-#         return None
 
+_cached_data = None
+_cached_time = None
+CACHE_TIME_SECONDS = 10
 
 def grab_api_data():
-    data = None
+    """
+    Grab cached api data if it exists and is not expired for 10 seconds.
+    Otherwise, grab fresh data.
+    API data is updated once a minute, so we don't need to grab fresh data every time.
+    """
+    global _cached_data
+    global _cached_time
+    if not has_cache() or is_cache_expired():
+        _cached_data = grab_fresh_api_data()
+        _cached_time = datetime.datetime.now()
+    return _cached_data
+
+def is_cache_expired():
+    global _cached_time
+    if _cached_time is None:
+        return True
+    return (datetime.datetime.now() - _cached_time).total_seconds() > CACHE_TIME_SECONDS
+
+def has_cache():
+    return _cached_data is not None and _cached_time is not None
+
+def grab_fresh_api_data():
     try:
         response = requests.get("http://api.tradesimple.xyz/data/quantdata.json")
         response.raise_for_status()  # Raise an exception if an HTTP error occurs
@@ -24,7 +39,6 @@ def grab_api_data():
     except (requests.exceptions.HTTPError, json.JSONDecodeError) as e:
         log.warning(f"{e}")
     return data
-
 
 def get_asset_data(symbol: str, data):
     try:

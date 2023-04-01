@@ -58,7 +58,7 @@ def generate_table_vol(
         table.add_row(
             "Min Dist.",
             str(min_distance),
-            "{:.2f}".format(find_5m_spread(symbol)),
+            "{:.5g}".format(find_5m_spread(symbol)),
             "[red]TOO SMALL"
             if find_5m_spread(symbol) < min_distance
             else "[green]DIST. OK",
@@ -114,20 +114,19 @@ def generate_table_info(data: dict) -> Table:
             else f"[green]{'{:.2f}%'.format(total_unpl_pct)}",
         )
         table.add_row("Entry size", f"{data['trade_qty']}")
-        table.add_row("Long size", "{:.2f}".format(data["long_pos_qty"]))
-        table.add_row("Short size", "{:.2f}".format(data["short_pos_qty"]))
-        table.add_row("Long position price", "${:.2f}".format(data["long_pos_price"]))
+        table.add_row("Long size", "{:.5g}".format(data["long_pos_qty"]))
+        table.add_row("Short size", "{:.5g}".format(data["short_pos_qty"]))
+        table.add_row("Long position price", "${:.5g}".format(data["long_pos_price"]))
         table.add_row(
             "Long liquidation price", "${:.5f}".format(data["long_liq_price"])
         )
-        table.add_row("Short position price", "${:.2f}".format(data["short_pos_price"]))
+        table.add_row("Short position price", "${:.5g}".format(data["short_pos_price"]))
         table.add_row(
-            "Short liquidation price", "${:.2f}".format(data["short_liq_price"])
+            "Short liquidation price", "${:.5g}".format(data["short_liq_price"])
         )
-        table.add_row("Max", "{:.2f}".format(data["max_trade_qty"]))
+        table.add_row("Max", "{:.5g}".format(data["max_trade_qty"]))
         table.add_row(
-            "0.001x",
-            str(round(data["max_trade_qty"] / 500, int(float(data["market_data"][2])))),
+            "0.001x", trade_qty_001x(data["max_trade_qty"], data["market_data"])
         )
         # table.add_row("Trend:", str(tyler_trend))
         table.add_row("Trend", f"{data['trend']}")
@@ -136,6 +135,10 @@ def generate_table_info(data: dict) -> Table:
     except Exception as e:
         log.warning(f"{e}")
 
+def trade_qty_001x(max_trade_qty, market_data):
+    trade_qty_001x = max_trade_qty / 500, int(float(market_data[2]))
+    trade_qty_001x = trade_qty_001x[0]
+    return '{:.5g}'.format(trade_qty_001x)
 
 def find_1m_spread(symbol):
     try:
@@ -199,9 +202,9 @@ def generate_inverse_table_info(
         # inverse_table.add_row(f"Unrealised BTC", f"[red]{str(dex_btc_upnl)}" if dex_btc_upnl < 0 else f"[green]{str(dex_btc_upnl + dex_btc_upnl_pct)}")
         inverse_table.add_row(
             "Unrealised %",
-            f"[red]{'${:.2f}%'.format(dex_btc_upnl_pct)}"
+            f"[red]{'${:.5g}%'.format(dex_btc_upnl_pct)}"
             if dex_btc_upnl_pct < 0
-            else f"[green]{'{:.2f}%'.format(dex_btc_upnl_pct)}",
+            else f"[green]{'{:.5g}%'.format(dex_btc_upnl_pct)}",
         )
         inverse_table.add_row("Entry size", str(trade_qty))
         inverse_table.add_row("Trend:", str(trend))
