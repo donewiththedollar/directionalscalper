@@ -28,7 +28,7 @@ log = logging.getLogger("ds_bot")
 formatter = logging.Formatter(
     "%(asctime)s - %(filename)s:%(lineno)s - %(funcName)20s() - %(message)s"
 )
-logHandler = handlers.RotatingFileHandler("ds.log", maxBytes=5000, backupCount=5)
+logHandler = handlers.RotatingFileHandler("ds.log", maxBytes=5000000, backupCount=5)
 logHandler.setFormatter(formatter)
 log.setLevel(logging.INFO)
 log.addHandler(logHandler)
