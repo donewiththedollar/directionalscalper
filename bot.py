@@ -10,7 +10,7 @@ import telebot
 from colorama import Fore, Style
 from rich.live import Live
 
-import tylerapi
+from api.manager import Manager
 from config import load_config
 from util import tables
 
@@ -32,6 +32,8 @@ logHandler = handlers.RotatingFileHandler("ds.log", maxBytes=5000, backupCount=5
 logHandler.setFormatter(formatter)
 log.setLevel(logging.INFO)
 log.addHandler(logHandler)
+
+manager = Manager()
 
 
 def sendmessage(message):
@@ -198,13 +200,11 @@ exchange = ccxt.bybit(
 # Get min vol & spread data from API
 def get_min_vol_dist_data(symbol) -> bool:
     try:
-        api_data = tylerapi.grab_api_data()
-        spread5m = tylerapi.get_asset_value(
+        api_data = manager.get_data()
+        spread5m = manager.get_asset_value(
             symbol=symbol, data=api_data, value="5mSpread"
         )
-        volume1m = tylerapi.get_asset_value(
-            symbol=symbol, data=api_data, value="1mVol"
-        )
+        volume1m = manager.get_asset_value(symbol=symbol, data=api_data, value="1mVol")
 
         return volume1m > min_volume and spread5m > min_distance
     except Exception as e:
@@ -336,6 +336,7 @@ def get_long_positions():
         long_pos_price_at_entry = long_pos_price
     except Exception as e:
         log.warning(f"{e}")
+
 
 # def get_long_positions():
 #     try:
@@ -507,17 +508,16 @@ violent_max_trade_qty = max_trade_qty * violent_multiplier
 
 current_leverage = get_market_data()[1]
 
-trade_qty_01x = max_trade_qty / 100, int(float(get_market_data()[2]))
-trade_qty_01x = trade_qty_01x[0]
+trade_qty_01x = max_trade_qty / 100
 print(f"Min Trade Qty: {get_market_data()[2]}")
-print(Fore.LIGHTYELLOW_EX + "1x :", '{:.5g}'.format(max_trade_qty), "")
-print(Fore.LIGHTCYAN_EX + "0.01x : ",'{:.5g}'.format(trade_qty_01x), "")
+print(Fore.LIGHTYELLOW_EX + "1x :", "{:.5g}".format(max_trade_qty), "")
+print(Fore.LIGHTCYAN_EX + "0.01x : ", "{:.5g}".format(trade_qty_01x), "")
 
-trade_qty_005x = max_trade_qty / 200, int(float(get_market_data()[2]))
+trade_qty_005x = max_trade_qty / 200
 trade_qty_005x = trade_qty_005x[0]
 print(f"0.005x : {'{:.5g}'.format(trade_qty_005x)}")
 
-trade_qty_001x = max_trade_qty / 500, int(float(get_market_data()[2]))
+trade_qty_001x = max_trade_qty / 500
 trade_qty_001x = trade_qty_001x[0]
 print(f"0.001x : {'{:.5g}'.format(trade_qty_001x)}")
 
@@ -535,20 +535,20 @@ long_pos_unpl_pct = 0
 # Define Tyler API Func for ease of use later on
 # Should turn these into functions and reduce calls
 
-api_data = tylerapi.grab_api_data()
+api_data = manager.get_data()
 vol_condition_true = get_min_vol_dist_data(symbol)
-tyler_total_volume_1m = tylerapi.get_asset_value(
+tyler_total_volume_1m = manager.get_asset_value(
     symbol=symbol, data=api_data, value="1mVol"
 )
-tyler_total_volume_5m = tylerapi.get_asset_value(
+tyler_total_volume_5m = manager.get_asset_value(
     symbol=symbol, data=api_data, value="5mVol"
 )
 # tyler_1x_volume_1m = tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
-tyler_1x_volume_5m = tylerapi.get_asset_value(
+tyler_1x_volume_5m = manager.get_asset_value(
     symbol=symbol, data=api_data, value="5mVol"
 )
 # tyler_5m_spread = tylerapi.get_asset_5m_spread(symbol, tylerapi.grab_api_data())
-tyler_1m_spread = tylerapi.get_asset_value(
+tyler_1m_spread = manager.get_asset_value(
     symbol=symbol, data=api_data, value="1mSpread"
 )
 
@@ -558,8 +558,8 @@ tyler_1m_spread = tylerapi.get_asset_value(
 
 def find_trend():
     try:
-        api_data = tylerapi.grab_api_data()
-        tyler_trend = tylerapi.get_asset_value(
+        api_data = manager.get_data()
+        tyler_trend = manager.get_asset_value(
             symbol=symbol, data=api_data, value="Trend"
         )
 
@@ -570,9 +570,9 @@ def find_trend():
 
 def find_1m_spread():
     try:
-        tylerapi.grab_api_data()
-        tyler_1m_spread = tylerapi.get_asset_value(
-            symbol=symbol, data=tylerapi.grab_api_data(), value="1mSpread"
+        api_data = manager.get_data()
+        tyler_1m_spread = manager.get_asset_value(
+            symbol=symbol, data=api_data, value="1mSpread"
         )
 
         return tyler_1m_spread
@@ -582,8 +582,8 @@ def find_1m_spread():
 
 def find_5m_spread():
     try:
-        api_data = tylerapi.grab_api_data()
-        tyler_spread = tylerapi.get_asset_value(
+        api_data = manager.get_data()
+        tyler_spread = manager.get_asset_value(
             symbol=symbol, data=api_data, value="5mSpread"
         )
 
@@ -594,8 +594,8 @@ def find_5m_spread():
 
 def find_1m_1x_volume():
     try:
-        api_data = tylerapi.grab_api_data()
-        tyler_1x_volume_1m = tylerapi.get_asset_value(
+        api_data = manager.get_data()
+        tyler_1x_volume_1m = manager.get_asset_value(
             symbol=symbol, data=api_data, value="1mVol"
         )
         return tyler_1x_volume_1m
@@ -635,7 +635,6 @@ def initial_long_entry(current_bid):
         else:
             global long_pos_price_at_entry
             long_pos_price_at_entry = long_pos_price
-
 
 
 def initial_long_entry_linear_btc(current_bid):
@@ -690,7 +689,6 @@ def initial_short_entry(current_ask):
         else:
             global short_pos_price_at_entry
             short_pos_price_at_entry = short_pos_price
-
 
 
 def get_current_price(exchange, symbol):
@@ -817,7 +815,7 @@ def trade_func(symbol):  # noqa
     with Live(generate_main_table(), refresh_per_second=2) as live:
         while True:
             try:
-                tylerapi.grab_api_data()
+                manager.get_data()
                 time.sleep(0.01)
                 get_m_data(timeframe="1m")
                 time.sleep(0.01)
@@ -841,8 +839,8 @@ def trade_func(symbol):  # noqa
 
             try:
                 get_min_vol_dist_data(symbol)
-                tylerapi.get_asset_value(
-                    symbol=symbol, data=tylerapi.grab_api_data(), value="1mVol"
+                manager.get_asset_value(
+                    symbol=symbol, data=manager.get_data(), value="1mVol"
                 )
                 time.sleep(30)
             except Exception as e:
