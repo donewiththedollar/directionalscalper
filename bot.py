@@ -1252,7 +1252,6 @@ def trade_func(symbol):  # noqa
                 except Exception as e:
                     log.warning(f"{e}")
 
-            # Aggressive HEDGE: Full mode
             if aggressive_mode:
                 try:
                     if find_trend() == "short":
@@ -1260,6 +1259,7 @@ def trade_func(symbol):  # noqa
                         if (
                             find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
+                            and short_pos_qty < max_trade_qty
                             and add_short_trade_condition()
                             and current_ask > short_pos_price
                         ):
@@ -1275,6 +1275,7 @@ def trade_func(symbol):  # noqa
                         if (
                             find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
+                            and long_pos_qty < max_trade_qty
                             and add_long_trade_condition()
                             and current_bid < long_pos_price
                         ):
