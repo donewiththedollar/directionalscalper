@@ -2,9 +2,10 @@ import logging
 
 from rich.table import Table
 
-import tylerapi
+from api.manager import Manager
 
 log = logging.getLogger(__name__)
+manager = Manager()
 
 
 # TODO make bot instance object to prevent long param list
@@ -46,21 +47,24 @@ def generate_table_vol(
             "Min Vol.",
             str(min_volume),
             str(
-                tylerapi.get_asset_value(
-            symbol=symbol, data=tylerapi.grab_api_data(), value="1mVol")
+                manager.get_asset_value(
+                    symbol=symbol, data=manager.get_data(), value="1mVol"
+                )
             ).split(".")[0],
             "[red]TOO LOW"
-            if tylerapi.get_asset_value(
-            symbol=symbol, data=tylerapi.grab_api_data(), value="1mVol") < min_volume
+            if manager.get_asset_value(
+                symbol=symbol, data=manager.get_data(), value="1mVol"
+            )
+            < min_volume
             else "[green]VOL. OK",
         )
         table.add_row()
         table.add_row(
             "Min Dist.",
             str(min_distance),
-            "{:.5g}".format(find_5m_spread(symbol)),
+            "{:.5g}".format(find_spread(symbol=symbol, timeframe="5m")),
             "[red]TOO SMALL"
-            if find_5m_spread(symbol) < min_distance
+            if find_spread(symbol=symbol, timeframe="5m") < min_distance
             else "[green]DIST. OK",
         )
         table.add_row("Mode", str(mode))
@@ -135,30 +139,22 @@ def generate_table_info(data: dict) -> Table:
     except Exception as e:
         log.warning(f"{e}")
 
+
 def trade_qty_001x(max_trade_qty, market_data):
     trade_qty_001x = max_trade_qty / 500, int(float(market_data[2]))
     trade_qty_001x = trade_qty_001x[0]
-    return '{:.5g}'.format(trade_qty_001x)
+    return "{:.5g}".format(trade_qty_001x)
 
-def find_1m_spread(symbol):
+
+def find_spread(symbol: str, timeframe: str = "5m"):
+    spread = timeframe + "Spread"
     try:
-        tylerapi.grab_api_data()
-        tyler_1m_spread = tylerapi.get_asset_1m_spread(symbol, tylerapi.grab_api_data())
-
-        return tyler_1m_spread
+        return manager.get_asset_value(
+            symbol=symbol, data=manager.get_data(), value=spread
+        )
     except Exception as e:
         log.warning(f"{e}")
-
-
-def find_5m_spread(symbol):
-    try:
-        tylerapi.grab_api_data()
-        tyler_spread = tylerapi.get_asset_value(
-            symbol=symbol, data=tylerapi.grab_api_data(), value="5mSpread")
-
-        return tyler_spread
-    except Exception as e:
-        log.warning(f"{e}")
+    return None
 
 
 #  global dex_btc_balance, dex_btc_upnl, dex_btc_wallet, dex_btc_equity
