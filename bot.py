@@ -10,7 +10,7 @@ import telebot
 from colorama import Fore, Style
 from rich.live import Live
 
-import tylerapi
+from api.manager import Manager
 from config import load_config
 from util import tables
 
@@ -24,14 +24,16 @@ from util import tables
 # 4. Look for chat id and copy the chat id into config.json
 
 
-log = logging.getLogger("ds_bot")
+log = logging.getLogger()
 formatter = logging.Formatter(
     "%(asctime)s - %(filename)s:%(lineno)s - %(funcName)20s() - %(message)s"
 )
-logHandler = handlers.RotatingFileHandler("ds.log", maxBytes=5000, backupCount=5)
+logHandler = handlers.RotatingFileHandler("ds.log", maxBytes=5000000, backupCount=5)
 logHandler.setFormatter(formatter)
 log.setLevel(logging.INFO)
 log.addHandler(logHandler)
+
+manager = Manager()
 
 
 def sendmessage(message):
@@ -198,13 +200,11 @@ exchange = ccxt.bybit(
 # Get min vol & spread data from API
 def get_min_vol_dist_data(symbol) -> bool:
     try:
-        api_data = tylerapi.grab_api_data()
-        spread5m = tylerapi.get_asset_value(
+        api_data = manager.get_data()
+        spread5m = manager.get_asset_value(
             symbol=symbol, data=api_data, value="5mSpread"
         )
-        volume1m = tylerapi.get_asset_value(
-            symbol=symbol, data=api_data, value="1mVol"
-        )
+        volume1m = manager.get_asset_value(symbol=symbol, data=api_data, value="1mVol")
 
         return volume1m > min_volume and spread5m > min_distance
     except Exception as e:
@@ -316,49 +316,53 @@ def get_long_positions(pos_dict):
     except Exception as e:
         log.warning(f"{e}")
 
+
 def get_open_orders():
     try:
         order = exchange.fetch_open_orders(symbol)
-        order_status = order[0]["info"]["order_status"]
-        order_side = order[0]["info"]["side"]
-        reduce_only = order[0]["info"]["reduce_only"]
-        if (
-            order_status == "New"
-            and order_status != "Filled"
-            and order_side == "Buy"
-            and reduce_only
-        ):
-            order_id = order[0]["info"]["order_id"]
-            order_price = order[0]["info"]["price"]
-            order_qty = order[0]["info"]["qty"]
-        else:
-            return 0, 0, 0
-        return order_id, order_price, order_qty
+        if len(order) > 0:
+            if "info" in order[0]:
+                order_status = order[0]["info"]["order_status"]
+                order_side = order[0]["info"]["side"]
+                reduce_only = order[0]["info"]["reduce_only"]
+                if (
+                    order_status == "New"
+                    and order_status != "Filled"
+                    and order_side == "Buy"
+                    and reduce_only
+                ):
+                    order_id = order[0]["info"]["order_id"]
+                    order_price = order[0]["info"]["price"]
+                    order_qty = order[0]["info"]["qty"]
+                    return order_id, order_price, order_qty
     except Exception as e:
         log.warning(f"{e}")
+    return 0, 0, 0
 
 
 def cancel_entry():
     try:
         order = exchange.fetch_open_orders(symbol)
-        order_id = order[0]["info"]["order_id"]
-        order_status = order[0]["info"]["order_status"]
-        order_side = order[0]["info"]["side"]
-        reduce_only = order[0]["info"]["reduce_only"]
-        if (
-            order_status != "Filled"
-            and order_side == "Buy"
-            and order_status != "Cancelled"
-            and not reduce_only
-        ):
-            exchange.cancel_order(symbol=symbol, id=order_id)
-        elif (
-            order_status != "Filled"
-            and order_side == "Sell"
-            and order_status != "Cancelled"
-            and not reduce_only
-        ):
-            exchange.cancel_order(symbol=symbol, id=order_id)
+        if len(order) > 0:
+            if "info" in order[0]:
+                order_id = order[0]["info"]["order_id"]
+                order_status = order[0]["info"]["order_status"]
+                order_side = order[0]["info"]["side"]
+                reduce_only = order[0]["info"]["reduce_only"]
+                if (
+                    order_status != "Filled"
+                    and order_side == "Buy"
+                    and order_status != "Cancelled"
+                    and not reduce_only
+                ):
+                    exchange.cancel_order(symbol=symbol, id=order_id)
+                elif (
+                    order_status != "Filled"
+                    and order_side == "Sell"
+                    and order_status != "Cancelled"
+                    and not reduce_only
+                ):
+                    exchange.cancel_order(symbol=symbol, id=order_id)
     except Exception as e:
         log.warning(f"{e}")
 
@@ -366,24 +370,26 @@ def cancel_entry():
 def cancel_close():
     try:
         order = exchange.fetch_open_orders(symbol)
-        order_id = order[0]["info"]["order_id"]
-        order_status = order[0]["info"]["order_status"]
-        order_side = order[0]["info"]["side"]
-        reduce_only = order[0]["info"]["reduce_only"]
-        if (
-            order_status != "Filled"
-            and order_side == "Buy"
-            and order_status != "Cancelled"
-            and reduce_only
-        ):
-            exchange.cancel_order(symbol=symbol, id=order_id)
-        elif (
-            order_status != "Filled"
-            and order_side == "Sell"
-            and order_status != "Cancelled"
-            and reduce_only
-        ):
-            exchange.cancel_order(symbol=symbol, id=order_id)
+        if len(order) > 0:
+            if "info" in order[0]:
+                order_id = order[0]["info"]["order_id"]
+                order_status = order[0]["info"]["order_status"]
+                order_side = order[0]["info"]["side"]
+                reduce_only = order[0]["info"]["reduce_only"]
+                if (
+                    order_status != "Filled"
+                    and order_side == "Buy"
+                    and order_status != "Cancelled"
+                    and reduce_only
+                ):
+                    exchange.cancel_order(symbol=symbol, id=order_id)
+                elif (
+                    order_status != "Filled"
+                    and order_side == "Sell"
+                    and order_status != "Cancelled"
+                    and reduce_only
+                ):
+                    exchange.cancel_order(symbol=symbol, id=order_id)
     except Exception as e:
         log.warning(f"{e}")
 
@@ -467,18 +473,15 @@ violent_max_trade_qty = max_trade_qty * violent_multiplier
 
 current_leverage = get_market_data()[1]
 
-trade_qty_01x = max_trade_qty / 100, int(float(get_market_data()[2]))
-trade_qty_01x = trade_qty_01x[0]
+trade_qty_01x = max_trade_qty / 100
 print(f"Min Trade Qty: {get_market_data()[2]}")
-print(Fore.LIGHTYELLOW_EX + "1x :", '{:.5g}'.format(max_trade_qty), "")
-print(Fore.LIGHTCYAN_EX + "0.01x : ",'{:.5g}'.format(trade_qty_01x), "")
+print(Fore.LIGHTYELLOW_EX + "1x :", "{:.5g}".format(max_trade_qty), "")
+print(Fore.LIGHTCYAN_EX + "0.01x : ", "{:.5g}".format(trade_qty_01x), "")
 
-trade_qty_005x = max_trade_qty / 200, int(float(get_market_data()[2]))
-trade_qty_005x = trade_qty_005x[0]
+trade_qty_005x = max_trade_qty / 200
 print(f"0.005x : {'{:.5g}'.format(trade_qty_005x)}")
 
-trade_qty_001x = max_trade_qty / 500, int(float(get_market_data()[2]))
-trade_qty_001x = trade_qty_001x[0]
+trade_qty_001x = max_trade_qty / 500
 print(f"0.001x : {'{:.5g}'.format(trade_qty_001x)}")
 
 # Fix for the first run when variable is not yet assigned
@@ -495,20 +498,20 @@ long_pos_unpl_pct = 0
 # Define Tyler API Func for ease of use later on
 # Should turn these into functions and reduce calls
 
-api_data = tylerapi.grab_api_data()
+api_data = manager.get_data()
 vol_condition_true = get_min_vol_dist_data(symbol)
-tyler_total_volume_1m = tylerapi.get_asset_value(
+tyler_total_volume_1m = manager.get_asset_value(
     symbol=symbol, data=api_data, value="1mVol"
 )
-tyler_total_volume_5m = tylerapi.get_asset_value(
+tyler_total_volume_5m = manager.get_asset_value(
     symbol=symbol, data=api_data, value="5mVol"
 )
 # tyler_1x_volume_1m = tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
-tyler_1x_volume_5m = tylerapi.get_asset_value(
+tyler_1x_volume_5m = manager.get_asset_value(
     symbol=symbol, data=api_data, value="5mVol"
 )
 # tyler_5m_spread = tylerapi.get_asset_5m_spread(symbol, tylerapi.grab_api_data())
-tyler_1m_spread = tylerapi.get_asset_value(
+tyler_1m_spread = manager.get_asset_value(
     symbol=symbol, data=api_data, value="1mSpread"
 )
 
@@ -518,8 +521,8 @@ tyler_1m_spread = tylerapi.get_asset_value(
 
 def find_trend():
     try:
-        api_data = tylerapi.grab_api_data()
-        tyler_trend = tylerapi.get_asset_value(
+        api_data = manager.get_data()
+        tyler_trend = manager.get_asset_value(
             symbol=symbol, data=api_data, value="Trend"
         )
 
@@ -530,9 +533,9 @@ def find_trend():
 
 def find_1m_spread():
     try:
-        tylerapi.grab_api_data()
-        tyler_1m_spread = tylerapi.get_asset_value(
-            symbol=symbol, data=tylerapi.grab_api_data(), value="1mSpread"
+        api_data = manager.get_data()
+        tyler_1m_spread = manager.get_asset_value(
+            symbol=symbol, data=api_data, value="1mSpread"
         )
 
         return tyler_1m_spread
@@ -542,8 +545,8 @@ def find_1m_spread():
 
 def find_5m_spread():
     try:
-        api_data = tylerapi.grab_api_data()
-        tyler_spread = tylerapi.get_asset_value(
+        api_data = manager.get_data()
+        tyler_spread = manager.get_asset_value(
             symbol=symbol, data=api_data, value="5mSpread"
         )
 
@@ -554,8 +557,8 @@ def find_5m_spread():
 
 def find_1m_1x_volume():
     try:
-        api_data = tylerapi.grab_api_data()
-        tyler_1x_volume_1m = tylerapi.get_asset_value(
+        api_data = manager.get_data()
+        tyler_1x_volume_1m = manager.get_asset_value(
             symbol=symbol, data=api_data, value="1mVol"
         )
         return tyler_1x_volume_1m
@@ -596,7 +599,6 @@ def initial_long_entry(current_bid):
         else:
             global long_pos_price_at_entry
             long_pos_price_at_entry = long_pos_price
-
 
 
 def initial_long_entry_linear_btc(current_bid):
@@ -651,7 +653,6 @@ def initial_short_entry(current_ask):
         else:
             global short_pos_price_at_entry
             short_pos_price_at_entry = short_pos_price
-
 
 
 def get_current_price(exchange, symbol):
@@ -770,7 +771,7 @@ def generate_main_table():
             "min_distance": min_distance,
             "mode": mode,
         }
-        return tables.generate_main_table(data=table_data)
+        return tables.generate_main_table(manager=manager, data=table_data)
     except Exception as e:
         log.warning(f"{e}")
 
@@ -779,7 +780,7 @@ def trade_func(symbol):  # noqa
     with Live(generate_main_table(), refresh_per_second=2) as live:
         while True:
             try:
-                tylerapi.grab_api_data()
+                manager.get_data()
                 time.sleep(0.01)
                 get_m_data(timeframe="1m")
                 time.sleep(0.01)
@@ -803,8 +804,8 @@ def trade_func(symbol):  # noqa
 
             try:
                 get_min_vol_dist_data(symbol)
-                tylerapi.get_asset_value(
-                    symbol=symbol, data=tylerapi.grab_api_data(), value="1mVol"
+                manager.get_asset_value(
+                    symbol=symbol, data=manager.get_data(), value="1mVol"
                 )
                 time.sleep(30)
             except Exception as e:
@@ -846,17 +847,21 @@ def trade_func(symbol):  # noqa
             # )
 
             if violent_mode:
-                short_violent_trade_qty = (
-                    short_open_pos_qty
-                    * (get_m_data(timeframe="1m")[3] - short_pos_price)
-                    / (get_orderbook()[1] - get_m_data(timeframe="1m")[3])
-                )
+                denominator = get_orderbook()[1] - get_m_data(timeframe="1m")[3]
+                if denominator == 0:
+                    short_violent_trade_qty, long_violent_trade_qty = 0, 0
+                else:
+                    short_violent_trade_qty = (
+                        short_open_pos_qty
+                        * (get_m_data(timeframe="1m")[3] - short_pos_price)
+                        / denominator
+                    )
 
-                long_violent_trade_qty = (
-                    long_open_pos_qty
-                    * (get_m_data(timeframe="1m")[3] - long_pos_price)
-                    / (get_orderbook()[1] - get_m_data(timeframe="1m")[3])
-                )
+                    long_violent_trade_qty = (
+                        long_open_pos_qty
+                        * (get_m_data(timeframe="1m")[3] - long_pos_price)
+                        / denominator
+                    )
 
             if config.avoid_fees:
                 taker_fee_rate = config.linear_taker_fee
