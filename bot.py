@@ -804,7 +804,7 @@ def generate_main_table():
             "min_distance": min_distance,
             "mode": mode,
         }
-        return tables.generate_main_table(data=table_data)
+        return tables.generate_main_table(manager=manager, data=table_data)
     except Exception as e:
         log.warning(f"{e}")
 

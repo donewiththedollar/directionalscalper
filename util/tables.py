@@ -2,24 +2,22 @@ import logging
 
 from rich.table import Table
 
-from api.manager import Manager
-
 log = logging.getLogger(__name__)
-manager = Manager()
 
 
 # TODO make bot instance object to prevent long param list
-def generate_main_table(data: dict) -> Table:
+def generate_main_table(data: dict, manager) -> Table:
     try:
         table = Table(show_header=False, box=None, title=data["version"])
         table.add_row(generate_table_info(data=data)),
         table.add_row(
             generate_table_vol(
-                data["min_vol_dist_data"],
-                data["min_volume"],
-                data["min_distance"],
-                data["symbol"],
-                data["mode"],
+                manager=manager,
+                min_vol_dist_data=data["min_vol_dist_data"],
+                min_volume=data["min_volume"],
+                min_distance=data["min_distance"],
+                symbol=data["symbol"],
+                mode=data["mode"],
             )
         )
         return table
@@ -29,7 +27,7 @@ def generate_main_table(data: dict) -> Table:
 
 # Generate table
 def generate_table_vol(
-    min_vol_dist_data, min_volume, min_distance, symbol, mode
+    manager, min_vol_dist_data, min_volume, min_distance, symbol, mode
 ) -> Table:
     try:
         table = Table(width=50)
@@ -62,9 +60,12 @@ def generate_table_vol(
         table.add_row(
             "Min Dist.",
             str(min_distance),
-            "{:.5g}".format(find_spread(symbol=symbol, timeframe="5m")),
+            "{:.5g}".format(
+                find_spread(symbol=symbol, timeframe="5m", manager=manager)
+            ),
             "[red]TOO SMALL"
-            if find_spread(symbol=symbol, timeframe="5m") < min_distance
+            if find_spread(symbol=symbol, timeframe="5m", manager=manager)
+            < min_distance
             else "[green]DIST. OK",
         )
         table.add_row("Mode", str(mode))
@@ -146,7 +147,7 @@ def trade_qty_001x(max_trade_qty, market_data):
     return "{:.5g}".format(trade_qty_001x)
 
 
-def find_spread(symbol: str, timeframe: str = "5m"):
+def find_spread(manager, symbol: str, timeframe: str = "5m"):
     spread = timeframe + "Spread"
     try:
         return manager.get_asset_value(
