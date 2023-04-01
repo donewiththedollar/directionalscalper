@@ -282,9 +282,27 @@ def get_market_data():
         log.warning(f"{e}")
 
 
+# def get_short_positions():
+#     try:
+#         global short_pos_qty, short_pos_price, short_symbol_realised, short_symbol_cum_realised, short_pos_unpl, short_pos_unpl_pct, short_liq_price
+#         pos_dict = exchange.fetch_positions([symbol])
+#         pos_dict = pos_dict[1]
+#         short_pos_qty = float(pos_dict["contracts"])
+#         short_symbol_realised = round(float(pos_dict["info"]["realised_pnl"] or 0), 2)
+#         short_symbol_cum_realised = round(
+#             float(pos_dict["info"]["cum_realised_pnl"] or 0), 2
+#         )
+#         short_pos_unpl = round(float(pos_dict["info"]["unrealised_pnl"] or 0), 2)
+#         short_pos_unpl_pct = round(float(pos_dict["percentage"] or 0), 2)
+#         short_pos_price = pos_dict["entryPrice"] or 0
+#         short_liq_price = pos_dict["liquidationPrice"] or 0
+#     except Exception as e:
+#         log.warning(f"{e}")
+
+
 def get_short_positions():
     try:
-        global short_pos_qty, short_pos_price, short_symbol_realised, short_symbol_cum_realised, short_pos_unpl, short_pos_unpl_pct, short_liq_price
+        global short_pos_qty, short_pos_price, short_symbol_realised, short_symbol_cum_realised, short_pos_unpl, short_pos_unpl_pct, short_liq_price, short_pos_price_at_entry
         pos_dict = exchange.fetch_positions([symbol])
         pos_dict = pos_dict[1]
         short_pos_qty = float(pos_dict["contracts"])
@@ -296,13 +314,14 @@ def get_short_positions():
         short_pos_unpl_pct = round(float(pos_dict["percentage"] or 0), 2)
         short_pos_price = pos_dict["entryPrice"] or 0
         short_liq_price = pos_dict["liquidationPrice"] or 0
+        short_pos_price_at_entry = short_pos_price
     except Exception as e:
         log.warning(f"{e}")
 
 
 def get_long_positions():
     try:
-        global long_pos_qty, long_pos_price, long_symbol_realised, long_symbol_cum_realised, long_pos_unpl, long_pos_unpl_pct, long_liq_price
+        global long_pos_qty, long_pos_price, long_symbol_realised, long_symbol_cum_realised, long_pos_unpl, long_pos_unpl_pct, long_liq_price, long_pos_price_at_entry
         pos_dict = exchange.fetch_positions(
             [symbol]
         )  # TODO: We can fetch it just once to save some API time
@@ -314,8 +333,26 @@ def get_long_positions():
         long_pos_unpl_pct = round(float(pos_dict["percentage"] or 0), 2)
         long_pos_price = pos_dict["entryPrice"] or 0
         long_liq_price = pos_dict["liquidationPrice"] or 0
+        long_pos_price_at_entry = long_pos_price
     except Exception as e:
         log.warning(f"{e}")
+
+# def get_long_positions():
+#     try:
+#         global long_pos_qty, long_pos_price, long_symbol_realised, long_symbol_cum_realised, long_pos_unpl, long_pos_unpl_pct, long_liq_price
+#         pos_dict = exchange.fetch_positions(
+#             [symbol]
+#         )  # TODO: We can fetch it just once to save some API time
+#         pos_dict = pos_dict[0]
+#         long_pos_qty = float(pos_dict["contracts"])
+#         long_symbol_realised = round(float(pos_dict["info"]["realised_pnl"]), 2)
+#         long_symbol_cum_realised = round(float(pos_dict["info"]["cum_realised_pnl"]), 2)
+#         long_pos_unpl = float(pos_dict["info"]["unrealised_pnl"] or 0)
+#         long_pos_unpl_pct = round(float(pos_dict["percentage"] or 0), 2)
+#         long_pos_price = pos_dict["entryPrice"] or 0
+#         long_liq_price = pos_dict["liquidationPrice"] or 0
+#     except Exception as e:
+#         log.warning(f"{e}")
 
 
 # get_open_orders() [0]order_id, [1]order_price, [2]order_qty
@@ -591,6 +628,10 @@ def initial_long_entry(current_bid):
             time.sleep(0.01)
         except Exception as e:
             log.warning(f"{e}")
+        else:
+            global long_pos_price_at_entry
+            long_pos_price_at_entry = long_pos_price
+
 
 
 def initial_long_entry_linear_btc(current_bid):
@@ -642,6 +683,10 @@ def initial_short_entry(current_ask):
             time.sleep(0.01)
         except Exception as e:
             log.warning(f"{e}")
+        else:
+            global short_pos_price_at_entry
+            short_pos_price_at_entry = short_pos_price
+
 
 
 def get_current_price(exchange, symbol):
@@ -1156,7 +1201,7 @@ def trade_func(symbol):  # noqa
                             and find_5m_spread() > min_distance
                             # and short_pos_qty < max_trade_qty
                             and add_short_trade_condition()
-                            and current_ask > short_pos_price
+                            and (current_ask > short_pos_price or dex_upnl < 0)
                         ):
                             trade_size = (
                                 short_violent_trade_qty
@@ -1178,7 +1223,7 @@ def trade_func(symbol):  # noqa
                             and find_5m_spread() > min_distance
                             # and long_pos_qty < max_trade_qty
                             and add_long_trade_condition()
-                            and current_bid < long_pos_price
+                            and (current_bid < long_pos_price or dex_upnl < 0)
                         ):
                             trade_size = (
                                 long_violent_trade_qty
@@ -1261,7 +1306,7 @@ def trade_func(symbol):  # noqa
                             and find_5m_spread() > min_distance
                             and short_pos_qty < max_trade_qty
                             and add_short_trade_condition()
-                            and current_ask > short_pos_price
+                            and (current_ask > short_pos_price or dex_upnl < 0)
                         ):
                             try:
                                 exchange.create_limit_sell_order(
@@ -1277,7 +1322,7 @@ def trade_func(symbol):  # noqa
                             and find_5m_spread() > min_distance
                             and long_pos_qty < max_trade_qty
                             and add_long_trade_condition()
-                            and current_bid < long_pos_price
+                            and (current_bid < long_pos_price or dex_upnl < 0)
                         ):
                             try:
                                 exchange.create_limit_buy_order(
