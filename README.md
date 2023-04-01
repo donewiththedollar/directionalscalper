@@ -23,6 +23,9 @@
 ### Starting the bot
 * Hedge mode is recommended, but you can of course use the other modes as well. Low lot size is recommended.
 > python3 bot.py --mode hedge --symbol GALAUSDT --iqty 1 --tg off --config config.json --avoidfees on
+* Starting the bot in violent mode is not recommended, but ensures violent profit taking while putting you at risk of liquidation dependin on your wallet_exposure and violent_multiplier
+> python3 bot.py --mode violent --symbol OPUSDT --iqty 0.1 --tg off --config config.json --avoidfees on
+
 * Starting the bot in debug mode for inverse perpetuals BTCUSD
 * Inverse is currently short only, used as a hedge against your BTC balance, to accumulate BTC with no risk, no losses
 > python3 bot_inverse_debugmode.py --mode inverse --symbol BTCUSD --iqty 1 --tg off
