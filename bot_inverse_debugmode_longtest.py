@@ -406,11 +406,11 @@ def get_short_positions():
         pos_dict = exchange.fetch_positions([symbol])
         pos_dict = pos_dict[1]
         short_pos_qty = float(pos_dict["contracts"])
-        short_symbol_realised = round(float(pos_dict["info"]["realised_pnl"] or 0), 2)
+        short_symbol_realised = round(float(pos_dict["info"]["realised_pnl"] or 0), 4)
         short_symbol_cum_realised = round(
-            float(pos_dict["info"]["cum_realised_pnl"] or 0), 2
+            float(pos_dict["info"]["cum_realised_pnl"] or 0), 4
         )
-        short_pos_unpl = round(float(pos_dict["info"]["unrealised_pnl"] or 0), 2)
+        short_pos_unpl = round(float(pos_dict["info"]["unrealised_pnl"] or 0), 4)
         short_pos_unpl_pct = round(float(pos_dict["percentage"] or 0), 2)
         short_pos_price = pos_dict["entryPrice"] or 0
         short_liq_price = pos_dict["liquidationPrice"] or 0
@@ -424,10 +424,10 @@ def get_long_positions():
         )  # TODO: We can fetch it just once to save some API time
         pos_dict = pos_dict[0]
         long_pos_qty = float(pos_dict["contracts"])
-        long_symbol_realised = round(float(pos_dict["info"]["realised_pnl"]), 2)
-        long_symbol_cum_realised = round(float(pos_dict["info"]["cum_realised_pnl"]), 2)
+        long_symbol_realised = round(float(pos_dict["info"]["realised_pnl"]), 4)
+        long_symbol_cum_realised = round(float(pos_dict["info"]["cum_realised_pnl"]), 4)
         long_pos_unpl = float(pos_dict["info"]["unrealised_pnl"] or 0)
-        long_pos_unpl_pct = round(float(pos_dict["percentage"] or 0), 2)
+        long_pos_unpl_pct = round(float(pos_dict["percentage"] or 0), 4)
         long_pos_price = pos_dict["entryPrice"] or 0
         long_liq_price = pos_dict["liquidationPrice"] or 0
 

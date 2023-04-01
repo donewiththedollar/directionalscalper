@@ -60,7 +60,7 @@ def generate_table_vol(
         table.add_row(
             "Min Dist.",
             str(min_distance),
-            "{:.5g}".format(
+            "{:.4f}".format(
                 find_spread(symbol=symbol, timeframe="5m", manager=manager)
             ),
             "[red]TOO SMALL"
@@ -80,6 +80,25 @@ def generate_table_vol(
 
 def generate_table_info(data: dict) -> Table:
     try:
+        if data['short_symbol_cum_realised'] > -0.0001 and data['short_symbol_cum_realised'] <= 0:
+            short_symbol_cum_realised = 0
+        else:
+            short_symbol_cum_realised = data['short_symbol_cum_realised']
+        if data['long_symbol_cum_realised'] > -0.0001 and data['long_symbol_cum_realised'] <= 0:
+            long_symbol_cum_realised = 0
+        else:
+            long_symbol_cum_realised = data['long_symbol_cum_realised']
+        if data['long_symbol_realised'] > -0.0001 and data['long_symbol_realised'] <= 0:
+            long_symbol_realised = 0
+        else:
+            long_symbol_realised = data['long_symbol_realised']
+        if data['short_symbol_realised'] > -0.0001 and data['short_symbol_realised'] <= 0:
+            short_symbol_realised = 0
+        else:
+            short_symbol_realised = data['short_symbol_realised']
+
+        total_cum_realised = short_symbol_cum_realised + long_symbol_cum_realised
+
         total_unpl = data["short_pos_unpl"] + data["long_pos_unpl"]
         total_unpl_pct = data["short_pos_unpl_pct"] + data["long_pos_unpl_pct"]
         table = Table(show_header=False, width=50)
@@ -90,27 +109,27 @@ def generate_table_info(data: dict) -> Table:
         table.add_row("Equity", "${:.2f}".format(data["dex_equity"]))
         table.add_row(
             "Realised cum.",
-            f"[red]{'${:.2f}'.format(data['short_symbol_cum_realised'])}"
-            if data["short_symbol_cum_realised"] < 0
-            else f"[green]{'${:.2f}'.format(data['short_symbol_cum_realised'])}",
+            f"[red]{'${:.4f}'.format(total_cum_realised)}"
+            if total_cum_realised < 0
+            else f"[green]{'${:.4f}'.format(total_cum_realised)}",
         )
         table.add_row(
             "Long Realised recent",
-            f"[red]{'${:.2f}'.format(data['long_symbol_realised'])}"
-            if data["long_symbol_realised"] < 0
-            else f"[green]{'${:.2f}'.format(data['long_symbol_realised'])}",
+            f"[red]{'${:.4f}'.format(long_symbol_realised)}"
+            if long_symbol_realised < 0
+            else f"[green]{'${:.4f}'.format(long_symbol_realised)}",
         )
         table.add_row(
             "Short Realised recent",
-            f"[red]{'${:.2f}'.format(data['short_symbol_realised'])}"
-            if data["short_symbol_realised"] < 0
-            else f"[green]{'${:.2f}'.format(data['short_symbol_realised'])}",
+            f"[red]{'${:.4f}'.format(short_symbol_realised)}"
+            if short_symbol_realised < 0
+            else f"[green]{'${:.4f}'.format(short_symbol_realised)}",
         )
         table.add_row(
             "Unrealised USDT",
-            f"[red]{'${:.2f}'.format(total_unpl)}"
+            f"[red]{'${:.4f}'.format(total_unpl)}"
             if total_unpl < 0
-            else f"[green]{'${:.2f}'.format(total_unpl)}",
+            else f"[green]{'${:.4f}'.format(total_unpl)}",
         )
         table.add_row(
             "Unrealised %",
@@ -119,17 +138,17 @@ def generate_table_info(data: dict) -> Table:
             else f"[green]{'{:.2f}%'.format(total_unpl_pct)}",
         )
         table.add_row("Entry size", f"{data['trade_qty']}")
-        table.add_row("Long size", "{:.5g}".format(data["long_pos_qty"]))
-        table.add_row("Short size", "{:.5g}".format(data["short_pos_qty"]))
-        table.add_row("Long position price", "${:.5g}".format(data["long_pos_price"]))
+        table.add_row("Long size", "{:.4g}".format(data["long_pos_qty"]))
+        table.add_row("Short size", "{:.4g}".format(data["short_pos_qty"]))
+        table.add_row("Long position price", "${:.4f}".format(data["long_pos_price"]))
         table.add_row(
-            "Long liquidation price", "${:.5f}".format(data["long_liq_price"])
+            "Long liquidation price", "${:.4f}".format(data["long_liq_price"])
         )
-        table.add_row("Short position price", "${:.5g}".format(data["short_pos_price"]))
+        table.add_row("Short position price", "${:.4f}".format(data["short_pos_price"]))
         table.add_row(
-            "Short liquidation price", "${:.5g}".format(data["short_liq_price"])
+            "Short liquidation price", "${:.4f}".format(data["short_liq_price"])
         )
-        table.add_row("Max", "{:.5g}".format(data["max_trade_qty"]))
+        table.add_row("Max", "{:.4g}".format(data["max_trade_qty"]))
         table.add_row(
             "0.001x", trade_qty_001x(data["max_trade_qty"], data["market_data"])
         )
@@ -140,10 +159,9 @@ def generate_table_info(data: dict) -> Table:
     except Exception as e:
         log.warning(f"{e}")
 
-
 def trade_qty_001x(max_trade_qty, market_data):
     trade_qty_001x = max_trade_qty / 500
-    return "{:.5g}".format(trade_qty_001x)
+    return "{:.4g}".format(trade_qty_001x)
 
 
 def find_spread(manager, symbol: str, timeframe: str = "5m"):
@@ -198,9 +216,9 @@ def generate_inverse_table_info(
         # inverse_table.add_row(f"Unrealised BTC", f"[red]{str(dex_btc_upnl)}" if dex_btc_upnl < 0 else f"[green]{str(dex_btc_upnl + dex_btc_upnl_pct)}")
         inverse_table.add_row(
             "Unrealised %",
-            f"[red]{'${:.5g}%'.format(dex_btc_upnl_pct)}"
+            f"[red]{'${:.4f}%'.format(dex_btc_upnl_pct)}"
             if dex_btc_upnl_pct < 0
-            else f"[green]{'{:.5g}%'.format(dex_btc_upnl_pct)}",
+            else f"[green]{'{:.4f}%'.format(dex_btc_upnl_pct)}",
         )
         inverse_table.add_row("Entry size", str(trade_qty))
         inverse_table.add_row("Trend:", str(trend))
