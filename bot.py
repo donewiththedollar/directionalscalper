@@ -514,11 +514,9 @@ print(Fore.LIGHTYELLOW_EX + "1x :", "{:.5g}".format(max_trade_qty), "")
 print(Fore.LIGHTCYAN_EX + "0.01x : ", "{:.5g}".format(trade_qty_01x), "")
 
 trade_qty_005x = max_trade_qty / 200
-trade_qty_005x = trade_qty_005x[0]
 print(f"0.005x : {'{:.5g}'.format(trade_qty_005x)}")
 
 trade_qty_001x = max_trade_qty / 500
-trade_qty_001x = trade_qty_001x[0]
 print(f"0.001x : {'{:.5g}'.format(trade_qty_001x)}")
 
 # Fix for the first run when variable is not yet assigned
