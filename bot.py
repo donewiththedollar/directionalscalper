@@ -24,7 +24,7 @@ from util import tables
 # 4. Look for chat id and copy the chat id into config.json
 
 
-log = logging.getLogger("ds_bot")
+log = logging.getLogger()
 formatter = logging.Formatter(
     "%(asctime)s - %(filename)s:%(lineno)s - %(funcName)20s() - %(message)s"
 )
