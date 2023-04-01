@@ -48,5 +48,4 @@ To run the bot inside docker container use the following command:
 ### Donations
 If you would like to show your appreciation for this project through donations, there are a few addresses here to choose from
 * **BTC**: bc1qu5p292xs9jvu0vuanjcpsqszmg4hkmrrahdpj7
-* **XMR**: 42wS15cGdMmU4xciT4PV6XaqtEuc2PXn3DP5ymNb1BkDVU3j2TXzdkze2iSMqc64KhCsGC4FpU866P38QneBNqQi4ui1Cvg
 * **DOGE**: D9iNDsVpJaXqChmveCUsvnM87sQo5Tcia6
