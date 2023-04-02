@@ -20,7 +20,7 @@ class Manager:
     def __init__(
         self,
         api: str = "remote",
-        cache_life_ms: int = 10000,
+        cache_life_ms: int = 10,
         path: Path | None = None,
         url: str = "",
     ):

@@ -193,10 +193,7 @@ exchange = ccxt.bybit(
         "secret": config.exchange_api_secret,
     }
 )
-
-
 # Functions
-
 
 # Get min vol & spread data from API
 def get_min_vol_dist_data(symbol) -> bool:
