@@ -26,11 +26,15 @@ def generate_main_table(data: dict, manager) -> Table:
         log.warning(f"{e}")
 
 
-# Generate table
+
 def generate_table_vol(
     manager, min_vol_dist_data, min_volume, min_distance, symbol, mode
 ) -> Table:
     try:
+        current_volume = manager.get_asset_value(
+            symbol=symbol, data=manager.get_data(), value="1mVol"
+        )
+
         table = Table(width=50)
         table.add_column("Condition", justify="center")
         table.add_column("Config", justify="center")
@@ -45,17 +49,8 @@ def generate_table_vol(
         table.add_row(
             "Min Vol.",
             str(min_volume),
-            str(
-                manager.get_asset_value(
-                    symbol=symbol, data=manager.get_data(), value="1mVol"
-                )
-            ).split(".")[0],
-            "[red]TOO LOW"
-            if manager.get_asset_value(
-                symbol=symbol, data=manager.get_data(), value="1mVol"
-            )
-            < min_volume
-            else "[green]VOL. OK",
+            str(current_volume).split(".")[0],
+            "[red]TOO LOW" if current_volume < min_volume else "[green]VOL. OK",
         )
         table.add_row()
         table.add_row(
@@ -70,13 +65,62 @@ def generate_table_vol(
             else "[green]DIST. OK",
         )
         table.add_row("Mode", str(mode))
-        # table.add_row(f"Long mode:", str(long_mode), str(), "[green]:heavy_check_mark:" if long_mode else "off")
-        # table.add_row(f"Short mode:", str(short_mode), str(), "[green]:heavy_check_mark:" if short_mode else "off")
-        # table.add_row(f"Hedge mode:", str(hedge_mode), str(), "[green]:heavy_check_mark:" if hedge_mode else "off")
-        #    table.add_row(f"Telegram:", str(tgnotif))
+
         return table
     except Exception as e:
         log.warning(f"{e}")
+
+# # Generate table
+# def generate_table_vol(
+#     manager, min_vol_dist_data, min_volume, min_distance, symbol, mode
+# ) -> Table:
+#     try:
+#         table = Table(width=50)
+#         table.add_column("Condition", justify="center")
+#         table.add_column("Config", justify="center")
+#         table.add_column("Current", justify="center")
+#         table.add_column("Status")
+#         table.add_row(
+#             "Trading:",
+#             str(min_vol_dist_data),
+#             str(),
+#             "[green]:heavy_check_mark:" if min_vol_dist_data else "off",
+#         )
+#         table.add_row(
+#             "Min Vol.",
+#             str(min_volume),
+#             str(
+#                 manager.get_asset_value(
+#                     symbol=symbol, data=manager.get_data(), value="1mVol"
+#                 )
+#             ).split(".")[0],
+#             "[red]TOO LOW"
+#             if manager.get_asset_value(
+#                 symbol=symbol, data=manager.get_data(), value="1mVol"
+#             )
+#             < min_volume
+#             else "[green]VOL. OK",
+#         )
+#         table.add_row()
+#         table.add_row(
+#             "Min Dist.",
+#             str(min_distance),
+#             "{:.4f}".format(
+#                 find_spread(symbol=symbol, timeframe="5m", manager=manager)
+#             ),
+#             "[red]TOO SMALL"
+#             if find_spread(symbol=symbol, timeframe="5m", manager=manager)
+#             < min_distance
+#             else "[green]DIST. OK",
+#         )
+#         table.add_row("Mode", str(mode))
+#         # table.add_row(f"Long mode:", str(long_mode), str(), "[green]:heavy_check_mark:" if long_mode else "off")
+#         # table.add_row(f"Short mode:", str(short_mode), str(), "[green]:heavy_check_mark:" if short_mode else "off")
+#         # table.add_row(f"Hedge mode:", str(hedge_mode), str(), "[green]:heavy_check_mark:" if hedge_mode else "off")
+#         #    table.add_row(f"Telegram:", str(tgnotif))
+#         return table
+#     except Exception as e:
+#         log.warning(f"{e}")
 
 
 def generate_table_info(data: dict) -> Table:
