@@ -46,11 +46,12 @@ To run the bot inside docker container use the following command:
 
 * There are six working modes:
 > long, short, hedge, aggressive, inverse, violent
-* To do:
-> Instance manager
-> Auto calculation for violent parameters (violent_multiplier and wallet_exposure are key)
-> Auto calculation for lot size so the user does not have to determine size
-> Refactor so the main bot is not thousands of lines of code :)
+
+### To do:
+* Instance manager
+* Auto calculation for violent parameters (violent_multiplier and wallet_exposure are key)
+* Auto calculation for lot size so the user does not have to determine size
+* Refactor so the main bot is not thousands of lines of code :)
 
 
 ### Donations
