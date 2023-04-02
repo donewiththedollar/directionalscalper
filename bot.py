@@ -13,6 +13,7 @@ from rich.live import Live
 from api.manager import Manager
 from config import load_config
 from util import tables
+from util.functions import print_lot_sizes
 
 # 1. Create config.json from config.json.example
 # 2. Enter exchange_api_key and exchange_api_secret
@@ -441,7 +442,6 @@ def leverage_verification(symbol):
         )
         log.debug(f"{e}")
 
-
 if not leverage_verified:
     try:
         leverage_verification(symbol)
@@ -473,16 +473,7 @@ violent_max_trade_qty = max_trade_qty * violent_multiplier
 
 current_leverage = get_market_data()[1]
 
-trade_qty_01x = max_trade_qty / 100
-print(f"Min Trade Qty: {get_market_data()[2]}")
-print(Fore.LIGHTYELLOW_EX + "1x :", "{:.5g}".format(max_trade_qty), "")
-print(Fore.LIGHTCYAN_EX + "0.01x : ", "{:.5g}".format(trade_qty_01x), "")
-
-trade_qty_005x = max_trade_qty / 200
-print(f"0.005x : {'{:.5g}'.format(trade_qty_005x)}")
-
-trade_qty_001x = max_trade_qty / 500
-print(f"0.001x : {'{:.5g}'.format(trade_qty_001x)}")
+print_lot_sizes(max_trade_qty, get_market_data())
 
 # Fix for the first run when variable is not yet assigned
 short_symbol_cum_realised = 0
