@@ -145,7 +145,7 @@ def generate_table_info(data: dict) -> Table:
         total_cum_realised = short_symbol_cum_realised + long_symbol_cum_realised
 
         total_unpl = data["short_pos_unpl"] + data["long_pos_unpl"]
-        total_unpl_pct = data["short_pos_unpl_pct"] + data["long_pos_unpl_pct"]
+        short_pos_unpl_pct, long_pos_unpl_pct = data["short_pos_unpl_pct"], data["long_pos_unpl_pct"]
         trade_qty_001x, trade_qty_001x_round = calc_lot_size(0.001, data["max_trade_qty"], data["market_data"])
 
         table = Table(show_header=False, width=50)
@@ -173,16 +173,22 @@ def generate_table_info(data: dict) -> Table:
             else f"[green]{'${:.4f}'.format(short_symbol_realised)}",
         )
         table.add_row(
-            "Unrealised USDT",
+            "Unrealised P&L USDT",
             f"[red]{'${:.4f}'.format(total_unpl)}"
             if total_unpl < 0
             else f"[green]{'${:.4f}'.format(total_unpl)}",
         )
         table.add_row(
-            "Unrealised %",
-            f"[red]{'{:.2f}%'.format(total_unpl_pct)}"
-            if total_unpl_pct < 0
-            else f"[green]{'{:.2f}%'.format(total_unpl_pct)}",
+            "Long Unrealized P&L %",
+            f"[red]{long_pos_unpl_pct:.2f}%"
+            if long_pos_unpl_pct < 0
+            else f"[green]{'{:.2f}%'.format(long_pos_unpl_pct)}",
+        )
+        table.add_row(
+            "Short Unrealized P&L %",
+            f"[red]{'{:.2f}%'.format(short_pos_unpl_pct)}"
+            if short_pos_unpl_pct < 0
+            else f"[green]{'{:.2f}%'.format(short_pos_unpl_pct)}",
         )
         table.add_row("Entry size", 
                       f"{data['trade_qty']}" 
