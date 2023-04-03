@@ -202,7 +202,7 @@ class Scraper:
     def analyse_all_symbols(self):
         data = []
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=15) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
             future_data = {
                 executor.submit(self.analyse_symbol, symbol): symbol
                 for symbol in self.symbols
@@ -214,8 +214,6 @@ class Scraper:
                     data.append(symbol_data_result)
                 except Exception as e:
                     log.error(f"{symbol_data} generated an exception: {e}")
-                else:
-                    log.error(f"{symbol_data} page is {symbol_data_result} bytes")
 
         df = pd.DataFrame(
             data,
