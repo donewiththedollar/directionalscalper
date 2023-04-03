@@ -1,11 +1,7 @@
-argparse
 colorama
-ccxt==2.0.90
 pandas
-pybit
 pydantic
 requests
 rich
 telebot
-typing
 ta
