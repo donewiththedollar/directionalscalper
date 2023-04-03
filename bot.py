@@ -1158,9 +1158,7 @@ def trade_func(symbol):  # noqa
                         if (
                             find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
-                            # and short_pos_qty < max_trade_qty
-                            and add_short_trade_condition()
-                            and (current_ask > short_pos_price or dex_upnl < 0)
+                            and (add_short_trade_condition() or (current_ask > short_pos_price or dex_upnl < 0.0))
                         ):
                             trade_size = (
                                 short_violent_trade_qty
@@ -1180,9 +1178,7 @@ def trade_func(symbol):  # noqa
                         if (
                             find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
-                            # and long_pos_qty < max_trade_qty
-                            and add_long_trade_condition()
-                            and (current_bid < long_pos_price or dex_upnl < 0)
+                            and (add_long_trade_condition() or (current_bid < long_pos_price or dex_upnl < 0.0))
                         ):
                             trade_size = (
                                 long_violent_trade_qty
@@ -1264,8 +1260,7 @@ def trade_func(symbol):  # noqa
                             find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
                             and short_pos_qty < max_trade_qty
-                            and add_short_trade_condition()
-                            and (current_ask > short_pos_price or dex_upnl < 0)
+                            and (add_short_trade_condition() or (current_ask > short_pos_price or dex_upnl < 0.0))
                         ):
                             try:
                                 exchange.create_limit_sell_order(
@@ -1280,8 +1275,7 @@ def trade_func(symbol):  # noqa
                             find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
                             and long_pos_qty < max_trade_qty
-                            and add_long_trade_condition()
-                            and (current_bid < long_pos_price or dex_upnl < 0)
+                            and (add_long_trade_condition() or (current_bid < long_pos_price or dex_upnl < 0.0))
                         ):
                             try:
                                 exchange.create_limit_buy_order(
