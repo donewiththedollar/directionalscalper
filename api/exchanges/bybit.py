@@ -18,9 +18,9 @@ class Bybit(Exchange):
     futures_api_url = "https://api.bybit.com"
     max_weight = 1200
 
-    def get_futures_symbols(self) -> list:
+    def get_futures_symbols(self) -> dict:
         self.check_weight()
-        symbols_list = []
+        symbols_list = {}
         raw_json = get_api_data(
             url=self.futures_api_url,
             endpoint="/v5/market/instruments-info?category=linear",
@@ -31,7 +31,18 @@ class Bybit(Exchange):
                     if symbol["status"] == "Trading" and symbol["symbol"].endswith(
                         "USDT"
                     ):
-                        symbols_list.append(symbol["symbol"])
+                        symbols_list[symbol["symbol"]] = {
+                            "launch": int(symbol["launchTime"]),
+                            "price_scale": Decimal(symbol["priceScale"]),
+                            "max_leverage": Decimal(
+                                symbol["leverageFilter"]["maxLeverage"]
+                            ),
+                            "tick_size": Decimal(symbol["priceFilter"]["tickSize"]),
+                            "min_order_qty": Decimal(
+                                symbol["lotSizeFilter"]["minOrderQty"]
+                            ),
+                            "qty_step": Decimal(symbol["lotSizeFilter"]["qtyStep"]),
+                        }
         return symbols_list
 
     def get_futures_price(self, symbol: str) -> Decimal:
