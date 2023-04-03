@@ -33,8 +33,10 @@ class Manager:
         self.data = {}
 
         if self.api == "remote":
+            log.info("API manager mode: remote")
             if len(self.url) < 6:
                 self.url = "http://api.tradesimple.xyz/data/quantdata.json"
+            log.info(f"Remote API URL: {self.url}")
             self.data = self.get_remote_data()
 
         elif self.api == "local":
