@@ -20,13 +20,13 @@ class Manager:
     def __init__(
         self,
         api: str = "remote",
-        cache_life_ms: int = 10,
+        cache_life_seconds: int = 10,
         path: Path | None = None,
         url: str = "",
     ):
         log.info("Starting API Manager")
         self.api = api
-        self.cache_life_ms = cache_life_ms
+        self.cache_life_seconds = cache_life_seconds
         self.path = path
         self.url = url
         self.last_checked = 0.0
@@ -45,6 +45,9 @@ class Manager:
             log.error("API must be 'local' or 'remote'")
             raise InvalidAPI(message="API must be 'local' or 'remote'")
 
+        self.update_last_checked()
+
+    def update_last_checked(self):
         self.last_checked = datetime.now().timestamp()
 
     def get_data(self):
@@ -62,10 +65,11 @@ class Manager:
             self.data = response.json()
         except (requests.exceptions.HTTPError, json.JSONDecodeError) as e:
             log.warning(f"{e}")
+        self.update_last_checked()
         return self.data
 
     def check_timestamp(self):
-        return datetime.now().timestamp() - self.last_checked > self.cache_life_ms
+        return datetime.now().timestamp() - self.last_checked > self.cache_life_seconds
 
     def get_asset_data(self, symbol: str, data):
         try:
