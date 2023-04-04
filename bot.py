@@ -665,17 +665,24 @@ def calculate_long_profit_prices_avoidfees(
 ):
     long_profit_prices = []
     profit_multipliers = [
+        1,
         min_price_increment * 2,
         min_price_increment * 4,
         min_price_increment * 6,
     ]
     for multiplier in profit_multipliers:
-        profit_price = long_pos_price + (price_difference * multiplier)
+        if multiplier == 1:
+            profit_price = long_pos_price + (price_difference)
+        else:
+            profit_price = long_pos_price + (price_difference * multiplier)
+
         rounded_profit_price = round(profit_price, price_scale)
-        if multiplier == min_price_increment * 2:
-            fees = long_order_value * taker_fee_rate
-            if (rounded_profit_price - long_pos_price) * long_order_value <= fees:
-                rounded_profit_price += min_price_increment
+
+        # Check if fees > profit
+        fees = long_order_value * taker_fee_rate
+        while (rounded_profit_price - long_pos_price) * long_order_value <= fees:
+            rounded_profit_price += min_price_increment
+
         long_profit_prices.append(rounded_profit_price)
     return long_profit_prices
 
@@ -690,19 +697,76 @@ def calculate_short_profit_prices_avoidfees(
 ):
     short_profit_prices = []
     profit_multipliers = [
+        1,
         min_price_increment * 2,
         min_price_increment * 4,
         min_price_increment * 6,
     ]
     for multiplier in profit_multipliers:
-        profit_price = short_pos_price - (price_difference * multiplier)
+        if multiplier == 1:
+            profit_price = short_pos_price - (price_difference)
+        else:
+            profit_price = short_pos_price - (price_difference * multiplier)
+
         rounded_profit_price = round(profit_price, price_scale)
-        if multiplier == min_price_increment * 2:
-            fees = short_order_value * taker_fee_rate
-            if (short_pos_price - rounded_profit_price) * short_order_value <= fees:
-                rounded_profit_price -= min_price_increment
+
+        # Check if fees > profit
+        fees = short_order_value * taker_fee_rate
+        while (short_pos_price - rounded_profit_price) * short_order_value <= fees:
+            rounded_profit_price -= min_price_increment
+
         short_profit_prices.append(rounded_profit_price)
     return short_profit_prices
+
+
+# def calculate_long_profit_prices_avoidfees(
+#     long_pos_price,
+#     price_difference,
+#     price_scale,
+#     min_price_increment,
+#     taker_fee_rate,
+#     long_order_value,
+# ):
+#     long_profit_prices = []
+#     profit_multipliers = [
+#         min_price_increment * 2,
+#         min_price_increment * 4,
+#         min_price_increment * 6,
+#     ]
+#     for multiplier in profit_multipliers:
+#         profit_price = long_pos_price + (price_difference * multiplier)
+#         rounded_profit_price = round(profit_price, price_scale)
+#         if multiplier == min_price_increment * 2:
+#             fees = long_order_value * taker_fee_rate
+#             if (rounded_profit_price - long_pos_price) * long_order_value <= fees:
+#                 rounded_profit_price += min_price_increment
+#         long_profit_prices.append(rounded_profit_price)
+#     return long_profit_prices
+
+
+# def calculate_short_profit_prices_avoidfees(
+#     short_pos_price,
+#     price_difference,
+#     price_scale,
+#     min_price_increment,
+#     taker_fee_rate,
+#     short_order_value,
+# ):
+#     short_profit_prices = []
+#     profit_multipliers = [
+#         min_price_increment * 2,
+#         min_price_increment * 4,
+#         min_price_increment * 6,
+#     ]
+#     for multiplier in profit_multipliers:
+#         profit_price = short_pos_price - (price_difference * multiplier)
+#         rounded_profit_price = round(profit_price, price_scale)
+#         if multiplier == min_price_increment * 2:
+#             fees = short_order_value * taker_fee_rate
+#             if (short_pos_price - rounded_profit_price) * short_order_value <= fees:
+#                 rounded_profit_price -= min_price_increment
+#         short_profit_prices.append(rounded_profit_price)
+#     return short_profit_prices
 
 
 def calculate_long_profit_prices(long_pos_price, price_difference, price_scale):
