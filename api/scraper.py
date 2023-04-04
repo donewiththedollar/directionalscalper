@@ -125,7 +125,7 @@ class Scraper:
 
     def get_average_true_range(self, symbol: str, period, interval: str, limit: int):
         data = self.exchange.get_futures_kline(
-            symbol=symbol, intveral=interval, limit=int
+            symbol=symbol, intveral=interval, limit=limit
         )
         data["tr"] = self.get_true_range(data=data)
         atr = data["tr"].rolling(period).mean()
@@ -199,10 +199,10 @@ class Scraper:
 
         return values
 
-    def analyse_all_symbols(self):
+    def analyse_all_symbols(self, max_workers: int = 20):
         data = []
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_data = {
                 executor.submit(self.analyse_symbol, symbol): symbol
                 for symbol in self.symbols
@@ -241,6 +241,21 @@ class Scraper:
         )
         return df
 
+    def get_historical_volume(self, symbol: str, interval: str, limit: int):
+        data = self.exchange.get_futures_kline(
+            symbol=symbol, intveral=interval, limit=limit
+        )
+        return [candle["volume"] for candle in data]
+
+    def get_all_historical_volume(self, interval: str, limit: int) -> dict:
+        all_volume = {}
+        for symbol in scraper.symbols:
+            data = scraper.get_historical_volume(
+                symbol=symbol, interval=interval, limit=limit
+            )
+            all_volume[symbol] = data
+        return all_volume
+
     def output_df(self, dataframe, path: str, to: str = "json"):
         if to == "json":
             dataframe.to_json(path, orient="records")
@@ -253,6 +268,19 @@ class Scraper:
         else:
             log.error(f"Output to {to} not implemented")
 
+    def filter_df(self, dataframe, filter_col: str, operator: str, value: int):
+        if operator == ">":
+            return dataframe[dataframe[filter_col] > value]
+        elif operator == "<":
+            return dataframe[dataframe[filter_col] < value]
+        elif operator == "==":
+            return dataframe[dataframe[filter_col] == value]
+        else:
+            log.error(f"Operator {operator} not implemented")
+
+    def reduce_df(self, dataframe, columns: list):
+        return dataframe[columns]
+
 
 if __name__ == "__main__":
     exchange = Bybit()
@@ -261,3 +289,19 @@ if __name__ == "__main__":
     print(data)
     # scraper.output_df(dataframe=data, path="data/quantdata.json", to="json")
     # scraper.output_df(dataframe=data, path="data/quantdata.csv", to="csv")
+
+    # to_trade = scraper.filter_df(dataframe=data, filter_col="1m 1x Volume (USDT)", operator=">", value=15000)
+    # scraper.output_df(dataframe=to_trade, path="data/whattotrade.csv", to="csv")
+    # scraper.output_df(dataframe=to_trade, path="data/whattotrade.json", to="json")
+
+    # negative = scraper.filter_df(dataframe=data, filter_col="Funding", operator="<", value=0)
+    # negative = scraper.reduce_df(dataframe=negative, columns=["Asset", "1m 1x Volume (USDT)", "Funding"])
+    # scraper.output_df(dataframe=negative, path="data/negativefunding.csv", to="csv")
+    # scraper.output_df(dataframe=negative, path="data/negativefunding.json", to="json")
+
+    # positive = scraper.filter_df(dataframe=data, filter_col="Funding", operator=">", value=0)
+    # positive = scraper.reduce_df(dataframe=negative, columns=["Asset", "1m 1x Volume (USDT)", "Funding"])
+    # scraper.output_df(dataframe=negative, path="data/positivefunding.csv", to="csv")
+    # scraper.output_df(dataframe=negative, path="data/positivefunding.json", to="json")
+
+    # historical_volume = scraper.get_all_historical_volume(interval="1h", limit=24)
