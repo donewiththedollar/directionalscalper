@@ -1029,7 +1029,7 @@ def trade_func(symbol):  # noqa
                     for profit_price in long_profit_prices:
                         try:
                             exchange.create_limit_sell_order(
-                                symbol, position_size, profit_price, reduce_only=True
+                                symbol, position_size, profit_price, reduce_only
                             )
                             time.sleep(0.05)
                         except Exception as e:
@@ -1098,7 +1098,7 @@ def trade_func(symbol):  # noqa
                     for profit_price in short_profit_prices:
                         try:
                             exchange.create_limit_buy_order(
-                                symbol, position_size, profit_price, reduce_only=True
+                                symbol, position_size, profit_price, reduce_only
                             )
                             time.sleep(0.05)
                         except Exception as e:
