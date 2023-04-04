@@ -241,8 +241,17 @@ class Scraper:
         )
         return df
 
-    def output_df(self, dataframe, path: str):
-        dataframe.to_json(path, orient="records")
+    def output_df(self, dataframe, path: str, to: str = "json"):
+        if to == "json":
+            dataframe.to_json(path, orient="records")
+        elif to == "csv":
+            dataframe.to_csv(path)
+        elif to == "parquet":
+            dataframe.to_parquet(path)
+        elif to == "dict":
+            dataframe.to_dict(path, orient="records")
+        else:
+            log.error(f"Output to {to} not implemented")
 
 
 if __name__ == "__main__":
@@ -250,4 +259,5 @@ if __name__ == "__main__":
     scraper = Scraper(exchange=exchange)
     data = scraper.analyse_all_symbols()
     print(data)
-    # scraper.output_df(data, "/opt/bitnami/nginx/html/data/quantdata.json")
+    # scraper.output_df(dataframe=data, path="data/quantdata.json", to="json")
+    # scraper.output_df(dataframe=data, path="data/quantdata.csv", to="csv")
