@@ -123,3 +123,27 @@ class Bybit(Exchange):
                 if len(raw_json["result"]["list"]) > 0:
                     funding = float(raw_json["result"]["list"][0]["fundingRate"])
         return funding
+
+    def get_open_interest(
+        self, symbol: str, interval: Intervals = Intervals.ONE_DAY, limit: int = 200
+    ) -> list:
+        self.check_weight()
+        oi = []
+        custom_intervals = {
+            "5m": "5min",
+            "15m": "15min",
+            "30m": "30min",
+            "1h": "1h",
+            "4h": "4h",
+            "1d": "1d",
+        }
+
+        raw_json = get_api_data(
+            url=self.futures_api_url,
+            endpoint=f"/v5/market/funding/history?category=linear&interval={custom_intervals[interval]}&limit={limit}&symbol={symbol}",
+        )
+        if "result" in [*raw_json]:
+            if "list" in [*raw_json["result"]]:
+                for item in raw_json["result"]["list"]:
+                    oi.append(Decimal(item["openInterest"]))
+        return oi

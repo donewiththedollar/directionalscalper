@@ -50,3 +50,8 @@ class Exchange:
 
     def get_funding_rate(self, symbol) -> float:
         return 0.0
+
+    def get_open_interest(
+        self, symbol: str, interval: Intervals = Intervals.ONE_DAY, limit: int = 200
+    ) -> list:
+        return []
