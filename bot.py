@@ -1193,7 +1193,10 @@ def trade_func(symbol):  # noqa
                                 time.sleep(0.01)
                             except Exception as e:
                                 log.warning(f"{e}")
-
+                    if (
+                        get_orderbook()[1] < get_m_data(timeframe="1m")[0]
+                        or get_orderbook()[1] < get_m_data(timeframe="5m")[0]
+                    ):
                         try:
                             cancel_entry()
                             time.sleep(0.05)
