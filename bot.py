@@ -1023,16 +1023,17 @@ def trade_func(symbol):  # noqa
                     except Exception as e:
                         log.warning(f"{e}")
 
-                    # Create separate limit sell orders for each take profit level
-                    position_size = long_open_pos_qty / len(long_profit_prices)
-                    for profit_price in long_profit_prices:
-                        try:
-                            exchange.create_limit_sell_order(
-                                symbol, position_size, profit_price, reduce_only
-                            )
-                            time.sleep(0.05)
-                        except Exception as e:
-                            log.warning(f"{e}")
+                total_position_size = long_open_pos_qty
+                position_size = total_position_size / len(long_profit_prices)
+
+                for profit_price in long_profit_prices:
+                    try:
+                        exchange.create_limit_sell_order(
+                            symbol, position_size, profit_price, reduce_only=True
+                        )
+                        time.sleep(0.05)
+                    except Exception as e:
+                        log.warning(f"{e}")
 
             # LONG: Take profit logic
             if (
@@ -1090,16 +1091,18 @@ def trade_func(symbol):  # noqa
                         time.sleep(0.05)
                     except Exception as e:
                         log.warning(f"{e}")
-                    # Create separate limit buy orders for each take profit level
-                    position_size = short_open_pos_qty / len(short_profit_prices)
-                    for profit_price in short_profit_prices:
-                        try:
-                            exchange.create_limit_buy_order(
-                                symbol, position_size, profit_price, reduce_only
-                            )
-                            time.sleep(0.05)
-                        except Exception as e:
-                            log.warning(f"{e}")
+                total_position_size = short_open_pos_qty
+                position_size = total_position_size / len(short_profit_prices)
+
+                for profit_price in short_profit_prices:
+                    try:
+                        exchange.create_limit_buy_order(
+                            symbol, position_size, profit_price, reduce_only=True
+                        )
+                        time.sleep(0.05)
+                    except Exception as e:
+                        log.warning(f"{e}")
+
 
             # SHORT: Take profit logic
             if (
