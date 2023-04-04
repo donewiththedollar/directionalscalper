@@ -1194,10 +1194,6 @@ def trade_func(symbol):  # noqa
                             except Exception as e:
                                 log.warning(f"{e}")
 
-                    if (
-                        get_orderbook()[1] < get_m_data(timeframe="1m")[0]
-                        or get_orderbook()[1] < get_m_data(timeframe="5m")[0]
-                    ):
                         try:
                             cancel_entry()
                             time.sleep(0.05)
@@ -1216,7 +1212,7 @@ def trade_func(symbol):  # noqa
                             and find_5m_spread() > min_distance
                             and short_pos_qty < max_trade_qty
                             and add_short_trade_condition()
-                            and current_ask > short_pos_price
+                            #and current_ask > short_pos_price
                         ):
                             try:
                                 exchange.create_limit_sell_order(
@@ -1232,7 +1228,7 @@ def trade_func(symbol):  # noqa
                             and find_5m_spread() > min_distance
                             and long_pos_qty < max_trade_qty
                             and add_long_trade_condition()
-                            and current_bid < long_pos_price
+                            #and current_bid < long_pos_price
                         ):
                             try:
                                 exchange.create_limit_buy_order(
