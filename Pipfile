@@ -5,11 +5,13 @@ name = "pypi"
 
 [packages]
 colorama = "*"
+ccxt = "*"
 pandas = "*"
 pydantic = "*"
 requests = "*"
 rich = "*"
 telebot = "*"
+
 
 [dev-packages]
 bandit = "*"

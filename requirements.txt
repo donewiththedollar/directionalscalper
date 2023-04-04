@@ -1,4 +1,5 @@
 colorama
+pipenv lock -r > requirements.txt
 pandas
 pydantic
 requests
