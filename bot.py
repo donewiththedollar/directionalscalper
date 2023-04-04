@@ -672,12 +672,10 @@ def calculate_long_profit_prices_avoidfees(
     for multiplier in profit_multipliers:
         profit_price = long_pos_price + (price_difference * multiplier)
         rounded_profit_price = round(profit_price, price_scale)
-
-        # Check if fees > profit
-        fees = long_order_value * taker_fee_rate
-        while (rounded_profit_price - long_pos_price) * long_order_value <= fees:
-            rounded_profit_price += min_price_increment
-
+        if multiplier == min_price_increment * 2:
+            fees = long_order_value * taker_fee_rate
+            if (rounded_profit_price - long_pos_price) * long_order_value <= fees:
+                rounded_profit_price += min_price_increment
         long_profit_prices.append(rounded_profit_price)
     return long_profit_prices
 
@@ -699,14 +697,13 @@ def calculate_short_profit_prices_avoidfees(
     for multiplier in profit_multipliers:
         profit_price = short_pos_price - (price_difference * multiplier)
         rounded_profit_price = round(profit_price, price_scale)
-
-        # Check if fees > profit
-        fees = short_order_value * taker_fee_rate
-        while (short_pos_price - rounded_profit_price) * short_order_value <= fees:
-            rounded_profit_price -= min_price_increment
-
+        if multiplier == min_price_increment * 2:
+            fees = short_order_value * taker_fee_rate
+            if (short_pos_price - rounded_profit_price) * short_order_value <= fees:
+                rounded_profit_price -= min_price_increment
         short_profit_prices.append(rounded_profit_price)
     return short_profit_prices
+
 
 def calculate_long_profit_prices(long_pos_price, price_difference, price_scale):
     try:
@@ -1026,12 +1023,8 @@ def trade_func(symbol):  # noqa
                     except Exception as e:
                         log.warning(f"{e}")
 
-                    total_position_size = long_open_pos_qty
-                    position_size = total_position_size / len(long_profit_prices)
-
-                        # exchange.create_limit_buy_order(
-                        #     symbol, short_open_pos_qty, short_profit_price, reduce_only
-                        # )
+                    # Create separate limit sell orders for each take profit level
+                    position_size = long_open_pos_qty / len(long_profit_prices)
                     for profit_price in long_profit_prices:
                         try:
                             exchange.create_limit_sell_order(
@@ -1097,10 +1090,8 @@ def trade_func(symbol):  # noqa
                         time.sleep(0.05)
                     except Exception as e:
                         log.warning(f"{e}")
-
-                    total_position_size = short_open_pos_qty
-                    position_size = total_position_size / len(short_profit_prices)
-
+                    # Create separate limit buy orders for each take profit level
+                    position_size = short_open_pos_qty / len(short_profit_prices)
                     for profit_price in short_profit_prices:
                         try:
                             exchange.create_limit_buy_order(
@@ -1109,7 +1100,6 @@ def trade_func(symbol):  # noqa
                             time.sleep(0.05)
                         except Exception as e:
                             log.warning(f"{e}")
-
 
             # SHORT: Take profit logic
             if (
@@ -1443,3 +1433,4 @@ if args.tg == "on":
         print(Fore.LIGHTCYAN_EX + "TG Enabled" + Style.RESET_ALL)
     else:
         print(Fore.LIGHTCYAN_EX + "TG Disabled" + Style.RESET_ALL)
+
