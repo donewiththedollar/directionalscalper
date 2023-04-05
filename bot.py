@@ -926,7 +926,7 @@ def trade_func(symbol):  # noqa
 
             # Short incremental TP
             if (
-                (not deleveraging_mode and not config.avoid_fees)
+                (deleveraging_mode or config.avoid_fees)
                 and short_pos_qty > 0
                 and (
                     hedge_mode
@@ -1279,4 +1279,3 @@ if args.tg == "on":
         print(Fore.LIGHTCYAN_EX + "TG Enabled" + Style.RESET_ALL)
     else:
         print(Fore.LIGHTCYAN_EX + "TG Disabled" + Style.RESET_ALL)
-
