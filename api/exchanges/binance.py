@@ -25,6 +25,7 @@ class Binance(Exchange):
             url=self.futures_api_url,
             endpoint="/fapi/v1/exchangeInfo",
         )
+        leverages = self.get_max_leverages()
         if "symbols" in raw_json:
             for symbol in raw_json["symbols"]:
                 if symbol["status"] == "TRADING" and symbol["symbol"].endswith("USDT"):
@@ -33,6 +34,11 @@ class Binance(Exchange):
                         Decimal(0),
                         Decimal(0),
                     )
+                    leverage = 0
+                    if leverages:
+                        if symbol in leverages:
+                            leverage = leverages[symbol]
+
                     for filter in symbol["filters"]:
                         if filter["filterType"] == "PRICE_FILTER":
                             tick_size = Decimal(filter["tickSize"])
@@ -42,22 +48,27 @@ class Binance(Exchange):
                     symbols_list[symbol["symbol"]] = {
                         "launch": int(symbol["deliveryDate"]),
                         "price_scale": Decimal(symbol["pricePrecision"]),
-                        "max_leverage": self.get_max_leverage(symbol=symbol),
+                        "max_leverage": leverage,
                         "tick_size": tick_size,
                         "min_order_qty": min_quantity,
                         "qty_step": qty_step,
                     }
         return symbols_list
 
-    def get_max_leverage(self, symbol: str) -> Decimal:
+    def get_max_leverages(self) -> dict:  # requires authentication
         raw_json = get_api_data(
             url=self.futures_api_url,
-            endpoint=f"/fapi/v1/exchangeInfo?symbol={symbol}",
+            endpoint="/fapi/v1/leverageBracket",
         )
-        if "brackets" in raw_json:
-            if len(raw_json["brackets"]) > 0:
-                return Decimal(raw_json["brackets"][0]["initialLeverage"])
-        return Decimal(0)
+        leverages = {}
+        for symbol in raw_json:
+            leverages[symbol] = Decimal(0)
+            if "brackets" in raw_json[symbol]:
+                if len(raw_json[symbol]["brackets"]) > 0:
+                    leverages[symbol] = Decimal(
+                        raw_json[symbol]["brackets"][0]["initialLeverage"]
+                    )
+        return leverages
 
     def get_futures_price(self, symbol: str) -> Decimal:
         self.check_weight()
