@@ -24,6 +24,7 @@ class Config(BaseModel):
     linear_taker_fee: float = 0.17
     wallet_exposure: float = 1.00
     violent_multiplier: float = 2.00
+    profit_multiplier_pct: float = 0.01
 
 
     @validator("min_volume")

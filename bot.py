@@ -42,7 +42,7 @@ def sendmessage(message):
 
 
 # Bools
-version = "Directional Scalper v1.1.3"
+version = "Directional Scalper v1.1.4"
 long_mode = False
 short_mode = False
 hedge_mode = False
@@ -179,6 +179,9 @@ botname = config.bot_name
 linear_taker_fee = config.linear_taker_fee
 wallet_exposure = config.wallet_exposure
 violent_multiplier = config.violent_multiplier
+
+profit_percentages = [0.3, 0.5, 0.2]
+profit_increment_percentage = config.profit_multiplier_pct
 
 exchange = ccxt.bybit(
     {
@@ -488,18 +491,14 @@ tyler_total_volume_1m = manager.get_asset_value(
 tyler_total_volume_5m = manager.get_asset_value(
     symbol=symbol, data=api_data, value="5mVol"
 )
-# tyler_1x_volume_1m = tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
+
 tyler_1x_volume_5m = manager.get_asset_value(
     symbol=symbol, data=api_data, value="5mVol"
 )
-# tyler_5m_spread = tylerapi.get_asset_5m_spread(symbol, tylerapi.grab_api_data())
+
 tyler_1m_spread = manager.get_asset_value(
     symbol=symbol, data=api_data, value="1mSpread"
 )
-
-
-# tyler_trend = tylerapi.get_asset_trend(symbol, tylerapi.grab_api_data())
-
 
 def find_trend():
     try:
@@ -642,147 +641,6 @@ def get_current_price(exchange, symbol):
     current_price = (ticker["bid"] + ticker["ask"]) / 2
     return current_price
 
-
-# Calculate for fees
-def calculate_min_price_increment(pos_price, taker_fee_rate):
-    return pos_price * taker_fee_rate * 2
-
-
-def calculate_long_profit_prices_avoidfees(
-    long_pos_price,
-    price_difference,
-    price_scale,
-    min_price_increment,
-    taker_fee_rate,
-    long_order_value,
-):
-    long_profit_prices = []
-    profit_multipliers = [
-        1,
-        min_price_increment * 2,
-        min_price_increment * 4,
-        min_price_increment * 6,
-    ]
-    for multiplier in profit_multipliers:
-        if multiplier == 1:
-            profit_price = long_pos_price + (price_difference)
-        else:
-            profit_price = long_pos_price + (price_difference * multiplier)
-
-        rounded_profit_price = round(profit_price, price_scale)
-
-        # Check if fees > profit
-        fees = long_order_value * taker_fee_rate
-        while (rounded_profit_price - long_pos_price) * long_order_value <= fees:
-            rounded_profit_price += min_price_increment
-
-        long_profit_prices.append(rounded_profit_price)
-    return long_profit_prices
-
-
-def calculate_short_profit_prices_avoidfees(
-    short_pos_price,
-    price_difference,
-    price_scale,
-    min_price_increment,
-    taker_fee_rate,
-    short_order_value,
-):
-    short_profit_prices = []
-    profit_multipliers = [
-        1,
-        min_price_increment * 2,
-        min_price_increment * 4,
-        min_price_increment * 6,
-    ]
-    for multiplier in profit_multipliers:
-        if multiplier == 1:
-            profit_price = short_pos_price - (price_difference)
-        else:
-            profit_price = short_pos_price - (price_difference * multiplier)
-
-        rounded_profit_price = round(profit_price, price_scale)
-
-        # Check if fees > profit
-        fees = short_order_value * taker_fee_rate
-        while (short_pos_price - rounded_profit_price) * short_order_value <= fees:
-            rounded_profit_price -= min_price_increment
-
-        short_profit_prices.append(rounded_profit_price)
-    return short_profit_prices
-
-
-# def calculate_long_profit_prices_avoidfees(
-#     long_pos_price,
-#     price_difference,
-#     price_scale,
-#     min_price_increment,
-#     taker_fee_rate,
-#     long_order_value,
-# ):
-#     long_profit_prices = []
-#     profit_multipliers = [
-#         min_price_increment * 2,
-#         min_price_increment * 4,
-#         min_price_increment * 6,
-#     ]
-#     for multiplier in profit_multipliers:
-#         profit_price = long_pos_price + (price_difference * multiplier)
-#         rounded_profit_price = round(profit_price, price_scale)
-#         if multiplier == min_price_increment * 2:
-#             fees = long_order_value * taker_fee_rate
-#             if (rounded_profit_price - long_pos_price) * long_order_value <= fees:
-#                 rounded_profit_price += min_price_increment
-#         long_profit_prices.append(rounded_profit_price)
-#     return long_profit_prices
-
-
-# def calculate_short_profit_prices_avoidfees(
-#     short_pos_price,
-#     price_difference,
-#     price_scale,
-#     min_price_increment,
-#     taker_fee_rate,
-#     short_order_value,
-# ):
-#     short_profit_prices = []
-#     profit_multipliers = [
-#         min_price_increment * 2,
-#         min_price_increment * 4,
-#         min_price_increment * 6,
-#     ]
-#     for multiplier in profit_multipliers:
-#         profit_price = short_pos_price - (price_difference * multiplier)
-#         rounded_profit_price = round(profit_price, price_scale)
-#         if multiplier == min_price_increment * 2:
-#             fees = short_order_value * taker_fee_rate
-#             if (short_pos_price - rounded_profit_price) * short_order_value <= fees:
-#                 rounded_profit_price -= min_price_increment
-#         short_profit_prices.append(rounded_profit_price)
-#     return short_profit_prices
-
-
-def calculate_long_profit_prices(long_pos_price, price_difference, price_scale):
-    try:
-        long_profit_prices = []
-        profit_multipliers = [0.3, 0.6, 1.0]
-        for multiplier in profit_multipliers:
-            profit_price = long_pos_price + (price_difference * multiplier)
-            long_profit_prices.append(round(profit_price, price_scale))
-        return long_profit_prices
-    except Exception as e:
-        log.warning(f"{e}")
-
-
-def calculate_short_profit_prices(short_pos_price, price_difference, price_scale):
-    short_profit_prices = []
-    profit_multipliers = [0.3, 0.6, 1.0]
-    for multiplier in profit_multipliers:
-        profit_price = short_pos_price - (price_difference * multiplier)
-        short_profit_prices.append(round(profit_price, price_scale))
-    return short_profit_prices
-
-
 def generate_main_table():
     try:
         min_vol_dist_data = get_min_vol_dist_data(symbol)
@@ -911,53 +769,9 @@ def trade_func(symbol):  # noqa
 
             if config.avoid_fees:
                 taker_fee_rate = config.linear_taker_fee
-                current_price = get_current_price(exchange, symbol)
-                long_order_value = current_price * long_open_pos_qty
-                short_order_value = current_price * short_open_pos_qty
-                min_price_increment_long = calculate_min_price_increment(
-                    long_pos_price, taker_fee_rate
-                )
-                min_price_increment_short = calculate_min_price_increment(
-                    short_pos_price, taker_fee_rate
-                )
-
-                # Calculate long_profit_prices
-                price_difference = (
-                    get_m_data(timeframe="5m")[2] - get_m_data(timeframe="5m")[3]
-                )
-                price_scale = int(get_market_data()[0])
-                long_profit_prices = calculate_long_profit_prices_avoidfees(
-                    long_pos_price,
-                    price_difference,
-                    price_scale,
-                    min_price_increment_long,
-                    taker_fee_rate,
-                    long_order_value,
-                )
-
-                # Calculate short_profit_prices
-                short_profit_prices = calculate_short_profit_prices_avoidfees(
-                    short_pos_price,
-                    price_difference,
-                    price_scale,
-                    min_price_increment_short,
-                    taker_fee_rate,
-                    short_order_value,
-                )
             else:
                 if deleveraging_mode:
                     taker_fee_rate = config.linear_taker_fee
-                    # Calculate long_profit_prices
-                    price_difference = (
-                        get_m_data(timeframe="5m")[2] - get_m_data(timeframe="5m")[3]
-                    )
-                    price_scale = int(get_market_data()[0])
-                    long_profit_prices = calculate_long_profit_prices(
-                        long_pos_price, price_difference, price_scale
-                    )
-                    short_profit_prices = calculate_short_profit_prices(
-                        short_pos_price, price_difference, price_scale
-                    )
 
             add_trade_qty = trade_qty
 
@@ -1033,15 +847,16 @@ def trade_func(symbol):  # noqa
                 except Exception as e:
                     log.warning(f"{e}")
 
-            # LONG: Deleveraging Take profit logic
+            # Long incremental TP
             if (
                 (deleveraging_mode or config.avoid_fees)
                 and long_pos_qty > 0
                 and (
                     hedge_mode
-                    or violent_mode
-                    or short_mode
+                    or long_mode
                     or aggressive_mode
+                    or btclinear_long_mode
+                    or violent_mode
                 )
             ):
                 try:
@@ -1050,26 +865,34 @@ def trade_func(symbol):  # noqa
                 except Exception as e:
                     log.warning(f"{e}")
 
-                if long_profit_price != 0 or long_pos_price != 0:
+                if long_pos_price != 0:
                     try:
                         cancel_close()
                         time.sleep(0.05)
                     except Exception as e:
                         log.warning(f"{e}")
 
-                    # Create separate limit sell orders for each take profit level
-                    position_size = long_open_pos_qty / len(long_profit_prices)
-                    for profit_price in long_profit_prices:
+                    first_profit_target = long_profit_price
+                    profit_targets = [first_profit_target]
+
+                    # Calculate subsequent profit targets
+                    for _ in range(len(profit_percentages) - 1):
+                        next_target = profit_targets[-1] * (1 + profit_increment_percentage)
+                        profit_targets.append(next_target)
+
+                    for idx, profit_percentage in enumerate(profit_percentages):
+                        partial_qty = long_open_pos_qty * profit_percentage
+                        target_price = profit_targets[idx]
+
                         try:
                             exchange.create_limit_sell_order(
-                                symbol, position_size, profit_price, reduce_only
+                                symbol, partial_qty, target_price, reduce_only
                             )
                             time.sleep(0.05)
-                            log.warning(f"DEBUG long take profit logic")
                         except Exception as e:
                             log.warning(f"{e}")
 
-            # LONG: Take profit logic
+            # Long: Normal take profit logic
             if (
                 (not deleveraging_mode or not config.avoid_fees)
                 and long_pos_qty > 0
@@ -1101,40 +924,51 @@ def trade_func(symbol):  # noqa
                     except Exception as e:
                         log.warning(f"{e}")
 
-                #Short Develeraging TP
-                if (
-                    (deleveraging_mode or config.avoid_fees)
-                    and short_pos_qty > 0
-                    and (
-                        hedge_mode
-                        or violent_mode
-                        or short_mode
-                        or aggressive_mode
-                    )
-                ):                   
+            # Short incremental TP
+            if (
+                (not deleveraging_mode and not config.avoid_fees)
+                and short_pos_qty > 0
+                and (
+                    hedge_mode
+                    or short_mode
+                    or aggressive_mode
+                    or btclinear_short_mode
+                    or violent_mode
+                )
+            ):
+                try:
+                    get_open_orders()
+                    time.sleep(0.05)
+                except Exception as e:
+                    log.warning(f"{e}")
+
+                if short_pos_price != 0:
                     try:
-                        get_open_orders()
+                        cancel_close()
                         time.sleep(0.05)
                     except Exception as e:
                         log.warning(f"{e}")
 
-                    if short_profit_price != 0 or short_pos_price != 0:
+                    first_profit_target = short_profit_price
+                    profit_targets = [first_profit_target]
+
+                    # Calculate subsequent profit targets
+                    for _ in range(len(profit_percentages) - 1):
+                        next_target = profit_targets[-1] * (1 - profit_increment_percentage)
+                        profit_targets.append(next_target)
+
+                    for idx, profit_percentage in enumerate(profit_percentages):
+                        partial_qty = short_open_pos_qty * profit_percentage
+                        target_price = profit_targets[idx]
+
                         try:
-                            cancel_close()
+                            exchange.create_limit_buy_order(
+                                symbol, partial_qty, target_price, reduce_only
+                            )
                             time.sleep(0.05)
                         except Exception as e:
                             log.warning(f"{e}")
-                        # Create separate limit buy orders for each take profit level
-                        position_size = short_open_pos_qty / len(short_profit_prices)
-                        for profit_price in short_profit_prices:
-                            try:
-                                exchange.create_limit_buy_order(
-                                    symbol, position_size, profit_price, reduce_only
-                                )
-                                time.sleep(0.05)
-                                log.warning(f"DEBUG short take profit logic")
-                            except Exception as e:
-                                log.warning(f"{e}")
+
 
             # SHORT: Take profit logic
             if (
