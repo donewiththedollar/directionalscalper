@@ -7,6 +7,7 @@ from logging import handlers
 
 import pandas as pd
 import ta
+from exchanges.binance import Binance
 from exchanges.bybit import Bybit
 
 log = logging.getLogger()
