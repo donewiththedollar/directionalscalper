@@ -50,7 +50,6 @@ aggressive_mode = False
 btclinear_long_mode = False
 btclinear_short_mode = False
 deleveraging_mode = False
-longbias_mode = False
 violent_mode = False
 high_vol_stack_mode = False
 leverage_verified = False
@@ -68,7 +67,7 @@ dex_balance, dex_pnl, dex_upnl, dex_wallet, dex_equity = 0, 0, 0, 0, 0
     short_liq_price,
 ) = (0, 0, 0, 0, 0, 0)
 
-parser = argparse.ArgumentParser(description="Scalper supports 5 modes")
+parser = argparse.ArgumentParser(description="Scalper supports 7 modes")
 
 parser.add_argument(
     "--mode",
@@ -79,7 +78,6 @@ parser.add_argument(
         "short",
         "hedge",
         "aggressive",
-        "longbias",
         "btclinear-long",
         "btclinear-short",
         "violent",
@@ -107,8 +105,6 @@ parser.add_argument(
     required=False,
 )
 
-# parser.add_arguemnt("--violent", type=str, help="Violent mode", choices=["on", "off"], required=False)
-
 parser.add_argument(
     "--tg", type=str, help="TG Notifications", choices=["on", "off"], required=True
 )
@@ -127,8 +123,6 @@ elif args.mode == "hedge":
     hedge_mode = True
 elif args.mode == "aggressive":
     aggressive_mode = True
-elif args.mode == "longbias":
-    longbias_mode = True
 elif args.mode == "btclinear-long":
     btclinear_long_mode = True
 elif args.mode == "btclinear-short":
@@ -193,7 +187,6 @@ exchange = ccxt.bybit(
         "secret": config.exchange_api_secret,
     }
 )
-# Functions
 
 # Get min vol & spread data from API
 def get_min_vol_dist_data(symbol) -> bool:
@@ -968,27 +961,6 @@ def trade_func(symbol):  # noqa
 
             add_trade_qty = trade_qty
 
-            # Longbias mode
-            if longbias_mode:
-                try:
-                    if find_trend() == "long":
-                        initial_long_entry(current_bid)
-                        if (
-                            find_1m_1x_volume() > min_volume
-                            and find_5m_spread() > min_distance
-                            and long_pos_qty < max_trade_qty
-                            and add_short_trade_condition()
-                        ):
-                            try:
-                                exchange.create_limit_buy_order(
-                                    symbol, trade_qty, current_bid
-                                )
-                                time.sleep(0.01)
-                            except Exception as e:
-                                log.warning(f"{e}")
-                except Exception as e:
-                    log.warning(f"{e}")
-
             # Long entry logic if long enabled
             if (
                 long_mode
@@ -1068,10 +1040,8 @@ def trade_func(symbol):  # noqa
                 and (
                     hedge_mode
                     or violent_mode
-                    or long_mode
-                    or longbias_mode
+                    or short_mode
                     or aggressive_mode
-                    or btclinear_long_mode
                 )
             ):
                 try:
@@ -1095,6 +1065,7 @@ def trade_func(symbol):  # noqa
                                 symbol, position_size, profit_price, reduce_only
                             )
                             time.sleep(0.05)
+                            log.warning(f"DEBUG long take profit logic")
                         except Exception as e:
                             log.warning(f"{e}")
 
@@ -1105,7 +1076,6 @@ def trade_func(symbol):  # noqa
                 and (
                     hedge_mode
                     or long_mode
-                    or longbias_mode
                     or aggressive_mode
                     or btclinear_long_mode
                     or violent_mode
@@ -1131,39 +1101,40 @@ def trade_func(symbol):  # noqa
                     except Exception as e:
                         log.warning(f"{e}")
 
-            # SHORT: Deleveraging Take profit logic
-            if (
-                deleveraging_mode
-                or config.avoid_fees
-                and short_pos_qty > 0
-                and hedge_mode
-                or violent_mode
-                or short_mode
-                or aggressive_mode
-                or btclinear_short_mode
-            ):
-                try:
-                    get_open_orders()
-                    time.sleep(0.05)
-                except Exception as e:
-                    log.warning(f"{e}")
-
-                if short_profit_price != 0 or short_pos_price != 0:
+                #Short Develeraging TP
+                if (
+                    (deleveraging_mode or config.avoid_fees)
+                    and short_pos_qty > 0
+                    and (
+                        hedge_mode
+                        or violent_mode
+                        or short_mode
+                        or aggressive_mode
+                    )
+                ):                   
                     try:
-                        cancel_close()
+                        get_open_orders()
                         time.sleep(0.05)
                     except Exception as e:
                         log.warning(f"{e}")
-                    # Create separate limit buy orders for each take profit level
-                    position_size = short_open_pos_qty / len(short_profit_prices)
-                    for profit_price in short_profit_prices:
+
+                    if short_profit_price != 0 or short_pos_price != 0:
                         try:
-                            exchange.create_limit_buy_order(
-                                symbol, position_size, profit_price, reduce_only
-                            )
+                            cancel_close()
                             time.sleep(0.05)
                         except Exception as e:
                             log.warning(f"{e}")
+                        # Create separate limit buy orders for each take profit level
+                        position_size = short_open_pos_qty / len(short_profit_prices)
+                        for profit_price in short_profit_prices:
+                            try:
+                                exchange.create_limit_buy_order(
+                                    symbol, position_size, profit_price, reduce_only
+                                )
+                                time.sleep(0.05)
+                                log.warning(f"DEBUG short take profit logic")
+                            except Exception as e:
+                                log.warning(f"{e}")
 
             # SHORT: Take profit logic
             if (
@@ -1394,20 +1365,16 @@ def long_mode_func(symbol):
     print(Fore.LIGHTCYAN_EX + "Long mode enabled for", symbol + Style.RESET_ALL)
     leverage_verification(symbol)
     trade_func(symbol)
-    # print(tylerapi.get_asset_total_volume_5m(symbol, tylerapi.api_data))
-
 
 def short_mode_func(symbol):
     print(Fore.LIGHTCYAN_EX + "Short mode enabled for", symbol + Style.RESET_ALL)
     leverage_verification(symbol)
     trade_func(symbol)
 
-
 def hedge_mode_func(symbol):
     print(Fore.LIGHTCYAN_EX + "Hedge mode enabled for", symbol + Style.RESET_ALL)
     leverage_verification(symbol)
     trade_func(symbol)
-
 
 def aggressive_mode_func(symbol):
     print(
@@ -1417,24 +1384,15 @@ def aggressive_mode_func(symbol):
     leverage_verification(symbol)
     trade_func(symbol)
 
-
-def longbias_mode_func(symbol):
-    print(Fore.LIGHTCYAN_EX + "Longbias mode enabled for", symbol + Style.RESET_ALL)
-    leverage_verification(symbol)
-    trade_func(symbol)
-
-
 def linearbtclong_mode_func(symbol):
     print(Fore.LIGHTCYAN_EX + "BTC Linear LONG mode enabled", symbol + Style.RESET_ALL)
     leverage_verification(symbol)
     trade_func(symbol)
 
-
 def linearbtcshort_mode_func(symbol):
     print(Fore.LIGHTCYAN_EX + "BTC Linear SHORT mode enabled", symbol + Style.RESET_ALL)
     leverage_verification(symbol)
     trade_func(symbol)
-
 
 def violent_mode_func(symbol):
     print(
@@ -1444,11 +1402,6 @@ def violent_mode_func(symbol):
     )
     leverage_verification(symbol)
     trade_func(symbol)
-
-
-# TO DO:
-
-# Add a terminal like console / hotkeys for entries
 
 # Argument declaration
 if args.mode == "long":
@@ -1469,11 +1422,6 @@ elif args.mode == "hedge":
 elif args.mode == "aggressive":
     if args.symbol:
         aggressive_mode_func(args.symbol)
-    else:
-        symbol = input("Instrument undefined. \nInput instrument:")
-elif args.mode == "longbias":
-    if args.symbol:
-        longbias_mode_func(args.symbol)
     else:
         symbol = input("Instrument undefined. \nInput instrument:")
 elif args.mode == "btclinear-long":
