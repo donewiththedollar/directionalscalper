@@ -13,6 +13,6 @@
   "avoid_fees": false,
   "linear_taker_fee": 0.085,
   "wallet_exposure": 1.00,
-  "violent_multiplier": 2.00
+  "violent_multiplier": 2.00,
   "profit_multiplier_pct": 0.01
 }
