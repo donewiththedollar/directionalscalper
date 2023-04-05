@@ -880,8 +880,15 @@ def trade_func(symbol):  # noqa
                         next_target = profit_targets[-1] * (1 + profit_increment_percentage)
                         profit_targets.append(next_target)
 
+                    remaining_position = long_open_pos_qty
+
                     for idx, profit_percentage in enumerate(profit_percentages):
-                        partial_qty = long_open_pos_qty * profit_percentage
+                        if idx == len(profit_percentages) - 1:
+                            partial_qty = remaining_position
+                        else:
+                            partial_qty = long_open_pos_qty * profit_percentage
+                            remaining_position -= partial_qty
+
                         target_price = profit_targets[idx]
 
                         try:
@@ -891,6 +898,7 @@ def trade_func(symbol):  # noqa
                             time.sleep(0.05)
                         except Exception as e:
                             log.warning(f"{e}")
+
 
             # Long: Normal take profit logic
             if (
@@ -957,8 +965,15 @@ def trade_func(symbol):  # noqa
                         next_target = profit_targets[-1] * (1 - profit_increment_percentage)
                         profit_targets.append(next_target)
 
+                    remaining_position = short_open_pos_qty
+
                     for idx, profit_percentage in enumerate(profit_percentages):
-                        partial_qty = short_open_pos_qty * profit_percentage
+                        if idx == len(profit_percentages) - 1:
+                            partial_qty = remaining_position
+                        else:
+                            partial_qty = short_open_pos_qty * profit_percentage
+                            remaining_position -= partial_qty
+
                         target_price = profit_targets[idx]
 
                         try:
@@ -968,6 +983,7 @@ def trade_func(symbol):  # noqa
                             time.sleep(0.05)
                         except Exception as e:
                             log.warning(f"{e}")
+
 
 
             # SHORT: Take profit logic
