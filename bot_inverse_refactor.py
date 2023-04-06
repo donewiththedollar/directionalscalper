@@ -193,6 +193,8 @@ violent_multiplier = config.violent_multiplier
 profit_percentages = [0.3, 0.5, 0.2]
 profit_increment_percentage = config.profit_multiplier_pct
 
+inverse_direction = config.inverse_direction
+
 exchange = ccxt.bybit(
     {
         "enableRateLimit": True,
@@ -271,6 +273,20 @@ def get_inverse_sell_position():
         if position["result"]["side"] == "Sell":
             sell_position_size = float(position["result"]["size"])
             sell_position_prce = float(position["result"]["entry_price"])
+    except Exception as e:
+        log.warning(f"{e}")
+
+def get_inverse_buy_position():
+    try:
+        position = invpcl.my_position(symbol=symbol)
+
+        if position["result"]["side"] == "None":
+            global buy_position_size, buy_position_prce
+            buy_position_size = 0
+            buy_position_prce = 0
+        if position["result"]["side"] == "Buy":
+            buy_position_size = float(position["result"]["size"])
+            buy_position_prce = float(position["result"]["entry_price"])
     except Exception as e:
         log.warning(f"{e}")
 
@@ -419,7 +435,6 @@ def get_open_orders():
         log.warning(f"{e}")
     return 0, 0, 0
 
-
 def cancel_entry():
     try:
         order = exchange.fetch_open_orders(symbol)
@@ -468,21 +483,18 @@ def cancel_close():
     ):
         exchange.cancel_order(symbol=symbol, id=order_id)
 
-
+# Trade conditions
 def short_trade_condition():
     short_trade_condition = get_orderbook()[0] > get_m_data(timeframe="1m")[0]
     return short_trade_condition
-
 
 def long_trade_condition():
     long_trade_condition = get_orderbook()[0] < get_m_data(timeframe="1m")[0]
     return long_trade_condition
 
-
 def add_short_trade_condition():
     add_short_trade_condition = short_pos_price < get_m_data(timeframe="1m")[3]
     return add_short_trade_condition
-
 
 def add_long_trade_condition():
     add_long_trade_condition = long_pos_price > get_m_data(timeframe="1m")[3]
@@ -492,12 +504,19 @@ def inverse_short_trade_condition():
     inverse_short_trade_condition = get_orderbook()[0] > get_m_data(timeframe="1m")[0]
     return inverse_short_trade_condition
 
-
 def add_inverse_short_trade_condition():
     add_inverse_short_trade_condition = sell_position_prce < get_m_data(timeframe="1m")[3]
     return add_inverse_short_trade_condition
 
+def inverse_long_trade_condition():
+    inverse_long_trade_condition = get_orderbook()[1] > get_m_data(timeframe="1m")[0]
+    return inverse_long_trade_condition
 
+def add_inverse_long_trade_condition():
+    add_inverse_long_trade_condition = buy_position_prce < get_m_data(timeframe="5m")[3]
+    return add_inverse_long_trade_condition
+
+# Leverage verification
 def leverage_verification(symbol):
     if not inverse_mode:
         try:
@@ -1045,24 +1064,44 @@ def inverse_trade_func(symbol):
 
                 reduce_only = {"reduce_only": True}
 
-                get_inverse_sell_position()
+                if inverse_direction == "short":
+                    get_inverse_sell_position()
 
-                if sell_position_size / config.divider < min_trading_qty:
-                    lot_size_market_tp = sell_position_size
-                    print(f"Market TP size (1): {lot_size_market_tp}")
+                    if sell_position_size / config.divider < min_trading_qty:
+                        lot_size_market_tp = sell_position_size
+                        print(f"Market TP size (1): {lot_size_market_tp}")
 
-                if (
-                    sell_position_size / config.divider
-                    < min_trading_qty * config.divider
-                ):
-                    lot_size_market_tp = sell_position_size
-                    print(f"Market TP size (2): {lot_size_market_tp}")
+                    if (
+                        sell_position_size / config.divider
+                        < min_trading_qty * config.divider
+                    ):
+                        lot_size_market_tp = sell_position_size
+                        print(f"Market TP size (2): {lot_size_market_tp}")
 
-                else:
-                    lot_size_market_tp = round(
-                        (sell_position_size / config.divider), decimal_for_tp_size
-                    )
-                    print("Market TP size (3):", lot_size_market_tp)
+                    else:
+                        lot_size_market_tp = round(
+                            (sell_position_size / config.divider), decimal_for_tp_size
+                        )
+                        print("Market TP size (3):", lot_size_market_tp)
+                elif inverse_direction == "long":
+                    get_inverse_buy_position()
+
+                    if buy_position_size / config.divider < min_trading_qty:
+                        lot_size_market_tp = buy_position_size
+                        print(f"Long Market TP size (1): {lot_size_market_tp}")
+
+                    if (
+                        buy_position_size / config.divider
+                        < min_trading_qty * config.divider
+                    ):
+                        lot_size_market_tp = buy_position_size
+                        print(f"Long Market TP size (2): {lot_size_market_tp}")
+
+                    else:
+                        lot_size_market_tp = round(
+                            (buy_position_size / config.divider), decimal_for_tp_size
+                        )
+                        print(f"Long Market TP size (3): {lot_size_market_tp}")
 
             # Inverse perps BTCUSD short
             if inverse_mode:

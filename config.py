@@ -25,6 +25,7 @@ class Config(BaseModel):
     wallet_exposure: float = 1.00
     violent_multiplier: float = 2.00
     profit_multiplier_pct: float = 0.01
+    inverse_direction: str = "short"
 
 
     @validator("min_volume")
