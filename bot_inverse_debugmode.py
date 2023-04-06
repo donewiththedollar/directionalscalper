@@ -1,22 +1,23 @@
 import argparse
 import decimal
-import logging
 import math
-import os
+import logging
+import logging.handlers as handlers
 import time
 from pathlib import Path
 
 import ccxt
+from pybit import inverse_perpetual
 import pandas as pd
 import telebot
 from colorama import Fore, Style
-from pybit import inverse_perpetual
 from rich.live import Live
 from rich.table import Table
 
 from api.manager import Manager
 from config import load_config
 from util import tables
+from util.functions import print_lot_sizes
 
 # 1. Create config.json from config.json.example
 # 2. Enter exchange_api_key and exchange_api_secret
@@ -28,34 +29,39 @@ from util import tables
 # 4. Look for chat id and copy the chat id into config.json
 
 
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    level=os.environ.get("LOGLEVEL", "INFO"),
+log = logging.getLogger()
+formatter = logging.Formatter(
+    "%(asctime)s - %(filename)s:%(lineno)s - %(funcName)20s() - %(message)s"
 )
-
-log = logging.getLogger(__name__)
+logHandler = handlers.RotatingFileHandler("ds.log", maxBytes=5000000, backupCount=5)
+logHandler.setFormatter(formatter)
+log.setLevel(logging.INFO)
+log.addHandler(logHandler)
 
 manager = Manager()
-
 
 def sendmessage(message):
     bot.send_message(config.telegram_chat_id, message)
 
-
 # Booleans
-version = "Directional Scalper v1.0.4"
-inverse_mode_version = "Inverse Perps Directional Scalper v1.0.4"
+version = "Directional Scalper v1.2.0"
 long_mode = False
 short_mode = False
 hedge_mode = False
-persistent_mode = False
-longbias_mode = False
+aggressive_mode = False
+btclinear_long_mode = False
+btclinear_short_mode = False
+deleveraging_mode = False
+violent_mode = False
+high_vol_stack_mode = False
 inverse_mode = False
 leverage_verified = False
+tg_notifications = False
 inverse_trading_status = 0
 
 api_data = manager.get_data()
+
+print(Fore.LIGHTCYAN_EX + "", version, "connecting to exchange" + Style.RESET_ALL)
 
 limit_sell_order_id = 0
 
@@ -81,16 +87,22 @@ dex_balance, dex_pnl, dex_upnl, dex_wallet, dex_equity = 0, 0, 0, 0, 0
 max_trade_qty = 0
 dex_btc_upnl_pct = 0.0
 
-print(Fore.LIGHTCYAN_EX + "", version, "connecting to exchange" + Style.RESET_ALL)
-
-
 parser = argparse.ArgumentParser(description="Scalper supports 6 modes")
 
 parser.add_argument(
     "--mode",
     type=str,
     help="Mode to use",
-    choices=["long", "short", "hedge", "persistent", "longbias", "inverse"],
+    choices=[
+        "long",
+        "short",
+        "hedge",
+        "aggressive",
+        "btclinear-long",
+        "btclinear-short",
+        "violent",
+        "inverse",
+    ],
     required=True,
 )
 
@@ -108,16 +120,6 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-if args.mode == "long":
-    long_mode = True
-elif args.mode == "short":
-    short_mode = True
-elif args.mode == "hedge":
-    hedge_mode = True
-elif args.mode == "persistent":
-    persistent_mode = True
-elif args.mode == "longbias":
-    longbias_mode = True
 
 if args.mode == "inverse":
     inverse_mode = True
@@ -148,11 +150,6 @@ print(f"Loading config: {config_file}")
 config_file_path = Path(Path().resolve(), config_file)
 config = load_config(path=config_file_path)
 
-
-min_volume = config.min_volume
-min_distance = config.min_distance
-botname = config.bot_name
-
 if tg_notifications:
     bot = telebot.TeleBot(config.telegram_api_token, parse_mode=None)
 
@@ -163,6 +160,16 @@ if tg_notifications:
     @bot.message_handler(func=lambda message: True)
     def echo_all(message):
         bot.reply_to(message, message.text)
+
+min_volume = config.min_volume
+min_distance = config.min_distance
+botname = config.bot_name
+linear_taker_fee = config.linear_taker_fee
+wallet_exposure = config.wallet_exposure
+violent_multiplier = config.violent_multiplier
+
+profit_percentages = [0.3, 0.5, 0.2]
+profit_increment_percentage = config.profit_multiplier_pct
 
 exchange = ccxt.bybit(
     {
@@ -197,7 +204,7 @@ def get_min_vol_dist_data(symbol) -> bool:
 def find_decimals(value):
     return abs(decimal.Decimal(str(value)).as_tuple().exponent)
 
-
+# Get inverse symbol info
 def get_inverse_symbols():
     try:
         get_symbols = unauth.query_symbol()
@@ -211,7 +218,6 @@ def get_inverse_symbols():
                 qty_step = asset["lot_size_filter"]["qty_step"]
     except Exception as e:
         log.warning(f"{e}")
-
 
 # Get inverse balance info, uPNL, cum pnl
 def get_inverse_balance():
@@ -231,7 +237,7 @@ def get_inverse_balance():
     inv_perp_unrealised_pnl = get_inverse_balance["result"]["BTC"]["unrealised_pnl"]
     inv_perp_cum_realised_pnl = get_inverse_balance["result"]["BTC"]["cum_realised_pnl"]
 
-
+# Inverse short position data
 def get_inverse_sell_position():
     try:
         position = invpcl.my_position(symbol=symbol)
@@ -514,25 +520,17 @@ if not leverage_verified and not inverse_mode:
 # get_inverse_balance()
 if not inverse_mode:
     get_balance()
-    max_trade_qty = int(
-        round(
-            (float(dex_equity) / float(get_orderbook()[1]))
-            / (100 / float(get_market_data()[1])),
-            int(float(get_market_data()[2])),
-        )
+    max_trade_qty = round(
+        (float(dex_equity) * wallet_exposure / float(get_orderbook()[1]))
+        / (100 / float(get_market_data()[1])),
+        int(float(get_market_data()[2])),
     )
+
+    violent_max_trade_qty = max_trade_qty * violent_multiplier
 
     current_leverage = get_market_data()[1]
 
-    print(f"Min Trade Qty: {get_market_data()[2]}")
-    print(Fore.LIGHTYELLOW_EX + "1x:", max_trade_qty, " ")
-    print(
-        Fore.LIGHTCYAN_EX + "0.01x ",
-        round(max_trade_qty / 100, int(float(get_market_data()[2]))),
-        "",
-    )
-    print(f"0.005x : {round(max_trade_qty/200, int(float(get_market_data()[2])))}")
-    print(f"0.001x : {round(max_trade_qty/500, int(float(get_market_data()[2])))}")
+    print_lot_sizes(max_trade_qty, get_market_data())
 elif inverse_mode:
     inverse_get_balance()
     get_inverse_sell_position()  # Pybit
@@ -862,7 +860,6 @@ def generate_inverse_table(mode='inverse'):
     )
     return inverse_table
 
-
 def generate_table():
     min_vol_dist_data = get_min_vol_dist_data(symbol)
     mode = find_mode()
@@ -897,6 +894,91 @@ def generate_table():
     }
     return tables.generate_main_table(data=table_data)
 
+# Long entry logic if long enabled
+def initial_long_entry(current_bid):
+    if (
+        # long_mode
+        long_trade_condition()
+        and find_1m_1x_volume() > min_volume
+        and find_5m_spread() > min_distance
+        and long_pos_qty == 0
+        and long_pos_qty < max_trade_qty
+        and find_trend() == "long"
+    ):
+        try:
+            exchange.create_limit_buy_order(symbol, trade_qty, current_bid)
+            time.sleep(0.01)
+        except Exception as e:
+            log.warning(f"{e}")
+        else:
+            global long_pos_price_at_entry
+            long_pos_price_at_entry = long_pos_price
+
+
+# Short entry logic if short enabled
+def initial_short_entry(current_ask):
+    if (
+        # short_mode
+        short_trade_condition()
+        and find_1m_1x_volume() > min_volume
+        and find_5m_spread() > min_distance
+        and short_pos_qty == 0
+        and short_pos_qty < max_trade_qty
+        and find_trend() == "short"
+    ):
+        try:
+            exchange.create_limit_sell_order(symbol, trade_qty, current_ask)
+            time.sleep(0.01)
+        except Exception as e:
+            log.warning(f"{e}")
+        else:
+            global short_pos_price_at_entry
+            short_pos_price_at_entry = short_pos_price
+
+
+def get_current_price(exchange, symbol):
+    ticker = exchange.fetch_ticker(symbol)
+    current_price = (ticker["bid"] + ticker["ask"]) / 2
+    return current_price
+
+def generate_main_table():
+    try:
+        min_vol_dist_data = get_min_vol_dist_data(symbol)
+        mode = find_mode()
+        trend = find_trend()
+        market_data = get_market_data()
+        table_data = {
+            "version": version,
+            "short_pos_unpl": short_pos_unpl,
+            "long_pos_unpl": long_pos_unpl,
+            "short_pos_unpl_pct": short_pos_unpl_pct,
+            "long_pos_unpl_pct": long_pos_unpl_pct,
+            "symbol": symbol,
+            "dex_wallet": dex_wallet,
+            "dex_equity": dex_equity,
+            "short_symbol_cum_realised": short_symbol_cum_realised,
+            "long_symbol_cum_realised": long_symbol_cum_realised,
+            "long_symbol_realised": long_symbol_realised,
+            "short_symbol_realised": short_symbol_realised,
+            "trade_qty": trade_qty,
+            "long_pos_qty": long_pos_qty,
+            "short_pos_qty": short_pos_qty,
+            "long_pos_price": long_pos_price,
+            "long_liq_price": long_liq_price,
+            "short_pos_price": short_pos_price,
+            "short_liq_price": short_liq_price,
+            "max_trade_qty": max_trade_qty,
+            "market_data": market_data,
+            "trend": trend,
+            "min_vol_dist_data": min_vol_dist_data,
+            "min_volume": min_volume,
+            "min_distance": min_distance,
+            "mode": mode,
+        }
+        return tables.generate_main_table(manager=manager, data=table_data)
+    except Exception as e:
+        log.warning(f"{e}")
+
 
 def trade_func(symbol):  # noqa
     with Live(generate_main_table(), refresh_per_second=2) as live:
@@ -913,24 +995,30 @@ def trade_func(symbol):  # noqa
                     time.sleep(0.01)
                     get_orderbook()
                     time.sleep(0.01)
-                manager.get_data()
-                time.sleep(0.01)
-                get_m_data(timeframe="1m")
-                time.sleep(0.01)
-                get_m_data(timeframe="5m")
-                time.sleep(0.01)
-                get_balance()
-                time.sleep(0.01)
-                get_orderbook()
-                time.sleep(0.01)
-                long_trade_condition()
-                time.sleep(0.01)
-                short_trade_condition()
-                time.sleep(0.01)
-                if not inverse_mode:
-                    get_short_positions()
+                    manager.get_data()
                     time.sleep(0.01)
-                    get_long_positions()
+                    get_m_data(timeframe="1m")
+                    time.sleep(0.01)
+                    get_m_data(timeframe="5m")
+                    time.sleep(0.01)
+                if not inverse_mode:
+                    manager.get_data()
+                    time.sleep(0.01)
+                    get_m_data(timeframe="1m")
+                    time.sleep(0.01)
+                    get_m_data(timeframe="5m")
+                    time.sleep(0.01)
+                    get_balance()
+                    time.sleep(0.01)
+                    get_orderbook()
+                    time.sleep(0.01)
+                    long_trade_condition()
+                    time.sleep(0.01)
+                    short_trade_condition()
+                    time.sleep(0.01)
+                    pos_dict = exchange.fetch_positions([symbol])
+                    get_short_positions(pos_dict)
+                    get_long_positions(pos_dict)
                     time.sleep(0.01)
             except Exception as e:
                 log.warning(f"{e}")
@@ -970,6 +1058,29 @@ def trade_func(symbol):  # noqa
                         int(market_data[0]),
                     )
 
+                if violent_mode:
+                    denominator = get_orderbook()[1] - get_m_data(timeframe="1m")[3]
+                    if denominator == 0:
+                        short_violent_trade_qty, long_violent_trade_qty = 0, 0
+                    else:
+                        short_violent_trade_qty = (
+                            short_open_pos_qty
+                            * (get_m_data(timeframe="1m")[3] - short_pos_price)
+                            / denominator
+                        )
+
+                        long_violent_trade_qty = (
+                            long_open_pos_qty
+                            * (get_m_data(timeframe="1m")[3] - long_pos_price)
+                            / denominator
+                        )
+
+                if config.avoid_fees:
+                    taker_fee_rate = config.linear_taker_fee
+                else:
+                    if deleveraging_mode:
+                        taker_fee_rate = config.linear_taker_fee
+
                 add_trade_qty = trade_qty
 
             elif inverse_mode:
@@ -1003,27 +1114,6 @@ def trade_func(symbol):  # noqa
                         (sell_position_size / config.divider), decimal_for_tp_size
                     )
                     print("Market TP size (3):", lot_size_market_tp)
-
-            # Longbias mode
-            if longbias_mode:
-                try:
-                    if find_trend() == "long":
-                        initial_long_entry(current_bid)
-                        if (
-                            find_1m_1x_volume() > min_volume
-                            and find_5m_spread() > min_distance
-                            and long_pos_qty < max_trade_qty
-                            and add_short_trade_condition()
-                        ):
-                            try:
-                                exchange.create_limit_buy_order(
-                                    symbol, trade_qty, current_bid
-                                )
-                                time.sleep(0.01)
-                            except Exception as e:
-                                log.warning(f"{e}")
-                except Exception as e:
-                    log.warning(f"{e}")
 
             # Long entry logic if long enabled
             if (
@@ -1148,7 +1238,7 @@ def trade_func(symbol):  # noqa
                         except Exception as e:
                             log.warning(f"{e}")
 
-            # Inverse perps BTCUSD only
+            # Inverse perps BTCUSD short
             if inverse_mode:
                 try:
                     get_inverse_sell_position()
@@ -1219,108 +1309,417 @@ def trade_func(symbol):  # noqa
                 except Exception as e:
                     log.warning(f"{e}")
 
-            # HEDGE: Full mode
-            # We find if trend is long or short
-            # places initial short entry
-            # Checks if volume is ok and spread is ok,
-            # Checks position quantity and comapres to max trade qty
-            if hedge_mode:
-                try:
-                    if find_trend() == "long":
-                        initial_short_entry(current_ask)
-                        if (
-                            find_1m_1x_volume() > min_volume
-                            and find_5m_spread() > min_distance
-                            and short_pos_qty < max_trade_qty
-                            and add_short_trade_condition()
-                        ):
-                            try:
-                                exchange.create_limit_sell_order(
-                                    symbol, trade_qty, current_ask
-                                )
-                                time.sleep(0.01)
-                            except Exception as e:
-                                log.warning(f"{e}")
-                    elif find_trend() == "short":
-                        initial_long_entry(current_bid)
-                        if (
-                            find_1m_1x_volume() > min_volume
-                            and find_5m_spread() > min_distance
-                            and long_pos_qty < max_trade_qty
-                            and add_long_trade_condition()
-                        ):
-                            try:
-                                exchange.create_limit_buy_order(
-                                    symbol, trade_qty, current_bid
-                                )
-                                time.sleep(0.01)
-                            except Exception as e:
-                                log.warning(f"{e}")
-                    if (
-                        get_orderbook()[1] < get_m_data(timeframe="1m")[0]
-                        or get_orderbook()[1] < get_m_data(timeframe="5m")[0]
-                    ):
-                        try:
-                            cancel_entry()
-                            time.sleep(0.05)
-                        except Exception as e:
-                            log.warning(f"{e}")
-                except Exception as e:
-                    log.warning(f"{e}")
+            if config.avoid_fees:
+                taker_fee_rate = config.linear_taker_fee
+            else:
+                if deleveraging_mode:
+                    taker_fee_rate = config.linear_taker_fee
 
+            add_trade_qty = trade_qty
 
-            # PERSISTENT HEDGE: Full mode
-            if persistent_mode:
-                try:
-                    if find_trend() == "long":
-                        if (
-                            short_trade_condition()
-                            and find_1m_1x_volume() > min_volume
-                            and find_5m_spread() > min_distance
-                            and short_pos_qty < max_trade_qty
-                        ):
-                            try:
-                                exchange.create_limit_sell_order(
-                                    symbol, trade_qty, current_ask
-                                )
-                                time.sleep(0.01)
-                            except Exception as e:
-                                log.warning(f"{e}")
-                    elif find_trend() == "short":
-                        if (
-                            long_trade_condition()
-                            and find_1m_1x_volume() > min_volume
-                            and find_5m_spread() > min_distance
-                            and long_pos_qty < max_trade_qty
-                        ):
-                            try:
-                                exchange.create_limit_buy_order(
-                                    symbol, trade_qty, current_bid
-                                )
-                                time.sleep(0.01)
-                            except Exception as e:
-                                log.warning(f"{e}")
-                    if (
-                        get_orderbook()[1] < get_m_data(timeframe="1m")[0]
-                        or get_orderbook()[1] < get_m_data(timeframe="5m")[0]
-                    ):
-                        try:
-                            cancel_entry()
-                            time.sleep(0.05)
-                        except Exception as e:
-                            log.warning(f"{e}")
-                except Exception as e:
-                    log.warning(f"{e}")
-
+            # Long entry logic if long enabled
             if (
-                get_orderbook()[1] < get_m_data(timeframe="1m")[0]
-                or get_orderbook()[1] < get_m_data(timeframe="5m")[0]
+                long_mode
+                and long_trade_condition()
+                and tyler_total_volume_5m > min_volume
+                and find_5m_spread() > min_distance
+                and long_pos_qty == 0
+                and long_pos_qty < max_trade_qty
+                and find_trend() == "long"
+            ):
+                try:
+                    exchange.create_limit_buy_order(symbol, trade_qty, current_bid)
+                    time.sleep(0.01)
+                except Exception as e:
+                    log.warning(f"{e}")
+
+            # Add to long if long enabled
+            if (
+                long_pos_qty != 0
+                and long_pos_qty < max_trade_qty
+                and long_mode
+                and find_1m_1x_volume() > min_volume
+                and add_long_trade_condition()
+                and find_trend() == "long"
+                and current_bid < long_pos_price
             ):
                 try:
                     cancel_entry()
                     time.sleep(0.05)
                 except Exception as e:
                     log.warning(f"{e}")
+                try:
+                    exchange.create_limit_buy_order(symbol, add_trade_qty, current_bid)
+                except Exception as e:
+                    log.warning(f"{e}")
+
+            # Short entry logic if short enabled
+            if (
+                short_mode
+                and short_trade_condition()
+                and tyler_total_volume_5m > min_volume
+                and find_5m_spread() > min_distance
+                and short_pos_qty == 0
+                and short_pos_qty < max_trade_qty
+                and find_trend() == "short"
+            ):
+                try:
+                    exchange.create_limit_sell_order(symbol, trade_qty, current_ask)
+                    time.sleep(0.01)
+                except Exception as e:
+                    log.warning(f"{e}")
+
+            # Add to short if short enabled
+            if (
+                short_pos_qty != 0
+                and short_pos_qty < max_trade_qty
+                and short_mode
+                and find_1m_1x_volume() > min_volume
+                and add_short_trade_condition()
+                and find_trend() == "short"
+                and current_ask > short_pos_price
+            ):
+                try:
+                    cancel_entry()
+                    time.sleep(0.05)
+                except Exception as e:
+                    log.warning(f"{e}")
+                try:
+                    exchange.create_limit_sell_order(symbol, add_trade_qty, current_ask)
+                except Exception as e:
+                    log.warning(f"{e}")
+
+            # Long incremental TP
+            if (
+                (deleveraging_mode or config.avoid_fees)
+                and long_pos_qty > 0
+                and (
+                    hedge_mode
+                    or long_mode
+                    or aggressive_mode
+                    or btclinear_long_mode
+                    or violent_mode
+                )
+            ):
+                try:
+                    get_open_orders()
+                    time.sleep(0.05)
+                except Exception as e:
+                    log.warning(f"{e}")
+
+                if long_pos_price != 0:
+                    try:
+                        cancel_close()
+                        time.sleep(0.05)
+                    except Exception as e:
+                        log.warning(f"{e}")
+
+                    first_profit_target = long_profit_price
+                    profit_targets = [first_profit_target]
+
+                    # Calculate subsequent profit targets
+                    for _ in range(len(profit_percentages) - 1):
+                        next_target = profit_targets[-1] * (1 + profit_increment_percentage)
+                        profit_targets.append(next_target)
+
+                    remaining_position = long_open_pos_qty
+
+                    for idx, profit_percentage in enumerate(profit_percentages):
+                        if idx == len(profit_percentages) - 1:
+                            partial_qty = remaining_position
+                        else:
+                            partial_qty = long_open_pos_qty * profit_percentage
+                            remaining_position -= partial_qty
+
+                        target_price = profit_targets[idx]
+
+                        try:
+                            exchange.create_limit_sell_order(
+                                symbol, partial_qty, target_price, reduce_only
+                            )
+                            time.sleep(0.05)
+                        except Exception as e:
+                            log.warning(f"{e}")
+
+
+            # Long: Normal take profit logic
+            if (
+                (not deleveraging_mode or not config.avoid_fees)
+                and long_pos_qty > 0
+                and (
+                    hedge_mode
+                    or long_mode
+                    or aggressive_mode
+                    or btclinear_long_mode
+                    or violent_mode
+                )
+            ):
+                try:
+                    get_open_orders()
+                    time.sleep(0.05)
+                except Exception as e:
+                    log.warning(f"{e}")
+
+                if long_profit_price != 0 or long_pos_price != 0:
+                    try:
+                        cancel_close()
+                        time.sleep(0.05)
+                    except Exception as e:
+                        log.warning(f"{e}")
+                    try:
+                        exchange.create_limit_sell_order(
+                            symbol, long_open_pos_qty, long_profit_price, reduce_only
+                        )
+                        time.sleep(0.05)
+                    except Exception as e:
+                        log.warning(f"{e}")
+
+            # Short incremental TP
+            if (
+                (deleveraging_mode or config.avoid_fees)
+                and short_pos_qty > 0
+                and (
+                    hedge_mode
+                    or short_mode
+                    or aggressive_mode
+                    or btclinear_short_mode
+                    or violent_mode
+                )
+            ):
+                try:
+                    get_open_orders()
+                    time.sleep(0.05)
+                except Exception as e:
+                    log.warning(f"{e}")
+
+                if short_pos_price != 0:
+                    try:
+                        cancel_close()
+                        time.sleep(0.05)
+                    except Exception as e:
+                        log.warning(f"{e}")
+
+                    first_profit_target = short_profit_price
+                    profit_targets = [first_profit_target]
+
+                    # Calculate subsequent profit targets
+                    for _ in range(len(profit_percentages) - 1):
+                        next_target = profit_targets[-1] * (1 - profit_increment_percentage)
+                        profit_targets.append(next_target)
+
+                    remaining_position = short_open_pos_qty
+
+                    for idx, profit_percentage in enumerate(profit_percentages):
+                        if idx == len(profit_percentages) - 1:
+                            partial_qty = remaining_position
+                        else:
+                            partial_qty = short_open_pos_qty * profit_percentage
+                            remaining_position -= partial_qty
+
+                        target_price = profit_targets[idx]
+
+                        try:
+                            exchange.create_limit_buy_order(
+                                symbol, partial_qty, target_price, reduce_only
+                            )
+                            time.sleep(0.05)
+                        except Exception as e:
+                            log.warning(f"{e}")
+
+            # SHORT: Take profit logic
+            if (
+                (not deleveraging_mode and not config.avoid_fees)
+                and short_pos_qty > 0
+                and (
+                    hedge_mode
+                    or short_mode
+                    or aggressive_mode
+                    or btclinear_short_mode
+                    or violent_mode
+                )
+            ):
+                try:
+                    get_open_orders()
+                    time.sleep(0.05)
+                except Exception as e:
+                    log.warning(f"{e}")
+
+                if short_profit_price != 0 or short_pos_price != 0:
+                    try:
+                        cancel_close()
+                        time.sleep(0.05)
+                    except Exception as e:
+                        log.warning(f"{e}")
+                    try:
+                        exchange.create_limit_buy_order(
+                            symbol, short_open_pos_qty, short_profit_price, reduce_only
+                        )
+                        time.sleep(0.05)
+                    except Exception as e:
+                        log.warning(f"{e}")
+
+            # Violent: Full mode
+            if violent_mode:
+                try:
+                    if find_trend() == "short":
+                        initial_short_entry(current_ask)
+                        if (
+                            find_1m_1x_volume() > min_volume
+                            and find_5m_spread() > min_distance
+                            and (add_short_trade_condition() or (current_ask > short_pos_price) or float(dex_upnl) < 0.0)
+                        ):
+                            trade_size = (
+                                short_violent_trade_qty
+                                if short_pos_qty < violent_max_trade_qty
+                                else trade_qty
+                            )
+                            try:
+                                exchange.create_limit_sell_order(
+                                    symbol, trade_size, current_ask
+                                )
+                                time.sleep(0.01)
+                            except Exception as e:
+                                log.warning(f"{e}")
+
+                    elif find_trend() == "long":
+                        initial_long_entry(current_bid)
+                        if (
+                            find_1m_1x_volume() > min_volume
+                            and find_5m_spread() > min_distance
+                            and (add_long_trade_condition() or (current_bid < long_pos_price) or float(dex_upnl) < 0.0)
+                        ):
+                            trade_size = (
+                                long_violent_trade_qty
+                                if long_pos_qty < violent_max_trade_qty
+                                else trade_qty
+                            )
+                            try:
+                                exchange.create_limit_buy_order(
+                                    symbol, trade_size, current_bid
+                                )
+                                time.sleep(0.01)
+                            except Exception as e:
+                                log.warning(f"{e}")
+                    if (
+                        get_orderbook()[1] < get_m_data(timeframe="1m")[0]
+                        or get_orderbook()[1] < get_m_data(timeframe="5m")[0]
+                    ):
+                        try:
+                            cancel_entry()
+                            time.sleep(0.05)
+                        except Exception as e:
+                            log.warning(f"{e}")
+                except Exception as e:
+                    log.warning(f"{e}")
+
+            # HEDGE: Full mode
+            if hedge_mode:
+                try:
+                    if find_trend() == "short":
+                        initial_short_entry(current_ask)
+                        if (
+                            find_1m_1x_volume() > min_volume
+                            and find_5m_spread() > min_distance
+                            and short_pos_qty < max_trade_qty
+                            and add_short_trade_condition()
+                            #and current_ask > short_pos_price
+                        ):
+                            try:
+                                exchange.create_limit_sell_order(
+                                    symbol, trade_qty, current_ask
+                                )
+                                time.sleep(0.01)
+                            except Exception as e:
+                                log.warning(f"{e}")
+                    elif find_trend() == "long":
+                        initial_long_entry(current_bid)
+                        if (
+                            find_1m_1x_volume() > min_volume
+                            and find_5m_spread() > min_distance
+                            and long_pos_qty < max_trade_qty
+                            and add_long_trade_condition()
+                            #and current_bid < long_pos_price
+                        ):
+                            try:
+                                exchange.create_limit_buy_order(
+                                    symbol, trade_qty, current_bid
+                                )
+                                time.sleep(0.01)
+                            except Exception as e:
+                                log.warning(f"{e}")
+                    if (
+                        get_orderbook()[1] < get_m_data(timeframe="1m")[0]
+                        or get_orderbook()[1] < get_m_data(timeframe="5m")[0]
+                    ):
+                        try:
+                            cancel_entry()
+                            time.sleep(0.05)
+                        except Exception as e:
+                            log.warning(f"{e}")
+                except Exception as e:
+                    log.warning(f"{e}")
+
+            if aggressive_mode:
+                try:
+                    if find_trend() == "short":
+                        initial_short_entry(current_ask)
+                        if (
+                            find_1m_1x_volume() > min_volume
+                            and find_5m_spread() > min_distance
+                            and short_pos_qty < max_trade_qty
+                            and (add_short_trade_condition() or (current_ask > short_pos_price) or float(dex_upnl) < 0.0)
+                        ):
+                            try:
+                                exchange.create_limit_sell_order(
+                                    symbol, trade_qty, current_ask
+                                )
+                                time.sleep(0.01)
+                            except Exception as e:
+                                log.warning(f"{e}")
+                    elif find_trend() == "long":
+                        initial_long_entry(current_bid)
+                        if (
+                            find_1m_1x_volume() > min_volume
+                            and find_5m_spread() > min_distance
+                            and long_pos_qty < max_trade_qty
+                            and (add_long_trade_condition() or (current_bid < long_pos_price) or float(dex_upnl) < 0.0)
+                        ):
+                            try:
+                                exchange.create_limit_buy_order(
+                                    symbol, trade_qty, current_bid
+                                )
+                                time.sleep(0.01)
+                            except Exception as e:
+                                log.warning(f"{e}")
+                    if (
+                        get_orderbook()[1] < get_m_data(timeframe="1m")[0]
+                        or get_orderbook()[1] < get_m_data(timeframe="5m")[0]
+                    ):
+                        try:
+                            cancel_entry()
+                            time.sleep(0.05)
+                        except Exception as e:
+                            log.warning(f"{e}")
+                except Exception as e:
+                    log.warning(f"{e}")
+
+            orderbook_data = get_orderbook()
+            data_1m = get_m_data(timeframe="1m")
+            data_5m = get_m_data(timeframe="5m")
+
+            if (
+                orderbook_data is not None
+                and data_1m is not None
+                and data_5m is not None
+            ):
+                if orderbook_data[1] < data_1m[0] or orderbook_data[1] < data_5m[0]:
+                    try:
+                        cancel_entry()
+                        time.sleep(0.05)
+                    except Exception as e:
+                        log.warning(f"{e}")
+            else:
+                log.warning("One or more functions returned None")
 
 
 # Mode functions
@@ -1329,43 +1728,39 @@ def long_mode_func(symbol):
     leverage_verification(symbol)
     trade_func(symbol)
 
-
 def short_mode_func(symbol):
     print(Fore.LIGHTCYAN_EX + "Short mode enabled for", symbol + Style.RESET_ALL)
     leverage_verification(symbol)
     trade_func(symbol)
-
 
 def hedge_mode_func(symbol):
     print(Fore.LIGHTCYAN_EX + "Hedge mode enabled for", symbol + Style.RESET_ALL)
     leverage_verification(symbol)
     trade_func(symbol)
 
-
-def persistent_mode_func(symbol):
+def aggressive_mode_func(symbol):
     print(
-        Fore.LIGHTCYAN_EX + "Persistent hedge mode enabled for",
+        Fore.LIGHTCYAN_EX + "Aggressive hedge mode enabled for",
         symbol + Style.RESET_ALL,
     )
     leverage_verification(symbol)
     trade_func(symbol)
 
-
-def longbias_mode_func(symbol):
-    print(Fore.LIGHTCYAN_EX + "Longbias mode enabled for", symbol + Style.RESET_ALL)
+def violent_mode_func(symbol):
+    print(
+        Fore.LIGHTCYAN_EX
+        + "Violent mode enabled use at your own risk use LOW lot size",
+        symbol + Style.RESET_ALL,
+    )
     leverage_verification(symbol)
     trade_func(symbol)
 
-
 def inverse_mode_func(symbol):
-    print(Fore.LIGHTCYAN_EX + "Inverse mode enabled for", symbol + Style.RESET_ALL)
-    # leverage_verification(symbol)
+    print(
+        Fore.LIGHTCYAN_EX + "Inverse mode enabled for",
+          symbol + Style.RESET_ALL)
     trade_func(symbol)
 
-
-# TO DO:
-
-# Add a terminal like console / hotkeys for entries
 
 # Argument declaration
 if args.mode == "long":
@@ -1383,14 +1778,14 @@ elif args.mode == "hedge":
         hedge_mode_func(args.symbol)
     else:
         symbol = input("Instrument undefined. \nInput instrument:")
-elif args.mode == "persistent":
+elif args.mode == "aggressive":
     if args.symbol:
-        persistent_mode_func(args.symbol)
+        aggressive_mode_func(args.symbol)
     else:
         symbol = input("Instrument undefined. \nInput instrument:")
-elif args.mode == "longbias":
+elif args.mode == "violent":
     if args.symbol:
-        longbias_mode_func(args.symbol)
+        violent_mode_func(args.symbol)
     else:
         symbol = input("Instrument undefined. \nInput instrument:")
 elif args.mode == "inverse":
