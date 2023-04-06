@@ -126,7 +126,7 @@ class Scraper:
 
     def get_average_true_range(self, symbol: str, period, interval: str, limit: int):
         data = self.exchange.get_futures_kline(
-            symbol=symbol, intveral=interval, limit=limit
+            symbol=symbol, interval=interval, limit=limit
         )
         data["tr"] = self.get_true_range(data=data)
         atr = data["tr"].rolling(period).mean()
@@ -244,7 +244,7 @@ class Scraper:
 
     def get_historical_volume(self, symbol: str, interval: str, limit: int):
         data = self.exchange.get_futures_kline(
-            symbol=symbol, intveral=interval, limit=limit
+            symbol=symbol, interval=interval, limit=limit
         )
         return [candle["volume"] for candle in data]
 
