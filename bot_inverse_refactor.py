@@ -744,6 +744,29 @@ def inverse_cancel_orders():
     except Exception as e:
         log.warning(f"{e}")
 
+def inverse_limit_long_with_cancel_order(current_bid):
+    open_orders = exchange.fetch_open_orders(symbol)
+    if len(open_orders) > 0:
+        print("Debug: Cancelling open orders...")
+        for order in open_orders:
+            exchange.cancel_order(order["id"], symbol)
+    try:
+        get_orderbook()
+        invpcl.place_active_order(
+            side="Buy",
+            symbol=symbol,
+            order_type="Limit",
+            qty=trade_qty,
+            price=current_bid,
+            reduce_only=False,
+            time_in_force="GoodTillCancel",
+            close_on_trigger=False,
+            post_only=True,
+        )
+        print("Debug: Limit long placed")
+        sendmessage("Limit long placed")
+    except Exception as e:
+        log.warning(f"{e}")
 
 def inverse_limit_short_with_cancel_order(current_ask):
     open_orders = exchange.fetch_open_orders(symbol)
@@ -1103,13 +1126,83 @@ def inverse_trade_func(symbol):
                         )
                         print(f"Long Market TP size (3): {lot_size_market_tp}")
 
+            # Inverse perps BTCUSD long
+            if (inverse_mode and inverse_direction == "long"):  
+                try:
+                    get_inverse_buy_position()
+                except Exception as e:
+                    log.warning(f"{e}")
+                # limit_sell_order_id = 0
+                # First entry
+                if buy_position_size == 0 and buy_position_prce == 0:
+                    try:
+                        inverse_limit_long_with_cancel_order(current_bid)
+                    except Exception as e:
+                        log.warning(f"{e}")
+
+                # Additional entry
+                if (
+                    buy_position_size > 0
+                    and inverse_long_trade_condition()
+                    and find_trend() == "long"
+                    and current_bid < buy_position_prce
+                ):
+                    try:
+                        # inverse_limit_short(current_ask)
+                        inverse_limit_long_with_cancel_order(current_bid)
+                    except Exception as e:
+                        log.warning(f"{e}")
+                else:
+                    print("Not time for additional entry, condition not met yet")
+
+                # Short Take profit for inverse
+                if sell_position_size > 0:
+                    try:
+                        # get_orderbook()
+                        # current_bid = get_orderbook()[0]
+                        # current_ask = get_orderbook()[1]
+                        if float(current_bid) < float(calc_tp_price()):
+                            try:
+                                get_inverse_sell_position()
+                                # Take profit logic first
+                                invpcl.place_active_order(
+                                    side="Buy",
+                                    symbol=symbol,
+                                    order_type="Market",
+                                    qty=lot_size_market_tp,
+                                    time_in_force="GoodTilCancel",
+                                    reduce_only=True,
+                                    close_on_trigger=True,
+                                )
+                                print(f"Placed order at: {calc_tp_price()}")
+                                sendmessage("Short market take profit placed")
+                            except Exception as e:
+                                print("Error in placing TP")
+                                log.warning(f"{e}")
+                        else:
+                            print("You have short position but not time for TP")
+                            print(f"Current bid {current_bid}")
+                    except Exception as e:
+                        log.warning(f"{e}")
+
+                try:
+                    if (
+                        get_orderbook()[1] < get_m_data(timeframe="1m")[0]
+                        or get_orderbook()[1] < get_m_data(timeframe="5m")[0]
+                    ):
+                        try:
+                            cancel_entry()
+                            print("Canceled entry")
+                        except Exception as e:
+                            log.warning(f"{e}")
+                except Exception as e:
+                    log.warning(f"{e}")
             # Inverse perps BTCUSD short
-            if inverse_mode:
+            if (inverse_mode and inverse_direction == "short"):    
                 try:
                     get_inverse_sell_position()
                 except Exception as e:
                     log.warning(f"{e}")
-                # limit_sell_order_id = 0
                 # First entry
                 if sell_position_size == 0 and sell_position_prce == 0:
                     try:
@@ -1131,7 +1224,7 @@ def inverse_trade_func(symbol):
                 else:
                     print("Not time for additional entry, condition not met yet")
 
-                # Take profit for inverse
+                # Take profit for inverse short
                 if sell_position_size > 0:
                     try:
                         # get_orderbook()
