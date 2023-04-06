@@ -890,6 +890,8 @@ def trade_func(symbol):  # noqa
                             remaining_position -= partial_qty
 
                         target_price = profit_targets[idx]
+                        if partial_qty < float(get_market_data()[2]):
+                            partial_qty=float(get_market_data()[2])
 
                         try:
                             exchange.create_limit_sell_order(
@@ -975,6 +977,8 @@ def trade_func(symbol):  # noqa
                             remaining_position -= partial_qty
 
                         target_price = profit_targets[idx]
+                        if partial_qty < float(get_market_data()[2]):
+                            partial_qty=float(get_market_data()[2])
 
                         try:
                             exchange.create_limit_buy_order(
