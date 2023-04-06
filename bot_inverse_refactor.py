@@ -98,13 +98,12 @@ parser.add_argument(
         "short",
         "hedge",
         "aggressive",
-        "btclinear-long",
-        "btclinear-short",
         "violent",
         "inverse",
     ],
     required=True,
 )
+
 
 parser.add_argument("--symbol", type=str, help="Specify symbol", required=True)
 
@@ -118,10 +117,33 @@ parser.add_argument(
     "--config", type=str, help="Config file. Example: my_config.json", required=False
 )
 
+parser.add_argument(
+    "--deleverage",
+    type=str,
+    help="Deleveraging enabled",
+    choices=["on", "off"],
+    required=False,
+)
+
+parser.add_argument(
+    "--avoidfees",
+    type=str,
+    help="Avoid all fees",
+    choices=["on", "off"],
+    required=False,
+)
+
 args = parser.parse_args()
 
-
-if args.mode == "inverse":
+if args.mode == "long":
+    long_mode = True
+elif args.mode == "short":
+    short_mode = True
+elif args.mode == "hedge":
+    hedge_mode = True
+elif args.mode == "aggressive":
+    aggressive_mode = True
+elif args.mode == "inverse":
     inverse_mode = True
     # symbol = 'BTC/USD:BTC'
 
