@@ -35,7 +35,7 @@ class Manager:
         if self.api == "remote":
             log.info("API manager mode: remote")
             if len(self.url) < 6:
-                self.url = "http://api.tradesimple.xyz/data/quantdata.json"
+                self.url = "http://api.tradesimple.xyz/data/quantdatav2.json"
             log.info(f"Remote API URL: {self.url}")
             self.data = self.get_remote_data()
 
@@ -76,7 +76,7 @@ class Manager:
     def get_asset_data(self, symbol: str, data):
         try:
             for asset in data:
-                if asset["Assets"] == symbol:
+                if asset["Asset"] == symbol:
                     return asset
         except Exception as e:
             log.warning(f"{e}")
