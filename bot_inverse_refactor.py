@@ -1929,7 +1929,6 @@ def inverse_mode_func(symbol):
           symbol + Style.RESET_ALL)
     inverse_trade_func(symbol)
 
-
 # Argument declaration
 if args.mode == "long":
     if args.symbol:
@@ -1960,7 +1959,7 @@ elif args.mode == "inverse":
     if args.symbol:
         inverse_mode_func(args.symbol)
     else:
-        symbol = input("Inverse mode only works with BTCUSD. \nInput BTCUSD here:")
+        symbol = input("Instrument undefined. \nInput instrument:")
 
 if args.tg == "on":
     if args.tg:
