@@ -14,7 +14,7 @@ from pybit import inverse_perpetual
 from rich.live import Live
 from rich.table import Table
 
-import tylerapi
+from api.manager import Manager
 from config import load_config
 from util import tables
 
@@ -27,8 +27,6 @@ from util import tables
 # 3. Replacing <bot_token> with your token from the botfather after creating new bot
 # 4. Look for chat id and copy the chat id into config.json
 
-config_file = Path(Path().resolve(), "config.json")
-config = load_config(path=config_file)
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -38,18 +36,12 @@ logging.basicConfig(
 
 log = logging.getLogger(__name__)
 
+manager = Manager()
+
 
 def sendmessage(message):
     bot.send_message(config.telegram_chat_id, message)
 
-
-endpoint = "https://api.bybit.com"
-unauth = inverse_perpetual.HTTP(endpoint=endpoint)
-invpcl = inverse_perpetual.HTTP(
-    endpoint=endpoint,
-    api_key=config.exchange_api_key,
-    api_secret=config.exchange_api_secret,
-)
 
 # Booleans
 version = "Directional Scalper v1.0.4"
@@ -62,6 +54,8 @@ longbias_mode = False
 inverse_mode = False
 leverage_verified = False
 inverse_trading_status = 0
+
+api_data = manager.get_data()
 
 limit_sell_order_id = 0
 
@@ -89,17 +83,6 @@ dex_btc_upnl_pct = 0.0
 
 print(Fore.LIGHTCYAN_EX + "", version, "connecting to exchange" + Style.RESET_ALL)
 
-min_volume = config.min_volume
-min_distance = config.min_distance
-botname = config.bot_name
-
-exchange = ccxt.bybit(
-    {
-        "enableRateLimit": True,
-        "apiKey": config.exchange_api_key,
-        "secret": config.exchange_api_secret,
-    }
-)
 
 parser = argparse.ArgumentParser(description="Scalper supports 6 modes")
 
@@ -117,6 +100,10 @@ parser.add_argument("--iqty", type=str, help="Initial entry quantity", required=
 
 parser.add_argument(
     "--tg", type=str, help="TG Notifications", choices=["on", "off"], required=True
+)
+
+parser.add_argument(
+    "--config", type=str, help="Config file. Example: my_config.json", required=False
 )
 
 args = parser.parse_args()
@@ -151,6 +138,21 @@ if args.tg == "on":
 else:
     tg_notifications = False
 
+
+config_file = "config.json"
+if args.config:
+    config_file = args.config
+    
+# Load config
+print(f"Loading config: {config_file}")
+config_file_path = Path(Path().resolve(), config_file)
+config = load_config(path=config_file_path)
+
+
+min_volume = config.min_volume
+min_distance = config.min_distance
+botname = config.bot_name
+
 if tg_notifications:
     bot = telebot.TeleBot(config.telegram_api_token, parse_mode=None)
 
@@ -162,19 +164,35 @@ if tg_notifications:
     def echo_all(message):
         bot.reply_to(message, message.text)
 
+exchange = ccxt.bybit(
+    {
+        "enableRateLimit": True,
+        "apiKey": config.exchange_api_key,
+        "secret": config.exchange_api_secret,
+    }
+)
 
-# Functions
+endpoint = "https://api.bybit.com"
+unauth = inverse_perpetual.HTTP(endpoint=endpoint)
+invpcl = inverse_perpetual.HTTP(
+    endpoint=endpoint,
+    api_key=config.exchange_api_key,
+    api_secret=config.exchange_api_secret,
+)
+
+# Get min vol & spread data from API
 def get_min_vol_dist_data(symbol) -> bool:
     try:
-        api_data = tylerapi.grab_api_data()
-        spread5m = tylerapi.get_asset_value(symbol=symbol, data=api_data, value="5mSpread")
-        volume1m = tylerapi.get_asset_value(symbol=symbol, data=api_data, value="1mVol")
+        api_data = manager.get_data()
+        spread5m = manager.get_asset_value(
+            symbol=symbol, data=api_data, value="5mSpread"
+        )
+        volume1m = manager.get_asset_value(symbol=symbol, data=api_data, value="1mVol")
 
         return volume1m > min_volume and spread5m > min_distance
     except Exception as e:
         log.warning(f"{e}")
         return False
-
 
 def find_decimals(value):
     return abs(decimal.Decimal(str(value)).as_tuple().exponent)
@@ -541,47 +559,75 @@ long_pos_unpl = 0
 long_pos_unpl_pct = 0
 
 
-# Define Tyler API Func for ease of use later on
-# Should turn these into functions and reduce calls
-
-# vol_condition_true = get_min_vol_dist_data(symbol)
-# tyler_total_volume_1m = tylerapi.get_asset_total_volume_1m(symbol,tylerapi.grab_api_data())
-tyler_total_volume_5m = tylerapi.get_asset_value(
-    symbol=symbol, data=tylerapi.grab_api_data(), value="5mVol"
+#api_data = manager.get_data()
+vol_condition_true = get_min_vol_dist_data(symbol)
+tyler_total_volume_1m = manager.get_asset_value(
+    symbol=symbol, data=api_data, value="1mVol"
 )
-# #tyler_1x_volume_1m = tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
-# tyler_1x_volume_5m = tylerapi.get_asset_volume_1m_1x(symbol, tylerapi.grab_api_data())
-# #tyler_5m_spread = tylerapi.get_asset_5m_spread(symbol, tylerapi.grab_api_data())
-# tyler_1m_spread = tylerapi.get_asset_1m_spread(symbol, tylerapi.grab_api_data())
-# #tyler_trend = tylerapi.get_asset_trend(symbol, tylerapi.grab_api_data())
+tyler_total_volume_5m = manager.get_asset_value(
+    symbol=symbol, data=api_data, value="5mVol"
+)
+
+tyler_1x_volume_5m = manager.get_asset_value(
+    symbol=symbol, data=api_data, value="5mVol"
+)
+
+tyler_1m_spread = manager.get_asset_value(
+    symbol=symbol, data=api_data, value="1mSpread"
+)
 
 
 def find_trend():
-    api_data = tylerapi.grab_api_data()
-    tyler_trend = tylerapi.get_asset_value(symbol=symbol, data=api_data,value="Trend")
+    try:
+        api_data = manager.get_data()
+        tyler_trend = manager.get_asset_value(
+            symbol=symbol, data=api_data, value="Trend"
+        )
 
-    return tyler_trend
+        return tyler_trend
+    except Exception as e:
+        log.warning(f"{e}")
 
 
 def find_1m_spread():
-    api_data = tylerapi.grab_api_data()
-    tyler_1m_spread = tylerapi.get_asset_value(symbol=symbol, data=api_data, value="1mSpread")
-    return tyler_1m_spread
+    try:
+        api_data = manager.get_data()
+        tyler_1m_spread = manager.get_asset_value(
+            symbol=symbol, data=api_data, value="1mSpread"
+        )
+
+        return tyler_1m_spread
+    except Exception as e:
+        log.warning(f"{e}")
 
 
 def find_5m_spread():
-    api_data = tylerapi.grab_api_data()
-    tyler_spread = tylerapi.get_asset_value(symbol=symbol, data=api_data, value="5mSpread")
-    return tyler_spread
+    try:
+        api_data = manager.get_data()
+        tyler_spread = manager.get_asset_value(
+            symbol=symbol, data=api_data, value="5mSpread"
+        )
+
+        return tyler_spread
+    except Exception as e:
+        log.warning(f"{e}")
 
 
 def find_1m_1x_volume():
-    api_data = tylerapi.grab_api_data()
-    tyler_1x_volume_1m = tylerapi.get_asset_value(
-        symbol=symbol, data=api_data, value="1mVol"
-    )
+    try:
+        api_data = manager.get_data()
+        tyler_1x_volume_1m = manager.get_asset_value(
+            symbol=symbol, data=api_data, value="1mVol"
+        )
+        return tyler_1x_volume_1m
+    except Exception as e:
+        log.warning(f"{e}")
 
-    return tyler_1x_volume_1m
+
+def find_mode():
+    mode = args.mode
+
+    return mode
 
 
 def find_mode():
@@ -794,7 +840,7 @@ def generate_main_table() -> Table:
         return generate_table()
 
 
-def generate_inverse_table():
+def generate_inverse_table(mode='inverse'):
     min_vol_dist_data = get_min_vol_dist_data(symbol)
     trend = find_trend()
 
@@ -818,7 +864,7 @@ def generate_inverse_table():
         )
     inverse_table.add_row(
         tables.generate_table_vol(
-            min_vol_dist_data, min_volume, min_distance, symbol, True
+            min_vol_dist_data, min_volume, min_distance, symbol, True, mode
         )
     )
     return inverse_table
