@@ -1,5 +1,5 @@
 colorama
-pipenv lock -r > requirements.txt
+ccxt==2.0.90
 pandas
 pydantic
 requests
