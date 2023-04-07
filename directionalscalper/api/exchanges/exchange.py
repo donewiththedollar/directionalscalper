@@ -4,7 +4,7 @@ import logging
 import time
 from decimal import Decimal
 
-from exchanges.utils import Intervals
+from directionalscalper.api.exchanges.utils import Intervals
 
 log = logging.getLogger(__name__)
 

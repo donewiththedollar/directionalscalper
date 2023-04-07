@@ -3,8 +3,8 @@ from __future__ import annotations
 import logging
 from decimal import Decimal
 
-from exchanges.exchange import Exchange
-from exchanges.utils import Intervals, get_api_data
+from directionalscalper.api.exchanges.exchange import Exchange
+from directionalscalper.api.exchanges.utils import Intervals, get_api_data
 
 log = logging.getLogger(__name__)
 

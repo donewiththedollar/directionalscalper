@@ -8,8 +8,9 @@ from logging import handlers
 
 import pandas as pd
 import ta
-from exchanges.binance import Binance
-from exchanges.bybit import Bybit
+
+from directionalscalper.api.exchanges.binance import Binance
+from directionalscalper.api.exchanges.bybit import Bybit
 
 log = logging.getLogger()
 formatter = logging.Formatter(
