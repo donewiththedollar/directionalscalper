@@ -9,11 +9,11 @@ colorama = "*"
 ccxt = "*"
 pandas = "*"
 pydantic = "*"
+python-pidfile = "*"
 requests = "*"
 rich = "*"
 ta = "*"
 telebot = "*"
-psutil = "*"
 
 [dev-packages]
 bandit = "*"
