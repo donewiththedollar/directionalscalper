@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import time
 import concurrent.futures
 import logging
+import time
 from decimal import Decimal
 from logging import handlers
 
@@ -32,6 +32,7 @@ class Scraper:
         log.info("Scraper initalising")
         self.exchange = exchange
         self.symbols = self.exchange.get_futures_symbols()
+        self.prices = self.exchange.get_futures_prices()
         log.info(f"{len(self.symbols)} symbols found")
 
     def get_spread(self, symbol: str, limit: int, timeframe: str = "1m"):
@@ -144,12 +145,12 @@ class Scraper:
     def analyse_symbol(self, symbol: str) -> dict:
         log.info(f"Analysing: {symbol}")
         values = {"Asset": symbol}
-        
-        min_trade_qty = exchange.get_min_trade_qty(symbol=symbol)
-        values["Min qty"] = min_trade_qty
 
-        price = self.exchange.get_futures_price(symbol=symbol)
-        values["Price"] = price
+        values["Min qty"] = exchange.get_symbol_info(
+            symbol=symbol, info="min_order_qty"
+        )
+
+        values["Price"] = self.prices[symbol]
 
         candles_30m = self.exchange.get_futures_kline(
             symbol=symbol, interval="30m", limit=5
@@ -168,17 +169,17 @@ class Scraper:
 
         # Define 1x 5m candle volume
         onexcandlevol = candles_5m[-1]["volume"]
-        volume_1x_5m = price * onexcandlevol
+        volume_1x_5m = values["Price"] * onexcandlevol
         values["5m 1x Volume (USDT)"] = round(volume_1x_5m)
 
         # Define 1x 1m candle volume
         onex1mcandlevol = candles_1m[-1]["volume"]
-        volume_1x = price * onex1mcandlevol
+        volume_1x = values["Price"] * onex1mcandlevol
         values["1m 1x Volume (USDT)"] = round(volume_1x)
 
         # Define 1x 30m candle volume
         onex30mcandlevol = candles_30m[-1]["volume"]
-        volume_1x_30m = price * onex30mcandlevol
+        volume_1x_30m = values["Price"] * onex30mcandlevol
         values["30m 1x Volume (USDT)"] = round(volume_1x_30m)
 
         # Define MA data
@@ -291,7 +292,7 @@ class Scraper:
 if __name__ == "__main__":
     exchange = Bybit()
     scraper = Scraper(exchange=exchange)
-    
+
     start_time = time.time()
     data = scraper.analyse_all_symbols()
     end_time = time.time()
