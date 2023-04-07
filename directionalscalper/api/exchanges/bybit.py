@@ -4,7 +4,8 @@ import logging
 from decimal import Decimal
 
 from directionalscalper.api.exchanges.exchange import Exchange
-from directionalscalper.api.exchanges.utils import Intervals, get_api_data
+from directionalscalper.api.exchanges.utils import Intervals
+from directionalscalper.core.utils import send_public_request
 
 log = logging.getLogger(__name__)
 
@@ -21,9 +22,11 @@ class Bybit(Exchange):
     def get_futures_symbols(self) -> dict:
         self.check_weight()
         symbols_list = {}
-        raw_json = get_api_data(
+        params = {"category": "linear"}
+        header, raw_json = send_public_request(
             url=self.futures_api_url,
-            endpoint="/v5/market/instruments-info?category=linear",
+            url_path="/v5/market/instruments-info",
+            payload=params,
         )
         if "result" in raw_json:
             if "list" in raw_json["result"]:
@@ -47,9 +50,9 @@ class Bybit(Exchange):
 
     def get_futures_price(self, symbol: str) -> Decimal:
         self.check_weight()
-        raw_json = get_api_data(
-            url=self.futures_api_url,
-            endpoint=f"/v5/market/tickers?category=linear&symbol={symbol}",
+        params = {"category": "linear", "symbol": symbol}
+        header, raw_json = send_public_request(
+            url=self.futures_api_url, url_path="/v5/market/tickers", payload=params
         )
         if "result" in [*raw_json]:
             if "list" in [*raw_json["result"]]:
@@ -60,9 +63,9 @@ class Bybit(Exchange):
 
     def get_futures_prices(self) -> dict:
         self.check_weight()
-        raw_json = get_api_data(
-            url=self.futures_api_url,
-            endpoint="/v5/market/tickers?category=linear",
+        params = {"category": "linear"}
+        header, raw_json = send_public_request(
+            url=self.futures_api_url, url_path="/v5/market/tickers", payload=params
         )
         prices = {}
         if "result" in [*raw_json]:
@@ -89,9 +92,14 @@ class Bybit(Exchange):
             "1w": "W",
         }
 
-        raw_json = get_api_data(
-            url=self.futures_api_url,
-            endpoint=f"/v5/market/kline?category=linear&interval={custom_intervals[interval]}&limit={limit}&symbol={symbol}",
+        params = {
+            "category": "linear",
+            "symbol": symbol,
+            "limit": limit,
+            "interval": custom_intervals[interval],
+        }
+        header, raw_json = send_public_request(
+            url=self.futures_api_url, url_path="/v5/market/kline", payload=params
         )
 
         if "result" in [*raw_json]:
@@ -113,9 +121,11 @@ class Bybit(Exchange):
     def get_funding_rate(self, symbol: str) -> float:
         self.check_weight()
         funding = 0.0
-        raw_json = get_api_data(
+        params = {"category": "linear", "symbol": symbol}
+        header, raw_json = send_public_request(
             url=self.futures_api_url,
-            endpoint=f"/v5/market/funding/history?category=linear&symbol={symbol}",
+            url_path="/v5/market/funding/history",
+            payload=params,
         )
         if "result" in [*raw_json]:
             if "list" in [*raw_json["result"]]:
@@ -137,9 +147,16 @@ class Bybit(Exchange):
             "1d": "1d",
         }
 
-        raw_json = get_api_data(
+        params = {
+            "category": "linear",
+            "symbol": symbol,
+            "interval": custom_intervals[interval],
+            "limit": limit,
+        }
+        header, raw_json = send_public_request(
             url=self.futures_api_url,
-            endpoint=f"/v5/market/funding/history?category=linear&interval={custom_intervals[interval]}&limit={limit}&symbol={symbol}",
+            url_path="/v5/market/open-interest",
+            payload=params,
         )
         if "result" in [*raw_json]:
             if "list" in [*raw_json["result"]]:

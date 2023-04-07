@@ -4,7 +4,8 @@ import logging
 from decimal import Decimal
 
 from directionalscalper.api.exchanges.exchange import Exchange
-from directionalscalper.api.exchanges.utils import Intervals, get_api_data
+from directionalscalper.api.exchanges.utils import Intervals
+from directionalscalper.core.utils import send_public_request, send_signed_request
 
 log = logging.getLogger(__name__)
 
@@ -21,9 +22,11 @@ class Binance(Exchange):
     def get_futures_symbols(self) -> dict:
         self.check_weight()
         symbols_list = {}
-        raw_json = get_api_data(
+        params: dict = {}
+        header, raw_json = send_public_request(
             url=self.futures_api_url,
-            endpoint="/fapi/v1/exchangeInfo",
+            url_path="/fapi/v1/exchangeInfo",
+            payload=params,
         )
         leverages = self.get_max_leverages()
         if "symbols" in raw_json:
@@ -56,9 +59,12 @@ class Binance(Exchange):
         return symbols_list
 
     def get_max_leverages(self) -> dict:  # requires authentication
-        raw_json = get_api_data(
-            url=self.futures_api_url,
-            endpoint="/fapi/v1/leverageBracket",
+        params: dict = {}
+        header, raw_json = send_signed_request(
+            base_url=self.futures_api_url,
+            http_method="GET",
+            url_path="/fapi/v1/exchangeInfo",
+            payload=params,
         )
         leverages = {}
         for symbol in raw_json:
@@ -72,19 +78,24 @@ class Binance(Exchange):
 
     def get_futures_price(self, symbol: str) -> Decimal:
         self.check_weight()
-        raw_json = get_api_data(
+        params = {"symbol": symbol}
+        header, raw_json = send_public_request(
             url=self.futures_api_url,
-            endpoint=f"/fapi/v1/ticker/price?symbol={symbol}",
+            url_path="/fapi/v1/ticker/price",
+            payload=params,
         )
+
         if "price" in [*raw_json]:
             return Decimal(raw_json["price"])
         return Decimal(-1.0)
 
     def get_futures_prices(self) -> dict:
         self.check_weight()
-        raw_json = get_api_data(
+        params: dict = {}
+        header, raw_json = send_public_request(
             url=self.futures_api_url,
-            endpoint="/fapi/v1/ticker/price",
+            url_path="/fapi/v1/ticker/price",
+            payload=params,
         )
         prices = {}
         if len(raw_json) > 0:
@@ -100,9 +111,11 @@ class Binance(Exchange):
     ) -> list:
         self.check_weight()
 
-        raw_json = get_api_data(
+        params = {"symbol": symbol, "limit": limit, "interval": interval}
+        header, raw_json = send_public_request(
             url=self.futures_api_url,
-            endpoint=f"/fapi/v1/klines?interval={interval}&limit={limit}&symbol={symbol}",
+            url_path="/fapi/v1/klines",
+            payload=params,
         )
 
         if len(raw_json) > 0:
@@ -121,9 +134,11 @@ class Binance(Exchange):
 
     def get_funding_rate(self, symbol: str) -> float:
         self.check_weight()
-        raw_json = get_api_data(
+        params = {"symbol": symbol}
+        header, raw_json = send_public_request(
             url=self.futures_api_url,
-            endpoint=f"/fapi/v1/fundingRate?symbol={symbol}",
+            url_path="/fapi/v1/fundingRate",
+            payload=params,
         )
         if len(raw_json) > 0:
             return float(raw_json[0]["fundingRate"])
@@ -134,10 +149,11 @@ class Binance(Exchange):
     ) -> list:
         self.check_weight()
         oi: list = []
-
-        raw_json = get_api_data(
+        params = {"symbol": symbol}
+        header, raw_json = send_public_request(
             url=self.futures_api_url,
-            endpoint=f"/fapi/v1/openInterest?symbol={symbol}",
+            url_path="/fapi/v1/openInterest",
+            payload=params,
         )
         if len(raw_json) > 0:
             return [Decimal(raw_json["openInterest"])]
