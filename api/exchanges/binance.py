@@ -80,18 +80,17 @@ class Binance(Exchange):
             return Decimal(raw_json["price"])
         return Decimal(-1.0)
 
-    def get_futures_prices(self) -> list:
+    def get_futures_prices(self) -> dict:
         self.check_weight()
         raw_json = get_api_data(
             url=self.futures_api_url,
             endpoint="/fapi/v1/ticker/price",
         )
+        prices = {}
         if len(raw_json) > 0:
-            return [
-                {"symbol": pair["symbol"], "price": Decimal(pair["price"])}
-                for pair in raw_json
-            ]
-        return []
+            for pair in raw_json:
+                prices[pair["symbol"]] = Decimal(pair["price"])
+        return prices
 
     def get_futures_kline(
         self,
