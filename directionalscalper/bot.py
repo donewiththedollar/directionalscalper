@@ -2,6 +2,7 @@ import argparse
 import logging
 import logging.handlers as handlers
 import time
+import sys
 from pathlib import Path
 
 import ccxt
@@ -10,6 +11,7 @@ import telebot
 from colorama import Fore, Style
 from rich.live import Live
 
+sys.path.append('.')
 from directionalscalper.api.manager import Manager
 from directionalscalper.core import tables
 from directionalscalper.core.config import load_config

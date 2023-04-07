@@ -1,4 +1,5 @@
 from __future__ import annotations
+import sys
 
 import concurrent.futures
 import logging
@@ -9,6 +10,7 @@ from logging import handlers
 import pandas as pd
 import ta
 
+sys.path.append('.')
 from directionalscalper.api.exchanges.binance import Binance
 from directionalscalper.api.exchanges.bybit import Bybit
 
