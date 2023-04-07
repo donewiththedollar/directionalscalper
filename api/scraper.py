@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 import concurrent.futures
 import logging
 from decimal import Decimal
@@ -143,6 +144,9 @@ class Scraper:
     def analyse_symbol(self, symbol: str) -> dict:
         log.info(f"Analysing: {symbol}")
         values = {"Asset": symbol}
+        
+        min_trade_qty = exchange.get_min_trade_qty(symbol=symbol)
+        values["Min qty"] = min_trade_qty
 
         price = self.exchange.get_futures_price(symbol=symbol)
         values["Price"] = price
@@ -220,6 +224,7 @@ class Scraper:
             data,
             columns=[
                 "Asset",
+                "Min qty",
                 "Price",
                 "1m 1x Volume (USDT)",
                 "5m 1x Volume (USDT)",
@@ -286,7 +291,12 @@ class Scraper:
 if __name__ == "__main__":
     exchange = Bybit()
     scraper = Scraper(exchange=exchange)
+    
+    start_time = time.time()
     data = scraper.analyse_all_symbols()
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"Time taken to analyse all symbols: {elapsed_time:.2f} seconds")
     print(data)
     # scraper.output_df(dataframe=data, path="data/quantdata.json", to="json")
     # scraper.output_df(dataframe=data, path="data/quantdata.csv", to="csv")

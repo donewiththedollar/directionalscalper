@@ -147,3 +147,11 @@ class Bybit(Exchange):
                 for item in raw_json["result"]["list"]:
                     oi.append(Decimal(item["openInterest"]))
         return oi
+
+    def get_min_trade_qty(self, symbol: str) -> Decimal:        
+        symbols_info = self.get_futures_symbols()
+        
+        if symbol in symbols_info:
+            return symbols_info[symbol]["min_order_qty"]
+        else:
+            raise ValueError(f"Symbol {symbol} not found in the symbols list.")
