@@ -10,6 +10,7 @@ pandas = "*"
 pydantic = "*"
 requests = "*"
 rich = "*"
+ta = "*"
 telebot = "*"
 
 [dev-packages]
