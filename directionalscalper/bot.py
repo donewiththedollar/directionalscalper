@@ -154,7 +154,7 @@ if args.config:
 
 # Load config
 print(f"Loading config: {config_file}")
-config_file_path = Path(Path().resolve(), config_file)
+config_file_path = Path(Path().resolve(), "config", config_file)
 config = load_config(path=config_file_path)
 
 if args.avoidfees == "on":
