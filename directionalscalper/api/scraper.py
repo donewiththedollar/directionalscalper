@@ -7,6 +7,7 @@ import logging
 import time
 from decimal import Decimal
 from logging import handlers
+from datetime import datetime
 
 import pandas as pd
 import ta
@@ -207,6 +208,8 @@ class Scraper:
         # Define funding rates
         values["Funding"] = self.exchange.get_funding_rate(symbol=symbol) * 100
 
+        values["Timestamp"] = int(datetime.now().timestamp())
+
         return values
 
     def analyse_all_symbols(self, max_workers: int = 20):
@@ -242,6 +245,7 @@ class Scraper:
                 "5m MA6 high",
                 "5m MA6 low",
                 "Funding",
+                "Timestamp"
             ],
         )
 
