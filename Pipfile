@@ -12,7 +12,6 @@ requests = "*"
 rich = "*"
 telebot = "*"
 
-
 [dev-packages]
 bandit = "*"
 black = "*"
@@ -21,6 +20,7 @@ flake8 = "*"
 isort = "*"
 mypy = "*"
 pre-commit = "*"
+pytest = "*"
 
 [requires]
 python_version = "3.11"
