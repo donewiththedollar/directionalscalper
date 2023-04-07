@@ -311,8 +311,8 @@ if __name__ == "__main__":
     # scraper.output_df(dataframe=negative, path="data/negativefunding.json", to="json")
 
     # positive = scraper.filter_df(dataframe=data, filter_col="Funding", operator=">", value=0)
-    # positive = scraper.reduce_df(dataframe=negative, columns=["Asset", "1m 1x Volume (USDT)", "Funding"])
-    # scraper.output_df(dataframe=negative, path="data/positivefunding.csv", to="csv")
-    # scraper.output_df(dataframe=negative, path="data/positivefunding.json", to="json")
+    # positive = scraper.reduce_df(dataframe=positive, columns=["Asset", "1m 1x Volume (USDT)", "Funding"])
+    # scraper.output_df(dataframe=positive, path="data/positivefunding.csv", to="csv")
+    # scraper.output_df(dataframe=positive, path="data/positivefunding.json", to="json")
 
     # historical_volume = scraper.get_all_historical_volume(interval="1h", limit=24)
