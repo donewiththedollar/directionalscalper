@@ -294,14 +294,14 @@ class Scraper:
 
 
 if __name__ == "__main__":
-    running = False
+    running = 0
     for process in psutil.process_iter():
-        print(process.cmdline())
         if "scraper.py" in ",".join(process.cmdline()):
-            log.warning("Scraper already running, skipping")
-            running = True
-            break
-    if not running:
+            running += 1
+            if running >= 2:
+                log.warning("Scraper already running, skipping")
+                break
+    if running <= 1:
         exchange = Bybit()
         scraper = Scraper(exchange=exchange)
 
