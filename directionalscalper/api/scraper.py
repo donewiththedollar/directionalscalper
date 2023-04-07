@@ -1,5 +1,6 @@
 from __future__ import annotations
 import sys
+import psutil
 
 import concurrent.futures
 import logging
@@ -293,30 +294,38 @@ class Scraper:
 
 
 if __name__ == "__main__":
-    exchange = Bybit()
-    scraper = Scraper(exchange=exchange)
+    running = False
+    for process in psutil.process_iter():
+        print(process.cmdline())
+        if "scraper.py" in ",".join(process.cmdline()):
+            log.warning("Scraper already running, skipping")
+            running = True
+            break
+    if not running:
+        exchange = Bybit()
+        scraper = Scraper(exchange=exchange)
 
-    start_time = time.time()
-    data = scraper.analyse_all_symbols()
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    print(f"Time taken to analyse all symbols: {elapsed_time:.2f} seconds")
-    print(data)
-    # scraper.output_df(dataframe=data, path="data/quantdata.json", to="json")
-    # scraper.output_df(dataframe=data, path="data/quantdata.csv", to="csv")
+        start_time = time.time()
+        data = scraper.analyse_all_symbols()
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        print(f"Time taken to analyse all symbols: {elapsed_time:.2f} seconds")
+        print(data)
+        # scraper.output_df(dataframe=data, path="data/quantdata.json", to="json")
+        # scraper.output_df(dataframe=data, path="data/quantdata.csv", to="csv")
 
-    # to_trade = scraper.filter_df(dataframe=data, filter_col="1m 1x Volume (USDT)", operator=">", value=15000)
-    # scraper.output_df(dataframe=to_trade, path="data/whattotrade.csv", to="csv")
-    # scraper.output_df(dataframe=to_trade, path="data/whattotrade.json", to="json")
+        # to_trade = scraper.filter_df(dataframe=data, filter_col="1m 1x Volume (USDT)", operator=">", value=15000)
+        # scraper.output_df(dataframe=to_trade, path="data/whattotrade.csv", to="csv")
+        # scraper.output_df(dataframe=to_trade, path="data/whattotrade.json", to="json")
 
-    # negative = scraper.filter_df(dataframe=data, filter_col="Funding", operator="<", value=0)
-    # negative = scraper.reduce_df(dataframe=negative, columns=["Asset", "1m 1x Volume (USDT)", "Funding"])
-    # scraper.output_df(dataframe=negative, path="data/negativefunding.csv", to="csv")
-    # scraper.output_df(dataframe=negative, path="data/negativefunding.json", to="json")
+        # negative = scraper.filter_df(dataframe=data, filter_col="Funding", operator="<", value=0)
+        # negative = scraper.reduce_df(dataframe=negative, columns=["Asset", "1m 1x Volume (USDT)", "Funding"])
+        # scraper.output_df(dataframe=negative, path="data/negativefunding.csv", to="csv")
+        # scraper.output_df(dataframe=negative, path="data/negativefunding.json", to="json")
 
-    # positive = scraper.filter_df(dataframe=data, filter_col="Funding", operator=">", value=0)
-    # positive = scraper.reduce_df(dataframe=positive, columns=["Asset", "1m 1x Volume (USDT)", "Funding"])
-    # scraper.output_df(dataframe=positive, path="data/positivefunding.csv", to="csv")
-    # scraper.output_df(dataframe=positive, path="data/positivefunding.json", to="json")
+        # positive = scraper.filter_df(dataframe=data, filter_col="Funding", operator=">", value=0)
+        # positive = scraper.reduce_df(dataframe=positive, columns=["Asset", "1m 1x Volume (USDT)", "Funding"])
+        # scraper.output_df(dataframe=positive, path="data/positivefunding.csv", to="csv")
+        # scraper.output_df(dataframe=positive, path="data/positivefunding.json", to="json")
 
-    # historical_volume = scraper.get_all_historical_volume(interval="1h", limit=24)
+        # historical_volume = scraper.get_all_historical_volume(interval="1h", limit=24)
