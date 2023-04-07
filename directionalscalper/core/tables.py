@@ -1,7 +1,8 @@
 import logging
 
 from rich.table import Table
-from util.functions import calc_lot_size
+
+from directionalscalper.core.functions import calc_lot_size
 
 log = logging.getLogger(__name__)
 
@@ -24,7 +25,6 @@ def generate_main_table(data: dict, manager) -> Table:
         return table
     except Exception as e:
         log.warning(f"{e}")
-
 
 
 def generate_table_vol(
@@ -69,6 +69,7 @@ def generate_table_vol(
         return table
     except Exception as e:
         log.warning(f"{e}")
+
 
 # # Generate table
 # def generate_table_vol(
@@ -125,28 +126,42 @@ def generate_table_vol(
 
 def generate_table_info(data: dict) -> Table:
     try:
-        if data['short_symbol_cum_realised'] > -0.0001 and data['short_symbol_cum_realised'] <= 0:
+        if (
+            data["short_symbol_cum_realised"] > -0.0001
+            and data["short_symbol_cum_realised"] <= 0
+        ):
             short_symbol_cum_realised = 0
         else:
-            short_symbol_cum_realised = data['short_symbol_cum_realised']
-        if data['long_symbol_cum_realised'] > -0.0001 and data['long_symbol_cum_realised'] <= 0:
+            short_symbol_cum_realised = data["short_symbol_cum_realised"]
+        if (
+            data["long_symbol_cum_realised"] > -0.0001
+            and data["long_symbol_cum_realised"] <= 0
+        ):
             long_symbol_cum_realised = 0
         else:
-            long_symbol_cum_realised = data['long_symbol_cum_realised']
-        if data['long_symbol_realised'] > -0.0001 and data['long_symbol_realised'] <= 0:
+            long_symbol_cum_realised = data["long_symbol_cum_realised"]
+        if data["long_symbol_realised"] > -0.0001 and data["long_symbol_realised"] <= 0:
             long_symbol_realised = 0
         else:
-            long_symbol_realised = data['long_symbol_realised']
-        if data['short_symbol_realised'] > -0.0001 and data['short_symbol_realised'] <= 0:
+            long_symbol_realised = data["long_symbol_realised"]
+        if (
+            data["short_symbol_realised"] > -0.0001
+            and data["short_symbol_realised"] <= 0
+        ):
             short_symbol_realised = 0
         else:
-            short_symbol_realised = data['short_symbol_realised']
+            short_symbol_realised = data["short_symbol_realised"]
 
         total_cum_realised = short_symbol_cum_realised + long_symbol_cum_realised
 
         total_unpl = data["short_pos_unpl"] + data["long_pos_unpl"]
-        short_pos_unpl_pct, long_pos_unpl_pct = data["short_pos_unpl_pct"], data["long_pos_unpl_pct"]
-        trade_qty_001x, trade_qty_001x_round = calc_lot_size(0.001, data["max_trade_qty"], data["market_data"])
+        short_pos_unpl_pct, long_pos_unpl_pct = (
+            data["short_pos_unpl_pct"],
+            data["long_pos_unpl_pct"],
+        )
+        trade_qty_001x, trade_qty_001x_round = calc_lot_size(
+            0.001, data["max_trade_qty"], data["market_data"]
+        )
 
         table = Table(show_header=False, width=50)
         table.add_column(justify="right")
@@ -190,10 +205,12 @@ def generate_table_info(data: dict) -> Table:
             if short_pos_unpl_pct < 0
             else f"[green]{'{:.2f}%'.format(short_pos_unpl_pct)}",
         )
-        table.add_row("Entry size", 
-                      f"{data['trade_qty']}" 
-                      if float(data['trade_qty']) > trade_qty_001x
-                      else f"[red]{data['trade_qty']}")
+        table.add_row(
+            "Entry size",
+            f"{data['trade_qty']}"
+            if float(data["trade_qty"]) > trade_qty_001x
+            else f"[red]{data['trade_qty']}",
+        )
         table.add_row("Long size", "{:.4g}".format(data["long_pos_qty"]))
         table.add_row("Short size", "{:.4g}".format(data["short_pos_qty"]))
         table.add_row("Long position price", "${:.4f}".format(data["long_pos_price"]))
@@ -206,9 +223,12 @@ def generate_table_info(data: dict) -> Table:
         )
         table.add_row("Max", "{:.4g}".format(data["max_trade_qty"]))
 
-        table.add_row("0.001x", "[red]{:.4g} ({:.4g})".format(trade_qty_001x_round, trade_qty_001x) 
-                      if trade_qty_001x_round == 0 
-                      else "{:.4g}".format(trade_qty_001x_round))
+        table.add_row(
+            "0.001x",
+            "[red]{:.4g} ({:.4g})".format(trade_qty_001x_round, trade_qty_001x)
+            if trade_qty_001x_round == 0
+            else "{:.4g}".format(trade_qty_001x_round),
+        )
         # table.add_row("Trend:", str(tyler_trend))
         table.add_row("Trend", f"{data['trend']}")
 

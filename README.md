@@ -1,5 +1,9 @@
-# Directional Scalper
-## A hedge scalping strategy based on directional analysis using a quantitative approach
+<h1 align="center">Directional Scalper</h1>
+<p align="center">
+A hedge scalping strategy based on directional analysis using a quantitative approach<br>
+</p>
+
+
 ### Supports Bybit only, other exchanges coming soon
 
 ### Links
@@ -11,8 +15,14 @@
 # Instructions
 * Install requirements
 > pip3 install -r requirements.txt
+
+### Developer instructions
+- Install developer requirements from pipenv `pipenv install --dev`
+- Install pre-commit hooks `pre-commit install`
+- Run pytest `pytest -vv`
+
 ### Setting up the bot
- 1. Create config.json from config.json.example
+ 1. Create `config.json` from `config.example.json` in /config directory
  2. Enter exchange_api_key and exchange_api_secret
  3. Check/fill all other options. For telegram see below
 

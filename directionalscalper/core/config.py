@@ -27,7 +27,6 @@ class Config(BaseModel):
     profit_multiplier_pct: float = 0.01
     inverse_direction: str = "short"
 
-
     @validator("min_volume")
     def minimum_min_volume(cls, v):
         if v < 0.0:
@@ -57,6 +56,7 @@ class Config(BaseModel):
         if v < 0.0:
             raise ValueError("linear_taker_fee must be greater than 0")
         return v
+
 
 def load_config(path):
     if not path.is_file():

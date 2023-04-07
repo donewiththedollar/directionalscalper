@@ -4,7 +4,7 @@ import logging
 import time
 from decimal import Decimal
 
-from exchanges.utils import Intervals
+from directionalscalper.api.exchanges.utils import Intervals
 
 log = logging.getLogger(__name__)
 
@@ -37,8 +37,8 @@ class Exchange:
     def get_futures_price(self, symbol: str) -> Decimal:
         return Decimal(-1.0)
 
-    def get_futures_prices(self) -> list:
-        return []
+    def get_futures_prices(self) -> dict:
+        return {}
 
     def get_futures_kline(
         self,
@@ -55,3 +55,12 @@ class Exchange:
         self, symbol: str, interval: Intervals = Intervals.ONE_DAY, limit: int = 200
     ) -> list:
         return []
+
+    def get_symbol_info(self, symbol: str, info: str):
+        symbols_info = self.get_futures_symbols()
+
+        if symbol in symbols_info:
+            if info in symbols_info[symbol]:
+                return symbols_info[symbol][info]
+            raise ValueError(f"{info} not found for {symbol}")
+        raise ValueError(f"Symbol {symbol} not found in the symbols list.")

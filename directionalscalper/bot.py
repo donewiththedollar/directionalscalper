@@ -2,6 +2,7 @@ import argparse
 import logging
 import logging.handlers as handlers
 import time
+import sys
 from pathlib import Path
 
 import ccxt
@@ -10,12 +11,13 @@ import telebot
 from colorama import Fore, Style
 from rich.live import Live
 
-from api.manager import Manager
-from config import load_config
-from util import tables
-from util.functions import print_lot_sizes
+sys.path.append('.')
+from directionalscalper.api.manager import Manager
+from directionalscalper.core import tables
+from directionalscalper.core.config import load_config
+from directionalscalper.core.functions import print_lot_sizes
 
-# 1. Create config.json from config.json.example
+# 1. Create config.json from config.example.json
 # 2. Enter exchange_api_key and exchange_api_secret
 # 3. Check/fill all other options. For telegram see below
 
@@ -154,7 +156,7 @@ if args.config:
 
 # Load config
 print(f"Loading config: {config_file}")
-config_file_path = Path(Path().resolve(), config_file)
+config_file_path = Path(Path().resolve(), "config", config_file)
 config = load_config(path=config_file_path)
 
 if args.avoidfees == "on":
@@ -190,6 +192,7 @@ exchange = ccxt.bybit(
         "secret": config.exchange_api_secret,
     }
 )
+
 
 # Get min vol & spread data from API
 def get_min_vol_dist_data(symbol) -> bool:
@@ -239,7 +242,7 @@ def get_balance():
         dex_balance = dex["USDT"]["available_balance"]
         dex_pnl = dex["USDT"]["realised_pnl"]
         dex_upnl = dex["USDT"]["unrealised_pnl"]
-        #print(f"dex_upnl: {dex_upnl}, type: {type(dex_upnl)}")  # Add this line to check the type and value of dex_upnl
+        # print(f"dex_upnl: {dex_upnl}, type: {type(dex_upnl)}")  # Add this line to check the type and value of dex_upnl
         dex_wallet = round(float(dex["USDT"]["wallet_balance"]), 2)
         dex_equity = round(float(dex["USDT"]["equity"]), 2)
     except KeyError as e:
@@ -280,7 +283,7 @@ def get_market_data():
 def get_short_positions(pos_dict):
     try:
         global short_pos_qty, short_pos_price, short_symbol_realised, short_symbol_cum_realised, short_pos_unpl, short_pos_unpl_pct, short_liq_price, short_pos_price_at_entry
-    
+
         pos_dict = pos_dict[1]
         short_pos_qty = float(pos_dict["contracts"])
         short_symbol_realised = round(float(pos_dict["info"]["realised_pnl"] or 0), 4)
@@ -436,6 +439,7 @@ def leverage_verification(symbol):
         )
         log.debug(f"{e}")
 
+
 if not leverage_verified:
     try:
         leverage_verification(symbol)
@@ -499,6 +503,7 @@ tyler_1x_volume_5m = manager.get_asset_value(
 tyler_1m_spread = manager.get_asset_value(
     symbol=symbol, data=api_data, value="1mSpread"
 )
+
 
 def find_trend():
     try:
@@ -641,6 +646,7 @@ def get_current_price(exchange, symbol):
     current_price = (ticker["bid"] + ticker["ask"]) / 2
     return current_price
 
+
 def generate_main_table():
     try:
         min_vol_dist_data = get_min_vol_dist_data(symbol)
@@ -767,12 +773,6 @@ def trade_func(symbol):  # noqa
                         / denominator
                     )
 
-            if config.avoid_fees:
-                taker_fee_rate = config.linear_taker_fee
-            else:
-                if deleveraging_mode:
-                    taker_fee_rate = config.linear_taker_fee
-
             add_trade_qty = trade_qty
 
             # Long entry logic if long enabled
@@ -877,7 +877,9 @@ def trade_func(symbol):  # noqa
 
                     # Calculate subsequent profit targets
                     for _ in range(len(profit_percentages) - 1):
-                        next_target = profit_targets[-1] * (1 + profit_increment_percentage)
+                        next_target = profit_targets[-1] * (
+                            1 + profit_increment_percentage
+                        )
                         profit_targets.append(next_target)
 
                     remaining_position = long_open_pos_qty
@@ -891,7 +893,7 @@ def trade_func(symbol):  # noqa
 
                         target_price = profit_targets[idx]
                         if partial_qty < float(get_market_data()[2]):
-                            partial_qty=float(get_market_data()[2])
+                            partial_qty = float(get_market_data()[2])
 
                         try:
                             exchange.create_limit_sell_order(
@@ -900,7 +902,6 @@ def trade_func(symbol):  # noqa
                             time.sleep(0.05)
                         except Exception as e:
                             log.warning(f"{e}")
-
 
             # Long: Normal take profit logic
             if (
@@ -964,7 +965,9 @@ def trade_func(symbol):  # noqa
 
                     # Calculate subsequent profit targets
                     for _ in range(len(profit_percentages) - 1):
-                        next_target = profit_targets[-1] * (1 - profit_increment_percentage)
+                        next_target = profit_targets[-1] * (
+                            1 - profit_increment_percentage
+                        )
                         profit_targets.append(next_target)
 
                     remaining_position = short_open_pos_qty
@@ -978,7 +981,7 @@ def trade_func(symbol):  # noqa
 
                         target_price = profit_targets[idx]
                         if partial_qty < float(get_market_data()[2]):
-                            partial_qty=float(get_market_data()[2])
+                            partial_qty = float(get_market_data()[2])
 
                         try:
                             exchange.create_limit_buy_order(
@@ -987,8 +990,6 @@ def trade_func(symbol):  # noqa
                             time.sleep(0.05)
                         except Exception as e:
                             log.warning(f"{e}")
-
-
 
             # SHORT: Take profit logic
             if (
@@ -1048,7 +1049,11 @@ def trade_func(symbol):  # noqa
                         if (
                             find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
-                            and (add_short_trade_condition() or (current_ask > short_pos_price) or float(dex_upnl) < 0.0)
+                            and (
+                                add_short_trade_condition()
+                                or (current_ask > short_pos_price)
+                                or float(dex_upnl) < 0.0
+                            )
                         ):
                             trade_size = (
                                 short_violent_trade_qty
@@ -1068,7 +1073,11 @@ def trade_func(symbol):  # noqa
                         if (
                             find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
-                            and (add_long_trade_condition() or (current_bid < long_pos_price) or float(dex_upnl) < 0.0)
+                            and (
+                                add_long_trade_condition()
+                                or (current_bid < long_pos_price)
+                                or float(dex_upnl) < 0.0
+                            )
                         ):
                             trade_size = (
                                 long_violent_trade_qty
@@ -1104,7 +1113,7 @@ def trade_func(symbol):  # noqa
                             and find_5m_spread() > min_distance
                             and short_pos_qty < max_trade_qty
                             and add_short_trade_condition()
-                            #and current_ask > short_pos_price
+                            # and current_ask > short_pos_price
                         ):
                             try:
                                 exchange.create_limit_sell_order(
@@ -1120,7 +1129,7 @@ def trade_func(symbol):  # noqa
                             and find_5m_spread() > min_distance
                             and long_pos_qty < max_trade_qty
                             and add_long_trade_condition()
-                            #and current_bid < long_pos_price
+                            # and current_bid < long_pos_price
                         ):
                             try:
                                 exchange.create_limit_buy_order(
@@ -1149,7 +1158,11 @@ def trade_func(symbol):  # noqa
                             find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
                             and short_pos_qty < max_trade_qty
-                            and (add_short_trade_condition() or (current_ask > short_pos_price) or float(dex_upnl) < 0.0)
+                            and (
+                                add_short_trade_condition()
+                                or (current_ask > short_pos_price)
+                                or float(dex_upnl) < 0.0
+                            )
                         ):
                             try:
                                 exchange.create_limit_sell_order(
@@ -1164,7 +1177,11 @@ def trade_func(symbol):  # noqa
                             find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
                             and long_pos_qty < max_trade_qty
-                            and (add_long_trade_condition() or (current_bid < long_pos_price) or float(dex_upnl) < 0.0)
+                            and (
+                                add_long_trade_condition()
+                                or (current_bid < long_pos_price)
+                                or float(dex_upnl) < 0.0
+                            )
                         ):
                             try:
                                 exchange.create_limit_buy_order(
@@ -1220,15 +1237,18 @@ def long_mode_func(symbol):
     leverage_verification(symbol)
     trade_func(symbol)
 
+
 def short_mode_func(symbol):
     print(Fore.LIGHTCYAN_EX + "Short mode enabled for", symbol + Style.RESET_ALL)
     leverage_verification(symbol)
     trade_func(symbol)
 
+
 def hedge_mode_func(symbol):
     print(Fore.LIGHTCYAN_EX + "Hedge mode enabled for", symbol + Style.RESET_ALL)
     leverage_verification(symbol)
     trade_func(symbol)
+
 
 def aggressive_mode_func(symbol):
     print(
@@ -1238,15 +1258,18 @@ def aggressive_mode_func(symbol):
     leverage_verification(symbol)
     trade_func(symbol)
 
+
 def linearbtclong_mode_func(symbol):
     print(Fore.LIGHTCYAN_EX + "BTC Linear LONG mode enabled", symbol + Style.RESET_ALL)
     leverage_verification(symbol)
     trade_func(symbol)
 
+
 def linearbtcshort_mode_func(symbol):
     print(Fore.LIGHTCYAN_EX + "BTC Linear SHORT mode enabled", symbol + Style.RESET_ALL)
     leverage_verification(symbol)
     trade_func(symbol)
+
 
 def violent_mode_func(symbol):
     print(
@@ -1256,6 +1279,7 @@ def violent_mode_func(symbol):
     )
     leverage_verification(symbol)
     trade_func(symbol)
+
 
 # Argument declaration
 if args.mode == "long":

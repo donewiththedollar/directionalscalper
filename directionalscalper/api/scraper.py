@@ -1,15 +1,20 @@
 from __future__ import annotations
+import sys
+import pidfile
 
-import time
 import concurrent.futures
 import logging
+import time
 from decimal import Decimal
 from logging import handlers
+from datetime import datetime
 
 import pandas as pd
 import ta
-from exchanges.binance import Binance
-from exchanges.bybit import Bybit
+
+sys.path.append('.')
+from directionalscalper.api.exchanges.binance import Binance
+from directionalscalper.api.exchanges.bybit import Bybit
 
 log = logging.getLogger()
 formatter = logging.Formatter(
@@ -32,6 +37,7 @@ class Scraper:
         log.info("Scraper initalising")
         self.exchange = exchange
         self.symbols = self.exchange.get_futures_symbols()
+        self.prices = self.exchange.get_futures_prices()
         log.info(f"{len(self.symbols)} symbols found")
 
     def get_spread(self, symbol: str, limit: int, timeframe: str = "1m"):
@@ -144,12 +150,12 @@ class Scraper:
     def analyse_symbol(self, symbol: str) -> dict:
         log.info(f"Analysing: {symbol}")
         values = {"Asset": symbol}
-        
-        min_trade_qty = exchange.get_min_trade_qty(symbol=symbol)
-        values["Min qty"] = min_trade_qty
 
-        price = self.exchange.get_futures_price(symbol=symbol)
-        values["Price"] = price
+        values["Min qty"] = exchange.get_symbol_info(
+            symbol=symbol, info="min_order_qty"
+        )
+
+        values["Price"] = self.prices[symbol]
 
         candles_30m = self.exchange.get_futures_kline(
             symbol=symbol, interval="30m", limit=5
@@ -168,17 +174,17 @@ class Scraper:
 
         # Define 1x 5m candle volume
         onexcandlevol = candles_5m[-1]["volume"]
-        volume_1x_5m = price * onexcandlevol
+        volume_1x_5m = values["Price"] * onexcandlevol
         values["5m 1x Volume (USDT)"] = round(volume_1x_5m)
 
         # Define 1x 1m candle volume
         onex1mcandlevol = candles_1m[-1]["volume"]
-        volume_1x = price * onex1mcandlevol
+        volume_1x = values["Price"] * onex1mcandlevol
         values["1m 1x Volume (USDT)"] = round(volume_1x)
 
         # Define 1x 30m candle volume
         onex30mcandlevol = candles_30m[-1]["volume"]
-        volume_1x_30m = price * onex30mcandlevol
+        volume_1x_30m = values["Price"] * onex30mcandlevol
         values["30m 1x Volume (USDT)"] = round(volume_1x_30m)
 
         # Define MA data
@@ -201,6 +207,8 @@ class Scraper:
 
         # Define funding rates
         values["Funding"] = self.exchange.get_funding_rate(symbol=symbol) * 100
+
+        values["Timestamp"] = int(datetime.now().timestamp())
 
         return values
 
@@ -237,6 +245,7 @@ class Scraper:
                 "5m MA6 high",
                 "5m MA6 low",
                 "Funding",
+                "Timestamp"
             ],
         )
 
@@ -289,30 +298,37 @@ class Scraper:
 
 
 if __name__ == "__main__":
-    exchange = Bybit()
-    scraper = Scraper(exchange=exchange)
-    
-    start_time = time.time()
-    data = scraper.analyse_all_symbols()
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    print(f"Time taken to analyse all symbols: {elapsed_time:.2f} seconds")
-    print(data)
-    # scraper.output_df(dataframe=data, path="data/quantdata.json", to="json")
-    # scraper.output_df(dataframe=data, path="data/quantdata.csv", to="csv")
+    log.info('Starting process')
+    try:
+        with pidfile.PIDFile("scraper.pid"):
+            exchange = Bybit()
+            scraper = Scraper(exchange=exchange)
 
-    # to_trade = scraper.filter_df(dataframe=data, filter_col="1m 1x Volume (USDT)", operator=">", value=15000)
-    # scraper.output_df(dataframe=to_trade, path="data/whattotrade.csv", to="csv")
-    # scraper.output_df(dataframe=to_trade, path="data/whattotrade.json", to="json")
+            start_time = time.time()
+            data = scraper.analyse_all_symbols()
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+            print(f"Time taken to analyse all symbols: {elapsed_time:.2f} seconds")
+            print(data)
+            # scraper.output_df(dataframe=data, path="data/quantdata.json", to="json")
+            # scraper.output_df(dataframe=data, path="data/quantdata.csv", to="csv")
 
-    # negative = scraper.filter_df(dataframe=data, filter_col="Funding", operator="<", value=0)
-    # negative = scraper.reduce_df(dataframe=negative, columns=["Asset", "1m 1x Volume (USDT)", "Funding"])
-    # scraper.output_df(dataframe=negative, path="data/negativefunding.csv", to="csv")
-    # scraper.output_df(dataframe=negative, path="data/negativefunding.json", to="json")
+            # to_trade = scraper.filter_df(dataframe=data, filter_col="1m 1x Volume (USDT)", operator=">", value=15000)
+            # scraper.output_df(dataframe=to_trade, path="data/whattotrade.csv", to="csv")
+            # scraper.output_df(dataframe=to_trade, path="data/whattotrade.json", to="json")
 
-    # positive = scraper.filter_df(dataframe=data, filter_col="Funding", operator=">", value=0)
-    # positive = scraper.reduce_df(dataframe=positive, columns=["Asset", "1m 1x Volume (USDT)", "Funding"])
-    # scraper.output_df(dataframe=positive, path="data/positivefunding.csv", to="csv")
-    # scraper.output_df(dataframe=positive, path="data/positivefunding.json", to="json")
+            # negative = scraper.filter_df(dataframe=data, filter_col="Funding", operator="<", value=0)
+            # negative = scraper.reduce_df(dataframe=negative, columns=["Asset", "1m 1x Volume (USDT)", "Funding"])
+            # scraper.output_df(dataframe=negative, path="data/negativefunding.csv", to="csv")
+            # scraper.output_df(dataframe=negative, path="data/negativefunding.json", to="json")
 
-    # historical_volume = scraper.get_all_historical_volume(interval="1h", limit=24)
+            # positive = scraper.filter_df(dataframe=data, filter_col="Funding", operator=">", value=0)
+            # positive = scraper.reduce_df(dataframe=positive, columns=["Asset", "1m 1x Volume (USDT)", "Funding"])
+            # scraper.output_df(dataframe=positive, path="data/positivefunding.csv", to="csv")
+            # scraper.output_df(dataframe=positive, path="data/positivefunding.json", to="json")
+
+            # historical_volume = scraper.get_all_historical_volume(interval="1h", limit=24)
+    except pidfile.AlreadyRunningError:
+        log.warning('Already running.')
+
+    log.info('Exiting')

@@ -1,0 +1,19 @@
+{
+  "avoid_fees": false,
+  "bot_name": "",
+  "divider": 7,
+  "exchange": "bybit",
+  "exchange_api_key": "",
+  "exchange_api_secret": "",
+  "inverse_direction": "short",
+  "linear_taker_fee": 0.085,
+  "min_distance": 0.15,
+  "min_fee": 0.17,
+  "min_volume": 15000,
+  "profit_multiplier_pct": 0.01,
+  "symbol": "BTCUSD",
+  "telegram_api_token": "",
+  "telegram_chat_id": "",
+  "violent_multiplier": 2.0,
+  "wallet_exposure": 1.0
+}
