@@ -5,6 +5,7 @@
 ### Links
 * Dashboard: https://tradesimple.xyz
 * API: http://api.tradesimple.xyz/data/quantdata.json
+* APIv2: http://api.tradesimple.xyz/data/quantdatav2.json
 
 ![](https://github.com/donewiththedollar/directional-scalper/blob/main/directional-scalper.gif)
 # Instructions
