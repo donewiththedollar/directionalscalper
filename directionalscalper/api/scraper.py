@@ -2,6 +2,7 @@ from __future__ import annotations
 import sys
 import pidfile
 
+import json
 import concurrent.futures
 import logging
 import time
@@ -31,6 +32,11 @@ streamHandler = logging.StreamHandler()
 streamHandler.setFormatter(formatter)
 log.addHandler(streamHandler)
 
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super(DecimalEncoder, self).default(obj)
 
 class Scraper:
     def __init__(self, exchange):
@@ -296,39 +302,45 @@ class Scraper:
     def reduce_df(self, dataframe, columns: list):
         return dataframe[columns]
 
-
 if __name__ == "__main__":
     log.info('Starting process')
-    try:
-        with pidfile.PIDFile("scraper.pid"):
-            exchange = Bybit()
-            scraper = Scraper(exchange=exchange)
+    
+    while True:
+        try:
+            with pidfile.PIDFile("scraper.pid"):
+                exchange = Bybit()
+                scraper = Scraper(exchange=exchange)
 
-            start_time = time.time()
-            data = scraper.analyse_all_symbols()
-            end_time = time.time()
-            elapsed_time = end_time - start_time
-            print(f"Time taken to analyse all symbols: {elapsed_time:.2f} seconds")
-            print(data)
-            # scraper.output_df(dataframe=data, path="data/quantdata.json", to="json")
-            # scraper.output_df(dataframe=data, path="data/quantdata.csv", to="csv")
+                start_time = time.time()
+                data = scraper.analyse_all_symbols()
+                end_time = time.time()
+                elapsed_time = end_time - start_time
+                print(f"Time taken to analyse all symbols: {elapsed_time:.2f} seconds")
+                print(data)
+                scraper.output_df(dataframe=data, path="data/quantdata.csv", to="json")
+                scraper.output_df(dataframe=data, path="data/quantdata.csv", to="csv")
 
-            # to_trade = scraper.filter_df(dataframe=data, filter_col="1m 1x Volume (USDT)", operator=">", value=15000)
-            # scraper.output_df(dataframe=to_trade, path="data/whattotrade.csv", to="csv")
-            # scraper.output_df(dataframe=to_trade, path="data/whattotrade.json", to="json")
+                to_trade = scraper.filter_df(dataframe=data, filter_col="1m 1x Volume (USDT)", operator=">", value=15000)
+                scraper.output_df(dataframe=to_trade, path="data/whattotrade.csv", to="csv")
+                scraper.output_df(dataframe=to_trade, path="data/whattotrade.json", to="json")
 
-            # negative = scraper.filter_df(dataframe=data, filter_col="Funding", operator="<", value=0)
-            # negative = scraper.reduce_df(dataframe=negative, columns=["Asset", "1m 1x Volume (USDT)", "Funding"])
-            # scraper.output_df(dataframe=negative, path="data/negativefunding.csv", to="csv")
-            # scraper.output_df(dataframe=negative, path="data/negativefunding.json", to="json")
+                negative = scraper.filter_df(dataframe=data, filter_col="Funding", operator="<", value=0)
+                negative = scraper.reduce_df(dataframe=negative, columns=["Asset", "1m 1x Volume (USDT)", "Funding"])
+                scraper.output_df(dataframe=negative, path="data/negativefunding.csv", to="csv")
+                scraper.output_df(dataframe=negative, path="data/negativefunding.json", to="json")
 
-            # positive = scraper.filter_df(dataframe=data, filter_col="Funding", operator=">", value=0)
-            # positive = scraper.reduce_df(dataframe=positive, columns=["Asset", "1m 1x Volume (USDT)", "Funding"])
-            # scraper.output_df(dataframe=positive, path="data/positivefunding.csv", to="csv")
-            # scraper.output_df(dataframe=positive, path="data/positivefunding.json", to="json")
+                positive = scraper.filter_df(dataframe=data, filter_col="Funding", operator=">", value=0)
+                positive = scraper.reduce_df(dataframe=positive, columns=["Asset", "1m 1x Volume (USDT)", "Funding"])
+                scraper.output_df(dataframe=positive, path="data/positivefunding.csv", to="csv")
+                scraper.output_df(dataframe=positive, path="data/positivefunding.json", to="json")
 
-            # historical_volume = scraper.get_all_historical_volume(interval="1h", limit=24)
-    except pidfile.AlreadyRunningError:
-        log.warning('Already running.')
+                total_historical_volume = scraper.get_all_historical_volume(interval="1h", limit=24)
+                with open("data/total_historical_volume.json", "w") as outfile:
+                    json.dump(total_historical_volume, outfile, cls=DecimalEncoder)
 
-    log.info('Exiting')
+        except pidfile.AlreadyRunningError:
+            log.warning('Already running.')
+
+        log.info('Iteration completed. Waiting for the next run.')
+        
+        time.sleep(60)
