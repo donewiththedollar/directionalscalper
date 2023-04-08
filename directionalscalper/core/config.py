@@ -88,10 +88,11 @@ class Telegram(BaseModel):
 
 
 class Config(BaseModel):
-    api = API
-    exchange = Exchange
-    logger = Logger
-    bot = Bot
+    api: API
+    bot: Bot
+    exchange: Exchange
+    logger: Logger
+    telegram: Telegram
 
 
 def load_config(path):
