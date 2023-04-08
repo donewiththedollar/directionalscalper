@@ -7,6 +7,8 @@ from pathlib import Path
 
 import requests  # type: ignore
 
+from directionalscalper.core.utils import send_public_request
+
 log = logging.getLogger(__name__)
 
 
@@ -40,8 +42,10 @@ class Manager:
             self.data = self.get_remote_data()
 
         elif self.api == "local":
-            log.error("local API manager not implemented yet")
-            raise InvalidAPI(message="local is not implemented yet")
+            if len(str(self.path)) < 6:
+                self.path = Path("data", "quantdatav2.json")
+            log.info(f"Local API directory: {self.path}")
+            self.data = self.get_local_data()
 
         else:
             log.error("API must be 'local' or 'remote'")
@@ -56,17 +60,28 @@ class Manager:
         if self.api == "remote":
             return self.get_remote_data()
         if self.api == "local":
-            pass
+            return self.get_local_data()
+
+    def get_local_data(self):
+        if not self.check_timestamp():
+            return self.data
+        if not self.path.is_file():
+            raise InvalidAPI(message=f"{self.path} is not a file")
+        f = open(self.path)
+        try:
+            self.data = json.load(f)
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                f"ERROR: Invalid JSON: {exc.msg}, line {exc.lineno}, column {exc.colno}"
+            )
+        self.update_last_checked()
+        return self.data
 
     def get_remote_data(self):
         if not self.check_timestamp():
             return self.data
-        try:
-            response = requests.get(self.url)
-            response.raise_for_status()  # Raise an exception if an HTTP error occurs
-            self.data = response.json()
-        except (requests.exceptions.HTTPError, json.JSONDecodeError) as e:
-            log.warning(f"{e}")
+        header, raw_json = send_public_request(url=self.url)
+        self.data = raw_json
         self.update_last_checked()
         return self.data
 
