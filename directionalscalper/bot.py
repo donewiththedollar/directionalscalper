@@ -1,8 +1,6 @@
 import argparse
-import logging
-import logging.handlers as handlers
-import time
 import sys
+import time
 from pathlib import Path
 
 import ccxt
@@ -11,11 +9,12 @@ import telebot
 from colorama import Fore, Style
 from rich.live import Live
 
-sys.path.append('.')
+sys.path.append(".")
 from directionalscalper.api.manager import Manager
 from directionalscalper.core import tables
 from directionalscalper.core.config import load_config
 from directionalscalper.core.functions import print_lot_sizes
+from directionalscalper.core.logger import Logger
 
 # 1. Create config.json from config.example.json
 # 2. Enter exchange_api_key and exchange_api_secret
@@ -27,20 +26,8 @@ from directionalscalper.core.functions import print_lot_sizes
 # 4. Look for chat id and copy the chat id into config.json
 
 
-log = logging.getLogger()
-formatter = logging.Formatter(
-    "%(asctime)s - %(filename)s:%(lineno)s - %(funcName)20s() - %(message)s"
-)
-logHandler = handlers.RotatingFileHandler("ds.log", maxBytes=5000000, backupCount=5)
-logHandler.setFormatter(formatter)
-log.setLevel(logging.INFO)
-log.addHandler(logHandler)
-
-manager = Manager()
-
-
 def sendmessage(message):
-    bot.send_message(config.telegram_chat_id, message)
+    bot.send_message(config.telegram.chat_id, message)
 
 
 # Bools
@@ -154,17 +141,22 @@ config_file = "config.json"
 if args.config:
     config_file = args.config
 
-# Load config
 print(f"Loading config: {config_file}")
 config_file_path = Path(Path().resolve(), "config", config_file)
 config = load_config(path=config_file_path)
+log = Logger(filename="ds.log", level=config.logger.level)
+manager = Manager(
+    api=config.api.mode,
+    path=Path("data", config.api.filename),
+    url=f"{config.api.url}{config.api.filename}",
+)
 
 if args.avoidfees == "on":
-    config.avoid_fees = True
+    config.bot.avoid_fees = True
     print("Avoiding fees")
 
 if tg_notifications:
-    bot = telebot.TeleBot(config.telegram_api_token, parse_mode=None)
+    bot = telebot.TeleBot(config.telegram.api_token, parse_mode=None)
 
     @bot.message_handler(commands=["start", "help"])
     def send_welcome(message):
@@ -175,21 +167,21 @@ if tg_notifications:
         bot.reply_to(message, message.text)
 
 
-min_volume = config.min_volume
-min_distance = config.min_distance
-botname = config.bot_name
-linear_taker_fee = config.linear_taker_fee
-wallet_exposure = config.wallet_exposure
-violent_multiplier = config.violent_multiplier
+min_volume = config.bot.min_volume
+min_distance = config.bot.min_distance
+botname = config.bot.bot_name
+linear_taker_fee = config.bot.linear_taker_fee
+wallet_exposure = config.bot.wallet_exposure
+violent_multiplier = config.bot.violent_multiplier
 
 profit_percentages = [0.3, 0.5, 0.2]
-profit_increment_percentage = config.profit_multiplier_pct
+profit_increment_percentage = config.bot.profit_multiplier_pct
 
 exchange = ccxt.bybit(
     {
         "enableRateLimit": True,
-        "apiKey": config.exchange_api_key,
-        "secret": config.exchange_api_secret,
+        "apiKey": config.exchange.api_key,
+        "secret": config.exchange.api_secret,
     }
 )
 
@@ -849,7 +841,7 @@ def trade_func(symbol):  # noqa
 
             # Long incremental TP
             if (
-                (deleveraging_mode or config.avoid_fees)
+                (deleveraging_mode or config.bot.avoid_fees)
                 and long_pos_qty > 0
                 and (
                     hedge_mode
@@ -905,7 +897,7 @@ def trade_func(symbol):  # noqa
 
             # Long: Normal take profit logic
             if (
-                (not deleveraging_mode or not config.avoid_fees)
+                (not deleveraging_mode or not config.bot.avoid_fees)
                 and long_pos_qty > 0
                 and (
                     hedge_mode
@@ -937,7 +929,7 @@ def trade_func(symbol):  # noqa
 
             # Short incremental TP
             if (
-                (deleveraging_mode or config.avoid_fees)
+                (deleveraging_mode or config.bot.avoid_fees)
                 and short_pos_qty > 0
                 and (
                     hedge_mode
@@ -993,7 +985,7 @@ def trade_func(symbol):  # noqa
 
             # SHORT: Take profit logic
             if (
-                (not deleveraging_mode and not config.avoid_fees)
+                (not deleveraging_mode and not config.bot.avoid_fees)
                 and short_pos_qty > 0
                 and (
                     hedge_mode

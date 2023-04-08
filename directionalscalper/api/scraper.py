@@ -1,42 +1,30 @@
 from __future__ import annotations
-import sys
-import pidfile
 
-import json
 import concurrent.futures
-import logging
+import json
+import sys
 import time
-from decimal import Decimal
-from logging import handlers
 from datetime import datetime
+from decimal import Decimal
 
 import pandas as pd
+import pidfile
 import ta
 
-sys.path.append('.')
+sys.path.append(".")
 from directionalscalper.api.exchanges.binance import Binance
 from directionalscalper.api.exchanges.bybit import Bybit
+from directionalscalper.core.logger import Logger
 
-log = logging.getLogger()
-formatter = logging.Formatter(
-    fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-rotatingHandler = handlers.RotatingFileHandler(
-    "scraper.log", maxBytes=5000000, backupCount=4
-)
-rotatingHandler.setFormatter(formatter)
-log.setLevel(logging.INFO)
-log.addHandler(rotatingHandler)
-streamHandler = logging.StreamHandler()
-streamHandler.setFormatter(formatter)
-log.addHandler(streamHandler)
+log = Logger(filename="scraper.log", stream=True)
+
 
 class DecimalEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, Decimal):
             return float(obj)
         return super(DecimalEncoder, self).default(obj)
+
 
 class Scraper:
     def __init__(self, exchange):
@@ -214,7 +202,7 @@ class Scraper:
         # Define funding rates
         values["Funding"] = self.exchange.get_funding_rate(symbol=symbol) * 100
 
-        values["Timestamp"] = int(datetime.now().timestamp())
+        values["Timestamp"] = str(int(datetime.now().timestamp()))
 
         return values
 
@@ -251,7 +239,7 @@ class Scraper:
                 "5m MA6 high",
                 "5m MA6 low",
                 "Funding",
-                "Timestamp"
+                "Timestamp",
             ],
         )
 
@@ -302,9 +290,10 @@ class Scraper:
     def reduce_df(self, dataframe, columns: list):
         return dataframe[columns]
 
+
 if __name__ == "__main__":
-    log.info('Starting process')
-    
+    log.info("Starting process")
+
     while True:
         try:
             with pidfile.PIDFile("scraper.pid"):
@@ -320,31 +309,59 @@ if __name__ == "__main__":
                 scraper.output_df(dataframe=data, path="data/quantdata.csv", to="json")
                 scraper.output_df(dataframe=data, path="data/quantdata.csv", to="csv")
 
-                to_trade = scraper.filter_df(dataframe=data, filter_col="1m 1x Volume (USDT)", operator=">", value=15000)
-                scraper.output_df(dataframe=to_trade, path="data/whattotrade.csv", to="csv")
-                scraper.output_df(dataframe=to_trade, path="data/whattotrade.json", to="json")
+                to_trade = scraper.filter_df(
+                    dataframe=data,
+                    filter_col="1m 1x Volume (USDT)",
+                    operator=">",
+                    value=15000,
+                )
+                scraper.output_df(
+                    dataframe=to_trade, path="data/whattotrade.csv", to="csv"
+                )
+                scraper.output_df(
+                    dataframe=to_trade, path="data/whattotrade.json", to="json"
+                )
 
-                negative = scraper.filter_df(dataframe=data, filter_col="Funding", operator="<", value=0)
-                negative = scraper.reduce_df(dataframe=negative, columns=["Asset", "1m 1x Volume (USDT)", "Funding"])
-                scraper.output_df(dataframe=negative, path="data/negativefunding.csv", to="csv")
-                scraper.output_df(dataframe=negative, path="data/negativefunding.json", to="json")
+                negative = scraper.filter_df(
+                    dataframe=data, filter_col="Funding", operator="<", value=0
+                )
+                negative = scraper.reduce_df(
+                    dataframe=negative,
+                    columns=["Asset", "1m 1x Volume (USDT)", "Funding"],
+                )
+                scraper.output_df(
+                    dataframe=negative, path="data/negativefunding.csv", to="csv"
+                )
+                scraper.output_df(
+                    dataframe=negative, path="data/negativefunding.json", to="json"
+                )
 
-                positive = scraper.filter_df(dataframe=data, filter_col="Funding", operator=">", value=0)
-                positive = scraper.reduce_df(dataframe=positive, columns=["Asset", "1m 1x Volume (USDT)", "Funding"])
-                scraper.output_df(dataframe=positive, path="data/positivefunding.csv", to="csv")
-                scraper.output_df(dataframe=positive, path="data/positivefunding.json", to="json")
+                positive = scraper.filter_df(
+                    dataframe=data, filter_col="Funding", operator=">", value=0
+                )
+                positive = scraper.reduce_df(
+                    dataframe=positive,
+                    columns=["Asset", "1m 1x Volume (USDT)", "Funding"],
+                )
+                scraper.output_df(
+                    dataframe=positive, path="data/positivefunding.csv", to="csv"
+                )
+                scraper.output_df(
+                    dataframe=positive, path="data/positivefunding.json", to="json"
+                )
 
-                total_historical_volume = scraper.get_all_historical_volume(interval="1h", limit=24)
+                total_historical_volume = scraper.get_all_historical_volume(
+                    interval="1h", limit=24
+                )
                 with open("data/total_historical_volume.json", "w") as outfile:
                     json.dump(total_historical_volume, outfile, cls=DecimalEncoder)
 
         except pidfile.AlreadyRunningError:
-            log.warning('Already running.')
+            log.warning("Already running.")
         except Exception as e:
-            log.error(f'An unexpected error occurred: {e}')
+            log.error(f"An unexpected error occurred: {e}")
         finally:
-            log.info('Iteration completed. Waiting for the next run.')
+            log.info("Iteration completed. Waiting for the next run.")
             time.sleep(60)
 
-        
         time.sleep(60)
