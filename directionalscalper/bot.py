@@ -1,8 +1,6 @@
 import argparse
-import logging
-import logging.handlers as handlers
-import time
 import sys
+import time
 from pathlib import Path
 
 import ccxt
@@ -11,11 +9,12 @@ import telebot
 from colorama import Fore, Style
 from rich.live import Live
 
-sys.path.append('.')
+sys.path.append(".")
 from directionalscalper.api.manager import Manager
 from directionalscalper.core import tables
 from directionalscalper.core.config import load_config
 from directionalscalper.core.functions import print_lot_sizes
+from directionalscalper.core.logger import Logger
 
 # 1. Create config.json from config.example.json
 # 2. Enter exchange_api_key and exchange_api_secret
@@ -25,18 +24,6 @@ from directionalscalper.core.functions import print_lot_sizes
 # 2. Go to https://api.telegram.org/bot<bot_token>/getUpdates
 # 3. Replacing <bot_token> with your token from the botfather after creating new bot
 # 4. Look for chat id and copy the chat id into config.json
-
-
-log = logging.getLogger()
-formatter = logging.Formatter(
-    "%(asctime)s - %(filename)s:%(lineno)s - %(funcName)20s() - %(message)s"
-)
-logHandler = handlers.RotatingFileHandler("ds.log", maxBytes=5000000, backupCount=5)
-logHandler.setFormatter(formatter)
-log.setLevel(logging.INFO)
-log.addHandler(logHandler)
-
-manager = Manager()
 
 
 def sendmessage(message):
@@ -154,10 +141,13 @@ config_file = "config.json"
 if args.config:
     config_file = args.config
 
-# Load config
 print(f"Loading config: {config_file}")
 config_file_path = Path(Path().resolve(), "config", config_file)
 config = load_config(path=config_file_path)
+
+log = Logger(filename="ds.log")
+
+manager = Manager()
 
 if args.avoidfees == "on":
     config.avoid_fees = True
