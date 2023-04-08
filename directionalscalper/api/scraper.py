@@ -340,7 +340,11 @@ if __name__ == "__main__":
 
         except pidfile.AlreadyRunningError:
             log.warning('Already running.')
+        except Exception as e:
+            log.error(f'An unexpected error occurred: {e}')
+        finally:
+            log.info('Iteration completed. Waiting for the next run.')
+            time.sleep(60)
 
-        log.info('Iteration completed. Waiting for the next run.')
         
         time.sleep(60)
