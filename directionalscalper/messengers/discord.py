@@ -23,7 +23,7 @@ class Discord(Messenger):
             log.info(f"Sending discord message via {self.name}: {message}")
             self.data["content"] = message
             header, raw_json = send_public_request(
-                url=self.webhook_url, method="POST", payload=self.data
+                url=self.webhook_url, method="POST", json_in=self.data
             )
             return raw_json
         log.info(f"{self.name} (discord messenger) is inactive")
@@ -54,7 +54,7 @@ class Discord(Messenger):
                 "icon_url": "https://avatars.githubusercontent.com/u/89611464?v=4",
             }
             header, raw_json = send_public_request(
-                url=self.webhook_url, method="POST", payload=self.data
+                url=self.webhook_url, method="POST", json_in=self.data
             )
             return raw_json
 
