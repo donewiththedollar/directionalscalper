@@ -11,7 +11,10 @@ A hedge scalping strategy based on directional analysis using a quantitative app
 * API: http://api.tradesimple.xyz/data/quantdata.json
 * APIv2: http://api.tradesimple.xyz/data/quantdatav2.json
 
-![](https://github.com/donewiththedollar/directional-scalper/blob/main/directional-scalper.gif)
+Solarized dark             |  Solarized Ocean
+:-------------------------:|:-------------------------:
+![](https://github.com/donewiththedollar/directional-scalper/blob/main/directional-scalper.gif)  |  ![](https://github.com/donewiththedollar/directional-scalper/blob/main/directional-scalper.gif)
+
 # Instructions
 * Install requirements
 > pip3 install -r requirements.txt
