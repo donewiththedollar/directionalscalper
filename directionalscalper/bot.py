@@ -5,7 +5,6 @@ from pathlib import Path
 
 import ccxt
 import pandas as pd
-import telebot
 from colorama import Fore, Style
 from rich.live import Live
 
@@ -15,6 +14,7 @@ from directionalscalper.core import tables
 from directionalscalper.core.config import load_config
 from directionalscalper.core.functions import print_lot_sizes
 from directionalscalper.core.logger import Logger
+from directionalscalper.messengers.manager import MessageManager
 
 # 1. Create config.json from config.example.json
 # 2. Enter exchange_api_key and exchange_api_secret
@@ -24,9 +24,6 @@ from directionalscalper.core.logger import Logger
 # 2. Go to https://api.telegram.org/bot<bot_token>/getUpdates
 # 3. Replacing <bot_token> with your token from the botfather after creating new bot
 # 4. Look for chat id and copy the chat id into config.json
-
-def sendmessage(message):
-    bot.send_message(config.telegram.chat_id, message)
 
 
 # Bools
@@ -59,14 +56,7 @@ parser.add_argument(
     "--mode",
     type=str,
     help="Mode to use",
-    choices=[
-        "long",
-        "short",
-        "hedge",
-        "aggressive",
-        "violent",
-        "blackjack"
-    ],
+    choices=["long", "short", "hedge", "aggressive", "violent", "blackjack"],
     required=True,
 )
 
@@ -132,7 +122,8 @@ manager = Manager(
     path=Path("data", config.api.filename),
     url=f"{config.api.url}{config.api.filename}",
 )
-
+messengers = MessageManager(config=config.messengers)
+messengers.send_message_to_all_messengers(message="Initialising DirectionalScalper")
 deleverage = config.bot.deleverage_mode
 min_volume = config.bot.min_volume
 min_distance = config.bot.min_distance
@@ -144,16 +135,6 @@ risk_factor = config.bot.blackjack_risk_factor
 profit_percentages = [0.3, 0.5, 0.2]
 profit_increment_percentage = config.bot.profit_multiplier_pct
 
-if tg_notifications:
-    bot = telebot.TeleBot(config.telegram.api_token, parse_mode=None)
-
-    @bot.message_handler(commands=["start", "help"])
-    def send_welcome(message):
-        bot.reply_to(message, "Howdy, how are you doing?")
-
-    @bot.message_handler(func=lambda message: True)
-    def echo_all(message):
-        bot.reply_to(message, message.text)
 
 # CCXT connect to bybit
 exchange = ccxt.bybit(
@@ -163,6 +144,7 @@ exchange = ccxt.bybit(
         "secret": config.exchange.api_secret,
     }
 )
+
 
 # Get min vol & spread data from API
 def get_min_vol_dist_data(symbol) -> bool:
@@ -361,6 +343,7 @@ def cancel_close():
     except Exception as e:
         log.warning(f"{e}")
 
+
 def set_auto_stop_loss(position, entry_size):
     stop_loss_buffer = 0.01  # Adjust this value based on your desired risk level
 
@@ -509,41 +492,6 @@ tyler_1m_spread = manager.get_asset_value(
     symbol=symbol, data=api_data, value="1mSpread"
 )
 
-
-def set_auto_stop_loss(position, entry_size):
-    stop_loss_buffer = 0.01  # Adjust this value based on your desired risk level
-
-    try:
-        if position == "short":
-            # Calculate stop loss price for short position
-            stop_loss_price = short_pos_price * (1 + stop_loss_buffer)
-
-            # Place stop loss order with reduce-only flag
-            exchange.create_order(
-                symbol,
-                "stop",
-                "sell",
-                entry_size,
-                stop_loss_price,
-                {"reduceOnly": True},
-            )
-
-        elif position == "long":
-            # Calculate stop loss price for long position
-            stop_loss_price = long_pos_price * (1 - stop_loss_buffer)
-
-            # Place stop loss order with reduce-only flag
-            exchange.create_order(
-                symbol,
-                "stop",
-                "buy",
-                entry_size,
-                stop_loss_price,
-                {"reduceOnly": True},
-            )
-
-    except Exception as e:
-        log.warning(f"{e}")
 
 def find_trend():
     try:
@@ -817,7 +765,7 @@ def trade_func(symbol):  # noqa
                 best_bid = get_orderbook()[1]
                 ma_3_low = get_m_data(timeframe="1m")[1]
                 denominator = best_bid - ma_3_low
-                #risk_factor = 0.01  # Adjust this value according to your risk tolerance
+                # risk_factor = 0.01  # Adjust this value according to your risk tolerance
 
                 if denominator == 0:
                     short_blackjack_trade_qty, long_blackjack_trade_qty = 0, 0
@@ -914,12 +862,7 @@ def trade_func(symbol):  # noqa
             if (
                 (deleveraging_mode)
                 and long_pos_qty > 0
-                and (
-                    hedge_mode
-                    or long_mode
-                    or aggressive_mode
-                    or violent_mode
-                )
+                and (hedge_mode or long_mode or aggressive_mode or violent_mode)
             ):
                 try:
                     get_open_orders()
@@ -1001,12 +944,7 @@ def trade_func(symbol):  # noqa
             if (
                 (deleveraging_mode)
                 and short_pos_qty > 0
-                and (
-                    hedge_mode
-                    or short_mode
-                    or aggressive_mode
-                    or violent_mode
-                )
+                and (hedge_mode or short_mode or aggressive_mode or violent_mode)
             ):
                 try:
                     get_open_orders()
@@ -1154,7 +1092,7 @@ def trade_func(symbol):  # noqa
                         if (
                             find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
-                            #and short_pos_qty < max_trade_qty
+                            # and short_pos_qty < max_trade_qty
                             and add_short_trade_condition()
                             and current_ask > short_pos_price
                         ):
@@ -1174,7 +1112,7 @@ def trade_func(symbol):  # noqa
                         if (
                             find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
-                            #and long_pos_qty < max_trade_qty
+                            # and long_pos_qty < max_trade_qty
                             and add_long_trade_condition()
                             and current_bid < long_pos_price
                         ):
@@ -1335,15 +1273,18 @@ def long_mode_func(symbol):
     leverage_verification(symbol)
     trade_func(symbol)
 
+
 def short_mode_func(symbol):
     print(Fore.LIGHTCYAN_EX + "Short mode enabled for", symbol + Style.RESET_ALL)
     leverage_verification(symbol)
     trade_func(symbol)
 
+
 def hedge_mode_func(symbol):
     print(Fore.LIGHTCYAN_EX + "Hedge mode enabled for", symbol + Style.RESET_ALL)
     leverage_verification(symbol)
     trade_func(symbol)
+
 
 def aggressive_mode_func(symbol):
     print(
@@ -1352,6 +1293,7 @@ def aggressive_mode_func(symbol):
     )
     leverage_verification(symbol)
     trade_func(symbol)
+
 
 def violent_mode_func(symbol):
     print(
@@ -1362,10 +1304,10 @@ def violent_mode_func(symbol):
     leverage_verification(symbol)
     trade_func(symbol)
 
+
 def blackjack_mode_func(symbol):
     print(
-        Fore.LIGHTCYAN_EX
-        + "Blackjack mode enabled. Have fun!",
+        Fore.LIGHTCYAN_EX + "Blackjack mode enabled. Have fun!",
         symbol + Style.RESET_ALL,
     )
     leverage_verification(symbol)
