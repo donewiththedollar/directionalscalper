@@ -28,7 +28,7 @@
   },
   "messengers": {
     "messenger_1": {
-      "active": true,
+      "active": false,
       "embedded_messages": true,
       "messenger_type": "discord",
       "webhook_url": "https://discord.com/api/webhooks/"
