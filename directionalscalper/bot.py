@@ -36,7 +36,6 @@ deleveraging_mode = False
 violent_mode = False
 blackjack_mode = False
 leverage_verified = False
-tg_notifications = False
 
 print(Fore.LIGHTCYAN_EX + "", version, "connecting to exchange" + Style.RESET_ALL)
 
@@ -63,10 +62,6 @@ parser.add_argument(
 parser.add_argument("--symbol", type=str, help="Specify symbol", required=True)
 
 parser.add_argument("--iqty", type=str, help="Initial entry quantity", required=True)
-
-parser.add_argument(
-    "--tg", type=str, help="TG Notifications", choices=["on", "off"], required=True
-)
 
 parser.add_argument(
     "--config", type=str, help="Config file. Example: my_config.json", required=False
@@ -105,9 +100,6 @@ if args.iqty:
 else:
     trade_qty = input("Lot size:")
 
-if args.tg == "on":
-    tg_notifications = True
-
 
 config_file = "config.json"
 if args.config:
@@ -116,14 +108,20 @@ if args.config:
 print(f"Loading config: {config_file}")
 config_file_path = Path(Path().resolve(), "config", config_file)
 config = load_config(path=config_file_path)
+
 log = Logger(filename="ds.log", level=config.logger.level)
+
 manager = Manager(
     api=config.api.mode,
     path=Path("data", config.api.filename),
     url=f"{config.api.url}{config.api.filename}",
 )
+
 messengers = MessageManager(config=config.messengers)
-messengers.send_message_to_all_messengers(message="Initialising DirectionalScalper")
+messengers.send_message_to_all_messengers(
+    message=f"Initialising {version}. Mode: {args.mode} Symbol: {symbol} iqty:{trade_qty}"
+)
+
 deleverage = config.bot.deleverage_mode
 min_volume = config.bot.min_volume
 min_distance = config.bot.min_distance
