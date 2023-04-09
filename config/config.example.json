@@ -5,18 +5,18 @@
     "url": "http://api.tradesimple.xyz/data/"
   },
   "bot": {
-    "avoid_fees": false,
+    "deleverage_mode": false,
     "bot_name": "",
     "divider": 7,
     "inverse_direction": "short",
-    "linear_taker_fee": 0.085,
     "min_distance": 0.15,
     "min_fee": 0.17,
     "min_volume": 15000,
     "profit_multiplier_pct": 0.01,
     "symbol": "BTCUSD",
     "violent_multiplier": 2.0,
-    "wallet_exposure": 1.0
+    "wallet_exposure": 1.0,
+    "blackjack_risk_factor": 0.01
   },
   "exchange": {
     "api_key": "",

@@ -15,11 +15,10 @@ class API(BaseModel):
 
 
 class Bot(BaseModel):
-    avoid_fees: bool = False
+    deleverage_mode: bool = False
     bot_name: str
     divider: int = 7
     inverse_direction: str = "short"
-    linear_taker_fee: float = 0.17
     min_distance: float = 0.15
     min_fee: float = 0.17
     min_volume: int = 15000
@@ -27,6 +26,7 @@ class Bot(BaseModel):
     symbol: str
     violent_multiplier: float = 2.00
     wallet_exposure: float = 1.00
+    blackjack_risk_factor: float = 0.05
 
     @validator("profit_multiplier_pct")
     def minimum_profit_multiplier_pct(cls, v):
@@ -57,13 +57,7 @@ class Bot(BaseModel):
         if v < 0:
             raise ValueError("divider must be greater than 0")
         return v
-
-    @validator("linear_taker_fee")
-    def minimum_linear_taker_fee(cls, v):
-        if v < 0.0:
-            raise ValueError("linear_taker_fee must be greater than 0")
-        return v
-
+    
 
 class Exchange(BaseModel):
     name: str = Exchanges.BYBIT.value  # type: ignore

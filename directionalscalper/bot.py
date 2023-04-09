@@ -25,22 +25,19 @@ from directionalscalper.core.logger import Logger
 # 3. Replacing <bot_token> with your token from the botfather after creating new bot
 # 4. Look for chat id and copy the chat id into config.json
 
-
 def sendmessage(message):
     bot.send_message(config.telegram.chat_id, message)
 
 
 # Bools
-version = "Directional Scalper v1.1.5"
+version = "Directional Scalper v1.1.7"
 long_mode = False
 short_mode = False
 hedge_mode = False
 aggressive_mode = False
-btclinear_long_mode = False
-btclinear_short_mode = False
 deleveraging_mode = False
 violent_mode = False
-high_vol_stack_mode = False
+blackjack_mode = False
 leverage_verified = False
 tg_notifications = False
 
@@ -56,7 +53,7 @@ dex_balance, dex_pnl, dex_upnl, dex_wallet, dex_equity = 0, 0, 0, 0, 0
     short_liq_price,
 ) = (0, 0, 0, 0, 0, 0)
 
-parser = argparse.ArgumentParser(description="Scalper supports 7 modes")
+parser = argparse.ArgumentParser(description="Scalper supports 6 modes")
 
 parser.add_argument(
     "--mode",
@@ -67,9 +64,8 @@ parser.add_argument(
         "short",
         "hedge",
         "aggressive",
-        "btclinear-long",
-        "btclinear-short",
         "violent",
+        "blackjack"
     ],
     required=True,
 )
@@ -79,27 +75,19 @@ parser.add_argument("--symbol", type=str, help="Specify symbol", required=True)
 parser.add_argument("--iqty", type=str, help="Initial entry quantity", required=True)
 
 parser.add_argument(
-    "--deleverage",
-    type=str,
-    help="Deleveraging enabled",
-    choices=["on", "off"],
-    required=False,
-)
-
-parser.add_argument(
-    "--avoidfees",
-    type=str,
-    help="Avoid all fees",
-    choices=["on", "off"],
-    required=False,
-)
-
-parser.add_argument(
     "--tg", type=str, help="TG Notifications", choices=["on", "off"], required=True
 )
 
 parser.add_argument(
     "--config", type=str, help="Config file. Example: my_config.json", required=False
+)
+
+parser.add_argument(
+    "--deleverage",
+    type=str,
+    help="Deleveraging enabled",
+    choices=["on", "off"],
+    required=False,
 )
 
 args = parser.parse_args()
@@ -112,12 +100,10 @@ elif args.mode == "hedge":
     hedge_mode = True
 elif args.mode == "aggressive":
     aggressive_mode = True
-elif args.mode == "btclinear-long":
-    btclinear_long_mode = True
-elif args.mode == "btclinear-short":
-    btclinear_short_mode = True
 elif args.mode == "violent":
     violent_mode = True
+elif args.mode == "blackjack":
+    blackjack_mode = True
 
 if args.symbol:
     symbol = args.symbol
@@ -132,10 +118,6 @@ else:
 if args.tg == "on":
     tg_notifications = True
 
-if args.deleverage == "on":
-    deleveraging_mode = True
-else:
-    deleveraging_mode = False
 
 config_file = "config.json"
 if args.config:
@@ -151,9 +133,16 @@ manager = Manager(
     url=f"{config.api.url}{config.api.filename}",
 )
 
-if args.avoidfees == "on":
-    config.bot.avoid_fees = True
-    print("Avoiding fees")
+deleverage = config.bot.deleverage_mode
+min_volume = config.bot.min_volume
+min_distance = config.bot.min_distance
+botname = config.bot.bot_name
+wallet_exposure = config.bot.wallet_exposure
+violent_multiplier = config.bot.violent_multiplier
+risk_factor = config.bot.blackjack_risk_factor
+
+profit_percentages = [0.3, 0.5, 0.2]
+profit_increment_percentage = config.bot.profit_multiplier_pct
 
 if tg_notifications:
     bot = telebot.TeleBot(config.telegram.api_token, parse_mode=None)
@@ -166,17 +155,7 @@ if tg_notifications:
     def echo_all(message):
         bot.reply_to(message, message.text)
 
-
-min_volume = config.bot.min_volume
-min_distance = config.bot.min_distance
-botname = config.bot.bot_name
-linear_taker_fee = config.bot.linear_taker_fee
-wallet_exposure = config.bot.wallet_exposure
-violent_multiplier = config.bot.violent_multiplier
-
-profit_percentages = [0.3, 0.5, 0.2]
-profit_increment_percentage = config.bot.profit_multiplier_pct
-
+# CCXT connect to bybit
 exchange = ccxt.bybit(
     {
         "enableRateLimit": True,
@@ -184,7 +163,6 @@ exchange = ccxt.bybit(
         "secret": config.exchange.api_secret,
     }
 )
-
 
 # Get min vol & spread data from API
 def get_min_vol_dist_data(symbol) -> bool:
@@ -383,6 +361,41 @@ def cancel_close():
     except Exception as e:
         log.warning(f"{e}")
 
+def set_auto_stop_loss(position, entry_size):
+    stop_loss_buffer = 0.01  # Adjust this value based on your desired risk level
+
+    try:
+        if position == "short":
+            # Calculate stop loss price for short position
+            stop_loss_price = short_pos_price * (1 + stop_loss_buffer)
+
+            # Place stop loss order with reduce-only flag
+            exchange.create_order(
+                symbol,
+                "stop_loss_limit",
+                "sell",
+                entry_size,
+                stop_loss_price,
+                params={"reduce_only": True, "stop_px": stop_loss_price},
+            )
+
+        elif position == "long":
+            # Calculate stop loss price for long position
+            stop_loss_price = long_pos_price * (1 - stop_loss_buffer)
+
+            # Place stop loss order with reduce-only flag
+            exchange.create_order(
+                symbol,
+                "stop_loss_limit",
+                "buy",
+                entry_size,
+                stop_loss_price,
+                params={"reduce_only": True, "stop_px": stop_loss_price},
+            )
+
+    except Exception as e:
+        log.warning(f"{e}")
+
 
 def short_trade_condition():
     short_trade_condition = get_orderbook()[0] > get_m_data(timeframe="1m")[0]
@@ -496,6 +509,41 @@ tyler_1m_spread = manager.get_asset_value(
     symbol=symbol, data=api_data, value="1mSpread"
 )
 
+
+def set_auto_stop_loss(position, entry_size):
+    stop_loss_buffer = 0.01  # Adjust this value based on your desired risk level
+
+    try:
+        if position == "short":
+            # Calculate stop loss price for short position
+            stop_loss_price = short_pos_price * (1 + stop_loss_buffer)
+
+            # Place stop loss order with reduce-only flag
+            exchange.create_order(
+                symbol,
+                "stop",
+                "sell",
+                entry_size,
+                stop_loss_price,
+                {"reduceOnly": True},
+            )
+
+        elif position == "long":
+            # Calculate stop loss price for long position
+            stop_loss_price = long_pos_price * (1 - stop_loss_buffer)
+
+            # Place stop loss order with reduce-only flag
+            exchange.create_order(
+                symbol,
+                "stop",
+                "buy",
+                entry_size,
+                stop_loss_price,
+                {"reduceOnly": True},
+            )
+
+    except Exception as e:
+        log.warning(f"{e}")
 
 def find_trend():
     try:
@@ -765,6 +813,29 @@ def trade_func(symbol):  # noqa
                         / denominator
                     )
 
+            if blackjack_mode:
+                best_bid = get_orderbook()[1]
+                ma_3_low = get_m_data(timeframe="1m")[1]
+                denominator = best_bid - ma_3_low
+                #risk_factor = 0.01  # Adjust this value according to your risk tolerance
+
+                if denominator == 0:
+                    short_blackjack_trade_qty, long_blackjack_trade_qty = 0, 0
+                else:
+                    short_blackjack_trade_qty = (
+                        short_open_pos_qty
+                        * (ma_3_low - short_pos_price)
+                        * risk_factor
+                        / denominator
+                    )
+
+                    long_blackjack_trade_qty = (
+                        long_open_pos_qty
+                        * (ma_3_low - long_pos_price)
+                        * risk_factor
+                        / denominator
+                    )
+
             add_trade_qty = trade_qty
 
             # Long entry logic if long enabled
@@ -841,13 +912,12 @@ def trade_func(symbol):  # noqa
 
             # Long incremental TP
             if (
-                (deleveraging_mode or config.bot.avoid_fees)
+                (deleveraging_mode)
                 and long_pos_qty > 0
                 and (
                     hedge_mode
                     or long_mode
                     or aggressive_mode
-                    or btclinear_long_mode
                     or violent_mode
                 )
             ):
@@ -897,14 +967,14 @@ def trade_func(symbol):  # noqa
 
             # Long: Normal take profit logic
             if (
-                (not deleveraging_mode or not config.bot.avoid_fees)
+                (not deleveraging_mode)
                 and long_pos_qty > 0
                 and (
                     hedge_mode
                     or long_mode
                     or aggressive_mode
-                    or btclinear_long_mode
                     or violent_mode
+                    or blackjack_mode
                 )
             ):
                 try:
@@ -929,13 +999,12 @@ def trade_func(symbol):  # noqa
 
             # Short incremental TP
             if (
-                (deleveraging_mode or config.bot.avoid_fees)
+                (deleveraging_mode)
                 and short_pos_qty > 0
                 and (
                     hedge_mode
                     or short_mode
                     or aggressive_mode
-                    or btclinear_short_mode
                     or violent_mode
                 )
             ):
@@ -985,14 +1054,14 @@ def trade_func(symbol):  # noqa
 
             # SHORT: Take profit logic
             if (
-                (not deleveraging_mode and not config.bot.avoid_fees)
+                (not deleveraging_mode)
                 and short_pos_qty > 0
                 and (
                     hedge_mode
                     or short_mode
                     or aggressive_mode
-                    or btclinear_short_mode
                     or violent_mode
+                    or blackjack_mode
                 )
             ):
                 try:
@@ -1011,24 +1080,6 @@ def trade_func(symbol):  # noqa
                         exchange.create_limit_buy_order(
                             symbol, short_open_pos_qty, short_profit_price, reduce_only
                         )
-                        time.sleep(0.05)
-                    except Exception as e:
-                        log.warning(f"{e}")
-
-            # Linear BTC modes
-            if btclinear_long_mode:
-                try:
-                    if find_trend() == "long":
-                        initial_long_entry_linear_btc(current_bid)
-                except Exception as e:
-                    log.warning(f"{e}")
-
-                if (
-                    get_orderbook()[1] < get_m_data(timeframe="1m")[0]
-                    or get_orderbook()[1] < get_m_data(timeframe="5m")[0]
-                ):
-                    try:
-                        cancel_entry()
                         time.sleep(0.05)
                     except Exception as e:
                         log.warning(f"{e}")
@@ -1083,6 +1134,61 @@ def trade_func(symbol):  # noqa
                                 time.sleep(0.01)
                             except Exception as e:
                                 log.warning(f"{e}")
+                    if (
+                        get_orderbook()[1] < get_m_data(timeframe="1m")[0]
+                        or get_orderbook()[1] < get_m_data(timeframe="5m")[0]
+                    ):
+                        try:
+                            cancel_entry()
+                            time.sleep(0.05)
+                        except Exception as e:
+                            log.warning(f"{e}")
+                except Exception as e:
+                    log.warning(f"{e}")
+
+            # BLACKJACK: Full mode
+            if blackjack_mode:
+                try:
+                    if find_trend() == "short":
+                        initial_short_entry(current_ask)
+                        if (
+                            find_1m_1x_volume() > min_volume
+                            and find_5m_spread() > min_distance
+                            #and short_pos_qty < max_trade_qty
+                            and add_short_trade_condition()
+                            and current_ask > short_pos_price
+                        ):
+                            try:
+                                exchange.create_limit_sell_order(
+                                    symbol, short_blackjack_trade_qty, current_ask
+                                )
+                                time.sleep(0.01)
+                            except Exception as e:
+                                log.warning(f"{e}")
+
+                            # Set automatic stop loss in profit
+                            set_auto_stop_loss("short", short_blackjack_trade_qty)
+
+                    elif find_trend() == "long":
+                        initial_long_entry(current_bid)
+                        if (
+                            find_1m_1x_volume() > min_volume
+                            and find_5m_spread() > min_distance
+                            #and long_pos_qty < max_trade_qty
+                            and add_long_trade_condition()
+                            and current_bid < long_pos_price
+                        ):
+                            try:
+                                exchange.create_limit_buy_order(
+                                    symbol, long_blackjack_trade_qty, current_bid
+                                )
+                                time.sleep(0.01)
+                            except Exception as e:
+                                log.warning(f"{e}")
+
+                            # Set automatic stop loss in profit
+                            set_auto_stop_loss("long", long_blackjack_trade_qty)
+
                     if (
                         get_orderbook()[1] < get_m_data(timeframe="1m")[0]
                         or get_orderbook()[1] < get_m_data(timeframe="5m")[0]
@@ -1229,18 +1335,15 @@ def long_mode_func(symbol):
     leverage_verification(symbol)
     trade_func(symbol)
 
-
 def short_mode_func(symbol):
     print(Fore.LIGHTCYAN_EX + "Short mode enabled for", symbol + Style.RESET_ALL)
     leverage_verification(symbol)
     trade_func(symbol)
 
-
 def hedge_mode_func(symbol):
     print(Fore.LIGHTCYAN_EX + "Hedge mode enabled for", symbol + Style.RESET_ALL)
     leverage_verification(symbol)
     trade_func(symbol)
-
 
 def aggressive_mode_func(symbol):
     print(
@@ -1250,23 +1353,19 @@ def aggressive_mode_func(symbol):
     leverage_verification(symbol)
     trade_func(symbol)
 
-
-def linearbtclong_mode_func(symbol):
-    print(Fore.LIGHTCYAN_EX + "BTC Linear LONG mode enabled", symbol + Style.RESET_ALL)
-    leverage_verification(symbol)
-    trade_func(symbol)
-
-
-def linearbtcshort_mode_func(symbol):
-    print(Fore.LIGHTCYAN_EX + "BTC Linear SHORT mode enabled", symbol + Style.RESET_ALL)
-    leverage_verification(symbol)
-    trade_func(symbol)
-
-
 def violent_mode_func(symbol):
     print(
         Fore.LIGHTCYAN_EX
         + "Violent mode enabled use at your own risk use LOW lot size",
+        symbol + Style.RESET_ALL,
+    )
+    leverage_verification(symbol)
+    trade_func(symbol)
+
+def blackjack_mode_func(symbol):
+    print(
+        Fore.LIGHTCYAN_EX
+        + "Blackjack mode enabled. Have fun!",
         symbol + Style.RESET_ALL,
     )
     leverage_verification(symbol)
@@ -1294,19 +1393,14 @@ elif args.mode == "aggressive":
         aggressive_mode_func(args.symbol)
     else:
         symbol = input("Instrument undefined. \nInput instrument:")
-elif args.mode == "btclinear-long":
-    if args.symbol:
-        linearbtclong_mode_func(args.symbol)
-    else:
-        symbol = input("Instrument undefined. \nInput instrument:")
-elif args.mode == "btclinear-short":
-    if args.symbol:
-        linearbtcshort_mode_func(args.symbol)
-    else:
-        symbol = input("Instrument undefined. \nInput instrument:")
 elif args.mode == "violent":
     if args.symbol:
         violent_mode_func(args.symbol)
+    else:
+        symbol = input("Instrument undefined. \nInput instrument:")
+elif args.mode == "blackjack":
+    if args.symbol:
+        blackjack_mode_func(args.symbol)
     else:
         symbol = input("Instrument undefined. \nInput instrument:")
 
