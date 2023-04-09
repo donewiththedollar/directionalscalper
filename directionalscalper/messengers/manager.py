@@ -28,22 +28,22 @@ class MessageManager:
                 self.all_messengers.append(discord)
                 if messenger_object.active:
                     log.info(f"{messenger_config} setup to send messages to Discord")
-                    discord.send_message(f"{messenger_config} initialised")
+                    discord.send_message(message=f"{messenger_config} initialised")
                 else:
                     log.info(
                         f"{messenger_config} is initialised as a Discord instance but will not send any messages"
                     )
             elif messenger_object.messenger_type == "telegram":
-                self.all_messengers.append(
-                    Telegram(
-                        name=messenger_config,
-                        bot_token=messenger_object.bot_token,
-                        chat_id=messenger_object.chat_id,
-                        active=messenger_object.active,
-                    )
+                telegram = Telegram(
+                    name=messenger_config,
+                    bot_token=messenger_object.bot_token,
+                    chat_id=messenger_object.chat_id,
+                    active=messenger_object.active,
                 )
+                self.all_messengers.append(telegram)
                 if messenger_object.active:
                     log.info(f"{messenger_config} setup to send messages to Telegram")
+                    telegram.send_message(message=f"{messenger_config} initialised")
                 else:
                     log.info(
                         f"{messenger_config} is initialised as a Telegram instance but will not send any messages"

@@ -30,7 +30,7 @@ class Discord(Messenger):
 
             options, payload = self.format_embed_data(embed_data)
 
-            self.data["content"] = "Stock alert"
+            self.data["content"] = "Directional Scalper"
 
             self.data["embeds"] = [
                 {
