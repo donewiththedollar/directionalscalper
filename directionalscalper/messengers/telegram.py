@@ -1,5 +1,6 @@
 import logging
 
+from directionalscalper.core.utils import send_public_request
 from directionalscalper.messengers.messenger import Messenger
 
 log = logging.getLogger(__name__)
@@ -21,6 +22,6 @@ class Telegram(Messenger):
             log.info(f"Sending telegram message to {self.name}: {message}")
             url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
             self.data["text"] = message
-
-            return self.send_get(url=url, params=self.data)
+            header, raw_json = send_public_request(url=url, payload=self.data)
+            return raw_json
         log.info(f"{self.name} (telegram messenger) is inactive")

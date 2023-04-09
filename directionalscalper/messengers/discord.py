@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 
+from directionalscalper.core.utils import send_public_request
 from directionalscalper.messengers.messenger import Messenger
 
 log = logging.getLogger(__name__)
@@ -21,7 +22,10 @@ class Discord(Messenger):
         if self.active:
             log.info(f"Sending discord message via {self.name}: {message}")
             self.data["content"] = message
-            return self.send_post(url=self.webhook_url, json=self.data)
+            header, raw_json = send_public_request(
+                url=self.webhook_url, method="POST", payload=self.data
+            )
+            return raw_json
         log.info(f"{self.name} (discord messenger) is inactive")
 
     def send_embed_message(self, embed_data):
@@ -49,8 +53,10 @@ class Discord(Messenger):
                 "text": f"DirectionalScalper - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
                 "icon_url": "https://avatars.githubusercontent.com/u/89611464?v=4",
             }
-
-            return self.send_post(url=self.webhook_url, json=self.data)
+            header, raw_json = send_public_request(
+                url=self.webhook_url, method="POST", payload=self.data
+            )
+            return raw_json
 
         log.info(f"{self.name} (discord messenger) is inactive")
 
