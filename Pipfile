@@ -13,7 +13,6 @@ python-pidfile = "*"
 requests = "*"
 rich = "*"
 ta = "*"
-telebot = "*"
 
 [dev-packages]
 bandit = "*"
