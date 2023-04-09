@@ -6,7 +6,7 @@ repos:
       args: ["--profile", "black"]
 
 - repo: https://github.com/PyCQA/bandit
-  rev: 1.7.4
+  rev: 1.7.5
   hooks:
     - id: bandit
       exclude: tests/
@@ -23,7 +23,7 @@ repos:
         - "--autofix"
 
 - repo: https://github.com/ambv/black
-  rev: 23.1.0
+  rev: 23.3.0
   hooks:
     - id: black
       args:
@@ -33,7 +33,7 @@ repos:
 
 
 - repo: https://github.com/pre-commit/mirrors-mypy
-  rev: v1.0.1
+  rev: v1.2.0
   hooks:
     - id: mypy
       additional_dependencies:
