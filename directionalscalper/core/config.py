@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import json
 from enum import Enum
-from typing import Literal
 
-from pydantic import BaseModel, Field, HttpUrl, ValidationError, validator
-from typing_extensions import Annotated
+from pydantic import BaseModel, HttpUrl, ValidationError, validator
 
 
 class Exchanges(Enum):
@@ -88,7 +86,7 @@ class Logger(BaseModel):
 class Discord(BaseModel):
     active: bool = False
     embedded_messages: bool = True
-    messenger_type: Literal[Messengers.DISCORD.value]  # type: ignore
+    messenger_type: str = Messengers.DISCORD.value  # type: ignore
     webhook_url: HttpUrl
 
     @validator("webhook_url")
@@ -103,7 +101,7 @@ class Discord(BaseModel):
 class Telegram(BaseModel):
     active: bool = False
     embedded_messages: bool = True
-    messenger_type: Literal[Messengers.TELEGRAM.value]  # type: ignore
+    messenger_type: str = Messengers.TELEGRAM.value  # type: ignore
     bot_token: str
     chat_id: str
 
@@ -113,9 +111,7 @@ class Config(BaseModel):
     bot: Bot
     exchange: Exchange
     logger: Logger
-    messengers: dict[
-        str, Annotated[Discord | Telegram, Field(discriminator="messenger_type")]
-    ]
+    messengers: dict[str, Discord | Telegram]
 
 
 def load_config(path):
