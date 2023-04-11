@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from enum import Enum
+from typing import Union
 
 from pydantic import BaseModel, HttpUrl, ValidationError, validator
 
@@ -111,7 +112,7 @@ class Config(BaseModel):
     bot: Bot
     exchange: Exchange
     logger: Logger
-    messengers: dict[str, Discord | Telegram]
+    messengers: dict[str, Union[Discord, Telegram]]
 
 
 def load_config(path):
