@@ -2,6 +2,7 @@ colorama
 ccxt==2.0.90
 pandas
 pydantic
+python-pidfile
 requests
 rich
 ta
