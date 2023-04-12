@@ -5,7 +5,6 @@ import json
 import sys
 import time
 from datetime import datetime
-from decimal import Decimal
 
 import pandas as pd
 import pidfile
@@ -19,20 +18,47 @@ from directionalscalper.core.logger import Logger
 log = Logger(filename="scraper.log", stream=True)
 
 
-class DecimalEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, Decimal):
-            return float(obj)
-        return super(DecimalEncoder, self).default(obj)
-
-
 class Scraper:
-    def __init__(self, exchange):
+    def __init__(self, exchange, filters: dict):
         log.info("Scraper initalising")
         self.exchange = exchange
+        self.filters = filters
         self.symbols = self.exchange.get_futures_symbols()
         self.prices = self.exchange.get_futures_prices()
         log.info(f"{len(self.symbols)} symbols found")
+        if "quote_symbols" in self.filters:
+            self.symbols = self.filter_quote(
+                symbols=self.symbols, quotes=self.filters["quote_symbols"]
+            )
+        if "top_volume" in self.filters:
+            self.volumes = self.exchange.get_futures_volumes()
+            self.symbols = self.filter_volume(
+                symbols=self.symbols,
+                volumes=self.volumes,
+                limit=self.filters["top_volume"],
+            )
+
+    def filter_quote(self, symbols, quotes):
+        log.info(f"Filtering on {len(quotes)} quote symbols")
+        filtered = []
+        for symbol in symbols:
+            if symbol.endswith(tuple(quotes)):
+                filtered.append(symbol)
+        log.info(f"Filtered to {len(filtered)} symbols")
+        return filtered
+
+    def filter_volume(self, symbols, volumes, limit):
+        log.info(f"Filtering top {limit} symbols by 24h volume")
+        volumes = sorted(volumes.items(), key=lambda x: x[1], reverse=True)
+        volumes = volumes[:limit]
+        volumes = dict(volumes)
+        volume_keys = [*volumes]
+        filtered = []
+        for symbol in symbols:
+            if symbol in volume_keys:
+                filtered.append(symbol)
+        log.info(f"Filtered to {len(filtered)} symbols")
+        return filtered
 
     def get_spread(
         self, symbol: str, limit: int, timeframe: str = "1m", data: list | None = None
@@ -122,7 +148,7 @@ class Scraper:
         )
         sma = ta.trend.SMAIndicator(df[column], window=window).sma_indicator()
 
-        current_sma = Decimal(sma[limit - 1])
+        current_sma = float(sma[limit - 1])
 
         last_close_price = bars[limit - 1]["close"]
 
@@ -297,12 +323,14 @@ class Scraper:
 
 if __name__ == "__main__":
     log.info("Starting process")
-
+    quote_symbols = ["USDT"]
+    top_volume = 400
+    filters = {"quote_symbols": quote_symbols, "top_volume": top_volume}
     while True:
         try:
             with pidfile.PIDFile("scraper.pid"):
                 exchange = Bybit()
-                scraper = Scraper(exchange=exchange)
+                scraper = Scraper(exchange=exchange, filters=filters)
 
                 start_time = time.time()
                 data = scraper.analyse_all_symbols()
@@ -358,7 +386,7 @@ if __name__ == "__main__":
                     interval="1h", limit=24
                 )
                 with open("data/total_historical_volume.json", "w") as outfile:
-                    json.dump(total_historical_volume, outfile, cls=DecimalEncoder)
+                    json.dump(total_historical_volume, outfile)
 
         except pidfile.AlreadyRunningError:
             log.warning("Already running.")

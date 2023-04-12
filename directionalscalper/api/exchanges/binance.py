@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from decimal import Decimal
 
 from directionalscalper.api.exchanges.exchange import Exchange
 from directionalscalper.api.exchanges.utils import Intervals
@@ -31,11 +30,11 @@ class Binance(Exchange):
         leverages = self.get_max_leverages()
         if "symbols" in raw_json:
             for symbol in raw_json["symbols"]:
-                if symbol["status"] == "TRADING" and symbol["symbol"].endswith("USDT"):
+                if symbol["status"] == "TRADING":
                     tick_size, min_quantity, qty_step = (
-                        Decimal(0),
-                        Decimal(0),
-                        Decimal(0),
+                        float(0),
+                        float(0),
+                        float(0),
                     )
                     leverage = 0
                     if leverages:
@@ -44,13 +43,13 @@ class Binance(Exchange):
 
                     for filter in symbol["filters"]:
                         if filter["filterType"] == "PRICE_FILTER":
-                            tick_size = Decimal(filter["tickSize"])
+                            tick_size = float(filter["tickSize"])
                         elif filter["filterType"] == "LOT_SIZE":
-                            min_quantity = Decimal(filter["minQty"])
-                            qty_step = Decimal(filter["stepSize"])
+                            min_quantity = float(filter["minQty"])
+                            qty_step = float(filter["stepSize"])
                     symbols_list[symbol["symbol"]] = {
                         "launch": int(symbol["deliveryDate"]),
-                        "price_scale": Decimal(symbol["pricePrecision"]),
+                        "price_scale": float(symbol["pricePrecision"]),
                         "max_leverage": leverage,
                         "tick_size": tick_size,
                         "min_order_qty": min_quantity,
@@ -68,15 +67,15 @@ class Binance(Exchange):
         )
         leverages = {}
         for symbol in raw_json:
-            leverages[symbol] = Decimal(0)
+            leverages[symbol] = float(0)
             if "brackets" in raw_json[symbol]:
                 if len(raw_json[symbol]["brackets"]) > 0:
-                    leverages[symbol] = Decimal(
+                    leverages[symbol] = float(
                         raw_json[symbol]["brackets"][0]["initialLeverage"]
                     )
         return leverages
 
-    def get_futures_price(self, symbol: str) -> Decimal:
+    def get_futures_price(self, symbol: str) -> float:
         self.check_weight()
         params = {"symbol": symbol}
         header, raw_json = send_public_request(
@@ -86,8 +85,8 @@ class Binance(Exchange):
         )
 
         if "price" in [*raw_json]:
-            return Decimal(raw_json["price"])
-        return Decimal(-1.0)
+            return float(raw_json["price"])
+        return float(-1.0)
 
     def get_futures_prices(self) -> dict:
         self.check_weight()
@@ -100,8 +99,23 @@ class Binance(Exchange):
         prices = {}
         if len(raw_json) > 0:
             for pair in raw_json:
-                prices[pair["symbol"]] = Decimal(pair["price"])
+                prices[pair["symbol"]] = float(pair["price"])
         return prices
+
+    def get_futures_volumes(self) -> dict:
+        self.check_weight()
+        params: dict = {}
+
+        header, raw_json = send_public_request(
+            url=self.futures_api_url,
+            url_path="/api/v3/ticker/24hr",
+            payload=params,
+        )
+        volumes = {}
+        if len(raw_json) > 0:
+            for pair in raw_json:
+                volumes[pair["symbol"]] = float(pair["volume"])
+        return volumes
 
     def get_futures_kline(
         self,
@@ -122,11 +136,11 @@ class Binance(Exchange):
             return [
                 {
                     "timestamp": int(candle[0]),
-                    "open": Decimal(candle[1]),
-                    "high": Decimal(candle[2]),
-                    "low": Decimal(candle[3]),
-                    "close": Decimal(candle[4]),
-                    "volume": Decimal(candle[5]),
+                    "open": float(candle[1]),
+                    "high": float(candle[2]),
+                    "low": float(candle[3]),
+                    "close": float(candle[4]),
+                    "volume": float(candle[5]),
                 }
                 for candle in raw_json
             ]
@@ -156,5 +170,5 @@ class Binance(Exchange):
             payload=params,
         )
         if len(raw_json) > 0:
-            return [Decimal(raw_json["openInterest"])]
+            return [float(raw_json["openInterest"])]
         return oi

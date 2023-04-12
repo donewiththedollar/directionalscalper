@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import time
-from decimal import Decimal
 
 from directionalscalper.api.exchanges.utils import Intervals
 
@@ -34,10 +33,13 @@ class Exchange:
     def get_futures_symbols(self) -> dict:
         return {}
 
-    def get_futures_price(self, symbol: str) -> Decimal:
-        return Decimal(-1.0)
+    def get_futures_price(self, symbol: str) -> float:
+        return float(-1.0)
 
     def get_futures_prices(self) -> dict:
+        return {}
+
+    def get_futures_volumes(self) -> dict:
         return {}
 
     def get_futures_kline(
