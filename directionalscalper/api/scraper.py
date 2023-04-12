@@ -34,10 +34,13 @@ class Scraper:
         self.prices = self.exchange.get_futures_prices()
         log.info(f"{len(self.symbols)} symbols found")
 
-    def get_spread(self, symbol: str, limit: int, timeframe: str = "1m"):
-        data = self.exchange.get_futures_kline(
-            symbol=symbol, interval=timeframe, limit=limit
-        )
+    def get_spread(
+        self, symbol: str, limit: int, timeframe: str = "1m", data: list | None = None
+    ):
+        if data is None:
+            data = self.exchange.get_futures_kline(
+                symbol=symbol, interval=timeframe, limit=limit
+            )
         spread = 0.0
         lowest_low = 999999
         highest_high = 0
@@ -162,9 +165,10 @@ class Scraper:
         )
 
         # Define candle spreads per timeframe
-        values["1m Spread"] = self.get_spread(symbol=symbol, limit=1)
-        values["5m Spread"] = self.get_spread(symbol=symbol, limit=5)
-        values["30m Spread"] = self.get_spread(symbol=symbol, limit=30)
+        data = self.exchange.get_futures_kline(symbol=symbol, interval="1m", limit=30)
+        values["1m Spread"] = self.get_spread(symbol=symbol, limit=1, data=data[-1:])
+        values["5m Spread"] = self.get_spread(symbol=symbol, limit=5, data=data[-5:])
+        values["30m Spread"] = self.get_spread(symbol=symbol, limit=30, data=data)
 
         # Define 1x 5m candle volume
         onexcandlevol = candles_5m[-1]["volume"]
