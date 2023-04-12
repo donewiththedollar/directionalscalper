@@ -224,7 +224,7 @@ class Scraper:
         )
         values["trend%"] = ma_order_pct
 
-        if ma_order_pct.compare(0) == 1:
+        if ma_order_pct < 0:
             values["Trend"] = "short"
         else:
             values["Trend"] = "long"
