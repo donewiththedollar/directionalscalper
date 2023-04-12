@@ -1092,11 +1092,10 @@ def trade_func(symbol):  # noqa
                         if (
                             find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
-                            and (
-                                add_short_trade_condition()
-                                or (current_ask > short_pos_price)
-                                or float(dex_upnl) < 0.0
-                            )
+                            and add_short_trade_condition()
+                                # or (current_ask > short_pos_price)
+                                # or float(dex_upnl) < 0.0
+                            # )
                         ):
                             trade_size = (
                                 short_violent_trade_qty
@@ -1116,11 +1115,10 @@ def trade_func(symbol):  # noqa
                         if (
                             find_1m_1x_volume() > min_volume
                             and find_5m_spread() > min_distance
-                            and (
-                                add_long_trade_condition()
-                                or (current_bid < long_pos_price)
-                                or float(dex_upnl) < 0.0
-                            )
+                            and add_long_trade_condition()
+                            #     or (current_bid < long_pos_price)
+                            #     or float(dex_upnl) < 0.0
+                            # )
                         ):
                             trade_size = (
                                 long_violent_trade_qty
