@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from decimal import Decimal
 
 from directionalscalper.api.exchanges.exchange import Exchange
 from directionalscalper.api.exchanges.utils import Intervals
@@ -31,24 +30,22 @@ class Bybit(Exchange):
         if "result" in raw_json:
             if "list" in raw_json["result"]:
                 for symbol in raw_json["result"]["list"]:
-                    if symbol["status"] == "Trading" and symbol["symbol"].endswith(
-                        "USDT"
-                    ):
+                    if symbol["status"] == "Trading":
                         symbols_list[symbol["symbol"]] = {
                             "launch": int(symbol["launchTime"]),
-                            "price_scale": Decimal(symbol["priceScale"]),
-                            "max_leverage": Decimal(
+                            "price_scale": float(symbol["priceScale"]),
+                            "max_leverage": float(
                                 symbol["leverageFilter"]["maxLeverage"]
                             ),
-                            "tick_size": Decimal(symbol["priceFilter"]["tickSize"]),
-                            "min_order_qty": Decimal(
+                            "tick_size": float(symbol["priceFilter"]["tickSize"]),
+                            "min_order_qty": float(
                                 symbol["lotSizeFilter"]["minOrderQty"]
                             ),
-                            "qty_step": Decimal(symbol["lotSizeFilter"]["qtyStep"]),
+                            "qty_step": float(symbol["lotSizeFilter"]["qtyStep"]),
                         }
         return symbols_list
 
-    def get_futures_price(self, symbol: str) -> Decimal:
+    def get_futures_price(self, symbol: str) -> float:
         self.check_weight()
         params = {"category": "linear", "symbol": symbol}
         header, raw_json = send_public_request(
@@ -58,8 +55,8 @@ class Bybit(Exchange):
             if "list" in [*raw_json["result"]]:
                 if len(raw_json["result"]["list"]) > 0:
                     if "lastPrice" in [*raw_json["result"]["list"][0]]:
-                        return Decimal(raw_json["result"]["list"][0]["lastPrice"])
-        return Decimal(-1.0)
+                        return float(raw_json["result"]["list"][0]["lastPrice"])
+        return float(-1.0)
 
     def get_futures_prices(self) -> dict:
         self.check_weight()
@@ -71,8 +68,21 @@ class Bybit(Exchange):
         if "result" in [*raw_json]:
             if "list" in [*raw_json["result"]]:
                 for pair in raw_json["result"]["list"]:
-                    prices[pair["symbol"]] = Decimal(pair["lastPrice"])
+                    prices[pair["symbol"]] = float(pair["lastPrice"])
         return prices
+
+    def get_futures_volumes(self) -> dict:
+        self.check_weight()
+        params = {"category": "linear"}
+        header, raw_json = send_public_request(
+            url=self.futures_api_url, url_path="/v5/market/tickers", payload=params
+        )
+        volumes = {}
+        if "result" in [*raw_json]:
+            if "list" in [*raw_json["result"]]:
+                for pair in raw_json["result"]["list"]:
+                    volumes[pair["symbol"]] = float(pair["volume24h"])
+        return volumes
 
     def get_futures_kline(
         self,
@@ -108,11 +118,11 @@ class Bybit(Exchange):
                     return [
                         {
                             "timestamp": int(candle[0]),
-                            "open": Decimal(candle[1]),
-                            "high": Decimal(candle[2]),
-                            "low": Decimal(candle[3]),
-                            "close": Decimal(candle[4]),
-                            "volume": Decimal(candle[5]),
+                            "open": float(candle[1]),
+                            "high": float(candle[2]),
+                            "low": float(candle[3]),
+                            "close": float(candle[4]),
+                            "volume": float(candle[5]),
                         }
                         for candle in raw_json["result"]["list"]
                     ]
@@ -161,5 +171,5 @@ class Bybit(Exchange):
         if "result" in [*raw_json]:
             if "list" in [*raw_json["result"]]:
                 for item in raw_json["result"]["list"]:
-                    oi.append(Decimal(item["openInterest"]))
+                    oi.append(float(item["openInterest"]))
         return oi
