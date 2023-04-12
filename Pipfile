@@ -6,14 +6,13 @@ name = "pypi"
 [packages]
 charset_normalizer = "*"
 colorama = "*"
-ccxt = "*"
+ccxt = "==2.0.90"
 pandas = "*"
 pydantic = "*"
 python-pidfile = "*"
 requests = "*"
 rich = "*"
 ta = "*"
-telebot = "*"
 
 [dev-packages]
 bandit = "*"

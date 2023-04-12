@@ -84,7 +84,8 @@ def send_public_request(
     method: str = "GET",
     url_path: str | None = None,
     payload: dict | None = None,
-    json: bool = True,
+    json_in: dict | None = None,
+    json_out: bool = True,
 ):
     empty_response = BlankResponse().content
     if url_path is not None:
@@ -100,10 +101,11 @@ def send_public_request(
     try:
         response = dispatch_request(method)(
             url=url,
+            json=json_in,
             timeout=5,
         )
         headers = response.headers
-        if not json:
+        if not json_out:
             return headers, response.text
         json_response = response.json()
         if "code" in json_response and "msg" in json_response:

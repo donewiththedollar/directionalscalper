@@ -5,8 +5,9 @@
     "url": "http://api.tradesimple.xyz/data/"
   },
   "bot": {
-    "deleverage_mode": false,
+    "blackjack_risk_factor": 0.01,
     "bot_name": "",
+    "deleverage_mode": false,
     "divider": 7,
     "inverse_direction": "short",
     "min_distance": 0.15,
@@ -15,8 +16,7 @@
     "profit_multiplier_pct": 0.01,
     "symbol": "BTCUSD",
     "violent_multiplier": 2.0,
-    "wallet_exposure": 1.0,
-    "blackjack_risk_factor": 0.01
+    "wallet_exposure": 1.0
   },
   "exchange": {
     "api_key": "",
@@ -26,8 +26,19 @@
   "logger": {
     "level": "info"
   },
-  "telegram": {
-    "api_token": "",
-    "chat_id": ""
+  "messengers": {
+    "messenger_1": {
+      "active": false,
+      "embedded_messages": true,
+      "messenger_type": "discord",
+      "webhook_url": "https://discord.com/api/webhooks/"
+    },
+    "messenger_2": {
+      "active": false,
+      "bot_token": "",
+      "chat_id": "",
+      "embedded_messages": false,
+      "messenger_type": "telegram"
+    }
   }
 }

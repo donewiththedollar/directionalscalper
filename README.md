@@ -2,9 +2,13 @@
 <p align="center">
 A hedge scalping strategy based on directional analysis using a quantitative approach<br>
 </p>
+<p align="center">
+<img alt="GitHub Pipenv locked Python version" src="https://img.shields.io/github/pipenv/locked/python-version/donewiththedollar/directionalscalper"> 
+<a href="https://github.com/donewiththedollar/directionalscalper/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg">
+<a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
+</p>
 
-
-### Supports Bybit only, other exchanges coming soon
+>  Supports Bybit only, other exchanges coming soon
 
 ### Links
 * Dashboard: https://tradesimple.xyz
@@ -15,14 +19,9 @@ Directional Scalper        |  API Scraper
 :-------------------------:|:-------------------------:
 ![](https://github.com/donewiththedollar/directional-scalper/blob/main/directional-scalper.gif)  |  ![](https://github.com/donewiththedollar/directional-scalper/blob/main/scraper.gif)
 
-# Instructions
-* Install requirements
-> pip3 install -r requirements.txt
-
-### Developer instructions
-- Install developer requirements from pipenv `pipenv install --dev`
-- Install pre-commit hooks `pre-commit install`
-- Run pytest `pytest -vv`
+## Quickstart
+- Clone the repo `git clone https://github.com/donewiththedollar/directionalscalper.git`
+- Install requirements `pip3 install -r requirements.txt`
 
 ### Setting up the bot
  1. Create `config.json` from `config.example.json` in /config directory
@@ -60,6 +59,13 @@ To run the bot inside docker container use the following command:
 
 * There are six working modes:
 > long, short, hedge, aggressive, inverse, violent
+
+
+### Developer instructions
+- Install developer requirements from pipenv `pipenv install --dev` (to keep requirements in a virtual environment)
+- Install pre-commit hooks `pre-commit install` (if you intend to commit code to the repo)
+- Run pytest `pytest -vv` (if you have written any tests to make sure the code works as expected)
+
 
 ### To do:
 * Instance manager

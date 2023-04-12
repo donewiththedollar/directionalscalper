@@ -1,11 +1,19 @@
+from __future__ import annotations
+
 import json
 from enum import Enum
+from typing import Union
 
-from pydantic import BaseModel, ValidationError, validator
+from pydantic import BaseModel, HttpUrl, ValidationError, validator
 
 
 class Exchanges(Enum):
     BYBIT = "bybit"
+
+
+class Messengers(Enum):
+    DISCORD = "discord"
+    TELEGRAM = "telegram"
 
 
 class API(BaseModel):
@@ -57,7 +65,7 @@ class Bot(BaseModel):
         if v < 0:
             raise ValueError("divider must be greater than 0")
         return v
-    
+
 
 class Exchange(BaseModel):
     name: str = Exchanges.BYBIT.value  # type: ignore
@@ -76,9 +84,27 @@ class Logger(BaseModel):
         return v
 
 
+class Discord(BaseModel):
+    active: bool = False
+    embedded_messages: bool = True
+    messenger_type: str = Messengers.DISCORD.value  # type: ignore
+    webhook_url: HttpUrl
+
+    @validator("webhook_url")
+    def minimum_divider(cls, v):
+        if not v.startswith("https://discord.com/api/webhooks/"):
+            raise ValueError(
+                "Discord webhook begins: https://discord.com/api/webhooks/"
+            )
+        return v
+
+
 class Telegram(BaseModel):
-    api_token: str = ""
-    chat_id: str = ""
+    active: bool = False
+    embedded_messages: bool = True
+    messenger_type: str = Messengers.TELEGRAM.value  # type: ignore
+    bot_token: str
+    chat_id: str
 
 
 class Config(BaseModel):
@@ -86,7 +112,7 @@ class Config(BaseModel):
     bot: Bot
     exchange: Exchange
     logger: Logger
-    telegram: Telegram
+    messengers: dict[str, Union[Discord, Telegram]]
 
 
 def load_config(path):

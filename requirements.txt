@@ -4,5 +4,4 @@ pandas
 pydantic
 requests
 rich
-telebot
 ta
