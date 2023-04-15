@@ -16,7 +16,9 @@
     "profit_multiplier_pct": 0.01,
     "symbol": "BTCUSD",
     "violent_multiplier": 2.0,
-    "wallet_exposure": 1.0
+    "wallet_exposure": 1.0,
+    "scalein_mode": true,
+    "scalein_mode_dca": true
   },
   "exchange": {
     "api_key": "",

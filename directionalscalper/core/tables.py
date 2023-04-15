@@ -35,6 +35,10 @@ def generate_table_vol(
             symbol=symbol, data=manager.get_data(), value="1mVol"
         )
 
+        min_trade_qty = manager.get_asset_value(
+            symbol=symbol, data=manager.get_data(), value="Min qty"
+        )
+
         table = Table(width=50)
         table.add_column("Condition", justify="center")
         table.add_column("Config", justify="center")
@@ -51,6 +55,12 @@ def generate_table_vol(
             str(min_volume),
             str(current_volume).split(".")[0],
             "[red]TOO LOW" if current_volume < min_volume else "[green]VOL. OK",
+        )
+        table.add_row(
+            "Min Trade Qty",
+            str(min_trade_qty),
+            "",
+            "",
         )
         table.add_row()
         table.add_row(

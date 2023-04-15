@@ -15,6 +15,7 @@ from directionalscalper.core.config import load_config
 from directionalscalper.core.functions import print_lot_sizes
 from directionalscalper.core.logger import Logger
 from directionalscalper.messengers.manager import MessageManager
+from directionalscalper.core.functions import DataAnalyzer, CandlestickData, BalanceData
 
 # 1. Create config.json from config.example.json
 # 2. Enter exchange_api_key and exchange_api_secret
@@ -27,7 +28,7 @@ from directionalscalper.messengers.manager import MessageManager
 
 
 # Bools
-version = "Directional Scalper v1.1.7"
+version = "Directional Scalper v1.2.0"
 long_mode = False
 short_mode = False
 hedge_mode = False
@@ -36,6 +37,7 @@ deleveraging_mode = False
 violent_mode = False
 blackjack_mode = False
 leverage_verified = False
+
 
 print(Fore.LIGHTCYAN_EX + "", version, "connecting to exchange" + Style.RESET_ALL)
 
@@ -95,10 +97,15 @@ if args.symbol:
 else:
     symbol = input("Instrument undefined. \nInput instrument:")
 
+# if args.iqty:
+#     trade_qty = args.iqty
+# else:
+#     trade_qty = input("Lot size:")
+
 if args.iqty:
-    trade_qty = args.iqty
+    trade_qty = float(args.iqty)
 else:
-    trade_qty = input("Lot size:")
+    trade_qty = float(input("Lot size:"))
 
 
 config_file = "config.json"
@@ -122,6 +129,7 @@ messengers.send_message_to_all_messengers(
     message=f"Initialising {version}. Mode: {args.mode} Symbol: {symbol} iqty:{trade_qty}"
 )
 
+
 deleverage = config.bot.deleverage_mode
 min_volume = config.bot.min_volume
 min_distance = config.bot.min_distance
@@ -129,10 +137,16 @@ botname = config.bot.bot_name
 wallet_exposure = config.bot.wallet_exposure
 violent_multiplier = config.bot.violent_multiplier
 risk_factor = config.bot.blackjack_risk_factor
+scalein_mode = config.bot.scalein_mode
+scalein_mode_dca = config.bot.scalein_mode_dca
 
 profit_percentages = [0.3, 0.5, 0.2]
 profit_increment_percentage = config.bot.profit_multiplier_pct
 
+if scalein_mode:
+    messengers.send_message_to_all_messengers(
+        message=f"[ScaleIn Mode] enabled"
+    )
 
 # CCXT connect to bybit
 exchange = ccxt.bybit(
@@ -143,66 +157,19 @@ exchange = ccxt.bybit(
     }
 )
 
+analyzer = DataAnalyzer(manager, min_volume, min_distance)
+candlestick_data = CandlestickData(exchange, symbol)
+balance_data = BalanceData(exchange)
 
-# Get min vol & spread data from API
-def get_min_vol_dist_data(symbol) -> bool:
-    try:
-        api_data = manager.get_data()
-        spread5m = manager.get_asset_value(
-            symbol=symbol, data=api_data, value="5mSpread"
-        )
-        volume1m = manager.get_asset_value(symbol=symbol, data=api_data, value="1mVol")
+# Call the get_balance method
+balance = balance_data.get_balance()
 
-        return volume1m > min_volume and spread5m > min_distance
-    except Exception as e:
-        log.warning(f"{e}")
-        return False
-
-
-# get_m_data(timeframe="1m") [0]3 high, [1]3 low, [2]6 high, [3]6 low, [4]10 vol
-def get_m_data(timeframe: str = "1m", num_bars: int = 20):
-    try:
-        bars = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=num_bars)
-        df = pd.DataFrame(
-            bars, columns=["Time", "Open", "High", "Low", "Close", "Volume"]
-        )
-        df["Time"] = pd.to_datetime(df["Time"], unit="ms")
-        df["MA_3_High"] = df.High.rolling(3).mean()
-        df["MA_3_Low"] = df.Low.rolling(3).mean()
-        df["MA_6_High"] = df.High.rolling(6).mean()
-        df["MA_6_Low"] = df.Low.rolling(6).mean()
-        get_data_3_high = df["MA_3_High"].iat[-1]
-        get_data_3_low = df["MA_3_Low"].iat[-1]
-        get_data_6_high = df["MA_6_High"].iat[-1]
-        get_data_6_low = df["MA_6_Low"].iat[-1]
-        return (
-            get_data_3_high,
-            get_data_3_low,
-            get_data_6_high,
-            get_data_6_low,
-        )
-    except Exception as e:
-        log.warning(f"{e}")
-
-
-def get_balance():
-    global dex_balance, dex_pnl, dex_upnl, dex_wallet, dex_equity
-    try:
-        dex = exchange.fetch_balance()["info"]["result"]
-        dex_balance = dex["USDT"]["available_balance"]
-        dex_pnl = dex["USDT"]["realised_pnl"]
-        dex_upnl = dex["USDT"]["unrealised_pnl"]
-        # print(f"dex_upnl: {dex_upnl}, type: {type(dex_upnl)}")  # Add this line to check the type and value of dex_upnl
-        dex_wallet = round(float(dex["USDT"]["wallet_balance"]), 2)
-        dex_equity = round(float(dex["USDT"]["equity"]), 2)
-    except KeyError as e:
-        print(f"Error: {e}")
-    except ValueError as e:
-        print(f"Error: {e}")
-    except Exception as e:
-        print(f"An unknown error occured in get_balance(): {e}")
-        log.warning(f"{e}")
-
+# Access the balance data
+dex_balance = balance["dex_balance"]
+dex_pnl = balance["dex_pnl"]
+dex_upnl = balance["dex_upnl"]
+dex_wallet = balance["dex_wallet"]
+dex_equity = balance["dex_equity"]
 
 # get_orderbook() [0]bid, [1]ask
 def get_orderbook():
@@ -228,6 +195,9 @@ def get_market_data():
         return precision, leverage, min_trade_qty
     except Exception as e:
         log.warning(f"{e}")
+
+
+#exchange.get_symbol_info()
 
 
 def get_short_positions(pos_dict):
@@ -379,22 +349,22 @@ def set_auto_stop_loss(position, entry_size):
 
 
 def short_trade_condition():
-    short_trade_condition = get_orderbook()[0] > get_m_data(timeframe="1m")[0]
+    short_trade_condition = get_orderbook()[0] > candlestick_data.get_m_data(timeframe="1m")[0]
     return short_trade_condition
 
 
 def long_trade_condition():
-    long_trade_condition = get_orderbook()[0] < get_m_data(timeframe="1m")[0]
+    long_trade_condition = get_orderbook()[0] < candlestick_data.get_m_data(timeframe="1m")[0]
     return long_trade_condition
 
 
 def add_short_trade_condition():
-    add_short_trade_condition = short_pos_price < get_m_data(timeframe="1m")[3]
+    add_short_trade_condition = short_pos_price < candlestick_data.get_m_data(timeframe="1m")[3]
     return add_short_trade_condition
 
 
 def add_long_trade_condition():
-    add_long_trade_condition = long_pos_price > get_m_data(timeframe="1m")[3]
+    add_long_trade_condition = long_pos_price > candlestick_data.get_m_data(timeframe="1m")[3]
     return add_long_trade_condition
 
 
@@ -437,7 +407,7 @@ if not leverage_verified:
         print(f"An unknown error occured in leverage verification: {e}")
         log.warning(f"{e}")
 
-get_balance()
+balance_data.get_balance()
 
 # max_trade_qty = round(
 #     (float(dex_equity) / float(get_orderbook()[1]))
@@ -452,6 +422,13 @@ max_trade_qty = round(
     / (100 / float(get_market_data()[1])),
     int(float(get_market_data()[2])),
 )
+
+
+# Initialize variables
+initial_max_trade_qty = max_trade_qty
+time_interval = 30 * 60  # 30 minutes
+last_size_increase_time = time.time()
+
 
 violent_max_trade_qty = max_trade_qty * violent_multiplier
 
@@ -474,7 +451,7 @@ long_pos_unpl_pct = 0
 # Should turn these into functions and reduce calls
 
 api_data = manager.get_data()
-vol_condition_true = get_min_vol_dist_data(symbol)
+vol_condition_true = analyzer.get_min_vol_dist_data(symbol)
 tyler_total_volume_1m = manager.get_asset_value(
     symbol=symbol, data=api_data, value="1mVol"
 )
@@ -489,6 +466,9 @@ tyler_1x_volume_5m = manager.get_asset_value(
 tyler_1m_spread = manager.get_asset_value(
     symbol=symbol, data=api_data, value="1mSpread"
 )
+
+min_order_qty = manager.get_asset_value(
+    symbol=symbol, data=api_data, value="Min qty")
 
 
 def find_trend():
@@ -635,7 +615,7 @@ def get_current_price(exchange, symbol):
 
 def generate_main_table():
     try:
-        min_vol_dist_data = get_min_vol_dist_data(symbol)
+        min_vol_dist_data = analyzer.get_min_vol_dist_data(symbol)
         mode = find_mode()
         trend = find_trend()
         market_data = get_market_data()
@@ -672,17 +652,17 @@ def generate_main_table():
         log.warning(f"{e}")
 
 
-def trade_func(symbol):  # noqa
+def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty):  # noqa
     with Live(generate_main_table(), refresh_per_second=2) as live:
         while True:
             try:
                 manager.get_data()
                 time.sleep(0.01)
-                get_m_data(timeframe="1m")
+                candlestick_data.get_m_data(timeframe="1m")
                 time.sleep(0.01)
-                get_m_data(timeframe="5m")
+                candlestick_data.get_m_data(timeframe="5m")
                 time.sleep(0.01)
-                get_balance()
+                balance_data.get_balance()
                 time.sleep(0.01)
                 get_orderbook()
                 time.sleep(0.01)
@@ -699,7 +679,7 @@ def trade_func(symbol):  # noqa
                 log.warning(f"{e}")
 
             try:
-                get_min_vol_dist_data(symbol)
+                analyzer.get_min_vol_dist_data(symbol)
                 manager.get_asset_value(
                     symbol=symbol, data=manager.get_data(), value="1mVol"
                 )
@@ -708,16 +688,19 @@ def trade_func(symbol):  # noqa
                 log.warning(f"{e}")
 
             live.update(generate_main_table())
+
             try:
                 current_bid = get_orderbook()[0]
                 current_ask = get_orderbook()[1]
             except Exception as e:
                 log.warning(f"{e}")
+
             long_open_pos_qty = long_pos_qty
             short_open_pos_qty = short_pos_qty
+
             reduce_only = {"reduce_only": True}
 
-            five_min_data = get_m_data(timeframe="5m")
+            five_min_data = candlestick_data.get_m_data(timeframe="5m")
             market_data = get_market_data()
 
             if five_min_data is not None and market_data is not None:
@@ -742,26 +725,63 @@ def trade_func(symbol):  # noqa
             #     int(get_market_data()[0]),
             # )
 
+            # Check elapsed time
+            elapsed_time = time.time() - last_size_increase_time
+
+            # Increase max_trade_qty every 30 minutes if scalein_mode is active, and reset to initial value after reaching 5x size
+            if scalein_mode and elapsed_time >= time_interval:
+                if max_trade_qty < 5 * initial_max_trade_qty:
+                    max_trade_qty *= 1.25  # Increase position size by 25%
+                    max_trade_qty = min(max_trade_qty, 5 * initial_max_trade_qty)  # Cap at 5x initial_max_trade_qty
+                    messengers.send_message_to_all_messengers(
+                        message=f"[ScaleIn Mode] Max trade qty: {max_trade_qty}"
+                    )
+                else:
+                    max_trade_qty = initial_max_trade_qty  # Reset to initial value after reaching 5x initial_max_trade_qty
+
+                last_size_increase_time = time.time()
+
+
+            if scalein_mode_dca and elapsed_time >= time_interval:
+                max_possible_size = 5 * max_trade_qty
+                messengers.send_message_to_all_messengers(
+                    message=f"[ScaleIn Mode] Maximum possible trade quantity: {max_possible_size}"
+                )
+                if trade_qty < max_possible_size:
+                    trade_qty *= 1.25  # Increase position size by 25%
+                    # Make sure the trade_qty is not smaller than the min_order_qty
+                    trade_qty = max(trade_qty, min_order_qty)
+                    trade_qty = min(trade_qty, max_possible_size)  # Cap at 5x max_trade_qty value
+                    messengers.send_message_to_all_messengers(
+                        message=f"[ScaleIn Mode] Trade qty: {trade_qty}"
+                    )
+                else:
+                    trade_qty = initial_trade_qty  # Reset to initial value after reaching 5x initial trade quantity value
+
+                last_size_increase_time = time.time()
+
+
+
             if violent_mode:
-                denominator = get_orderbook()[1] - get_m_data(timeframe="1m")[3]
+                denominator = get_orderbook()[1] - candlestick_data.get_m_data(timeframe="1m")[3]
                 if denominator == 0:
                     short_violent_trade_qty, long_violent_trade_qty = 0, 0
                 else:
                     short_violent_trade_qty = (
                         short_open_pos_qty
-                        * (get_m_data(timeframe="1m")[3] - short_pos_price)
+                        * (candlestick_data.get_m_data(timeframe="1m")[3] - short_pos_price)
                         / denominator
                     )
 
                     long_violent_trade_qty = (
                         long_open_pos_qty
-                        * (get_m_data(timeframe="1m")[3] - long_pos_price)
+                        * (candlestick_data.get_m_data(timeframe="1m")[3] - long_pos_price)
                         / denominator
                     )
 
             if blackjack_mode:
                 best_bid = get_orderbook()[1]
-                ma_3_low = get_m_data(timeframe="1m")[1]
+                ma_3_low = candlestick_data.get_m_data(timeframe="1m")[1]
                 denominator = best_bid - ma_3_low
                 # risk_factor = 0.01  # Adjust this value according to your risk tolerance
 
@@ -1065,8 +1085,8 @@ def trade_func(symbol):  # noqa
                             except Exception as e:
                                 log.warning(f"{e}")
                     if (
-                        get_orderbook()[1] < get_m_data(timeframe="1m")[0]
-                        or get_orderbook()[1] < get_m_data(timeframe="5m")[0]
+                        get_orderbook()[1] < candlestick_data.get_m_data(timeframe="1m")[0]
+                        or get_orderbook()[1] < candlestick_data.get_m_data(timeframe="5m")[0]
                     ):
                         try:
                             cancel_entry()
@@ -1120,8 +1140,8 @@ def trade_func(symbol):  # noqa
                             set_auto_stop_loss("long", long_blackjack_trade_qty)
 
                     if (
-                        get_orderbook()[1] < get_m_data(timeframe="1m")[0]
-                        or get_orderbook()[1] < get_m_data(timeframe="5m")[0]
+                        get_orderbook()[1] < candlestick_data.get_m_data(timeframe="1m")[0]
+                        or get_orderbook()[1] < candlestick_data.get_m_data(timeframe="5m")[0]
                     ):
                         try:
                             cancel_entry()
@@ -1167,8 +1187,8 @@ def trade_func(symbol):  # noqa
                             except Exception as e:
                                 log.warning(f"{e}")
                     if (
-                        get_orderbook()[1] < get_m_data(timeframe="1m")[0]
-                        or get_orderbook()[1] < get_m_data(timeframe="5m")[0]
+                        get_orderbook()[1] < candlestick_data.get_m_data(timeframe="1m")[0]
+                        or get_orderbook()[1] < candlestick_data.get_m_data(timeframe="5m")[0]
                     ):
                         try:
                             cancel_entry()
@@ -1219,8 +1239,8 @@ def trade_func(symbol):  # noqa
                             except Exception as e:
                                 log.warning(f"{e}")
                     if (
-                        get_orderbook()[1] < get_m_data(timeframe="1m")[0]
-                        or get_orderbook()[1] < get_m_data(timeframe="5m")[0]
+                        get_orderbook()[1] < candlestick_data.get_m_data(timeframe="1m")[0]
+                        or get_orderbook()[1] < candlestick_data.get_m_data(timeframe="5m")[0]
                     ):
                         try:
                             cancel_entry()
@@ -1231,8 +1251,8 @@ def trade_func(symbol):  # noqa
                     log.warning(f"{e}")
 
             orderbook_data = get_orderbook()
-            data_1m = get_m_data(timeframe="1m")
-            data_5m = get_m_data(timeframe="5m")
+            data_1m = candlestick_data.get_m_data(timeframe="1m")
+            data_5m = candlestick_data.get_m_data(timeframe="5m")
 
             if (
                 orderbook_data is not None
@@ -1263,19 +1283,22 @@ def trade_func(symbol):  # noqa
 def long_mode_func(symbol):
     print(Fore.LIGHTCYAN_EX + "Long mode enabled for", symbol + Style.RESET_ALL)
     leverage_verification(symbol)
-    trade_func(symbol)
+    initial_trade_qty = trade_qty
+    trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty)
 
 
 def short_mode_func(symbol):
     print(Fore.LIGHTCYAN_EX + "Short mode enabled for", symbol + Style.RESET_ALL)
+    initial_trade_qty = trade_qty
     leverage_verification(symbol)
-    trade_func(symbol)
+    trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty)
 
 
 def hedge_mode_func(symbol):
     print(Fore.LIGHTCYAN_EX + "Hedge mode enabled for", symbol + Style.RESET_ALL)
+    initial_trade_qty = trade_qty
     leverage_verification(symbol)
-    trade_func(symbol)
+    trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty)
 
 
 def aggressive_mode_func(symbol):
@@ -1283,8 +1306,9 @@ def aggressive_mode_func(symbol):
         Fore.LIGHTCYAN_EX + "Aggressive hedge mode enabled for",
         symbol + Style.RESET_ALL,
     )
+    initial_trade_qty = trade_qty
     leverage_verification(symbol)
-    trade_func(symbol)
+    trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty)
 
 
 def violent_mode_func(symbol):
@@ -1293,8 +1317,9 @@ def violent_mode_func(symbol):
         + "Violent mode enabled use at your own risk use LOW lot size",
         symbol + Style.RESET_ALL,
     )
+    initial_trade_qty = trade_qty
     leverage_verification(symbol)
-    trade_func(symbol)
+    trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty)
 
 
 def blackjack_mode_func(symbol):
@@ -1302,8 +1327,9 @@ def blackjack_mode_func(symbol):
         Fore.LIGHTCYAN_EX + "Blackjack mode enabled. Have fun!",
         symbol + Style.RESET_ALL,
     )
+    initial_trade_qty = trade_qty
     leverage_verification(symbol)
-    trade_func(symbol)
+    trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty)
 
 
 # Argument declaration
