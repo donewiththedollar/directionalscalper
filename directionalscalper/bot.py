@@ -751,10 +751,9 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
             # Check elapsed time
             elapsed_time = time.time() - last_size_increase_time
 
-            # Increase max_trade_qty every 30 minutes if scalein_mode is active, and reset to initial value after reaching 5x size
             if scalein_mode and elapsed_time >= time_interval:
                 if max_trade_qty < 5 * initial_max_trade_qty:
-                    max_trade_qty *= 1.25  # Increase position size by 25%
+                    max_trade_qty += min_order_qty  # Increase position size by min_order_qty
                     max_trade_qty = min(max_trade_qty, 5 * initial_max_trade_qty)  # Cap at 5x initial_max_trade_qty
                     messengers.send_message_to_all_messengers(
                         message=f"[ScaleIn Mode] Max trade qty: {max_trade_qty}"
@@ -764,16 +763,13 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
 
                 last_size_increase_time = time.time()
 
-
             if scalein_mode_dca and elapsed_time >= time_interval:
                 max_possible_size = 5 * max_trade_qty
                 messengers.send_message_to_all_messengers(
                     message=f"[ScaleIn Mode] Maximum possible trade quantity: {max_possible_size}"
                 )
                 if trade_qty < max_possible_size:
-                    trade_qty *= 1.25  # Increase position size by 25%
-                    # Make sure the trade_qty is not smaller than the min_order_qty
-                    trade_qty = max(trade_qty, min_order_qty)
+                    trade_qty += min_order_qty  # Increase position size by min_order_qty
                     trade_qty = min(trade_qty, max_possible_size)  # Cap at 5x max_trade_qty value
                     messengers.send_message_to_all_messengers(
                         message=f"[ScaleIn Mode] Trade qty: {trade_qty}"
