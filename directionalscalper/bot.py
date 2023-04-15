@@ -263,27 +263,47 @@ def cancel_entry():
         log.warning(f"{e}")
 
 
-def cancel_close():
+# def cancel_close():
+#     try:
+#         order = exchange.fetch_open_orders(symbol)
+#         if len(order) > 0:
+#             if "info" in order[0]:
+#                 order_id = order[0]["info"]["order_id"]
+#                 order_status = order[0]["info"]["order_status"]
+#                 order_side = order[0]["info"]["side"]
+#                 reduce_only = order[0]["info"]["reduce_only"]
+#                 if (
+#                     order_status != "Filled"
+#                     and order_side == "Buy"
+#                     and order_status != "Cancelled"
+#                     and reduce_only
+#                 ):
+#                     exchange.cancel_order(symbol=symbol, id=order_id)
+#                 elif (
+#                     order_status != "Filled"
+#                     and order_side == "Sell"
+#                     and order_status != "Cancelled"
+#                     and reduce_only
+#                 ):
+#                     exchange.cancel_order(symbol=symbol, id=order_id)
+#     except Exception as e:
+#         log.warning(f"{e}")
+
+def cancel_close(side):
     try:
-        order = exchange.fetch_open_orders(symbol)
-        if len(order) > 0:
-            if "info" in order[0]:
-                order_id = order[0]["info"]["order_id"]
-                order_status = order[0]["info"]["order_status"]
-                order_side = order[0]["info"]["side"]
-                reduce_only = order[0]["info"]["reduce_only"]
+        orders = exchange.fetch_open_orders(symbol)
+        for order in orders:
+            if "info" in order:
+                order_id = order["info"]["order_id"]
+                order_status = order["info"]["order_status"]
+                order_side = order["info"]["side"]
+                reduce_only = order["info"]["reduce_only"]
+
                 if (
                     order_status != "Filled"
-                    and order_side == "Buy"
                     and order_status != "Cancelled"
                     and reduce_only
-                ):
-                    exchange.cancel_order(symbol=symbol, id=order_id)
-                elif (
-                    order_status != "Filled"
-                    and order_side == "Sell"
-                    and order_status != "Cancelled"
-                    and reduce_only
+                    and order_side == side
                 ):
                     exchange.cancel_order(symbol=symbol, id=order_id)
     except Exception as e:
@@ -954,7 +974,8 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
 
                 if long_profit_price != 0 or long_pos_price != 0:
                     try:
-                        cancel_close()
+                        #cancel_close()
+                        cancel_close("Sell")
                         time.sleep(0.05)
                     except Exception as e:
                         log.warning(f"{e}")
@@ -1037,7 +1058,8 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
 
                 if short_profit_price != 0 or short_pos_price != 0:
                     try:
-                        cancel_close()
+                        #cancel_close()
+                        cancel_close("Buy")
                         time.sleep(0.05)
                     except Exception as e:
                         log.warning(f"{e}")
