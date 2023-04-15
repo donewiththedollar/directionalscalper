@@ -620,6 +620,17 @@ def initial_short_entry(current_ask):
             global short_pos_price_at_entry
             short_pos_price_at_entry = short_pos_price
 
+def check_take_profit_executed(side):
+    try:
+        open_orders = exchange.fetch_open_orders(symbol)
+        for order in open_orders:
+            if order["side"] == side and order["info"]["reduce_only"]:
+                return False
+        return True
+    except Exception as e:
+        log.warning(f"{e}")
+        return False
+
 
 def get_current_price(exchange, symbol):
     ticker = exchange.fetch_ticker(symbol)
@@ -667,6 +678,7 @@ def generate_main_table():
 
 
 def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty):  # noqa
+    position_closed = False
     with Live(generate_main_table(), refresh_per_second=2) as live:
         while True:
             try:
@@ -750,6 +762,11 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
 
             # Check elapsed time
             elapsed_time = time.time() - last_size_increase_time
+
+            if position_closed:
+                max_trade_qty = initial_max_trade_qty
+                trade_qty = initial_trade_qty
+                position_closed = False
 
             if scalein_mode and elapsed_time >= time_interval:
                 if max_trade_qty < 5 * initial_max_trade_qty:
@@ -970,7 +987,6 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
 
                 if long_profit_price != 0 or long_pos_price != 0:
                     try:
-                        #cancel_close()
                         cancel_close("Sell")
                         time.sleep(0.05)
                     except Exception as e:
@@ -980,6 +996,7 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
                             symbol, long_open_pos_qty, long_profit_price, reduce_only
                         )
                         time.sleep(0.05)
+                        position_closed = check_take_profit_executed("Sell")
                     except Exception as e:
                         log.warning(f"{e}")
 
@@ -1063,6 +1080,7 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
                         exchange.create_limit_buy_order(
                             symbol, short_open_pos_qty, short_profit_price, reduce_only
                         )
+                        position_closed = check_take_profit_executed("Buy")
                         time.sleep(0.05)
                     except Exception as e:
                         log.warning(f"{e}")
