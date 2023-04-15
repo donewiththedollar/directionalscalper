@@ -176,34 +176,7 @@ dex_equity = balance["dex_equity"]
 
 current_bid, current_ask = orderbook_data_instance.get_orderbook()
 
-# # get_orderbook() [0]bid, [1]ask
-# def get_orderbook():
-#     try:
-#         ob = exchange.fetch_order_book(symbol)
-#         bid = ob["bids"][0][0]
-#         ask = ob["asks"][0][0]
-#         return bid, ask
-#     except Exception as e:
-#         log.warning(f"{e}")
-
-
-# # get_market_data() [0]precision, [1]leverage, [2]min_trade_qty
-# def get_market_data():
-#     try:
-#         global leverage
-#         exchange.load_markets()
-#         precision = exchange.market(symbol)["info"]["price_scale"]
-#         leverage = exchange.market(symbol)["info"]["leverage_filter"]["max_leverage"]
-#         min_trade_qty = exchange.market(symbol)["info"]["lot_size_filter"][
-#             "min_trading_qty"
-#         ]
-#         return precision, leverage, min_trade_qty
-#     except Exception as e:
-#         log.warning(f"{e}")
-
-
 #exchange.get_symbol_info()
-
 
 def get_short_positions(pos_dict):
     try:
