@@ -80,26 +80,62 @@ class BalanceData:
             print(f"An unknown error occured in get_balance(): {e}")
             log.warning(f"{e}")
 
+class OrderBookData:
+    def __init__(self, exchange, symbol):
+        self.exchange = exchange
+        self.symbol = symbol
 
-def print_lot_sizes(max_trade_qty, market_data):
-    print(f"Min Trade Qty: {market_data[2]}")
-    print_lot_size(1, Fore.LIGHTRED_EX, max_trade_qty, market_data)
-    print_lot_size(0.01, Fore.LIGHTCYAN_EX, max_trade_qty, market_data)
-    print_lot_size(0.005, Fore.LIGHTCYAN_EX, max_trade_qty, market_data)
-    print_lot_size(0.002, Fore.LIGHTGREEN_EX, max_trade_qty, market_data)
-    print_lot_size(0.001, Fore.LIGHTGREEN_EX, max_trade_qty, market_data)
+    def get_orderbook(self):
+        try:
+            ob = self.exchange.fetch_order_book(self.symbol)
+            bid = ob["bids"][0][0]
+            ask = ob["asks"][0][0]
+            return bid, ask
+        except Exception as e:
+            log.warning(f"{e}")
+
+    def get_bid(self):
+        bid, _ = self.get_orderbook()
+        return bid
+
+    def get_ask(self):
+        _, ask = self.get_orderbook()
+        return ask
 
 
-def calc_lot_size(lot_size, max_trade_qty, market_data):
+class MarketData:
+    def __init__(self, exchange, symbol):
+        self.exchange = exchange
+        self.symbol = symbol
+
+    def get_market_data(self):
+        try:
+            self.exchange.load_markets()
+            precision = self.exchange.market(self.symbol)["info"]["price_scale"]
+            leverage = self.exchange.market(self.symbol)["info"]["leverage_filter"]["max_leverage"]
+            min_trade_qty = self.exchange.market(self.symbol)["info"]["lot_size_filter"]["min_trading_qty"]
+            return precision, leverage, min_trade_qty
+        except Exception as e:
+            log.warning(f"{e}")
+
+
+def print_lot_sizes(max_trade_qty, leverage, min_trade_qty):
+    print(f"Min Trade Qty: {min_trade_qty}")
+    print_lot_size(1, Fore.LIGHTRED_EX, max_trade_qty, leverage, min_trade_qty)
+    print_lot_size(0.01, Fore.LIGHTCYAN_EX, max_trade_qty, leverage, min_trade_qty)
+    print_lot_size(0.005, Fore.LIGHTCYAN_EX, max_trade_qty, leverage, min_trade_qty)
+    print_lot_size(0.002, Fore.LIGHTGREEN_EX, max_trade_qty, leverage, min_trade_qty)
+    print_lot_size(0.001, Fore.LIGHTGREEN_EX, max_trade_qty, leverage, min_trade_qty)
+
+def calc_lot_size(lot_size, max_trade_qty, min_trade_qty):
     trade_qty_x = max_trade_qty / (1.0 / lot_size)
-    decimals_count = count_decimal_places(market_data[2])
+    decimals_count = count_decimal_places(min_trade_qty)
     trade_qty_x_round = round(trade_qty_x, decimals_count)
     return trade_qty_x, trade_qty_x_round
 
-
-def print_lot_size(lot_size, color, max_trade_qty, market_data):
+def print_lot_size(lot_size, color, max_trade_qty, leverage, min_trade_qty):
     not_enough_equity = Fore.RED + "({:.5g}) Not enough equity"
-    trade_qty_x, trade_qty_x_round = calc_lot_size(lot_size, max_trade_qty, market_data)
+    trade_qty_x, trade_qty_x_round = calc_lot_size(lot_size, max_trade_qty, min_trade_qty)
     if trade_qty_x_round == 0:
         trading_not_possible = not_enough_equity.format(trade_qty_x)
         color = Fore.RED

@@ -15,7 +15,7 @@ from directionalscalper.core.config import load_config
 from directionalscalper.core.functions import print_lot_sizes
 from directionalscalper.core.logger import Logger
 from directionalscalper.messengers.manager import MessageManager
-from directionalscalper.core.functions import DataAnalyzer, CandlestickData, BalanceData
+from directionalscalper.core.functions import DataAnalyzer, CandlestickData, BalanceData, OrderBookData, MarketData
 
 # 1. Create config.json from config.example.json
 # 2. Enter exchange_api_key and exchange_api_secret
@@ -160,6 +160,9 @@ exchange = ccxt.bybit(
 analyzer = DataAnalyzer(manager, min_volume, min_distance)
 candlestick_data = CandlestickData(exchange, symbol)
 balance_data = BalanceData(exchange)
+market_data = MarketData(exchange, symbol)
+orderbook_data_instance = OrderBookData(exchange, symbol)
+
 
 # Call the get_balance method
 balance = balance_data.get_balance()
@@ -171,30 +174,32 @@ dex_upnl = balance["dex_upnl"]
 dex_wallet = balance["dex_wallet"]
 dex_equity = balance["dex_equity"]
 
-# get_orderbook() [0]bid, [1]ask
-def get_orderbook():
-    try:
-        ob = exchange.fetch_order_book(symbol)
-        bid = ob["bids"][0][0]
-        ask = ob["asks"][0][0]
-        return bid, ask
-    except Exception as e:
-        log.warning(f"{e}")
+current_bid, current_ask = orderbook_data_instance.get_orderbook()
+
+# # get_orderbook() [0]bid, [1]ask
+# def get_orderbook():
+#     try:
+#         ob = exchange.fetch_order_book(symbol)
+#         bid = ob["bids"][0][0]
+#         ask = ob["asks"][0][0]
+#         return bid, ask
+#     except Exception as e:
+#         log.warning(f"{e}")
 
 
-# get_market_data() [0]precision, [1]leverage, [2]min_trade_qty
-def get_market_data():
-    try:
-        global leverage
-        exchange.load_markets()
-        precision = exchange.market(symbol)["info"]["price_scale"]
-        leverage = exchange.market(symbol)["info"]["leverage_filter"]["max_leverage"]
-        min_trade_qty = exchange.market(symbol)["info"]["lot_size_filter"][
-            "min_trading_qty"
-        ]
-        return precision, leverage, min_trade_qty
-    except Exception as e:
-        log.warning(f"{e}")
+# # get_market_data() [0]precision, [1]leverage, [2]min_trade_qty
+# def get_market_data():
+#     try:
+#         global leverage
+#         exchange.load_markets()
+#         precision = exchange.market(symbol)["info"]["price_scale"]
+#         leverage = exchange.market(symbol)["info"]["leverage_filter"]["max_leverage"]
+#         min_trade_qty = exchange.market(symbol)["info"]["lot_size_filter"][
+#             "min_trading_qty"
+#         ]
+#         return precision, leverage, min_trade_qty
+#     except Exception as e:
+#         log.warning(f"{e}")
 
 
 #exchange.get_symbol_info()
@@ -348,24 +353,27 @@ def set_auto_stop_loss(position, entry_size):
         log.warning(f"{e}")
 
 
-def short_trade_condition():
-    short_trade_condition = get_orderbook()[0] > candlestick_data.get_m_data(timeframe="1m")[0]
-    return short_trade_condition
+# def short_trade_condition():
+#     short_trade_condition = get_orderbook()[0] > candlestick_data.get_m_data(timeframe="1m")[0]
+#     return short_trade_condition
 
+def short_trade_condition():
+    ma_3_high, _, _, _ = candlestick_data.get_m_data(timeframe="1m")
+    short_condition = current_ask > ma_3_high
+    return short_condition
 
 def long_trade_condition():
-    long_trade_condition = get_orderbook()[0] < candlestick_data.get_m_data(timeframe="1m")[0]
-    return long_trade_condition
-
+    current_bid = orderbook_data_instance.get_bid()
+    ma_3_low, _, _, _ = candlestick_data.get_m_data(timeframe="1m")
+    return current_bid < ma_3_low
 
 def add_short_trade_condition():
-    add_short_trade_condition = short_pos_price < candlestick_data.get_m_data(timeframe="1m")[3]
-    return add_short_trade_condition
-
+    _, _, _, ma_6_low = candlestick_data.get_m_data(timeframe="1m")
+    return short_pos_price < ma_6_low
 
 def add_long_trade_condition():
-    add_long_trade_condition = long_pos_price > candlestick_data.get_m_data(timeframe="1m")[3]
-    return add_long_trade_condition
+    _, _, _, ma_6_low = candlestick_data.get_m_data(timeframe="1m")
+    return long_pos_price > ma_6_low
 
 
 def leverage_verification(symbol):
@@ -386,12 +394,13 @@ def leverage_verification(symbol):
         log.debug(f"{e}")
     # Set leverage
     try:
-        exchange.set_leverage(leverage=get_market_data()[1], symbol=symbol)
+        _, leverage, _ = market_data.get_market_data()
+        exchange.set_leverage(leverage=leverage, symbol=symbol)
         print(Fore.YELLOW + "Leverage set" + Style.RESET_ALL)
     except Exception as e:
         print(
             Fore.YELLOW + "Leverage not modified, current leverage is",
-            get_market_data()[1],
+            leverage,
         )
         log.debug(f"{e}")
 
@@ -417,12 +426,20 @@ balance_data.get_balance()
 
 # Implement basic wallet exposure
 
-max_trade_qty = round(
-    (float(dex_equity) * wallet_exposure / float(get_orderbook()[1]))
-    / (100 / float(get_market_data()[1])),
-    int(float(get_market_data()[2])),
-)
+# max_trade_qty = round(
+#     (float(dex_equity) * wallet_exposure / float(get_orderbook()[1]))
+#     / (100 / float(get_market_data()[1])),
+#     int(float(get_market_data()[2])),
+# )
 
+ask_price = orderbook_data_instance.get_ask()
+_, liquidation_price, min_order_qty = market_data.get_market_data()
+
+max_trade_qty = round(
+    (float(dex_equity) * wallet_exposure / float(ask_price))
+    / (100 / float(liquidation_price)),
+    int(float(min_order_qty)),
+)
 
 # Initialize variables
 initial_max_trade_qty = max_trade_qty
@@ -432,9 +449,13 @@ last_size_increase_time = time.time()
 
 violent_max_trade_qty = max_trade_qty * violent_multiplier
 
-current_leverage = get_market_data()[1]
+_, current_leverage, _ = market_data.get_market_data()
 
-print_lot_sizes(max_trade_qty, get_market_data())
+# _, leverage, min_trade_qty = market_data.get_market_data()
+# print_lot_sizes(max_trade_qty, leverage, min_trade_qty)
+
+_, leverage, min_trade_qty = market_data.get_market_data()
+print_lot_sizes(max_trade_qty, leverage, min_trade_qty)
 
 # Fix for the first run when variable is not yet assigned
 short_symbol_cum_realised = 0
@@ -618,7 +639,7 @@ def generate_main_table():
         min_vol_dist_data = analyzer.get_min_vol_dist_data(symbol)
         mode = find_mode()
         trend = find_trend()
-        market_data = get_market_data()
+        _, leverage, min_trade_qty = market_data.get_market_data()
         table_data = {
             "version": version,
             "short_pos_unpl": short_pos_unpl,
@@ -664,7 +685,8 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
                 time.sleep(0.01)
                 balance_data.get_balance()
                 time.sleep(0.01)
-                get_orderbook()
+                bid, ask = orderbook_data_instance.get_orderbook()
+                #get_orderbook()
                 time.sleep(0.01)
                 long_trade_condition()
                 time.sleep(0.01)
@@ -690,8 +712,9 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
             live.update(generate_main_table())
 
             try:
-                current_bid = get_orderbook()[0]
-                current_ask = get_orderbook()[1]
+                # current_bid = get_orderbook()[0]
+                # current_ask = get_orderbook()[1]
+                current_bid, current_ask = orderbook_data_instance.get_orderbook()
             except Exception as e:
                 log.warning(f"{e}")
 
@@ -701,19 +724,26 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
             reduce_only = {"reduce_only": True}
 
             five_min_data = candlestick_data.get_m_data(timeframe="5m")
-            market_data = get_market_data()
+            _, leverage, min_trade_qty = market_data.get_market_data()
 
             if five_min_data is not None and market_data is not None:
+                _, _, ma_6_high, ma_6_low = candlestick_data.get_m_data(timeframe="5m")
+                precision, _, _ = market_data.get_market_data()
+
                 short_profit_price = round(
-                    short_pos_price - (five_min_data[2] - five_min_data[3]),
-                    int(market_data[0]),
+                    short_pos_price - (ma_6_high - ma_6_low),
+                    int(precision),
                 )
 
             if five_min_data is not None and market_data is not None:
+                _, _, ma_6_high, ma_6_low = candlestick_data.get_m_data(timeframe="5m")
+                precision, _, _ = market_data.get_market_data()
+
                 long_profit_price = round(
-                    long_pos_price + (five_min_data[2] - five_min_data[3]),
-                    int(market_data[0]),
+                    long_pos_price + (ma_6_high - ma_6_low),
+                    int(precision),
                 )
+
 
             # short_profit_price = round(
             #     short_pos_price - (get_m_data(timeframe="5m")[2] - get_m_data(timeframe="5m")[3]),
@@ -763,26 +793,29 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
 
 
             if violent_mode:
-                denominator = get_orderbook()[1] - candlestick_data.get_m_data(timeframe="1m")[3]
+                current_ask = orderbook_data_instance.get_ask()
+                _, _, _, ma_6_low = candlestick_data.get_m_data(timeframe="1m")
+                denominator = current_ask - ma_6_low
                 if denominator == 0:
                     short_violent_trade_qty, long_violent_trade_qty = 0, 0
                 else:
                     short_violent_trade_qty = (
                         short_open_pos_qty
-                        * (candlestick_data.get_m_data(timeframe="1m")[3] - short_pos_price)
+                        * (ma_6_low - short_pos_price)
                         / denominator
                     )
 
                     long_violent_trade_qty = (
                         long_open_pos_qty
-                        * (candlestick_data.get_m_data(timeframe="1m")[3] - long_pos_price)
+                        * (ma_6_low - long_pos_price)
                         / denominator
                     )
 
+
             if blackjack_mode:
-                best_bid = get_orderbook()[1]
-                ma_3_low = candlestick_data.get_m_data(timeframe="1m")[1]
-                denominator = best_bid - ma_3_low
+                current_ask = orderbook_data.get_ask()
+                _, ma_3_low, _, _ = candlestick_data.get_m_data(timeframe="1m")
+                denominator = current_ask - ma_3_low
                 # risk_factor = 0.01  # Adjust this value according to your risk tolerance
 
                 if denominator == 0:
@@ -915,8 +948,10 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
                             remaining_position -= partial_qty
 
                         target_price = profit_targets[idx]
-                        if partial_qty < float(get_market_data()[2]):
-                            partial_qty = float(get_market_data()[2])
+                        min_trade_qty = market_data.get_min_trade_qty()
+                        if partial_qty < float(min_trade_qty):
+                            partial_qty = float(min_trade_qty)
+
 
                         try:
                             exchange.create_limit_sell_order(
@@ -997,8 +1032,9 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
                             remaining_position -= partial_qty
 
                         target_price = profit_targets[idx]
-                        if partial_qty < float(get_market_data()[2]):
-                            partial_qty = float(get_market_data()[2])
+                        min_trade_qty = market_data.get_min_trade_qty()
+                        if partial_qty < float(min_trade_qty):
+                            partial_qty = float(min_trade_qty)
 
                         try:
                             exchange.create_limit_buy_order(
@@ -1043,6 +1079,9 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
             # Violent: Full mode
             if violent_mode:
                 try:
+                    current_ask = orderbook_data_instance.get_ask()
+                    current_bid = orderbook_data_instance.get_bid()
+
                     if find_trend() == "short":
                         initial_short_entry(current_ask)
                         if (
@@ -1085,8 +1124,8 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
                             except Exception as e:
                                 log.warning(f"{e}")
                     if (
-                        get_orderbook()[1] < candlestick_data.get_m_data(timeframe="1m")[0]
-                        or get_orderbook()[1] < candlestick_data.get_m_data(timeframe="5m")[0]
+                        current_ask < candlestick_data.get_m_data(timeframe="1m")[0]
+                        or current_ask < candlestick_data.get_m_data(timeframe="5m")[0]
                     ):
                         try:
                             cancel_entry()
@@ -1099,6 +1138,8 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
             # BLACKJACK: Full mode
             if blackjack_mode:
                 try:
+                    current_ask = orderbook_data_instance.get_ask()
+                    current_bid = orderbook_data_instance.get_bid()
                     if find_trend() == "short":
                         initial_short_entry(current_ask)
                         if (
@@ -1140,8 +1181,8 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
                             set_auto_stop_loss("long", long_blackjack_trade_qty)
 
                     if (
-                        get_orderbook()[1] < candlestick_data.get_m_data(timeframe="1m")[0]
-                        or get_orderbook()[1] < candlestick_data.get_m_data(timeframe="5m")[0]
+                        current_ask < candlestick_data.get_m_data(timeframe="1m")[0]
+                        or current_ask < candlestick_data.get_m_data(timeframe="5m")[0]
                     ):
                         try:
                             cancel_entry()
@@ -1154,6 +1195,8 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
             # HEDGE: Full mode
             if hedge_mode:
                 try:
+                    current_ask = orderbook_data_instance.get_ask()
+                    current_bid = orderbook_data_instance.get_bid()
                     if find_trend() == "short":
                         initial_short_entry(current_ask)
                         if (
@@ -1187,8 +1230,8 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
                             except Exception as e:
                                 log.warning(f"{e}")
                     if (
-                        get_orderbook()[1] < candlestick_data.get_m_data(timeframe="1m")[0]
-                        or get_orderbook()[1] < candlestick_data.get_m_data(timeframe="5m")[0]
+                        current_ask < candlestick_data.get_m_data(timeframe="1m")[0]
+                        or current_ask < candlestick_data.get_m_data(timeframe="5m")[0]
                     ):
                         try:
                             cancel_entry()
@@ -1200,6 +1243,8 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
 
             if aggressive_mode:
                 try:
+                    current_ask = orderbook_data_instance.get_ask()
+                    current_bid = orderbook_data_instance.get_bid()
                     if find_trend() == "short":
                         initial_short_entry(current_ask)
                         if (
@@ -1239,8 +1284,8 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
                             except Exception as e:
                                 log.warning(f"{e}")
                     if (
-                        get_orderbook()[1] < candlestick_data.get_m_data(timeframe="1m")[0]
-                        or get_orderbook()[1] < candlestick_data.get_m_data(timeframe="5m")[0]
+                        current_ask < candlestick_data.get_m_data(timeframe="1m")[0]
+                        or current_ask < candlestick_data.get_m_data(timeframe="5m")[0]
                     ):
                         try:
                             cancel_entry()
@@ -1250,7 +1295,7 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
                 except Exception as e:
                     log.warning(f"{e}")
 
-            orderbook_data = get_orderbook()
+            orderbook_data = orderbook_data_instance.get_orderbook()
             data_1m = candlestick_data.get_m_data(timeframe="1m")
             data_5m = candlestick_data.get_m_data(timeframe="5m")
 
