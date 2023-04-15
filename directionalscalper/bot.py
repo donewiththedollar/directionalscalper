@@ -659,8 +659,11 @@ def generate_main_table():
 
 
 def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty, initial_long_max_trade_qty, initial_short_max_trade_qty, initial_long_trade_qty, initial_short_trade_qty):  # noqa
+    position_closed = False
     long_position_closed = False
     short_position_closed = False
+    long_max_trade_qty = initial_long_max_trade_qty
+    short_max_trade_qty = initial_short_max_trade_qty
     with Live(generate_main_table(), refresh_per_second=2) as live:
         while True:
             try:
