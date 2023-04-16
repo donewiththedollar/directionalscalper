@@ -1,5 +1,6 @@
 from colorama import Fore
 from directionalscalper.core.logger import Logger
+from directionalscalper.messengers.manager import MessageManager
 import pandas as pd
 
 log = Logger(filename="ds.log", level="info")
@@ -117,6 +118,18 @@ class MarketData:
             return precision, leverage, min_trade_qty
         except Exception as e:
             log.warning(f"{e}")
+
+
+def send_pnl_message(messengers, short_pos_unpl, long_pos_unpl, short_pos_unpl_pct, long_pos_unpl_pct):
+    # Prepare the PNL message
+    pnl_message = f"PNL Information:\n" \
+                  f"Short Position Unpl: {short_pos_unpl}\n" \
+                  f"Long Position Unpl: {long_pos_unpl}\n" \
+                  f"Short Position Unpl %: {short_pos_unpl_pct}\n" \
+                  f"Long Position Unpl %: {long_pos_unpl_pct}"
+
+    # Send the PNL message using the messengers instance
+    messengers.send_message_to_all_messengers(message=pnl_message)
 
 
 def print_lot_sizes(max_trade_qty, leverage, min_trade_qty):
