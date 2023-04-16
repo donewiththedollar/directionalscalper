@@ -36,6 +36,7 @@ aggressive_mode = False
 deleveraging_mode = False
 violent_mode = False
 blackjack_mode = False
+scalein_mode = False
 leverage_verified = False
 
 
@@ -57,7 +58,7 @@ parser.add_argument(
     "--mode",
     type=str,
     help="Mode to use",
-    choices=["long", "short", "hedge", "aggressive", "violent", "blackjack"],
+    choices=["long", "short", "hedge", "aggressive", "violent", "blackjack", "scalein"],
     required=True,
 )
 
@@ -91,6 +92,8 @@ elif args.mode == "violent":
     violent_mode = True
 elif args.mode == "blackjack":
     blackjack_mode = True
+elif args.mode == "scalein":
+    scalein_mode = True
 
 if args.symbol:
     symbol = args.symbol
@@ -137,16 +140,9 @@ botname = config.bot.bot_name
 wallet_exposure = config.bot.wallet_exposure
 violent_multiplier = config.bot.violent_multiplier
 risk_factor = config.bot.blackjack_risk_factor
-scalein_mode = config.bot.scalein_mode
-scalein_mode_dca = config.bot.scalein_mode_dca
 
 profit_percentages = [0.3, 0.5, 0.2]
 profit_increment_percentage = config.bot.profit_multiplier_pct
-
-if scalein_mode:
-    messengers.send_message_to_all_messengers(
-        message=f"[ScaleIn Mode] enabled"
-    )
 
 # CCXT connect to bybit
 exchange = ccxt.bybit(
@@ -760,60 +756,36 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
                 short_position_closed = False
 
             if scalein_mode and elapsed_time >= time_interval:
-                # Long scale-in logic
-                if long_max_trade_qty < 5 * initial_long_max_trade_qty:
-                    long_max_trade_qty += min_order_qty
-                    long_max_trade_qty = min(long_max_trade_qty, 5 * initial_long_max_trade_qty)
-                    messengers.send_message_to_all_messengers(
-                        message=f"[ScaleIn Mode] Long max trade qty: {long_max_trade_qty}"
-                    )
-                else:
-                    long_max_trade_qty = initial_long_max_trade_qty
-
-                # Short scale-in logic
-                if short_max_trade_qty < 5 * initial_short_max_trade_qty:
-                    short_max_trade_qty += min_order_qty
-                    short_max_trade_qty = min(short_max_trade_qty, 5 * initial_short_max_trade_qty)
-                    messengers.send_message_to_all_messengers(
-                        message=f"[ScaleIn Mode] Short max trade qty: {short_max_trade_qty}"
-                    )
-                else:
-                    short_max_trade_qty = initial_short_max_trade_qty
-
-                last_size_increase_time = time.time()
-
-            if scalein_mode_dca and elapsed_time >= time_interval:
-                # Long DCA logic
+                send_full_pnl_message(messengers, short_pos_unpl, long_pos_unpl, short_pos_unpl_pct, long_pos_unpl_pct,
+                     long_pos_qty, long_pos_price, long_symbol_realised, long_symbol_cum_realised,
+                     long_liq_price, long_pos_price_at_entry, short_pos_qty, short_pos_price,
+                     short_symbol_realised, short_symbol_cum_realised, short_liq_price,
+                     short_pos_price_at_entry)
+                
+                # Long scale-in and DCA logic
                 long_max_possible_size = 5 * long_max_trade_qty
                 messengers.send_message_to_all_messengers(
-                    message=f"[ScaleIn Mode] Maximum possible long trade quantity: {long_max_possible_size}"
+                    message=f"[Combined ScaleIn Mode] Maximum possible long trade quantity: {long_max_possible_size}"
                 )
-                #send_pnl_message(messengers, short_pos_unpl, long_pos_unpl, short_pos_unpl_pct, long_pos_unpl_pct)
-                send_full_pnl_message(messengers, short_pos_unpl, long_pos_unpl, short_pos_unpl_pct, long_pos_unpl_pct,
-                                long_pos_qty, long_pos_price, long_symbol_realised, long_symbol_cum_realised,
-                                long_liq_price, long_pos_price_at_entry, short_pos_qty, short_pos_price,
-                                short_symbol_realised, short_symbol_cum_realised, short_liq_price,
-                                short_pos_price_at_entry)
-
                 if long_trade_qty < long_max_possible_size:
                     long_trade_qty += min_order_qty
                     long_trade_qty = min(long_trade_qty, long_max_possible_size)
                     messengers.send_message_to_all_messengers(
-                        message=f"[ScaleIn Mode] Long trade qty: {long_trade_qty}"
+                        message=f"[Combined ScaleIn Mode] Long trade qty: {long_trade_qty}"
                     )
                 else:
                     long_trade_qty = initial_long_trade_qty
 
-                # Short DCA logic
+                # Short scale-in and DCA logic
                 short_max_possible_size = 5 * short_max_trade_qty
                 messengers.send_message_to_all_messengers(
-                    message=f"[ScaleIn Mode] Maximum possible short trade quantity: {short_max_possible_size}"
+                    message=f"[Combined ScaleIn Mode] Maximum possible short trade quantity: {short_max_possible_size}"
                 )
                 if short_trade_qty < short_max_possible_size:
                     short_trade_qty += min_order_qty
                     short_trade_qty = min(short_trade_qty, short_max_possible_size)
                     messengers.send_message_to_all_messengers(
-                        message=f"[ScaleIn Mode] Short trade qty: {short_trade_qty}"
+                        message=f"[Combined ScaleIn Mode] Short trade qty: {short_trade_qty}"
                     )
                 else:
                     short_trade_qty = initial_short_trade_qty
@@ -1000,6 +972,7 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
                     or aggressive_mode
                     or violent_mode
                     or blackjack_mode
+                    or scalein_mode
                 )
             ):
                 try:
@@ -1084,6 +1057,7 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
                     or aggressive_mode
                     or violent_mode
                     or blackjack_mode
+                    or scalein_mode
                 )
             ):
                 try:
@@ -1222,6 +1196,66 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
                             time.sleep(0.05)
                         except Exception as e:
                             log.warning(f"{e}")
+                except Exception as e:
+                    log.warning(f"{e}")
+
+            # ScaleIn: Full mode
+            if scalein_mode:
+                try:
+                    current_ask = orderbook_data_instance.get_ask()
+                    current_bid = orderbook_data_instance.get_bid()
+                    if find_trend() == "short":
+                        initial_short_entry(current_ask)
+                        if (
+                            find_1m_1x_volume() > min_volume
+                            and find_5m_spread() > min_distance
+                            and short_pos_qty < short_max_trade_qty
+                            and add_short_trade_condition()
+                            and current_ask > short_pos_price
+                        ):
+                            checked_qty = (
+                                short_trade_qty
+                                if not scalein_mode
+                                else trade_qty
+                            )
+                            try:
+                                exchange.create_limit_sell_order(
+                                    symbol, checked_qty, current_ask
+                                )
+                                time.sleep(0.01)
+                            except Exception as e:
+                                log.warning(f"{e}")
+                    elif find_trend() == "long":
+                        initial_long_entry(current_bid)
+                        if (
+                            find_1m_1x_volume() > min_volume
+                            and find_5m_spread() > min_distance
+                            and long_pos_qty < long_max_trade_qty
+                            and add_long_trade_condition()
+                            and current_bid < long_pos_price
+                        ):
+                            checked_qty = (
+                                long_trade_qty
+                                if not scalein_mode
+                                else trade_qty
+                            )
+                            try:
+                                exchange.create_limit_buy_order(
+                                    symbol, checked_qty, current_bid
+                                )
+                                time.sleep(0.01)
+                            except Exception as e:
+                                log.warning(f"{e}")
+                    if (
+                        current_ask < candlestick_data.get_m_data(timeframe="1m")[0]
+                        or current_ask < candlestick_data.get_m_data(timeframe="5m")[0]
+                    ):
+                        try:
+                            cancel_entry()
+                            time.sleep(0.05)
+                        except Exception as e:
+                            log.warning(f"{e}")
+
                 except Exception as e:
                     log.warning(f"{e}")
 
@@ -1390,6 +1424,16 @@ def hedge_mode_func(symbol):
     leverage_verification(symbol)
     trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty, initial_long_max_trade_qty, initial_short_max_trade_qty, initial_long_trade_qty, initial_short_trade_qty)
 
+def scalein_mode_func(symbol):
+    print(Fore.LIGHTCYAN_EX + "ScaleIn mode enabled for", symbol + Style.RESET_ALL)
+    initial_trade_qty = trade_qty
+    initial_long_max_trade_qty = max_trade_qty
+    initial_short_max_trade_qty = max_trade_qty
+    initial_long_trade_qty = trade_qty
+    initial_short_trade_qty = trade_qty
+    leverage_verification(symbol)
+    trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty, initial_long_max_trade_qty, initial_short_max_trade_qty, initial_long_trade_qty, initial_short_trade_qty)
+
 
 def aggressive_mode_func(symbol):
     print(
@@ -1463,6 +1507,11 @@ elif args.mode == "violent":
 elif args.mode == "blackjack":
     if args.symbol:
         blackjack_mode_func(args.symbol)
+    else:
+        symbol = input("Instrument undefined. \nInput instrument:")
+elif args.mode == "scalein":
+    if args.symbol:
+        scalein_mode_func(args.symbol)
     else:
         symbol = input("Instrument undefined. \nInput instrument:")
 
