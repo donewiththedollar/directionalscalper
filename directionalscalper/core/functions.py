@@ -1,4 +1,5 @@
 from colorama import Fore
+from tabulate import tabulate
 from directionalscalper.core.logger import Logger
 from directionalscalper.messengers.manager import MessageManager
 import pandas as pd
@@ -131,6 +132,26 @@ def send_pnl_message(messengers, short_pos_unpl, long_pos_unpl, short_pos_unpl_p
     # Send the PNL message using the messengers instance
     messengers.send_message_to_all_messengers(message=pnl_message)
 
+def send_full_pnl_message(messengers, short_pos_unpl, long_pos_unpl, short_pos_unpl_pct, long_pos_unpl_pct,
+                     long_pos_qty, long_pos_price, long_symbol_realised, long_symbol_cum_realised,
+                     long_liq_price, long_pos_price_at_entry, short_pos_qty, short_pos_price,
+                     short_symbol_realised, short_symbol_cum_realised, short_liq_price,
+                     short_pos_price_at_entry):
+    
+    data = [
+        ["Long", long_pos_qty, long_pos_price, long_symbol_realised, long_symbol_cum_realised,
+         long_pos_unpl, long_pos_unpl_pct, long_liq_price, long_pos_price_at_entry],
+        ["Short", short_pos_qty, short_pos_price, short_symbol_realised, short_symbol_cum_realised,
+         short_pos_unpl, short_pos_unpl_pct, short_liq_price, short_pos_price_at_entry]
+    ]
+
+    table_headers = ["Type", "Pos Qty", "Pos Price", "Symbol Realised", "Symbol Cum Realised",
+                     "Pos Unpl", "Pos Unpl %", "Liq Price", "Pos Price at Entry"]
+
+    table = tabulate(data, headers=table_headers, tablefmt="pretty")
+
+    # Send the PNL message using the messengers instance
+    messengers.send_message_to_all_messengers(message=f"PNL Information:\n{table}")
 
 def print_lot_sizes(max_trade_qty, leverage, min_trade_qty):
     print(f"Min Trade Qty: {min_trade_qty}")

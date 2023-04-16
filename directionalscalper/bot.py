@@ -15,7 +15,7 @@ from directionalscalper.core.config import load_config
 from directionalscalper.core.functions import print_lot_sizes
 from directionalscalper.core.logger import Logger
 from directionalscalper.messengers.manager import MessageManager
-from directionalscalper.core.functions import DataAnalyzer, CandlestickData, BalanceData, OrderBookData, MarketData, send_pnl_message
+from directionalscalper.core.functions import DataAnalyzer, CandlestickData, BalanceData, OrderBookData, MarketData, send_pnl_message, send_full_pnl_message
 
 # 1. Create config.json from config.example.json
 # 2. Enter exchange_api_key and exchange_api_secret
@@ -788,7 +788,12 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
                 messengers.send_message_to_all_messengers(
                     message=f"[ScaleIn Mode] Maximum possible long trade quantity: {long_max_possible_size}"
                 )
-                send_pnl_message(messengers, short_pos_unpl, long_pos_unpl, short_pos_unpl_pct, long_pos_unpl_pct)
+                #send_pnl_message(messengers, short_pos_unpl, long_pos_unpl, short_pos_unpl_pct, long_pos_unpl_pct)
+                send_full_pnl_message(messengers, short_pos_unpl, long_pos_unpl, short_pos_unpl_pct, long_pos_unpl_pct,
+                                long_pos_qty, long_pos_price, long_symbol_realised, long_symbol_cum_realised,
+                                long_liq_price, long_pos_price_at_entry, short_pos_qty, short_pos_price,
+                                short_symbol_realised, short_symbol_cum_realised, short_liq_price,
+                                short_pos_price_at_entry)
 
                 if long_trade_qty < long_max_possible_size:
                     long_trade_qty += min_order_qty
