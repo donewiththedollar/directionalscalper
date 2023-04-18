@@ -587,23 +587,38 @@ def initial_short_entry(current_ask):
             global short_pos_price_at_entry
             short_pos_price_at_entry = short_pos_price
 
+# def check_take_profit_executed(order_side):
+#     try:
+#         open_orders = exchange.fetch_open_orders(symbol)
+#         for order in open_orders:
+#             if order["side"] == order_side and order["info"]["reduce_only"]:
+#                 return False  # Order is still open
+#         return True  # No open orders found for the given side
+#     except Exception as e:
+#         log.warning(f"{e}")
+#         return False
+    
+# def check_take_profit_executed(order_side):
+#     global long_position_closed, short_position_closed
 
-def check_take_profit_executed(order_side):
-    global long_position_closed, short_position_closed
-    try:
-        open_orders = exchange.fetch_open_orders(symbol)
-        for order in open_orders:
-            if order["side"] == order_side and order["info"]["reduce_only"]:
-                return False
-        if order_side == "Sell":
-            long_position_closed = True
-        elif order_side == "Buy":
-            short_position_closed = True
-        return True
-    except Exception as e:
-        log.warning(f"{e}")
-        return False
+#     log.info(f"Checking take profit executed for order side: {order_side}")  # Log the order side
 
+#     try:
+#         open_orders = exchange.fetch_open_orders(symbol)
+#         for order in open_orders:
+#             if order["side"] == order_side and order["info"]["reduce_only"]:
+#                 #log.info(f"Take profit not executed for {order_side}")  # Log if the take profit is not executed
+#                 return False
+#         if order_side == "Sell":
+#             long_position_closed = True
+#         elif order_side == "Buy":
+#             short_position_closed = True
+
+#         #log.info(f"Take profit executed for {order_side}")  # Log if the take profit is executed
+#         return True
+#     except Exception as e:
+#         log.warning(f"{e}")
+#         return False
 
 def get_current_price(exchange, symbol):
     ticker = exchange.fetch_ticker(symbol)
@@ -650,7 +665,7 @@ def generate_main_table():
         log.warning(f"{e}")
 
 
-def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty, initial_long_max_trade_qty, initial_short_max_trade_qty, initial_long_trade_qty, initial_short_trade_qty):  # noqa
+def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty, initial_long_max_trade_qty, initial_short_max_trade_qty, initial_long_trade_qty, initial_short_trade_qty, min_order_qty):  # noqa
     global long_trade_qty, short_trade_qty
     long_position_closed = False
     short_position_closed = False
@@ -740,7 +755,10 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
             # Check elapsed time
             elapsed_time = time.time() - last_size_increase_time
 
+
             if scalein_mode and elapsed_time >= time_interval:
+                if min_order_qty is None:
+                    min_order_qty = 0.1
                 send_full_pnl_message(messengers, short_pos_unpl, long_pos_unpl, short_pos_unpl_pct, long_pos_unpl_pct,
                      long_pos_qty, long_pos_price, long_symbol_realised, long_symbol_cum_realised,
                      long_liq_price, long_pos_price_at_entry, short_pos_qty, short_pos_price,
@@ -777,15 +795,34 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
 
                 last_size_increase_time = time.time()
 
-            if long_position_closed:
+            # Check if the long take profit order has been executed
+            if long_pos_qty == 0:
+                long_position_closed = True
+            else:
+                long_position_closed = False
+
+            # Check if the short take profit order has been executed
+            if short_pos_qty == 0:
+                short_position_closed = True
+            else:
+                short_position_closed = False
+
+
+            if long_position_closed == True:
                 long_max_trade_qty = initial_long_max_trade_qty
                 long_trade_qty = initial_long_trade_qty
                 long_position_closed = False
+                messengers.send_message_to_all_messengers(
+                    message=f"[Combined ScaleIn Mode] Long trade qty reset {long_trade_qty}"
+                )
 
-            if short_position_closed:
+            if short_position_closed == True:
                 short_max_trade_qty = initial_short_max_trade_qty
                 short_trade_qty = initial_short_trade_qty
                 short_position_closed = False
+                messengers.send_message_to_all_messengers(
+                    message=f"[Combined ScaleIn Mode] Short trade qty reset {short_trade_qty}"
+                )
 
 
             if violent_mode:
@@ -987,7 +1024,7 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
                             symbol, long_open_pos_qty, long_profit_price, reduce_only
                         )
                         time.sleep(0.05)
-                        check_take_profit_executed("Sell")  # Update long_position_closed using the function
+                        long_position_closed = check_take_profit_executed("Sell")  # Update long_position_closed using the function
                     except Exception as e:
                         log.warning(f"{e}")
 
@@ -1073,7 +1110,7 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
                             symbol, short_open_pos_qty, short_profit_price, reduce_only
                         )
                         #position_closed = check_take_profit_executed("Buy")
-                        check_take_profit_executed("Buy")
+                        short_position_closed = check_take_profit_executed("Buy")
                         time.sleep(0.05)
                     except Exception as e:
                         log.warning(f"{e}")
@@ -1391,7 +1428,7 @@ def long_mode_func(symbol):
     initial_short_max_trade_qty = max_trade_qty
     initial_long_trade_qty = trade_qty
     initial_short_trade_qty = trade_qty
-    trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty, initial_long_max_trade_qty, initial_short_max_trade_qty, initial_long_trade_qty, initial_short_trade_qty)
+    trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty, initial_long_max_trade_qty, initial_short_max_trade_qty, initial_long_trade_qty, initial_short_trade_qty, min_order_qty)
 
 
 def short_mode_func(symbol):
@@ -1402,7 +1439,7 @@ def short_mode_func(symbol):
     initial_long_trade_qty = trade_qty
     initial_short_trade_qty = trade_qty
     leverage_verification(symbol)
-    trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty, initial_long_max_trade_qty, initial_short_max_trade_qty, initial_long_trade_qty, initial_short_trade_qty)
+    trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty, initial_long_max_trade_qty, initial_short_max_trade_qty, initial_long_trade_qty, initial_short_trade_qty, min_order_qty)
 
 
 def hedge_mode_func(symbol):
@@ -1413,7 +1450,7 @@ def hedge_mode_func(symbol):
     initial_long_trade_qty = trade_qty
     initial_short_trade_qty = trade_qty
     leverage_verification(symbol)
-    trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty, initial_long_max_trade_qty, initial_short_max_trade_qty, initial_long_trade_qty, initial_short_trade_qty)
+    trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty, initial_long_max_trade_qty, initial_short_max_trade_qty, initial_long_trade_qty, initial_short_trade_qty, min_order_qty)
 
 def scalein_mode_func(symbol):
     print(Fore.LIGHTCYAN_EX + "ScaleIn mode enabled for", symbol + Style.RESET_ALL)
@@ -1423,7 +1460,7 @@ def scalein_mode_func(symbol):
     initial_long_trade_qty = trade_qty
     initial_short_trade_qty = trade_qty
     leverage_verification(symbol)
-    trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty, initial_long_max_trade_qty, initial_short_max_trade_qty, initial_long_trade_qty, initial_short_trade_qty)
+    trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty, initial_long_max_trade_qty, initial_short_max_trade_qty, initial_long_trade_qty, initial_short_trade_qty, min_order_qty)
 
 
 def aggressive_mode_func(symbol):
@@ -1437,7 +1474,7 @@ def aggressive_mode_func(symbol):
     initial_long_trade_qty = trade_qty
     initial_short_trade_qty = trade_qty
     leverage_verification(symbol)
-    trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty, initial_long_max_trade_qty, initial_short_max_trade_qty, initial_long_trade_qty, initial_short_trade_qty)
+    trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty, initial_long_max_trade_qty, initial_short_max_trade_qty, initial_long_trade_qty, initial_short_trade_qty, min_order_qty)
 
 
 def violent_mode_func(symbol):
@@ -1452,7 +1489,7 @@ def violent_mode_func(symbol):
     initial_long_trade_qty = trade_qty
     initial_short_trade_qty = trade_qty
     leverage_verification(symbol)
-    trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty, initial_long_max_trade_qty, initial_short_max_trade_qty, initial_long_trade_qty, initial_short_trade_qty)
+    trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty, initial_long_max_trade_qty, initial_short_max_trade_qty, initial_long_trade_qty, initial_short_trade_qty, min_order_qty)
 
 
 def blackjack_mode_func(symbol):
@@ -1466,7 +1503,7 @@ def blackjack_mode_func(symbol):
     initial_long_trade_qty = trade_qty
     initial_short_trade_qty = trade_qty
     leverage_verification(symbol)
-    trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty, initial_long_max_trade_qty, initial_short_max_trade_qty, initial_long_trade_qty, initial_short_trade_qty)
+    trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty, initial_long_max_trade_qty, initial_short_max_trade_qty, initial_long_trade_qty, initial_short_trade_qty, min_order_qty)
 
 
 # Argument declaration
