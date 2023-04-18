@@ -414,9 +414,6 @@ violent_max_trade_qty = max_trade_qty * violent_multiplier
 
 _, current_leverage, _ = market_data.get_market_data()
 
-# _, leverage, min_trade_qty = market_data.get_market_data()
-# print_lot_sizes(max_trade_qty, leverage, min_trade_qty)
-
 _, leverage, min_trade_qty = market_data.get_market_data()
 print_lot_sizes(max_trade_qty, leverage, min_trade_qty)
 
@@ -654,7 +651,7 @@ def generate_main_table():
 
 
 def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initial_trade_qty, initial_long_max_trade_qty, initial_short_max_trade_qty, initial_long_trade_qty, initial_short_trade_qty):  # noqa
-    position_closed = False
+    global long_trade_qty, short_trade_qty
     long_position_closed = False
     short_position_closed = False
     long_max_trade_qty = initial_long_max_trade_qty
@@ -673,7 +670,6 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
                 balance_data.get_balance()
                 time.sleep(0.01)
                 bid, ask = orderbook_data_instance.get_orderbook()
-                #get_orderbook()
                 time.sleep(0.01)
                 long_trade_condition()
                 time.sleep(0.01)
@@ -731,7 +727,6 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
                     int(precision),
                 )
 
-
             # short_profit_price = round(
             #     short_pos_price - (get_m_data(timeframe="5m")[2] - get_m_data(timeframe="5m")[3]),
             #     int(get_market_data()[0]),
@@ -744,16 +739,6 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
 
             # Check elapsed time
             elapsed_time = time.time() - last_size_increase_time
-
-            if long_position_closed:
-                long_max_trade_qty = initial_long_max_trade_qty
-                long_trade_qty = initial_long_trade_qty
-                long_position_closed = False
-
-            if short_position_closed:
-                short_max_trade_qty = initial_short_max_trade_qty
-                short_trade_qty = initial_short_trade_qty
-                short_position_closed = False
 
             if scalein_mode and elapsed_time >= time_interval:
                 send_full_pnl_message(messengers, short_pos_unpl, long_pos_unpl, short_pos_unpl_pct, long_pos_unpl_pct,
@@ -791,6 +776,16 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
                     short_trade_qty = initial_short_trade_qty
 
                 last_size_increase_time = time.time()
+
+            if long_position_closed:
+                long_max_trade_qty = initial_long_max_trade_qty
+                long_trade_qty = initial_long_trade_qty
+                long_position_closed = False
+
+            if short_position_closed:
+                short_max_trade_qty = initial_short_max_trade_qty
+                short_trade_qty = initial_short_trade_qty
+                short_position_closed = False
 
 
             if violent_mode:
@@ -1213,14 +1208,12 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
                             and add_short_trade_condition()
                             and current_ask > short_pos_price
                         ):
-                            checked_qty = (
-                                short_trade_qty
-                                if not scalein_mode
-                                else trade_qty
-                            )
                             try:
                                 exchange.create_limit_sell_order(
-                                    symbol, checked_qty, current_ask
+                                    symbol, short_trade_qty, current_ask
+                                )
+                                messengers.send_message_to_all_messengers(
+                                    message=f"Creating limit sell order with {short_trade_qty}"
                                 )
                                 time.sleep(0.01)
                             except Exception as e:
@@ -1234,14 +1227,12 @@ def trade_func(symbol, last_size_increase_time, max_trade_qty, trade_qty, initia
                             and add_long_trade_condition()
                             and current_bid < long_pos_price
                         ):
-                            checked_qty = (
-                                long_trade_qty
-                                if not scalein_mode
-                                else trade_qty
-                            )
                             try:
                                 exchange.create_limit_buy_order(
-                                    symbol, checked_qty, current_bid
+                                    symbol, long_trade_qty, current_bid
+                                )
+                                messengers.send_message_to_all_messengers(
+                                    message=f"Creating limit buy order with {short_trade_qty}"
                                 )
                                 time.sleep(0.01)
                             except Exception as e:
