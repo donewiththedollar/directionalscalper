@@ -27,12 +27,11 @@ from directionalscalper.messengers.manager import MessageManager
 
 
 # Bools
-version = "Directional Scalper v1.1.7"
+version = "Directional Scalper v1.1.8"
 long_mode = False
 short_mode = False
 hedge_mode = False
 aggressive_mode = False
-deleveraging_mode = False
 violent_mode = False
 blackjack_mode = False
 leverage_verified = False
@@ -65,14 +64,6 @@ parser.add_argument("--iqty", type=str, help="Initial entry quantity", required=
 
 parser.add_argument(
     "--config", type=str, help="Config file. Example: my_config.json", required=False
-)
-
-parser.add_argument(
-    "--deleverage",
-    type=str,
-    help="Deleveraging enabled",
-    choices=["on", "off"],
-    required=False,
 )
 
 args = parser.parse_args()
@@ -122,7 +113,6 @@ messengers.send_message_to_all_messengers(
     message=f"Initialising {version}. Mode: {args.mode} Symbol: {symbol} iqty:{trade_qty}"
 )
 
-deleverage = config.bot.deleverage_mode
 min_volume = config.bot.min_volume
 min_distance = config.bot.min_distance
 botname = config.bot.bot_name
@@ -314,32 +304,51 @@ def cancel_entry():
     except Exception as e:
         log.warning(f"{e}")
 
-
-def cancel_close():
+def cancel_close(side):
     try:
-        order = exchange.fetch_open_orders(symbol)
-        if len(order) > 0:
-            if "info" in order[0]:
-                order_id = order[0]["info"]["order_id"]
-                order_status = order[0]["info"]["order_status"]
-                order_side = order[0]["info"]["side"]
-                reduce_only = order[0]["info"]["reduce_only"]
+        orders = exchange.fetch_open_orders(symbol)
+        for order in orders:
+            if "info" in order:
+                order_id = order["info"]["order_id"]
+                order_status = order["info"]["order_status"]
+                order_side = order["info"]["side"]
+                reduce_only = order["info"]["reduce_only"]
+
                 if (
                     order_status != "Filled"
-                    and order_side == "Buy"
                     and order_status != "Cancelled"
                     and reduce_only
-                ):
-                    exchange.cancel_order(symbol=symbol, id=order_id)
-                elif (
-                    order_status != "Filled"
-                    and order_side == "Sell"
-                    and order_status != "Cancelled"
-                    and reduce_only
+                    and order_side == side
                 ):
                     exchange.cancel_order(symbol=symbol, id=order_id)
     except Exception as e:
         log.warning(f"{e}")
+
+# def cancel_close():
+#     try:
+#         order = exchange.fetch_open_orders(symbol)
+#         if len(order) > 0:
+#             if "info" in order[0]:
+#                 order_id = order[0]["info"]["order_id"]
+#                 order_status = order[0]["info"]["order_status"]
+#                 order_side = order[0]["info"]["side"]
+#                 reduce_only = order[0]["info"]["reduce_only"]
+#                 if (
+#                     order_status != "Filled"
+#                     and order_side == "Buy"
+#                     and order_status != "Cancelled"
+#                     and reduce_only
+#                 ):
+#                     exchange.cancel_order(symbol=symbol, id=order_id)
+#                 elif (
+#                     order_status != "Filled"
+#                     and order_side == "Sell"
+#                     and order_status != "Cancelled"
+#                     and reduce_only
+#                 ):
+#                     exchange.cancel_order(symbol=symbol, id=order_id)
+#     except Exception as e:
+#         log.warning(f"{e}")
 
 
 def set_auto_stop_loss(position, entry_size):
@@ -856,60 +865,9 @@ def trade_func(symbol):  # noqa
                 except Exception as e:
                     log.warning(f"{e}")
 
-            # Long incremental TP
-            if (
-                (deleveraging_mode)
-                and long_pos_qty > 0
-                and (hedge_mode or long_mode or aggressive_mode or violent_mode)
-            ):
-                try:
-                    get_open_orders()
-                    time.sleep(0.05)
-                except Exception as e:
-                    log.warning(f"{e}")
-
-                if long_pos_price != 0:
-                    try:
-                        cancel_close()
-                        time.sleep(0.05)
-                    except Exception as e:
-                        log.warning(f"{e}")
-
-                    first_profit_target = long_profit_price
-                    profit_targets = [first_profit_target]
-
-                    # Calculate subsequent profit targets
-                    for _ in range(len(profit_percentages) - 1):
-                        next_target = profit_targets[-1] * (
-                            1 + profit_increment_percentage
-                        )
-                        profit_targets.append(next_target)
-
-                    remaining_position = long_open_pos_qty
-
-                    for idx, profit_percentage in enumerate(profit_percentages):
-                        if idx == len(profit_percentages) - 1:
-                            partial_qty = remaining_position
-                        else:
-                            partial_qty = long_open_pos_qty * profit_percentage
-                            remaining_position -= partial_qty
-
-                        target_price = profit_targets[idx]
-                        if partial_qty < float(get_market_data()[2]):
-                            partial_qty = float(get_market_data()[2])
-
-                        try:
-                            exchange.create_limit_sell_order(
-                                symbol, partial_qty, target_price, reduce_only
-                            )
-                            time.sleep(0.05)
-                        except Exception as e:
-                            log.warning(f"{e}")
-
             # Long: Normal take profit logic
             if (
-                (not deleveraging_mode)
-                and long_pos_qty > 0
+                long_pos_qty > 0
                 and (
                     hedge_mode
                     or long_mode
@@ -926,7 +884,7 @@ def trade_func(symbol):  # noqa
 
                 if long_profit_price != 0 or long_pos_price != 0:
                     try:
-                        cancel_close()
+                        cancel_close("Sell")
                         time.sleep(0.05)
                     except Exception as e:
                         log.warning(f"{e}")
@@ -938,60 +896,9 @@ def trade_func(symbol):  # noqa
                     except Exception as e:
                         log.warning(f"{e}")
 
-            # Short incremental TP
-            if (
-                (deleveraging_mode)
-                and short_pos_qty > 0
-                and (hedge_mode or short_mode or aggressive_mode or violent_mode)
-            ):
-                try:
-                    get_open_orders()
-                    time.sleep(0.05)
-                except Exception as e:
-                    log.warning(f"{e}")
-
-                if short_pos_price != 0:
-                    try:
-                        cancel_close()
-                        time.sleep(0.05)
-                    except Exception as e:
-                        log.warning(f"{e}")
-
-                    first_profit_target = short_profit_price
-                    profit_targets = [first_profit_target]
-
-                    # Calculate subsequent profit targets
-                    for _ in range(len(profit_percentages) - 1):
-                        next_target = profit_targets[-1] * (
-                            1 - profit_increment_percentage
-                        )
-                        profit_targets.append(next_target)
-
-                    remaining_position = short_open_pos_qty
-
-                    for idx, profit_percentage in enumerate(profit_percentages):
-                        if idx == len(profit_percentages) - 1:
-                            partial_qty = remaining_position
-                        else:
-                            partial_qty = short_open_pos_qty * profit_percentage
-                            remaining_position -= partial_qty
-
-                        target_price = profit_targets[idx]
-                        if partial_qty < float(get_market_data()[2]):
-                            partial_qty = float(get_market_data()[2])
-
-                        try:
-                            exchange.create_limit_buy_order(
-                                symbol, partial_qty, target_price, reduce_only
-                            )
-                            time.sleep(0.05)
-                        except Exception as e:
-                            log.warning(f"{e}")
-
             # SHORT: Take profit logic
             if (
-                (not deleveraging_mode)
-                and short_pos_qty > 0
+                short_pos_qty > 0
                 and (
                     hedge_mode
                     or short_mode
@@ -1008,7 +915,7 @@ def trade_func(symbol):  # noqa
 
                 if short_profit_price != 0 or short_pos_price != 0:
                     try:
-                        cancel_close()
+                        cancel_close("Buy")
                         time.sleep(0.05)
                     except Exception as e:
                         log.warning(f"{e}")

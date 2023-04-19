@@ -7,7 +7,6 @@
   "bot": {
     "blackjack_risk_factor": 0.01,
     "bot_name": "",
-    "deleverage_mode": false,
     "divider": 7,
     "inverse_direction": "short",
     "min_distance": 0.15,

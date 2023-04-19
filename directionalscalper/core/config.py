@@ -23,7 +23,6 @@ class API(BaseModel):
 
 
 class Bot(BaseModel):
-    deleverage_mode: bool = False
     bot_name: str
     divider: int = 7
     inverse_direction: str = "short"
