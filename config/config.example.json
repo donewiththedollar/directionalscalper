@@ -14,7 +14,7 @@
     "min_volume": 15000,
     "profit_multiplier_pct": 0.01,
     "symbol": "BTCUSD",
-    "violent_multiplier": 2.0,
+    "violent_multiplier": 1.0,
     "wallet_exposure": 1.0
   },
   "exchange": {

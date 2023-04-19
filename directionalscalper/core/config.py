@@ -31,7 +31,7 @@ class Bot(BaseModel):
     min_volume: int = 15000
     profit_multiplier_pct: float = 0.01
     symbol: str
-    violent_multiplier: float = 2.00
+    violent_multiplier: float = 1.00
     wallet_exposure: float = 1.00
     blackjack_risk_factor: float = 0.05
 

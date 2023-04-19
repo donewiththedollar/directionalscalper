@@ -31,7 +31,6 @@ version = "Directional Scalper v1.1.8"
 long_mode = False
 short_mode = False
 hedge_mode = False
-aggressive_mode = False
 violent_mode = False
 blackjack_mode = False
 leverage_verified = False
@@ -54,7 +53,7 @@ parser.add_argument(
     "--mode",
     type=str,
     help="Mode to use",
-    choices=["long", "short", "hedge", "aggressive", "violent", "blackjack"],
+    choices=["long", "short", "hedge", "violent", "blackjack"],
     required=True,
 )
 
@@ -74,8 +73,6 @@ elif args.mode == "short":
     short_mode = True
 elif args.mode == "hedge":
     hedge_mode = True
-elif args.mode == "aggressive":
-    aggressive_mode = True
 elif args.mode == "violent":
     violent_mode = True
 elif args.mode == "blackjack":
@@ -871,7 +868,6 @@ def trade_func(symbol):  # noqa
                 and (
                     hedge_mode
                     or long_mode
-                    or aggressive_mode
                     or violent_mode
                     or blackjack_mode
                 )
@@ -902,7 +898,6 @@ def trade_func(symbol):  # noqa
                 and (
                     hedge_mode
                     or short_mode
-                    or aggressive_mode
                     or violent_mode
                     or blackjack_mode
                 )
@@ -1085,58 +1080,6 @@ def trade_func(symbol):  # noqa
                 except Exception as e:
                     log.warning(f"{e}")
 
-            if aggressive_mode:
-                try:
-                    if find_trend() == "short":
-                        initial_short_entry(current_ask)
-                        if (
-                            find_1m_1x_volume() > min_volume
-                            and find_5m_spread() > min_distance
-                            and short_pos_qty < max_trade_qty
-                            and (
-                                add_short_trade_condition()
-                                or (current_ask > short_pos_price)
-                                or float(dex_upnl) < 0.0
-                            )
-                        ):
-                            try:
-                                exchange.create_limit_sell_order(
-                                    symbol, trade_qty, current_ask
-                                )
-                                time.sleep(0.01)
-                            except Exception as e:
-                                log.warning(f"{e}")
-                    elif find_trend() == "long":
-                        initial_long_entry(current_bid)
-                        if (
-                            find_1m_1x_volume() > min_volume
-                            and find_5m_spread() > min_distance
-                            and long_pos_qty < max_trade_qty
-                            and (
-                                add_long_trade_condition()
-                                or (current_bid < long_pos_price)
-                                or float(dex_upnl) < 0.0
-                            )
-                        ):
-                            try:
-                                exchange.create_limit_buy_order(
-                                    symbol, trade_qty, current_bid
-                                )
-                                time.sleep(0.01)
-                            except Exception as e:
-                                log.warning(f"{e}")
-                    if (
-                        get_orderbook()[1] < get_m_data(timeframe="1m")[0]
-                        or get_orderbook()[1] < get_m_data(timeframe="5m")[0]
-                    ):
-                        try:
-                            cancel_entry()
-                            time.sleep(0.05)
-                        except Exception as e:
-                            log.warning(f"{e}")
-                except Exception as e:
-                    log.warning(f"{e}")
-
             orderbook_data = get_orderbook()
             data_1m = get_m_data(timeframe="1m")
             data_5m = get_m_data(timeframe="5m")
@@ -1185,15 +1128,6 @@ def hedge_mode_func(symbol):
     trade_func(symbol)
 
 
-def aggressive_mode_func(symbol):
-    print(
-        Fore.LIGHTCYAN_EX + "Aggressive hedge mode enabled for",
-        symbol + Style.RESET_ALL,
-    )
-    leverage_verification(symbol)
-    trade_func(symbol)
-
-
 def violent_mode_func(symbol):
     print(
         Fore.LIGHTCYAN_EX
@@ -1227,11 +1161,6 @@ elif args.mode == "short":
 elif args.mode == "hedge":
     if args.symbol:
         hedge_mode_func(args.symbol)
-    else:
-        symbol = input("Instrument undefined. \nInput instrument:")
-elif args.mode == "aggressive":
-    if args.symbol:
-        aggressive_mode_func(args.symbol)
     else:
         symbol = input("Instrument undefined. \nInput instrument:")
 elif args.mode == "violent":
