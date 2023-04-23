@@ -29,7 +29,6 @@ class Bot(BaseModel):
     min_distance: float = 0.15
     min_fee: float = 0.17
     min_volume: int = 15000
-    profit_multiplier_pct: float = 0.01
     symbol: str
     violent_multiplier: float = 1.00
     wallet_exposure: float = 1.00

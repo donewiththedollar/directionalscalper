@@ -117,10 +117,6 @@ wallet_exposure = config.bot.wallet_exposure
 violent_multiplier = config.bot.violent_multiplier
 risk_factor = config.bot.blackjack_risk_factor
 
-profit_percentages = [0.3, 0.5, 0.2]
-profit_increment_percentage = config.bot.profit_multiplier_pct
-
-
 # CCXT connect to bybit
 exchange = ccxt.bybit(
     {
