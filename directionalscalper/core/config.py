@@ -34,12 +34,6 @@ class Bot(BaseModel):
     wallet_exposure: float = 1.00
     blackjack_risk_factor: float = 0.05
 
-    @validator("profit_multiplier_pct")
-    def minimum_profit_multiplier_pct(cls, v):
-        if v < 0.0:
-            raise ValueError("profit_multiplier_pct must be greater than 0.0")
-        return v
-
     @validator("min_volume")
     def minimum_min_volume(cls, v):
         if v < 0.0:
