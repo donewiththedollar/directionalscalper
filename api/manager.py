@@ -4,10 +4,12 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
+import pandas as pd
 
 import requests  # type: ignore
 
 from directionalscalper.core.utils import send_public_request
+
 
 log = logging.getLogger(__name__)
 
@@ -17,15 +19,16 @@ class InvalidAPI(Exception):
         self.message = message
         super().__init__(self.message)
 
-
 class Manager:
     def __init__(
         self,
+        exchange,
         api: str = "remote",
         cache_life_seconds: int = 10,
         path: Path | None = None,
         url: str = "",
     ):
+        self.exchange = exchange
         log.info("Starting API Manager")
         self.api = api
         self.cache_life_seconds = cache_life_seconds
@@ -96,6 +99,12 @@ class Manager:
         except Exception as e:
             log.warning(f"{e}")
         return None
+
+    def get_1m_moving_averages(self, symbol, num_bars=20):
+        return self.exchange.get_moving_averages(symbol, "1m", num_bars)
+    
+    def get_5m_moving_averages(self, symbol, num_bars=20):
+        return self.exchange.get_moving_averages(symbol, "5m", num_bars)
 
     def get_asset_value(self, symbol: str, data, value: str):
         try:
