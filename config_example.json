@@ -1,0 +1,50 @@
+{
+  "api": {
+    "filename": "quantdatav2.json",
+    "mode": "remote",
+    "url": "http://api.tradesimple.xyz/data/"
+  },
+  "bot": {
+    "bot_name": "your_bot_name",
+    "divider": 7,
+    "inverse_direction": "short",
+    "min_distance": 0.15,
+    "min_fee": 0.17,
+    "min_volume": 15000,
+    "symbol": "BTCUSDT",
+    "violent_multiplier": 2.00,
+    "wallet_exposure": 1.00,
+    "blackjack_risk_factor": 0.05
+  },
+  "exchanges": [
+    {
+      "name": "bybit",
+      "api_key": "your_api_key",
+      "api_secret": "your_api_secret"
+    },
+    {
+      "name": "bitget",
+      "api_key": "",
+      "api_secret": "",
+      "passphrase": ""
+    }
+  ],
+  "logger": {
+    "level": "info"
+  },
+  "messengers": {
+    "discord": {
+      "active": false,
+      "embedded_messages": true,
+      "messenger_type": "discord",
+      "webhook_url": "https://discord.com/api/webhooks/your_webhook_id/your_webhook_token"
+    },
+    "telegram": {
+      "active": false,
+      "embedded_messages": true,
+      "messenger_type": "telegram",
+      "bot_token": "your_bot_token",
+      "chat_id": "your_chat_id"
+    }
+  }
+}
