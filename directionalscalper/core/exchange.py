@@ -704,22 +704,36 @@ class Exchange:
         if not isinstance(data, list):
             data = self.safe_value(data, 'orderList', [])
         return self.parse_orders(data, market, since, limit)
-    
+
     def create_take_profit_order(self, symbol, order_type, side, amount, price=None, reduce_only=False):
         if order_type == 'limit':
             if price is None:
                 raise ValueError("A price must be specified for a limit order")
-            if side == "buy":
-                side = "close_short" if reduce_only else "open_long"
-            elif side == "sell":
-                side = "close_long" if reduce_only else "open_short"
-            else:
+
+            if side not in ["buy", "sell"]:
                 raise ValueError(f"Invalid side: {side}")
 
             params = {"reduceOnly": reduce_only}
             return self.exchange.create_order(symbol, order_type, side, amount, price, params)
         else:
-            raise ValueError(f"Unsupported order type: {order_type}")    
+            raise ValueError(f"Unsupported order type: {order_type}")
+
+
+    # def create_take_profit_order(self, symbol, order_type, side, amount, price=None, reduce_only=False):
+    #     if order_type == 'limit':
+    #         if price is None:
+    #             raise ValueError("A price must be specified for a limit order")
+    #         if side == "buy":
+    #             side = "close_short" if reduce_only else "open_long"
+    #         elif side == "sell":
+    #             side = "close_long" if reduce_only else "open_short"
+    #         else:
+    #             raise ValueError(f"Invalid side: {side}")
+
+    #         params = {"reduceOnly": reduce_only}
+    #         return self.exchange.create_order(symbol, order_type, side, amount, price, params)
+    #     else:
+    #         raise ValueError(f"Unsupported order type: {order_type}")    
 
     # def create_take_profit_order_bitget(self, symbol, type, side, amount, price, reduce_only=False):
     #     params = {

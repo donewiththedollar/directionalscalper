@@ -367,12 +367,11 @@ class HedgeStrategy(Strategy):
                         else:
                             if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty:
                                 print(f"Placed additional long entry")
-                                self.limit_order(symbol, "buy", amount, bid_price)
+                                self.limit_order(symbol, "buy", amount, bid_price, reduce_only=False)
 
-                        
                         if trend.lower() == "short" and should_short and short_pos_qty == 0:
 
-                            self.limit_order(symbol, "sell", amount, ask_price)
+                            self.limit_order(symbol, "sell", amount, ask_price, reduce_only=False)
                             print("Placed initial short entry")
                         else:
                             if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty:
@@ -388,7 +387,7 @@ class HedgeStrategy(Strategy):
                     print(f"Long position quantity: {long_pos_qty}")
                     print(f"Short position quantity: {short_pos_qty}")
 
-                    self.exchange.create_take_profit_order(symbol, "limit", "sell", 1, long_take_profit, reduce_only=True)
+                    self.exchange.create_take_profit_order(symbol, "limit", "sell", long_pos_qty, long_take_profit, reduce_only=True)
                     #self.exchange.create_take_profit_order(symbol, "limit", "buy", long_pos_qty, long_take_profit, reduce_only=True)
                     print(f"Long take profit set at {long_take_profit}")
                     time.sleep(0.05)
@@ -404,7 +403,7 @@ class HedgeStrategy(Strategy):
                     print(f"Long position quantity: {long_pos_qty}")
                     print(f"Short position quantity: {short_pos_qty}")
 
-                    self.exchange.create_take_profit_order(symbol, "limit", "buy", 1, short_take_profit, reduce_only=True)
+                    self.exchange.create_take_profit_order(symbol, "limit", "buy", short_pos_qty, short_take_profit, reduce_only=True)
                     print(f"Short take profit set at {short_take_profit}")
                     time.sleep(0.05)
                 except Exception as e:
@@ -417,6 +416,21 @@ class HedgeStrategy(Strategy):
                 print(f"Canceled entry orders for {symbol}")
             except Exception as e:
                 print(f"An error occurred while canceling entry orders: {e}")
+                
+            # if close_long_position:
+            #     try:
+            #         print(f"Closing long position")
+            #         self.exchange.create_market_order(symbol, "sell", long_pos_qty, close_position=True)
+            #     except Exception as e:
+            #         print(f"Error while closing long position: {e}")
+
+            # if close_short_position:
+            #     try:
+            #         print(f"Closing short position")
+            #         self.exchange.create_market_order(symbol, "buy", short_pos_qty, close_position=True)
+            #     except Exception as e:
+            #         print(f"Error while closing short position: {e}")
+
 
 
             # Check if volume and distance requirements are met
@@ -526,20 +540,6 @@ class HedgeStrategy(Strategy):
             #         except Exception as e:
             #             print(f"Error while closing short position: {e}")
 
-
-                # if close_long_position:
-                #     try:
-                #         print(f"Closing long position")
-                #         self.exchange.create_market_order(symbol, "sell", long_pos_qty, close_position=True)
-                #     except Exception as e:
-                #         print(f"Error while closing long position: {e}")
-
-                # if close_short_position:
-                #     try:
-                #         print(f"Closing short position")
-                #         self.exchange.create_market_order(symbol, "buy", short_pos_qty, close_position=True)
-                #     except Exception as e:
-                #         print(f"Error while closing short position: {e}")
 
 
                 # if close_long_position:
