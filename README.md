@@ -1,4 +1,4 @@
-<h1 align="center">Directional Scalper</h1>
+<h1 align="center">Directional Scalper Multi Exchange</h1>
 <p align="center">
 A hedge scalping strategy based on directional analysis using a quantitative approach<br>
 </p>
@@ -8,7 +8,7 @@ A hedge scalping strategy based on directional analysis using a quantitative app
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
 </p>
 
->  Supports Bybit only, other exchanges coming soon
+>  Exchanges to support: Bybit, Bitget, OKX, Binance, Phemex
 
 ### Links
 * Dashboard: https://tradesimple.xyz
@@ -35,23 +35,14 @@ Directional Scalper        |  API Scraper
 
 ### Starting the bot
 * Hedge mode is recommended, but you can of course use the other modes as well. Low lot size is recommended.
-> python3 bot.py --mode hedge --symbol GALAUSDT --iqty 1 --tg off --config config.json --avoidfees on
-* Starting the bot in violent mode is not recommended, but ensures violent profit taking while putting you at risk of liquidation depending on your wallet_exposure and violent_multiplier
-> python3 bot.py --mode violent --symbol OPUSDT --iqty 0.1 --tg off --config config.json --avoidfees on
-
-* Starting the bot in debug mode for inverse perpetuals BTCUSD
-* Inverse is currently short only, used as a hedge against your BTC balance, to accumulate BTC with no risk, no losses
-> python3 bot_inverse_debugmode.py --mode inverse --symbol BTCUSD --iqty 1 --tg off
+> python3.11 bot.py --exchange bitget --symbol XRPUSDT_UMCBL --amount 15 --strategy bitget_hedge --config config_sub1.json
 
 ### Modes
-* --mode [hedge, aggressive, violent, long, short, longbias, btclinear-long, btclinear-short]
+* --mode [hedge], WIP
 > Some (most) modes are in development, hedge mode is the recommended mode that has proven to be profitable and allows you to control your risk accordingly.
 
 ### Parameters
-> --avoidfees [on, off]
-> --deleverage [on, off]
-* only use one or the other [avoidfees, or deleverage], deleverage is incremental TP, while avoidfees is incremental TP including the taker fees.
-
+* WIP
 
 ### Docker
 To run the bot inside docker container use the following command:
@@ -71,7 +62,6 @@ To run the bot inside docker container use the following command:
 * Instance manager
 * Auto calculation for violent parameters (violent_multiplier and wallet_exposure are key)
 * Auto calculation for lot size so the user does not have to determine size
-* Refactor so the main bot is not thousands of lines of code :)
 
 
 ### Donations
