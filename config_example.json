@@ -27,6 +27,12 @@
       "api_key": "",
       "api_secret": "",
       "passphrase": ""
+    },
+    {
+      "name": "okx",
+      "api_key": "",
+      "api_secret": "",
+      "passphrase": ""
     }
   ],
   "logger": {

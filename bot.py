@@ -14,7 +14,9 @@ import config
 from api.manager import Manager
 from directionalscalper.core.exchange import Exchange
 from directionalscalper.core.strategies.strategy import Strategy
-from directionalscalper.core.strategies.hedge import HedgeStrategy
+from directionalscalper.core.strategies.bitget_hedge import BitgetHedgeStrategy
+from directionalscalper.core.strategies.okx_hedge import OKXHedgeStrategy
+from directionalscalper.core.strategies.bybit_hedge import BybitHedgeStrategy
 
 class DirectionalMarketMaker:
     def __init__(self, config: Config, exchange_name: str): 
@@ -38,8 +40,11 @@ class DirectionalMarketMaker:
     def get_balance(self, quote):
         if self.exchange_name == 'bitget':
             return self.exchange.get_balance_bitget(quote)
-        else:
-            return self.exchange.get_balance(quote)
+        elif self.exchange_name == 'bybit':
+            return self.exchange.get_balance_bybit(quote)
+        elif self.exchange_name == 'okx':
+            #return self.exchange.get_balance_okx(quote)
+            print(f"Unsupported for now")
 
     def create_order(self, symbol, order_type, side, amount, price=None):
         return self.exchange.create_order(symbol, order_type, side, amount, price)
@@ -77,8 +82,17 @@ if __name__ == '__main__':
     print(f"Balance: {balance}")
 
     try:
-        if strategy_name.lower() == 'hedge':
-            strategy = HedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
+        if strategy_name.lower() == 'bitget_hedge':
+
+            strategy = BitgetHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol, amount)
+        elif strategy_name.lower() == 'okx_hedge':
+
+            strategy = OKXHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol, amount)
+        elif strategy_name.lower() == 'bybit_hedge':
+
+            strategy = BybitHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
         else:
             print("Strategy not recognized. Please choose a valid strategy.")

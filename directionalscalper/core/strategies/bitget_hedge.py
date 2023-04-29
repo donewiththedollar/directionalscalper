@@ -2,7 +2,7 @@ import time
 from decimal import Decimal, ROUND_HALF_UP
 from .strategy import Strategy
 
-class HedgeStrategy(Strategy):
+class BitgetHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):
         super().__init__(exchange, config)
         self.manager = manager

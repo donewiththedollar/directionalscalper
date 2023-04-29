@@ -97,6 +97,17 @@ class Exchange:
             log.warning(f"An unknown error occurred in get_market_data(): {e}")
         return values
 
+    def get_balance_bybit(self, quote):
+        if self.exchange.has['fetchBalance']:
+            # Fetch the balance
+            balance = self.exchange.fetch_balance()
+
+            # Find the quote balance
+            for currency_balance in balance['info']['result']['list']:
+                if currency_balance['coin'] == quote:
+                    return float(currency_balance['equity'])
+        return None
+
     def get_balance_bitget(self, quote, account_type='futures'):
         if account_type == 'futures':
             if self.exchange.has['fetchBalance']:
