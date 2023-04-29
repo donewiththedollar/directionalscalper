@@ -437,6 +437,29 @@ class Exchange:
         except Exception as e:
             log.warning(f"An unknown error occurred in get_open_orders(): {e}")
         return values
+    
+    def get_open_orders_debug(self, symbol: str) -> list:
+        open_orders = []
+        try:
+            orders = self.exchange.fetch_open_orders(symbol)
+            #print(f"Raw orders: {orders}")  # Add this line to print raw orders
+            for order in orders:
+                if "info" in order:
+                    info = order["info"]
+                    if "state" in info and info["state"] == "new":  # Change "status" to "state"
+                        order_data = {
+                            "id": info.get("orderId", ""),  # Change "order_id" to "orderId"
+                            "price": info.get("price", 0.0),  # Use the correct field name
+                            "qty": info.get("size", 0.0),  # Change "qty" to "size"
+                            "side": info.get("side", ""),
+                            "reduce_only": info.get("reduceOnly", False),
+                        }
+                        open_orders.append(order_data)
+        except Exception as e:
+            log.warning(f"An unknown error occurred in get_open_orders_debug(): {e}")
+        return open_orders
+
+
 
     # def cancel_entry(self, symbol: str) -> None:
     #     try:
@@ -538,6 +561,11 @@ class Exchange:
         except Exception as e:
             log.warning(f"An unknown error occurred in cancel_entry(): {e}")
 
+    def get_open_take_profit_order_quantity_bitget(self, orders, side):
+        for order in orders:
+            if order['side'] == side and order['params'].get('reduceOnly', False):
+                return order['amount']
+        return None
 
     def cancel_entry_bitget(self, symbol: str) -> None:
         try:
@@ -591,7 +619,7 @@ class Exchange:
             log.warning(f"An unknown error occurred in cancel_entry(): {e}")
 
     def cancel_close_bitget(self, symbol: str, side: str) -> None:
-        side_map = {"long": "open_long", "short": "open_short"}
+        side_map = {"long": "open_short", "short": "open_long"}
         try:
             orders = self.exchange.fetch_open_orders(symbol)
             if len(orders) > 0:
@@ -606,42 +634,12 @@ class Exchange:
                             order_status != "filled"
                             and order_side == side_map[side]
                             and order_status != "canceled"
-                            and not reduce_only
+                            and reduce_only
                         ):
                             self.exchange.cancel_order(symbol=symbol, id=order_id)
                             log.info(f"Cancelling order: {order_id}")
         except Exception as e:
             log.warning(f"An unknown error occurred in cancel_close_bitget(): {e}")
-
-    # def cancel_close_bitget(self, symbol: str) -> None:
-    #     try:
-    #         orders = self.exchange.fetch_open_orders(symbol)
-    #         if len(orders) > 0:
-    #             for order in orders:
-    #                 if "info" in order:
-    #                     order_id = order["info"]["orderId"]
-    #                     order_status = order["info"]["state"]
-    #                     order_side = order["info"]["side"]
-    #                     reduce_only = order["info"]["reduceOnly"]
-
-    #                     if (
-    #                         order_status != "filled"
-    #                         and order_side == "open_short"
-    #                         and order_status != "canceled"
-    #                         and not reduce_only
-    #                     ):
-    #                         self.exchange.cancel_order(symbol=symbol, id=order_id)
-    #                         log.info(f"Cancelling order: {order_id}")
-    #                     elif (
-    #                         order_status != "filled"
-    #                         and order_side == "open_long"
-    #                         and order_status != "canceled"
-    #                         and not reduce_only
-    #                     ):
-    #                         self.exchange.cancel_order(symbol=symbol, id=order_id)
-    #                         log.info(f"Cancelling order: {order_id}")
-    #     except Exception as e:
-    #         log.warning(f"An unknown error occurred in cancel_close_bitget(): {e}")
 
     def cancel_close(self, symbol: str, side: str) -> None:
         try:
@@ -673,37 +671,38 @@ class Exchange:
         except Exception as e:
             log.warning(f"{e}")
 
-    def fetch_open_orders(self, symbol: Optional[str] = None, since: Optional[int] = None, limit: Optional[int] = None, params={}):
-        if symbol is None:
-            raise ValueError("Symbol is required for fetch_open_orders.")
+    # def fetch_open_orders(self, symbol: Optional[str] = None, since: Optional[int] = None, limit: Optional[int] = None, params={}):
+    #     if symbol is None:
+    #         raise ValueError("Symbol is required for fetch_open_orders.")
             
-        self.exchange.load_markets()
-        market = self.market(symbol)
-        marketType = None
-        query = None
-        marketType, query = self.handle_market_type_and_params('fetchOpenOrders', market, params)
-        request = {
-            'symbol': market['id'],
-        }
-        method = self.get_supported_mapping(marketType, {
-            'spot': 'privateSpotPostTradeOpenOrders',
-            'swap': 'privateMixGetOrderCurrent',
-            'future': 'privateMixGetOrderCurrent',
-        })
-        stop = self.safe_value(query, 'stop')
-        if stop:
-            if marketType == 'spot':
-                method = 'privateSpotPostPlanCurrentPlan'
-                if limit is not None:
-                    request['pageSize'] = limit
-            else:
-                method = 'privateMixGetPlanCurrentPlan'
-            query = self.omit(query, 'stop')
-        response = getattr(self, method)(self.extend(request, query))
-        data = self.safe_value(response, 'data', [])
-        if not isinstance(data, list):
-            data = self.safe_value(data, 'orderList', [])
-        return self.parse_orders(data, market, since, limit)
+    #     self.exchange.load_markets()
+    #     #market = self.market(symbol)
+    #     market = self.exchange.market(symbol)
+    #     marketType = None
+    #     query = None
+    #     marketType, query = self.handle_market_type_and_params('fetchOpenOrders', market, params)
+    #     request = {
+    #         'symbol': market['id'],
+    #     }
+    #     method = self.get_supported_mapping(marketType, {
+    #         'spot': 'privateSpotPostTradeOpenOrders',
+    #         'swap': 'privateMixGetOrderCurrent',
+    #         'future': 'privateMixGetOrderCurrent',
+    #     })
+    #     stop = self.safe_value(query, 'stop')
+    #     if stop:
+    #         if marketType == 'spot':
+    #             method = 'privateSpotPostPlanCurrentPlan'
+    #             if limit is not None:
+    #                 request['pageSize'] = limit
+    #         else:
+    #             method = 'privateMixGetPlanCurrentPlan'
+    #         query = self.omit(query, 'stop')
+    #     response = getattr(self, method)(self.extend(request, query))
+    #     data = self.safe_value(response, 'data', [])
+    #     if not isinstance(data, list):
+    #         data = self.safe_value(data, 'orderList', [])
+    #     return self.parse_orders(data, market, since, limit)
 
     def create_take_profit_order(self, symbol, order_type, side, amount, price=None, reduce_only=False):
         if order_type == 'limit':
@@ -717,37 +716,6 @@ class Exchange:
             return self.exchange.create_order(symbol, order_type, side, amount, price, params)
         else:
             raise ValueError(f"Unsupported order type: {order_type}")
-
-
-    # def create_take_profit_order(self, symbol, order_type, side, amount, price=None, reduce_only=False):
-    #     if order_type == 'limit':
-    #         if price is None:
-    #             raise ValueError("A price must be specified for a limit order")
-    #         if side == "buy":
-    #             side = "close_short" if reduce_only else "open_long"
-    #         elif side == "sell":
-    #             side = "close_long" if reduce_only else "open_short"
-    #         else:
-    #             raise ValueError(f"Invalid side: {side}")
-
-    #         params = {"reduceOnly": reduce_only}
-    #         return self.exchange.create_order(symbol, order_type, side, amount, price, params)
-    #     else:
-    #         raise ValueError(f"Unsupported order type: {order_type}")    
-
-    # def create_take_profit_order_bitget(self, symbol, type, side, amount, price, reduce_only=False):
-    #     params = {
-    #         'takeProfitPrice': price,
-    #         'reduceOnly': reduce_only
-    #     }
-    #     return self.create_order(symbol, type, side, amount, None, params)
-
-    # def create_take_profit_order(self, symbol, type, side, amount, price, reduce_only=False):
-    #     params = {
-    #         'takeProfitPrice': price,
-    #         'reduceOnly': reduce_only
-    #     }
-    #     return self.create_order(symbol, type, side, amount, None, params)
 
     def create_market_order(self, symbol: str, side: str, amount: float, params={}, close_position: bool = False) -> None:
         try:
