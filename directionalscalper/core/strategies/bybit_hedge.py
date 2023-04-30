@@ -6,13 +6,18 @@ class BybitHedgeStrategy(Strategy):
         super().__init__(exchange, config)
         self.manager = manager
 
+    def limit_order(self, symbol, side, amount, price, reduce_only=False):        
+        params = {"reduce_only": reduce_only}
+        order = self.exchange.create_order(symbol, 'limit', side, amount, price, params=params)
+        return order
+
     def run(self, symbol, amount):
         wallet_exposure = self.config.wallet_exposure
+        min_dist = self.config.min_distance
+        min_vol = self.config.min_volume
 
         while True:
             print(f"Bybit hedge strategy running")
-            min_dist = self.config.min_distance
-            min_vol = self.config.min_volume
             print(f"Min volume: {min_vol}")
             print(f"Min distance: {min_dist}")
 
@@ -64,10 +69,27 @@ class BybitHedgeStrategy(Strategy):
             ma_1m_3_high = self.manager.get_1m_moving_averages(symbol)["MA_3_H"]
             ma_5m_3_high = self.manager.get_5m_moving_averages(symbol)["MA_3_H"]
 
-            print(f"1m MAs: {m_moving_averages}")
-            print(f"5m MAs: {m5_moving_averages}")
-            print(f"1m MA3 HIGH: {ma_1m_3_high}")
-            print(f"5m MA3 HIGH: {ma_5m_3_high}")
+            # print(f"1m MAs: {m_moving_averages}")
+            # print(f"5m MAs: {m5_moving_averages}")
+            # print(f"1m MA3 HIGH: {ma_1m_3_high}")
+            # print(f"5m MA3 HIGH: {ma_5m_3_high}")
+
+            position_data = self.exchange.get_positions_bybit(symbol)
+
+            #print(f"Bybit pos data: {position_data}")
+
+            short_pos_qty = position_data["short"]["qty"]
+            long_pos_qty = position_data["long"]["qty"]
+
+            print(f"Short pos qty: {short_pos_qty}")
+            print(f"Long pos qty: {long_pos_qty}")
+
+            short_pos_price = position_data["short"]["price"] if short_pos_qty > 0 else None
+            long_pos_price = position_data["long"]["price"] if long_pos_qty > 0 else None
+
+            print(f"Long pos price {long_pos_price}")
+            print(f"Short pos price {short_pos_price}")
+
 
             # Hedge logic starts here
             # if trend is not None and isinstance(trend, str):
