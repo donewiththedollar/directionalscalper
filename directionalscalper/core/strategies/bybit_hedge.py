@@ -19,6 +19,9 @@ class BybitHedgeStrategy(Strategy):
             
             market_data = self.exchange.get_market_data_bybit(symbol)
             best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+            best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+            print(f"Best bid: {best_bid_price}")
+            print(f"Best ask: {best_ask_price}")
 
             leverage = float(market_data["leverage"]) if market_data["leverage"] !=0 else 50.0
 
@@ -30,7 +33,8 @@ class BybitHedgeStrategy(Strategy):
             
             print(f"Max trade quantity for {symbol}: {max_trade_qty}")
 
-
+            min_qty_bybit = market_data["min_qty"]
+            print(f"Min qty: {min_qty_bybit}")
 
             time.sleep(30)
             
