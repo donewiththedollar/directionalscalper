@@ -6,15 +6,25 @@ class BybitHedgeStrategy(Strategy):
         super().__init__(exchange, config)
         self.manager = manager
 
-    def limit_order(self, symbol, side, amount, price, reduce_only=False):        
-        params = {"reduce_only": reduce_only}
-        order = self.exchange.create_order(symbol, 'limit', side, amount, price, params=params)
+    # def limit_order(self, symbol, side, amount, price, reduce_only=False):        
+    #     params = {"reduce_only": reduce_only}
+    #     order = self.exchange.create_order(symbol, 'limit', side, amount, price, params=params)
+    #     return order
+
+    def limit_order(self, symbol, side, amount, price, reduce_only=False):
+        params = {"reduce_only": reduce_only, "position_idx": 1}
+        print(f"Symbol: {symbol}, Side: {side}, Amount: {amount}, Price: {price}, Params: {params}")
+        order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, params=params)
         return order
 
     def run(self, symbol, amount):
         wallet_exposure = self.config.wallet_exposure
         min_dist = self.config.min_distance
         min_vol = self.config.min_volume
+
+        print("Setting up exchange")
+        self.exchange.setup_exchange_bybit(symbol)
+        print("Set up exchange")
 
         while True:
             print(f"Bybit hedge strategy running")
@@ -34,12 +44,14 @@ class BybitHedgeStrategy(Strategy):
             dex_equity = self.exchange.get_balance_bybit(quote_currency)
 
             print(f"Total equity: {dex_equity}")
-            
+
+            current_price = self.exchange.get_current_price(symbol)
             market_data = self.exchange.get_market_data_bybit(symbol)
             best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
             best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
             print(f"Best bid: {best_bid_price}")
             print(f"Best ask: {best_ask_price}")
+            print(f"Current price: {current_price}")
 
             leverage = float(market_data["leverage"]) if market_data["leverage"] !=0 else 50.0
 
@@ -62,12 +74,15 @@ class BybitHedgeStrategy(Strategy):
 
             # Get the 1-minute moving averages
             print(f"Fetching MA data")
-            m_moving_averages = self.manager.get_1m_moving_averages(symbol)
-            m5_moving_averages = self.manager.get_5m_moving_averages(symbol)
+            try:
+                m_moving_averages = self.manager.get_1m_moving_averages(symbol)
+                m5_moving_averages = self.manager.get_5m_moving_averages(symbol)
 
-            # Define MAs for ease of use
-            ma_1m_3_high = self.manager.get_1m_moving_averages(symbol)["MA_3_H"]
-            ma_5m_3_high = self.manager.get_5m_moving_averages(symbol)["MA_3_H"]
+                # Define MAs for ease of use
+                ma_1m_3_high = self.manager.get_1m_moving_averages(symbol)["MA_3_H"]
+                ma_5m_3_high = self.manager.get_5m_moving_averages(symbol)["MA_3_H"]
+            except Exception as e:
+                print(f"Fetch MA data exception caught {e}")
 
             # print(f"1m MAs: {m_moving_averages}")
             # print(f"5m MAs: {m5_moving_averages}")
@@ -89,6 +104,12 @@ class BybitHedgeStrategy(Strategy):
 
             print(f"Long pos price {long_pos_price}")
             print(f"Short pos price {short_pos_price}")
+
+            try:
+                #self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
+                print(f"Limit order placed at {best_bid_price}")
+            except Exception as e:
+                print(f"Exception caught in debug order placement {e}")
 
 
             # Hedge logic starts here

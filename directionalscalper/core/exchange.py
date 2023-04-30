@@ -31,25 +31,49 @@ class Exchange:
         symbols = [market['symbol'] for market in markets.values()]
         return symbols
 
-    def setup_exchange(self, symbol) -> None:
-        values = {"position": False, "margin": False, "leverage": False}
+    # def setup_exchange(self, symbol) -> None:
+    #     values = {"position": False, "margin": False, "leverage": False}
+    #     try:
+    #         self.exchange.set_position_mode(hedged="BothSide", symbol=symbol)
+    #         values["position"] = True
+    #     except Exception as e:
+    #         log.warning(f"An unknown error occurred in with set_position_mode: {e}")
+    #     try:
+    #         self.exchange.set_margin_mode(marginMode="cross", symbol=symbol)
+    #         values["margin"] = True
+    #     except Exception as e:
+    #         log.warning(f"An unknown error occurred in with set_margin_mode: {e}")
+    #     market_data = self.get_market_data(symbol=symbol)
+    #     try:
+    #         self.exchange.set_leverage(leverage=market_data["leverage"], symbol=symbol)
+    #         values["leverage"] = True
+    #     except Exception as e:
+    #         log.warning(f"An unknown error occurred in with set_leverage: {e}")
+    #     log.info(values)
+
+    def setup_exchange_bybit(self, symbol) -> None:
+        values = {"position": False, "leverage": False}
         try:
-            self.exchange.set_position_mode(hedged="BothSide", symbol=symbol)
+            # Set the position mode to hedge
+            self.exchange.set_position_mode(hedged=True, symbol=symbol)
             values["position"] = True
         except Exception as e:
             log.warning(f"An unknown error occurred in with set_position_mode: {e}")
+
+        market_data = self.get_market_data_bybit(symbol=symbol)
         try:
-            self.exchange.set_margin_mode(marginMode="cross", symbol=symbol)
-            values["margin"] = True
-        except Exception as e:
-            log.warning(f"An unknown error occurred in with set_margin_mode: {e}")
-        market_data = self.get_market_data(symbol=symbol)
-        try:
+            # Set the margin mode to cross
+            self.exchange.set_derivatives_margin_mode(marginMode="cross", symbol=symbol)
+            
+            # Set the leverage to the maximum allowed
             self.exchange.set_leverage(leverage=market_data["leverage"], symbol=symbol)
             values["leverage"] = True
         except Exception as e:
             log.warning(f"An unknown error occurred in with set_leverage: {e}")
+
         log.info(values)
+
+
 
     def get_market_data_bitget(self, symbol: str) -> dict:
         values = {"precision": 0.0, "leverage": 0.0, "min_qty": 0.0}
@@ -347,6 +371,60 @@ class Exchange:
     #     except Exception as e:
     #         log.warning(f"An unknown error occurred in get_positions_bitget(): {e}")
     #     return values
+
+
+    def get_positions_bybit(self, symbol) -> dict:
+        values = {
+            "long": {
+                "qty": 0.0,
+                "price": 0.0,
+                "realised": 0,
+                "cum_realised": 0,
+                "upnl": 0,
+                "upnl_pct": 0,
+                "liq_price": 0,
+                "entry_price": 0,
+            },
+            "short": {
+                "qty": 0.0,
+                "price": 0.0,
+                "realised": 0,
+                "cum_realised": 0,
+                "upnl": 0,
+                "upnl_pct": 0,
+                "liq_price": 0,
+                "entry_price": 0,
+            },
+        }
+        try:
+            data = self.exchange.fetch_positions(symbol)
+            #print(f"Debug info: {data}")  # Print debug info
+            if len(data) == 2:
+                sides = ["long", "short"]
+                for side in [0, 1]:
+                    values[sides[side]]["qty"] = float(data[side]["contracts"])
+                    values[sides[side]]["price"] = float(data[side]["entryPrice"] or 0)
+                    values[sides[side]]["realised"] = round(
+                        float(data[side]["info"]["unrealisedPnl"] or 0), 4
+                    )
+                    values[sides[side]]["cum_realised"] = round(
+                        float(data[side]["info"]["cumRealisedPnl"] or 0), 4
+                    )
+                    values[sides[side]]["upnl"] = round(
+                        float(data[side]["info"]["unrealisedPnl"] or 0), 4
+                    )
+                    values[sides[side]]["upnl_pct"] = round(
+                        float(data[side]["percentage"] or 0), 4  # Change 'precentage' to 'percentage'
+                    )
+                    values[sides[side]]["liq_price"] = float(
+                        data[side]["liquidationPrice"] or 0
+                    )
+                    values[sides[side]]["entry_price"] = float(
+                        data[side]["entryPrice"] or 0
+                    )
+        except Exception as e:
+            log.warning(f"An unknown error occurred in get_positions(): {e}")
+        return values
 
     def get_positions(self, symbol) -> dict:
         values = {
@@ -756,6 +834,35 @@ class Exchange:
         except Exception as e:
             log.warning(f"An unknown error occurred in create_market_order(): {e}")
 
+    # def create_limit_order_bybit(
+    #     self, symbol: str, side: str, qty: float, price: float
+    # ) -> None:
+    #     try:
+    #         if side == "buy":
+    #             self.exchange.create_limit_buy_order(
+    #                 symbol=symbol, amount=qty, price=price
+    #             )
+    #         elif side == "sell":
+    #             self.exchange.create_limit_sell_order(
+    #                 symbol=symbol, amount=qty, price=price
+    #             )
+    #         else:
+    #             log.warning(f"side {side} does not exist")
+    #     except Exception as e:
+    #         log.warning(f"An unknown error occurred in create_limit_order(): {e}")
+
+    def create_limit_order_bybit(self, symbol: str, side: str, qty: float, price: float, params={}) -> None:
+        try:
+            if side == "buy":
+                self.exchange.create_limit_buy_order(symbol=symbol, amount=qty, price=price, params=params)
+            elif side == "sell":
+                self.exchange.create_limit_sell_order(symbol=symbol, amount=qty, price=price, params=params)
+            else:
+                log.warning(f"side {side} does not exist")
+        except Exception as e:
+            log.warning(f"An unknown error occurred in create_limit_order(): {e}")
+
+
     def create_limit_order(self, symbol, side, amount, price, reduce_only=False, **params):
         if side == "buy":
             return self.create_limit_buy_order(symbol, amount, price, reduce_only=reduce_only, **params)
@@ -789,16 +896,39 @@ class Exchange:
         if reduce_only:
             params.update({'reduceOnly': 'true'})
 
-        if order_type == 'limit':
-            if side == "buy":
-                return self.create_limit_buy_order(symbol, amount, price, **params)
-            elif side == "sell":
-                return self.create_limit_sell_order(symbol, amount, price, **params)
-            else:
-                raise ValueError(f"Invalid side: {side}")
-        elif order_type == 'market':
-            #... handle market orders if necessary
-            return self.create_market_order(symbol, side, amount, params)
+        if self.exchange_id == 'bybit':
+            order = self.exchange.create_order(symbol, order_type, side, amount, price, params=params)
         else:
-            raise ValueError("Invalid order type. Use 'limit' or 'market'.")
+            if order_type == 'limit':
+                if side == "buy":
+                    order = self.create_limit_buy_order(symbol, amount, price, **params)
+                elif side == "sell":
+                    order = self.create_limit_sell_order(symbol, amount, price, **params)
+                else:
+                    raise ValueError(f"Invalid side: {side}")
+            elif order_type == 'market':
+                #... handle market orders if necessary
+                order = self.create_market_order(symbol, side, amount, params)
+            else:
+                raise ValueError("Invalid order type. Use 'limit' or 'market'.")
+
+        return order
+
+
+    # def create_order(self, symbol, order_type, side, amount, price=None, reduce_only=False, **params):
+    #     if reduce_only:
+    #         params.update({'reduceOnly': 'true'})
+
+    #     if order_type == 'limit':
+    #         if side == "buy":
+    #             return self.create_limit_buy_order(symbol, amount, price, **params)
+    #         elif side == "sell":
+    #             return self.create_limit_sell_order(symbol, amount, price, **params)
+    #         else:
+    #             raise ValueError(f"Invalid side: {side}")
+    #     elif order_type == 'market':
+    #         #... handle market orders if necessary
+    #         return self.create_market_order(symbol, side, amount, params)
+    #     else:
+    #         raise ValueError("Invalid order type. Use 'limit' or 'market'.")
         
