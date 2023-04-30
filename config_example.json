@@ -19,8 +19,8 @@
   "exchanges": [
     {
       "name": "bybit",
-      "api_key": "your_api_key",
-      "api_secret": "your_api_secret"
+      "api_key": "",
+      "api_secret": ""
     },
     {
       "name": "bitget",
@@ -33,6 +33,11 @@
       "api_key": "",
       "api_secret": "",
       "passphrase": ""
+    },
+    {
+      "name": "huobi",
+      "api_key": "",
+      "api_secret": ""
     }
   ],
   "logger": {

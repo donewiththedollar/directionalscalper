@@ -55,8 +55,42 @@ class BybitHedgeStrategy(Strategy):
             else:
                 print(f"The amount you entered ({amount}) is valid for {symbol}")
 
+            # Get the 1-minute moving averages
+            print(f"Fetching MA data")
+            m_moving_averages = self.manager.get_1m_moving_averages(symbol)
+            m5_moving_averages = self.manager.get_5m_moving_averages(symbol)
+
+            # Define MAs for ease of use
+            ma_1m_3_high = self.manager.get_1m_moving_averages(symbol)["MA_3_H"]
+            ma_5m_3_high = self.manager.get_5m_moving_averages(symbol)["MA_3_H"]
+
+            print(f"1m MAs: {m_moving_averages}")
+            print(f"5m MAs: {m5_moving_averages}")
+            print(f"1m MA3 HIGH: {ma_1m_3_high}")
+            print(f"5m MA3 HIGH: {ma_5m_3_high}")
 
             # Hedge logic starts here
+            # if trend is not None and isinstance(trend, str):
+            #     if one_minute_volume is not None and five_minute_distance is not None:
+            #         if one_minute_volume > min_vol and five_minute_distance > min_dist:
+
+            #             if trend.lower() == "long" and should_long and long_pos_qty == 0:
+
+            #                 #self.limit_order(symbol, "buy", amount, bid_price, reduce_only=False)
+            #                 print(f"Placed initial long entry")
+            #             else:
+            #                 if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty:
+            #                     print(f"Placed additional long entry")
+            #                     self.limit_order(symbol, "buy", amount, bid_price, reduce_only=False)
+
+            #             if trend.lower() == "short" and should_short and short_pos_qty == 0:
+
+            #                 #self.limit_order(symbol, "sell", amount, ask_price, reduce_only=False)
+            #                 print("Placed initial short entry")
+            #             else:
+            #                 if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty:
+            #                     print(f"Placed additional short entry")
+            #                     self.limit_order(symbol, "sell", amount, ask_price, reduce_only=False)
 
             time.sleep(30)
             

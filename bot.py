@@ -17,6 +17,7 @@ from directionalscalper.core.strategies.strategy import Strategy
 from directionalscalper.core.strategies.bitget_hedge import BitgetHedgeStrategy
 from directionalscalper.core.strategies.okx_hedge import OKXHedgeStrategy
 from directionalscalper.core.strategies.bybit_hedge import BybitHedgeStrategy
+from directionalscalper.core.strategies.huobi_hedge import HuobiHedgeStrategy
 
 class DirectionalMarketMaker:
     def __init__(self, config: Config, exchange_name: str): 
@@ -93,6 +94,10 @@ if __name__ == '__main__':
         elif strategy_name.lower() == 'bybit_hedge':
 
             strategy = BybitHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol, amount)
+            
+        elif strategy_name.lower() == 'huobi_hedge':
+            strategy = HuobiHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
         else:
             print("Strategy not recognized. Please choose a valid strategy.")
