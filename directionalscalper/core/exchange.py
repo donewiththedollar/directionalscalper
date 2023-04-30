@@ -79,22 +79,28 @@ class Exchange:
         return values
 
 
-    def get_market_data(self, symbol: str) -> dict:
+    def get_market_data_bybit(self, symbol: str) -> dict:
         values = {"precision": 0.0, "leverage": 0.0, "min_qty": 0.0}
         try:
             self.exchange.load_markets()
             symbol_data = self.exchange.market(symbol)
+            
+            #print("Symbol data:", symbol_data)  # Debug print
+            
             if "info" in symbol_data:
-                values["precision"] = symbol_data["info"]["price_scale"]
-                values["leverage"] = symbol_data["info"]["leverage_filter"][
-                    "max_leverage"
-                ]
-                values["min_qty"] = symbol_data["info"]["lot_size_filter"][
-                    "min_trading_qty"
-                ]
+                values["precision"] = symbol_data["precision"]["price"]
+                values["min_qty"] = symbol_data["limits"]["amount"]["min"]
+
+            # Fetch positions
+            positions = self.exchange.fetch_positions()
+            #print("Positions:", positions)  # Debug print
+            
+            for position in positions:
+                if position['symbol'] == symbol:
+                    values["leverage"] = float(position['leverage'])
 
         except Exception as e:
-            log.warning(f"An unknown error occurred in get_market_data(): {e}")
+            log.warning(f"An unknown error occurred in get_market_data_bybit(): {e}")
         return values
 
     def get_balance_bybit(self, quote):
