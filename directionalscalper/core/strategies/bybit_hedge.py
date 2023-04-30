@@ -10,7 +10,20 @@ class BybitHedgeStrategy(Strategy):
         wallet_exposure = self.config.wallet_exposure
 
         while True:
-            print(f"Bybit strategy running")
+            print(f"Bybit hedge strategy running")
+            min_dist = self.config.min_distance
+            min_vol = self.config.min_volume
+            print(f"Min volume: {min_vol}")
+            print(f"Min distance: {min_dist}")
+
+            # Get API data
+            data = self.manager.get_data()
+            one_minute_volume = self.manager.get_asset_value(symbol, data, "1mVol")
+            five_minute_distance = self.manager.get_asset_value(symbol, data, "5mSpread")
+            trend = self.manager.get_asset_value(symbol, data, "Trend")
+            print(f"1m Volume: {one_minute_volume}")
+            print(f"5m Spread: {five_minute_distance}")
+            print(f"Trend: {trend}")
 
             quote_currency = "USDT"
             dex_equity = self.exchange.get_balance_bybit(quote_currency)
@@ -35,6 +48,15 @@ class BybitHedgeStrategy(Strategy):
 
             min_qty_bybit = market_data["min_qty"]
             print(f"Min qty: {min_qty_bybit}")
+
+            if float(amount) < min_qty_bybit:
+                print(f"The amount you entered ({amount}) is less than the minimum required by Bitget for {symbol}: {min_qty_bybit}.")
+                break
+            else:
+                print(f"The amount you entered ({amount}) is valid for {symbol}")
+
+
+            # Hedge logic starts here
 
             time.sleep(30)
             
