@@ -714,7 +714,7 @@ class Exchange:
             log.warning(f"An unknown error occurred in cancel_entry(): {e}")
 
     def cancel_close_bitget(self, symbol: str, side: str) -> None:
-        side_map = {"long": "open_short", "short": "open_long"}
+        side_map = {"long": "close_long", "short": "close_short"}
         try:
             orders = self.exchange.fetch_open_orders(symbol)
             if len(orders) > 0:

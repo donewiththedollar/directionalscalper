@@ -84,7 +84,7 @@ class BitgetHedgeStrategy(Strategy):
             )
 
             short_profit_price = short_target_price
-            print(f"Debug: Short profit price: {short_profit_price}")
+            #print(f"Debug: Short profit price: {short_profit_price}")
 
             return float(short_profit_price)
         return None
@@ -107,24 +107,47 @@ class BitgetHedgeStrategy(Strategy):
             )
 
             long_profit_price = long_target_price
-            print(f"Debug: Long profit price: {long_profit_price}")
+            #print(f"Debug: Long profit price: {long_profit_price}")
 
             return float(long_profit_price)
         return None
 
+    # def short_trade_condition(self, current_bid, ma_3_high):
+    #     if current_bid is None or ma_3_high is None:
+    #         return False
+    #     return current_bid > ma_3_high
+    
+    # def long_trade_condition(self, current_bid, ma_3_high):
+    #     if current_bid is None or ma_3_high is None:
+    #         return False
+    #     return current_bid < ma_3_high
+
+    # def add_short_trade_condition(self, short_pos_price, ma_6_low):
+    #     if short_pos_price is None or ma_6_low is None:
+    #         return False
+    #     return short_pos_price < ma_6_low
+
+    # def add_long_trade_condition(self, long_pos_price, ma_6_low):
+    #     if long_pos_price is None or ma_6_low is None:
+    #         return False
+    #     return long_pos_price > ma_6_low
+
     def run(self, symbol, amount):
-        long_initial_placed = False
-        short_initial_placed = False
+        min_dist = self.config.min_distance
+        min_vol = self.config.min_volume
         wallet_exposure = self.config.wallet_exposure
 
         while True:
-
             # Max trade qty calculation
             quote_currency = "USDT"  # Change this to your desired quote currency
             dex_equity = self.exchange.get_balance_bitget(quote_currency)
 
             market_data = self.exchange.get_market_data_bitget(symbol)
-            best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+
+            # Orderbook data
+            orderbook = self.exchange.get_orderbook(symbol)
+            best_bid_price = orderbook['bids'][0][0]
+            best_ask_price = orderbook['asks'][0][0]
 
             leverage = float(market_data["leverage"]) if market_data["leverage"] != 0 else 50.0
 
@@ -150,21 +173,8 @@ class BitgetHedgeStrategy(Strategy):
             else:
                 print(f"The amount you entered ({amount}) is valid for {symbol}")
 
-            # Orderbook data
-            orderbook = self.exchange.get_orderbook(symbol)
-            bid_price = orderbook['bids'][0][0]
-            ask_price = orderbook['asks'][0][0]
-
-            print(f"Bid: {bid_price}")
-            print(f"Ask: {ask_price}")
-
-            min_dist = self.config.min_distance
-            min_vol = self.config.min_volume
             print(f"Min volume: {min_vol}")
             print(f"Min distance: {min_dist}")
-
-
-            # Hedge logic starts
 
             # Get data from manager
             data = self.manager.get_data()
@@ -180,10 +190,12 @@ class BitgetHedgeStrategy(Strategy):
             print(f"5m Spread: {five_minute_distance}")
             print(f"Trend: {trend}")
 
+
+            # Hedge logic starts
+
             # data = self.exchange.exchange.fetch_positions([symbol])
             # print(f"Bitget positions response: {data}")   
  
-
             # Get pos data from exchange
             position_data = self.exchange.get_positions_bitget(symbol) 
             print(f"Fetching position data")
@@ -209,38 +221,41 @@ class BitgetHedgeStrategy(Strategy):
             print(f"Fetching MA data")
             m_moving_averages = self.manager.get_1m_moving_averages(symbol)
             m5_moving_averages = self.manager.get_5m_moving_averages(symbol)
-
-            # Define MAs for ease of use
+            ma_6_low = m_moving_averages["MA_6_L"]
+            ma_3_low = m_moving_averages["MA_3_L"]
+            ma_3_high = m_moving_averages["MA_3_H"]
             ma_1m_3_high = self.manager.get_1m_moving_averages(symbol)["MA_3_H"]
             ma_5m_3_high = self.manager.get_5m_moving_averages(symbol)["MA_3_H"]
 
-            print(f"Long pos price: {long_pos_price}")
-            print(f"Short pos price: {short_pos_price}")
 
+            # Take profit calc
             short_take_profit = self.calculate_short_take_profit(short_pos_price, symbol)
             long_take_profit = self.calculate_long_take_profit(long_pos_price, symbol)
 
             print(f"Short take profit: {short_take_profit}")
             print(f"Long take profit: {long_take_profit}")
 
+            # Trade conditions 
+            # should_short = self.short_trade_condition(best_ask_price, m_moving_averages["MA_3_H"])
+            # should_long = self.long_trade_condition(best_bid_price, m_moving_averages["MA_3_L"])
+            should_short = self.short_trade_condition(best_bid_price, ma_3_high)
+            should_long = self.long_trade_condition(best_bid_price, ma_3_high)
 
-            # Call the new methods
-            should_short = self.short_trade_condition(ask_price, m_moving_averages["MA_3_H"])
-            should_long = self.long_trade_condition(bid_price, m_moving_averages["MA_3_L"])
-
-
-            should_add_to_short = short_pos_price is not None and \
-                                self.add_short_trade_condition(short_pos_price, m_moving_averages["MA_6_L"]) and \
-                                ask_price > short_pos_price and \
-                                short_pos_qty < max_trade_qty
-
-            should_add_to_long = long_pos_price is not None and \
-                                self.add_long_trade_condition(long_pos_price, m_moving_averages["MA_6_L"]) and \
-                                bid_price < long_pos_price and \
-                                long_pos_qty < max_trade_qty
+            should_add_to_short = self.add_short_trade_condition(short_pos_price, ma_6_low)
+            should_add_to_long = self.add_long_trade_condition(long_pos_price, ma_6_low)
 
             # should_add_to_short = self.add_short_trade_condition(short_pos_price, m_moving_averages["MA_6_L"])
             # should_add_to_long = self.add_long_trade_condition(long_pos_price, m_moving_averages["MA_6_L"])
+
+            # should_add_to_short = short_pos_price is not None and \
+            #                     self.add_short_trade_condition(short_pos_price, m_moving_averages["MA_6_L"]) and \
+            #                     ask_price > short_pos_price and \
+            #                     short_pos_qty < max_trade_qty
+
+            # should_add_to_long = long_pos_price is not None and \
+            #                     self.add_long_trade_condition(long_pos_price, m_moving_averages["MA_6_L"]) and \
+            #                     bid_price < long_pos_price and \
+            #                     long_pos_qty < max_trade_qty
 
             print(f"Short condition: {should_short}")
             print(f"Long condition: {should_long}")
@@ -256,7 +271,6 @@ class BitgetHedgeStrategy(Strategy):
             print(f"Current price: {current_price}")
             print(f"Close short position condition: {close_short_position}")
             print(f"Close long position condition: {close_long_position}")
-            #self.exchange.debug_open_orders(symbol)
 
             # New hedge logic
             if trend is not None and isinstance(trend, str):
@@ -265,21 +279,21 @@ class BitgetHedgeStrategy(Strategy):
 
                         if trend.lower() == "long" and should_long and long_pos_qty == 0:
 
-                            self.limit_order(symbol, "buy", amount, bid_price, reduce_only=False)
+                            self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
                             print(f"Placed initial long entry")
                         else:
                             if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty:
                                 print(f"Placed additional long entry")
-                                self.limit_order(symbol, "buy", amount, bid_price, reduce_only=False)
+                                self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
 
                         if trend.lower() == "short" and should_short and short_pos_qty == 0:
 
-                            self.limit_order(symbol, "sell", amount, ask_price, reduce_only=False)
+                            self.limit_order(symbol, "sell", amount, best_ask_price, reduce_only=False)
                             print("Placed initial short entry")
                         else:
                             if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty:
                                 print(f"Placed additional short entry")
-                                self.limit_order(symbol, "sell", amount, ask_price, reduce_only=False)
+                                self.limit_order(symbol, "sell", amount, best_ask_price, reduce_only=False)
             
             #open_orders = self.exchange.fetch_open_orders(symbol)
             open_orders = self.exchange.get_open_orders_debug(symbol)
@@ -317,9 +331,10 @@ class BitgetHedgeStrategy(Strategy):
 
             # Cancel entries
             try:
-                if ask_price < ma_1m_3_high or ask_price < ma_5m_3_high:
+                if best_ask_price < ma_1m_3_high or best_ask_price < ma_5m_3_high:
                     self.exchange.cancel_all_entries(symbol)
                     print(f"Canceled entry orders for {symbol}")
+                    time.sleep(0.05)
             except Exception as e:
                 print(f"An error occurred while canceling entry orders: {e}")
 
@@ -411,64 +426,7 @@ class BitgetHedgeStrategy(Strategy):
             #                 self.execute(symbol, "sell", amount, ask_price)
             #                 print(f"Added a short trade for {symbol} at {ask_price}")
 
-            # Take profit logic
-            # if close_long_position or close_short_position:
-                # # Check if the conditions to close the position are met
-                # open_orders = self.exchange.fetch_open_orders(symbol)
-                # take_profit_orders = [order for order in open_orders if order['type'] == 'take_profit']
-                # long_take_profit_exists = any(order for order in take_profit_orders if order['side'] == 'sell' and order['reduce_only'] == True)
-                # short_take_profit_exists = any(order for order in take_profit_orders if order['side'] == 'buy' and order['reduce_only'] == True)
 
-                # if close_long_position:
-                #     try:
-                #         print(f"Closing long position")
-                #         self.exchange.create_take_profit_order(symbol, 'limit', "buy", long_pos_qty, price=current_price, reduce_only=True)
-                #         print(f"Long position closed at {current_price}")
-                #     except Exception as e:
-                #         print(f"Error while closing long position: {e}")
-
-                # if close_short_position:
-                #     try:
-                #         print(f"Closing short position")
-                #         self.exchange.create_take_profit_order(symbol, 'limit', "sell", short_pos_qty, price=current_price, reduce_only=True)
-                #         print(f"Short position closed at {current_price}")
-                #     except Exception as e:
-                #         print(f"Error while closing short position: {e}")
-
-                # if close_long_position:
-                #     try:
-                #         print(f"Closing long position")
-                #         self.exchange.create_take_profit_order(symbol, 'limit', "sell", long_pos_qty, price=current_price, reduce_only=True)
-                #         print(f"Long position closed at {current_price}")
-                #     except Exception as e:
-                #         print(f"Error while closing long position: {e}")
-
-                # if close_short_position:
-                #     try:
-                #         print(f"Closing short position")
-                #         self.exchange.create_take_profit_order(symbol, 'limit', "buy", short_pos_qty, price=current_price, reduce_only=True)
-                #         print(f"Short position closed at {current_price}")
-                #     except Exception as e:
-                #         print(f"Error while closing short position: {e}")
-
-                # time.sleep(0.05)
-
-
-                # if close_long_position:
-                #     try:
-                #         print(f"Closing long position")
-                #         #self.exchange.create_order(symbol, "limit", "sell", long_pos_qty, bid_price, params={"reduceOnly": True})
-                #         self.take_profit_order(symbol, "limit", "sell", long_pos_qty, bid_price, reduce_only=True)
-                #     except Exception as e:
-                #         print(f"Error while closing long position: {e}")
-
-                # if close_short_position:
-                #     try:
-                #         print(f"Closing short position")
-                #         self.take_profit_order(symbol, "limit", "buy", short_pos_qty, ask_price, reduce_only=True)
-                #         #self.exchange.create_order(symbol, "limit", "buy", short_pos_qty, ask_price, params={"reduceOnly": True})
-                #     except Exception as e:
-                #         print(f"Error while closing short position: {e}")
 
             # if close_long_position or close_short_position:
             #     # Check if the conditions to close the position are met
@@ -491,21 +449,6 @@ class BitgetHedgeStrategy(Strategy):
             #         except Exception as e:
             #             print(f"Error while closing short position: {e}")
 
-
-
-                # if close_long_position:
-                #     try:
-                #         print(f"Closing long position")
-                #         self.close_position(symbol, "sell", long_pos_qty)
-                #     except Exception as e:
-                #         print(f"Error while closing long position: {e}")
-
-                # if close_short_position:
-                #     try:
-                #         print(f"Closing short position")
-                #         self.close_position(symbol, "buy", short_pos_qty)
-                #     except Exception as e:
-                #         print(f"Error while closing short position: {e}")
                                             
             # if (long_pos_qty > 0 and bid_price < long_pos_price) or (short_pos_qty > 0 and ask_price > short_pos_price):
             #     # Check if the conditions to close the position are met
