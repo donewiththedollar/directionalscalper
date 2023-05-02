@@ -151,6 +151,22 @@ class Exchange:
             # Handle other account types or fallback to default behavior
             pass
 
+    def get_balance_huobi(self, quote, account_type=None):
+        if self.exchange.has['fetchBalance']:
+            # Fetch the balance
+            balance = self.exchange.fetch_balance(params={'type': account_type})
+
+            # Find the quote balance
+            if account_type == 'spot' or account_type == 'margin':
+                if quote in balance:
+                    return float(balance[quote]['total'])
+            else:
+                for currency_balance in balance['info']:
+                    margin_coin = self.exchange.safe_string(currency_balance, 'margin_asset')
+                    if margin_coin == quote:
+                        return float(currency_balance['margin_balance'])
+        return None
+
     def get_price_precision(self, symbol):
         market = self.exchange.market(symbol)
         smallest_increment = market['precision']['price']
@@ -533,7 +549,7 @@ class Exchange:
             log.warning(f"An unknown error occurred in get_open_orders(): {e}")
         return values
     
-    def get_open_orders_debug(self, symbol: str) -> list:
+    def get_open_orders_bitget(self, symbol: str) -> list:
         open_orders = []
         try:
             orders = self.exchange.fetch_open_orders(symbol)

@@ -40,11 +40,13 @@ class DirectionalMarketMaker:
         passphrase = exchange_config.passphrase
         self.exchange = Exchange(self.exchange_name, api_key, secret_key, passphrase)
 
-    def get_balance(self, quote):
+    def get_balance(self, quote, type=None):
         if self.exchange_name == 'bitget':
             return self.exchange.get_balance_bitget(quote)
         elif self.exchange_name == 'bybit':
             return self.exchange.get_balance_bybit(quote)
+        elif self.exchange_name == 'huobi':
+            return self.exchange.get_balance_huobi(quote, type)
         elif self.exchange_name == 'okx':
             #return self.exchange.get_balance_okx(quote)
             print(f"Unsupported for now")
@@ -52,6 +54,22 @@ class DirectionalMarketMaker:
             print(f"Unsupported for now")
         elif self.exchange_name == 'phemex':
             print(f"Unsupported for now")
+
+
+    # def get_balance(self, quote):
+    #     if self.exchange_name == 'bitget':
+    #         return self.exchange.get_balance_bitget(quote)
+    #     elif self.exchange_name == 'bybit':
+    #         return self.exchange.get_balance_bybit(quote)
+    #     elif self.exchange_name == 'huobi':
+    #         return self.exchange.get_balance_huobi(quote)
+    #     elif self.exchange_name == 'okx':
+    #         #return self.exchange.get_balance_okx(quote)
+    #         print(f"Unsupported for now")
+    #     elif self.exchange_name == 'binance':
+    #         print(f"Unsupported for now")
+    #     elif self.exchange_name == 'phemex':
+    #         print(f"Unsupported for now")
 
     def create_order(self, symbol, order_type, side, amount, price=None):
         return self.exchange.create_order(symbol, order_type, side, amount, price)
@@ -85,7 +103,10 @@ if __name__ == '__main__':
     market_maker.manager = manager  # Assign the `Manager` object to the `DirectionalMarketMaker`
 
     quote = "USDT"
-    balance = market_maker.get_balance(quote)
+    if exchange_name.lower() == 'huobi':
+        balance = market_maker.get_balance_huobi(quote, type='future')
+    else:
+        balance = market_maker.get_balance(quote)
     print(f"Balance: {balance}")
 
     try:
