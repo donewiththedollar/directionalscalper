@@ -1,4 +1,5 @@
 import time
+from decimal import Decimal, ROUND_HALF_UP
 from .strategy import Strategy
 
 class BybitHedgeStrategy(Strategy):
@@ -11,6 +12,50 @@ class BybitHedgeStrategy(Strategy):
         print(f"Symbol: {symbol}, Side: {side}, Amount: {amount}, Price: {price}, Params: {params}")
         order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, params=params)
         return order
+
+    def calculate_short_take_profit(self, short_pos_price, symbol):
+        if short_pos_price is None:
+            return None
+
+        five_min_data = self.manager.get_5m_moving_averages(symbol)
+        price_precision = int(self.exchange.get_price_precision(symbol))
+
+        if five_min_data is not None:
+            ma_6_high = Decimal(five_min_data["MA_6_H"])
+            ma_6_low = Decimal(five_min_data["MA_6_L"])
+
+            short_target_price = Decimal(short_pos_price) - (ma_6_high - ma_6_low)
+            short_target_price = short_target_price.quantize(
+                Decimal('1e-{}'.format(price_precision)),
+                rounding=ROUND_HALF_UP
+            )
+
+            short_profit_price = short_target_price
+
+            return float(short_profit_price)
+        return None
+
+    def calculate_long_take_profit(self, long_pos_price, symbol):
+        if long_pos_price is None:
+            return None
+
+        five_min_data = self.manager.get_5m_moving_averages(symbol)
+        price_precision = int(self.exchange.get_price_precision(symbol))
+
+        if five_min_data is not None:
+            ma_6_high = Decimal(five_min_data["MA_6_H"])
+            ma_6_low = Decimal(five_min_data["MA_6_L"])
+
+            long_target_price = Decimal(long_pos_price) + (ma_6_high - ma_6_low)
+            long_target_price = long_target_price.quantize(
+                Decimal('1e-{}'.format(price_precision)),
+                rounding=ROUND_HALF_UP
+            )
+
+            long_profit_price = long_target_price
+
+            return float(long_profit_price)
+        return None
 
     def run(self, symbol, amount):
         wallet_exposure = self.config.wallet_exposure
@@ -72,17 +117,13 @@ class BybitHedgeStrategy(Strategy):
             try:
                 m_moving_averages = self.manager.get_1m_moving_averages(symbol)
                 m5_moving_averages = self.manager.get_5m_moving_averages(symbol)
-
-                # Define MAs for ease of use
+                ma_6_low = m_moving_averages["MA_6_L"]
+                ma_3_low = m_moving_averages["MA_3_L"]
+                ma_3_high = m_moving_averages["MA_3_H"]
                 ma_1m_3_high = self.manager.get_1m_moving_averages(symbol)["MA_3_H"]
                 ma_5m_3_high = self.manager.get_5m_moving_averages(symbol)["MA_3_H"]
             except Exception as e:
                 print(f"Fetch MA data exception caught {e}")
-
-            # print(f"1m MAs: {m_moving_averages}")
-            # print(f"5m MAs: {m5_moving_averages}")
-            # print(f"1m MA3 HIGH: {ma_1m_3_high}")
-            # print(f"5m MA3 HIGH: {ma_5m_3_high}")
 
             position_data = self.exchange.get_positions_bybit(symbol)
 
@@ -100,35 +141,46 @@ class BybitHedgeStrategy(Strategy):
             print(f"Long pos price {long_pos_price}")
             print(f"Short pos price {short_pos_price}")
 
-            try:
-                #self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
-                print(f"Limit order placed at {best_bid_price}")
-            except Exception as e:
-                print(f"Exception caught in debug order placement {e}")
+            should_short = self.short_trade_condition(best_bid_price, ma_3_high)
+            should_long = self.long_trade_condition(best_bid_price, ma_3_high)
+
+            should_add_to_short = self.add_short_trade_condition(short_pos_price, ma_6_low)
+            should_add_to_long = self.add_long_trade_condition(long_pos_price, ma_6_low)
+
+            print(f"Short condition: {should_short}")
+            print(f"Long condition: {should_long}")
+            print(f"Add short condition: {should_add_to_short}")
+            print(f"Add long condition: {should_add_to_long}")
 
 
-            # Hedge logic starts here
-            # if trend is not None and isinstance(trend, str):
-            #     if one_minute_volume is not None and five_minute_distance is not None:
-            #         if one_minute_volume > min_vol and five_minute_distance > min_dist:
+            # Entry logic
+            if trend is not None and isinstance(trend, str):
+                if one_minute_volume is not None and five_minute_distance is not None:
+                    if one_minute_volume > min_vol and five_minute_distance > min_dist:
 
-            #             if trend.lower() == "long" and should_long and long_pos_qty == 0:
+                        if trend.lower() == "long" and should_long and long_pos_qty == 0:
 
-            #                 #self.limit_order(symbol, "buy", amount, bid_price, reduce_only=False)
-            #                 print(f"Placed initial long entry")
-            #             else:
-            #                 if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty:
-            #                     print(f"Placed additional long entry")
-            #                     self.limit_order(symbol, "buy", amount, bid_price, reduce_only=False)
+                            #self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
+                            print(f"Placed initial long entry")
+                        else:
+                            if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
+                                print(f"Placed additional long entry")
+                                #self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
 
-            #             if trend.lower() == "short" and should_short and short_pos_qty == 0:
+                        if trend.lower() == "short" and should_short and short_pos_qty == 0:
 
-            #                 #self.limit_order(symbol, "sell", amount, ask_price, reduce_only=False)
-            #                 print("Placed initial short entry")
-            #             else:
-            #                 if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty:
-            #                     print(f"Placed additional short entry")
-            #                     self.limit_order(symbol, "sell", amount, ask_price, reduce_only=False)
+                            self.limit_order(symbol, "sell", amount, best_ask_price, reduce_only=False)
+                            print("Placed initial short entry")
+                        else:
+                            if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
+                                print(f"Placed additional short entry")
+                                #self.limit_order(symbol, "sell", amount, best_ask_price, reduce_only=False)
+            
+            # try:
+            #     #self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
+            #     print(f"Limit order placed at {best_bid_price}")
+            # except Exception as e:
+            #     print(f"Exception caught in debug order placement {e}")
 
             time.sleep(30)
             
