@@ -6,11 +6,6 @@ class BybitHedgeStrategy(Strategy):
         super().__init__(exchange, config)
         self.manager = manager
 
-    # def limit_order(self, symbol, side, amount, price, reduce_only=False):        
-    #     params = {"reduce_only": reduce_only}
-    #     order = self.exchange.create_order(symbol, 'limit', side, amount, price, params=params)
-    #     return order
-
     def limit_order(self, symbol, side, amount, price, reduce_only=False):
         params = {"reduce_only": reduce_only, "position_idx": 1}
         print(f"Symbol: {symbol}, Side: {side}, Amount: {amount}, Price: {price}, Params: {params}")

@@ -18,6 +18,8 @@ from directionalscalper.core.strategies.bitget_hedge import BitgetHedgeStrategy
 from directionalscalper.core.strategies.okx_hedge import OKXHedgeStrategy
 from directionalscalper.core.strategies.bybit_hedge import BybitHedgeStrategy
 from directionalscalper.core.strategies.huobi_hedge import HuobiHedgeStrategy
+from directionalscalper.core.strategies.binance_hedge import BinanceHedgeStrategy
+from directionalscalper.core.strategies.phemex_hedge import PhemexHedgeStrategy
 
 class DirectionalMarketMaker:
     def __init__(self, config: Config, exchange_name: str): 
@@ -45,6 +47,10 @@ class DirectionalMarketMaker:
             return self.exchange.get_balance_bybit(quote)
         elif self.exchange_name == 'okx':
             #return self.exchange.get_balance_okx(quote)
+            print(f"Unsupported for now")
+        elif self.exchange_name == 'binance':
+            print(f"Unsupported for now")
+        elif self.exchange_name == 'phemex':
             print(f"Unsupported for now")
 
     def create_order(self, symbol, order_type, side, amount, price=None):
@@ -99,6 +105,15 @@ if __name__ == '__main__':
         elif strategy_name.lower() == 'huobi_hedge':
             strategy = HuobiHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
+
+        elif strategy_name.lower() == 'binance_hedge':
+            strategy = BinanceHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol, amount)
+        
+        elif strategy_name.lower() == 'phemex_hedge':
+            strategy = PhemexHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol, amount)
+        
         else:
             print("Strategy not recognized. Please choose a valid strategy.")
     except ccxt.ExchangeError as e:
