@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Optional
 import ccxt
 import pandas as pd
@@ -27,9 +28,22 @@ class Exchange:
         self.exchange = exchange_class(exchange_params)
 
     def _get_symbols(self):
-        markets = self.exchange.load_markets()
-        symbols = [market['symbol'] for market in markets.values()]
-        return symbols
+        while True:
+            try:
+                markets = self.exchange.load_markets()
+                symbols = [market['symbol'] for market in markets.values()]
+                return symbols
+            except ccxt.errors.RateLimitExceeded as e:
+                log.warning(f"Rate limit exceeded: {e}, retrying in 10 seconds...")
+                time.sleep(10)
+            except Exception as e:
+                log.warning(f"An error occurred while fetching symbols: {e}, retrying in 10 seconds...")
+                time.sleep(10)
+
+    # def _get_symbols(self):
+    #     markets = self.exchange.load_markets()
+    #     symbols = [market['symbol'] for market in markets.values()]
+    #     return symbols
 
     # def setup_exchange(self, symbol) -> None:
     #     values = {"position": False, "margin": False, "leverage": False}

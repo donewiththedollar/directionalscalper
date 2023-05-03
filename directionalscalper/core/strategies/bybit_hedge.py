@@ -8,10 +8,16 @@ class BybitHedgeStrategy(Strategy):
         self.manager = manager
 
     def limit_order(self, symbol, side, amount, price, reduce_only=False):
-        params = {"reduce_only": reduce_only, "position_idx": 1}
+        params = {"reduce_only": reduce_only}
         print(f"Symbol: {symbol}, Side: {side}, Amount: {amount}, Price: {price}, Params: {params}")
         order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, params=params)
         return order
+
+    # def limit_order(self, symbol, side, amount, price, reduce_only=False):
+    #     params = {"reduce_only": reduce_only, "position_idx": 1}
+    #     print(f"Symbol: {symbol}, Side: {side}, Amount: {amount}, Price: {price}, Params: {params}")
+    #     order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, params=params)
+    #     return order
 
     def calculate_short_take_profit(self, short_pos_price, symbol):
         if short_pos_price is None:
@@ -107,7 +113,7 @@ class BybitHedgeStrategy(Strategy):
             print(f"Min qty: {min_qty_bybit}")
 
             if float(amount) < min_qty_bybit:
-                print(f"The amount you entered ({amount}) is less than the minimum required by Bitget for {symbol}: {min_qty_bybit}.")
+                print(f"The amount you entered ({amount}) is less than the minimum required by Bybit for {symbol}: {min_qty_bybit}.")
                 break
             else:
                 print(f"The amount you entered ({amount}) is valid for {symbol}")
@@ -159,22 +165,26 @@ class BybitHedgeStrategy(Strategy):
                     if one_minute_volume > min_vol and five_minute_distance > min_dist:
 
                         if trend.lower() == "long" and should_long and long_pos_qty == 0:
-
-                            #self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
-                            print(f"Placed initial long entry")
+                            try:
+                                self.limit_order(symbol, "buy", amount, best_bid_price)
+                                print(f"Placed initial long entry")
+                            except Exception as e:
+                                print(f"Exception caught in initial limit order {e}")
                         else:
                             if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
                                 print(f"Placed additional long entry")
-                                #self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
+                                self.limit_order(symbol, "buy", amount, best_bid_price)
 
                         if trend.lower() == "short" and should_short and short_pos_qty == 0:
-
-                            self.limit_order(symbol, "sell", amount, best_ask_price, reduce_only=False)
-                            print("Placed initial short entry")
+                            try:
+                                self.limit_order(symbol, "sell", amount, best_ask_price)
+                                print("Placed initial short entry")
+                            except Exception as e:
+                                print(f"Exception caught in initial limit order {e}")
                         else:
                             if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
                                 print(f"Placed additional short entry")
-                                #self.limit_order(symbol, "sell", amount, best_ask_price, reduce_only=False)
+                                self.limit_order(symbol, "sell", amount, best_ask_price)
             
             # try:
             #     #self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
