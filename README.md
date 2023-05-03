@@ -61,10 +61,6 @@ Directional Scalper        |  API Scraper
 To run the bot inside docker container use the following command:
 > docker-compose run directional-scalper python3 bot.py --mode hedge --symbol GALAUSDT --iqty 1 --tg off
 
-* There are six working modes:
-> long, short, hedge, aggressive, inverse, violent
-
-
 ### Developer instructions
 - Install developer requirements from pipenv `pipenv install --dev` (to keep requirements in a virtual environment)
 - Install pre-commit hooks `pre-commit install` (if you intend to commit code to the repo)
