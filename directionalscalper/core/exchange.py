@@ -504,7 +504,7 @@ class Exchange:
             if len(orders) > 0:
                 for order in orders:
                     if "info" in order:
-                        print(f"Order info: {order['info']}")  # Debug print
+                        #print(f"Order info: {order['info']}")  # Debug print
                         order_info = {
                             "id": order["info"]["orderId"],
                             "price": float(order["info"]["price"]),
@@ -785,6 +785,20 @@ class Exchange:
     #     if not isinstance(data, list):
     #         data = self.safe_value(data, 'orderList', [])
     #     return self.parse_orders(data, market, since, limit)
+
+    def create_take_profit_order_bybit(self, symbol, order_type, side, amount, price=None, positionIdx=1, reduce_only=True):
+        if order_type == 'limit':
+            if price is None:
+                raise ValueError("A price must be specified for a limit order")
+
+            if side not in ["buy", "sell"]:
+                raise ValueError(f"Invalid side: {side}")
+
+            params = {"reduceOnly": reduce_only}
+            return self.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
+        else:
+            raise ValueError(f"Unsupported order type: {order_type}")
+
 
     def create_take_profit_order(self, symbol, order_type, side, amount, price=None, reduce_only=False):
         if order_type == 'limit':
