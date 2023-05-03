@@ -700,6 +700,31 @@ class Exchange:
         except Exception as e:
             log.warning(f"An unknown error occurred in cancel_entry(): {e}")
 
+    def cancel_close_bybit(self, symbol: str, side: str) -> None:
+        position_idx_map = {"long": 1, "short": 2}
+        try:
+            orders = self.exchange.fetch_open_orders(symbol)
+            if len(orders) > 0:
+                for order in orders:
+                    if "info" in order:
+                        order_id = order["info"]["orderId"]
+                        order_status = order["info"]["orderStatus"]
+                        order_side = order["info"]["side"]
+                        reduce_only = order["info"]["reduceOnly"]
+                        position_idx = order["info"]["positionIdx"]
+
+                        if (
+                            order_status != "Filled"
+                            and order_side.lower() == side.lower()
+                            and order_status != "Cancelled"
+                            and reduce_only
+                            and position_idx == position_idx_map[side]
+                        ):
+                            self.exchange.cancel_order(symbol=symbol, id=order_id)
+                            log.info(f"Cancelling order: {order_id}")
+        except Exception as e:
+            log.warning(f"An unknown error occurred in cancel_close_bybit(): {e}")
+
     def cancel_close_bitget(self, symbol: str, side: str) -> None:
         side_map = {"long": "close_long", "short": "close_short"}
         try:

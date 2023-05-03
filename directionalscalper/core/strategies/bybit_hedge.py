@@ -7,10 +7,9 @@ class BybitHedgeStrategy(Strategy):
         super().__init__(exchange, config)
         self.manager = manager
 
-
     def limit_order(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
         params = {"reduceOnly": reduceOnly}
-        print(f"Symbol: {symbol}, Side: {side}, Amount: {amount}, Price: {price}, Params: {params}")
+        #print(f"Symbol: {symbol}, Side: {side}, Amount: {amount}, Price: {price}, Params: {params}")
         order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
         return order
 
@@ -20,6 +19,8 @@ class BybitHedgeStrategy(Strategy):
                 return order['qty'], order['id']
         return None, None
 
+    def cancel_take_profit_orders(self, symbol, side):
+        self.exchange.cancel_close_bybit(symbol, side)
 
     def calculate_short_take_profit(self, short_pos_price, symbol):
         if short_pos_price is None:
@@ -217,11 +218,21 @@ class BybitHedgeStrategy(Strategy):
                             print(f"Short take profit canceled")
                             time.sleep(0.05)
 
-                        self.exchange.create_take_profit_order_bybit(symbol, "limit", "buy", long_pos_qty, long_take_profit, positionIdx=2, reduce_only=True)
+                        self.exchange.create_take_profit_order_bybit(symbol, "limit", "buy", short_pos_qty, short_take_profit, positionIdx=2, reduce_only=True)
                         print(f"Short take profit set at {short_take_profit}")
                         time.sleep(0.05)
                     except Exception as e:
                         print(f"Error in placing short TP: {e}")
+
+            # # Cancel entries
+            # try:
+            #     if best_ask_price < ma_1m_3_high or best_ask_price < ma_5m_3_high:
+            #         self.exchange.cancel_all_entries(symbol)
+            #         print(f"Canceled entry orders for {symbol}")
+            #         time.sleep(0.05)
+            # except Exception as e:
+            #     print(f"An error occurred while canceling entry orders: {e}")
+
 
             # print(f"Open orders: {open_orders}")
 
@@ -242,3 +253,8 @@ class BybitHedgeStrategy(Strategy):
             #     print(f"Exception caught in debug order placement {e}")
 
             time.sleep(30)
+            
+
+
+
+
