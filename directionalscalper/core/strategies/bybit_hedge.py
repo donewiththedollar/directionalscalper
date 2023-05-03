@@ -7,7 +7,8 @@ class BybitHedgeStrategy(Strategy):
         super().__init__(exchange, config)
         self.manager = manager
 
-    def limit_order(self, symbol, side, amount, price, positionIdx=0, reduceOnly=False):
+
+    def limit_order(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
         params = {"reduceOnly": reduceOnly}
         print(f"Symbol: {symbol}, Side: {side}, Amount: {amount}, Price: {price}, Params: {params}")
         order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
@@ -175,6 +176,9 @@ class BybitHedgeStrategy(Strategy):
                                 print(f"Placed additional short entry")
                                 self.limit_order(symbol, "sell", amount, best_bid_price, positionIdx=2, reduceOnly=False)
         
+            open_orders = self.exchange.get_open_orders(symbol)
+
+            print(f"{open_orders}")
 
             # try:
             #     #self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
