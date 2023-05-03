@@ -217,7 +217,7 @@ class BybitHedgeStrategy(Strategy):
                             print(f"Short take profit canceled")
                             time.sleep(0.05)
 
-                        self.exchange.create_take_profit_order_bybit(symbol, "limit", "sell", long_pos_qty, long_take_profit, positionIdx=2, reduce_only=True)
+                        self.exchange.create_take_profit_order_bybit(symbol, "limit", "buy", long_pos_qty, long_take_profit, positionIdx=2, reduce_only=True)
                         print(f"Short take profit set at {short_take_profit}")
                         time.sleep(0.05)
                     except Exception as e:
