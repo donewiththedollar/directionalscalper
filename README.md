@@ -8,7 +8,8 @@ A hedge scalping strategy based on directional analysis using a quantitative app
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
 </p>
 
->  Exchanges to support: Bybit, Bitget, OKX, Binance, Phemex
+>  Working exchanges: Bybit, Bitget
+>  Exchanges to support: OKX, Binance, Phemex, Huobi
 
 ### Links
 * Dashboard: https://tradesimple.xyz
@@ -35,6 +36,7 @@ Directional Scalper        |  API Scraper
 
 ### Starting the bot
 * Hedge mode is recommended, but you can of course use the other modes as well. Low lot size is recommended.
+
 > python3.11 bot.py --exchange bitget --symbol XRPUSDT_UMCBL --amount 15 --strategy bitget_hedge --config config_sub1.json
 
 > python3.11 bot.py --exchange bybit --symbol XRPUSDT --amount 1 --strategy bybit_hedge --config config_sub1.json
@@ -72,6 +74,7 @@ To run the bot inside docker container use the following command:
 * Instance manager
 * Auto calculation for violent parameters (violent_multiplier and wallet_exposure are key)
 * Auto calculation for lot size so the user does not have to determine size
+* Take over all exchanges
 
 
 ### Donations
