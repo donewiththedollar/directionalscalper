@@ -604,6 +604,48 @@ class Exchange:
         except Exception as e:
             log.warning(f"An unknown error occurred in _cancel_entry(): {e}")
 
+    def cancel_all_entries_bybit(self, symbol: str) -> None:
+        try:
+            orders = self.exchange.fetch_open_orders(symbol)
+            long_orders = 0
+            short_orders = 0
+
+            # Count the number of open long and short orders
+            for order in orders:
+                order_info = order["info"]
+                order_status = order_info["orderStatus"]
+                order_side = order_info["side"]
+                reduce_only = order_info["reduceOnly"]
+                position_idx = int(order_info["positionIdx"])
+
+                if order_status != "Filled" and order_status != "Cancelled" and not reduce_only:
+                    if position_idx == 1 and order_side == "Buy":
+                        long_orders += 1
+                    elif position_idx == 2 and order_side == "Sell":
+                        short_orders += 1
+
+            # Cancel extra long or short orders if more than one open order per side
+            if long_orders > 1 or short_orders > 1:
+                for order in orders:
+                    order_info = order["info"]
+                    order_id = order_info["orderId"]
+                    order_status = order_info["orderStatus"]
+                    order_side = order_info["side"]
+                    reduce_only = order_info["reduceOnly"]
+                    position_idx = int(order_info["positionIdx"])
+
+                    if (
+                        order_status != "Filled"
+                        and order_status != "Cancelled"
+                        and not reduce_only
+                    ):
+                        self.exchange.cancel_order(symbol=symbol, id=order_id)
+                        print(f"Cancelling order: {order_id}")
+                        # log.info(f"Cancelling order: {order_id}")
+        except Exception as e:
+            log.warning(f"An unknown error occurred in cancel_all_entries_bybit(): {e}")
+
+
     def cancel_all_entries(self, symbol: str) -> None:
         try:
             orders = self.exchange.fetch_open_orders(symbol)

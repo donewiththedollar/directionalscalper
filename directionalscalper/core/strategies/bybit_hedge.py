@@ -224,33 +224,14 @@ class BybitHedgeStrategy(Strategy):
                     except Exception as e:
                         print(f"Error in placing short TP: {e}")
 
-            # # Cancel entries
-            # try:
-            #     if best_ask_price < ma_1m_3_high or best_ask_price < ma_5m_3_high:
-            #         self.exchange.cancel_all_entries(symbol)
-            #         print(f"Canceled entry orders for {symbol}")
-            #         time.sleep(0.05)
-            # except Exception as e:
-            #     print(f"An error occurred while canceling entry orders: {e}")
-
-
-            # print(f"Open orders: {open_orders}")
-
-            # sides = ["buy", "sell"]
-
-            # for side in sides:
-            #     qty, order_id = self.get_open_take_profit_order_quantity(open_orders, side)
-
-            #     if qty is not None and order_id is not None:
-            #         print(f"Open take-profit order for side '{side}': Quantity: {qty}, Order ID: {order_id}")
-            #     else:
-            #         print(f"No open take-profit order found for side '{side}'")
-
-            # try:
-            #     #self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
-            #     print(f"Limit order placed at {best_bid_price}")
-            # except Exception as e:
-            #     print(f"Exception caught in debug order placement {e}")
+            # Cancel entries
+            try:
+                if best_ask_price < ma_1m_3_high or best_ask_price < ma_5m_3_high:
+                    self.exchange.cancel_all_entries_bybit(symbol)
+                    print(f"Canceled entry orders for {symbol}")
+                    time.sleep(0.05)
+            except Exception as e:
+                print(f"An error occurred while canceling entry orders: {e}")
 
             time.sleep(30)
             
