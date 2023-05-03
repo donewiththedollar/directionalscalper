@@ -1,6 +1,7 @@
 import time
 from decimal import Decimal, ROUND_HALF_UP
 from .strategy import Strategy
+from typing import Tuple
 
 class BybitHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):
@@ -141,6 +142,7 @@ class BybitHedgeStrategy(Strategy):
             short_pos_qty = position_data["short"]["qty"]
             long_pos_qty = position_data["long"]["qty"]
 
+
             print(f"Short pos qty: {short_pos_qty}")
             print(f"Long pos qty: {long_pos_qty}")
 
@@ -149,6 +151,39 @@ class BybitHedgeStrategy(Strategy):
 
             print(f"Long pos price {long_pos_price}")
             print(f"Short pos price {short_pos_price}")
+
+            # Take profit calc
+            short_take_profit = self.calculate_short_take_profit(short_pos_price, symbol)
+            long_take_profit = self.calculate_long_take_profit(long_pos_price, symbol)
+
+
+            # Dabbling with precision
+            price_precision, quantity_precision = self.exchange.get_symbol_precision_bybit(symbol)
+
+            rounded_short_qty = None
+            rounded_long_qty = None
+
+            if short_pos_qty is not None:
+                rounded_short_qty = round(short_pos_qty, quantity_precision)
+
+            if long_pos_qty is not None:
+                rounded_long_qty = round(long_pos_qty, quantity_precision)
+
+            print(f"Rounded short qty: {rounded_short_qty}")
+            print(f"Rounded long qty: {rounded_long_qty}")
+
+            rounded_short_tp = None
+            rounded_long_tp = None
+
+            if short_take_profit is not None:
+                rounded_short_tp = round(short_take_profit, price_precision)
+
+            if long_take_profit is not None:
+                rounded_long_tp = round(long_take_profit, price_precision)
+            # End dabbling with precision
+
+            print(f"Short take profit: {short_take_profit}")
+            print(f"Long take profit: {long_take_profit}")
 
             should_short = self.short_trade_condition(best_bid_price, ma_3_high)
             should_long = self.long_trade_condition(best_bid_price, ma_3_high)
@@ -160,13 +195,6 @@ class BybitHedgeStrategy(Strategy):
             print(f"Long condition: {should_long}")
             print(f"Add short condition: {should_add_to_short}")
             print(f"Add long condition: {should_add_to_long}")
-
-            # Take profit calc
-            short_take_profit = self.calculate_short_take_profit(short_pos_price, symbol)
-            long_take_profit = self.calculate_long_take_profit(long_pos_price, symbol)
-
-            print(f"Short take profit: {short_take_profit}")
-            print(f"Long take profit: {long_take_profit}")
 
 
 
@@ -203,7 +231,8 @@ class BybitHedgeStrategy(Strategy):
                             print(f"Long take profit canceled")
                             time.sleep(0.05)
 
-                        self.exchange.create_take_profit_order_bybit(symbol, "limit", "sell", long_pos_qty, long_take_profit, positionIdx=1, reduce_only=True)
+                        #self.exchange.create_take_profit_order_bybit(symbol, "limit", "sell", long_pos_qty, long_take_profit, positionIdx=1, reduce_only=True)
+                        self.exchange.create_take_profit_order_bybit(symbol, "limit", "sell", rounded_long_qty, rounded_long_tp, positionIdx=1, reduce_only=True)
                         print(f"Long take profit set at {long_take_profit}")
                         time.sleep(0.05)
                     except Exception as e:
@@ -218,7 +247,7 @@ class BybitHedgeStrategy(Strategy):
                             print(f"Short take profit canceled")
                             time.sleep(0.05)
 
-                        self.exchange.create_take_profit_order_bybit(symbol, "limit", "buy", short_pos_qty, short_take_profit, positionIdx=2, reduce_only=True)
+                        self.exchange.create_take_profit_order_bybit(symbol, "limit", "buy", rounded_short_qty, rounded_short_tp, positionIdx=2, reduce_only=True)
                         print(f"Short take profit set at {short_take_profit}")
                         time.sleep(0.05)
                     except Exception as e:

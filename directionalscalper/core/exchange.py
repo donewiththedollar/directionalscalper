@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Optional
+from typing import Optional, Tuple
 import ccxt
 import pandas as pd
 
@@ -39,6 +39,12 @@ class Exchange:
             except Exception as e:
                 log.warning(f"An error occurred while fetching symbols: {e}, retrying in 10 seconds...")
                 time.sleep(10)
+
+    def get_symbol_precision_bybit(self, symbol: str) -> Tuple[int, int]:
+        market = self.exchange.market(symbol)
+        price_precision = int(market['precision']['price'])
+        quantity_precision = int(market['precision']['amount'])
+        return price_precision, quantity_precision
 
     # def _get_symbols(self):
     #     markets = self.exchange.load_markets()
