@@ -354,55 +354,6 @@ class Exchange:
             log.warning(f"An unknown error occurred in get_positions_bitget(): {e}")
         return values
 
-
-    # def get_positions_bitget(self, symbol) -> dict:
-    #     values = {
-    #         "long": {
-    #             "qty": 0.0,
-    #             "price": 0.0,
-    #             "realised": 0,
-    #             "cum_realised": 0,
-    #             "upnl": 0,
-    #             "upnl_pct": 0,
-    #             "liq_price": 0,
-    #             "entry_price": 0,
-    #         },
-    #         "short": {
-    #             "qty": 0.0,
-    #             "price": 0.0,
-    #             "realised": 0,
-    #             "cum_realised": 0,
-    #             "upnl": 0,
-    #             "upnl_pct": 0,
-    #             "liq_price": 0,
-    #             "entry_price": 0,
-    #         },
-    #     }
-    #     try:
-    #         data = self.exchange.fetch_positions([symbol])
-    #         if len(data) == 2:
-    #             for position in data:
-    #                 side = position["side"]
-    #                 values[side]["qty"] = float(position["contractSize"])
-    #                 values[side]["price"] = float(position["entryPrice"])
-    #                 values[side]["realised"] = round(float(position["info"]["achievedProfits"]), 4)
-    #                 values[side]["upnl"] = round(float(position["unrealizedPnl"]), 4)
-    #                 if position["liquidationPrice"] is not None:
-    #                     values[side]["liq_price"] = float(position["liquidationPrice"])
-    #                 else:
-    #                     print(f"Warning: liquidationPrice is None for {side} position")
-    #                     values[side]["liq_price"] = None
-    #                 values[side]["entry_price"] = float(position["entryPrice"])
-    #             # print("Raw Bitget positions response:", data)
-    #             # print("Parsed Bitget positions data:", values)
-    #                 # You can add any other necessary values here as well.
-    #                 data = self.exchange.fetch_positions([symbol])
-    #                 print(f"Raw fetch_positions response: {data}")
-    #     except Exception as e:
-    #         log.warning(f"An unknown error occurred in get_positions_bitget(): {e}")
-    #     return values
-
-
     def get_positions_bybit(self, symbol) -> dict:
         values = {
             "long": {
@@ -864,34 +815,22 @@ class Exchange:
         except Exception as e:
             log.warning(f"An unknown error occurred in create_market_order(): {e}")
 
-    # def create_limit_order_bybit(
-    #     self, symbol: str, side: str, qty: float, price: float
-    # ) -> None:
-    #     try:
-    #         if side == "buy":
-    #             self.exchange.create_limit_buy_order(
-    #                 symbol=symbol, amount=qty, price=price
-    #             )
-    #         elif side == "sell":
-    #             self.exchange.create_limit_sell_order(
-    #                 symbol=symbol, amount=qty, price=price
-    #             )
-    #         else:
-    #             log.warning(f"side {side} does not exist")
-    #     except Exception as e:
-    #         log.warning(f"An unknown error occurred in create_limit_order(): {e}")
-
-    def create_limit_order_bybit(self, symbol: str, side: str, qty: float, price: float, params={}) -> None:
+    def create_limit_order_bybit(self, symbol: str, side: str, qty: float, price: float, positionIdx=0, params={}):
         try:
-            if side == "buy":
-                self.exchange.create_limit_buy_order(symbol=symbol, amount=qty, price=price, params=params)
-            elif side == "sell":
-                self.exchange.create_limit_sell_order(symbol=symbol, amount=qty, price=price, params=params)
+            if side == "buy" or side == "sell":
+                order = self.exchange.create_order(
+                    symbol=symbol,
+                    type='limit',
+                    side=side,
+                    amount=qty,
+                    price=price,
+                    params={**params, 'positionIdx': positionIdx}  # Pass the 'positionIdx' parameter here
+                )
+                return order
             else:
                 log.warning(f"side {side} does not exist")
         except Exception as e:
             log.warning(f"An unknown error occurred in create_limit_order(): {e}")
-
 
     def create_limit_order(self, symbol, side, amount, price, reduce_only=False, **params):
         if side == "buy":

@@ -7,17 +7,11 @@ class BybitHedgeStrategy(Strategy):
         super().__init__(exchange, config)
         self.manager = manager
 
-    def limit_order(self, symbol, side, amount, price, reduce_only=False):
-        params = {"reduce_only": reduce_only}
+    def limit_order(self, symbol, side, amount, price, positionIdx=0, reduceOnly=False):
+        params = {"reduceOnly": reduceOnly}
         print(f"Symbol: {symbol}, Side: {side}, Amount: {amount}, Price: {price}, Params: {params}")
-        order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, params=params)
+        order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
         return order
-
-    # def limit_order(self, symbol, side, amount, price, reduce_only=False):
-    #     params = {"reduce_only": reduce_only, "position_idx": 1}
-    #     print(f"Symbol: {symbol}, Side: {side}, Amount: {amount}, Price: {price}, Params: {params}")
-    #     order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, params=params)
-    #     return order
 
     def calculate_short_take_profit(self, short_pos_price, symbol):
         if short_pos_price is None:
@@ -120,16 +114,16 @@ class BybitHedgeStrategy(Strategy):
 
             # Get the 1-minute moving averages
             print(f"Fetching MA data")
-            try:
-                m_moving_averages = self.manager.get_1m_moving_averages(symbol)
-                m5_moving_averages = self.manager.get_5m_moving_averages(symbol)
-                ma_6_low = m_moving_averages["MA_6_L"]
-                ma_3_low = m_moving_averages["MA_3_L"]
-                ma_3_high = m_moving_averages["MA_3_H"]
-                ma_1m_3_high = self.manager.get_1m_moving_averages(symbol)["MA_3_H"]
-                ma_5m_3_high = self.manager.get_5m_moving_averages(symbol)["MA_3_H"]
-            except Exception as e:
-                print(f"Fetch MA data exception caught {e}")
+            m_moving_averages = self.manager.get_1m_moving_averages(symbol)
+            m5_moving_averages = self.manager.get_5m_moving_averages(symbol)
+            ma_6_low = m_moving_averages["MA_6_L"]
+            ma_3_low = m_moving_averages["MA_3_L"]
+            ma_3_high = m_moving_averages["MA_3_H"]
+            ma_1m_3_high = self.manager.get_1m_moving_averages(symbol)["MA_3_H"]
+            ma_5m_3_high = self.manager.get_5m_moving_averages(symbol)["MA_3_H"]
+
+            print(f"{ma_3_low}")
+            print(f"{ma_6_low}")
 
             position_data = self.exchange.get_positions_bybit(symbol)
 
@@ -159,33 +153,29 @@ class BybitHedgeStrategy(Strategy):
             print(f"Add long condition: {should_add_to_long}")
 
 
-            # Entry logic
             if trend is not None and isinstance(trend, str):
                 if one_minute_volume is not None and five_minute_distance is not None:
                     if one_minute_volume > min_vol and five_minute_distance > min_dist:
 
                         if trend.lower() == "long" and should_long and long_pos_qty == 0:
-                            try:
-                                self.limit_order(symbol, "buy", amount, best_bid_price)
-                                print(f"Placed initial long entry")
-                            except Exception as e:
-                                print(f"Exception caught in initial limit order {e}")
+
+                            self.limit_order(symbol, "buy", amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                            print(f"Placed initial long entry")
                         else:
                             if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
                                 print(f"Placed additional long entry")
-                                self.limit_order(symbol, "buy", amount, best_bid_price)
+                                self.limit_order(symbol, "buy", amount, best_bid_price, positionIdx=1, reduceOnly=False)
 
                         if trend.lower() == "short" and should_short and short_pos_qty == 0:
-                            try:
-                                self.limit_order(symbol, "sell", amount, best_ask_price)
-                                print("Placed initial short entry")
-                            except Exception as e:
-                                print(f"Exception caught in initial limit order {e}")
+
+                            self.limit_order(symbol, "sell", amount, best_ask_price, reduceOnly=False)
+                            print("Placed initial short entry")
                         else:
                             if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
                                 print(f"Placed additional short entry")
-                                self.limit_order(symbol, "sell", amount, best_ask_price)
-            
+                                self.limit_order(symbol, "sell", amount, best_bid_price, positionIdx=2, reduceOnly=False)
+        
+
             # try:
             #     #self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
             #     print(f"Limit order placed at {best_bid_price}")
