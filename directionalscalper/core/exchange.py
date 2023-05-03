@@ -497,23 +497,29 @@ class Exchange:
             log.warning(f"An unknown error occurred in get_moving_averages(): {e}")
         return values
 
-    def get_open_orders(self, symbol: str) -> dict:
-        values = {"id": "", "price": 0.0, "qty": 0.0}
+    def get_open_orders(self, symbol: str) -> list:
+        open_orders_list = []
         try:
-            order = self.exchange.fetch_open_orders(symbol)
-            if len(order) > 0:
-                if "info" in order[0]:
-                    order_status = order[0]["info"]["order_status"]
-                    order_side = order[0]["info"]["side"]
-                    reduce_only = order[0]["info"]["reduce_only"]
-                    if order_status == "New" and order_side == "Buy" and reduce_only:
-                        values["id"] = order[0]["info"]["order_id"]
-                        values["price"] = order[0]["info"]["price"]
-                        values["qty"] = order[0]["info"]["qty"]
+            orders = self.exchange.fetch_open_orders(symbol)
+            if len(orders) > 0:
+                for order in orders:
+                    if "info" in order:
+                        print(f"Order info: {order['info']}")  # Debug print
+                        order_info = {
+                            "id": order["info"]["orderId"],
+                            "price": float(order["info"]["price"]),
+                            "qty": float(order["info"]["qty"]),
+                            "order_status": order["info"]["orderStatus"],
+                            "side": order["info"]["side"],
+                            "reduce_only": order["info"]["reduceOnly"],  # Update this line
+                            "position_idx": int(order["info"]["positionIdx"])  # Add this line
+                        }
+                        open_orders_list.append(order_info)
         except Exception as e:
             log.warning(f"An unknown error occurred in get_open_orders(): {e}")
-        return values
-    
+        return open_orders_list
+
+
     def get_open_orders_bitget(self, symbol: str) -> list:
         open_orders = []
         try:

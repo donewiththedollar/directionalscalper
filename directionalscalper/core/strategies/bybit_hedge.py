@@ -169,7 +169,7 @@ class BybitHedgeStrategy(Strategy):
 
                         if trend.lower() == "short" and should_short and short_pos_qty == 0:
 
-                            self.limit_order(symbol, "sell", amount, best_ask_price, reduceOnly=False)
+                            self.limit_order(symbol, "sell", amount, best_ask_price, positionIdx=2, reduceOnly=False)
                             print("Placed initial short entry")
                         else:
                             if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
@@ -178,7 +178,7 @@ class BybitHedgeStrategy(Strategy):
         
             open_orders = self.exchange.get_open_orders(symbol)
 
-            print(f"{open_orders}")
+            print(f"Open orders: {open_orders}")
 
             # try:
             #     #self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
