@@ -9,6 +9,7 @@ A hedge scalping strategy based on directional analysis using a quantitative app
 </p>
 
 >  Working exchanges: Bybit, Bitget
+
 >  Exchanges to support: OKX, Binance, Phemex, Huobi
 
 ### Links
