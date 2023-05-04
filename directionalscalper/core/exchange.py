@@ -6,6 +6,10 @@ import pandas as pd
 
 log = logging.getLogger(__name__)
 
+# logger = logging.getLogger()
+# logger.setLevel(logging.DEBUG)  # Set the logging level to DEBUG
+# logging.basicConfig()  # Enable logging
+
 class Exchange:
     def __init__(self, exchange_id, api_key, secret_key, passphrase=None):
         self.exchange_id = exchange_id
@@ -15,6 +19,18 @@ class Exchange:
         self.name = exchange_id
         self.initialise()
         self.symbols = self._get_symbols()
+
+    # def initialise(self):
+    #     exchange_class = getattr(ccxt, self.exchange_id)
+    #     exchange_params = {
+    #         "apiKey": self.api_key,
+    #         "secret": self.secret_key,
+    #     }
+    #     if self.passphrase:
+    #         exchange_params["password"] = self.passphrase
+
+    #     self.exchange = exchange_class(exchange_params)
+    #     print(self.exchange.describe())  # Print the exchange properties
 
     def initialise(self):
         exchange_class = getattr(ccxt, self.exchange_id)
@@ -171,21 +187,70 @@ class Exchange:
             # Handle other account types or fallback to default behavior
             pass
 
-    def get_balance_huobi(self, quote, account_type=None):
-        if self.exchange.has['fetchBalance']:
-            # Fetch the balance
-            balance = self.exchange.fetch_balance(params={'type': account_type})
+    # def get_balance_huobi(self, quote: str = 'USDT', type: str = 'spot', params: dict = {}) -> float:
+    #     if type == 'spot':
+    #         balance = self.exchange.fetch_balance(params)
+    #         available_balance = balance['free'][quote]
+    #         return float(f"{available_balance:.8f}")
+    #     else:
+    #         path = 'linear-swap-api/v3/unified_account_info'
+    #         response = self.exchange.request(path, api='private', method='POST', params=params, base='/')
+    #         for account in response['data']:
+    #             if account['margin_coin'] == quote:
+    #                 return float(account['equity'])
+    #         return 0
 
-            # Find the quote balance
-            if account_type == 'spot' or account_type == 'margin':
-                if quote in balance:
-                    return float(balance[quote]['total'])
-            else:
-                for currency_balance in balance['info']:
-                    margin_coin = self.exchange.safe_string(currency_balance, 'margin_asset')
-                    if margin_coin == quote:
-                        return float(currency_balance['margin_balance'])
-        return None
+
+
+    def get_balance_huobi(self, quote: str = 'USDT', account_type: str = 'spot', params: dict = {}) -> float:
+        available_balance = 0
+        quote = quote.upper()
+
+        if account_type == 'spot':
+            balance = self.exchange.fetch_balance(params)
+            available_balance = balance['free'][quote]
+        elif account_type == 'derivatives':
+            # Fetch the balance for derivatives (USDT-M)
+            balance = self.exchange.fetch_balance(params={'type': 'future'})
+            # Process the balance response to find the relevant balance
+            for account_data in balance['info']['data']:
+                if 'list' in account_data:
+                    for currency_balance in account_data['list']:
+                        if currency_balance['contract_code'].endswith(quote) and currency_balance['margin_position'] != '0':
+                            available_balance += float(currency_balance['margin_available'])
+                            break
+
+        return float(f"{available_balance:.8f}")
+
+    # def get_balance_huobi(self, quote: str = 'USDT', type: str = 'spot', params: dict = {}) -> float:
+    #     balance = self.exchange.fetch_balance(params)
+    #     available_balance = balance['free'][quote]
+    #     return float(f"{available_balance:.8f}")
+
+
+    # def get_balance_huobi(self, quote: str, type: str = 'spot', params: dict = {}) -> float:
+    #     balance = self.exchange.fetch_balance(params)
+    #     available_balance = balance['free'][quote]
+    #     return available_balance
+
+
+
+    
+    # def get_balance_huobi(self, quote, account_type=None):
+    #     if self.exchange.has['fetchBalance']:
+    #         # Fetch the balance
+    #         balance = self.exchange.fetch_balance(params={'type': account_type})
+
+    #         # Find the quote balance
+    #         if account_type == 'spot' or account_type == 'margin':
+    #             if quote in balance:
+    #                 return float(balance[quote]['total'])
+    #         else:
+    #             for currency_balance in balance['info']:
+    #                 margin_coin = self.exchange.safe_string(currency_balance, 'margin_asset')
+    #                 if margin_coin == quote:
+    #                     return float(currency_balance['margin_balance'])
+    #     return None
 
     def get_price_precision(self, symbol):
         market = self.exchange.market(symbol)
