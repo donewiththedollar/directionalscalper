@@ -92,10 +92,13 @@ if __name__ == '__main__':
     quote = "USDT"
     if exchange_name.lower() == 'huobi':
         balance = market_maker.get_balance(quote, type='future')
+        print(f"Balance: {balance}")
     elif exchange_name.lower() == 'mexc':
         balance = market_maker.get_balance(quote, type='swap')
+        print(f"Balance: {balance}")
+    else:
         balance = market_maker.get_balance(quote)
-    print(f"Balance: {balance}")
+        print(f"Balance: {balance}")
 
     try:
         if strategy_name.lower() == 'bitget_hedge':
