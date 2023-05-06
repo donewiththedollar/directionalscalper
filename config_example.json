@@ -29,6 +29,11 @@
       "passphrase": ""
     },
     {
+      "name": "mexc",
+      "api_key": "",
+      "api_secret": ""
+    },
+    {
       "name": "okx",
       "api_key": "",
       "api_secret": "",
