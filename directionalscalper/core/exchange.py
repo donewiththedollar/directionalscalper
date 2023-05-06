@@ -20,18 +20,6 @@ class Exchange:
         self.initialise()
         self.symbols = self._get_symbols()
 
-    # def initialise(self):
-    #     exchange_class = getattr(ccxt, self.exchange_id)
-    #     exchange_params = {
-    #         "apiKey": self.api_key,
-    #         "secret": self.secret_key,
-    #     }
-    #     if self.passphrase:
-    #         exchange_params["password"] = self.passphrase
-
-    #     self.exchange = exchange_class(exchange_params)
-    #     print(self.exchange.describe())  # Print the exchange properties
-
     def initialise(self):
         exchange_class = getattr(ccxt, self.exchange_id)
         exchange_params = {
@@ -42,6 +30,7 @@ class Exchange:
             exchange_params["password"] = self.passphrase
 
         self.exchange = exchange_class(exchange_params)
+        #print(self.exchange.describe())  # Print the exchange properties
 
     def _get_symbols(self):
         while True:
@@ -109,6 +98,23 @@ class Exchange:
 
         log.info(values)
 
+    def get_market_data_mexc(self, symbol: str) -> dict:
+        values = {"precision": 0.0, "leverage": 0.0, "min_qty": 0.0}
+        try:
+            self.exchange.load_markets()
+            symbol_data = self.exchange.market(symbol)
+
+            # Extract the desired values from symbol_data
+            if "precision" in symbol_data:
+                values["precision"] = symbol_data["precision"]["price"]
+            if "limits" in symbol_data:
+                values["min_qty"] = symbol_data["limits"]["amount"]["min"]
+            # Note that leverage is not available in the provided symbol_data for the mexc exchange
+            values["leverage"] = None
+
+        except Exception as e:
+            log.warning(f"An unknown error occurred in get_market_data_mexc(): {e}")
+        return values
 
 
     def get_market_data_bitget(self, symbol: str) -> dict:
@@ -186,6 +192,29 @@ class Exchange:
         else:
             # Handle other account types or fallback to default behavior
             pass
+
+    def get_balance_mexc(self, quote, market_type='swap'):
+        if self.exchange.has['fetchBalance']:
+            # Fetch the balance
+            balance = self.exchange.fetch_balance(params={"type": market_type})
+
+            # Find the quote balance
+            if quote in balance['total']:
+                return float(balance['total'][quote])
+        return None
+
+
+
+    # def get_balance_mexc(self, quote):
+    #     if self.exchange.has['fetchBalance']:
+    #         # Fetch the balance
+    #         balance = self.exchange.fetch_balance()
+
+    #         # Find the quote balance
+    #         if quote in balance['total']:
+    #             return float(balance['total'][quote])
+    #     return None
+
 
     # def get_balance_huobi(self, quote: str = 'USDT', type: str = 'spot', params: dict = {}) -> float:
     #     if type == 'spot':

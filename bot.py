@@ -20,6 +20,7 @@ from directionalscalper.core.strategies.bybit_hedge import BybitHedgeStrategy
 from directionalscalper.core.strategies.huobi_hedge import HuobiHedgeStrategy
 from directionalscalper.core.strategies.binance_hedge import BinanceHedgeStrategy
 from directionalscalper.core.strategies.phemex_hedge import PhemexHedgeStrategy
+from directionalscalper.core.strategies.mexc_hedge import MEXCHedgeStrategy
 
 class DirectionalMarketMaker:
     def __init__(self, config: Config, exchange_name: str): 
@@ -45,6 +46,8 @@ class DirectionalMarketMaker:
             return self.exchange.get_balance_bitget(quote)
         elif self.exchange_name == 'bybit':
             return self.exchange.get_balance_bybit(quote)
+        elif self.exchange_name == 'mexc':
+            return self.exchange.get_balance_mexc(quote, market_type='swap')
         elif self.exchange_name == 'huobi':
             return self.exchange.get_balance_huobi(quote, type)
         elif self.exchange_name == 'okx':
@@ -54,22 +57,6 @@ class DirectionalMarketMaker:
             print(f"Unsupported for now")
         elif self.exchange_name == 'phemex':
             print(f"Unsupported for now")
-
-
-    # def get_balance(self, quote):
-    #     if self.exchange_name == 'bitget':
-    #         return self.exchange.get_balance_bitget(quote)
-    #     elif self.exchange_name == 'bybit':
-    #         return self.exchange.get_balance_bybit(quote)
-    #     elif self.exchange_name == 'huobi':
-    #         return self.exchange.get_balance_huobi(quote)
-    #     elif self.exchange_name == 'okx':
-    #         #return self.exchange.get_balance_okx(quote)
-    #         print(f"Unsupported for now")
-    #     elif self.exchange_name == 'binance':
-    #         print(f"Unsupported for now")
-    #     elif self.exchange_name == 'phemex':
-    #         print(f"Unsupported for now")
 
     def create_order(self, symbol, order_type, side, amount, price=None):
         return self.exchange.create_order(symbol, order_type, side, amount, price)
@@ -104,8 +91,9 @@ if __name__ == '__main__':
 
     quote = "USDT"
     if exchange_name.lower() == 'huobi':
-        balance = market_maker.get_balance_huobi(quote, type='future')
-    else:
+        balance = market_maker.get_balance(quote, type='future')
+    elif exchange_name.lower() == 'mexc':
+        balance = market_maker.get_balance(quote, type='swap')
         balance = market_maker.get_balance(quote)
     print(f"Balance: {balance}")
 
@@ -121,6 +109,10 @@ if __name__ == '__main__':
         elif strategy_name.lower() == 'bybit_hedge':
 
             strategy = BybitHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol, amount)
+
+        elif strategy_name.lower() == 'mexc_hedge':
+            strategy = MEXCHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
             
         elif strategy_name.lower() == 'huobi_hedge':
