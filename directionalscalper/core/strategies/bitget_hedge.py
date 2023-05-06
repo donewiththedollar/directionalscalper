@@ -48,6 +48,8 @@ class BitgetHedgeStrategy(Strategy):
 
     def parse_symbol(self, symbol):
         if "bitget" in self.exchange.name.lower():
+            if symbol == "PEPEUSDT" or symbol == "PEPEUSDT_UMCBL":
+                return "1000PEPEUSDT"
             return symbol.replace("_UMCBL", "")
         return symbol
 
