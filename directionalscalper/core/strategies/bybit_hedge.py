@@ -188,11 +188,17 @@ class BybitHedgeStrategy(Strategy):
             print(f"Short take profit: {short_take_profit}")
             print(f"Long take profit: {long_take_profit}")
 
-            should_short = self.short_trade_condition(best_bid_price, ma_3_high)
-            should_long = self.long_trade_condition(best_bid_price, ma_3_high)
+            should_short = best_bid_price > ma_3_high
+            should_long = best_bid_price < ma_3_high
 
-            should_add_to_short = self.add_short_trade_condition(short_pos_price, ma_6_low)
-            should_add_to_long = self.add_long_trade_condition(long_pos_price, ma_6_low)
+            should_add_to_short = short_pos_price < ma_6_low
+            should_add_to_long = long_pos_price > ma_6_low
+            
+            # should_short = self.short_trade_condition(best_bid_price, ma_3_high)
+            # should_long = self.long_trade_condition(best_bid_price, ma_3_high)
+
+            # should_add_to_short = self.add_short_trade_condition(short_pos_price, ma_6_low)
+            # should_add_to_long = self.add_long_trade_condition(long_pos_price, ma_6_low)
 
             print(f"Short condition: {should_short}")
             print(f"Long condition: {should_long}")
@@ -233,7 +239,6 @@ class BybitHedgeStrategy(Strategy):
             print("Buy Take Profit Order - Quantity: ", buy_qty, "ID: ", buy_id)
             print("Sell Take Profit Order - Quantity: ", sell_qty, "ID: ", sell_id)
 
-
             if long_pos_qty > 0 and long_take_profit is not None:
                 existing_long_tp_qty, existing_long_tp_id = self.get_open_take_profit_order_quantity(open_orders, "close_long")
                 if existing_long_tp_qty is None or existing_long_tp_qty != long_pos_qty:
@@ -272,24 +277,5 @@ class BybitHedgeStrategy(Strategy):
                     time.sleep(0.05)
             except Exception as e:
                 print(f"An error occurred while canceling entry orders: {e}")
-
-
-            # print(f"Open orders: {open_orders}")
-
-            # sides = ["buy", "sell"]
-
-            # for side in sides:
-            #     qty, order_id = self.get_open_take_profit_order_quantity(open_orders, side)
-
-            #     if qty is not None and order_id is not None:
-            #         print(f"Open take-profit order for side '{side}': Quantity: {qty}, Order ID: {order_id}")
-            #     else:
-            #         print(f"No open take-profit order found for side '{side}'")
-
-            # try:
-            #     #self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
-            #     print(f"Limit order placed at {best_bid_price}")
-            # except Exception as e:
-            #     print(f"Exception caught in debug order placement {e}")
 
             time.sleep(30)

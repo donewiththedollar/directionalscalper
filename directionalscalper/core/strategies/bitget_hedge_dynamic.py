@@ -6,6 +6,7 @@ class BitgetDynamicHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):
         super().__init__(exchange, config)
         self.manager = manager
+        self.last_cancel_time = 0
 
     def limit_order(self, symbol, side, amount, price, reduce_only=False):
         min_qty_usd = 5
@@ -220,11 +221,17 @@ class BitgetDynamicHedgeStrategy(Strategy):
                 precise_short_take_profit = round(short_take_profit, int(-math.log10(price_precision)))
 
             # Trade conditions 
-            should_short = self.short_trade_condition(best_bid_price, ma_3_high)
-            should_long = self.long_trade_condition(best_bid_price, ma_3_high)
+            # should_short = self.short_trade_condition(best_bid_price, ma_3_high)
+            # should_long = self.long_trade_condition(best_bid_price, ma_3_high)
 
-            should_add_to_short = self.add_short_trade_condition(short_pos_price, ma_6_low)
-            should_add_to_long = self.add_long_trade_condition(long_pos_price, ma_6_low)
+            should_short = best_bid_price > ma_3_high
+            should_long = best_bid_price < ma_3_high
+
+            should_add_to_short = short_pos_price < ma_6_low
+            should_add_to_long = long_pos_price > ma_6_low
+
+            # should_add_to_short = self.add_short_trade_condition(short_pos_price, ma_6_low)
+            # should_add_to_long = self.add_long_trade_condition(long_pos_price, ma_6_low)
 
             print(f"Short condition: {should_short}")
             print(f"Long condition: {should_long}")
@@ -246,19 +253,23 @@ class BitgetDynamicHedgeStrategy(Strategy):
 
                             self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
                             print(f"Placed initial long entry")
+                            time.sleep(0.05)
                         else:
                             if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
                                 print(f"Placed additional long entry")
                                 self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
+                                time.sleep(0.05)
 
                         if trend.lower() == "short" and should_short and short_pos_qty == 0:
 
                             self.limit_order(symbol, "sell", amount, best_ask_price, reduce_only=False)
                             print("Placed initial short entry")
+                            time.sleep(0.05)
                         else:
                             if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
                                 print(f"Placed additional short entry")
                                 self.limit_order(symbol, "sell", amount, best_ask_price, reduce_only=False)
+                                time.sleep(0.05)
             
             open_orders = self.exchange.get_open_orders_bitget(symbol)
 
@@ -293,12 +304,25 @@ class BitgetDynamicHedgeStrategy(Strategy):
                         print(f"Error in placing short TP: {e}")
 
             # Cancel entries
-            try:
-                if best_ask_price < ma_1m_3_high or best_ask_price < ma_5m_3_high:
-                    self.exchange.cancel_all_entries(symbol)
-                    print(f"Canceled entry orders for {symbol}")
-                    time.sleep(0.05)
-            except Exception as e:
-                print(f"An error occurred while canceling entry orders: {e}")
+            current_time = time.time()
+            if current_time - self.last_cancel_time >= 60:  # Execute this block every 1 minute
+                try:
+                    if best_ask_price < ma_1m_3_high or best_ask_price < ma_5m_3_high:
+                        self.exchange.cancel_all_entries(symbol)
+                        print(f"Canceled entry orders for {symbol}")
+                        time.sleep(0.05)
+                except Exception as e:
+                    print(f"An error occurred while canceling entry orders: {e}")
+
+                self.last_cancel_time = current_time  # Update the last cancel time
+
+            # # Cancel entries
+            # try:
+            #     if best_ask_price < ma_1m_3_high or best_ask_price < ma_5m_3_high:
+            #         self.exchange.cancel_all_entries(symbol)
+            #         print(f"Canceled entry orders for {symbol}")
+            #         time.sleep(0.05)
+            # except Exception as e:
+            #     print(f"An error occurred while canceling entry orders: {e}")
 
             time.sleep(30)

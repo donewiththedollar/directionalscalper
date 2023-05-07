@@ -208,13 +208,17 @@ class BitgetHedgeStrategy(Strategy):
             print(f"Long take profit: {long_take_profit}")
 
             # Trade conditions 
-            # should_short = self.short_trade_condition(best_ask_price, m_moving_averages["MA_3_H"])
-            # should_long = self.long_trade_condition(best_bid_price, m_moving_averages["MA_3_L"])
-            should_short = self.short_trade_condition(best_bid_price, ma_3_high)
-            should_long = self.long_trade_condition(best_bid_price, ma_3_high)
+            should_short = best_bid_price > ma_3_high
+            should_long = best_bid_price < ma_3_high
 
-            should_add_to_short = self.add_short_trade_condition(short_pos_price, ma_6_low)
-            should_add_to_long = self.add_long_trade_condition(long_pos_price, ma_6_low)
+            should_add_to_short = short_pos_price < ma_6_low
+            should_add_to_long = long_pos_price > ma_6_low
+
+            # should_short = self.short_trade_condition(best_bid_price, ma_3_high)
+            # should_long = self.long_trade_condition(best_bid_price, ma_3_high)
+
+            # should_add_to_short = self.add_short_trade_condition(short_pos_price, ma_6_low)
+            # should_add_to_long = self.add_long_trade_condition(long_pos_price, ma_6_low)
 
             print(f"Short condition: {should_short}")
             print(f"Long condition: {should_long}")
