@@ -15,6 +15,7 @@ from api.manager import Manager
 from directionalscalper.core.exchange import Exchange
 from directionalscalper.core.strategies.strategy import Strategy
 from directionalscalper.core.strategies.bitget_hedge import BitgetHedgeStrategy
+from directionalscalper.core.strategies.bitget_hedge_dynamic import BitgetDynamicHedgeStrategy
 from directionalscalper.core.strategies.okx_hedge import OKXHedgeStrategy
 from directionalscalper.core.strategies.bybit_hedge import BybitHedgeStrategy
 from directionalscalper.core.strategies.huobi_hedge import HuobiHedgeStrategy
@@ -102,9 +103,13 @@ if __name__ == '__main__':
 
     try:
         if strategy_name.lower() == 'bitget_hedge':
-
             strategy = BitgetHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
+
+        elif strategy_name.lower() == 'bitget_hedge_dynamic':
+            strategy = BitgetDynamicHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol)
+
         elif strategy_name.lower() == 'okx_hedge':
 
             strategy = OKXHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)

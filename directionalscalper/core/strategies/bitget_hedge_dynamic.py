@@ -1,8 +1,8 @@
-import time
+import time, math
 from decimal import Decimal, ROUND_HALF_UP
 from .strategy import Strategy
 
-class BitgetHedgeStrategy(Strategy):
+class BitgetDynamicHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):
         super().__init__(exchange, config)
         self.manager = manager
@@ -104,10 +104,11 @@ class BitgetHedgeStrategy(Strategy):
             return float(long_profit_price)
         return None
 
-    def run(self, symbol, amount):
+    def run(self, symbol):
         min_dist = self.config.min_distance
         min_vol = self.config.min_volume
         wallet_exposure = self.config.wallet_exposure
+        min_order_value = 5
 
         while True:
             # Max trade qty calculation
@@ -132,13 +133,21 @@ class BitgetHedgeStrategy(Strategy):
             print(f"Max trade quantity for {symbol}: {max_trade_qty}")
 
             # min_qty_bitget = market_data["min_qty"]
-
-            min_qty_usd = 5
             current_price = self.exchange.get_current_price(symbol)
-            min_qty_bitget = min_qty_usd / current_price
+
+            amount = min_order_value / current_price
+
+            print(f"Current price: {current_price}")
+            print(f"Dynamic amount: {amount}")
+
+            # # Update the amount based on the current price
+            # dynamic_amount = max(amount, min_order_value / current_price)
+            # dynamic_amount = round(dynamic_amount, int(float(market_data["min_qty"])))
+
+            min_qty_bitget = min_order_value / current_price
 
             print(f"Min trade quantitiy for {symbol}: {min_qty_bitget}")
-
+                
             if float(amount) < min_qty_bitget:
                 print(f"The amount you entered ({amount}) is less than the minimum required by Bitget for {symbol}: {min_qty_bitget}.")
                 break
@@ -199,13 +208,16 @@ class BitgetHedgeStrategy(Strategy):
             ma_1m_3_high = self.manager.get_1m_moving_averages(symbol)["MA_3_H"]
             ma_5m_3_high = self.manager.get_5m_moving_averages(symbol)["MA_3_H"]
 
-
             # Take profit calc
             short_take_profit = self.calculate_short_take_profit(short_pos_price, symbol)
             long_take_profit = self.calculate_long_take_profit(long_pos_price, symbol)
 
             print(f"Short take profit: {short_take_profit}")
             print(f"Long take profit: {long_take_profit}")
+
+            price_precision = market_data["precision"]
+            precise_long_take_profit = round(long_take_profit, int(-math.log10(price_precision)))
+            precise_short_take_profit = round(short_take_profit, int(-math.log10(price_precision)))
 
             # Trade conditions 
             # should_short = self.short_trade_condition(best_ask_price, m_moving_averages["MA_3_H"])
