@@ -103,6 +103,9 @@ class BitgetDynamicHedgeStrategy(Strategy):
 
             return float(long_profit_price)
         return None
+    
+    def round_amount(self, amount, price_precision):
+        return round(amount, int(price_precision))
 
     def run(self, symbol):
         min_dist = self.config.min_distance
@@ -116,6 +119,8 @@ class BitgetDynamicHedgeStrategy(Strategy):
             dex_equity = self.exchange.get_balance_bitget(quote_currency)
 
             market_data = self.exchange.get_market_data_bitget(symbol)
+
+            price_precision = market_data["precision"]
 
             # Orderbook data
             orderbook = self.exchange.get_orderbook(symbol)
@@ -135,10 +140,13 @@ class BitgetDynamicHedgeStrategy(Strategy):
             # min_qty_bitget = market_data["min_qty"]
             current_price = self.exchange.get_current_price(symbol)
 
-            amount = min_order_value / current_price
+            og_amount = min_order_value / current_price
+
+            amount = self.round_amount(og_amount, price_precision)
 
             print(f"Current price: {current_price}")
-            print(f"Dynamic amount: {amount}")
+            print(f"Dynamic amount: {og_amount}")
+            print(f"Rounded amount: {amount}")
 
             # # Update the amount based on the current price
             # dynamic_amount = max(amount, min_order_value / current_price)
@@ -147,13 +155,6 @@ class BitgetDynamicHedgeStrategy(Strategy):
             min_qty_bitget = min_order_value / current_price
 
             print(f"Min trade quantitiy for {symbol}: {min_qty_bitget}")
-                
-            if float(amount) < min_qty_bitget:
-                print(f"The amount you entered ({amount}) is less than the minimum required by Bitget for {symbol}: {min_qty_bitget}.")
-                break
-            else:
-                print(f"The amount you entered ({amount}) is valid for {symbol}")
-
             print(f"Min volume: {min_vol}")
             print(f"Min distance: {min_dist}")
 
@@ -170,9 +171,6 @@ class BitgetDynamicHedgeStrategy(Strategy):
             print(f"1m Volume: {one_minute_volume}")
             print(f"5m Spread: {five_minute_distance}")
             print(f"Trend: {trend}")
-
-
-            # Hedge logic starts
 
             # data = self.exchange.exchange.fetch_positions([symbol])
             # print(f"Bitget positions response: {data}")   
@@ -215,13 +213,10 @@ class BitgetDynamicHedgeStrategy(Strategy):
             print(f"Short take profit: {short_take_profit}")
             print(f"Long take profit: {long_take_profit}")
 
-            price_precision = market_data["precision"]
             precise_long_take_profit = round(long_take_profit, int(-math.log10(price_precision)))
             precise_short_take_profit = round(short_take_profit, int(-math.log10(price_precision)))
 
             # Trade conditions 
-            # should_short = self.short_trade_condition(best_ask_price, m_moving_averages["MA_3_H"])
-            # should_long = self.long_trade_condition(best_bid_price, m_moving_averages["MA_3_L"])
             should_short = self.short_trade_condition(best_bid_price, ma_3_high)
             should_long = self.long_trade_condition(best_bid_price, ma_3_high)
 
@@ -236,7 +231,6 @@ class BitgetDynamicHedgeStrategy(Strategy):
             close_short_position = short_pos_qty > 0 and current_price <= short_take_profit
             close_long_position = long_pos_qty > 0 and current_price >= long_take_profit
 
-            print(f"Current price: {current_price}")
             print(f"Close short position condition: {close_short_position}")
             print(f"Close long position condition: {close_long_position}")
 
