@@ -112,7 +112,7 @@ class BitgetDynamicHedgeStrategy(Strategy):
         min_dist = self.config.min_distance
         min_vol = self.config.min_volume
         wallet_exposure = self.config.wallet_exposure
-        min_order_value = 5
+        min_order_value = 6
 
         while True:
             # Max trade qty calculation
@@ -138,16 +138,28 @@ class BitgetDynamicHedgeStrategy(Strategy):
 
             print(f"Max trade quantity for {symbol}: {max_trade_qty}")
 
-            # min_qty_bitget = market_data["min_qty"]
+            # # min_qty_bitget = market_data["min_qty"]
+            # current_price = self.exchange.get_current_price(symbol)
+
+            # og_amount = min_order_value / current_price
+
+            # #amount = self.round_amount(og_amount, price_precision)
+            # amount = self.round_amount(og_amount, 2)
+
+            # print(f"Current price: {current_price}")
+            # print(f"Dynamic amount: {og_amount}")
+            # print(f"Rounded amount: {amount}")
+
             current_price = self.exchange.get_current_price(symbol)
 
             og_amount = min_order_value / current_price
 
-            amount = self.round_amount(og_amount, price_precision)
+            # amount = self.round_amount(og_amount, price_precision)
+            amount = math.ceil(og_amount * 100) / 100
 
-            print(f"Current price: {current_price}")
-            print(f"Dynamic amount: {og_amount}")
-            print(f"Rounded amount: {amount}")
+            # print(f"Current price: {current_price}")
+            # print(f"Original amount: {og_amount}")
+            print(f"Dynamic entry amount: {amount}")
 
             # # Update the amount based on the current price
             # dynamic_amount = max(amount, min_order_value / current_price)
@@ -224,14 +236,20 @@ class BitgetDynamicHedgeStrategy(Strategy):
             # should_short = self.short_trade_condition(best_bid_price, ma_3_high)
             # should_long = self.long_trade_condition(best_bid_price, ma_3_high)
 
+            # should_add_to_short = self.add_short_trade_condition(short_pos_price, ma_6_low)
+            # should_add_to_long = self.add_long_trade_condition(long_pos_price, ma_6_low)
+
             should_short = best_bid_price > ma_3_high
             should_long = best_bid_price < ma_3_high
 
-            should_add_to_short = short_pos_price < ma_6_low
-            should_add_to_long = long_pos_price > ma_6_low
+            should_add_to_short = False
+            should_add_to_long = False
 
-            # should_add_to_short = self.add_short_trade_condition(short_pos_price, ma_6_low)
-            # should_add_to_long = self.add_long_trade_condition(long_pos_price, ma_6_low)
+            if short_pos_price is not None:
+                should_add_to_short = short_pos_price < ma_6_low
+
+            if long_pos_price is not None:
+                should_add_to_long = long_pos_price > ma_6_low
 
             print(f"Short condition: {should_short}")
             print(f"Long condition: {should_long}")

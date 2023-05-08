@@ -211,8 +211,14 @@ class BitgetHedgeStrategy(Strategy):
             should_short = best_bid_price > ma_3_high
             should_long = best_bid_price < ma_3_high
 
-            should_add_to_short = short_pos_price < ma_6_low
-            should_add_to_long = long_pos_price > ma_6_low
+            should_add_to_short = False
+            should_add_to_long = False
+            
+            if short_pos_price is not None:
+                should_add_to_short = short_pos_price < ma_6_low
+
+            if long_pos_price is not None:
+                should_add_to_long = long_pos_price > ma_6_low
 
             # should_short = self.short_trade_condition(best_bid_price, ma_3_high)
             # should_long = self.long_trade_condition(best_bid_price, ma_3_high)
