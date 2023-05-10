@@ -108,11 +108,23 @@ class BitgetHedgeStrategy(Strategy):
         min_dist = self.config.min_distance
         min_vol = self.config.min_volume
         wallet_exposure = self.config.wallet_exposure
+        max_retries = 5
+        retry_delay = 5
 
         while True:
             # Max trade qty calculation
-            quote_currency = "USDT"  # Change this to your desired quote currency
-            dex_equity = self.exchange.get_balance_bitget(quote_currency)
+            quote_currency = "USDT"
+
+            for i in range(max_retries):
+                try:
+                    dex_equity = self.exchange.get_balance_bitget(quote_currency)
+                    break
+                except Exception as e:
+                    if i < max_retries - 1:
+                        print(f"Error occurred while fetching balance: {e}. Retrying in {retry_delay} seconds...")
+                        time.sleep(retry_delay)
+                    else:
+                        raise e
 
             market_data = self.exchange.get_market_data_bitget(symbol)
 
@@ -131,8 +143,9 @@ class BitgetHedgeStrategy(Strategy):
 
             print(f"Max trade quantity for {symbol}: {max_trade_qty}")
 
-            # min_qty_bitget = market_data["min_qty"]
+            # min_qty_bitget = market_data["min_qty"] (smh bitget)
 
+            # Minimum order quantity check
             min_qty_usd = 5
             current_price = self.exchange.get_current_price(symbol)
             min_qty_bitget = min_qty_usd / current_price
@@ -145,25 +158,21 @@ class BitgetHedgeStrategy(Strategy):
             else:
                 print(f"The amount you entered ({amount}) is valid for {symbol}")
 
-            print(f"Min volume: {min_vol}")
-            print(f"Min distance: {min_dist}")
-
             # Get data from manager
             data = self.manager.get_data()
 
             # Parse the symbol according to the exchange being used
             parsed_symbol = self.parse_symbol(symbol)
 
-            # Data we need from API
+            # Data we need from API / config
             one_minute_volume = self.manager.get_asset_value(parsed_symbol, data, "1mVol")
             five_minute_distance = self.manager.get_asset_value(parsed_symbol, data, "5mSpread")
             trend = self.manager.get_asset_value(parsed_symbol, data, "Trend")
             print(f"1m Volume: {one_minute_volume}")
             print(f"5m Spread: {five_minute_distance}")
+            print(f"Min volume: {min_vol}")
+            print(f"Min distance: {min_dist}")
             print(f"Trend: {trend}")
-
-
-            # Hedge logic starts
 
             # data = self.exchange.exchange.fetch_positions([symbol])
             # print(f"Bitget positions response: {data}")   
@@ -220,23 +229,11 @@ class BitgetHedgeStrategy(Strategy):
             if long_pos_price is not None:
                 should_add_to_long = long_pos_price > ma_6_low
 
-            # should_short = self.short_trade_condition(best_bid_price, ma_3_high)
-            # should_long = self.long_trade_condition(best_bid_price, ma_3_high)
-
-            # should_add_to_short = self.add_short_trade_condition(short_pos_price, ma_6_low)
-            # should_add_to_long = self.add_long_trade_condition(long_pos_price, ma_6_low)
-
             print(f"Short condition: {should_short}")
             print(f"Long condition: {should_long}")
             print(f"Add short condition: {should_add_to_short}")
             print(f"Add long condition: {should_add_to_long}")
-
-            close_short_position = short_pos_qty > 0 and current_price <= short_take_profit
-            close_long_position = long_pos_qty > 0 and current_price >= long_take_profit
-
             print(f"Current price: {current_price}")
-            print(f"Close short position condition: {close_short_position}")
-            print(f"Close long position condition: {close_long_position}")
 
             # New hedge logic
             if trend is not None and isinstance(trend, str):
