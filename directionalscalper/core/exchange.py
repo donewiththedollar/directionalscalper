@@ -172,6 +172,40 @@ class Exchange:
             log.warning(f"An unknown error occurred in get_market_data_bybit(): {e}")
         return values
 
+    def get_market_data_huobi(self, symbol: str) -> dict:
+        values = {"precision": 0.0, "min_qty": 0.0, "leverage": 0.0}
+        try:
+            self.exchange.load_markets()
+            symbol_data = self.exchange.market(symbol)
+            
+            if "precision" in symbol_data:
+                values["precision"] = symbol_data["precision"]["price"]
+            if "limits" in symbol_data:
+                values["min_qty"] = symbol_data["limits"]["amount"]["min"]
+            if "info" in symbol_data and "leverage-ratio" in symbol_data["info"]:
+                values["leverage"] = float(symbol_data["info"]["leverage-ratio"])
+        except Exception as e:
+            log.warning(f"An unknown error occurred in get_market_data_huobi(): {e}")
+        return values
+
+    # def get_market_data_huobi(self, symbol: str) -> dict:
+    #     values = {"precision": 0.0, "min_qty": 0.0}  # No leverage field for Huobi in ccxt as of Sept 2021
+    #     try:
+    #         self.exchange.load_markets()
+    #         symbol_data = self.exchange.market(symbol)
+            
+    #         #print("Symbol data:", symbol_data)  # Debug print
+
+    #         if "precision" in symbol_data:
+    #             values["precision"] = symbol_data["precision"]["price"]
+    #         if "limits" in symbol_data:
+    #             values["min_qty"] = symbol_data["limits"]["amount"]["min"]
+
+    #     except Exception as e:
+    #         log.warning(f"An unknown error occurred in get_market_data_huobi(): {e}")
+    #     return values
+
+
     def get_balance_bybit(self, quote):
         if self.exchange.has['fetchBalance']:
             # Fetch the balance

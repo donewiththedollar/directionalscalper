@@ -15,7 +15,12 @@ class HuobiHedgeStrategy(Strategy):
 
 
     def run(self, symbol, amount):
+        min_dist = self.config.min_distance
+        min_vol = self.config.min_volume
         wallet_exposure = self.config.wallet_exposure
+        min_order_value = 6
+        max_retries = 5
+        retry_delay = 5
 
         while True:
             print(f"Huobi strategy running")
@@ -24,9 +29,18 @@ class HuobiHedgeStrategy(Strategy):
 
             quote = 'USDT'
 
-            total_equity = self.exchange.get_balance_huobi_unified(quote, 'swap', 'linear')
+            for i in range(max_retries):
+                try:
+                    total_equity = self.exchange.get_balance_huobi_unified(quote, 'swap', 'linear')
+                    break
+                except Exception as e:
+                    if i < max_retries - 1:
+                        print(f"Error occurred while fetching balance: {e}. Retrying in {retry_delay} seconds...")
+                        time.sleep(retry_delay)
+                    else:
+                        raise e
 
-            print(f"Huobi balance: {total_equity}")
+            print(f"Current balance: {total_equity}")
 
             # Orderbook data
             orderbook = self.exchange.get_orderbook(parsed_symbol)
@@ -35,6 +49,27 @@ class HuobiHedgeStrategy(Strategy):
 
             print(f"Best bid: {best_bid_price}")
             print(f"Best ask: {best_ask_price}")
+
+            market_data = self.exchange.get_market_data_huobi(parsed_symbol)
+
+            #print(f"{market_data}")
+
+            price_precision = market_data["precision"]
+
+            #print(f"{price_precision}")
+
+            leverage = market_data["leverage"] if market_data["leverage"] != 0 else 50.0
+
+            #print(f"{leverage}")
+
+            max_trade_qty = round(
+                (float(total_equity) * wallet_exposure / float(best_ask_price))
+                / (100 / leverage),
+                int(float(market_data["min_qty"])),
+            )
+
+            print(f"Max trade quantity for {symbol}: {max_trade_qty}")
+
 
             time.sleep(30)
             
