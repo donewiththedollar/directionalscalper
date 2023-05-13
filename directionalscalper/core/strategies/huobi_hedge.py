@@ -70,6 +70,18 @@ class HuobiHedgeStrategy(Strategy):
 
             print(f"Max trade quantity for {symbol}: {max_trade_qty}")
 
+            current_price = self.exchange.get_current_price(parsed_symbol)
+
+            print(f"Current price: {current_price}")
+
+            print(f"Entry size: {amount}")
+
+            min_qty_huobi = float(market_data["min_qty"])
+
+            print(f"Min trade quantitiy for {parsed_symbol}: {min_qty_huobi}")
+            print(f"Min volume: {min_vol}")
+            print(f"Min distance: {min_dist}")
+
 
             time.sleep(30)
             

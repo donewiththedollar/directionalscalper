@@ -162,8 +162,7 @@ class Exchange:
 
             # Fetch positions
             positions = self.exchange.fetch_positions()
-            #print("Positions:", positions)  # Debug print
-            
+
             for position in positions:
                 if position['symbol'] == symbol:
                     values["leverage"] = float(position['leverage'])
@@ -187,25 +186,7 @@ class Exchange:
         except Exception as e:
             log.warning(f"An unknown error occurred in get_market_data_huobi(): {e}")
         return values
-
-    # def get_market_data_huobi(self, symbol: str) -> dict:
-    #     values = {"precision": 0.0, "min_qty": 0.0}  # No leverage field for Huobi in ccxt as of Sept 2021
-    #     try:
-    #         self.exchange.load_markets()
-    #         symbol_data = self.exchange.market(symbol)
-            
-    #         #print("Symbol data:", symbol_data)  # Debug print
-
-    #         if "precision" in symbol_data:
-    #             values["precision"] = symbol_data["precision"]["price"]
-    #         if "limits" in symbol_data:
-    #             values["min_qty"] = symbol_data["limits"]["amount"]["min"]
-
-    #     except Exception as e:
-    #         log.warning(f"An unknown error occurred in get_market_data_huobi(): {e}")
-    #     return values
-
-
+    
     def get_balance_bybit(self, quote):
         if self.exchange.has['fetchBalance']:
             # Fetch the balance
@@ -1166,22 +1147,3 @@ class Exchange:
                 raise ValueError("Invalid order type. Use 'limit' or 'market'.")
 
         return order
-
-
-    # def create_order(self, symbol, order_type, side, amount, price=None, reduce_only=False, **params):
-    #     if reduce_only:
-    #         params.update({'reduceOnly': 'true'})
-
-    #     if order_type == 'limit':
-    #         if side == "buy":
-    #             return self.create_limit_buy_order(symbol, amount, price, **params)
-    #         elif side == "sell":
-    #             return self.create_limit_sell_order(symbol, amount, price, **params)
-    #         else:
-    #             raise ValueError(f"Invalid side: {side}")
-    #     elif order_type == 'market':
-    #         #... handle market orders if necessary
-    #         return self.create_market_order(symbol, side, amount, params)
-    #     else:
-    #         raise ValueError("Invalid order type. Use 'limit' or 'market'.")
-        
