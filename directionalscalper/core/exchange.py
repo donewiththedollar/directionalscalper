@@ -31,7 +31,7 @@ class Exchange:
         }
         if self.exchange_id.lower() == 'huobi':
             exchange_params['options'] = {
-                'defaultType': 'future',
+                'defaultType': 'swap',
                 'defaultSubType': 'linear',
             }
         if self.passphrase:
@@ -239,8 +239,6 @@ class Exchange:
                 return balance[quote]['free']
         return None
 
-
-    
     def fetch_balance_huobi(self, params={}):
         # Call base class's fetch_balance for spot balances
         spot_balance = self.exchange.fetch_balance(params)
@@ -272,7 +270,6 @@ class Exchange:
 
         return parsed_balance
 
-
     def fetch_margin_balance_huobi(self, params={}):
         response = self.exchange.private_get_margin_accounts_balance(params)
         return self._parse_huobi_balance(response)
@@ -299,70 +296,6 @@ class Exchange:
             return parsed_balance
         else:
             return {}
-
-
-    # def get_balance_huobi(self, quote: str = 'USDT', account_type: str = 'spot', params: dict = {}) -> float:
-    #     available_balance = 0
-    #     quote = quote.upper()
-
-    #     if account_type == 'spot':
-    #         balance = self.exchange.fetch_balance(params)
-    #         available_balance = balance['free'][quote]
-    #     elif account_type == 'derivatives':
-    #         available_balance = self.fetch_derivatives_balance_huobi(quote, params)
-
-    #     return float(f"{available_balance:.8f}")
-
-
-    # def get_balance_huobi(self, quote: str = 'USDT', type: str = 'spot', params: dict = {}) -> float:
-    #     if type == 'spot':
-    #         balance = self.exchange.fetch_balance(params)
-    #         available_balance = balance['free'][quote]
-    #         return float(f"{available_balance:.8f}")
-    #     else:
-    #         path = 'linear-swap-api/v3/unified_account_info'
-    #         response = self.exchange.request(path, api='private', method='POST', params=params, base='/')
-    #         for account in response['data']:
-    #             if account['margin_coin'] == quote:
-    #                 return float(account['equity'])
-    #         return 0
-    
-    # def get_balance_huobi(self, quote: str = 'USDT', account_type: str = 'spot', params: dict = {}) -> float:
-    #     available_balance = 0
-    #     quote = quote.upper()
-
-    #     if account_type == 'spot':
-    #         balance = self.exchange.fetch_balance(params)
-    #         available_balance = balance['free'][quote]
-    #     elif account_type == 'derivatives':
-    #         # Fetch the balance for derivatives (USDT-M)
-    #         balance = self.exchange.fetch_balance(params={'type': 'future'})
-    #         # Process the balance response to find the relevant balance
-    #         for account_data in balance['info']['data']:
-    #             if 'list' in account_data:
-    #                 for currency_balance in account_data['list']:
-    #                     if currency_balance['currency'] == quote and currency_balance['type'] == 'trade':
-    #                         available_balance = float(currency_balance['balance'])
-    #                         break
-
-    #     return float(f"{available_balance:.8f}")
-
-    
-    # def get_balance_huobi(self, quote, account_type=None):
-    #     if self.exchange.has['fetchBalance']:
-    #         # Fetch the balance
-    #         balance = self.exchange.fetch_balance(params={'type': account_type})
-
-    #         # Find the quote balance
-    #         if account_type == 'spot' or account_type == 'margin':
-    #             if quote in balance:
-    #                 return float(balance[quote]['total'])
-    #         else:
-    #             for currency_balance in balance['info']:
-    #                 margin_coin = self.exchange.safe_string(currency_balance, 'margin_asset')
-    #                 if margin_coin == quote:
-    #                     return float(currency_balance['margin_balance'])
-    #     return None
 
     def get_price_precision(self, symbol):
         market = self.exchange.market(symbol)
@@ -401,7 +334,8 @@ class Exchange:
         except Exception as e:
             log.warning(f"An unknown error occurred in get_balance(): {e}")
         return values
-
+    
+    # Universal
     def get_orderbook(self, symbol) -> dict:
         values = {"bids": [], "asks": []}
         try:
@@ -415,86 +349,7 @@ class Exchange:
             log.warning(f"An unknown error occurred in get_orderbook(): {e}")
         return values
 
-    
-    # def get_orderbook(self, symbol) -> dict:
-    #     values = {"bids": [], "asks": []}
-    #     try:
-    #         data = self.exchange.fetch_order_book(symbol)
-    #         if "bids" in data and "asks" in data:
-    #             values["bids"] = data["bids"]
-    #             values["asks"] = data["asks"]
-    #     except Exception as e:
-    #         log.warning(f"An unknown error occurred in get_orderbook(): {e}")
-    #     return values
-
-
-    # def get_orderbook(self, symbol) -> dict:
-    #     values = {"bids": 0.0, "asks": 0.0}
-    #     try:
-    #         data = self.exchange.fetch_order_book(symbol)
-    #         if "bids" in data and "asks" in data:
-    #             if len(data["bids"]) > 0 and len(data["asks"]) > 0:
-    #                 if len(data["bids"][0]) > 0 and len(data["asks"][0]) > 0:
-    #                     values["bids"] = float(data["bids"][0][0])
-    #                     values["asks"] = float(data["asks"][0][0])
-    #     except Exception as e:
-    #         log.warning(f"An unknown error occurred in get_orderbook(): {e}")
-    #     return values
-
-    def get_positions_bitget_debug(self, symbol) -> dict:
-        values = {
-            "long": {
-                "qty": 0.0,
-                "price": 0.0,
-                "realised": 0,
-                "cum_realised": 0,
-                "upnl": 0,
-                "upnl_pct": 0,
-                "liq_price": 0,
-                "entry_price": 0,
-            },
-            "short": {
-                "qty": 0.0,
-                "price": 0.0,
-                "realised": 0,
-                "cum_realised": 0,
-                "upnl": 0,
-                "upnl_pct": 0,
-                "liq_price": 0,
-                "entry_price": 0,
-            },
-        }
-        try:
-            data = self.exchange.fetch_positions([symbol])
-            if len(data) == 2:
-                for position in data:
-                    side = position["side"]
-                    print(f"Full position data for {side} position: {position}")  # Add this line
-
-                    print("contractSize:", position["contractSize"])
-                    values[side]["qty"] = float(position["contractSize"])
-
-                    print("entryPrice:", position["entryPrice"])
-                    values[side]["price"] = float(position["entryPrice"])
-
-                    print("achievedProfits:", position["info"]["achievedProfits"])
-                    values[side]["realised"] = round(float(position["info"]["achievedProfits"]), 4)
-
-                    print("unrealizedPnl:", position["unrealizedPnl"])
-                    values[side]["upnl"] = round(float(position["unrealizedPnl"]), 4)
-
-                    print("liquidationPrice:", position["liquidationPrice"])
-                    values[side]["liq_price"] = float(position["liquidationPrice"])
-
-                    print("entryPrice:", position["entryPrice"])
-                    values[side]["entry_price"] = float(position["entryPrice"])
-
-                print("Raw Bitget positions response:", data)
-                print("Parsed Bitget positions data:", values)
-        except Exception as e:
-            log.warning(f"An unknown error occurred in get_positions_bitget_debug(): {e}")
-        return values
-
+    # Bitget
     def get_positions_bitget(self, symbol) -> dict:
         values = {
             "long": {
@@ -537,6 +392,7 @@ class Exchange:
             log.warning(f"An unknown error occurred in get_positions_bitget(): {e}")
         return values
 
+    # Bybit 
     def get_positions_bybit(self, symbol) -> dict:
         values = {
             "long": {
@@ -590,6 +446,7 @@ class Exchange:
             log.warning(f"An unknown error occurred in get_positions(): {e}")
         return values
 
+    # Huobi
     def get_positions_huobi(self, symbol) -> dict:
         print(f"Symbol received in get_positions_huobi: {symbol}")
         self.exchange.load_markets()
@@ -634,6 +491,13 @@ class Exchange:
             log.warning(f"An unknown error occurred in get_positions_huobi(): {e}")
         return values
 
+    # Huobi debug
+    def get_positions_debug(self):
+        try:
+            positions = self.exchange.fetch_positions()
+            print(f"{positions}")
+        except Exception as e:
+            print(f"Error is {e}")
 
     def get_positions(self, symbol) -> dict:
         values = {
@@ -691,6 +555,7 @@ class Exchange:
             log.warning(f"An unknown error occurred in get_positions(): {e}")
         return values
 
+    # Universal
     def get_current_price(self, symbol: str) -> float:
         current_price = 0.0
         try:

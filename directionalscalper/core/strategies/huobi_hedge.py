@@ -96,9 +96,11 @@ class HuobiHedgeStrategy(Strategy):
             print(f"Parsed symbol: {parsed_symbol}")
             print(f"Regular symbol: {symbol}")
 
-            position_data = self.exchange.get_positions_huobi(parsed_symbol)
+            position_data = self.exchange.get_positions_huobi("DOGE")
 
             print(f"{position_data}")
+
+            self.exchange.get_positions_debug()
 
             time.sleep(30)
             
