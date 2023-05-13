@@ -13,7 +13,7 @@
     "min_volume": 15000,
     "symbol": "BTCUSDT",
     "violent_multiplier": 2.00,
-    "wallet_exposure": 5.00,
+    "wallet_exposure": 1.00,
     "blackjack_risk_factor": 0.05
   },
   "exchanges": [
