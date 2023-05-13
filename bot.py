@@ -4,8 +4,7 @@ from pathlib import Path
 project_dir = str(Path(__file__).resolve().parent)
 print("Project directory:", project_dir)
 sys.path.insert(0, project_dir)
-# project_dir = str(Path(__file__).resolve().parents[1])
-# sys.path.insert(0, project_dir)
+
 import argparse
 from pathlib import Path
 from config import load_config, Config
@@ -43,7 +42,7 @@ class DirectionalMarketMaker:
         passphrase = exchange_config.passphrase
         self.exchange = Exchange(self.exchange_name, api_key, secret_key, passphrase)
 
-    def get_balance(self, quote, type=None):
+    def get_balance(self, quote, market_type=None, sub_type=None):
         if self.exchange_name == 'bitget':
             return self.exchange.get_balance_bitget(quote)
         elif self.exchange_name == 'bybit':
@@ -51,7 +50,7 @@ class DirectionalMarketMaker:
         elif self.exchange_name == 'mexc':
             return self.exchange.get_balance_mexc(quote, market_type='swap')
         elif self.exchange_name == 'huobi':
-            return self.exchange.get_balance_huobi(quote, type)
+            return self.exchange.get_balance_huobi_unified(quote, type=market_type, subType=sub_type)
         elif self.exchange_name == 'okx':
             #return self.exchange.get_balance_okx(quote)
             print(f"Unsupported for now")
@@ -86,14 +85,14 @@ if __name__ == '__main__':
     print(f"Strategy name: {strategy_name}")
     print(f"Symbol: {symbol}")
 
-    market_maker = DirectionalMarketMaker(config, exchange_name)  # Initialize the DirectionalMarketMaker object
+    market_maker = DirectionalMarketMaker(config, exchange_name)
 
     manager = Manager(market_maker.exchange, api=config.api.mode, path=Path("data", config.api.filename), url=f"{config.api.url}{config.api.filename}")
-    market_maker.manager = manager  # Assign the `Manager` object to the `DirectionalMarketMaker`
+    market_maker.manager = manager 
 
     quote = "USDT"
     if exchange_name.lower() == 'huobi':
-        balance = market_maker.get_balance(quote, type='future')
+        balance = market_maker.get_balance(quote, 'swap', 'linear')
         print(f"Balance: {balance}")
     elif exchange_name.lower() == 'mexc':
         balance = market_maker.get_balance(quote, type='swap')
@@ -115,21 +114,20 @@ if __name__ == '__main__':
             strategy = BitgetLongOnlyFuturesStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
 
-        elif strategy_name.lower() == 'okx_hedge':
-
-            strategy = OKXHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
-            strategy.run(symbol, amount)
         elif strategy_name.lower() == 'bybit_hedge':
-
             strategy = BybitHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol, amount)
+
+        elif strategy_name.lower() == 'huobi_hedge':
+            strategy = HuobiHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
 
         elif strategy_name.lower() == 'mexc_hedge':
             strategy = MEXCHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
-            
-        elif strategy_name.lower() == 'huobi_hedge':
-            strategy = HuobiHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
+
+        elif strategy_name.lower() == 'okx_hedge':
+            strategy = OKXHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
 
         elif strategy_name.lower() == 'binance_hedge':

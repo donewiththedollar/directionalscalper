@@ -1,8 +1,11 @@
 import logging
 import time
-from typing import Optional, Tuple
 import ccxt
 import pandas as pd
+import json
+import requests, hmac, hashlib
+import urllib.parse
+from typing import Optional, Tuple
 
 log = logging.getLogger(__name__)
 
@@ -203,17 +206,92 @@ class Exchange:
                 return float(balance['total'][quote])
         return None
 
+    def get_balance_huobi_unified(self, quote, type='spot', subType='linear', marginMode='cross'):
+        if self.exchange.has['fetchBalance']:
+            params = {
+                'type': type,
+                'subType': subType,
+                'marginMode': marginMode,
+                'unified': True
+            }
+            balance = self.exchange.fetch_balance(params)
+            if quote in balance:
+                return balance[quote]['free']
+        return None
 
 
-    # def get_balance_mexc(self, quote):
-    #     if self.exchange.has['fetchBalance']:
-    #         # Fetch the balance
-    #         balance = self.exchange.fetch_balance()
+    
+    def fetch_balance_huobi(self, params={}):
+        # Call base class's fetch_balance for spot balances
+        spot_balance = self.exchange.fetch_balance(params)
+        print("Spot Balance:", spot_balance)
 
-    #         # Find the quote balance
-    #         if quote in balance['total']:
-    #             return float(balance['total'][quote])
-    #     return None
+        # Fetch margin balances
+        margin_balance = self.fetch_margin_balance_huobi(params)
+        print("Margin Balance:", margin_balance)
+
+        # Fetch futures balances
+        futures_balance = self.fetch_futures_balance_huobi(params)
+        print("Futures Balance:", futures_balance)
+
+        # Fetch swap balances
+        swaps_balance = self.fetch_swaps_balance_huobi(params)
+        print("Swaps Balance:", swaps_balance)
+
+        # Combine balances
+        total_balance = self.exchange.deep_extend(spot_balance, margin_balance, futures_balance, swaps_balance)
+
+        # Remove the unnecessary information
+        parsed_balance = {}
+        for currency in total_balance:
+            parsed_balance[currency] = {
+                'free': total_balance[currency]['free'],
+                'used': total_balance[currency]['used'],
+                'total': total_balance[currency]['total']
+            }
+
+        return parsed_balance
+
+
+    def fetch_margin_balance_huobi(self, params={}):
+        response = self.exchange.private_get_margin_accounts_balance(params)
+        return self._parse_huobi_balance(response)
+
+    def fetch_futures_balance_huobi(self, params={}):
+        response = self.exchange.linearGetV2AccountInfo(params)
+        return self._parse_huobi_balance(response)
+
+    def fetch_swaps_balance_huobi(self, params={}):
+        response = self.exchange.swapGetSwapBalance(params)
+        return self._parse_huobi_balance(response)
+
+    def _parse_huobi_balance(self, response):
+        if 'data' in response:
+            balance_data = response['data']
+            parsed_balance = {}
+            for currency_data in balance_data:
+                currency = currency_data['currency']
+                parsed_balance[currency] = {
+                    'free': float(currency_data.get('available', 0)),
+                    'used': float(currency_data.get('frozen', 0)),
+                    'total': float(currency_data.get('balance', 0))
+                }
+            return parsed_balance
+        else:
+            return {}
+
+
+    # def get_balance_huobi(self, quote: str = 'USDT', account_type: str = 'spot', params: dict = {}) -> float:
+    #     available_balance = 0
+    #     quote = quote.upper()
+
+    #     if account_type == 'spot':
+    #         balance = self.exchange.fetch_balance(params)
+    #         available_balance = balance['free'][quote]
+    #     elif account_type == 'derivatives':
+    #         available_balance = self.fetch_derivatives_balance_huobi(quote, params)
+
+    #     return float(f"{available_balance:.8f}")
 
 
     # def get_balance_huobi(self, quote: str = 'USDT', type: str = 'spot', params: dict = {}) -> float:
@@ -228,41 +306,26 @@ class Exchange:
     #             if account['margin_coin'] == quote:
     #                 return float(account['equity'])
     #         return 0
+    
+    # def get_balance_huobi(self, quote: str = 'USDT', account_type: str = 'spot', params: dict = {}) -> float:
+    #     available_balance = 0
+    #     quote = quote.upper()
 
+    #     if account_type == 'spot':
+    #         balance = self.exchange.fetch_balance(params)
+    #         available_balance = balance['free'][quote]
+    #     elif account_type == 'derivatives':
+    #         # Fetch the balance for derivatives (USDT-M)
+    #         balance = self.exchange.fetch_balance(params={'type': 'future'})
+    #         # Process the balance response to find the relevant balance
+    #         for account_data in balance['info']['data']:
+    #             if 'list' in account_data:
+    #                 for currency_balance in account_data['list']:
+    #                     if currency_balance['currency'] == quote and currency_balance['type'] == 'trade':
+    #                         available_balance = float(currency_balance['balance'])
+    #                         break
 
-
-    def get_balance_huobi(self, quote: str = 'USDT', account_type: str = 'spot', params: dict = {}) -> float:
-        available_balance = 0
-        quote = quote.upper()
-
-        if account_type == 'spot':
-            balance = self.exchange.fetch_balance(params)
-            available_balance = balance['free'][quote]
-        elif account_type == 'derivatives':
-            # Fetch the balance for derivatives (USDT-M)
-            balance = self.exchange.fetch_balance(params={'type': 'future'})
-            # Process the balance response to find the relevant balance
-            for account_data in balance['info']['data']:
-                if 'list' in account_data:
-                    for currency_balance in account_data['list']:
-                        if currency_balance['contract_code'].endswith(quote) and currency_balance['margin_position'] != '0':
-                            available_balance += float(currency_balance['margin_available'])
-                            break
-
-        return float(f"{available_balance:.8f}")
-
-    # def get_balance_huobi(self, quote: str = 'USDT', type: str = 'spot', params: dict = {}) -> float:
-    #     balance = self.exchange.fetch_balance(params)
-    #     available_balance = balance['free'][quote]
     #     return float(f"{available_balance:.8f}")
-
-
-    # def get_balance_huobi(self, quote: str, type: str = 'spot', params: dict = {}) -> float:
-    #     balance = self.exchange.fetch_balance(params)
-    #     available_balance = balance['free'][quote]
-    #     return available_balance
-
-
 
     
     # def get_balance_huobi(self, quote, account_type=None):
