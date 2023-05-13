@@ -29,6 +29,11 @@ class Exchange:
             "apiKey": self.api_key,
             "secret": self.secret_key,
         }
+        if self.exchange_id.lower() == 'huobi':
+            exchange_params['options'] = {
+                'defaultType': 'future',
+                'defaultSubType': 'linear',
+            }
         if self.passphrase:
             exchange_params["password"] = self.passphrase
 
@@ -584,6 +589,51 @@ class Exchange:
         except Exception as e:
             log.warning(f"An unknown error occurred in get_positions(): {e}")
         return values
+
+    def get_positions_huobi(self, symbol) -> dict:
+        print(f"Symbol received in get_positions_huobi: {symbol}")
+        self.exchange.load_markets()
+        if symbol not in self.exchange.markets:
+            print(f"Market symbol {symbol} not found in Huobi markets.")
+            return None
+        values = {
+            "long": {
+                "qty": 0.0,
+                "price": 0.0,
+                "realised": 0,
+                "cum_realised": 0,
+                "upnl": 0,
+                "upnl_pct": 0,
+                "liq_price": 0,
+                "entry_price": 0,
+            },
+            "short": {
+                "qty": 0.0,
+                "price": 0.0,
+                "realised": 0,
+                "cum_realised": 0,
+                "upnl": 0,
+                "upnl_pct": 0,
+                "liq_price": 0,
+                "entry_price": 0,
+            },
+        }
+        try:
+            data = self.exchange.fetch_positions(symbol)
+            for position in data:
+                side = "long" if position["direction"] == "buy" else "short"
+                values[side]["qty"] = float(position["volume"])
+                values[side]["price"] = float(position["cost_open"])
+                values[side]["realised"] = float(position["profit"])
+                values[side]["cum_realised"] = float(position["profit"])  # Huobi API doesn't seem to provide cumulative realised profit
+                values[side]["upnl"] = float(position["profit_unreal"])
+                values[side]["upnl_pct"] = float(position["profit_rate"])
+                values[side]["liq_price"] = 0.0  # Huobi API doesn't seem to provide liquidation price
+                values[side]["entry_price"] = float(position["cost_open"])
+        except Exception as e:
+            log.warning(f"An unknown error occurred in get_positions_huobi(): {e}")
+        return values
+
 
     def get_positions(self, symbol) -> dict:
         values = {

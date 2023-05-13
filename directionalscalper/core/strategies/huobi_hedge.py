@@ -82,6 +82,23 @@ class HuobiHedgeStrategy(Strategy):
             print(f"Min volume: {min_vol}")
             print(f"Min distance: {min_dist}")
 
+            # Get data from manager
+            data = self.manager.get_data()
+
+            # Data we need from API
+            one_minute_volume = self.manager.get_asset_value(symbol, data, "1mVol")
+            five_minute_distance = self.manager.get_asset_value(symbol, data, "5mSpread")
+            trend = self.manager.get_asset_value(symbol, data, "Trend")
+            print(f"1m Volume: {one_minute_volume}")
+            print(f"5m Spread: {five_minute_distance}")
+            print(f"Trend: {trend}")
+
+            print(f"Parsed symbol: {parsed_symbol}")
+            print(f"Regular symbol: {symbol}")
+
+            position_data = self.exchange.get_positions_huobi(parsed_symbol)
+
+            print(f"{position_data}")
 
             time.sleep(30)
             
