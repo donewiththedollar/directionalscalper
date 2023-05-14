@@ -1086,7 +1086,6 @@ class Exchange:
         else:
             raise ValueError(f"Invalid side: {side}")
 
-
     def create_limit_buy_order(self, symbol: str, qty: float, price: float, **params) -> None:
         self.exchange.create_order(
             symbol=symbol,
@@ -1128,3 +1127,6 @@ class Exchange:
                 raise ValueError("Invalid order type. Use 'limit' or 'market'.")
 
         return order
+
+    def create_contract_order_huobi(self, symbol, order_type, side, amount, price=None, params={}):
+        return self.exchange.create_contract_order(symbol, order_type, side, amount, price, params)

@@ -21,6 +21,10 @@ class HuobiHedgeStrategy(Strategy):
             return f"{base_currency}/{quote_currency}:{quote_currency}"
         return symbol
 
+    def limit_order(self, symbol, side, amount, price, reduce_only=False):
+        order = self.exchange.create_order(symbol, 'limit', side, amount, price, reduce_only=reduce_only)
+        return order
+
     def calculate_short_take_profit(self, short_pos_price, symbol):
         if short_pos_price is None:
             return None
@@ -193,6 +197,37 @@ class HuobiHedgeStrategy(Strategy):
             print(f"Long condition: {should_long}")
             print(f"Add short condition: {should_add_to_short}")
             print(f"Add long condition: {should_add_to_long}")
+
+            print(f"Testing trade")
+            self.exchange.create_contract_order_huobi(parsed_symbol_swap, 'limit', 'buy', amount, price=best_bid_price)
+
+
+            # # New hedge logic
+            # if trend is not None and isinstance(trend, str):
+            #     if one_minute_volume is not None and five_minute_distance is not None:
+            #         if one_minute_volume > min_vol and five_minute_distance > min_dist:
+
+            #             if trend.lower() == "long" and should_long and long_pos_qty == 0:
+
+            #                 self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
+            #                 print(f"Placed initial long entry")
+            #                 time.sleep(0.05)
+            #             else:
+            #                 if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
+            #                     print(f"Placed additional long entry")
+            #                     self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
+            #                     time.sleep(0.05)
+
+            #             if trend.lower() == "short" and should_short and short_pos_qty == 0:
+
+            #                 self.limit_order(symbol, "sell", amount, best_ask_price, reduce_only=False)
+            #                 print("Placed initial short entry")
+            #                 time.sleep(0.05)
+            #             else:
+            #                 if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
+            #                     print(f"Placed additional short entry")
+            #                     self.limit_order(symbol, "sell", amount, best_ask_price, reduce_only=False)
+            #                     time.sleep(0.05)
 
 
             time.sleep(30)
