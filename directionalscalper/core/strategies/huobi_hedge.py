@@ -168,7 +168,9 @@ class HuobiHedgeStrategy(Strategy):
 
             parsed_symbol_swap = self.parse_symbol_swap(symbol)
 
-            position_data = self.exchange.get_positions_huobi(parsed_symbol_swap)
+            position_data = self.exchange.safe_order_operation(lambda: self.exchange.get_positions_huobi(parsed_symbol_swap))
+            #position_data = self.exchange.safe_order_operation(self.exchange.get_positions_huobi(parsed_symbol_swap))
+            #position_data = self.exchange.get_positions_huobi(parsed_symbol_swap)
             print(f"Fetched position data for {parsed_symbol_swap}")
 
             #print(f"Debug position data: {position_data}")

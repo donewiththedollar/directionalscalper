@@ -479,6 +479,17 @@ class Exchange:
             log.warning(f"An unknown error occurred in get_positions(): {e}")
         return values
 
+    def safe_order_operation(self, operation, *args, **kwargs):
+        while True:
+            try:
+                return operation(*args, **kwargs)
+            except ccxt.BaseError as e:
+                if 'In settlement' in str(e) or 'In delivery' in str(e):
+                    print(f"Contract is in settlement or delivery. Cannot perform operation currently. Retrying in 10 seconds...")
+                    time.sleep(10)
+                else:
+                    raise
+
     # Huobi
     def get_positions_huobi(self, symbol) -> dict:
         print(f"Symbol received in get_positions_huobi: {symbol}")
