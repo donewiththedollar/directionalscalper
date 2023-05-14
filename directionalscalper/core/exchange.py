@@ -84,6 +84,14 @@ class Exchange:
     #         log.warning(f"An unknown error occurred in with set_leverage: {e}")
     #     log.info(values)
 
+    def check_account_type_huobi(self):
+        if self.exchange_id.lower() != 'huobi':
+            print("This operation is only available for Huobi.")
+            return
+
+        response = self.exchange.contractPrivateGetLinearSwapApiV3SwapUnifiedAccountType()
+        return response
+    
     def switch_account_type_huobi(self, account_type: int):
         if self.exchange_id.lower() != 'huobi':
             print("This operation is only available for Huobi.")
