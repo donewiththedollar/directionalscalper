@@ -514,7 +514,7 @@ class Exchange:
                 if "info" not in position or "direction" not in position["info"]:
                     continue
                 side = "long" if position["info"]["direction"] == "buy" else "short"
-                values[side]["qty"] = float(position["contractSize"])
+                values[side]["qty"] = float(position["info"]["volume"])  # Updated to use 'volume'
                 values[side]["price"] = float(position["info"]["cost_open"])
                 values[side]["realised"] = float(position["info"]["profit"])
                 values[side]["cum_realised"] = float(position["info"]["profit"])  # Huobi API doesn't seem to provide cumulative realised profit
@@ -526,8 +526,7 @@ class Exchange:
             log.warning(f"An unknown error occurred in get_positions_huobi(): {e}")
         return values
 
-
-    # Huobi
+    # # Huobi
     # def get_positions_huobi(self, symbol) -> dict:
     #     print(f"Symbol received in get_positions_huobi: {symbol}")
     #     self.exchange.load_markets()
@@ -559,36 +558,20 @@ class Exchange:
     #     try:
     #         data = self.exchange.fetch_positions([symbol])
     #         for position in data:
-    #             if "direction" not in position:
+    #             if "info" not in position or "direction" not in position["info"]:
     #                 continue
-    #             side = "long" if position["direction"] == "buy" else "short"
-    #             values[side]["qty"] = float(position["volume"])
-    #             values[side]["price"] = float(position["cost_open"])
-    #             values[side]["realised"] = float(position["profit"])
-    #             values[side]["cum_realised"] = float(position["profit"])  # Huobi API doesn't seem to provide cumulative realised profit
-    #             values[side]["upnl"] = float(position["profit_unreal"])
-    #             values[side]["upnl_pct"] = float(position["profit_rate"])
+    #             side = "long" if position["info"]["direction"] == "buy" else "short"
+    #             values[side]["qty"] = float(position["contractSize"])
+    #             values[side]["price"] = float(position["info"]["cost_open"])
+    #             values[side]["realised"] = float(position["info"]["profit"])
+    #             values[side]["cum_realised"] = float(position["info"]["profit"])  # Huobi API doesn't seem to provide cumulative realised profit
+    #             values[side]["upnl"] = float(position["info"]["profit_unreal"])
+    #             values[side]["upnl_pct"] = float(position["info"]["profit_rate"])
     #             values[side]["liq_price"] = 0.0  # Huobi API doesn't seem to provide liquidation price
-    #             values[side]["entry_price"] = float(position["cost_open"])
+    #             values[side]["entry_price"] = float(position["info"]["cost_open"])
     #     except Exception as e:
     #         log.warning(f"An unknown error occurred in get_positions_huobi(): {e}")
     #     return values
-    
-        # try:
-        #     data = self.exchange.fetch_positions(symbol)
-        #     for position in data:
-        #         side = "long" if position["direction"] == "buy" else "short"
-        #         values[side]["qty"] = float(position["volume"])
-        #         values[side]["price"] = float(position["cost_open"])
-        #         values[side]["realised"] = float(position["profit"])
-        #         values[side]["cum_realised"] = float(position["profit"])  # Huobi API doesn't seem to provide cumulative realised profit
-        #         values[side]["upnl"] = float(position["profit_unreal"])
-        #         values[side]["upnl_pct"] = float(position["profit_rate"])
-        #         values[side]["liq_price"] = 0.0  # Huobi API doesn't seem to provide liquidation price
-        #         values[side]["entry_price"] = float(position["cost_open"])
-        # except Exception as e:
-        #     log.warning(f"An unknown error occurred in get_positions_huobi(): {e}")
-        # return values
 
     # Huobi debug
     def get_positions_debug(self):
@@ -733,6 +716,30 @@ class Exchange:
             log.warning(f"An unknown error occurred in get_open_orders_debug(): {e}")
         return open_orders
 
+    def get_open_orders_huobi(self, symbol: str) -> list:
+        open_orders_list = []
+        try:
+            orders = self.exchange.fetch_open_orders(symbol)
+            if len(orders) > 0:
+                for order in orders:
+                    if "info" in order:
+                        try:
+                            # Extracting the necessary fields for Huobi orders
+                            order_info = {
+                                "id": order["info"]["order_id"],
+                                "price": float(order["info"]["price"]),
+                                "qty": float(order["info"]["volume"]),
+                                "order_status": order["info"]["status"],
+                                "side": order["info"]["direction"],  # assuming 'direction' indicates 'buy' or 'sell'
+                            }
+                            open_orders_list.append(order_info)
+                        except KeyError as e:
+                            log.warning(f"Key {e} not found in order info.")
+        except Exception as e:
+            log.warning(f"An unknown error occurred in get_open_orders_huobi(): {e}")
+        return open_orders_list
+
+
 
 
     # def cancel_entry(self, symbol: str) -> None:
@@ -836,6 +843,40 @@ class Exchange:
                         # log.info(f"Cancelling order: {order_id}")
         except Exception as e:
             log.warning(f"An unknown error occurred in cancel_all_entries_bybit(): {e}")
+
+    def cancel_all_entries_huobi(self, symbol: str) -> None:
+        try:
+            orders = self.exchange.fetch_open_orders(symbol)
+            long_orders = 0
+            short_orders = 0
+
+            # Count the number of open long and short orders
+            for order in orders:
+                order_info = order["info"]
+                order_status = str(order_info["status"])  # status seems to be a string of a number
+                order_direction = order_info["direction"]
+                order_offset = order_info["offset"]
+
+                if order_status != "4" and order_status != "6":  # Assuming 4 is 'Filled' and 6 is 'Cancelled'
+                    if order_direction == "buy" and order_offset == "open":
+                        long_orders += 1
+                    elif order_direction == "sell" and order_offset == "open":
+                        short_orders += 1
+
+            # Cancel extra long or short orders if more than one open order per side
+            if long_orders > 1 or short_orders > 1:
+                for order in orders:
+                    order_info = order["info"]
+                    order_id = order_info["order_id"]  # It's 'order_id' in Huobi, not 'orderId'
+                    order_status = str(order_info["status"])
+                    order_direction = order_info["direction"]
+                    order_offset = order_info["offset"]
+
+                    if order_status != "4" and order_status != "6":
+                        self.exchange.cancel_order(symbol=symbol, id=order_id)
+                        print(f"Cancelling order: {order_id}")
+        except Exception as e:
+            log.warning(f"An unknown error occurred in cancel_entry(): {e}")
 
 
     def cancel_all_entries(self, symbol: str) -> None:
@@ -981,6 +1022,31 @@ class Exchange:
                             log.info(f"Cancelling order: {order_id}")
         except Exception as e:
             log.warning(f"An unknown error occurred in cancel_close_bitget(): {e}")
+
+    def cancel_close_huobi(self, symbol: str, side: str) -> None:
+        side_map = {"long": "sell", "short": "buy"}
+        offset_map = {"long": "close", "short": "close"}
+        try:
+            orders = self.exchange.fetch_open_orders(symbol)
+            if len(orders) > 0:
+                for order in orders:
+                    order_info = order["info"]
+                    order_id = order_info["order_id"]
+                    order_status = str(order_info["status"])  # status seems to be a string of a number
+                    order_direction = order_info["direction"]
+                    order_offset = order_info["offset"]
+
+                    if (
+                        order_status != "4"  # Assuming 4 is 'Filled'
+                        and order_direction == side_map[side]
+                        and order_offset == offset_map[side]
+                        and order_status != "6"  # Assuming 6 is 'Cancelled'
+                        # There's no 'reduceOnly' equivalent in Huobi from the provided data
+                    ):
+                        self.exchange.cancel_order(symbol=symbol, id=order_id)
+                        log.info(f"Cancelling order: {order_id}")
+        except Exception as e:
+            log.warning(f"An unknown error occurred in cancel_close_huobi(): {e}")
 
     def cancel_close(self, symbol: str, side: str) -> None:
         try:

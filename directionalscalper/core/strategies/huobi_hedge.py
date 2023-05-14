@@ -26,6 +26,15 @@ class HuobiHedgeStrategy(Strategy):
         order = self.exchange.create_order(symbol, 'limit', side, amount, price, reduce_only=reduce_only)
         return order
 
+    def cancel_take_profit_orders(self, symbol, side):
+        self.exchange.cancel_close_bitget(symbol, side)
+
+    def get_open_take_profit_order_quantity(self, orders, side):
+        for order in orders:
+            if order['side'] == side and order['reduce_only']:
+                return order['qty'], order['id']
+        return None, None
+
     def calculate_short_take_profit(self, short_pos_price, symbol):
         if short_pos_price is None:
             return None
@@ -162,6 +171,8 @@ class HuobiHedgeStrategy(Strategy):
             position_data = self.exchange.get_positions_huobi(parsed_symbol_swap)
             print(f"Fetched position data for {parsed_symbol_swap}")
 
+            #print(f"Debug position data: {position_data}")
+
             short_pos_qty = position_data["short"]["qty"]
             long_pos_qty = position_data["long"]["qty"]
 
@@ -242,12 +253,45 @@ class HuobiHedgeStrategy(Strategy):
                                 self.exchange.create_contract_order_huobi(parsed_symbol_swap, 'limit', 'sell', amount, price=best_ask_price)
                                 time.sleep(0.05)
 
+            open_orders = self.exchange.get_open_orders_huobi(parsed_symbol_swap)
+            
+            if long_pos_qty > 0 and long_take_profit is not None:
+                existing_long_tp_qty, existing_long_tp_id = self.get_open_take_profit_order_quantity(open_orders, "close_long")
+                if existing_long_tp_qty is None or existing_long_tp_qty != long_pos_qty:
+                    try:
+                        if existing_long_tp_id is not None:
+                            self.cancel_take_profit_orders(parsed_symbol_swap, "long")
+                            print(f"Long take profit canceled")
+                            time.sleep(0.05)
+
+                        self.exchange.create_take_profit_order(parsed_symbol_swap, "limit", "sell", long_pos_qty, long_take_profit, reduce_only=True)
+                        print(f"Long take profit set at {long_take_profit}")
+                        time.sleep(0.05)
+                    except Exception as e:
+                        print(f"Error in placing long TP: {e}")
+
+            if short_pos_qty > 0 and short_take_profit is not None:
+                existing_short_tp_qty, existing_short_tp_id = self.get_open_take_profit_order_quantity(open_orders, "close_short")
+                if existing_short_tp_qty is None or existing_short_tp_qty != short_pos_qty:
+                    try:
+                        if existing_short_tp_id is not None:
+                            self.cancel_take_profit_orders(parsed_symbol_swap, "short")
+                            print(f"Short take profit canceled")
+                            time.sleep(0.05)
+
+                        self.exchange.create_take_profit_order(parsed_symbol_swap, "limit", "buy", short_pos_qty, short_take_profit, reduce_only=True)
+                        print(f"Short take profit set at {short_take_profit}")
+                        time.sleep(0.05)
+                    except Exception as e:
+                        print(f"Error in placing short TP: {e}")
+
+
             # Cancel entries
             current_time = time.time()
             if current_time - self.last_cancel_time >= 60:  # Execute this block every 1 minute
                 try:
                     if best_ask_price < ma_1m_3_high or best_ask_price < ma_5m_3_high:
-                        self.exchange.cancel_all_entries(symbol)
+                        self.exchange.cancel_all_entries_huobi(parsed_symbol_swap)
                         print(f"Canceled entry orders for {parsed_symbol_swap}")
                         time.sleep(0.05)
                 except Exception as e:
