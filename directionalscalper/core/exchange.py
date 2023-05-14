@@ -1239,4 +1239,5 @@ class Exchange:
         return order
 
     def create_contract_order_huobi(self, symbol, order_type, side, amount, price=None, params={}):
+        params = {'leverRate': 20}
         return self.exchange.create_contract_order(symbol, order_type, side, amount, price, params)
