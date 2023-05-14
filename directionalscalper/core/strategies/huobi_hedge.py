@@ -80,13 +80,20 @@ class HuobiHedgeStrategy(Strategy):
         while True:
             print(f"Huobi strategy running")
 
+            try:
+                self.exchange.switch_account_type_huobi(1)
+                time.sleep(0.05)
+                print(f"Changed account type")
+            except Exception as e:
+                print(f"Error in switching account type {e}")
+
             parsed_symbol = self.parse_symbol(symbol)
 
             quote = 'USDT'
 
             for i in range(max_retries):
                 try:
-                    total_equity = self.exchange.get_balance_huobi_unified(quote, 'swap', 'linear')
+                    total_equity = self.exchange.get_balance_huobi(quote, 'swap', 'linear')
                     break
                 except Exception as e:
                     if i < max_retries - 1:
@@ -198,36 +205,36 @@ class HuobiHedgeStrategy(Strategy):
             print(f"Add short condition: {should_add_to_short}")
             print(f"Add long condition: {should_add_to_long}")
 
-            print(f"Testing trade")
-            self.exchange.create_contract_order_huobi(parsed_symbol_swap, 'limit', 'buy', amount, price=best_bid_price)
+            # print(f"Testing trade")
+            # self.exchange.create_contract_order_huobi(parsed_symbol_swap, 'limit', 'buy', amount, price=best_bid_price)
 
+            # New hedge logic
+            if trend is not None and isinstance(trend, str):
+                if one_minute_volume is not None and five_minute_distance is not None:
+                    if one_minute_volume > min_vol and five_minute_distance > min_dist:
 
-            # # New hedge logic
-            # if trend is not None and isinstance(trend, str):
-            #     if one_minute_volume is not None and five_minute_distance is not None:
-            #         if one_minute_volume > min_vol and five_minute_distance > min_dist:
+                        if trend.lower() == "long" and should_long and long_pos_qty == 0:
 
-            #             if trend.lower() == "long" and should_long and long_pos_qty == 0:
+                            # self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
+                            self.exchange.create_contract_order_huobi(parsed_symbol_swap, 'limit', 'buy', amount, price=best_bid_price)
+                            print(f"Placed initial long entry")
+                            time.sleep(0.05)
+                        else:
+                            if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
+                                print(f"Placed additional long entry")
+                                self.exchange.create_contract_order_huobi(parsed_symbol_swap, 'limit', 'buy', amount, price=best_bid_price)
+                                time.sleep(0.05)
 
-            #                 self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
-            #                 print(f"Placed initial long entry")
-            #                 time.sleep(0.05)
-            #             else:
-            #                 if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
-            #                     print(f"Placed additional long entry")
-            #                     self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
-            #                     time.sleep(0.05)
+                        if trend.lower() == "short" and should_short and short_pos_qty == 0:
 
-            #             if trend.lower() == "short" and should_short and short_pos_qty == 0:
-
-            #                 self.limit_order(symbol, "sell", amount, best_ask_price, reduce_only=False)
-            #                 print("Placed initial short entry")
-            #                 time.sleep(0.05)
-            #             else:
-            #                 if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
-            #                     print(f"Placed additional short entry")
-            #                     self.limit_order(symbol, "sell", amount, best_ask_price, reduce_only=False)
-            #                     time.sleep(0.05)
+                            self.exchange.create_contract_order_huobi(parsed_symbol_swap, 'limit', 'sell', amount, price=best_ask_price)
+                            print("Placed initial short entry")
+                            time.sleep(0.05)
+                        else:
+                            if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
+                                print(f"Placed additional short entry")
+                                self.exchange.create_contract_order_huobi(parsed_symbol_swap, 'limit', 'sell', amount, price=best_ask_price)
+                                time.sleep(0.05)
 
 
             time.sleep(30)

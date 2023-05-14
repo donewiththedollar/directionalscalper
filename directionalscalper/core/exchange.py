@@ -84,6 +84,18 @@ class Exchange:
     #         log.warning(f"An unknown error occurred in with set_leverage: {e}")
     #     log.info(values)
 
+    def switch_account_type_huobi(self, account_type: int):
+        if self.exchange_id.lower() != 'huobi':
+            print("This operation is only available for Huobi.")
+            return
+
+        body = {
+            "account_type": account_type
+        }
+
+        response = self.exchange.contractPrivatePostLinearSwapApiV3SwapSwitchAccountType(body)
+        return response
+
     def setup_exchange_bybit(self, symbol) -> None:
         values = {"position": False, "leverage": False}
         try:
@@ -224,6 +236,19 @@ class Exchange:
             # Find the quote balance
             if quote in balance['total']:
                 return float(balance['total'][quote])
+        return None
+
+    def get_balance_huobi(self, quote, type='spot', subType='linear', marginMode='cross'):
+        if self.exchange.has['fetchBalance']:
+            params = {
+                'type': type,
+                'subType': subType,
+                'marginMode': marginMode,
+                'unified': False
+            }
+            balance = self.exchange.fetch_balance(params)
+            if quote in balance:
+                return balance[quote]['free']
         return None
 
     def get_balance_huobi_unified(self, quote, type='spot', subType='linear', marginMode='cross'):
