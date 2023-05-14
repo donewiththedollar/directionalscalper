@@ -29,10 +29,16 @@ class HuobiHedgeStrategy(Strategy):
     def cancel_take_profit_orders(self, symbol, side):
         self.exchange.cancel_close_bitget(symbol, side)
 
-    def get_open_take_profit_order_quantity(self, orders, side):
+    def get_current_price(self, symbol):
+        return self.exchange.get_current_price(symbol)
+
+    def get_open_take_profit_order_quantity(self, symbol, orders, side):
+        current_price = self.get_current_price(symbol)  # You'd need to implement this function
         for order in orders:
-            if order['side'] == side and order['reduce_only']:
-                return order['qty'], order['id']
+            if order['side'] == 'sell':
+                if (side == "close_long" and order['price'] > current_price) or \
+                (side == "close_short" and order['price'] < current_price):
+                    return order['qty'], order['id']
         return None, None
 
     def calculate_short_take_profit(self, short_pos_price, symbol):
@@ -256,9 +262,13 @@ class HuobiHedgeStrategy(Strategy):
                                 time.sleep(0.05)
 
             open_orders = self.exchange.get_open_orders_huobi(parsed_symbol_swap)
+
+
+            print(f"Open orders debug: {open_orders}")
             
             if long_pos_qty > 0 and long_take_profit is not None:
-                existing_long_tp_qty, existing_long_tp_id = self.get_open_take_profit_order_quantity(open_orders, "close_long")
+                existing_long_tp_qty, existing_long_tp_id = self.get_open_take_profit_order_quantity(parsed_symbol_swap, open_orders, "close_long")
+                print(f"Existing Long TP Quantity: {existing_long_tp_qty}")
                 if existing_long_tp_qty is None or existing_long_tp_qty != long_pos_qty:
                     try:
                         if existing_long_tp_id is not None:
@@ -273,7 +283,8 @@ class HuobiHedgeStrategy(Strategy):
                         print(f"Error in placing long TP: {e}")
 
             if short_pos_qty > 0 and short_take_profit is not None:
-                existing_short_tp_qty, existing_short_tp_id = self.get_open_take_profit_order_quantity(open_orders, "close_short")
+                existing_short_tp_qty, existing_short_tp_id = self.get_open_take_profit_order_quantity(parsed_symbol_swap, open_orders, "close_short")
+                print(f"Existing Short TP Quantity: {existing_short_tp_qty}")
                 if existing_short_tp_qty is None or existing_short_tp_qty != short_pos_qty:
                     try:
                         if existing_short_tp_id is not None:
@@ -287,7 +298,6 @@ class HuobiHedgeStrategy(Strategy):
                     except Exception as e:
                         print(f"Error in placing short TP: {e}")
 
-
             # Cancel entries
             current_time = time.time()
             if current_time - self.last_cancel_time >= 60:  # Execute this block every 1 minute
@@ -300,7 +310,6 @@ class HuobiHedgeStrategy(Strategy):
                     print(f"An error occurred while canceling entry orders: {e}")
 
                 self.last_cancel_time = current_time  # Update the last cancel time
-
 
             time.sleep(30)
             

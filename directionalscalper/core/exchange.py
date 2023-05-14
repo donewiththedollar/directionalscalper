@@ -1149,6 +1149,20 @@ class Exchange:
         else:
             raise ValueError(f"Unsupported order type: {order_type}")
 
+    def create_take_profit_order_huobi(self, symbol, order_type, side, amount, price=None, reduce_only=False):
+        if order_type == 'limit':
+            if price is None:
+                raise ValueError("A price must be specified for a limit order")
+
+            if side not in ["buy", "sell"]:
+                raise ValueError(f"Invalid side: {side}")
+
+            params = {"offset": "close" if reduce_only else "open"}
+            return self.exchange.create_order(symbol, order_type, side, amount, price, params)
+        else:
+            raise ValueError(f"Unsupported order type: {order_type}")
+
+
     def create_market_order(self, symbol: str, side: str, amount: float, params={}, close_position: bool = False) -> None:
         try:
             if side not in ["buy", "sell"]:
