@@ -40,14 +40,21 @@ Directional Scalper        |  API Scraper
 ### Starting the bot
 * Hedge mode is recommended, but you can of course use the other modes as well. Low lot size is recommended.
 
-> python3.11 bot.py --exchange bitget --symbol XRPUSDT_UMCBL --amount 15 --strategy bitget_hedge --config config_sub1.json
+> python3.11 bot.py --exchange bitget --symbol XRPUSDT_UMCBL --amount 15 --strategy bitget_hedge --config config_main.json
 
 > python3.11 bot.py --exchange bybit --symbol XRPUSDT --amount 1 --strategy bybit_hedge --config config_sub1.json
+ 
+> python3.11 bot.py --exchange huobi --symbol XRPUSDT --amount 1 --strategy huobi_hedge --config config_whatever.json
 
-### Modes
-* --mode [hedge], WIP
-> Some (most) modes are in development, hedge mode is the recommended mode that has proven to be profitable and allows you to control your risk accordingly.
 
+### Current strategies
+* bybit_hedge
+* bitget_hedge
+* bitget_hedge_dynamic
+* bitget_longonly_futures
+* huobi_hedge
+ 
+ 
 ### Parameters
 > --config', type=str, default='config.json', help='Path to the configuration file')
 
