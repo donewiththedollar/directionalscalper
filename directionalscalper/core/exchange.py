@@ -478,7 +478,8 @@ class Exchange:
         except Exception as e:
             log.warning(f"An unknown error occurred in get_positions(): {e}")
         return values
-
+    
+    # Huobi
     def safe_order_operation(self, operation, *args, **kwargs):
         while True:
             try:
@@ -489,6 +490,15 @@ class Exchange:
                     time.sleep(10)
                 else:
                     raise
+
+    # Huobi                
+    def get_contract_size_huobi(self, symbol):
+        markets = self.exchange.fetch_markets_by_type_and_sub_type('swap', 'linear')
+        for market in markets:
+            if market['symbol'] == symbol:
+                return market['contractSize']
+        return None
+    
 
     # Huobi
     def get_positions_huobi(self, symbol) -> dict:
