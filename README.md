@@ -8,9 +8,11 @@ A hedge scalping strategy based on directional analysis using a quantitative app
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
 </p>
 
->  Working exchanges: Bybit, Bitget
+>  Working exchanges: Bybit, Bitget, Huobi
+ 
+>  Minor bugs: Precision with bybit, possible rate limiting issue with Bitget, Huobi is attempting to place TP when TP is already placed.
 
->  Exchanges to support: OKX, Binance, Phemex, Huobi
+>  Exchanges to support: Binance, Phemex, MEXC
 
 ### Links
 * Dashboard: https://tradesimple.xyz
