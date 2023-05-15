@@ -114,7 +114,7 @@ class HuobiHedgeStrategy(Strategy):
                 print(f"Error in switching account type {e}")
 
             # Annoying symbol parsing
-            parsed_symbol = self.parse_symbol(symbol)
+            #parsed_symbol = self.parse_symbol(symbol)
             parsed_symbol_swap = self.parse_symbol_swap(symbol)
 
             min_contract_size = self.exchange.get_contract_size_huobi(parsed_symbol_swap)
@@ -135,14 +135,14 @@ class HuobiHedgeStrategy(Strategy):
             print(f"Current balance: {total_equity}")
 
             # Orderbook data
-            orderbook = self.exchange.get_orderbook(parsed_symbol)
+            orderbook = self.exchange.get_orderbook(parsed_symbol_swap)
             best_bid_price = orderbook['bids'][0][0]
             best_ask_price = orderbook['asks'][0][0]
 
             print(f"Best bid: {best_bid_price}")
             print(f"Best ask: {best_ask_price}")
 
-            market_data = self.exchange.get_market_data_huobi(parsed_symbol)
+            market_data = self.exchange.get_market_data_huobi(parsed_symbol_swap)
 
             price_precision = market_data["precision"]
 
@@ -156,14 +156,13 @@ class HuobiHedgeStrategy(Strategy):
 
             print(f"Max trade quantity for {symbol}: {max_trade_qty}")
 
-            current_price = self.exchange.get_current_price(parsed_symbol)
+            current_price = self.exchange.get_current_price(parsed_symbol_swap)
 
             print(f"Current price: {current_price}")
 
             #min_qty_huobi = float(market_data["min_qty"])
-            min_qty_huobi = float(market_data["min_qty"])
 
-            print(f"Min trade quantity for {parsed_symbol}: {min_qty_huobi}")
+            #print(f"Min trade quantity for {parsed_symbol_swap}: {min_qty_huobi}")
             print(f"Min volume: {min_vol}")
             print(f"Min distance: {min_dist}")
             print(f"Min contract size: {min_contract_size}")
@@ -179,9 +178,7 @@ class HuobiHedgeStrategy(Strategy):
             print(f"5m Spread: {five_minute_distance}")
             print(f"Trend: {trend}")
             print(f"Entry size: {amount}")
-
-            print(f"Parsed symbol: {parsed_symbol}")
-            print(f"Regular symbol: {symbol}")
+            print(f"Parsed symbol: {parsed_symbol_swap}")
 
             position_data = self.exchange.safe_order_operation(lambda: self.exchange.get_positions_huobi(parsed_symbol_swap))
             print(f"Fetched position data for {parsed_symbol_swap}")
@@ -191,14 +188,14 @@ class HuobiHedgeStrategy(Strategy):
             short_pos_qty = position_data["short"]["qty"]
             long_pos_qty = position_data["long"]["qty"]
 
-            print(f"Long pos qty: {long_pos_qty}")
-            print(f"Short pos qty: {short_pos_qty}")
+            print(f"Long contract qty: {long_pos_qty}")
+            print(f"Short contract qty: {short_pos_qty}")
 
             short_pos_actual_qty = self.calculate_actual_quantity(short_pos_qty, parsed_symbol_swap)
             long_pos_actual_qty = self.calculate_actual_quantity(long_pos_qty, parsed_symbol_swap)
 
-            print(f"Real short pos qty: {short_pos_actual_qty}")
-            print(f"Real long pos qty: {long_pos_actual_qty}")
+            print(f"Actual short pos qty: {short_pos_actual_qty}")
+            print(f"Actual long pos qty: {long_pos_actual_qty}")
 
             short_pos_price = position_data["short"]["price"]
             long_pos_price = position_data["long"]["price"]
@@ -272,6 +269,7 @@ class HuobiHedgeStrategy(Strategy):
                                 time.sleep(0.05)
 
             open_orders = self.exchange.get_open_orders_huobi(parsed_symbol_swap)
+
 
             #print(f"Open orders debug: {open_orders}")
             
