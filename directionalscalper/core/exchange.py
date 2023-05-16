@@ -144,7 +144,28 @@ class Exchange:
             log.warning(f"An unknown error occurred in get_market_data_mexc(): {e}")
         return values
 
+    # Bitget 
+    def set_leverage_bitget(self, symbol, leverage, params={}):
+        """
+        Set the level of leverage for a market.
 
+        :param str symbol: unified market symbol
+        :param float leverage: the rate of leverage
+        :param dict params: extra parameters specific to the Bitget API endpoint
+        :returns dict: response from the exchange
+        """
+        try:
+            if hasattr(self.exchange, 'set_leverage'):
+                return self.exchange.set_leverage(leverage, symbol, params)
+            else:
+                print(f"The {self.exchange_id} exchange doesn't support setting leverage.")
+                return None
+        except ccxt.BaseError as e:
+            print(f"An error occurred while setting leverage: {e}")
+            return None
+
+
+    # Bitget
     def get_market_data_bitget(self, symbol: str) -> dict:
         values = {"precision": 0.0, "leverage": 0.0, "min_qty": 0.0}
         try:

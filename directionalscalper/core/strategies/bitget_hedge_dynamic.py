@@ -7,6 +7,7 @@ class BitgetDynamicHedgeStrategy(Strategy):
         super().__init__(exchange, config)
         self.manager = manager
         self.last_cancel_time = 0
+        self.leverage_set = False
 
     def limit_order(self, symbol, side, amount, price, reduce_only=False):
         min_qty_usd = 5
@@ -115,6 +116,17 @@ class BitgetDynamicHedgeStrategy(Strategy):
         min_order_value = 6
         max_retries = 5
         retry_delay = 5
+
+        # Set leverage
+        if not self.leverage_set:
+            try:
+                self.exchange.set_leverage_bitget(symbol, 50)  # Replace 50 with your desired leverage
+                self.leverage_set = True
+                print(f"Leverage for {symbol} set to 50.")
+            except Exception as e:
+                print(f"Error occurred while setting leverage: {e}. Retrying...")
+                time.sleep(retry_delay)
+                return
 
         while True:
             # Get balance
@@ -352,14 +364,5 @@ class BitgetDynamicHedgeStrategy(Strategy):
                     print(f"An error occurred while canceling entry orders: {e}")
 
                 self.last_cancel_time = current_time  # Update the last cancel time
-
-            # # Cancel entries
-            # try:
-            #     if best_ask_price < ma_1m_3_high or best_ask_price < ma_5m_3_high:
-            #         self.exchange.cancel_all_entries(symbol)
-            #         print(f"Canceled entry orders for {symbol}")
-            #         time.sleep(0.05)
-            # except Exception as e:
-            #     print(f"An error occurred while canceling entry orders: {e}")
 
             time.sleep(30)

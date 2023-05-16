@@ -6,6 +6,7 @@ class BitgetHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):
         super().__init__(exchange, config)
         self.manager = manager
+        self.leverage_set = False
 
     def limit_order(self, symbol, side, amount, price, reduce_only=False):
         min_qty_usd = 5
@@ -110,6 +111,17 @@ class BitgetHedgeStrategy(Strategy):
         wallet_exposure = self.config.wallet_exposure
         max_retries = 5
         retry_delay = 5
+
+        # Set leverage
+        if not self.leverage_set:
+            try:
+                self.exchange.set_leverage_bitget(symbol, 50)  # Replace 50 with your desired leverage
+                self.leverage_set = True
+                print(f"Leverage for {symbol} set to 50.")
+            except Exception as e:
+                print(f"Error occurred while setting leverage: {e}. Retrying...")
+                time.sleep(retry_delay)
+                return
 
         while True:
             # Max trade qty calculation
@@ -295,12 +307,16 @@ class BitgetHedgeStrategy(Strategy):
                         print(f"Error in placing short TP: {e}")
 
             # Cancel entries
-            try:
-                if best_ask_price < ma_1m_3_high or best_ask_price < ma_5m_3_high:
-                    self.exchange.cancel_all_entries(symbol)
-                    print(f"Canceled entry orders for {symbol}")
-                    time.sleep(0.05)
-            except Exception as e:
-                print(f"An error occurred while canceling entry orders: {e}")
+            current_time = time.time()
+            if current_time - self.last_cancel_time >= 60:  # Execute this block every 1 minute
+                try:
+                    if best_ask_price < ma_1m_3_high or best_ask_price < ma_5m_3_high:
+                        self.exchange.cancel_all_entries(symbol)
+                        print(f"Canceled entry orders for {symbol}")
+                        time.sleep(0.05)
+                except Exception as e:
+                    print(f"An error occurred while canceling entry orders: {e}")
+
+                self.last_cancel_time = current_time  # Update the last cancel time
 
             time.sleep(30)
