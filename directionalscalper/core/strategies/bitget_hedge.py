@@ -130,8 +130,12 @@ class BitgetHedgeStrategy(Strategy):
 
             # Orderbook data
             orderbook = self.exchange.get_orderbook(symbol)
-            best_bid_price = orderbook['bids'][0][0]
-            best_ask_price = orderbook['asks'][0][0]
+
+            if orderbook['bids'] and orderbook['asks']:
+                best_bid_price = orderbook['bids'][0][0]
+                best_ask_price = orderbook['asks'][0][0]
+            else:
+                print("Orderbook is empty. Retrying...")
 
             leverage = float(market_data["leverage"]) if market_data["leverage"] != 0 else 50.0
 
