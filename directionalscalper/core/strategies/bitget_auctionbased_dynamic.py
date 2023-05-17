@@ -207,7 +207,7 @@ class BitgetDynamicAuctionBasedStrategy(Strategy):
             position_data = self.exchange.get_positions_bitget(symbol) 
             print(f"Fetching position data")
 
-            #print(f"Raw position data: {position_data}")
+            print(f"Raw position data: {position_data}")
 
             short_pos_qty = position_data["short"]["qty"]
             long_pos_qty = position_data["long"]["qty"]

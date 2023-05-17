@@ -165,22 +165,20 @@ class BitgetDynamicHedgeStrategy(Strategy):
                 int(float(market_data["min_qty"])),
             )
 
-            print(f"Max trade quantity for {symbol}: {max_trade_qty}")
-
             current_price = self.exchange.get_current_price(symbol)
 
-            og_amount = min_order_value / current_price
+            original_amount = min_order_value / current_price
 
             # amount = self.round_amount(og_amount, price_precision)
-            amount = math.ceil(og_amount * 100) / 100
-
-            print(f"Dynamic entry amount: {amount}")
+            amount = math.ceil(original_amount * 100) / 100
 
             min_qty_bitget = min_order_value / current_price
 
-            print(f"Min trade quantitiy for {symbol}: {min_qty_bitget}")
+            print(f"Max trade quantity for {symbol}: {max_trade_qty}")
+            print(f"Min trade quantity for {symbol}: {min_qty_bitget}")
             print(f"Min volume: {min_vol}")
             print(f"Min distance: {min_dist}")
+            print(f"Dynamic entry amount: {amount}")
 
             # Get data from manager
             data = self.manager.get_data()
@@ -203,7 +201,6 @@ class BitgetDynamicHedgeStrategy(Strategy):
             position_data = self.exchange.get_positions_bitget(symbol) 
             print(f"Fetching position data")
             #print(f"Raw position data: {position_data}")
-
 
             # Get position information
             short_pos_qty = position_data["short"]["qty"]
