@@ -22,6 +22,10 @@ class BitgetDynamicAuctionBasedStrategy(Strategy):
         order = self.exchange.create_order(symbol, 'limit', side, amount, price, reduce_only=reduce_only)
         return order
 
+    def market_order(self, symbol, side, amount, price, reduce_only=False):
+        order = self.exchange.create_order(symbol, 'market', side, amount, price, reduce_only=reduce_only)
+        return order
+
     def take_profit_order(self, symbol, side, amount, price, reduce_only=True):
         min_qty_usd = 5
         current_price = self.exchange.get_current_price(symbol)
@@ -35,7 +39,7 @@ class BitgetDynamicAuctionBasedStrategy(Strategy):
         order = self.exchange.create_order(symbol, 'limit', side, amount, price, reduce_only=reduce_only)
         return order
 
-    def close_position(self, symbol, side, amount):
+    def market_close_position(self, symbol, side, amount):
         try:
             self.exchange.create_market_order(symbol, side, amount)
             print(f"Closed {side} position for {symbol} with amount {amount}")
@@ -203,11 +207,20 @@ class BitgetDynamicAuctionBasedStrategy(Strategy):
             # data = self.exchange.exchange.fetch_positions([symbol])
             # print(f"Bitget positions response: {data}")   
  
-            # Get pos data from exchange
-            position_data = self.exchange.get_positions_bitget(symbol) 
-            print(f"Fetching position data")
-
-            print(f"Raw position data: {position_data}")
+            # Get position data from exchange
+            for i in range(max_retries):
+                try:
+                    print("Fetching position data")
+                    position_data = self.exchange.get_positions_bitget(symbol) 
+                    break
+                except Exception as e:
+                    if i < max_retries - 1:
+                        print(f"Error occurred while fetching position data: {e}. Retrying in {retry_delay} seconds...")
+                        time.sleep(retry_delay)
+                    else:
+                        raise e
+            
+            #print(f"Raw position data: {position_data}")
 
             short_pos_qty = position_data["short"]["qty"]
             long_pos_qty = position_data["long"]["qty"]
@@ -248,13 +261,7 @@ class BitgetDynamicAuctionBasedStrategy(Strategy):
             if short_take_profit is not None:        
                 precise_short_take_profit = round(short_take_profit, int(-math.log10(price_precision)))
 
-            # Trade conditions 
-            # should_short = self.short_trade_condition(best_bid_price, ma_3_high)
-            # should_long = self.long_trade_condition(best_bid_price, ma_3_high)
-
-            # should_add_to_short = self.add_short_trade_condition(short_pos_price, ma_6_low)
-            # should_add_to_long = self.add_long_trade_condition(long_pos_price, ma_6_low)
-
+            # Trade conditions
             should_short = best_bid_price > ma_3_high
             should_long = best_bid_price < ma_3_high
 
@@ -279,20 +286,107 @@ class BitgetDynamicAuctionBasedStrategy(Strategy):
             print(f"Close long position condition: {close_long_position}")
 
 
+            # # Time based logic
+            # now = datetime.datetime.now()
+
+            # if now.minute % 30 == 0 and now.second == 0:  # on the hour or half hour
+            #     print(f"Auction closing!")
+            #     # Close profitable positions
+            #     if long_pos_qty > 0 and long_upnl > 0:
+            #         self.exchange.create_take_profit_order(symbol, "limit", "sell", long_pos_qty, best_bid_price, reduce_only=True)
+            #         print(f"Closing profitable long position for {symbol}")
+            #         time.sleep(0.05)
+            #     if short_pos_qty > 0 and short_upnl > 0:
+            #         self.exchange.create_take_profit_order(symbol, "limit", "buy", short_pos_qty, best_ask_price, reduce_only=True)
+            #         print(f"Closing profitable short position for {symbol}")
+            #         time.sleep(0.05)
+            # elif now.minute % 30 < 28:  # only open new positions in the first 28 minutes of each half hour
+            #     print(f"Auction open!")
+            #     # Get the trend from the 30-minute candle
+            #     candle = self.exchange.get_current_candle_bitget(symbol, "30m")
+            #     clock_trend = None
+            #     if candle is not None:
+            #         open_price, high_price, low_price, close_price, volume = candle[1:]
+            #         if close_price > open_price:  # bullish candle
+            #             clock_trend = "long"
+            #         else:  # bearish candle
+            #             clock_trend = "short"
+
+            # # Time based logic
+            # now = datetime.datetime.now()
+
+            # if now.minute % 30 == 0 and now.second == 0:  # on the hour or half hour
+            #     print(f"Auction closing!")
+            #     # Check if either position is profitable
+            #     if (long_pos_qty > 0 and long_upnl > 0) or (short_pos_qty > 0 and short_upnl > 0):
+            #         # Close both positions
+            #         if long_pos_qty > 0:
+            #             self.exchange.create_take_profit_order(symbol, "limit", "sell", long_pos_qty, best_bid_price, reduce_only=True)
+            #             print(f"Closing long position for {symbol}")
+            #             time.sleep(0.05)
+            #         if short_pos_qty > 0:
+            #             self.exchange.create_take_profit_order(symbol, "limit", "buy", short_pos_qty, best_ask_price, reduce_only=True)
+            #             print(f"Closing short position for {symbol}")
+            #             time.sleep(0.05)
+            # elif now.minute % 30 < 28:  # only open new positions in the first 28 minutes of each half hour
+            #     print(f"Auction open!")
+            #     # Get the trend from the 30-minute candle
+            #     candle = self.exchange.get_current_candle_bitget(symbol, "30m")
+            #     clock_trend = None
+            #     if candle is not None:
+            #         open_price, high_price, low_price, close_price, volume = candle[1:]
+            #         if close_price > open_price:  # bullish candle
+            #             clock_trend = "long"
+            #         else:  # bearish candle
+            #             clock_trend = "short"
+
             # Time based logic
             now = datetime.datetime.now()
 
             if now.minute % 30 == 0 and now.second == 0:  # on the hour or half hour
                 print(f"Auction closing!")
-                # Close profitable positions
-                if long_pos_qty > 0 and long_upnl > 0:
-                    self.exchange.create_take_profit_order(symbol, "limit", "sell", long_pos_qty, best_bid_price, reduce_only=True)
-                    print(f"Closing profitable long position for {symbol}")
-                    time.sleep(0.05)
-                if short_pos_qty > 0 and short_upnl > 0:
-                    self.exchange.create_take_profit_order(symbol, "limit", "buy", short_pos_qty, best_ask_price, reduce_only=True)
-                    print(f"Closing profitable short position for {symbol}")
-                    time.sleep(0.05)
+                # Check if either position is profitable
+                if (long_pos_qty > 0 and long_upnl > 0) or (short_pos_qty > 0 and short_upnl > 0):
+                    # Close both positions
+                    if long_pos_qty > 0:
+                        self.exchange.create_take_profit_order(symbol, "limit", "sell", long_pos_qty, best_bid_price, reduce_only=True)
+                        print(f"Closing long position for {symbol}")
+                        time.sleep(0.05)
+                    if short_pos_qty > 0:
+                        self.exchange.create_take_profit_order(symbol, "limit", "buy", short_pos_qty, best_ask_price, reduce_only=True)
+                        print(f"Closing short position for {symbol}")
+                        time.sleep(0.05)
+
+                    # Check the order status
+                    while True:
+                        long_order_status = self.exchange.get_order_status_bitget(symbol, "sell")
+                        short_order_status = self.exchange.get_order_status_bitget(symbol, "buy")
+                        print(f"Long order status: {long_order_status}")
+                        print(f"Short order status: {short_order_status}")
+
+                        if long_order_status == "filled" and short_order_status == "filled":
+                            break  # Exit the loop if both orders are filled
+
+                        if long_order_status != "filled":
+                            self.exchange.cancel_take_profit_orders(symbol, "long")
+                            self.exchange.create_take_profit_order(symbol, "limit", "sell", long_pos_qty, best_bid_price, reduce_only=True)
+                            print(f"Recreated the take profit order for the long position of {symbol}")
+
+                        if short_order_status != "filled":
+                            self.exchange.cancel_take_profit_orders(symbol, "short")
+                            self.exchange.create_take_profit_order(symbol, "limit", "buy", short_pos_qty, best_ask_price, reduce_only=True)
+                            print(f"Recreated the take profit order for the short position of {symbol}")
+
+                        time.sleep(5)  # Sleep for a while before checking again to avoid excessive API calls
+
+                # Check if either position is losing and close it
+                if long_pos_qty > 0 and long_upnl < 0:  # Long position is losing
+                    self.market_order(symbol, "sell", long_pos_qty, best_ask_price, reduce_only=True)
+                    print(f"Market closed order")
+                elif short_pos_qty > 0 and short_upnl < 0:  # Short position is losing
+                    self.market_order(symbol, "buy", short_pos_qty, best_ask_price, reduce_only=True)
+                    print(f"Market closed order")
+
             elif now.minute % 30 < 28:  # only open new positions in the first 28 minutes of each half hour
                 print(f"Auction open!")
                 # Get the trend from the 30-minute candle
@@ -334,7 +428,7 @@ class BitgetDynamicAuctionBasedStrategy(Strategy):
 
             open_orders = self.exchange.get_open_orders_bitget(symbol)
 
-            # Bitget take profit
+            # Bitget order cancellation
             if long_pos_qty > 0 and long_take_profit is not None:
                 existing_long_tp_qty, existing_long_tp_id = self.get_open_take_profit_order_quantity(open_orders, "close_long")
                 if existing_long_tp_qty is None or existing_long_tp_qty != long_pos_qty:
@@ -344,8 +438,8 @@ class BitgetDynamicAuctionBasedStrategy(Strategy):
                             print(f"Long take profit canceled")
                             time.sleep(0.05)
 
-                        self.exchange.create_take_profit_order(symbol, "limit", "sell", long_pos_qty, long_take_profit, reduce_only=True)
-                        print(f"Long take profit set at {long_take_profit}")
+                        # self.exchange.create_take_profit_order(symbol, "limit", "sell", long_pos_qty, long_take_profit, reduce_only=True)
+                        # print(f"Long take profit set at {long_take_profit}")
                         time.sleep(0.05)
                     except Exception as e:
                         print(f"Error in placing long TP: {e}")
@@ -359,8 +453,8 @@ class BitgetDynamicAuctionBasedStrategy(Strategy):
                             print(f"Short take profit canceled")
                             time.sleep(0.05)
 
-                        self.exchange.create_take_profit_order(symbol, "limit", "buy", short_pos_qty, short_take_profit, reduce_only=True)
-                        print(f"Short take profit set at {short_take_profit}")
+                        # self.exchange.create_take_profit_order(symbol, "limit", "buy", short_pos_qty, short_take_profit, reduce_only=True)
+                        # print(f"Short take profit set at {short_take_profit}")
                         time.sleep(0.05)
                     except Exception as e:
                         print(f"Error in placing short TP: {e}")

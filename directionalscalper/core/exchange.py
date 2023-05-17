@@ -447,19 +447,18 @@ class Exchange:
         }
         try:
             data = self.exchange.fetch_positions([symbol])
-            if len(data) == 2:
-                for position in data:
-                    side = position["side"]
-                    values[side]["qty"] = float(position["contracts"])  # Use "contracts" instead of "contractSize"
-                    values[side]["price"] = float(position["entryPrice"])
-                    values[side]["realised"] = round(float(position["info"]["achievedProfits"]), 4)
-                    values[side]["upnl"] = round(float(position["unrealizedPnl"]), 4)
-                    if position["liquidationPrice"] is not None:
-                        values[side]["liq_price"] = float(position["liquidationPrice"])
-                    else:
-                        print(f"Warning: liquidationPrice is None for {side} position")
-                        values[side]["liq_price"] = None
-                    values[side]["entry_price"] = float(position["entryPrice"])
+            for position in data:
+                side = position["side"]
+                values[side]["qty"] = float(position["contracts"])  # Use "contracts" instead of "contractSize"
+                values[side]["price"] = float(position["entryPrice"])
+                values[side]["realised"] = round(float(position["info"]["achievedProfits"]), 4)
+                values[side]["upnl"] = round(float(position["unrealizedPnl"]), 4)
+                if position["liquidationPrice"] is not None:
+                    values[side]["liq_price"] = float(position["liquidationPrice"])
+                else:
+                    print(f"Warning: liquidationPrice is None for {side} position")
+                    values[side]["liq_price"] = None
+                values[side]["entry_price"] = float(position["entryPrice"])
         except Exception as e:
             log.warning(f"An unknown error occurred in get_positions_bitget(): {e}")
         return values
@@ -984,6 +983,32 @@ class Exchange:
                 return order['amount']
         return None
 
+    # Bitget
+    # def get_order_status(self, symbol: str, order_id: str):
+    #     """
+    #     Fetch the status of a specific order.
+
+    #     :param str symbol: unified market symbol
+    #     :param str order_id: identifier of the order
+    #     :returns str: status of the order
+    #     """
+    #     open_orders = self.fetch_open_orders(symbol)
+    #     for order in open_orders:
+    #         if order['id'] == order_id:
+    #             return order['status']
+    #     return None  # return None if the order was not found among the open orders
+
+    # Bitget
+    def get_order_status_bitget(self, symbol, side):
+        open_orders = self.exchange.fetch_open_orders(symbol)
+
+        for order in open_orders:
+            if order['side'] == side:
+                return order['status']
+
+        return None  # Return None if the order is not found
+
+    # Bitget
     def cancel_entry_bitget(self, symbol: str) -> None:
         try:
             orders = self.exchange.fetch_open_orders(symbol)
@@ -1210,6 +1235,25 @@ class Exchange:
             return self.exchange.create_order(symbol, order_type, side, amount, price, params)
         else:
             raise ValueError(f"Unsupported order type: {order_type}")
+
+    def market_close_position_bitget(self, symbol, side, amount):
+        """
+        Close a position by creating a market order in the opposite direction.
+        
+        :param str symbol: Symbol of the market to create an order in.
+        :param str side: Original side of the position. Either 'buy' (for long positions) or 'sell' (for short positions).
+        :param float amount: The quantity of the position to close.
+        """
+        # Determine the side of the closing order based on the original side of the position
+        if side == "buy":
+            close_side = "sell"
+        elif side == "sell":
+            close_side = "buy"
+        else:
+            raise ValueError("Invalid order side. Must be either 'buy' or 'sell'.")
+
+        # Create a market order in the opposite direction to close the position
+        self.create_order(symbol, 'market', close_side, amount)
 
 
     def create_market_order(self, symbol: str, side: str, amount: float, params={}, close_position: bool = False) -> None:
