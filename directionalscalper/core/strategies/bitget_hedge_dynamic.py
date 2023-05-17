@@ -142,8 +142,6 @@ class BitgetDynamicHedgeStrategy(Strategy):
                         time.sleep(retry_delay)
                     else:
                         raise e
-                    
-            #dex_equity = self.exchange.get_balance_bitget(quote_currency)
 
             market_data = self.exchange.get_market_data_bitget(symbol)
 
@@ -169,18 +167,6 @@ class BitgetDynamicHedgeStrategy(Strategy):
 
             print(f"Max trade quantity for {symbol}: {max_trade_qty}")
 
-            # # min_qty_bitget = market_data["min_qty"]
-            # current_price = self.exchange.get_current_price(symbol)
-
-            # og_amount = min_order_value / current_price
-
-            # #amount = self.round_amount(og_amount, price_precision)
-            # amount = self.round_amount(og_amount, 2)
-
-            # print(f"Current price: {current_price}")
-            # print(f"Dynamic amount: {og_amount}")
-            # print(f"Rounded amount: {amount}")
-
             current_price = self.exchange.get_current_price(symbol)
 
             og_amount = min_order_value / current_price
@@ -188,13 +174,7 @@ class BitgetDynamicHedgeStrategy(Strategy):
             # amount = self.round_amount(og_amount, price_precision)
             amount = math.ceil(og_amount * 100) / 100
 
-            # print(f"Current price: {current_price}")
-            # print(f"Original amount: {og_amount}")
             print(f"Dynamic entry amount: {amount}")
-
-            # # Update the amount based on the current price
-            # dynamic_amount = max(amount, min_order_value / current_price)
-            # dynamic_amount = round(dynamic_amount, int(float(market_data["min_qty"])))
 
             min_qty_bitget = min_order_value / current_price
 
@@ -224,15 +204,17 @@ class BitgetDynamicHedgeStrategy(Strategy):
             print(f"Fetching position data")
             #print(f"Raw position data: {position_data}")
 
-            # Extract short and long position prices
-            # short_pos_price = position_data["short"]["price"]
-            # long_pos_price = position_data["long"]["price"]
 
+            # Get position information
             short_pos_qty = position_data["short"]["qty"]
             long_pos_qty = position_data["long"]["qty"]
+            short_upnl = position_data["short"]["upnl"]
+            long_upnl = position_data["long"]["upnl"]
 
             print(f"Short pos qty: {short_pos_qty}")
             print(f"Long pos qty: {long_pos_qty}")
+            print(f"Short uPNL: {short_upnl}")
+            print(f"Long uPNL: {long_upnl}")
 
             short_pos_price = position_data["short"]["price"] if short_pos_qty > 0 else None
             long_pos_price = position_data["long"]["price"] if long_pos_qty > 0 else None
@@ -263,13 +245,7 @@ class BitgetDynamicHedgeStrategy(Strategy):
             if short_take_profit is not None:        
                 precise_short_take_profit = round(short_take_profit, int(-math.log10(price_precision)))
 
-            # Trade conditions 
-            # should_short = self.short_trade_condition(best_bid_price, ma_3_high)
-            # should_long = self.long_trade_condition(best_bid_price, ma_3_high)
-
-            # should_add_to_short = self.add_short_trade_condition(short_pos_price, ma_6_low)
-            # should_add_to_long = self.add_long_trade_condition(long_pos_price, ma_6_low)
-
+            # Trade conditions
             should_short = best_bid_price > ma_3_high
             should_long = best_bid_price < ma_3_high
 
