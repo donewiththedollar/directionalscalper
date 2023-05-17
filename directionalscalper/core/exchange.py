@@ -170,24 +170,6 @@ class Exchange:
         
         raise RateLimitExceeded("Failed to fetch candle data after {} retries".format(retries))
     
-    # Bitget
-    def get_current_candle_bitget_old(self, symbol: str, timeframe='1m'):
-        """
-        Fetches the current candle for a given symbol and timeframe from Bitget.
-
-        :param str symbol: unified symbol of the market to fetch OHLCV data for
-        :param str timeframe: the length of time each candle represents
-        :returns [int]: A list representing the current candle [timestamp, open, high, low, close, volume]
-        """
-        # Fetch the most recent 2 candles
-        ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, limit=2)
-        
-        # The last element in the list is the current (incomplete) candle
-        current_candle = ohlcv[-1]
-        
-        return current_candle
-
-
     # Bitget 
     def set_leverage_bitget(self, symbol, leverage, params={}):
         """
