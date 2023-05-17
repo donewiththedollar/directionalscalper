@@ -285,61 +285,6 @@ class BitgetDynamicAuctionBasedStrategy(Strategy):
             print(f"Close short position condition: {close_short_position}")
             print(f"Close long position condition: {close_long_position}")
 
-
-            # # Time based logic
-            # now = datetime.datetime.now()
-
-            # if now.minute % 30 == 0 and now.second == 0:  # on the hour or half hour
-            #     print(f"Auction closing!")
-            #     # Close profitable positions
-            #     if long_pos_qty > 0 and long_upnl > 0:
-            #         self.exchange.create_take_profit_order(symbol, "limit", "sell", long_pos_qty, best_bid_price, reduce_only=True)
-            #         print(f"Closing profitable long position for {symbol}")
-            #         time.sleep(0.05)
-            #     if short_pos_qty > 0 and short_upnl > 0:
-            #         self.exchange.create_take_profit_order(symbol, "limit", "buy", short_pos_qty, best_ask_price, reduce_only=True)
-            #         print(f"Closing profitable short position for {symbol}")
-            #         time.sleep(0.05)
-            # elif now.minute % 30 < 28:  # only open new positions in the first 28 minutes of each half hour
-            #     print(f"Auction open!")
-            #     # Get the trend from the 30-minute candle
-            #     candle = self.exchange.get_current_candle_bitget(symbol, "30m")
-            #     clock_trend = None
-            #     if candle is not None:
-            #         open_price, high_price, low_price, close_price, volume = candle[1:]
-            #         if close_price > open_price:  # bullish candle
-            #             clock_trend = "long"
-            #         else:  # bearish candle
-            #             clock_trend = "short"
-
-            # # Time based logic
-            # now = datetime.datetime.now()
-
-            # if now.minute % 30 == 0 and now.second == 0:  # on the hour or half hour
-            #     print(f"Auction closing!")
-            #     # Check if either position is profitable
-            #     if (long_pos_qty > 0 and long_upnl > 0) or (short_pos_qty > 0 and short_upnl > 0):
-            #         # Close both positions
-            #         if long_pos_qty > 0:
-            #             self.exchange.create_take_profit_order(symbol, "limit", "sell", long_pos_qty, best_bid_price, reduce_only=True)
-            #             print(f"Closing long position for {symbol}")
-            #             time.sleep(0.05)
-            #         if short_pos_qty > 0:
-            #             self.exchange.create_take_profit_order(symbol, "limit", "buy", short_pos_qty, best_ask_price, reduce_only=True)
-            #             print(f"Closing short position for {symbol}")
-            #             time.sleep(0.05)
-            # elif now.minute % 30 < 28:  # only open new positions in the first 28 minutes of each half hour
-            #     print(f"Auction open!")
-            #     # Get the trend from the 30-minute candle
-            #     candle = self.exchange.get_current_candle_bitget(symbol, "30m")
-            #     clock_trend = None
-            #     if candle is not None:
-            #         open_price, high_price, low_price, close_price, volume = candle[1:]
-            #         if close_price > open_price:  # bullish candle
-            #             clock_trend = "long"
-            #         else:  # bearish candle
-            #             clock_trend = "short"
-
             # Time based logic
             now = datetime.datetime.now()
 
@@ -379,13 +324,14 @@ class BitgetDynamicAuctionBasedStrategy(Strategy):
 
                         time.sleep(5)  # Sleep for a while before checking again to avoid excessive API calls
 
-                # Check if either position is losing and close it
-                if long_pos_qty > 0 and long_upnl < 0:  # Long position is losing
-                    self.market_order(symbol, "sell", long_pos_qty, best_ask_price, reduce_only=True)
-                    print(f"Market closed order")
-                elif short_pos_qty > 0 and short_upnl < 0:  # Short position is losing
-                    self.market_order(symbol, "buy", short_pos_qty, best_ask_price, reduce_only=True)
-                    print(f"Market closed order")
+                # Check if either position is losing and close it only if both positions are open
+                if (long_pos_qty > 0 and short_pos_qty > 0) and ((long_pos_qty > 0 and long_upnl < 0) or (short_pos_qty > 0 and short_upnl < 0)):
+                    if long_pos_qty > 0 and long_upnl < 0:  # Long position is losing
+                        self.market_order(symbol, "sell", long_pos_qty, best_ask_price, reduce_only=True)
+                        print(f"Market closed order")
+                    elif short_pos_qty > 0 and short_upnl < 0:  # Short position is losing
+                        self.market_order(symbol, "buy", short_pos_qty, best_ask_price, reduce_only=True)
+                        print(f"Market closed order")
 
             elif now.minute % 30 < 28:  # only open new positions in the first 28 minutes of each half hour
                 print(f"Auction open!")

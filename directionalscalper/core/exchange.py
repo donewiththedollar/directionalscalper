@@ -6,6 +6,7 @@ import json
 import requests, hmac, hashlib
 import urllib.parse
 from typing import Optional, Tuple
+from ccxt.base.errors import RateLimitExceeded
 
 log = logging.getLogger(__name__)
 
@@ -145,7 +146,32 @@ class Exchange:
         return values
 
     # Bitget
-    def get_current_candle_bitget(self, symbol: str, timeframe='1m'):
+    def get_current_candle_bitget(self, symbol: str, timeframe='1m', retries=3, delay=60):
+        """
+        Fetches the current candle for a given symbol and timeframe from Bitget.
+
+        :param str symbol: unified symbol of the market to fetch OHLCV data for
+        :param str timeframe: the length of time each candle represents
+        :returns [int]: A list representing the current candle [timestamp, open, high, low, close, volume]
+        """
+        for _ in range(retries):
+            try:
+                # Fetch the most recent 2 candles
+                ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, limit=2)
+
+                # The last element in the list is the current (incomplete) candle
+                current_candle = ohlcv[-1]
+
+                return current_candle
+
+            except RateLimitExceeded:
+                print("Rate limit exceeded... sleeping for {} seconds".format(delay))
+                time.sleep(delay)
+        
+        raise RateLimitExceeded("Failed to fetch candle data after {} retries".format(retries))
+    
+    # Bitget
+    def get_current_candle_bitget_old(self, symbol: str, timeframe='1m'):
         """
         Fetches the current candle for a given symbol and timeframe from Bitget.
 
