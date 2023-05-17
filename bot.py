@@ -16,6 +16,7 @@ from directionalscalper.core.strategies.strategy import Strategy
 from directionalscalper.core.strategies.bitget_hedge import BitgetHedgeStrategy
 from directionalscalper.core.strategies.bitget_hedge_dynamic import BitgetDynamicHedgeStrategy
 from directionalscalper.core.strategies.bitget_longonly_futures import BitgetLongOnlyFuturesStrategy
+from directionalscalper.core.strategies.bitget_auctionbased_dynamic import BitgetDynamicAuctionBasedStrategy
 from directionalscalper.core.strategies.okx_hedge import OKXHedgeStrategy
 from directionalscalper.core.strategies.bybit_hedge import BybitHedgeStrategy
 from directionalscalper.core.strategies.huobi_hedge import HuobiHedgeStrategy
@@ -50,7 +51,7 @@ class DirectionalMarketMaker:
         elif self.exchange_name == 'mexc':
             return self.exchange.get_balance_mexc(quote, market_type='swap')
         elif self.exchange_name == 'huobi':
-            return self.exchange.get_balance_huobi_unified(quote, type=market_type, subType=sub_type)
+            return self.exchange.get_balance_huobi(quote, type=market_type, subType=sub_type)
         elif self.exchange_name == 'okx':
             #return self.exchange.get_balance_okx(quote)
             print(f"Unsupported for now")
@@ -93,13 +94,13 @@ if __name__ == '__main__':
     quote = "USDT"
     if exchange_name.lower() == 'huobi':
         balance = market_maker.get_balance(quote, 'swap', 'linear')
-        print(f"Balance: {balance}")
+        print(f"Futures balance: {balance}")
     elif exchange_name.lower() == 'mexc':
         balance = market_maker.get_balance(quote, type='swap')
-        print(f"Balance: {balance}")
+        print(f"Futures balance: {balance}")
     else:
         balance = market_maker.get_balance(quote)
-        print(f"Balance: {balance}")
+        print(f"Futures balance: {balance}")
 
     try:
         if strategy_name.lower() == 'bitget_hedge':
@@ -108,6 +109,10 @@ if __name__ == '__main__':
 
         elif strategy_name.lower() == 'bitget_hedge_dynamic':
             strategy = BitgetDynamicHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol)
+
+        elif strategy_name.lower() == 'bitget_timebased_dynamic':
+            strategy = BitgetDynamicAuctionBasedStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
 
         elif strategy_name.lower() == 'bitget_longonly_futures':
