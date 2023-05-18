@@ -11,7 +11,7 @@
     "min_volume": 15000,
     "symbol": "BTCUSDT",
     "violent_multiplier": 2.00,
-    "wallet_exposure": 1.00,
+    "wallet_exposure": 1.00
   },
   "exchanges": [
     {
@@ -24,11 +24,6 @@
       "api_key": "",
       "api_secret": "",
       "passphrase": ""
-    },
-    {
-      "name": "mexc",
-      "api_key": "",
-      "api_secret": ""
     },
     {
       "name": "okx",
