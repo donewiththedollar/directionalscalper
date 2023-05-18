@@ -45,13 +45,18 @@ Directional Scalper        |  API Scraper
 > python3.11 bot.py --exchange bybit --symbol XRPUSDT --amount 1 --strategy bybit_hedge --config config_sub1.json
  
 > python3.11 bot.py --exchange huobi --symbol XRPUSDT --amount 1 --strategy huobi_hedge --config config_whatever.json
+ 
+* Example of starting a different strategy. In this example amount is not needed, as it is dynamic based on minimum required by Bitget.
+ 
+> python3.11 bot.py --exchange bitget --symbol XRPUSDT_UMCBL --strategy bitget_hedge_dynamic --config config_main.json
 
 
 ### Current strategies
 * bybit_hedge
 * bitget_hedge
 * bitget_hedge_dynamic
-* bitget_longonly_futures
+* bitget_longonly_dynamic
+* bitget_shortonly_dynamic
 * huobi_hedge
  
  
