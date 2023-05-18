@@ -381,7 +381,7 @@ class BitgetGridStrategy(Strategy):
             if current_time - self.last_cancel_time >= 1800:  # Execute this block every 30 minutes or half an hour
                 try:
                     if best_ask_price < ma_1m_3_high or best_ask_price < ma_5m_3_high:
-                        self.exchange.cancel_all_entries(symbol)
+                        self.exchange.cancel_all_entries_bitget(symbol)
                         print(f"Canceled entry orders for {symbol}")
                         time.sleep(0.05)
                 except Exception as e:

@@ -896,7 +896,7 @@ class Exchange:
             log.warning(f"An unknown error occurred in cancel_entry(): {e}")
 
 
-    def cancel_all_entries(self, symbol: str) -> None:
+    def cancel_all_entries_bitget(self, symbol: str) -> None:
         try:
             orders = self.exchange.fetch_open_orders(symbol)
             long_orders = 0
@@ -930,7 +930,7 @@ class Exchange:
                         and not reduce_only
                     ):
                         self.exchange.cancel_order(symbol=symbol, id=order_id)
-                        print("Cancelling order: {order_id}")
+                        print(f"Cancelling order: {order_id}")
                         # log.info(f"Cancelling order: {order_id}")
         except Exception as e:
             log.warning(f"An unknown error occurred in cancel_entry(): {e}")
