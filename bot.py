@@ -15,8 +15,10 @@ from directionalscalper.core.exchange import Exchange
 from directionalscalper.core.strategies.strategy import Strategy
 from directionalscalper.core.strategies.bitget_hedge import BitgetHedgeStrategy
 from directionalscalper.core.strategies.bitget_hedge_dynamic import BitgetDynamicHedgeStrategy
-from directionalscalper.core.strategies.bitget_longonly_futures import BitgetLongOnlyFuturesStrategy
+from directionalscalper.core.strategies.bitget_longonly_dynamic import BitgetLongOnlyDynamicStrategy
+from directionalscalper.core.strategies.bitget_shortonly_dynamic import BitgetShortOnlyDynamicStrategy
 from directionalscalper.core.strategies.bitget_auctionbased_dynamic import BitgetDynamicAuctionBasedStrategy
+from directionalscalper.core.strategies.bitget_fivemin import BitgetFiveMinuteStrategy
 from directionalscalper.core.strategies.okx_hedge import OKXHedgeStrategy
 from directionalscalper.core.strategies.bybit_hedge import BybitHedgeStrategy
 from directionalscalper.core.strategies.huobi_hedge import HuobiHedgeStrategy
@@ -115,8 +117,16 @@ if __name__ == '__main__':
             strategy = BitgetDynamicAuctionBasedStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
 
-        elif strategy_name.lower() == 'bitget_longonly_futures':
-            strategy = BitgetLongOnlyFuturesStrategy(market_maker.exchange, market_maker.manager, config.bot)
+        elif strategy_name.lower() == 'bitget_fiveminute':
+            strategy = BitgetFiveMinuteStrategy(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol)
+
+        elif strategy_name.lower() == 'bitget_longonly_dynamic':
+            strategy = BitgetLongOnlyDynamicStrategy(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol)
+
+        elif strategy_name.lower() == 'bitget_shortonly_dynamic':
+            strategy = BitgetShortOnlyDynamicStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
 
         elif strategy_name.lower() == 'bybit_hedge':

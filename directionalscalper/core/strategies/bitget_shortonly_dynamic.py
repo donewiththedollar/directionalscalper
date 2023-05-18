@@ -1,12 +1,12 @@
-import time
+import time, math
 from decimal import Decimal, ROUND_HALF_UP
 from .strategy import Strategy
 
-class BitgetHedgeStrategy(Strategy):
+class BitgetShortOnlyDynamicStrategy(Strategy):
     def __init__(self, exchange, manager, config):
         super().__init__(exchange, config)
         self.manager = manager
-        self.leverage_set = False
+        self.last_cancel_time = 0
 
     def limit_order(self, symbol, side, amount, price, reduce_only=False):
         min_qty_usd = 5
@@ -60,7 +60,7 @@ class BitgetHedgeStrategy(Strategy):
     def has_open_orders(self, symbol):
         open_orders = self.exchange.get_open_orders(symbol)
         return len(open_orders) > 0
-
+    
     def calculate_short_take_profit(self, short_pos_price, symbol):
         if short_pos_price is None:
             return None
@@ -82,49 +82,20 @@ class BitgetHedgeStrategy(Strategy):
 
             return float(short_profit_price)
         return None
+    
+    def round_amount(self, amount, price_precision):
+        return round(amount, int(price_precision))
 
-    def calculate_long_take_profit(self, long_pos_price, symbol):
-        if long_pos_price is None:
-            return None
-
-        five_min_data = self.manager.get_5m_moving_averages(symbol)
-        price_precision = int(self.exchange.get_price_precision(symbol))
-
-        if five_min_data is not None:
-            ma_6_high = Decimal(five_min_data["MA_6_H"])
-            ma_6_low = Decimal(five_min_data["MA_6_L"])
-
-            long_target_price = Decimal(long_pos_price) + (ma_6_high - ma_6_low)
-            long_target_price = long_target_price.quantize(
-                Decimal('1e-{}'.format(price_precision)),
-                rounding=ROUND_HALF_UP
-            )
-
-            long_profit_price = long_target_price
-
-            return float(long_profit_price)
-        return None
-
-    def run(self, symbol, amount):
+    def run(self, symbol):
         min_dist = self.config.min_distance
         min_vol = self.config.min_volume
         wallet_exposure = self.config.wallet_exposure
+        min_order_value = 6
         max_retries = 5
         retry_delay = 5
 
-        # Set leverage
-        if not self.leverage_set:
-            try:
-                self.exchange.set_leverage_bitget(symbol, 50)  # Replace 50 with your desired leverage
-                self.leverage_set = True
-                print(f"Leverage for {symbol} set to 50.")
-            except Exception as e:
-                print(f"Error occurred while setting leverage: {e}. Retrying...")
-                time.sleep(retry_delay)
-                return
-
         while True:
-            # Max trade qty calculation
+            # Get balance
             quote_currency = "USDT"
 
             for i in range(max_retries):
@@ -140,15 +111,14 @@ class BitgetHedgeStrategy(Strategy):
 
             market_data = self.exchange.get_market_data_bitget(symbol)
 
+            price_precision = market_data["precision"]
+
             # Orderbook data
             orderbook = self.exchange.get_orderbook(symbol)
+            best_bid_price = orderbook['bids'][0][0]
+            best_ask_price = orderbook['asks'][0][0]
 
-            if orderbook['bids'] and orderbook['asks']:
-                best_bid_price = orderbook['bids'][0][0]
-                best_ask_price = orderbook['asks'][0][0]
-            else:
-                print("Orderbook is empty. Retrying...")
-
+            # Max trade quantity calculation
             leverage = float(market_data["leverage"]) if market_data["leverage"] != 0 else 50.0
 
             max_trade_qty = round(
@@ -159,20 +129,20 @@ class BitgetHedgeStrategy(Strategy):
 
             print(f"Max trade quantity for {symbol}: {max_trade_qty}")
 
-            # min_qty_bitget = market_data["min_qty"] (smh bitget)
-
-            # Minimum order quantity check
-            min_qty_usd = 5
             current_price = self.exchange.get_current_price(symbol)
-            min_qty_bitget = min_qty_usd / current_price
+
+            original_amount = min_order_value / current_price
+
+            # amount = self.round_amount(og_amount, price_precision)
+            amount = math.ceil(original_amount * 100) / 100
+
+            print(f"Dynamic entry amount: {amount}")
+
+            min_qty_bitget = min_order_value / current_price
 
             print(f"Min trade quantitiy for {symbol}: {min_qty_bitget}")
-
-            if float(amount) < min_qty_bitget:
-                print(f"The amount you entered ({amount}) is less than the minimum required by Bitget for {symbol}: {min_qty_bitget}.")
-                break
-            else:
-                print(f"The amount you entered ({amount}) is valid for {symbol}")
+            print(f"Min volume: {min_vol}")
+            print(f"Min distance: {min_dist}")
 
             # Get data from manager
             data = self.manager.get_data()
@@ -180,14 +150,12 @@ class BitgetHedgeStrategy(Strategy):
             # Parse the symbol according to the exchange being used
             parsed_symbol = self.parse_symbol(symbol)
 
-            # Data we need from API / config
+            # Data we need from API
             one_minute_volume = self.manager.get_asset_value(parsed_symbol, data, "1mVol")
             five_minute_distance = self.manager.get_asset_value(parsed_symbol, data, "5mSpread")
             trend = self.manager.get_asset_value(parsed_symbol, data, "Trend")
             print(f"1m Volume: {one_minute_volume}")
             print(f"5m Spread: {five_minute_distance}")
-            print(f"Min volume: {min_vol}")
-            print(f"Min distance: {min_dist}")
             print(f"Trend: {trend}")
 
             # data = self.exchange.exchange.fetch_positions([symbol])
@@ -205,7 +173,7 @@ class BitgetHedgeStrategy(Strategy):
                         time.sleep(retry_delay)
                     else:
                         raise e
-                    
+
             short_pos_qty = position_data["short"]["qty"]
             long_pos_qty = position_data["long"]["qty"]
             short_upnl = position_data["short"]["upnl"]
@@ -232,59 +200,43 @@ class BitgetHedgeStrategy(Strategy):
             ma_1m_3_high = self.manager.get_1m_moving_averages(symbol)["MA_3_H"]
             ma_5m_3_high = self.manager.get_5m_moving_averages(symbol)["MA_3_H"]
 
-
             # Take profit calc
             short_take_profit = self.calculate_short_take_profit(short_pos_price, symbol)
-            long_take_profit = self.calculate_long_take_profit(long_pos_price, symbol)
 
-            print(f"Short take profit: {short_take_profit}")
-            print(f"Long take profit: {long_take_profit}")
+            print(f"Long take profit: {short_take_profit}")
 
-            # Trade conditions 
+            if short_take_profit is not None:
+                precise_long_take_profit = round(short_take_profit, int(-math.log10(price_precision)))
+
             should_short = best_bid_price > ma_3_high
-            should_long = best_bid_price < ma_3_high
 
             should_add_to_short = False
-            should_add_to_long = False
-            
+
             if short_pos_price is not None:
                 should_add_to_short = short_pos_price < ma_6_low
 
-            if long_pos_price is not None:
-                should_add_to_long = long_pos_price > ma_6_low
+            print(f"Long condition: {should_short}")
+            print(f"Add long condition: {should_add_to_short}")
 
-            print(f"Short condition: {should_short}")
-            print(f"Long condition: {should_long}")
-            print(f"Add short condition: {should_add_to_short}")
-            print(f"Add long condition: {should_add_to_long}")
-            print(f"Current price: {current_price}")
-
-            # New hedge logic
+            # Long only logic
             if trend is not None and isinstance(trend, str):
                 if one_minute_volume is not None and five_minute_distance is not None:
                     if one_minute_volume > min_vol and five_minute_distance > min_dist:
 
-                        if trend.lower() == "long" and should_long and long_pos_qty == 0:
+                        if trend.lower() == "short" and should_short and long_pos_qty == 0:
 
                             self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
                             print(f"Placed initial long entry")
+                            time.sleep(0.05)
                         else:
-                            if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
+                            if trend.lower() == "long" and should_add_to_short and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
                                 print(f"Placed additional long entry")
                                 self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
-
-                        if trend.lower() == "short" and should_short and short_pos_qty == 0:
-
-                            self.limit_order(symbol, "sell", amount, best_ask_price, reduce_only=False)
-                            print("Placed initial short entry")
-                        else:
-                            if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
-                                print(f"Placed additional short entry")
-                                self.limit_order(symbol, "sell", amount, best_ask_price, reduce_only=False)
+                                time.sleep(0.05)
             
             open_orders = self.exchange.get_open_orders_bitget(symbol)
 
-            if long_pos_qty > 0 and long_take_profit is not None:
+            if long_pos_qty > 0 and short_take_profit is not None:
                 existing_long_tp_qty, existing_long_tp_id = self.get_open_take_profit_order_quantity(open_orders, "close_long")
                 if existing_long_tp_qty is None or existing_long_tp_qty != long_pos_qty:
                     try:
@@ -293,26 +245,11 @@ class BitgetHedgeStrategy(Strategy):
                             print(f"Long take profit canceled")
                             time.sleep(0.05)
 
-                        self.exchange.create_take_profit_order(symbol, "limit", "sell", long_pos_qty, long_take_profit, reduce_only=True)
-                        print(f"Long take profit set at {long_take_profit}")
-                        time.sleep(0.05)
-                    except Exception as e:
-                        print(f"Error in placing long TP: {e}")
-
-            if short_pos_qty > 0 and short_take_profit is not None:
-                existing_short_tp_qty, existing_short_tp_id = self.get_open_take_profit_order_quantity(open_orders, "close_short")
-                if existing_short_tp_qty is None or existing_short_tp_qty != short_pos_qty:
-                    try:
-                        if existing_short_tp_id is not None:
-                            self.cancel_take_profit_orders(symbol, "short")
-                            print(f"Short take profit canceled")
-                            time.sleep(0.05)
-
-                        self.exchange.create_take_profit_order(symbol, "limit", "buy", short_pos_qty, short_take_profit, reduce_only=True)
+                        self.exchange.create_take_profit_order(symbol, "limit", "sell", long_pos_qty, short_take_profit, reduce_only=True)
                         print(f"Short take profit set at {short_take_profit}")
                         time.sleep(0.05)
                     except Exception as e:
-                        print(f"Error in placing short TP: {e}")
+                        print(f"Error in placing long TP: {e}")
 
             # Cancel entries
             current_time = time.time()

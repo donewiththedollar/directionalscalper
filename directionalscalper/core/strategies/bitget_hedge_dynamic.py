@@ -197,10 +197,18 @@ class BitgetDynamicHedgeStrategy(Strategy):
             # data = self.exchange.exchange.fetch_positions([symbol])
             # print(f"Bitget positions response: {data}")   
  
-            # Get pos data from exchange
-            position_data = self.exchange.get_positions_bitget(symbol) 
-            print(f"Fetching position data")
-            #print(f"Raw position data: {position_data}")
+            # Get position data from exchange
+            for i in range(max_retries):
+                try:
+                    print("Fetching position data")
+                    position_data = self.exchange.get_positions_bitget(symbol) 
+                    break
+                except Exception as e:
+                    if i < max_retries - 1:
+                        print(f"Error occurred while fetching position data: {e}. Retrying in {retry_delay} seconds...")
+                        time.sleep(retry_delay)
+                    else:
+                        raise e
 
             # Get position information
             short_pos_qty = position_data["short"]["qty"]

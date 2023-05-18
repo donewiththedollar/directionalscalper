@@ -169,7 +169,7 @@ class Exchange:
                 time.sleep(delay)
         
         raise RateLimitExceeded("Failed to fetch candle data after {} retries".format(retries))
-    
+
     # Bitget 
     def set_leverage_bitget(self, symbol, leverage, params={}):
         """
@@ -593,53 +593,6 @@ class Exchange:
             log.warning(f"An unknown error occurred in get_positions_huobi(): {e}")
         return values
 
-    # # Huobi
-    # def get_positions_huobi(self, symbol) -> dict:
-    #     print(f"Symbol received in get_positions_huobi: {symbol}")
-    #     self.exchange.load_markets()
-    #     if symbol not in self.exchange.markets:
-    #         print(f"Market symbol {symbol} not found in Huobi markets.")
-    #         return None
-    #     values = {
-    #         "long": {
-    #             "qty": 0.0,
-    #             "price": 0.0,
-    #             "realised": 0,
-    #             "cum_realised": 0,
-    #             "upnl": 0,
-    #             "upnl_pct": 0,
-    #             "liq_price": 0,
-    #             "entry_price": 0,
-    #         },
-    #         "short": {
-    #             "qty": 0.0,
-    #             "price": 0.0,
-    #             "realised": 0,
-    #             "cum_realised": 0,
-    #             "upnl": 0,
-    #             "upnl_pct": 0,
-    #             "liq_price": 0,
-    #             "entry_price": 0,
-    #         },
-    #     }
-    #     try:
-    #         data = self.exchange.fetch_positions([symbol])
-    #         for position in data:
-    #             if "info" not in position or "direction" not in position["info"]:
-    #                 continue
-    #             side = "long" if position["info"]["direction"] == "buy" else "short"
-    #             values[side]["qty"] = float(position["contractSize"])
-    #             values[side]["price"] = float(position["info"]["cost_open"])
-    #             values[side]["realised"] = float(position["info"]["profit"])
-    #             values[side]["cum_realised"] = float(position["info"]["profit"])  # Huobi API doesn't seem to provide cumulative realised profit
-    #             values[side]["upnl"] = float(position["info"]["profit_unreal"])
-    #             values[side]["upnl_pct"] = float(position["info"]["profit_rate"])
-    #             values[side]["liq_price"] = 0.0  # Huobi API doesn't seem to provide liquidation price
-    #             values[side]["entry_price"] = float(position["info"]["cost_open"])
-    #     except Exception as e:
-    #         log.warning(f"An unknown error occurred in get_positions_huobi(): {e}")
-    #     return values
-
     # Huobi debug
     def get_positions_debug(self):
         try:
@@ -805,9 +758,6 @@ class Exchange:
         except Exception as e:
             log.warning(f"An unknown error occurred in get_open_orders_huobi(): {e}")
         return open_orders_list
-
-
-
 
     # def cancel_entry(self, symbol: str) -> None:
     #     try:
@@ -992,21 +942,6 @@ class Exchange:
         return None
 
     # Bitget
-    # def get_order_status(self, symbol: str, order_id: str):
-    #     """
-    #     Fetch the status of a specific order.
-
-    #     :param str symbol: unified market symbol
-    #     :param str order_id: identifier of the order
-    #     :returns str: status of the order
-    #     """
-    #     open_orders = self.fetch_open_orders(symbol)
-    #     for order in open_orders:
-    #         if order['id'] == order_id:
-    #             return order['status']
-    #     return None  # return None if the order was not found among the open orders
-
-    # Bitget
     def get_order_status_bitget(self, symbol, side):
         open_orders = self.exchange.fetch_open_orders(symbol)
 
@@ -1170,39 +1105,6 @@ class Exchange:
                         log.info(f"Cancelling order: {order_id}")
         except Exception as e:
             log.warning(f"{e}")
-
-    # def fetch_open_orders(self, symbol: Optional[str] = None, since: Optional[int] = None, limit: Optional[int] = None, params={}):
-    #     if symbol is None:
-    #         raise ValueError("Symbol is required for fetch_open_orders.")
-            
-    #     self.exchange.load_markets()
-    #     #market = self.market(symbol)
-    #     market = self.exchange.market(symbol)
-    #     marketType = None
-    #     query = None
-    #     marketType, query = self.handle_market_type_and_params('fetchOpenOrders', market, params)
-    #     request = {
-    #         'symbol': market['id'],
-    #     }
-    #     method = self.get_supported_mapping(marketType, {
-    #         'spot': 'privateSpotPostTradeOpenOrders',
-    #         'swap': 'privateMixGetOrderCurrent',
-    #         'future': 'privateMixGetOrderCurrent',
-    #     })
-    #     stop = self.safe_value(query, 'stop')
-    #     if stop:
-    #         if marketType == 'spot':
-    #             method = 'privateSpotPostPlanCurrentPlan'
-    #             if limit is not None:
-    #                 request['pageSize'] = limit
-    #         else:
-    #             method = 'privateMixGetPlanCurrentPlan'
-    #         query = self.omit(query, 'stop')
-    #     response = getattr(self, method)(self.extend(request, query))
-    #     data = self.safe_value(response, 'data', [])
-    #     if not isinstance(data, list):
-    #         data = self.safe_value(data, 'orderList', [])
-    #     return self.parse_orders(data, market, since, limit)
 
     def create_take_profit_order_bybit(self, symbol, order_type, side, amount, price=None, positionIdx=1, reduce_only=True):
         if order_type == 'limit':

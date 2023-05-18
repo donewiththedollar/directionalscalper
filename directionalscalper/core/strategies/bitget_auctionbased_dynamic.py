@@ -120,6 +120,7 @@ class BitgetDynamicAuctionBasedStrategy(Strategy):
         min_order_value = 6
         max_retries = 5
         retry_delay = 5
+        clock_trend = None
 
         # Set leverage
         if not self.leverage_set:
@@ -337,13 +338,14 @@ class BitgetDynamicAuctionBasedStrategy(Strategy):
                 print(f"Auction open!")
                 # Get the trend from the 30-minute candle
                 candle = self.exchange.get_current_candle_bitget(symbol, "30m")
-                clock_trend = None
                 if candle is not None:
                     open_price, high_price, low_price, close_price, volume = candle[1:]
                     if close_price > open_price:  # bullish candle
                         clock_trend = "long"
                     else:  # bearish candle
                         clock_trend = "short"
+            
+            print(f'Time left: {now.minute % 30} of the 30-minute interval')
 
             # Bitget entry logic
             if clock_trend is not None and isinstance(clock_trend, str):
