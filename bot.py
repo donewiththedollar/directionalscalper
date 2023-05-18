@@ -18,6 +18,7 @@ from directionalscalper.core.strategies.bitget.bitget_hedge_dynamic import Bitge
 from directionalscalper.core.strategies.bitget.bitget_longonly_dynamic import BitgetLongOnlyDynamicStrategy
 from directionalscalper.core.strategies.bitget.bitget_shortonly_dynamic import BitgetShortOnlyDynamicStrategy
 from directionalscalper.core.strategies.bitget.bitget_auctionbased_dynamic import BitgetDynamicAuctionBasedStrategy
+from directionalscalper.core.strategies.bitget.bitget_grid_dynamic import BitgetGridStrategy
 from directionalscalper.core.strategies.bitget.bitget_fivemin import BitgetFiveMinuteStrategy
 from directionalscalper.core.strategies.okx.okx_hedge import OKXHedgeStrategy
 from directionalscalper.core.strategies.bybit.bybit_hedge import BybitHedgeStrategy
@@ -128,6 +129,10 @@ if __name__ == '__main__':
 
         elif strategy_name.lower() == 'bitget_shortonly_dynamic':
             strategy = BitgetShortOnlyDynamicStrategy(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol)
+
+        elif strategy_name.lower() == 'bitget_hedge_grid_dynamic':
+            strategy = BitgetGridStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
 
         elif strategy_name.lower() == 'bybit_hedge':
