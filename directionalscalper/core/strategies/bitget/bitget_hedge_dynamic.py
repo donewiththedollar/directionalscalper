@@ -1,8 +1,8 @@
-import time, math, datetime
+import time, math
 from decimal import Decimal, ROUND_HALF_UP
-from .strategy import Strategy
+from ..strategy import Strategy
 
-class BitgetFiveMinuteStrategy(Strategy):
+class BitgetDynamicHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):
         super().__init__(exchange, config)
         self.manager = manager
@@ -22,10 +22,6 @@ class BitgetFiveMinuteStrategy(Strategy):
         order = self.exchange.create_order(symbol, 'limit', side, amount, price, reduce_only=reduce_only)
         return order
 
-    def market_order(self, symbol, side, amount, price, reduce_only=False):
-        order = self.exchange.create_order(symbol, 'market', side, amount, price, reduce_only=reduce_only)
-        return order
-
     def take_profit_order(self, symbol, side, amount, price, reduce_only=True):
         min_qty_usd = 5
         current_price = self.exchange.get_current_price(symbol)
@@ -39,7 +35,7 @@ class BitgetFiveMinuteStrategy(Strategy):
         order = self.exchange.create_order(symbol, 'limit', side, amount, price, reduce_only=reduce_only)
         return order
 
-    def market_close_position(self, symbol, side, amount):
+    def close_position(self, symbol, side, amount):
         try:
             self.exchange.create_market_order(symbol, side, amount)
             print(f"Closed {side} position for {symbol} with amount {amount}")
@@ -120,7 +116,6 @@ class BitgetFiveMinuteStrategy(Strategy):
         min_order_value = 6
         max_retries = 5
         retry_delay = 5
-        clock_trend = None
 
         # Set leverage
         if not self.leverage_set:
@@ -147,12 +142,8 @@ class BitgetFiveMinuteStrategy(Strategy):
                         time.sleep(retry_delay)
                     else:
                         raise e
-                    
-            #dex_equity = self.exchange.get_balance_bitget(quote_currency)
 
             market_data = self.exchange.get_market_data_bitget(symbol)
-
-            #print(f"Market data debug: {market_data}")
 
             price_precision = market_data["precision"]
 
@@ -174,22 +165,20 @@ class BitgetFiveMinuteStrategy(Strategy):
                 int(float(market_data["min_qty"])),
             )
 
-            print(f"Max trade quantity for {symbol}: {max_trade_qty}")
-
             current_price = self.exchange.get_current_price(symbol)
 
-            og_amount = min_order_value / current_price
+            original_amount = min_order_value / current_price
 
             # amount = self.round_amount(og_amount, price_precision)
-            amount = math.ceil(og_amount * 100) / 100
-
-            print(f"Dynamic entry amount: {amount}")
+            amount = math.ceil(original_amount * 100) / 100
 
             min_qty_bitget = min_order_value / current_price
 
-            print(f"Min trade quantitiy for {symbol}: {min_qty_bitget}")
+            print(f"Max trade quantity for {symbol}: {max_trade_qty}")
+            print(f"Min trade quantity for {symbol}: {min_qty_bitget}")
             print(f"Min volume: {min_vol}")
             print(f"Min distance: {min_dist}")
+            print(f"Dynamic entry amount: {amount}")
 
             # Get data from manager
             data = self.manager.get_data()
@@ -220,9 +209,8 @@ class BitgetFiveMinuteStrategy(Strategy):
                         time.sleep(retry_delay)
                     else:
                         raise e
-            
-            #print(f"Raw position data: {position_data}")
 
+            # Get position information
             short_pos_qty = position_data["short"]["qty"]
             long_pos_qty = position_data["long"]["qty"]
             short_upnl = position_data["short"]["upnl"]
@@ -286,127 +274,64 @@ class BitgetFiveMinuteStrategy(Strategy):
             print(f"Close short position condition: {close_short_position}")
             print(f"Close long position condition: {close_long_position}")
 
-            # Time based logic
-            now = datetime.datetime.now()
-
-            if now.minute % 5 == 0 and now.second == 0:  # on the hour or each 5th minute
-                print(f"Auction closing!")
-                # Check if either position is profitable
-                if (long_pos_qty > 0.0 and long_upnl > 0.0) or (short_pos_qty > 0.0 and short_upnl > 0.0):
-                    # Close both positions
-                    if long_pos_qty > 0.0:
-                        self.exchange.create_take_profit_order(symbol, "limit", "sell", long_pos_qty, best_bid_price, reduce_only=True)
-                        print(f"Closing long position for {symbol}")
-                        time.sleep(0.05)
-                    if short_pos_qty > 0.0:
-                        self.exchange.create_take_profit_order(symbol, "limit", "buy", short_pos_qty, best_ask_price, reduce_only=True)
-                        print(f"Closing short position for {symbol}")
-                        time.sleep(0.05)
-
-                    # Check the order status
-                    while True:
-                        long_order_status = self.exchange.get_order_status_bitget(symbol, "sell")
-                        short_order_status = self.exchange.get_order_status_bitget(symbol, "buy")
-                        print(f"Long order status: {long_order_status}")
-                        print(f"Short order status: {short_order_status}")
-
-                        if long_order_status == "filled" and short_order_status == "filled":
-                            break  # Exit the loop if both orders are filled
-
-                        if long_order_status != "filled":
-                            self.cancel_take_profit_orders(symbol, "long")
-                            self.exchange.create_take_profit_order(symbol, "limit", "sell", long_pos_qty, best_bid_price, reduce_only=True)
-                            print(f"Recreated the take profit order for the long position of {symbol}")
-
-                        if short_order_status != "filled":
-                            self.cancel_take_profit_orders(symbol, "short")
-                            self.exchange.create_take_profit_order(symbol, "limit", "buy", short_pos_qty, best_ask_price, reduce_only=True)
-                            print(f"Recreated the take profit order for the short position of {symbol}")
-
-                        time.sleep(5)  # Sleep for a while before checking again to avoid excessive API calls
-
-                # Check if either position is losing and close it only if both positions are open
-                if (long_pos_qty > 0 and short_pos_qty > 0) and ((long_pos_qty > 0 and long_upnl < 0) or (short_pos_qty > 0 and short_upnl < 0)):
-                    if long_pos_qty > 0 and long_upnl < 0:  # Long position is losing
-                        self.market_order(symbol, "sell", long_pos_qty, best_ask_price, reduce_only=True)
-                        print(f"Market closed order")
-                    elif short_pos_qty > 0 and short_upnl < 0:  # Short position is losing
-                        self.market_order(symbol, "buy", short_pos_qty, best_ask_price, reduce_only=True)
-                        print(f"Market closed order")
-
-            elif now.minute % 5 < 4:  # only open new positions in the first 4 minutes of each 5-minute interval
-                print(f"Auction open!")
-                # Get the trend from the 5-minute candle
-                candle = self.exchange.get_current_candle_bitget(symbol, "5m")
-                if candle is not None:
-                    open_price, high_price, low_price, close_price, volume = candle[1:]
-                    if close_price > open_price:  # bullish candle
-                        clock_trend = "long"
-                    else:  # bearish candle
-                        clock_trend = "short"
-
-            print(f'Time left: {now.minute % 5} of the 5-minute interval')
-
-
-            # Bitget entry logic
-            if clock_trend is not None and isinstance(clock_trend, str):
+            # New hedge logic
+            if trend is not None and isinstance(trend, str):
                 if one_minute_volume is not None and five_minute_distance is not None:
                     if one_minute_volume > min_vol and five_minute_distance > min_dist:
 
-                        if clock_trend.lower() == "long" and should_long and long_pos_qty == 0:
+                        if trend.lower() == "long" and should_long and long_pos_qty == 0:
 
                             self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
                             print(f"Placed initial long entry")
                             time.sleep(0.05)
                         else:
-                            if clock_trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
+                            if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
                                 print(f"Placed additional long entry")
                                 self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
                                 time.sleep(0.05)
 
-                        if clock_trend.lower() == "short" and should_short and short_pos_qty == 0:
+                        if trend.lower() == "short" and should_short and short_pos_qty == 0:
 
                             self.limit_order(symbol, "sell", amount, best_ask_price, reduce_only=False)
                             print("Placed initial short entry")
                             time.sleep(0.05)
                         else:
-                            if clock_trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
+                            if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
                                 print(f"Placed additional short entry")
                                 self.limit_order(symbol, "sell", amount, best_ask_price, reduce_only=False)
                                 time.sleep(0.05)
-
+            
             open_orders = self.exchange.get_open_orders_bitget(symbol)
 
-            # # Bitget order cancellation
-            # if long_pos_qty > 0 and long_take_profit is not None:
-            #     existing_long_tp_qty, existing_long_tp_id = self.get_open_take_profit_order_quantity(open_orders, "close_long")
-            #     if existing_long_tp_qty is None or existing_long_tp_qty != long_pos_qty:
-            #         try:
-            #             if existing_long_tp_id is not None:
-            #                 self.cancel_take_profit_orders(symbol, "long")
-            #                 print(f"Long take profit canceled")
-            #                 time.sleep(0.05)
+            if long_pos_qty > 0 and long_take_profit is not None:
+                existing_long_tp_qty, existing_long_tp_id = self.get_open_take_profit_order_quantity(open_orders, "close_long")
+                if existing_long_tp_qty is None or existing_long_tp_qty != long_pos_qty:
+                    try:
+                        if existing_long_tp_id is not None:
+                            self.cancel_take_profit_orders(symbol, "long")
+                            print(f"Long take profit canceled")
+                            time.sleep(0.05)
 
-            #             # self.exchange.create_take_profit_order(symbol, "limit", "sell", long_pos_qty, long_take_profit, reduce_only=True)
-            #             # print(f"Long take profit set at {long_take_profit}")
-            #             time.sleep(0.05)
-            #         except Exception as e:
-            #             print(f"Error in placing long TP: {e}")
+                        self.exchange.create_take_profit_order(symbol, "limit", "sell", long_pos_qty, long_take_profit, reduce_only=True)
+                        print(f"Long take profit set at {long_take_profit}")
+                        time.sleep(0.05)
+                    except Exception as e:
+                        print(f"Error in placing long TP: {e}")
 
-            # if short_pos_qty > 0 and short_take_profit is not None:
-            #     existing_short_tp_qty, existing_short_tp_id = self.get_open_take_profit_order_quantity(open_orders, "close_short")
-            #     if existing_short_tp_qty is None or existing_short_tp_qty != short_pos_qty:
-            #         try:
-            #             if existing_short_tp_id is not None:
-            #                 self.cancel_take_profit_orders(symbol, "short")
-            #                 print(f"Short take profit canceled")
-            #                 time.sleep(0.05)
+            if short_pos_qty > 0 and short_take_profit is not None:
+                existing_short_tp_qty, existing_short_tp_id = self.get_open_take_profit_order_quantity(open_orders, "close_short")
+                if existing_short_tp_qty is None or existing_short_tp_qty != short_pos_qty:
+                    try:
+                        if existing_short_tp_id is not None:
+                            self.cancel_take_profit_orders(symbol, "short")
+                            print(f"Short take profit canceled")
+                            time.sleep(0.05)
 
-            #             # self.exchange.create_take_profit_order(symbol, "limit", "buy", short_pos_qty, short_take_profit, reduce_only=True)
-            #             # print(f"Short take profit set at {short_take_profit}")
-            #             time.sleep(0.05)
-            #         except Exception as e:
-            #             print(f"Error in placing short TP: {e}")
+                        self.exchange.create_take_profit_order(symbol, "limit", "buy", short_pos_qty, short_take_profit, reduce_only=True)
+                        print(f"Short take profit set at {short_take_profit}")
+                        time.sleep(0.05)
+                    except Exception as e:
+                        print(f"Error in placing short TP: {e}")
 
             # Cancel entries
             current_time = time.time()

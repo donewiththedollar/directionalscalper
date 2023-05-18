@@ -1,5 +1,5 @@
 import time
-from .strategy import Strategy
+from ..strategy import Strategy
 
 class MEXCHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):

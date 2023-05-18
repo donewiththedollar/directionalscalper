@@ -13,18 +13,18 @@ import config
 from api.manager import Manager
 from directionalscalper.core.exchange import Exchange
 from directionalscalper.core.strategies.strategy import Strategy
-from directionalscalper.core.strategies.bitget_hedge import BitgetHedgeStrategy
-from directionalscalper.core.strategies.bitget_hedge_dynamic import BitgetDynamicHedgeStrategy
-from directionalscalper.core.strategies.bitget_longonly_dynamic import BitgetLongOnlyDynamicStrategy
-from directionalscalper.core.strategies.bitget_shortonly_dynamic import BitgetShortOnlyDynamicStrategy
-from directionalscalper.core.strategies.bitget_auctionbased_dynamic import BitgetDynamicAuctionBasedStrategy
-from directionalscalper.core.strategies.bitget_fivemin import BitgetFiveMinuteStrategy
-from directionalscalper.core.strategies.okx_hedge import OKXHedgeStrategy
-from directionalscalper.core.strategies.bybit_hedge import BybitHedgeStrategy
-from directionalscalper.core.strategies.huobi_hedge import HuobiHedgeStrategy
-from directionalscalper.core.strategies.binance_hedge import BinanceHedgeStrategy
-from directionalscalper.core.strategies.phemex_hedge import PhemexHedgeStrategy
-from directionalscalper.core.strategies.mexc_hedge import MEXCHedgeStrategy
+from directionalscalper.core.strategies.bitget.bitget_hedge import BitgetHedgeStrategy
+from directionalscalper.core.strategies.bitget.bitget_hedge_dynamic import BitgetDynamicHedgeStrategy
+from directionalscalper.core.strategies.bitget.bitget_longonly_dynamic import BitgetLongOnlyDynamicStrategy
+from directionalscalper.core.strategies.bitget.bitget_shortonly_dynamic import BitgetShortOnlyDynamicStrategy
+from directionalscalper.core.strategies.bitget.bitget_auctionbased_dynamic import BitgetDynamicAuctionBasedStrategy
+from directionalscalper.core.strategies.bitget.bitget_fivemin import BitgetFiveMinuteStrategy
+from directionalscalper.core.strategies.okx.okx_hedge import OKXHedgeStrategy
+from directionalscalper.core.strategies.bybit.bybit_hedge import BybitHedgeStrategy
+from directionalscalper.core.strategies.huobi.huobi_hedge import HuobiHedgeStrategy
+from directionalscalper.core.strategies.binance.binance_hedge import BinanceHedgeStrategy
+from directionalscalper.core.strategies.phemex.phemex_hedge import PhemexHedgeStrategy
+from directionalscalper.core.strategies.mexc.mexc_hedge import MEXCHedgeStrategy
 
 class DirectionalMarketMaker:
     def __init__(self, config: Config, exchange_name: str): 

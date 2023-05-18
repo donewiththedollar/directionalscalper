@@ -1,8 +1,8 @@
 import time, math
 from decimal import Decimal, ROUND_HALF_UP
-from .strategy import Strategy
+from ..strategy import Strategy
 
-class BitgetLongOnlyFuturesStrategy(Strategy):
+class BitgetLongOnlyDynamicStrategy(Strategy):
     def __init__(self, exchange, manager, config):
         super().__init__(exchange, config)
         self.manager = manager
@@ -181,20 +181,28 @@ class BitgetLongOnlyFuturesStrategy(Strategy):
             # data = self.exchange.exchange.fetch_positions([symbol])
             # print(f"Bitget positions response: {data}")   
  
-            # Get pos data from exchange
-            position_data = self.exchange.get_positions_bitget(symbol) 
-            print(f"Fetching position data")
-            #print(f"Raw position data: {position_data}")
-
-            # Extract short and long position prices
-            # short_pos_price = position_data["short"]["price"]
-            # long_pos_price = position_data["long"]["price"]
+            # Get position data from exchange
+            for i in range(max_retries):
+                try:
+                    print("Fetching position data")
+                    position_data = self.exchange.get_positions_bitget(symbol) 
+                    break
+                except Exception as e:
+                    if i < max_retries - 1:
+                        print(f"Error occurred while fetching position data: {e}. Retrying in {retry_delay} seconds...")
+                        time.sleep(retry_delay)
+                    else:
+                        raise e
 
             short_pos_qty = position_data["short"]["qty"]
             long_pos_qty = position_data["long"]["qty"]
+            short_upnl = position_data["short"]["upnl"]
+            long_upnl = position_data["long"]["upnl"]
 
             print(f"Short pos qty: {short_pos_qty}")
             print(f"Long pos qty: {long_pos_qty}")
+            print(f"Short uPNL: {short_upnl}")
+            print(f"Long uPNL: {long_upnl}")
 
             short_pos_price = position_data["short"]["price"] if short_pos_qty > 0 else None
             long_pos_price = position_data["long"]["price"] if long_pos_qty > 0 else None
@@ -215,7 +223,6 @@ class BitgetLongOnlyFuturesStrategy(Strategy):
             # Take profit calc
             long_take_profit = self.calculate_long_take_profit(long_pos_price, symbol)
 
-            print(f"Short take profit: {short_take_profit}")
             print(f"Long take profit: {long_take_profit}")
 
             if long_take_profit is not None:
@@ -280,14 +287,5 @@ class BitgetLongOnlyFuturesStrategy(Strategy):
                     print(f"An error occurred while canceling entry orders: {e}")
 
                 self.last_cancel_time = current_time  # Update the last cancel time
-
-            # # Cancel entries
-            # try:
-            #     if best_ask_price < ma_1m_3_high or best_ask_price < ma_5m_3_high:
-            #         self.exchange.cancel_all_entries(symbol)
-            #         print(f"Canceled entry orders for {symbol}")
-            #         time.sleep(0.05)
-            # except Exception as e:
-            #     print(f"An error occurred while canceling entry orders: {e}")
 
             time.sleep(30)

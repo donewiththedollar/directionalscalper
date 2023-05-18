@@ -1,6 +1,6 @@
 import time
 from decimal import Decimal, ROUND_HALF_UP
-from .strategy import Strategy
+from ..strategy import Strategy
 from typing import Tuple
 
 class BybitHedgeStrategy(Strategy):
