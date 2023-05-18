@@ -9,12 +9,38 @@ class BitgetGridStrategy(Strategy):
         self.last_cancel_time = 0
         self.leverage_set = False
 
-    def place_grid_orders(self, symbol, direction, amount, start_price, end_price, num_orders):
-        prices = [start_price + i * (end_price - start_price) / (num_orders - 1) for i in range(num_orders)]
-        amounts = [amount * 3 / num_orders for _ in range(num_orders)]
+    def place_grid_orders(self, max_trade_qty, min_qty_bitget, symbol, direction, start_price, end_price):
+        try:
 
-        for price, amt in zip(prices, amounts):
-            self.limit_order(symbol, direction, amt, price, reduce_only=False)
+            price_precision = self.exchange.get_price_precision(symbol)
+
+            if max_trade_qty < min_qty_bitget:
+                print("Max trade quantity is less than the minimum order size, cannot place orders.")
+                return
+
+            # Calculate the number of orders that can be placed with the provided max trade quantity
+            num_orders = int(max_trade_qty / min_qty_bitget)
+
+            if num_orders <= 0:
+                print("Insufficient funds to place any orders.")
+                return
+
+            prices = [start_price + i * (end_price - start_price) / (num_orders - 1) for i in range(num_orders)]
+            amounts = [min_qty_bitget for _ in range(num_orders)]
+                
+            for price, amt in zip(prices, amounts):
+                # Round the price and ensure amount is not less than minimum required
+                price = round(price, price_precision)  # Using fetched price precision to round
+                amt = max(amt, 5)  # Ensuring the amount is not less than 5
+
+                try:
+                    print(f"Trying to place order with price: {price} and amount: {amt}") 
+                    self.limit_order(symbol, direction, amt, price, reduce_only=False)
+                except Exception as e:
+                    print(f"Exception while placing limit order: {e}")
+        except Exception as e:
+            print(f"Exception in grid order placement: {e}")
+
 
     def limit_order(self, symbol, side, amount, price, reduce_only=False):
         min_qty_usd = 5
@@ -293,7 +319,7 @@ class BitgetGridStrategy(Strategy):
                             
                             print(f"Placing initial long grid")
                             try:
-                                self.place_grid_orders(symbol, "buy", amount, best_bid_price - thirty_minute_distance, best_bid_price, num_grids)
+                                self.place_grid_orders(max_trade_qty, amount, symbol, "buy", best_bid_price - thirty_minute_distance, best_bid_price)
                             except Exception as e:
                                 print(f"Exception caught {e}")
 
@@ -302,20 +328,20 @@ class BitgetGridStrategy(Strategy):
                         else:
                             if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
 
-                                print(f"Placed additional long entry")
-                                self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
+                                print(f"Placed additional long grid")
+                                self.place_grid_orders(max_trade_qty, amount, symbol, "buy", best_bid_price - thirty_minute_distance, best_bid_price)
                                 time.sleep(0.05)
 
                         if trend.lower() == "short" and should_short and short_pos_qty == 0:
                             
                             print(f"Placing initial short grid")
-                            self.place_grid_orders(symbol, "sell", amount, best_ask_price + thirty_minute_distance, best_ask_price, num_grids)
+                            self.place_grid_orders(max_trade_qty, amount, symbol, "sell", best_ask_price + thirty_minute_distance, best_ask_price)
                             print("Placed initial short grid")
                             time.sleep(0.05)
                         else:
                             if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
                                 print(f"Placed additional short entry")
-                                self.limit_order(symbol, "sell", amount, best_ask_price, reduce_only=False)
+                                self.place_grid_orders(max_trade_qty, amount, symbol, "sell", best_ask_price + thirty_minute_distance, best_ask_price)
                                 time.sleep(0.05)
             
             open_orders = self.exchange.get_open_orders_bitget(symbol)
@@ -352,7 +378,7 @@ class BitgetGridStrategy(Strategy):
 
             # Cancel entries
             current_time = time.time()
-            if current_time - self.last_cancel_time >= 60:  # Execute this block every 1 minute
+            if current_time - self.last_cancel_time >= 1800:  # Execute this block every 30 minutes or half an hour
                 try:
                     if best_ask_price < ma_1m_3_high or best_ask_price < ma_5m_3_high:
                         self.exchange.cancel_all_entries(symbol)
@@ -362,5 +388,6 @@ class BitgetGridStrategy(Strategy):
                     print(f"An error occurred while canceling entry orders: {e}")
 
                 self.last_cancel_time = current_time  # Update the last cancel time
+
 
             time.sleep(30)
