@@ -236,20 +236,20 @@ class BitgetShortOnlyDynamicStrategy(Strategy):
             
             open_orders = self.exchange.get_open_orders_bitget(symbol)
 
-            if long_pos_qty > 0 and short_take_profit is not None:
-                existing_long_tp_qty, existing_long_tp_id = self.get_open_take_profit_order_quantity(open_orders, "close_long")
-                if existing_long_tp_qty is None or existing_long_tp_qty != long_pos_qty:
+            if short_pos_qty > 0 and short_take_profit is not None:
+                existing_short_tp_qty, existing_short_tp_id = self.get_open_take_profit_order_quantity(open_orders, "close_short")
+                if existing_short_tp_qty is None or existing_short_tp_qty != short_pos_qty:
                     try:
-                        if existing_long_tp_id is not None:
-                            self.cancel_take_profit_orders(symbol, "long")
-                            print(f"Long take profit canceled")
+                        if existing_short_tp_id is not None:
+                            self.cancel_take_profit_orders(symbol, "short")
+                            print(f"Short take profit canceled")
                             time.sleep(0.05)
 
-                        self.exchange.create_take_profit_order(symbol, "limit", "sell", long_pos_qty, short_take_profit, reduce_only=True)
+                        self.exchange.create_take_profit_order(symbol, "limit", "buy", short_pos_qty, short_take_profit, reduce_only=True)
                         print(f"Short take profit set at {short_take_profit}")
                         time.sleep(0.05)
                     except Exception as e:
-                        print(f"Error in placing long TP: {e}")
+                        print(f"Error in placing short TP: {e}")
 
             # Cancel entries
             current_time = time.time()
