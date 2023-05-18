@@ -70,14 +70,15 @@ class DirectionalMarketMaker:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='DirectionalScalper')
-    parser.add_argument('--config', type=str, default='config.json', help='Path to the configuration file')
+    parser.add_argument('--config', type=str, default='configs/config.json', help='Path to the configuration file')
     parser.add_argument('--exchange', type=str, help='The name of the exchange to use')
     parser.add_argument('--strategy', type=str, help='The name of the strategy to use')
     parser.add_argument('--symbol', type=str, help='The trading symbol to use')
     parser.add_argument('--amount', type=str, help='The size to use')
     args = parser.parse_args()
 
-    config_file_path = Path(args.config)
+    #config_file_path = Path(args.config)
+    config_file_path = Path('configs/' + args.config)
     config = load_config(config_file_path)
 
     exchange_name = args.exchange

@@ -26,15 +26,12 @@ class API(BaseModel):
 
 class Bot(BaseModel):
     bot_name: str
-    divider: int = 7
-    inverse_direction: str = "short"
     min_distance: float = 0.15
     min_fee: float = 0.17
     min_volume: int = 15000
     symbol: str
     violent_multiplier: float = 2.00
     wallet_exposure: float = 1.00
-    blackjack_risk_factor: float = 0.05
 
     @validator("min_volume")
     def minimum_min_volume(cls, v):
@@ -46,18 +43,6 @@ class Bot(BaseModel):
     def minimum_min_distance(cls, v):
         if v < 0.0:
             raise ValueError("min_distance must be greater than 0")
-        return v
-
-    @validator("min_fee")
-    def minimum_min_fee(cls, v):
-        if v < 0.0:
-            raise ValueError("min_fee must be greater than 0")
-        return v
-
-    @validator("divider")
-    def minimum_divider(cls, v):
-        if v < 0:
-            raise ValueError("divider must be greater than 0")
         return v
 
 class Exchange(BaseModel):
