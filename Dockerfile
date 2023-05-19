@@ -1,4 +1,4 @@
-FROM python:3-slim
+FROM python:3.11
 
 COPY ./ /code/
 
