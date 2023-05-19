@@ -125,9 +125,10 @@ class BitgetFiveMinuteStrategy(Strategy):
         # Set leverage
         if not self.leverage_set:
             try:
-                self.exchange.set_leverage_bitget(symbol, 50)  # Replace 50 with your desired leverage
+                max_leverage = self.exchange.get_max_leverage_bitget(symbol)
+                self.exchange.set_leverage_bitget(symbol, max_leverage)  # Replace 50 with your desired leverage
                 self.leverage_set = True
-                print(f"Leverage for {symbol} set to 50.")
+                print(f"Leverage for {symbol} set to {max_leverage}.")
             except Exception as e:
                 print(f"Error occurred while setting leverage: {e}. Retrying...")
                 time.sleep(retry_delay)

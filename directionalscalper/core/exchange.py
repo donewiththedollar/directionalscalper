@@ -895,7 +895,26 @@ class Exchange:
         except Exception as e:
             log.warning(f"An unknown error occurred in cancel_entry(): {e}")
 
+    # Bitget 
+    def get_max_leverage_bitget(self, symbol):
+        try:
+            # Fetch market leverage tiers
+            leverage_tiers = self.exchange.fetch_market_leverage_tiers(symbol)
 
+            # Extract maximum leverage from the tiers
+            max_leverage = 0
+            for tier in leverage_tiers:
+                tier_leverage = tier['maxLeverage']
+                if tier_leverage > max_leverage:
+                    max_leverage = tier_leverage
+
+            return max_leverage
+
+        except Exception as e:
+            print(f"An error occurred while fetching max leverage: {e}")
+            return None
+
+    # Bitget
     def cancel_all_entries_bitget(self, symbol: str) -> None:
         try:
             orders = self.exchange.fetch_open_orders(symbol)
