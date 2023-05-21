@@ -229,8 +229,20 @@ class BybitHedgeGridStrategy(Strategy):
             print(f"Long condition: {should_long}")
             print(f"Add short condition: {should_add_to_short}")
             print(f"Add long condition: {should_add_to_long}")
+            
+            open_orders = self.exchange.get_open_orders(symbol)
 
-            # Grid logic
+            # Call the get_open_take_profit_order_quantity function for the 'buy' side
+            buy_qty, buy_id = self.get_open_take_profit_order_quantity(open_orders, 'buy')
+
+            # Call the get_open_take_profit_order_quantity function for the 'sell' side
+            sell_qty, sell_id = self.get_open_take_profit_order_quantity(open_orders, 'sell')
+
+            # Print the results
+            print("Buy Take Profit Order - Quantity: ", buy_qty, "ID: ", buy_id)
+            print("Sell Take Profit Order - Quantity: ", sell_qty, "ID: ", sell_id)
+
+            # Grid logic 
             if trend is not None and isinstance(trend, str):
                 if one_minute_volume is not None and five_minute_distance is not None:
                     if one_minute_volume > min_vol and five_minute_distance > min_dist:
@@ -263,51 +275,6 @@ class BybitHedgeGridStrategy(Strategy):
                             if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
                                 print(f"Placed additional short entry")
                                 self.place_grid_orders(max_trade_qty, amount, symbol, "sell", best_ask_price + thirty_minute_distance, best_ask_price, 2)
-                                time.sleep(0.05)
-            
-            open_orders = self.exchange.get_open_orders(symbol)
-
-            # Call the get_open_take_profit_order_quantity function for the 'buy' side
-            buy_qty, buy_id = self.get_open_take_profit_order_quantity(open_orders, 'buy')
-
-            # Call the get_open_take_profit_order_quantity function for the 'sell' side
-            sell_qty, sell_id = self.get_open_take_profit_order_quantity(open_orders, 'sell')
-
-            # Print the results
-            print("Buy Take Profit Order - Quantity: ", buy_qty, "ID: ", buy_id)
-            print("Sell Take Profit Order - Quantity: ", sell_qty, "ID: ", sell_id)
-
-            if trend is not None and isinstance(trend, str):
-                if one_minute_volume is not None and five_minute_distance is not None:
-                    if one_minute_volume > min_vol and five_minute_distance > min_dist:
-
-                        if trend.lower() == "long" and should_long and long_pos_qty == 0:
-                            
-                            print(f"Placing initial long grid")
-                            try:
-                                self.place_grid_orders(max_trade_qty, amount, symbol, "buy", best_bid_price - thirty_minute_distance, best_bid_price)
-                            except Exception as e:
-                                print(f"Exception caught {e}")
-
-                            print(f"Placed initial long grid")
-                            time.sleep(0.05)
-                        else:
-                            if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
-
-                                print(f"Placed additional long grid")
-                                self.place_grid_orders(max_trade_qty, amount, symbol, "buy", best_bid_price - thirty_minute_distance, best_bid_price)
-                                time.sleep(0.05)
-
-                        if trend.lower() == "short" and should_short and short_pos_qty == 0:
-                            
-                            print(f"Placing initial short grid")
-                            self.place_grid_orders(max_trade_qty, amount, symbol, "sell", best_ask_price + thirty_minute_distance, best_ask_price)
-                            print("Placed initial short grid")
-                            time.sleep(0.05)
-                        else:
-                            if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
-                                print(f"Placed additional short entry")
-                                self.place_grid_orders(max_trade_qty, amount, symbol, "sell", best_ask_price + thirty_minute_distance, best_ask_price)
                                 time.sleep(0.05)
 
             if long_pos_qty > 0 and long_take_profit is not None:
