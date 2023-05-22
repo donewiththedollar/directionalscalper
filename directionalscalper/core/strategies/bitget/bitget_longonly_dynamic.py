@@ -7,6 +7,7 @@ class BitgetLongOnlyDynamicStrategy(Strategy):
         super().__init__(exchange, config)
         self.manager = manager
         self.last_cancel_time = 0
+        self.leverage_set = False
 
     def limit_order(self, symbol, side, amount, price, reduce_only=False):
         min_qty_usd = 5
@@ -93,6 +94,18 @@ class BitgetLongOnlyDynamicStrategy(Strategy):
         min_order_value = 6
         max_retries = 5
         retry_delay = 5
+
+        # Set leverage
+        if not self.leverage_set:
+            try:
+                max_leverage = self.exchange.get_max_leverage_bitget(symbol)
+                self.exchange.set_leverage_bitget(symbol, max_leverage)  # Replace 50 with your desired leverage
+                self.leverage_set = True
+                print(f"Leverage for {symbol} set to {max_leverage}.")
+            except Exception as e:
+                print(f"Error occurred while setting leverage: {e}. Retrying...")
+                time.sleep(retry_delay)
+                return
 
         while True:
             # Get balance
