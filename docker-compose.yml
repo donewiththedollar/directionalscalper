@@ -3,7 +3,7 @@ services:
     build: .
     restart: unless-stopped
     volumes:
-      - ./:/code/
+      - ./configs:/code/configs
     working_dir: /code
     command: python3 bot.py --mode hedge --symbol GALAUSDT --iqty 1 --tg off
     
