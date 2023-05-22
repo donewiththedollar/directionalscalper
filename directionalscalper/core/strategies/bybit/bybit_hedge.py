@@ -1,4 +1,5 @@
 import time
+import math
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_DOWN
 from ..strategy import Strategy
 from typing import Tuple
@@ -259,10 +260,10 @@ class BybitHedgeStrategy(Strategy):
             if long_pos_qty > 0 and long_take_profit is not None:
                 existing_long_tps = self.get_open_take_profit_order_quantities(open_orders, "sell")
                 total_existing_long_tp_qty = sum(qty for qty, _ in existing_long_tps)
-                if total_existing_long_tp_qty != long_pos_qty:
+                if not math.isclose(total_existing_long_tp_qty, long_pos_qty):
                     try:
                         for _, existing_long_tp_id in existing_long_tps:
-                            self.cancel_take_profit_orders(symbol, "long")
+                            self.cancel_take_profit_orders(symbol, "sell")
                             print(f"Long take profit canceled")
                             time.sleep(0.05)
 
@@ -276,10 +277,10 @@ class BybitHedgeStrategy(Strategy):
             if short_pos_qty > 0 and short_take_profit is not None:
                 existing_short_tps = self.get_open_take_profit_order_quantities(open_orders, "buy")
                 total_existing_short_tp_qty = sum(qty for qty, _ in existing_short_tps)
-                if total_existing_short_tp_qty != short_pos_qty:
+                if not math.isclose(total_existing_short_tp_qty, short_pos_qty):
                     try:
                         for _, existing_short_tp_id in existing_short_tps:
-                            self.cancel_take_profit_orders(symbol, "short")
+                            self.cancel_take_profit_orders(symbol, "buy")
                             print(f"Short take profit canceled")
                             time.sleep(0.05)
 
