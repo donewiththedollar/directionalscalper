@@ -54,11 +54,21 @@ class Exchange:
                 log.warning(f"An error occurred while fetching symbols: {e}, retrying in 10 seconds...")
                 time.sleep(10)
 
-    def get_symbol_precision_bybit(self, symbol: str) -> Tuple[int, int]:
-        market = self.exchange.market(symbol)
-        price_precision = int(market['precision']['price'])
-        quantity_precision = int(market['precision']['amount'])
-        return price_precision, quantity_precision
+    # def get_symbol_precision_bybit(self, symbol: str) -> Tuple[int, int]:
+    #     try:
+    #         market = self.exchange.market(symbol)
+    #         price_precision = int(market['precision']['price'])
+    #         quantity_precision = int(market['precision']['amount'])
+    #         return price_precision, quantity_precision
+    #     except Exception as e:
+    #         print(f"An error occurred: {e}")
+    #         return None, None
+
+    # def get_symbol_precision_bybit(self, symbol: str) -> Tuple[int, int]:
+    #     market = self.exchange.market(symbol)
+    #     price_precision = int(market['precision']['price'])
+    #     quantity_precision = int(market['precision']['amount'])
+    #     return price_precision, quantity_precision
 
     # def _get_symbols(self):
     #     markets = self.exchange.load_markets()
@@ -377,11 +387,45 @@ class Exchange:
         else:
             return {}
 
+
+    def get_precision_ultimate_bybit(self, symbol: str) -> Tuple[int, int]:
+        try:
+            market = self.exchange.market(symbol)
+
+            smallest_increment_price = market['precision']['price']
+            price_precision = len(str(smallest_increment_price).split('.')[-1])
+
+            quantity_precision = int(market['precision']['amount'])
+
+            return price_precision, quantity_precision
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return None, None
+
+
+    def get_symbol_precision_bybit(self, symbol: str) -> Tuple[int, int]:
+        try:
+            market = self.exchange.market(symbol)
+            price_precision = int(market['precision']['price'])
+            quantity_precision = int(market['precision']['amount'])
+            return price_precision, quantity_precision
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return None, None
+
     def get_price_precision(self, symbol):
         market = self.exchange.market(symbol)
         smallest_increment = market['precision']['price']
         price_precision = len(str(smallest_increment).split('.')[-1])
         return price_precision
+
+    def get_precision_bybit(self, symbol):
+        markets = self.exchange.fetch_derivatives_markets()
+        for market in markets:
+            if market['symbol'] == symbol:
+                return market['precision']
+        return None
+
 
     def get_balance(self, quote: str) -> dict:
         values = {
@@ -1042,10 +1086,37 @@ class Exchange:
                             and reduce_only
                             and position_idx == position_idx_map[side]
                         ):
-                            self.exchange.cancel_order(symbol=symbol, id=order_id)
+                            # use the new cancel_derivatives_order function
+                            self.exchange.cancel_derivatives_order(order_id, symbol)
                             log.info(f"Cancelling order: {order_id}")
         except Exception as e:
             log.warning(f"An unknown error occurred in cancel_close_bybit(): {e}")
+
+    # def cancel_close_bybit(self, symbol: str, side: str) -> None:
+    #     position_idx_map = {"long": 1, "short": 2}
+    #     try:
+    #         orders = self.exchange.fetch_open_orders(symbol)
+    #         #print(orders)
+    #         if len(orders) > 0:
+    #             for order in orders:
+    #                 if "info" in order:
+    #                     order_id = order["info"]["orderId"]
+    #                     order_status = order["info"]["orderStatus"]
+    #                     order_side = order["info"]["side"]
+    #                     reduce_only = order["info"]["reduceOnly"]
+    #                     position_idx = order["info"]["positionIdx"]
+
+    #                     if (
+    #                         order_status != "Filled"
+    #                         and order_side.lower() == side.lower()
+    #                         and order_status != "Cancelled"
+    #                         and reduce_only
+    #                         and position_idx == position_idx_map[side]
+    #                     ):
+    #                         self.exchange.cancel_order(symbol=symbol, id=order_id)
+    #                         log.info(f"Cancelling order: {order_id}")
+    #     except Exception as e:
+    #         log.warning(f"An unknown error occurred in cancel_close_bybit(): {e}")
 
     def cancel_close_bitget(self, symbol: str, side: str) -> None:
         side_map = {"long": "close_long", "short": "close_short"}
