@@ -263,7 +263,7 @@ class BybitHedgeStrategy(Strategy):
                 if not math.isclose(total_existing_long_tp_qty, long_pos_qty):
                     try:
                         for _, existing_long_tp_id in existing_long_tps:
-                            self.cancel_take_profit_orders(symbol, "sell")
+                            self.cancel_take_profit_orders(symbol, "long")
                             print(f"Long take profit canceled")
                             time.sleep(0.05)
 
@@ -280,7 +280,7 @@ class BybitHedgeStrategy(Strategy):
                 if not math.isclose(total_existing_short_tp_qty, short_pos_qty):
                     try:
                         for _, existing_short_tp_id in existing_short_tps:
-                            self.cancel_take_profit_orders(symbol, "buy")
+                            self.cancel_take_profit_orders(symbol, "short")
                             print(f"Short take profit canceled")
                             time.sleep(0.05)
 
@@ -290,7 +290,6 @@ class BybitHedgeStrategy(Strategy):
                         time.sleep(0.05)
                     except Exception as e:
                         print(f"Error in placing short TP: {e}")
-
 
             # Cancel entries
             current_time = time.time()
