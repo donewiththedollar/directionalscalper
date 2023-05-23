@@ -1066,6 +1066,22 @@ class Exchange:
         except Exception as e:
             log.warning(f"An unknown error occurred in cancel_entry(): {e}")
 
+    def cancel_take_profit_orders_bybit(self, symbol, side):
+        try:
+            open_orders = self.exchange.fetch_open_orders(symbol)
+            position_idx_map = {"long": 1, "short": 2}
+            for order in open_orders:
+                if (
+                    order['side'].lower() == side.lower()
+                    and order['info'].get('reduceOnly')
+                    and order['info'].get('positionIdx') == position_idx_map[side]
+                ):
+                    order_id = order['info']['orderId']
+                    self.exchange.cancel_derivatives_order(order_id, symbol)
+                    print(f"Canceled take profit order - ID: {order_id}")
+        except Exception as e:
+            print(f"An unknown error occurred in cancel_take_profit_orders: {e}")
+
     def cancel_close_bybit(self, symbol: str, side: str) -> None:
         position_idx_map = {"long": 1, "short": 2}
         try:
