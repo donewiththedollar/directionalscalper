@@ -144,11 +144,11 @@ class BybitHedgeStrategy(Strategy):
             print(f"Best ask: {best_ask_price}")
             print(f"Current price: {current_price}")
 
-            leverage = float(market_data["leverage"]) if market_data["leverage"] !=0 else 50.0
+            max_leverage = self.exchange.get_max_leverage_bybit(symbol)
 
             max_trade_qty = round(
                 (float(dex_equity) * wallet_exposure / float(best_ask_price))
-                / (100 / leverage),
+                / (100 / max_leverage),
                 int(float(market_data["min_qty"])),
             )            
             
