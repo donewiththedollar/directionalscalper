@@ -115,6 +115,27 @@ class Exchange:
         response = self.exchange.contractPrivatePostLinearSwapApiV3SwapSwitchAccountType(body)
         return response
 
+    # Bybit
+    def get_current_leverage_bybit(self, symbol):
+        try:
+            positions = self.exchange.fetch_derivatives_positions([symbol])
+            if len(positions) > 0:
+                position = positions[0]
+                leverage = position['leverage']
+                print(f"Current leverage for symbol {symbol}: {leverage}")
+            else:
+                print(f"No positions found for symbol {symbol}")
+        except Exception as e:
+            print(f"Error retrieving current leverage: {e}")
+            
+    # Bybit
+    def set_leverage_bybit(self, leverage, symbol):
+        try:
+            self.exchange.set_leverage(leverage, symbol)
+            print(f"Leverage set to {leverage} for symbol {symbol}")
+        except Exception as e:
+            print(f"Error setting leverage: {e}")
+
     def setup_exchange_bybit(self, symbol) -> None:
         values = {"position": False, "leverage": False}
         try:
@@ -128,12 +149,9 @@ class Exchange:
         try:
             # Set the margin mode to cross
             self.exchange.set_derivatives_margin_mode(marginMode="cross", symbol=symbol)
-            
-            # Set the leverage to the maximum allowed
-            self.exchange.set_leverage(leverage=market_data["leverage"], symbol=symbol)
-            values["leverage"] = True
+
         except Exception as e:
-            log.warning(f"An unknown error occurred in with set_leverage: {e}")
+            log.warning(f"An unknown error occurred in with set_derivatives_margin_mode: {e}")
 
         log.info(values)
 

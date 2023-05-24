@@ -111,10 +111,16 @@ class BybitHedgeStrategy(Strategy):
         wallet_exposure = self.config.wallet_exposure
         min_dist = self.config.min_distance
         min_vol = self.config.min_volume
+        current_leverage = self.exchange.get_current_leverage_bybit(symbol)
+        max_leverage = self.exchange.get_max_leverage_bybit(symbol)
 
         print("Setting up exchange")
         self.exchange.setup_exchange_bybit(symbol)
-        print("Set up exchange")
+
+        print("Setting leverage")
+        if current_leverage != max_leverage:
+            print(f"Current leverage is not at maximum. Setting leverage to maximum. Maximum is {max_leverage}")
+            self.exchange.set_leverage_bybit(max_leverage, symbol)
 
         while True:
             print(f"Bybit hedge strategy running")
@@ -143,8 +149,6 @@ class BybitHedgeStrategy(Strategy):
             print(f"Best bid: {best_bid_price}")
             print(f"Best ask: {best_ask_price}")
             print(f"Current price: {current_price}")
-
-            max_leverage = self.exchange.get_max_leverage_bybit(symbol)
 
             max_trade_qty = round(
                 (float(dex_equity) * wallet_exposure / float(best_ask_price))
