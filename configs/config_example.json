@@ -11,7 +11,8 @@
     "min_volume": 15000,
     "symbol": "BTCUSDT",
     "violent_multiplier": 2.00,
-    "wallet_exposure": 1.00
+    "wallet_exposure": 1.00,
+    "wallet_exposure_limit": 0.10
   },
   "exchanges": [
     {
