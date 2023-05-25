@@ -12,6 +12,7 @@ class BybitDynamicHedgeStrategy(Strategy):
         self.last_cancel_time = 0
         self.wallet_exposure_limit = self.config.wallet_exposure_limit
         self.current_wallet_exposure = 1.0
+        self.printed_trade_quantities = False
 
     def calculate_trade_quantity(self, leverage):
         dex_equity = self.exchange.get_balance_bybit('USDT')
@@ -149,6 +150,7 @@ class BybitDynamicHedgeStrategy(Strategy):
             data = self.manager.get_data()
             one_minute_volume = self.manager.get_asset_value(symbol, data, "1mVol")
             five_minute_distance = self.manager.get_asset_value(symbol, data, "5mSpread")
+            thirty_minute_distance = self.manager.get_asset_value(symbol, data, "30mSpread")
             trend = self.manager.get_asset_value(symbol, data, "Trend")
             print(f"1m Volume: {one_minute_volume}")
             print(f"5m Spread: {five_minute_distance}")
@@ -174,7 +176,6 @@ class BybitDynamicHedgeStrategy(Strategy):
                 int(float(market_data["min_qty"])),
             )    
 
-
             max_trade_qty = round(
                 (float(total_equity) * self.wallet_exposure_limit) / float(best_ask_price),
                 int(float(market_data["min_qty"])),
@@ -185,9 +186,19 @@ class BybitDynamicHedgeStrategy(Strategy):
             min_qty_bybit = market_data["min_qty"]
             print(f"Min qty: {min_qty_bybit}")
 
-            amount = self.calculate_trade_quantity(max_leverage)
+            if not self.printed_trade_quantities:
+                self.exchange.print_trade_quantities_bybit(max_trade_qty, [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
+                self.printed_trade_quantities = True
+                
+            # self.exchange.print_trade_quantities_bybit(max_trade_qty, [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
 
-            print(f"Dynamic size: {amount}")
+            dynamic_amount = self.calculate_trade_quantity(max_leverage)
+
+            print(f"Dynamic size: {dynamic_amount}")
+
+            amount = self.exchange.spread_based_entry_size_bybit(symbol, thirty_minute_distance, min_qty_bybit)
+
+            print(f"Amount based on 30m spread: {amount}")
 
             self.adjust_position_wallet_exposure(symbol)
 
@@ -217,15 +228,22 @@ class BybitDynamicHedgeStrategy(Strategy):
 
             short_pos_qty = position_data["short"]["qty"]
             long_pos_qty = position_data["long"]["qty"]
-            short_upnl = position_data["short"]["upnl"]
-            long_upnl = position_data["long"]["upnl"]
-            cumulative_realized_pnl = position_data["long"]["cum_realised"]
 
             print(f"Short pos qty: {short_pos_qty}")
             print(f"Long pos qty: {long_pos_qty}")
 
+            short_upnl = position_data["short"]["upnl"]
+            long_upnl = position_data["long"]["upnl"]
+
             print(f"Short uPNL: {short_upnl}")
             print(f"Long uPNL: {long_upnl}")
+
+            cum_realised_pnl_long = position_data["long"]["cum_realised"]
+            cum_realised_pnl_short = position_data["short"]["cum_realised"]
+
+            print(f"Short cum. PNL: {cum_realised_pnl_short}")
+            print(f"Long cum. PNL: {cum_realised_pnl_long}")
+
 
             short_pos_price = position_data["short"]["price"] if short_pos_qty > 0 else None
             long_pos_price = position_data["long"]["price"] if long_pos_qty > 0 else None
@@ -264,12 +282,6 @@ class BybitDynamicHedgeStrategy(Strategy):
             print(f"Add short condition: {should_add_to_short}")
             print(f"Add long condition: {should_add_to_long}")
 
-            # # Create the strategy table
-            # strategy_table = create_strategy_table(symbol, total_equity, long_upnl, short_upnl, short_pos_qty, long_pos_qty, amount, cumulative_realized_pnl)
-
-            # # Display the live table
-            # display_live_table(strategy_table)
-            
 
             if trend is not None and isinstance(trend, str):
                 if one_minute_volume is not None and five_minute_distance is not None:
@@ -295,15 +307,15 @@ class BybitDynamicHedgeStrategy(Strategy):
         
             open_orders = self.exchange.get_open_orders(symbol)
 
-            # Call the get_open_take_profit_order_quantity function for the 'buy' side
-            buy_qty, buy_id = self.get_open_take_profit_order_quantity(open_orders, 'buy')
+            # # Call the get_open_take_profit_order_quantity function for the 'buy' side
+            # buy_qty, buy_id = self.get_open_take_profit_order_quantity(open_orders, 'buy')
 
-            # Call the get_open_take_profit_order_quantity function for the 'sell' side
-            sell_qty, sell_id = self.get_open_take_profit_order_quantity(open_orders, 'sell')
+            # # Call the get_open_take_profit_order_quantity function for the 'sell' side
+            # sell_qty, sell_id = self.get_open_take_profit_order_quantity(open_orders, 'sell')
 
-            # Print the results
-            print("Buy Take Profit Order - Quantity: ", buy_qty, "ID: ", buy_id)
-            print("Sell Take Profit Order - Quantity: ", sell_qty, "ID: ", sell_id)
+            # # Print the results
+            # print("Buy Take Profit Order - Quantity: ", buy_qty, "ID: ", buy_id)
+            # print("Sell Take Profit Order - Quantity: ", sell_qty, "ID: ", sell_id)
 
             if long_pos_qty > 0 and long_take_profit is not None:
                 existing_long_tps = self.get_open_take_profit_order_quantities(open_orders, "sell")
@@ -315,7 +327,7 @@ class BybitDynamicHedgeStrategy(Strategy):
                             print(f"Long take profit canceled")
                             time.sleep(0.05)
 
-                        print(f"Debug: Long Position Quantity {long_pos_qty}, Long Take Profit {long_take_profit}")
+                        #print(f"Debug: Long Position Quantity {long_pos_qty}, Long Take Profit {long_take_profit}")
                         self.exchange.create_take_profit_order_bybit(symbol, "limit", "sell", long_pos_qty, long_take_profit, positionIdx=1, reduce_only=True)
                         print(f"Long take profit set at {long_take_profit}")
                         time.sleep(0.05)
@@ -332,7 +344,7 @@ class BybitDynamicHedgeStrategy(Strategy):
                             print(f"Short take profit canceled")
                             time.sleep(0.05)
 
-                        print(f"Debug: Short Position Quantity {short_pos_qty}, Short Take Profit {short_take_profit}")
+                        #print(f"Debug: Short Position Quantity {short_pos_qty}, Short Take Profit {short_take_profit}")
                         self.exchange.create_take_profit_order_bybit(symbol, "limit", "buy", short_pos_qty, short_take_profit, positionIdx=2, reduce_only=True)
                         print(f"Short take profit set at {short_take_profit}")
                         time.sleep(0.05)
@@ -351,5 +363,12 @@ class BybitDynamicHedgeStrategy(Strategy):
                     print(f"An error occurred while canceling entry orders: {e}")
 
                 self.last_cancel_time = current_time  # Update the last cancel time
+
+            # # Create the strategy table
+            # strategy_table = create_strategy_table(symbol, total_equity, long_upnl, short_upnl, short_pos_qty, long_pos_qty, amount, cumulative_realized_pnl, one_minute_volume, five_minute_distance)
+
+            # # Display the live table
+            # display_live_table(strategy_table)
+            
 
             time.sleep(30)

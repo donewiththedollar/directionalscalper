@@ -129,25 +129,28 @@ class Exchange:
 
         return max_trade_qty
 
+    # Bybit
     def calculate_trade_quantity(self, symbol, leverage, asset_wallet_exposure, best_ask_price):
         dex_equity = self.get_balance_bybit('USDT')
         asset_exposure = dex_equity * asset_wallet_exposure / 100.0
         trade_qty = asset_exposure / float(best_ask_price) / leverage
         return trade_qty
 
+    # Bybit
+    def print_trade_quantities_bybit(self, max_trade_qty, leverage_sizes, wallet_exposure, best_ask_price):
+        sorted_leverage_sizes = sorted(leverage_sizes)  # Sort leverage sizes in ascending order
 
-    def print_trade_quantities(self, symbol, leverage_sizes, wallet_exposure, best_ask_price):
-        for leverage in leverage_sizes:
-            max_trade_qty = self.calculate_max_trade_quantity(symbol, leverage, wallet_exposure, best_ask_price)
-            trade_qty = max_trade_qty / leverage  # Calculate trade quantity based on leverage
-            print(f"Leverage: {leverage}, Trade Quantity: {trade_qty}")
-            
-    def print_trade_sizes_bybit(self, symbol, wallet_exposure, best_ask_price):
-        leverage_sizes = [0.001, 0.01, 0.1, 1]
+        for leverage in sorted_leverage_sizes:
+            trade_qty = max_trade_qty * leverage  # Calculate trade quantity based on leverage
+            print(f"Leverage: {leverage}x, Trade Quantity: {trade_qty}")
 
-        for leverage in leverage_sizes:
-            trade_qty = self.calculate_trade_quantity(symbol, leverage, wallet_exposure, best_ask_price)
-            print(f"Leverage: {leverage}, Trade Quantity: {trade_qty}")
+    # Bybit calc lot size based on spread
+    def spread_based_entry_size_bybit(self, symbol, spread, min_order_qty):
+        current_price = self.get_current_price(symbol)
+        print(f"Current price debug: {current_price}")
+        entry_amount = min_order_qty + (spread * current_price) / 100
+
+        return entry_amount
 
     # Bybit
     def get_current_leverage_bybit(self, symbol):
