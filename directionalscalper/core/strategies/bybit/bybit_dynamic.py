@@ -264,11 +264,11 @@ class BybitDynamicHedgeStrategy(Strategy):
             print(f"Add short condition: {should_add_to_short}")
             print(f"Add long condition: {should_add_to_long}")
 
-            # Create the strategy table
-            strategy_table = create_strategy_table(symbol, total_equity, long_upnl, short_upnl, short_pos_qty, long_pos_qty, amount, cumulative_realized_pnl)
+            # # Create the strategy table
+            # strategy_table = create_strategy_table(symbol, total_equity, long_upnl, short_upnl, short_pos_qty, long_pos_qty, amount, cumulative_realized_pnl)
 
-            # Display the live table
-            display_live_table(strategy_table)
+            # # Display the live table
+            # display_live_table(strategy_table)
             
 
             if trend is not None and isinstance(trend, str):

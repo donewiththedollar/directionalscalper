@@ -3,7 +3,7 @@ from rich.table import Table
 from rich.layout import Layout
 
 
-def create_strategy_table(symbol, total_equity, long_upnl, short_upnl, short_pos_qty, long_pos_qty, amount, cumulative_realized_pnl):
+def create_strategy_table(symbol, total_equity, long_upnl, short_upnl, short_pos_qty, long_pos_qty, amount, cumulative_realized_pnl, one_minute_volume, five_minute_distance):
     table = Table(show_header=True, header_style="bold magenta")
     table.add_column("Directional Scalper", justify="center")
 
@@ -21,6 +21,8 @@ def create_strategy_table(symbol, total_equity, long_upnl, short_upnl, short_pos
     table.add_row(f"Short Position uPNL: {short_upnl_formatted}")
     table.add_row(f"Cumulative Realized PNL: {cumulative_realized_pnl_formatted}")
     table.add_row(f"Amount: {amount}")
+    table.add_row(f"1m Volume: {one_minute_volume}")
+    table.add_row(f"5m Spread: {five_minute_distance}")
 
     return table
 

@@ -252,7 +252,7 @@ class BybitHedgeStrategy(Strategy):
             print(f"Add long condition: {should_add_to_long}")
 
             # Create the strategy table
-            strategy_table = create_strategy_table(symbol, total_equity, long_upnl, short_upnl, short_pos_qty, long_pos_qty, amount, cumulative_realized_pnl)
+            strategy_table = create_strategy_table(symbol, total_equity, long_upnl, short_upnl, short_pos_qty, long_pos_qty, amount, cumulative_realized_pnl, one_minute_volume, five_minute_distance)
 
             # Display the live table
             display_live_table(strategy_table)
