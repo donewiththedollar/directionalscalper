@@ -115,6 +115,40 @@ class Exchange:
         response = self.exchange.contractPrivatePostLinearSwapApiV3SwapSwitchAccountType(body)
         return response
 
+    def calculate_max_trade_quantity(self, symbol, leverage, wallet_exposure, best_ask_price):
+        # Fetch necessary data from the exchange
+        market_data = self.get_market_data_bybit(symbol)
+        dex_equity = self.get_balance_bybit('USDT')
+
+        # Calculate the max trade quantity based on leverage and equity
+        max_trade_qty = round(
+            (float(dex_equity) * wallet_exposure / float(best_ask_price))
+            / (100 / leverage),
+            int(float(market_data['min_qty'])),
+        )
+
+        return max_trade_qty
+
+    def calculate_trade_quantity(self, symbol, leverage, asset_wallet_exposure, best_ask_price):
+        dex_equity = self.get_balance_bybit('USDT')
+        asset_exposure = dex_equity * asset_wallet_exposure / 100.0
+        trade_qty = asset_exposure / float(best_ask_price) / leverage
+        return trade_qty
+
+
+    def print_trade_quantities(self, symbol, leverage_sizes, wallet_exposure, best_ask_price):
+        for leverage in leverage_sizes:
+            max_trade_qty = self.calculate_max_trade_quantity(symbol, leverage, wallet_exposure, best_ask_price)
+            trade_qty = max_trade_qty / leverage  # Calculate trade quantity based on leverage
+            print(f"Leverage: {leverage}, Trade Quantity: {trade_qty}")
+            
+    def print_trade_sizes_bybit(self, symbol, wallet_exposure, best_ask_price):
+        leverage_sizes = [0.001, 0.01, 0.1, 1]
+
+        for leverage in leverage_sizes:
+            trade_qty = self.calculate_trade_quantity(symbol, leverage, wallet_exposure, best_ask_price)
+            print(f"Leverage: {leverage}, Trade Quantity: {trade_qty}")
+
     # Bybit
     def get_current_leverage_bybit(self, symbol):
         try:

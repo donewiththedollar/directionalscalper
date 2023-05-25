@@ -5,7 +5,7 @@ from ..strategy import Strategy
 from typing import Tuple
 from ...tables import create_strategy_table, display_live_table
 
-class BybitHedgeStrategy(Strategy):
+class BybitDynamicHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):
         super().__init__(exchange, config)
         self.manager = manager
@@ -13,7 +13,7 @@ class BybitHedgeStrategy(Strategy):
         self.wallet_exposure_limit = self.config.wallet_exposure_limit
         self.current_wallet_exposure = 1.0
 
-    def calculate_trade_quantity(self, symbol, leverage):
+    def calculate_trade_quantity(self, leverage):
         dex_equity = self.exchange.get_balance_bybit('USDT')
         trade_qty = (float(dex_equity) * self.current_wallet_exposure) / leverage
         return trade_qty
@@ -22,12 +22,11 @@ class BybitHedgeStrategy(Strategy):
         if self.current_wallet_exposure > self.wallet_exposure_limit:
             desired_wallet_exposure = self.wallet_exposure_limit
             # Calculate the necessary position size to achieve the desired wallet exposure
-            max_trade_qty = self.calculate_trade_quantity(symbol, 1)
             current_trade_qty = self.calculate_trade_quantity(symbol, 1 / self.current_wallet_exposure)
-            reduction_qty = current_trade_qty - max_trade_qty
-            # Reduce the position to the desired wallet exposure level
-            self.exchange.reduce_position_bybit(symbol, reduction_qty)
-
+            max_trade_qty = self.calculate_trade_quantity(symbol, 1 / desired_wallet_exposure)
+            # Adjust the current position to the desired wallet exposure limit
+            self.current_wallet_exposure = desired_wallet_exposure
+            self.amount = self.calculate_trade_quantity(symbol, 1)
 
     def truncate(self, number: float, precision: int) -> float:
         return float(Decimal(number).quantize(Decimal('0.' + '0'*precision), rounding=ROUND_DOWN))
@@ -62,7 +61,7 @@ class BybitHedgeStrategy(Strategy):
         five_min_data = self.manager.get_5m_moving_averages(symbol)
         price_precision = int(self.exchange.get_price_precision(symbol))
 
-        print("Debug: Price Precision for Symbol (", symbol, "):", price_precision)
+        #print("Debug: Price Precision for Symbol (", symbol, "):", price_precision)
 
         if five_min_data is not None:
             ma_6_high = Decimal(five_min_data["MA_6_H"])
@@ -83,7 +82,7 @@ class BybitHedgeStrategy(Strategy):
                 print(f"Error: Invalid operation when quantizing short_target_price. short_target_price={short_target_price}, price_precision={price_precision}")
                 return None
 
-            print("Debug: Short Target Price:", short_target_price)
+            #print("Debug: Short Target Price:", short_target_price)
 
             short_profit_price = short_target_price
 
@@ -97,7 +96,7 @@ class BybitHedgeStrategy(Strategy):
         five_min_data = self.manager.get_5m_moving_averages(symbol)
         price_precision = int(self.exchange.get_price_precision(symbol))
 
-        print("Debug: Price Precision for Symbol (", symbol, "):", price_precision)
+        #print("Debug: Price Precision for Symbol (", symbol, "):", price_precision)
 
         if five_min_data is not None:
             ma_6_high = Decimal(five_min_data["MA_6_H"])
@@ -118,7 +117,7 @@ class BybitHedgeStrategy(Strategy):
                 print(f"Error: Invalid operation when quantizing long_target_price. long_target_price={long_target_price}, price_precision={price_precision}")
                 return None
 
-            print("Debug: Long Target Price:", long_target_price)
+            #print("Debug: Long Target Price:", long_target_price)
 
             long_profit_price = long_target_price
 
@@ -126,7 +125,7 @@ class BybitHedgeStrategy(Strategy):
         return None
     
 
-    def run(self, symbol, amount):
+    def run(self, symbol):
         wallet_exposure = self.config.wallet_exposure
         min_dist = self.config.min_distance
         min_vol = self.config.min_volume
@@ -169,20 +168,32 @@ class BybitHedgeStrategy(Strategy):
             print(f"Best ask: {best_ask_price}")
             print(f"Current price: {current_price}")
 
-            max_trade_qty = round(
+            old_max_trade_qty = round(
                 (float(total_equity) * wallet_exposure / float(best_ask_price))
                 / (100 / max_leverage),
                 int(float(market_data["min_qty"])),
-            )            
+            )    
+
+
+            max_trade_qty = round(
+                (float(total_equity) * self.wallet_exposure_limit) / float(best_ask_price),
+                int(float(market_data["min_qty"])),
+            )
             
             print(f"Max trade quantity for {symbol}: {max_trade_qty}")
 
-            #print("Printing trade quantities based on leverage sizes:")
-            #self.exchange.print_trade_quantities(symbol, [1, 3, 5, 10], wallet_exposure, best_ask_price)  # Example leverage sizes
-            #self.exchange.print_trade_sizes_bybit(symbol, wallet_exposure, best_ask_price)
-
             min_qty_bybit = market_data["min_qty"]
             print(f"Min qty: {min_qty_bybit}")
+
+            amount = self.calculate_trade_quantity(max_leverage)
+
+            print(f"Dynamic size: {amount}")
+
+            self.adjust_position_wallet_exposure(symbol)
+
+            print(f"Adjusted exposure")
+
+            print(f"Dynamic size: {amount}")
 
             if float(amount) < min_qty_bybit:
                 print(f"The amount you entered ({amount}) is less than the minimum required by Bybit for {symbol}: {min_qty_bybit}.")
@@ -213,6 +224,9 @@ class BybitHedgeStrategy(Strategy):
             print(f"Short pos qty: {short_pos_qty}")
             print(f"Long pos qty: {long_pos_qty}")
 
+            print(f"Short uPNL: {short_upnl}")
+            print(f"Long uPNL: {long_upnl}")
+
             short_pos_price = position_data["short"]["price"] if short_pos_qty > 0 else None
             long_pos_price = position_data["long"]["price"] if long_pos_qty > 0 else None
 
@@ -227,7 +241,6 @@ class BybitHedgeStrategy(Strategy):
 
             # Precision
             #price_precision, quantity_precision = self.exchange.get_symbol_precision_bybit(symbol)
-
 
             # Take profit calc
             short_take_profit = self.calculate_short_take_profit(short_pos_price, symbol)
@@ -256,6 +269,7 @@ class BybitHedgeStrategy(Strategy):
 
             # Display the live table
             display_live_table(strategy_table)
+            
 
             if trend is not None and isinstance(trend, str):
                 if one_minute_volume is not None and five_minute_distance is not None:
@@ -324,42 +338,6 @@ class BybitHedgeStrategy(Strategy):
                         time.sleep(0.05)
                     except Exception as e:
                         print(f"Error in placing short TP: {e}")
-
-
-            # if long_pos_qty > 0 and long_take_profit is not None:
-            #     existing_long_tps = self.get_open_take_profit_order_quantities(open_orders, "sell")
-            #     total_existing_long_tp_qty = sum(qty for qty, _ in existing_long_tps)
-            #     if not math.isclose(total_existing_long_tp_qty, long_pos_qty):
-            #         try:
-            #             for _, existing_long_tp_id in existing_long_tps:
-            #                 self.cancel_take_profit_orders(symbol, "long")
-            #                 print(f"Long take profit canceled")
-            #                 time.sleep(0.05)
-
-            #             print(f"Debug: Long Position Quantity {long_pos_qty}, Long Take Profit {long_take_profit}")
-            #             self.exchange.create_take_profit_order_bybit(symbol, "limit", "sell", long_pos_qty, long_take_profit, positionIdx=1, reduce_only=True)
-            #             print(f"Long take profit set at {long_take_profit}")
-            #             time.sleep(0.05)
-            #         except Exception as e:
-            #             print(f"Error in placing long TP: {e}")
-
-            # if short_pos_qty > 0 and short_take_profit is not None:
-            #     existing_short_tps = self.get_open_take_profit_order_quantities(open_orders, "buy")
-            #     total_existing_short_tp_qty = sum(qty for qty, _ in existing_short_tps)
-            #     if not math.isclose(total_existing_short_tp_qty, short_pos_qty):
-            #         try:
-            #             for _, existing_short_tp_id in existing_short_tps:
-            #                 self.cancel_take_profit_orders(symbol, "short")
-            #                 print(f"Short take profit canceled")
-            #                 time.sleep(0.05)
-
-            #             print(f"Debug: Short Position Quantity {short_pos_qty}, Short Take Profit {short_take_profit}")
-            #             self.exchange.create_take_profit_order_bybit(symbol, "limit", "buy", short_pos_qty, short_take_profit, positionIdx=2, reduce_only=True)
-            #             print(f"Short take profit set at {short_take_profit}")
-            #             time.sleep(0.05)
-            #         except Exception as e:
-            #             print(f"Error in placing short TP: {e}")
-
 
             # Cancel entries
             current_time = time.time()
