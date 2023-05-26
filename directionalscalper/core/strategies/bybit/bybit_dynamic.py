@@ -3,7 +3,7 @@ import math
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_DOWN
 from ..strategy import Strategy
 from typing import Tuple
-from ...tables import create_strategy_table, display_live_table
+#from ...tables import create_strategy_table, display_live_table
 
 class BybitDynamicHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):

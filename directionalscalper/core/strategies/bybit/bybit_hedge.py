@@ -3,7 +3,7 @@ import math
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_DOWN
 from ..strategy import Strategy
 from typing import Tuple
-from ...tables import create_strategy_table, start_live_table
+#from ...tables import create_strategy_table, start_live_table
 import threading
 #from directionalscalper.core.tables import create_strategy_table, start_live_table
 import threading
@@ -123,7 +123,7 @@ class BybitHedgeStrategy(Strategy):
                 print(f"Error: Invalid operation when quantizing long_target_price. long_target_price={long_target_price}, price_precision={price_precision}")
                 return None
 
-            print("Debug: Long Target Price:", long_target_price)
+            #print("Debug: Long Target Price:", long_target_price)
 
             long_profit_price = long_target_price
 

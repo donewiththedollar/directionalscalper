@@ -173,6 +173,7 @@ class Exchange:
         except Exception as e:
             print(f"Error setting leverage: {e}")
 
+    # Bybit
     def setup_exchange_bybit(self, symbol) -> None:
         values = {"position": False, "leverage": False}
         try:
@@ -192,6 +193,30 @@ class Exchange:
 
         log.info(values)
 
+    # Bybit
+    def get_trading_fee_bybit(self, symbol: str):
+        market = self.market(symbol)
+        if market['spot']:
+            raise Exception("Fetching trading fee is not supported for spot market.")
+
+        request = {
+            'symbol': market['id'],
+        }
+        response = self.privateGetV5AccountFeeRate(self.extend(request, params))
+        result = self.safe_value(response, 'result', {})
+        fees = self.safe_value(result, 'list', [])
+        first = self.safe_value(fees, 0, {})
+        return self.parse_trading_fee(first)
+
+    def parse_trading_fee(self, fee_data):
+        maker_fee = float(fee_data.get('makerFeeRate', '0'))
+        taker_fee = float(fee_data.get('takerFeeRate', '0'))
+        return {
+            'maker_fee': maker_fee,
+            'taker_fee': taker_fee
+        }
+    
+    # Mexc
     def get_market_data_mexc(self, symbol: str) -> dict:
         values = {"precision": 0.0, "leverage": 0.0, "min_qty": 0.0}
         try:

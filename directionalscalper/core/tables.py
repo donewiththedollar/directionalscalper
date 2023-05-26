@@ -1,6 +1,6 @@
+import threading
 from rich.live import Live
 from rich.table import Table
-from rich.layout import Layout
 
 
 def create_strategy_table(symbol, total_equity, long_upnl, short_upnl, short_pos_qty, long_pos_qty, amount, cumulative_realized_pnl, one_minute_volume, five_minute_distance):
@@ -21,23 +21,18 @@ def create_strategy_table(symbol, total_equity, long_upnl, short_upnl, short_pos
     table.add_row(f"Short Position uPNL: {short_upnl_formatted}")
     table.add_row(f"Cumulative Realized PNL: {cumulative_realized_pnl_formatted}")
     table.add_row(f"Amount: {amount}")
-    table.add_row(f"1m Volume: {one_minute_volume}")
+    table.add_row(f"1m Vol: {one_minute_volume}")
     table.add_row(f"5m Spread: {five_minute_distance}")
 
     return table
 
-def display_live_table(table):
-    with Live(table, refresh_per_second=4):
-        input("Press Enter to stop the live table...")
+
+def display_live_table(strategy_table):
+    live_table = Live(strategy_table, refresh_per_second=4)
+    live_table.start()
+    live_table.wait()
 
 
-if __name__ == "__main__":
-    # Example usage
-    symbol = "BTC/USDT"
-    total_equity = "10000 USDT"
-    short_pos_qty = 2
-    long_pos_qty = 1
-    amount = "0.5 BTC"
-
-    strategy_table = create_strategy_table(symbol, total_equity, short_pos_qty, long_pos_qty, amount)
-    display_live_table(strategy_table)
+def start_live_table(strategy_table):
+    table_thread = threading.Thread(target=display_live_table, args=(strategy_table,))
+    table_thread.start()
