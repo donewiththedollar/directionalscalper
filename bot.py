@@ -22,6 +22,7 @@ from directionalscalper.core.strategies.bitget.bitget_grid_dynamic import Bitget
 from directionalscalper.core.strategies.bitget.bitget_fivemin import BitgetFiveMinuteStrategy
 from directionalscalper.core.strategies.okx.okx_hedge import OKXHedgeStrategy
 from directionalscalper.core.strategies.bybit.bybit_hedge import BybitHedgeStrategy
+from directionalscalper.core.strategies.bybit.bybit_violent import BybitViolentHedgeStrategy
 from directionalscalper.core.strategies.bybit.bybit_dynamic import BybitDynamicHedgeStrategy
 from directionalscalper.core.strategies.bybit.bybit_hedge_grid import BybitHedgeGridStrategy
 from directionalscalper.core.strategies.huobi.huobi_hedge import HuobiHedgeStrategy
@@ -140,6 +141,10 @@ if __name__ == '__main__':
         elif strategy_name.lower() == 'bybit_hedge':
             strategy = BybitHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
+
+        elif strategy_name.lower() == 'bybit_hedge_violent':
+            strategy = BybitHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol)
         
         elif strategy_name.lower() == 'bybit_hedge_dynamic':
             strategy = BybitDynamicHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
