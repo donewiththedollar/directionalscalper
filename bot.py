@@ -24,6 +24,7 @@ from directionalscalper.core.strategies.okx.okx_hedge import OKXHedgeStrategy
 from directionalscalper.core.strategies.bybit.bybit_hedge import BybitHedgeStrategy
 from directionalscalper.core.strategies.bybit.bybit_violent import BybitViolentHedgeStrategy
 from directionalscalper.core.strategies.bybit.bybit_dynamic import BybitDynamicHedgeStrategy
+from directionalscalper.core.strategies.bybit.bybit_hedge_unified import BybitHedgeUnifiedStrategy
 from directionalscalper.core.strategies.bybit.bybit_hedge_grid import BybitHedgeGridStrategy
 from directionalscalper.core.strategies.huobi.huobi_hedge import HuobiHedgeStrategy
 from directionalscalper.core.strategies.binance.binance_hedge import BinanceHedgeStrategy
@@ -93,6 +94,7 @@ if __name__ == '__main__':
     print(f"Strategy name: {strategy_name}")
     print(f"Symbol: {symbol}")
 
+
     market_maker = DirectionalMarketMaker(config, exchange_name)
 
     manager = Manager(market_maker.exchange, api=config.api.mode, path=Path("data", config.api.filename), url=f"{config.api.url}{config.api.filename}")
@@ -140,6 +142,10 @@ if __name__ == '__main__':
 
         elif strategy_name.lower() == 'bybit_hedge':
             strategy = BybitHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol, amount)
+
+        elif strategy_name.lower() == 'bybit_hedge_unified':
+            strategy = BybitHedgeUnifiedStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
 
         elif strategy_name.lower() == 'bybit_hedge_violent':

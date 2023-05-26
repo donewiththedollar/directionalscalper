@@ -38,12 +38,20 @@ class Exchange:
         if self.passphrase:
             exchange_params["password"] = self.passphrase
 
+        # if self.exchange_id.lower() == 'bybit':
+        #     exchange_params['urls'] = {
+        #         'api': 'https://api-testnet.bybit.com',
+        #         'public': 'https://api-testnet.bybit.com',
+        #         'private': 'https://api-testnet.bybit.com',
+        #     }
+
         self.exchange = exchange_class(exchange_params)
         #print(self.exchange.describe())  # Print the exchange properties
 
     def _get_symbols(self):
         while True:
             try:
+                #self.exchange.set_sandbox_mode(True)
                 markets = self.exchange.load_markets()
                 symbols = [market['symbol'] for market in markets.values()]
                 return symbols
@@ -53,47 +61,6 @@ class Exchange:
             except Exception as e:
                 log.warning(f"An error occurred while fetching symbols: {e}, retrying in 10 seconds...")
                 time.sleep(10)
-
-    # def get_symbol_precision_bybit(self, symbol: str) -> Tuple[int, int]:
-    #     try:
-    #         market = self.exchange.market(symbol)
-    #         price_precision = int(market['precision']['price'])
-    #         quantity_precision = int(market['precision']['amount'])
-    #         return price_precision, quantity_precision
-    #     except Exception as e:
-    #         print(f"An error occurred: {e}")
-    #         return None, None
-
-    # def get_symbol_precision_bybit(self, symbol: str) -> Tuple[int, int]:
-    #     market = self.exchange.market(symbol)
-    #     price_precision = int(market['precision']['price'])
-    #     quantity_precision = int(market['precision']['amount'])
-    #     return price_precision, quantity_precision
-
-    # def _get_symbols(self):
-    #     markets = self.exchange.load_markets()
-    #     symbols = [market['symbol'] for market in markets.values()]
-    #     return symbols
-
-    # def setup_exchange(self, symbol) -> None:
-    #     values = {"position": False, "margin": False, "leverage": False}
-    #     try:
-    #         self.exchange.set_position_mode(hedged="BothSide", symbol=symbol)
-    #         values["position"] = True
-    #     except Exception as e:
-    #         log.warning(f"An unknown error occurred in with set_position_mode: {e}")
-    #     try:
-    #         self.exchange.set_margin_mode(marginMode="cross", symbol=symbol)
-    #         values["margin"] = True
-    #     except Exception as e:
-    #         log.warning(f"An unknown error occurred in with set_margin_mode: {e}")
-    #     market_data = self.get_market_data(symbol=symbol)
-    #     try:
-    #         self.exchange.set_leverage(leverage=market_data["leverage"], symbol=symbol)
-    #         values["leverage"] = True
-    #     except Exception as e:
-    #         log.warning(f"An unknown error occurred in with set_leverage: {e}")
-    #     log.info(values)
 
     def check_account_type_huobi(self):
         if self.exchange_id.lower() != 'huobi':
@@ -348,7 +315,22 @@ class Exchange:
         except Exception as e:
             log.warning(f"An unknown error occurred in get_market_data_huobi(): {e}")
         return values
-    
+
+    def get_balance_bybit_unified(self, quote):
+        if self.exchange.has['fetchBalance']:
+            # Fetch the balance
+            balance = self.exchange.fetch_balance()
+
+            # Find the quote balance
+            unified_balance = balance.get('USDT', {})
+            total_balance = unified_balance.get('total', None)
+            
+            if total_balance is not None:
+                return float(total_balance)
+
+        return None
+
+
     def get_balance_bybit(self, quote):
         if self.exchange.has['fetchBalance']:
             # Fetch the balance
@@ -820,6 +802,7 @@ class Exchange:
         open_orders_list = []
         try:
             orders = self.exchange.fetch_open_orders(symbol)
+            #print(orders)
             if len(orders) > 0:
                 for order in orders:
                     if "info" in order:
@@ -832,6 +815,28 @@ class Exchange:
                             "side": order["info"]["side"],
                             "reduce_only": order["info"]["reduceOnly"],  # Update this line
                             "position_idx": int(order["info"]["positionIdx"])  # Add this line
+                        }
+                        open_orders_list.append(order_info)
+        except Exception as e:
+            log.warning(f"An unknown error occurred in get_open_orders(): {e}")
+        return open_orders_list
+
+    def get_open_orders_bybit_unified(self, symbol: str) -> list:
+        open_orders_list = []
+        try:
+            orders = self.exchange.fetch_open_orders(symbol)
+            print(orders)
+            if len(orders) > 0:
+                for order in orders:
+                    if "info" in order:
+                        order_info = {
+                            "id": order["id"],
+                            "price": float(order["price"]),
+                            "qty": float(order["amount"]),
+                            "order_status": order["status"],
+                            "side": order["side"],
+                            "reduce_only": order["reduceOnly"],
+                            "position_idx": int(order["info"]["positionIdx"])
                         }
                         open_orders_list.append(order_info)
         except Exception as e:
@@ -882,34 +887,6 @@ class Exchange:
         except Exception as e:
             log.warning(f"An unknown error occurred in get_open_orders_huobi(): {e}")
         return open_orders_list
-
-    # def cancel_entry(self, symbol: str) -> None:
-    #     try:
-    #         orders = self.exchange.fetch_open_orders(symbol)
-    #         for order in orders:
-    #             if "info" in order:
-    #                 order_id = order["info"]["orderId"]
-    #                 order_status = order["info"]["status"]
-    #                 order_side = order["info"]["side"]
-    #                 reduce_only = order["info"]["reduceOnly"]
-    #                 if (
-    #                     order_status != "filled"
-    #                     and order_side == "buy"
-    #                     and order_status != "cancelled"
-    #                     and not reduce_only
-    #                 ):
-    #                     self.exchange.cancel_order(symbol=symbol, id=order_id)
-    #                     log.info(f"Cancelling order: {order_id}")
-    #                 elif (
-    #                     order_status != "filled"
-    #                     and order_side == "sell"
-    #                     and order_status != "cancelled"
-    #                     and not reduce_only
-    #                 ):
-    #                     self.exchange.cancel_order(symbol=symbol, id=order_id)
-    #                     log.info(f"Cancelling order: {order_id}")
-    #     except Exception as e:
-    #         log.warning(f"An unknown error occurred in cancel_entry(): {e}")
 
     def debug_open_orders(self, symbol: str) -> None:
         try:
@@ -1403,6 +1380,23 @@ class Exchange:
         except Exception as e:
             log.warning(f"An unknown error occurred in create_market_order(): {e}")
 
+    def create_limit_order_bybit_unified(self, symbol: str, side: str, qty: float, price: float, positionIdx=0, params={}):
+        try:
+            if side == "buy" or side == "sell":
+                order = self.exchange.create_unified_account_order(
+                    symbol=symbol,
+                    type='limit',
+                    side=side,
+                    amount=qty,
+                    price=price,
+                    params={**params, 'positionIdx': positionIdx}  # Pass the 'positionIdx' parameter here
+                )
+                return order
+            else:
+                log.warning(f"side {side} does not exist")
+        except Exception as e:
+            log.warning(f"An unknown error occurred in create_limit_order(): {e}")
+
     def create_limit_order_bybit(self, symbol: str, side: str, qty: float, price: float, positionIdx=0, params={}):
         try:
             if side == "buy" or side == "sell":
@@ -1473,3 +1467,45 @@ class Exchange:
     def create_contract_order_huobi(self, symbol, order_type, side, amount, price=None, params={}):
         params = {'leverRate': 20}
         return self.exchange.create_contract_order(symbol, order_type, side, amount, price, params)
+
+
+    # def get_symbol_precision_bybit(self, symbol: str) -> Tuple[int, int]:
+    #     try:
+    #         market = self.exchange.market(symbol)
+    #         price_precision = int(market['precision']['price'])
+    #         quantity_precision = int(market['precision']['amount'])
+    #         return price_precision, quantity_precision
+    #     except Exception as e:
+    #         print(f"An error occurred: {e}")
+    #         return None, None
+
+    # def get_symbol_precision_bybit(self, symbol: str) -> Tuple[int, int]:
+    #     market = self.exchange.market(symbol)
+    #     price_precision = int(market['precision']['price'])
+    #     quantity_precision = int(market['precision']['amount'])
+    #     return price_precision, quantity_precision
+
+    # def _get_symbols(self):
+    #     markets = self.exchange.load_markets()
+    #     symbols = [market['symbol'] for market in markets.values()]
+    #     return symbols
+
+    # def setup_exchange(self, symbol) -> None:
+    #     values = {"position": False, "margin": False, "leverage": False}
+    #     try:
+    #         self.exchange.set_position_mode(hedged="BothSide", symbol=symbol)
+    #         values["position"] = True
+    #     except Exception as e:
+    #         log.warning(f"An unknown error occurred in with set_position_mode: {e}")
+    #     try:
+    #         self.exchange.set_margin_mode(marginMode="cross", symbol=symbol)
+    #         values["margin"] = True
+    #     except Exception as e:
+    #         log.warning(f"An unknown error occurred in with set_margin_mode: {e}")
+    #     market_data = self.get_market_data(symbol=symbol)
+    #     try:
+    #         self.exchange.set_leverage(leverage=market_data["leverage"], symbol=symbol)
+    #         values["leverage"] = True
+    #     except Exception as e:
+    #         log.warning(f"An unknown error occurred in with set_leverage: {e}")
+    #     log.info(values)
