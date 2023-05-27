@@ -63,7 +63,7 @@ class DirectionalMarketMaker:
             #return self.exchange.get_balance_okx(quote)
             print(f"Unsupported for now")
         elif self.exchange_name == 'binance':
-            print(f"Unsupported for now")
+            return self.exchange.get_balance_binance(quote)
         elif self.exchange_name == 'phemex':
             print(f"Unsupported for now")
 
