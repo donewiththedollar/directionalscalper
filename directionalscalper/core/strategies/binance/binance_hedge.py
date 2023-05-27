@@ -38,7 +38,7 @@ class BinanceHedgeStrategy(Strategy):
     def limit_order(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
         params = {"reduceOnly": reduceOnly}
         #print(f"Symbol: {symbol}, Side: {side}, Amount: {amount}, Price: {price}, Params: {params}")
-        order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
+        order = self.exchange.create_limit_order_binance(symbol, side, amount, price, positionIdx=positionIdx, params=params)
         return order
 
     def get_open_take_profit_order_quantity(self, orders, side):
@@ -132,7 +132,10 @@ class BinanceHedgeStrategy(Strategy):
         min_dist = self.config.min_distance
         min_vol = self.config.min_volume
         #current_leverage = self.exchange.get_current_leverage_bybit(symbol)
-        #max_leverage = self.exchange.get_max_leverage_bybit(symbol)
+        true_max_leverage = self.exchange.get_max_leverage_binance(symbol)
+        print(f"True max leverage: {true_max_leverage}")
+        max_leverage = 20.0
+        print(f"Max leverage {max_leverage}")
 
         # print("Setting up exchange")
         # self.exchange.setup_exchange_bybit(symbol)
@@ -201,7 +204,9 @@ class BinanceHedgeStrategy(Strategy):
             ma_1m_3_high = self.manager.get_1m_moving_averages(symbol)["MA_3_H"]
             ma_5m_3_high = self.manager.get_5m_moving_averages(symbol)["MA_3_H"]
 
-            position_data = self.exchange.get_positions_bybit(symbol)
+            position_data = self.exchange.get_positions_binance(symbol)
+
+            print(position_data)
 
             #print(f"Bybit pos data: {position_data}")
 

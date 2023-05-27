@@ -349,6 +349,7 @@ class Exchange:
         if self.exchange.has['fetchBalance']:
             # Fetch the balance
             balance = self.exchange.fetch_balance(params={'type': 'future'})
+            #print(balance)
 
             # Find the symbol balance
             for currency_balance in balance['info']['assets']:
@@ -644,6 +645,48 @@ class Exchange:
         except Exception as e:
             log.warning(f"An unknown error occurred in get_positions(): {e}")
         return values
+
+    # Binance
+    def get_positions_binance(self, symbol) -> dict:
+        values = {
+            "long": {
+                "qty": 0.0,
+                "price": 0.0,
+                "realised": 0,
+                "cum_realised": 0,
+                "upnl": 0,
+                "upnl_pct": 0,
+                "liq_price": 0,
+                "entry_price": 0,
+            },
+            "short": {
+                "qty": 0.0,
+                "price": 0.0,
+                "realised": 0,
+                "cum_realised": 0,
+                "upnl": 0,
+                "upnl_pct": 0,
+                "liq_price": 0,
+                "entry_price": 0,
+            },
+        }
+        try:
+            data = self.exchange.fetch_positions_risk([symbol])
+            if len(data) > 0:
+                for position in data:
+                    position_side = position["positionSide"].lower()
+                    values[position_side]["qty"] = float(position["positionAmt"])
+                    values[position_side]["price"] = float(position["entryPrice"] or 0)
+                    values[position_side]["realised"] = round(float(position["unRealizedProfit"] or 0), 4)
+                    values[position_side]["cum_realised"] = round(float(position["unRealizedProfit"] or 0), 4)
+                    values[position_side]["upnl"] = round(float(position["unRealizedProfit"] or 0), 4)
+                    values[position_side]["upnl_pct"] = 0  # Binance does not provide the unrealized PnL percentage
+                    values[position_side]["liq_price"] = float(position["liquidationPrice"] or 0)
+                    values[position_side]["entry_price"] = float(position["entryPrice"] or 0)
+        except Exception as e:
+            log.warning(f"An unknown error occurred in get_positions(): {e}")
+        return values
+
     
     # Huobi
     def safe_order_operation(self, operation, *args, **kwargs):
@@ -1009,6 +1052,21 @@ class Exchange:
                         print(f"Cancelling order: {order_id}")
         except Exception as e:
             log.warning(f"An unknown error occurred in cancel_entry(): {e}")
+
+
+    # Binance
+    def get_max_leverage_binance(self, symbol):
+        if self.exchange.has['fetchLeverageTiers']:
+            tiers = self.exchange.fetch_leverage_tiers()
+            if symbol in tiers:
+                brackets = tiers[symbol].get('brackets', [])
+                if len(brackets) > 0:
+                    maxLeverage = brackets[0].get('initialLeverage')
+                    if maxLeverage is not None:
+                        return float(maxLeverage)
+        return None
+
+
 
     # Bybit
     def get_max_leverage_bybit(self, symbol):
@@ -1411,6 +1469,7 @@ class Exchange:
         except Exception as e:
             log.warning(f"An unknown error occurred in create_limit_order(): {e}")
 
+    # Bybit
     def create_limit_order_bybit(self, symbol: str, side: str, qty: float, price: float, positionIdx=0, params={}):
         try:
             if side == "buy" or side == "sell":
@@ -1421,6 +1480,24 @@ class Exchange:
                     amount=qty,
                     price=price,
                     params={**params, 'positionIdx': positionIdx}  # Pass the 'positionIdx' parameter here
+                )
+                return order
+            else:
+                log.warning(f"side {side} does not exist")
+        except Exception as e:
+            log.warning(f"An unknown error occurred in create_limit_order(): {e}")
+
+    # Binance
+    def create_limit_order_binance(self, symbol: str, side: str, qty: float, price: float, params={}):
+        try:
+            if side == "buy" or side == "sell":
+                order = self.exchange.create_order(
+                    symbol=symbol,
+                    type='LIMIT',
+                    side=side,
+                    amount=qty,
+                    price=price,
+                    params=params
                 )
                 return order
             else:
