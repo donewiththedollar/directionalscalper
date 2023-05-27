@@ -276,7 +276,7 @@ class Exchange:
             log.warning(f"An unknown error occurred in get_market_data(): {e}")
         return values
 
-
+    # Bybit
     def get_market_data_bybit(self, symbol: str) -> dict:
         values = {"precision": 0.0, "leverage": 0.0, "min_qty": 0.0}
         try:
@@ -300,6 +300,7 @@ class Exchange:
             log.warning(f"An unknown error occurred in get_market_data_bybit(): {e}")
         return values
 
+    # Huobi
     def get_market_data_huobi(self, symbol: str) -> dict:
         values = {"precision": 0.0, "min_qty": 0.0, "leverage": 0.0}
         try:
@@ -316,6 +317,7 @@ class Exchange:
             log.warning(f"An unknown error occurred in get_market_data_huobi(): {e}")
         return values
 
+    # Bybit
     def get_balance_bybit_unified(self, quote):
         if self.exchange.has['fetchBalance']:
             # Fetch the balance
@@ -330,7 +332,7 @@ class Exchange:
 
         return None
 
-
+    # Bybit
     def get_balance_bybit(self, quote):
         if self.exchange.has['fetchBalance']:
             # Fetch the balance
@@ -340,6 +342,18 @@ class Exchange:
             for currency_balance in balance['info']['result']['list']:
                 if currency_balance['coin'] == quote:
                     return float(currency_balance['equity'])
+        return None
+
+    # Binance
+    def get_balance_binance(self, symbol: str):
+        if self.exchange.has['fetchBalance']:
+            # Fetch the balance
+            balance = self.exchange.fetch_balance(params={'type': 'future'})
+
+            # Find the symbol balance
+            for currency_balance in balance['info']['assets']:
+                if currency_balance['asset'] == symbol:
+                    return float(currency_balance['walletBalance'])
         return None
 
     def get_balance_bitget(self, quote, account_type='futures'):
@@ -603,7 +617,7 @@ class Exchange:
         }
         try:
             data = self.exchange.fetch_positions(symbol)
-            #print(f"Debug info: {data}")  # Print debug info
+            #print(data)  # Print debug info
             if len(data) == 2:
                 sides = ["long", "short"]
                 for side in [0, 1]:
@@ -825,7 +839,7 @@ class Exchange:
         open_orders_list = []
         try:
             orders = self.exchange.fetch_open_orders(symbol)
-            print(orders)
+            #print(orders)
             if len(orders) > 0:
                 for order in orders:
                     if "info" in order:
