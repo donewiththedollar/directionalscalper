@@ -651,8 +651,15 @@ class Exchange:
             log.warning(f"An unknown error occurred in get_positions(): {e}")
         return values
 
+    def print_positions_structure_binance(self):
+        try:
+            data = self.exchange.fetch_positions_risk()
+            print(data)
+        except Exception as e:
+            log.warning(f"An unknown error occurred: {e}")
+
     # Binance
-    def get_positions_binance(self, symbol) -> dict:
+    def get_positions_binance(self, symbol):
         values = {
             "long": {
                 "qty": 0.0,
@@ -676,24 +683,51 @@ class Exchange:
             },
         }
         try:
-            data = self.exchange.fetch_positions_risk([symbol])
-            if len(data) > 0:
-                for position in data:
-                    position_side = position.get("positionSide", "long").lower()
-                    qty = float(position.get("positionAmt", 0.0) or 0.0)
-                    entry_price = float(position.get("entryPrice", 0.0) or 0.0)
-                    unrealized_profit = float(position.get("unRealizedProfit", 0.0) or 0.0)
-                    values[position_side]["qty"] = qty
-                    values[position_side]["price"] = entry_price
-                    values[position_side]["realised"] = round(unrealized_profit, 4)
-                    values[position_side]["cum_realised"] = round(unrealized_profit, 4)
-                    values[position_side]["upnl"] = round(unrealized_profit, 4)
-                    values[position_side]["upnl_pct"] = 0  # Binance does not provide the unrealized PnL percentage
-                    values[position_side]["liq_price"] = float(position.get("liquidationPrice", 0.0) or 0.0)
-                    values[position_side]["entry_price"] = entry_price
+            position_data = self.exchange.fetch_positions_risk([symbol])
+            if len(position_data) > 0:
+                for position in position_data:
+                    position_side = position["info"]["positionSide"].lower()
+                    if position_side == "both":
+                        # Adjust for positions with side 'both'
+                        long_qty = float(position["info"]["positionAmt"])
+                        short_qty = -long_qty  # Assume opposite quantity for short side
+                        position_side = "long"
+                        # Update long side values
+                        values[position_side]["qty"] = long_qty
+                        values[position_side]["price"] = float(position["info"]["entryPrice"])
+                        values[position_side]["realised"] = round(float(position["info"]["unRealizedProfit"]), 4)
+                        values[position_side]["cum_realised"] = round(float(position["info"]["unRealizedProfit"]), 4)
+                        values[position_side]["upnl"] = round(float(position["info"]["unRealizedProfit"]), 4)
+                        values[position_side]["upnl_pct"] = 0
+                        values[position_side]["liq_price"] = float(position["info"]["liquidationPrice"] or 0)
+                        values[position_side]["entry_price"] = float(position["info"]["entryPrice"])
+                        # Update short side values
+                        position_side = "short"
+                        values[position_side]["qty"] = short_qty
+                        values[position_side]["price"] = float(position["info"]["entryPrice"])
+                        values[position_side]["realised"] = round(-float(position["info"]["unRealizedProfit"]), 4)
+                        values[position_side]["cum_realised"] = round(-float(position["info"]["unRealizedProfit"]), 4)
+                        values[position_side]["upnl"] = round(-float(position["info"]["unRealizedProfit"]), 4)
+                        values[position_side]["upnl_pct"] = 0
+                        values[position_side]["liq_price"] = float(position["info"]["liquidationPrice"] or 0)
+                        values[position_side]["entry_price"] = float(position["info"]["entryPrice"])
+                    else:
+                        qty = float(position["info"]["positionAmt"]) if position["info"]["positionAmt"] else 0.0
+                        entry_price = float(position["info"]["entryPrice"]) if position["info"]["entryPrice"] else 0.0
+                        unrealized_profit = float(position["info"]["unRealizedProfit"]) if position["info"]["unRealizedProfit"] else 0.0
+                        values[position_side]["qty"] = qty
+                        values[position_side]["price"] = entry_price
+                        values[position_side]["realised"] = round(unrealized_profit, 4)
+                        values[position_side]["cum_realised"] = round(unrealized_profit, 4)
+                        values[position_side]["upnl"] = round(unrealized_profit, 4)
+                        values[position_side]["upnl_pct"] = 0
+                        values[position_side]["liq_price"] = float(position["info"]["liquidationPrice"] or 0)
+                        values[position_side]["entry_price"] = entry_price
         except Exception as e:
-            log.warning(f"An unknown error occurred in get_positions(): {e}")
+            log.warning(f"An unknown error occurred in get_positions_binance(): {e}")
         return values
+
+
 
 
 

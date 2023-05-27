@@ -208,6 +208,8 @@ class BinanceHedgeStrategy(Strategy):
 
             print(position_data)
 
+            #self.exchange.print_positions_structure_binance()
+
             #print(f"Bybit pos data: {position_data}")
 
             short_pos_qty = position_data["short"]["qty"]
