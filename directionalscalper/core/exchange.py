@@ -1632,12 +1632,47 @@ class Exchange:
         except Exception as e:
             log.warning(f"An unknown error occurred in create_limit_order(): {e}")
 
+    # # Binance
+    # def create_take_profit_order_binance(self, symbol, side, amount, price):
+    #     if side not in ["buy", "sell"]:
+    #         raise ValueError(f"Invalid side: {side}")
+        
+    #     params={"reduceOnly": True}
+
+    #     # Create the limit order for the take profit
+    #     order = self.create_limit_order_binance(symbol, side, amount, price, params)
+
+    #     return order
+    
+    # Binance
+    def create_close_position_limit_order_binance(self, symbol: str, side: str, qty: float, price: float):
+        try:
+            if side == "buy" or side == "sell":
+                position_side = "LONG" if side == "sell" else "SHORT"
+                params = {
+                    "positionSide": position_side,
+                    "closePosition": True
+                }
+                order = self.exchange.create_order(
+                    symbol=symbol,
+                    type='LIMIT',
+                    side=side,
+                    amount=qty,
+                    price=price,
+                    params=params
+                )
+                return order
+            else:
+                log.warning(f"Invalid side: {side}")
+        except Exception as e:
+            log.warning(f"An unknown error occurred in create_close_position_limit_order_binance(): {e}")
+
     # Binance
     def create_take_profit_order_binance(self, symbol, side, amount, price):
         if side not in ["buy", "sell"]:
             raise ValueError(f"Invalid side: {side}")
-        
-        params={"reduceOnly": True}
+
+        params = {"closePosition": True}
 
         # Create the limit order for the take profit
         order = self.create_limit_order_binance(symbol, side, amount, price, params)
