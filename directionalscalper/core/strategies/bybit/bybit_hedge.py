@@ -4,6 +4,7 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_DOWN
 from ..strategy import Strategy
 from typing import Tuple
 #from ...tables import create_strategy_table, start_live_table
+import threading
 #from directionalscalper.core.tables import create_strategy_table, start_live_table
 import threading
 import os
@@ -135,6 +136,8 @@ class BybitHedgeStrategy(Strategy):
         min_vol = self.config.min_volume
         current_leverage = self.exchange.get_current_leverage_bybit(symbol)
         max_leverage = self.exchange.get_max_leverage_bybit(symbol)
+        retry_delay = 5
+        max_retries = 5
 
         print("Setting up exchange")
         self.exchange.setup_exchange_bybit(symbol)
@@ -162,8 +165,18 @@ class BybitHedgeStrategy(Strategy):
             print(f"Trend: {trend}")
 
             quote_currency = "USDT"
-            total_equity = self.exchange.get_balance_bybit(quote_currency)
 
+            for i in range(max_retries):
+                try:
+                    total_equity = self.exchange.get_balance_bybit(quote_currency)
+                    break
+                except Exception as e:
+                    if i < max_retries - 1:
+                        print(f"Error occurred while fetching balance: {e}. Retrying in {retry_delay} seconds...")
+                        time.sleep(retry_delay)
+                    else:
+                        raise e
+                    
             print(f"Total equity: {total_equity}")
 
             current_price = self.exchange.get_current_price(symbol)

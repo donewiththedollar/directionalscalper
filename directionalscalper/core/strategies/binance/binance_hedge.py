@@ -320,7 +320,7 @@ class BinanceHedgeStrategy(Strategy):
                             time.sleep(0.05)
 
                         #print(f"Debug: Long Position Quantity {long_pos_qty}, Long Take Profit {long_take_profit}")
-                        self.exchange.create_take_profit_order_binance(symbol, "sell", long_pos_qty, long_take_profit, reduce_only=True)
+                        self.exchange.create_take_profit_order_binance(symbol, "sell", long_pos_qty, long_take_profit)
                         print(f"Long take profit set at {long_take_profit}")
                         time.sleep(0.05)
                     except Exception as e:
@@ -337,7 +337,7 @@ class BinanceHedgeStrategy(Strategy):
                             time.sleep(0.05)
 
                         #print(f"Debug: Short Position Quantity {short_pos_qty}, Short Take Profit {short_take_profit}")
-                        self.exchange.create_take_profit_order_binance(symbol, "limit", "buy", short_pos_qty, short_take_profit, reduce_only=True)
+                        self.exchange.create_take_profit_order_binance(symbol, "limit", "buy", short_pos_qty, short_take_profit)
                         print(f"Short take profit set at {short_take_profit}")
                         time.sleep(0.05)
                     except Exception as e:

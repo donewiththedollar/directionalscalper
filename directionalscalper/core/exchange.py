@@ -944,7 +944,7 @@ class Exchange:
         open_orders_list = []
         try:
             orders = self.exchange.fetch_open_orders(symbol)
-            print(orders)
+            #print(orders)
             if len(orders) > 0:
                 for order in orders:
                     if "info" in order:
@@ -1514,16 +1514,6 @@ class Exchange:
         except Exception as e:
             log.warning(f"{e}")
 
-    # Binance
-    def create_take_profit_order_binance(self, symbol, side, amount, price, reduce_only=True):
-        if side not in ["buy", "sell"]:
-            raise ValueError(f"Invalid side: {side}")
-
-        # Create the limit order for the take profit
-        order = self.create_limit_order_binance(symbol, side, amount, price, reduce_only=reduce_only)
-
-        return order
-
     # Bybit
     def create_take_profit_order_bybit(self, symbol, order_type, side, amount, price=None, positionIdx=1, reduce_only=True):
         if order_type == 'limit':
@@ -1642,6 +1632,18 @@ class Exchange:
         except Exception as e:
             log.warning(f"An unknown error occurred in create_limit_order(): {e}")
 
+    # Binance
+    def create_take_profit_order_binance(self, symbol, side, amount, price):
+        if side not in ["buy", "sell"]:
+            raise ValueError(f"Invalid side: {side}")
+        
+        params={"reduceOnly": True}
+
+        # Create the limit order for the take profit
+        order = self.create_limit_order_binance(symbol, side, amount, price, params)
+
+        return order
+    
     # Binance
     def create_limit_order_binance(self, symbol: str, side: str, qty: float, price: float, params={}):
         try:
