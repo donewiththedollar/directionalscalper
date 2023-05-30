@@ -1351,6 +1351,9 @@ class Exchange:
     # Bybit
     def cancel_take_profit_orders_bybit(self, symbol, side):
         side = side.lower()
+        side_map = {"long": "buy", "short": "sell"}
+        side = side_map.get(side, side)
+        
         try:
             open_orders = self.exchange.fetch_open_orders(symbol)
             position_idx_map = {"buy": 1, "sell": 2}
@@ -1387,6 +1390,9 @@ class Exchange:
 
     def cancel_close_bybit(self, symbol: str, side: str) -> None:
         side = side.lower()
+        side_map = {"long": "buy", "short": "sell"}
+        side = side_map.get(side, side)
+        
         position_idx_map = {"buy": 1, "sell": 2}
         try:
             orders = self.exchange.fetch_open_orders(symbol)
