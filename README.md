@@ -28,16 +28,6 @@ Directional Scalper        |  API Scraper
 ## Quickstart
 - Clone the repo `git clone https://github.com/donewiththedollar/directionalscalper.git`
 - Install requirements `pip3.11 install -r requirements.txt`
-
-### Setting up the bot
- 1. Create `config.json` from `config.example.json` in /config directory
- 2. Enter exchange_api_key and exchange_api_secret
- 3. Check/fill all other options. For telegram see below
-
- 1. Get token from botfather after creating new bot, send a message to your new bot
- 2. Go to https://api.telegram.org/bot<bot_token>/getUpdates
- 3. Replacing <bot_token> with your token from the botfather after creating new bot
- 4. Look for chat id and copy the chat id into config.json
  
 ### Install Instructions
 Steps to set up bot-multiexchange
@@ -90,8 +80,20 @@ Make sure you are in the directory bot-multiexchange
 > Modify your config_example.json file with your bitget API keys and then run this:
 - `python3.11 bot.py --exchange bitget --symbol OPUSDT_UMCBL --strategy bitget_hedge_dynamic --config config_example.json`
 
+ 
+### Setting up the bot
+ 1. Create `config.json` from `config.example.json` in /configs directory
+ 2. Enter exchange_api_key and exchange_api_secret
+ 3. Check/fill all other options. For telegram see below
+
+ ### Setting up Telegram alerts
+ 1. Get token from botfather after creating new bot, send a message to your new bot
+ 2. Go to https://api.telegram.org/bot<bot_token>/getUpdates
+ 3. Replacing <bot_token> with your token from the botfather after creating new bot
+ 4. Look for chat id and copy the chat id into config.json
+ 
 ### Starting the bot
-* Hedge mode is recommended, but you can of course use the other modes as well. Low lot size is recommended.
+* Hedge strategy is recommended, but you can of course use the other strategies as well. Low entry size is recommended.
 
 > python3.11 bot.py --exchange bitget --symbol XRPUSDT_UMCBL --amount 15 --strategy bitget_hedge --config config_main.json
 
@@ -103,7 +105,7 @@ Make sure you are in the directory bot-multiexchange
  
 > python3.11 bot.py --exchange bitget --symbol XRPUSDT_UMCBL --strategy bitget_hedge_dynamic --config config_main.json
 
-
+ 
 ### Current strategies
 * bybit_hedge
 * bitget_hedge
