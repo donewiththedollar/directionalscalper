@@ -1350,14 +1350,18 @@ class Exchange:
 
     # Bybit
     def cancel_take_profit_orders_bybit(self, symbol, side):
+        side = side.lower()
+        side_map = {"long": "buy", "short": "sell"}
+        side = side_map.get(side, side)
+        
         try:
             open_orders = self.exchange.fetch_open_orders(symbol)
-            position_idx_map = {"long": 1, "short": 2}
+            position_idx_map = {"buy": 1, "sell": 2}
             #print("Open Orders:", open_orders)
             #print("Position Index Map:", position_idx_map)
             for order in open_orders:
                 if (
-                    order['side'].lower() == side.lower()
+                    order['side'].lower() == side
                     and order['info'].get('reduceOnly')
                     and order['info'].get('positionIdx') == position_idx_map[side]
                 ):
@@ -1385,7 +1389,11 @@ class Exchange:
     #         print(f"An unknown error occurred in cancel_take_profit_orders: {e}")
 
     def cancel_close_bybit(self, symbol: str, side: str) -> None:
-        position_idx_map = {"long": 1, "short": 2}
+        side = side.lower()
+        side_map = {"long": "buy", "short": "sell"}
+        side = side_map.get(side, side)
+        
+        position_idx_map = {"buy": 1, "sell": 2}
         try:
             orders = self.exchange.fetch_open_orders(symbol)
             if len(orders) > 0:
@@ -1399,7 +1407,7 @@ class Exchange:
 
                         if (
                             order_status != "Filled"
-                            and order_side.lower() == side.lower()
+                            and order_side.lower() == side
                             and order_status != "Cancelled"
                             and reduce_only
                             and position_idx == position_idx_map[side]
