@@ -1,5 +1,5 @@
 import time, math
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, ROUND_HALF_DOWN, ROUND_DOWN
 from ..strategy import Strategy
 
 class HuobiHedgeStrategy(Strategy):
@@ -26,7 +26,6 @@ class HuobiHedgeStrategy(Strategy):
         contract_size_per_unit = self.exchange.get_contract_size_huobi(parsed_symbol_swap)
         return position_qty * contract_size_per_unit
 
-
     def limit_order(self, symbol, side, amount, price, reduce_only=False):
         order = self.exchange.create_order(symbol, 'limit', side, amount, price, reduce_only=reduce_only)
         return order
@@ -37,13 +36,70 @@ class HuobiHedgeStrategy(Strategy):
     def get_current_price(self, symbol):
         return self.exchange.get_current_price(symbol)
 
+    # def get_open_take_profit_order_quantity(self, symbol, orders, side):
+    #     current_price = self.get_current_price(symbol)  # You'd need to implement this function
+    #     for order in orders:
+    #         if order['side'] == 'sell':
+    #             if (side == "close_long" and order['price'] > current_price) or \
+    #             (side == "close_short" and order['price'] < current_price):
+    #                 return order['qty'], order['id']
+    #     return None, None
+
+    def get_open_take_profit_order_quantities(self, orders, side):
+        take_profit_orders = []
+        for order in orders:
+            order_info = {
+                "id": order['id'],
+                "price": order['price'],
+                "qty": order['qty'],
+                "order_status": order['order_status'],
+                "side": order['side']
+            }
+            if (
+                order_info['side'].lower() == side.lower()
+                and order_info['order_status'] == '3'  # Adjust the condition based on your order status values
+            ):
+                take_profit_orders.append((order_info['qty'], order_info['id']))
+        return take_profit_orders
+
+
     def get_open_take_profit_order_quantity(self, symbol, orders, side):
         current_price = self.get_current_price(symbol)  # You'd need to implement this function
+        long_quantity = None
+        long_order_id = None
+        short_quantity = None
+        short_order_id = None
+
         for order in orders:
+            order_price = float(order['price'])
             if order['side'] == 'sell':
-                if (side == "close_long" and order['price'] > current_price) or \
-                (side == "close_short" and order['price'] < current_price):
-                    return order['qty'], order['id']
+                if side == "close_long" and order_price > current_price:
+                    if 'reduce_only' in order and order['reduce_only']:
+                        continue
+                    long_quantity = order['qty']
+                    long_order_id = order['id']
+                elif side == "close_short" and order_price < current_price:
+                    if 'reduce_only' in order and order['reduce_only']:
+                        continue
+                    short_quantity = order['qty']
+                    short_order_id = order['id']
+            else:
+                if side == "close_short" and order_price > current_price:
+                    if 'reduce_only' in order and not order['reduce_only']:
+                        continue
+                    short_quantity = order['qty']
+                    short_order_id = order['id']
+                elif side == "close_long" and order_price < current_price:
+                    if 'reduce_only' in order and not order['reduce_only']:
+                        continue
+                    long_quantity = order['qty']
+                    long_order_id = order['id']
+
+        if side == "close_long":
+            return long_quantity, long_order_id
+        elif side == "close_short":
+            return short_quantity, short_order_id
+
         return None, None
 
     def calculate_short_take_profit(self, short_pos_price, symbol):
@@ -60,7 +116,8 @@ class HuobiHedgeStrategy(Strategy):
             short_target_price = Decimal(short_pos_price) - (ma_6_high - ma_6_low)
             short_target_price = short_target_price.quantize(
                 Decimal('1e-{}'.format(price_precision)),
-                rounding=ROUND_HALF_UP
+                #rounding=ROUND_HALF_UP
+                rounding=ROUND_DOWN
             )
 
             short_profit_price = short_target_price
@@ -180,10 +237,21 @@ class HuobiHedgeStrategy(Strategy):
             print(f"Entry size: {amount}")
             print(f"Parsed symbol: {parsed_symbol_swap}")
 
-            position_data = self.exchange.safe_order_operation(lambda: self.exchange.get_positions_huobi(parsed_symbol_swap))
+
+            for i in range(max_retries):
+                try:
+                    position_data = self.exchange.safe_order_operation(lambda: self.exchange.get_positions_huobi(parsed_symbol_swap))
+                    break
+                except Exception as e:
+                    if i < max_retries - 1:
+                        print(f"Error occurred while fetching balance: {e}. Retrying in {retry_delay} seconds...")
+                        time.sleep(retry_delay)
+                    else:
+                        raise e
+                    
             print(f"Fetched position data for {parsed_symbol_swap}")
 
-            #print(f"Debug position data: {position_data}")
+            print(f"Debug position data: {position_data}")
 
             short_pos_qty = position_data["short"]["qty"]
             long_pos_qty = position_data["long"]["qty"]
@@ -194,14 +262,19 @@ class HuobiHedgeStrategy(Strategy):
             short_pos_actual_qty = self.calculate_actual_quantity(short_pos_qty, parsed_symbol_swap)
             long_pos_actual_qty = self.calculate_actual_quantity(long_pos_qty, parsed_symbol_swap)
 
-            print(f"Actual short pos qty: {short_pos_actual_qty}")
-            print(f"Actual long pos qty: {long_pos_actual_qty}")
+            # print(f"Actual short pos qty: {short_pos_actual_qty}")
+            # print(f"Actual long pos qty: {long_pos_actual_qty}")
 
             short_pos_price = position_data["short"]["price"]
             long_pos_price = position_data["long"]["price"]
 
             print(f"Long pos price: {long_pos_price}")
             print(f"Short pos price: {short_pos_price}")
+
+            long_upnl = position_data["long"]["upnl"]
+            short_upnl = position_data["short"]["upnl"]
+            print(f"Long uPNL: {long_upnl}")
+            print(f"Short uPNL: {short_upnl}")
 
             # Get the 1-minute moving averages
             print(f"Fetching MA data")
@@ -240,47 +313,47 @@ class HuobiHedgeStrategy(Strategy):
             print(f"Add short condition: {should_add_to_short}")
             print(f"Add long condition: {should_add_to_long}")
 
+            # print(f"Printing debug open order data")
+            # self.exchange.huobi_test_orders(parsed_symbol_swap)
+
             # New hedge logic
             if trend is not None and isinstance(trend, str):
                 if one_minute_volume is not None and five_minute_distance is not None:
                     if one_minute_volume > min_vol and five_minute_distance > min_dist:
 
-                        if trend.lower() == "long" and should_long and long_pos_actual_qty == 0:
-
-                            # self.limit_order(symbol, "buy", amount, best_bid_price, reduce_only=False)
+                        if trend.lower() == "long" and should_long and long_pos_qty == 0:
                             self.exchange.create_contract_order_huobi(parsed_symbol_swap, 'limit', 'buy', amount, price=best_bid_price)
                             print(f"Placed initial long entry")
                             time.sleep(0.05)
                         else:
-                            if trend.lower() == "long" and should_add_to_long and long_pos_actual_qty < max_trade_qty and best_bid_price < long_pos_price:
+                            if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
                                 print(f"Placed additional long entry")
                                 self.exchange.create_contract_order_huobi(parsed_symbol_swap, 'limit', 'buy', amount, price=best_bid_price)
                                 time.sleep(0.05)
 
-                        if trend.lower() == "short" and should_short and short_pos_actual_qty == 0:
+                        if trend.lower() == "short" and should_short and short_pos_qty == 0:
 
                             self.exchange.create_contract_order_huobi(parsed_symbol_swap, 'limit', 'sell', amount, price=best_ask_price)
                             print("Placed initial short entry")
                             time.sleep(0.05)
                         else:
-                            if trend.lower() == "short" and should_add_to_short and short_pos_actual_qty < max_trade_qty and best_ask_price > short_pos_price:
+                            if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
                                 print(f"Placed additional short entry")
                                 self.exchange.create_contract_order_huobi(parsed_symbol_swap, 'limit', 'sell', amount, price=best_ask_price)
                                 time.sleep(0.05)
 
             open_orders = self.exchange.get_open_orders_huobi(parsed_symbol_swap)
 
+            print(f"Open orders: {open_orders}")
 
-            #print(f"Open orders debug: {open_orders}")
-            
             if long_pos_actual_qty > 0 and long_take_profit is not None:
-                existing_long_tp_qty, existing_long_tp_id = self.get_open_take_profit_order_quantity(parsed_symbol_swap, open_orders, "close_long")
-                print(f"Existing Long TP Quantity: {existing_long_tp_qty}")
-                if existing_long_tp_qty is None or existing_long_tp_qty != long_pos_actual_qty:
+                existing_long_tps = self.get_open_take_profit_order_quantities(open_orders, "sell")
+                total_existing_long_tp_qty = sum(qty for qty, _ in existing_long_tps)
+                if not math.isclose(total_existing_long_tp_qty, long_pos_actual_qty):
                     try:
-                        if existing_long_tp_id is not None:
-                            self.cancel_take_profit_orders(parsed_symbol_swap, "long")
-                            print(f"Long take profit canceled")
+                        for existing_qty, existing_id in existing_long_tps:
+                            self.exchange.cancel_close_huobi(symbol=parsed_symbol_swap, side="sell")
+                            print(f"Cancelled existing long take profit order: {existing_id}")
                             time.sleep(0.05)
 
                         self.exchange.create_take_profit_order(parsed_symbol_swap, "limit", "sell", long_pos_qty, long_take_profit, reduce_only=True)
@@ -290,20 +363,51 @@ class HuobiHedgeStrategy(Strategy):
                         print(f"Error in placing long TP: {e}")
 
             if short_pos_actual_qty > 0 and short_take_profit is not None:
-                existing_short_tp_qty, existing_short_tp_id = self.get_open_take_profit_order_quantity(parsed_symbol_swap, open_orders, "close_short")
-                print(f"Existing Short TP Quantity: {existing_short_tp_qty}")
-                if existing_short_tp_qty is None or existing_short_tp_qty != short_pos_actual_qty:
+                existing_short_tps = self.get_open_take_profit_order_quantities(open_orders, side="buy")
+                total_existing_short_tp_qty = sum(qty for qty, _ in existing_short_tps)
+                if not math.isclose(total_existing_short_tp_qty, short_pos_actual_qty):
                     try:
-                        if existing_short_tp_id is not None:
-                            self.cancel_take_profit_orders(parsed_symbol_swap, "short")
-                            print(f"Short take profit canceled")
+                        for existing_qty, existing_id in existing_short_tps:
+                            self.exchange.cancel_close_huobi(symbol=parsed_symbol_swap, side = "buy")
+                            print(f"Cancelled existing short take profit order: {existing_id}")
                             time.sleep(0.05)
 
                         self.exchange.create_take_profit_order(parsed_symbol_swap, "limit", "buy", short_pos_qty, short_take_profit, reduce_only=True)
                         print(f"Short take profit set at {short_take_profit}")
                         time.sleep(0.05)
                     except Exception as e:
-                        print(f"Error in placing short TP: {e}")
+                        print(f"Error in placing short TP: {e}")            
+            # if long_pos_actual_qty > 0 and long_take_profit is not None:
+            #     existing_long_tp_qty, existing_long_tp_id = self.get_open_take_profit_order_quantity(parsed_symbol_swap, open_orders, "close_long")
+            #     print(f"Existing Long TP Quantity: {existing_long_tp_qty}")
+            #     if existing_long_tp_qty is None or existing_long_tp_qty != long_pos_actual_qty:
+            #         try:
+            #             if existing_long_tp_id is not None:
+            #                 self.cancel_take_profit_orders(parsed_symbol_swap, "long")
+            #                 print(f"Long take profit canceled")
+            #                 time.sleep(0.05)
+
+            #             self.exchange.create_take_profit_order(parsed_symbol_swap, "limit", "sell", long_pos_qty, long_take_profit, reduce_only=True)
+            #             print(f"Long take profit set at {long_take_profit}")
+            #             time.sleep(0.05)
+            #         except Exception as e:
+            #             print(f"Error in placing long TP: {e}")
+
+            # if short_pos_actual_qty > 0 and short_take_profit is not None:
+            #     existing_short_tp_qty, existing_short_tp_id = self.get_open_take_profit_order_quantity(parsed_symbol_swap, open_orders, "close_short")
+            #     print(f"Existing Short TP Quantity: {existing_short_tp_qty}")
+            #     if existing_short_tp_qty is None or existing_short_tp_qty != short_pos_actual_qty:
+            #         try:
+            #             if existing_short_tp_id is not None:
+            #                 self.cancel_take_profit_orders(parsed_symbol_swap, "short")
+            #                 print(f"Short take profit canceled")
+            #                 time.sleep(0.05)
+
+            #             self.exchange.create_take_profit_order(parsed_symbol_swap, "limit", "buy", short_pos_qty, short_take_profit, reduce_only=True)
+            #             print(f"Short take profit set at {short_take_profit}")
+            #             time.sleep(0.05)
+            #         except Exception as e:
+            #             print(f"Error in placing short TP: {e}")
 
             # Cancel entries
             current_time = time.time()

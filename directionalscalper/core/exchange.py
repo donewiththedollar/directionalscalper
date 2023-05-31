@@ -1034,6 +1034,7 @@ class Exchange:
         open_orders_list = []
         try:
             orders = self.exchange.fetch_open_orders(symbol)
+            #print(f"Debug: {orders}")
             if len(orders) > 0:
                 for order in orders:
                     if "info" in order:
@@ -1418,6 +1419,41 @@ class Exchange:
         except Exception as e:
             log.warning(f"An unknown error occurred in cancel_close_bybit(): {e}")
 
+    def huobi_test_orders(self, symbol: str) -> None:
+        try:
+            orders = self.exchange.fetch_open_orders(symbol)
+            print(orders)
+        except Exception as e:
+            print(f"Exception caught {e}")
+
+    # def cancel_close_huobi(self, symbol: str, side: str) -> None:
+    #     side = side.lower()
+    #     side_map = {"long": "buy", "short": "sell"}
+    #     side = side_map.get(side, side)
+        
+    #     try:
+    #         orders = self.exchange.fetch_open_orders(symbol)
+    #         print(orders)
+    #         if len(orders) > 0:
+    #             for order in orders:
+    #                 if "info" in order:
+    #                     order_id = order["info"]["order_id"]
+    #                     order_status = order["info"]["order_status"]
+    #                     order_side = order["info"]["side"]
+    #                     reduce_only = order["info"]["reduce_only"]  # Adjust this line if 'reduce_only' is not available in Huobi's order info
+
+    #                     if (
+    #                         order_status != "Filled"
+    #                         and order_side.lower() == side
+    #                         and order_status != "Cancelled"
+    #                         and reduce_only
+    #                     ):
+    #                         # Use the new cancel_order_huobi function
+    #                         self.cancel_order_huobi(order_id, symbol)
+    #                         log.info(f"Cancelling order: {order_id}")
+    #     except Exception as e:
+    #         log.warning(f"An unknown error occurred in cancel_close_huobi(): {e}")
+
     # def cancel_close_bybit(self, symbol: str, side: str) -> None:
     #     position_idx_map = {"long": 1, "short": 2}
     #     try:
@@ -1468,29 +1504,54 @@ class Exchange:
             log.warning(f"An unknown error occurred in cancel_close_bitget(): {e}")
 
     def cancel_close_huobi(self, symbol: str, side: str) -> None:
-        side_map = {"long": "sell", "short": "buy"}
-        offset_map = {"long": "close", "short": "close"}
+        side_map = {"long": "buy", "short": "sell"}
+        offset = "close"
         try:
             orders = self.exchange.fetch_open_orders(symbol)
-            if len(orders) > 0:
+            if orders:
                 for order in orders:
                     order_info = order["info"]
                     order_id = order_info["order_id"]
-                    order_status = str(order_info["status"])  # status seems to be a string of a number
+                    order_status = order_info["status"]
                     order_direction = order_info["direction"]
                     order_offset = order_info["offset"]
+                    reduce_only = order_info["reduce_only"]
 
                     if (
-                        order_status != "4"  # Assuming 4 is 'Filled'
+                        order_status == '3'  # Assuming '3' represents open orders
                         and order_direction == side_map[side]
-                        and order_offset == offset_map[side]
-                        and order_status != "6"  # Assuming 6 is 'Cancelled'
-                        # There's no 'reduceOnly' equivalent in Huobi from the provided data
+                        and order_offset == offset
+                        and reduce_only == '1'  # Assuming '1' represents reduce_only orders
                     ):
                         self.exchange.cancel_order(symbol=symbol, id=order_id)
                         log.info(f"Cancelling order: {order_id}")
         except Exception as e:
             log.warning(f"An unknown error occurred in cancel_close_huobi(): {e}")
+
+    # def cancel_close_huobi(self, symbol: str, side: str) -> None:
+    #     side_map = {"long": "sell", "short": "buy"}
+    #     offset_map = {"long": "close", "short": "close"}
+    #     try:
+    #         orders = self.exchange.fetch_open_orders(symbol)
+    #         if len(orders) > 0:
+    #             for order in orders:
+    #                 order_info = order["info"]
+    #                 order_id = order_info["order_id"]
+    #                 order_status = str(order_info["status"])  # status seems to be a string of a number
+    #                 order_direction = order_info["direction"]
+    #                 order_offset = order_info["offset"]
+
+    #                 if (
+    #                     order_status != "4"  # Assuming 4 is 'Filled'
+    #                     and order_direction == side_map[side]
+    #                     and order_offset == offset_map[side]
+    #                     and order_status != "6"  # Assuming 6 is 'Cancelled'
+    #                     # There's no 'reduceOnly' equivalent in Huobi from the provided data
+    #                 ):
+    #                     self.exchange.cancel_order(symbol=symbol, id=order_id)
+    #                     log.info(f"Cancelling order: {order_id}")
+    #     except Exception as e:
+    #         log.warning(f"An unknown error occurred in cancel_close_huobi(): {e}")
 
     def cancel_close(self, symbol: str, side: str) -> None:
         try:
@@ -1758,7 +1819,7 @@ class Exchange:
         return order
 
     def create_contract_order_huobi(self, symbol, order_type, side, amount, price=None, params={}):
-        params = {'leverRate': 20}
+        params = {'leverRate': 50}
         return self.exchange.create_contract_order(symbol, order_type, side, amount, price, params)
 
 
