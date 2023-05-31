@@ -9,11 +9,12 @@ A hedge scalping strategy based on directional analysis using a quantitative app
 </p>
 
 >  Working exchanges: Bybit, Bitget, Huobi
+ 
 >  Exchanges that are WIP: Binance, MEXC, Phemex
  
->  Minor bugs: Possible rate limiting issue with Bitget that may cause bot to stop, Huobi is attempting to place TP when TP is already placed (order IDs are resolved properly but maybe not interpreted correctly)
-
->  Exchanges to support: Binance, Phemex, MEXC
+>  Minor bugs: Possible rate limiting issue with Bitget that may cause bot to stop
+ 
+>  Huobi is attempting to place TP when TP is already placed (order IDs are resolved properly but maybe not interpreted correctly)
 
 ### Links
 * Dashboard: https://tradesimple.xyz
