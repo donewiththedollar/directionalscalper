@@ -27,7 +27,7 @@ Directional Scalper        |  API Scraper
 
 ## Quickstart
 - Clone the repo `git clone https://github.com/donewiththedollar/directionalscalper.git`
-- Install requirements `pip3 install -r requirements.txt`
+- Install requirements `pip3.11 install -r requirements.txt`
 
 ### Setting up the bot
  1. Create `config.json` from `config.example.json` in /config directory
@@ -38,6 +38,57 @@ Directional Scalper        |  API Scraper
  2. Go to https://api.telegram.org/bot<bot_token>/getUpdates
  3. Replacing <bot_token> with your token from the botfather after creating new bot
  4. Look for chat id and copy the chat id into config.json
+ 
+### Install Instructions
+Steps to set up bot-multiexchange
+
+- `sudo apt-get update`
+- `sudo apt-get upgrade -y`
+- `git clone https://github.com/donewiththedollar/directionalscalper.git —branch bot-multiexchange`
+
+Now you have the bot, but need to set up python correctly.
+
+
+Now install Python 3.11
+
+All of these commands one by one copy and pasted into terminal: 
+`wget https://www.python.org/ftp/python/3.11.0/Python-3.11.0.tgz`
+`tar -xvf Python-3.11.0.tgz`
+
+`cd Python-3.11.0`
+
+- `sudo apt-get update`
+- `sudo apt-get install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libsqlite3-dev libreadline-dev libffi-dev libbz2-dev`
+
+- `/configure --enable-optimizations`
+- `make`
+- `sudo make altinstall`
+
+- `python3.11 --version`
+
+> After typing python3.11 —version, it should display that you have python3.11 installed 
+
+> Now install PIP
+
+- `curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11`
+
+- `pip3.11 -V`
+
+This pip3.11 -V should show you have pip3.11 installed, no error.
+
+
+Starting the bot for the first time making sure it works
+
+Make sure you are in the directory bot-multiexchange
+
+- `so cd ~/bot-multiexchange should bring you there if you are not already there.`
+
+> Run these:
+
+- `pip3.11 install -r requirements.txt`
+
+> Modify your config_example.json file with your bitget API keys and then run this:
+- `python3.11 bot.py --exchange bitget --symbol OPUSDT_UMCBL --strategy bitget_hedge_dynamic --config config_example.json`
 
 ### Starting the bot
 * Hedge mode is recommended, but you can of course use the other modes as well. Low lot size is recommended.
