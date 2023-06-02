@@ -7,6 +7,7 @@ class BitgetHedgeStrategy(Strategy):
         super().__init__(exchange, config)
         self.manager = manager
         self.leverage_set = False
+        self.last_cancel_time = 0
 
     def limit_order(self, symbol, side, amount, price, reduce_only=False):
         min_qty_usd = 5
