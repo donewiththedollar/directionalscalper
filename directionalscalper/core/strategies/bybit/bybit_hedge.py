@@ -4,7 +4,6 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_DOWN
 from ..strategy import Strategy
 from typing import Tuple
 #from ...tables import create_strategy_table, start_live_table
-import threading
 #from directionalscalper.core.tables import create_strategy_table, start_live_table
 import threading
 import os
