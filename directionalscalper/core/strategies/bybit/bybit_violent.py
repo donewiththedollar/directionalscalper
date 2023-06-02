@@ -187,16 +187,6 @@ class BybitViolentHedgeStrategy(Strategy):
             min_qty_bybit = market_data["min_qty"]
             print(f"Min qty: {min_qty_bybit}")
 
-            if float(amount) < min_qty_bybit:
-                print(f"The amount you entered ({amount}) is less than the minimum required by Bybit for {symbol}: {min_qty_bybit}.")
-                break
-            else:
-                print(f"The amount you entered ({amount}) is valid for {symbol}")
-
-            if not self.printed_trade_quantities:
-                self.exchange.print_trade_quantities_bybit(max_trade_qty, [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
-                self.printed_trade_quantities = True
-
             # Get the 1-minute moving averages
             print(f"Fetching MA data")
             m_moving_averages = self.manager.get_1m_moving_averages(symbol)
@@ -235,6 +225,18 @@ class BybitViolentHedgeStrategy(Strategy):
             print(f"Long pos price {long_pos_price}")
             print(f"Short pos price {short_pos_price}")
 
+            if float(amount) < min_qty_bybit:
+                print(f"The amount you entered ({amount}) is less than the minimum required by Bybit for {symbol}: {min_qty_bybit}.")
+                break
+            else:
+                print(f"The amount you entered ({amount}) is valid for {symbol}")
+
+            if not self.printed_trade_quantities:
+                self.exchange.print_trade_quantities_bybit(max_trade_qty, [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
+                self.printed_trade_quantities = True
+
+
+
             # Precision is annoying
 
             # price_precision = int(self.exchange.get_price_precision(symbol))
@@ -261,7 +263,105 @@ class BybitViolentHedgeStrategy(Strategy):
             if long_pos_price is not None:
                 should_add_to_long = long_pos_price > ma_6_low
 
+            ob_short_qty = (float(short_take_profit) - float(short_pos_price)) / float(best_ask_price) if short_pos_price is not None else 0.0
+            ob_long_qty = (float(long_take_profit) - float(long_pos_price)) / float(best_ask_price) if long_pos_price is not None else 0.0
+
+            print(f"OB Short QTY: {ob_short_qty}")
+            print(f"OB Long QTY: {ob_long_qty}")
+
             print(f"Short condition: {should_short}")
             print(f"Long condition: {should_long}")
             print(f"Add short condition: {should_add_to_short}")
             print(f"Add long condition: {should_add_to_long}")
+
+            if trend is not None and isinstance(trend, str):
+                if one_minute_volume is not None and five_minute_distance is not None:
+                    if one_minute_volume > min_vol and five_minute_distance > min_dist:
+
+                        if trend.lower() == "long" and should_long and long_pos_qty == 0:
+                            print(f"Placing initial long entry")
+                            self.limit_order(symbol, "buy", amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                            print(f"Placed initial long entry")
+                        else:
+                            if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
+                                print(f"Placed additional long entry")
+                                self.limit_order(symbol, "buy", ob_long_qty, best_bid_price, positionIdx=1, reduceOnly=False)
+
+                        if trend.lower() == "short" and should_short and short_pos_qty == 0:
+                            print(f"Placing initial short entry")
+                            self.limit_order(symbol, "sell", amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                            print("Placed initial short entry")
+                        else:
+                            if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
+                                print(f"Placed additional short entry")
+                                self.limit_order(symbol, "sell", ob_short_qty, best_bid_price, positionIdx=2, reduceOnly=False)
+        
+            open_orders = self.exchange.get_open_orders(symbol)
+
+            # # Call the get_open_take_profit_order_quantity function for the 'buy' side
+            # buy_qty, buy_id = self.get_open_take_profit_order_quantity(open_orders, 'buy')
+
+            # # Call the get_open_take_profit_order_quantity function for the 'sell' side
+            # sell_qty, sell_id = self.get_open_take_profit_order_quantity(open_orders, 'sell')
+
+            # # Print the results
+            # print("Buy Take Profit Order - Quantity: ", buy_qty, "ID: ", buy_id)
+            # print("Sell Take Profit Order - Quantity: ", sell_qty, "ID: ", sell_id)
+
+            if long_pos_qty > 0 and long_take_profit is not None:
+                existing_long_tps = self.get_open_take_profit_order_quantities(open_orders, "sell")
+                total_existing_long_tp_qty = sum(qty for qty, _ in existing_long_tps)
+                if not math.isclose(total_existing_long_tp_qty, long_pos_qty):
+                    try:
+                        for _, existing_long_tp_id in existing_long_tps:
+                            self.exchange.cancel_take_profit_orders_bybit(symbol, "sell")  # Corrected side value to "sell"
+                            print(f"Long take profit canceled")
+                            time.sleep(0.05)
+
+                        #print(f"Debug: Long Position Quantity {long_pos_qty}, Long Take Profit {long_take_profit}")
+                        self.exchange.create_take_profit_order_bybit(symbol, "limit", "sell", long_pos_qty, long_take_profit, positionIdx=1, reduce_only=True)
+                        print(f"Long take profit set at {long_take_profit}")
+                        time.sleep(0.05)
+                    except Exception as e:
+                        print(f"Error in placing long TP: {e}")
+
+            if short_pos_qty > 0 and short_take_profit is not None:
+                existing_short_tps = self.get_open_take_profit_order_quantities(open_orders, "buy")
+                total_existing_short_tp_qty = sum(qty for qty, _ in existing_short_tps)
+                if not math.isclose(total_existing_short_tp_qty, short_pos_qty):
+                    try:
+                        for _, existing_short_tp_id in existing_short_tps:
+                            self.exchange.cancel_take_profit_orders_bybit(symbol, "buy")  # Corrected side value to "buy"
+                            print(f"Short take profit canceled")
+                            time.sleep(0.05)
+
+                        #print(f"Debug: Short Position Quantity {short_pos_qty}, Short Take Profit {short_take_profit}")
+                        self.exchange.create_take_profit_order_bybit(symbol, "limit", "buy", short_pos_qty, short_take_profit, positionIdx=2, reduce_only=True)
+                        print(f"Short take profit set at {short_take_profit}")
+                        time.sleep(0.05)
+                    except Exception as e:
+                        print(f"Error in placing short TP: {e}")
+
+            if short_upnl < -0.6 * total_equity:
+                print("Negative UPNL condition met: Market closing position")
+                self.exchange.create_market_order_bybit(symbol, "sell", short_pos_qty, positionIdx=2)
+
+            if long_upnl < -0.6 * total_equity:
+                print("Negative UPNL condition met: Market closing position")
+                self.exchange.create_market_order_bybit(symbol, "buy", long_pos_qty, positionIdx=1)
+
+            # Cancel entries
+            current_time = time.time()
+            if current_time - self.last_cancel_time >= 60:  # Execute this block every 1 minute
+                try:
+                    if best_ask_price < ma_1m_3_high or best_ask_price < ma_5m_3_high:
+                        self.exchange.cancel_all_entries_bybit(symbol)
+                        print(f"Canceled entry orders for {symbol}")
+                        time.sleep(0.05)
+                except Exception as e:
+                    print(f"An error occurred while canceling entry orders: {e}")
+
+                self.last_cancel_time = current_time  # Update the last cancel time
+
+            time.sleep(30)
+            

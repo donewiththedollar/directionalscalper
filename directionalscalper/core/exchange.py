@@ -1351,14 +1351,18 @@ class Exchange:
 
     # Bybit
     def cancel_take_profit_orders_bybit(self, symbol, side):
+        side = side.lower()
+        side_map = {"long": "buy", "short": "sell"}
+        side = side_map.get(side, side)
+        
         try:
             open_orders = self.exchange.fetch_open_orders(symbol)
-            position_idx_map = {"long": 1, "short": 2}
+            position_idx_map = {"buy": 1, "sell": 2}
             #print("Open Orders:", open_orders)
             #print("Position Index Map:", position_idx_map)
             for order in open_orders:
                 if (
-                    order['side'].lower() == side.lower()
+                    order['side'].lower() == side
                     and order['info'].get('reduceOnly')
                     and order['info'].get('positionIdx') == position_idx_map[side]
                 ):
@@ -1386,7 +1390,11 @@ class Exchange:
     #         print(f"An unknown error occurred in cancel_take_profit_orders: {e}")
 
     def cancel_close_bybit(self, symbol: str, side: str) -> None:
-        position_idx_map = {"long": 1, "short": 2}
+        side = side.lower()
+        side_map = {"long": "buy", "short": "sell"}
+        side = side_map.get(side, side)
+        
+        position_idx_map = {"buy": 1, "sell": 2}
         try:
             orders = self.exchange.fetch_open_orders(symbol)
             if len(orders) > 0:
@@ -1400,7 +1408,7 @@ class Exchange:
 
                         if (
                             order_status != "Filled"
-                            and order_side.lower() == side.lower()
+                            and order_side.lower() == side
                             and order_status != "Cancelled"
                             and reduce_only
                             and position_idx == position_idx_map[side]
@@ -1410,6 +1418,41 @@ class Exchange:
                             log.info(f"Cancelling order: {order_id}")
         except Exception as e:
             log.warning(f"An unknown error occurred in cancel_close_bybit(): {e}")
+
+    def huobi_test_orders(self, symbol: str) -> None:
+        try:
+            orders = self.exchange.fetch_open_orders(symbol)
+            print(orders)
+        except Exception as e:
+            print(f"Exception caught {e}")
+
+    # def cancel_close_huobi(self, symbol: str, side: str) -> None:
+    #     side = side.lower()
+    #     side_map = {"long": "buy", "short": "sell"}
+    #     side = side_map.get(side, side)
+        
+    #     try:
+    #         orders = self.exchange.fetch_open_orders(symbol)
+    #         print(orders)
+    #         if len(orders) > 0:
+    #             for order in orders:
+    #                 if "info" in order:
+    #                     order_id = order["info"]["order_id"]
+    #                     order_status = order["info"]["order_status"]
+    #                     order_side = order["info"]["side"]
+    #                     reduce_only = order["info"]["reduce_only"]  # Adjust this line if 'reduce_only' is not available in Huobi's order info
+
+    #                     if (
+    #                         order_status != "Filled"
+    #                         and order_side.lower() == side
+    #                         and order_status != "Cancelled"
+    #                         and reduce_only
+    #                     ):
+    #                         # Use the new cancel_order_huobi function
+    #                         self.cancel_order_huobi(order_id, symbol)
+    #                         log.info(f"Cancelling order: {order_id}")
+    #     except Exception as e:
+    #         log.warning(f"An unknown error occurred in cancel_close_huobi(): {e}")
 
     # def cancel_close_bybit(self, symbol: str, side: str) -> None:
     #     position_idx_map = {"long": 1, "short": 2}
@@ -1460,6 +1503,56 @@ class Exchange:
         except Exception as e:
             log.warning(f"An unknown error occurred in cancel_close_bitget(): {e}")
 
+    def cancel_close_huobi(self, symbol: str, side: str, offset: str) -> None:
+        side_map = {"long": "buy", "short": "sell"}
+        try:
+            orders = self.exchange.fetch_open_orders(symbol)
+            if orders:
+                for order in orders:
+                    order_info = order["info"]
+                    order_id = order_info["order_id"]
+                    order_status = order_info["status"]
+                    order_direction = order_info["direction"]
+                    order_offset = order_info["offset"]
+                    reduce_only = order_info["reduce_only"]
+
+                    if (
+                        order_status == '3'  # Assuming '3' represents open orders
+                        and order_direction == side_map[side]
+                        and order_offset == offset
+                        and reduce_only == '1'  # Assuming '1' represents reduce_only orders
+                    ):
+                        self.exchange.cancel_order(symbol=symbol, id=order_id)
+                        log.info(f"Cancelling order: {order_id}")
+        except Exception as e:
+            log.warning(f"An unknown error occurred in cancel_close_huobi(): {e}")
+
+
+    # def cancel_close_huobi(self, symbol: str, side: str) -> None:
+    #     side_map = {"long": "buy", "short": "sell"}
+    #     offset = "close"
+    #     try:
+    #         orders = self.exchange.fetch_open_orders(symbol)
+    #         if orders:
+    #             for order in orders:
+    #                 order_info = order["info"]
+    #                 order_id = order_info["order_id"]
+    #                 order_status = order_info["status"]
+    #                 order_direction = order_info["direction"]
+    #                 order_offset = order_info["offset"]
+    #                 reduce_only = order_info["reduce_only"]
+
+    #                 if (
+    #                     order_status == '3'  # Assuming '3' represents open orders
+    #                     and order_direction == side_map[side]
+    #                     and order_offset == offset
+    #                     and reduce_only == '1'  # Assuming '1' represents reduce_only orders
+    #                 ):
+    #                     self.exchange.cancel_order(symbol=symbol, id=order_id)
+    #                     log.info(f"Cancelling order: {order_id}")
+    #     except Exception as e:
+    #         log.warning(f"An unknown error occurred in cancel_close_huobi(): {e}")
+
     # def cancel_close_huobi(self, symbol: str, side: str) -> None:
     #     side_map = {"long": "sell", "short": "buy"}
     #     offset_map = {"long": "close", "short": "close"}
@@ -1484,36 +1577,6 @@ class Exchange:
     #                     log.info(f"Cancelling order: {order_id}")
     #     except Exception as e:
     #         log.warning(f"An unknown error occurred in cancel_close_huobi(): {e}")
-
-    def cancel_close_huobi(self, symbol: str, side: str) -> None:
-        side_map = {"long": "sell", "short": "buy"}
-        offset_map = {"long": "close", "short": "close"}
-        try:
-            orders = self.exchange.fetch_open_orders(symbol)
-            if len(orders) > 0:
-                for order in orders:
-                    order_info = order["info"]
-                    order_id = order_info["order_id"]
-                    order_status = str(order_info["status"])  # status seems to be a string of a number
-                    order_direction = order_info["direction"]
-                    order_offset = order_info["offset"]
-
-                    print(f"Order ID: {order_id}")
-                    print(f"Order Status: {order_status}")
-                    print(f"Order Direction: {order_direction}")
-                    print(f"Order Offset: {order_offset}")
-
-                    if (
-                        order_status != "4"  # Assuming 4 is 'Filled'
-                        and order_direction == side_map[side]
-                        and order_offset == offset_map[side]
-                        and order_status != "6"  # Assuming 6 is 'Cancelled'
-                        # There's no 'reduceOnly' equivalent in Huobi from the provided data
-                    ):
-                        self.exchange.cancel_order(symbol=symbol, id=order_id)
-                        log.info(f"Cancelling order: {order_id}")
-        except Exception as e:
-            log.warning(f"An unknown error occurred in cancel_close_huobi(): {e}")
 
     def cancel_close(self, symbol: str, side: str) -> None:
         try:
@@ -1572,22 +1635,8 @@ class Exchange:
         else:
             raise ValueError(f"Unsupported order type: {order_type}")
 
-    # # Huobi
-    # def create_take_profit_order_huobi(self, symbol, order_type, side, amount, price=None, reduce_only=False):
-    #     if order_type == 'limit':
-    #         if price is None:
-    #             raise ValueError("A price must be specified for a limit order")
-
-    #         if side not in ["buy", "sell"]:
-    #             raise ValueError(f"Invalid side: {side}")
-
-    #         params = {"offset": "close" if reduce_only else "open"}
-    #         return self.exchange.create_order(symbol, order_type, side, amount, price, params)
-    #     else:
-    #         raise ValueError(f"Unsupported order type: {order_type}")
-
     # Huobi
-    def create_take_profit_order_huobi(self, symbol, order_type, side, amount, price=None, reduce_only=False, post_only=False):
+    def create_take_profit_order_huobi(self, symbol, order_type, side, amount, price=None, reduce_only=False):
         if order_type == 'limit':
             if price is None:
                 raise ValueError("A price must be specified for a limit order")
@@ -1595,12 +1644,10 @@ class Exchange:
             if side not in ["buy", "sell"]:
                 raise ValueError(f"Invalid side: {side}")
 
-            params = {"offset": "close" if reduce_only else "open", "postOnly": post_only}
+            params = {"offset": "close" if reduce_only else "open"}
             return self.exchange.create_order(symbol, order_type, side, amount, price, params)
         else:
             raise ValueError(f"Unsupported order type: {order_type}")
-
-
 
     def market_close_position_bitget(self, symbol, side, amount):
         """
@@ -1680,133 +1727,71 @@ class Exchange:
             log.warning(f"An unknown error occurred in create_limit_order(): {e}")
 
     # # Binance
-    # def create_take_profit_order_binance(self, symbol: str, side: str, qty: float, price: float, stop_price: float):
-    #     try:
-    #         if side == "buy" or side == "sell":
-    #             position_side = "LONG" if side == "sell" else "SHORT"
-    #             params = {
-    #                 "positionSide": position_side,
-    #                 "reduceOnly": True,
-    #                 "stopPrice": stop_price
-    #                 #"type": "TAKE_PROFIT_LIMIT"
-    #             }
-    #             order = self.exchange.create_order(
-    #                 symbol=symbol,
-    #                 type='TAKE_PROFIT_LIMIT',
-    #                 side=side,
-    #                 amount=qty,
-    #                 price=price,
-    #                 params=params
-    #             )
-    #             return order
-    #         else:
-    #             log.warning(f"Invalid side: {side}")
-    #     except Exception as e:
-    #         log.warning(f"An unknown error occurred in create_take_profit_order_binance(): {e}")
+    # def create_take_profit_order_binance(self, symbol, side, amount, price):
+    #     if side not in ["buy", "sell"]:
+    #         raise ValueError(f"Invalid side: {side}")
+        
+    #     params={"reduceOnly": True}
 
-    # def create_limit_order_binance(self, symbol: str, side: str, quantity: float, price: float, time_in_force: str = 'GTC', params={}):
-    #     try:
-    #         order = self.exchange.create_order(
-    #             symbol=symbol,
-    #             type='LIMIT',
-    #             side=side,
-    #             timeInForce=time_in_force,
-    #             quantity=quantity,
-    #             price=price,
-    #             params=params
-    #         )
-    #         return order
-    #     except Exception as e:
-    #         log.warning(f"An unknown error occurred in create_limit_order_binance(): {e}"
+    #     # Create the limit order for the take profit
+    #     order = self.create_limit_order_binance(symbol, side, amount, price, params)
 
-    def create_limit_order_binance(self, symbol: str, side: str, quantity: float, price: float, time_in_force: str = 'GTC', params={}):
+    #     return order
+    
+    # Binance
+    def create_close_position_limit_order_binance(self, symbol: str, side: str, qty: float, price: float):
         try:
-            order = self.exchange.create_order(
-                symbol=symbol,
-                type='LIMIT',
-                side=side,
-                amount=quantity,
-                price=price,
-                params=params
-            )
-            return order
+            if side == "buy" or side == "sell":
+                position_side = "LONG" if side == "sell" else "SHORT"
+                params = {
+                    "positionSide": position_side,
+                    "closePosition": True
+                }
+                order = self.exchange.create_order(
+                    symbol=symbol,
+                    type='LIMIT',
+                    side=side,
+                    amount=qty,
+                    price=price,
+                    params=params
+                )
+                return order
+            else:
+                log.warning(f"Invalid side: {side}")
+        except Exception as e:
+            log.warning(f"An unknown error occurred in create_close_position_limit_order_binance(): {e}")
+
+    # Binance
+    def create_take_profit_order_binance(self, symbol, side, amount, price):
+        if side not in ["buy", "sell"]:
+            raise ValueError(f"Invalid side: {side}")
+
+        params = {"closePosition": True}
+
+        # Create the limit order for the take profit
+        order = self.create_limit_order_binance(symbol, side, amount, price, params)
+
+        return order
+    
+    # Binance
+    def create_limit_order_binance(self, symbol: str, side: str, qty: float, price: float, params={}):
+        try:
+            if side == "buy" or side == "sell":
+                user_position_side = "LONG"  # Replace this with the actual user's position side setting
+                params["positionSide"] = user_position_side
+                order = self.exchange.create_order(
+                    symbol=symbol,
+                    type='LIMIT',
+                    side=side,
+                    amount=qty,
+                    price=price,
+                    params=params
+                )
+                return order
+            else:
+                log.warning(f"side {side} does not exist")
         except Exception as e:
             log.warning(f"An unknown error occurred in create_limit_order_binance(): {e}")
-
-    def get_open_take_profit_order_ids_binance(self, symbol: str) -> dict:
-        """
-        Retrieves the IDs of the open take profit orders for a specific symbol, separated by long and short sides.
-        :param str symbol: Unified symbol of the market
-        :returns dict: Dictionary containing long and short take profit order IDs
-        """
-        open_orders = self.get_open_orders_binance(symbol)
-        long_take_profit_order_ids = []
-        short_take_profit_order_ids = []
-        for order in open_orders:
-            if order['reduce_only']:
-                if order['side'].lower() == 'buy':
-                    long_take_profit_order_ids.append(order['id'])
-                elif order['side'].lower() == 'sell':
-                    short_take_profit_order_ids.append(order['id'])
-        return {'long': long_take_profit_order_ids, 'short': short_take_profit_order_ids}
-
-    def create_take_profit_order_binance(self, symbol: str, side: str, amount, stop_price):
-        """
-        Create a take profit order for a specific symbol and side.
-        :param str symbol: Unified symbol of the market
-        :param str side: 'buy' or 'sell'
-        :param float amount: Quantity of the order
-        :param float stop_price: Stop price for the take profit order
-        :returns dict: Order information
-        """
-        order_type = 'TAKE_PROFIT_MARKET'  # Use 'TAKE_PROFIT' for limit price
-        params = {
-            'stopPrice': stop_price,
-            'closePosition': False,  # Set to True if it should close the entire position
-            'newOrderRespType': 'RESULT'  # Get the final status result of the order
-        }
-        order = self.exchange.create_order(symbol, order_type, side, amount, params=params)
-        return order
-
-    # def create_limit_order_binance(self, symbol: str, side: str, amount, price, params={}):
-    #     """
-    #     Create a limit order.
-    #     :param str symbol: Unified symbol of the market to create an order in.
-    #     :param str side: 'buy' or 'sell'.
-    #     :param float amount: Quantity of the order.
-    #     :param float price: The price at which the order is to be fulfilled, in units of the quote currency.
-    #     :param dict params: Extra parameters specific to the exchange.
-    #     :returns dict: An `order structure <https://docs.ccxt.com/#/?id=order-structure>`.
-    #     """
-    #     self.exchange.load_markets()
-    #     market = self.market(symbol)
-    #     order_type = 'LIMIT'
-    #     params['newOrderRespType'] = 'RESULT'  # Get the final status result of the order
-    #     params['quantity'] = amount
-    #     params['price'] = price
-
-    #     order = self.create_order(symbol, order_type, side, amount, price, params=params)
-    #     return order
-
-    # # Binance
-    # def create_limit_order_binance(self, symbol: str, side: str, qty: float, price: float, params={}):
-    #     try:
-    #         if side == "buy" or side == "sell":
-    #             user_position_side = "LONG"  # Replace this with the actual user's position side setting
-    #             params["positionSide"] = user_position_side
-    #             order = self.exchange.create_order(
-    #                 symbol=symbol,
-    #                 type='LIMIT',
-    #                 side=side,
-    #                 amount=qty,
-    #                 price=price,
-    #                 params=params
-    #             )
-    #             return order
-    #         else:
-    #             log.warning(f"side {side} does not exist")
-    #     except Exception as e:
-    #         log.warning(f"An unknown error occurred in create_limit_order_binance(): {e}")
 
     def create_limit_order(self, symbol, side, amount, price, reduce_only=False, **params):
         if side == "buy":
@@ -1858,35 +1843,29 @@ class Exchange:
 
         return order
 
-    def fetch_max_leverage_huobi(self, symbol: str):
+    def create_market_order_bybit(self, symbol: str, side: str, qty: float, positionIdx=0, params={}):
         try:
-            tiers = self.exchange.fetch_market_leverage_tiers(symbol)
-            if tiers is not None:
-                max_leverage = tiers.get('maxLeverage')
-                return max_leverage
+            if side == "buy" or side == "sell":
+                request = {
+                    'symbol': symbol,
+                    'type': 'market',
+                    'side': side,
+                    'qty': qty,
+                    'positionIdx': positionIdx,
+                    'closeOnTrigger': True  # Set closeOnTrigger to True for market close order
+                }
+                order = self.exchange.create_contract_v3_order(symbol, 'market', side, qty, params=request)
+                return order
             else:
-                log.warning(f"No leverage tiers found for symbol: {symbol}")
+                log.warning(f"Side {side} does not exist")
         except Exception as e:
-            log.warning(f"An unknown error occurred in fetch_max_leverage_huobi(): {e}")
+            log.warning(f"An unknown error occurred in create_market_order(): {e}")
 
     def create_contract_order_huobi(self, symbol, order_type, side, amount, price=None, params={}):
-        # Needs implementation of getting current leverage set
-
-        params = {'leverRate': 20}
+        params = {'leverRate': 50}
         return self.exchange.create_contract_order(symbol, order_type, side, amount, price, params)
 
-    def fetch_order(self, id: str, symbol: Optional[str] = None):
-        try:
-            self.exchange.load_markets()
-            params = {}
-            if symbol is not None:
-                params['symbol'] = symbol
-            order = self.exchange.fetch_order(id, symbol, params)
-            return order
-        except Exception as e:
-            print(f"Error in fetching order: {e}")
-            return None
-        
+
     # def get_symbol_precision_bybit(self, symbol: str) -> Tuple[int, int]:
     #     try:
     #         market = self.exchange.market(symbol)
