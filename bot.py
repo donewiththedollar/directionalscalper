@@ -149,8 +149,8 @@ if __name__ == '__main__':
             strategy.run(symbol, amount)
 
         elif strategy_name.lower() == 'bybit_hedge_violent':
-            strategy = BybitHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
-            strategy.run(symbol)
+            strategy = BybitViolentHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol, amount)
         
         elif strategy_name.lower() == 'bybit_hedge_dynamic':
             strategy = BybitDynamicHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
