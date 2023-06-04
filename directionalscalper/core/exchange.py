@@ -102,6 +102,21 @@ class Exchange:
         return max_trade_qty
 
     # Bybit
+    def get_market_precision_bybit(self, symbol):
+        # Fetch the market data
+        markets = self.exchange.fetch_derivatives_markets({})
+        # Find the market for the specified symbol
+        market = next((market for market in markets if market['symbol'] == symbol), None)
+        if market is None:
+            raise ValueError(f"Symbol {symbol} not found in market data.")
+        # Extract and return the precision data
+        precision = market.get('precision', None)
+        if precision is None:
+            raise ValueError(f"No precision data found for symbol {symbol}.")
+        return precision
+
+
+    # Bybit
     def calculate_trade_quantity(self, symbol, leverage, asset_wallet_exposure, best_ask_price):
         dex_equity = self.get_balance_bybit('USDT')
         asset_exposure = dex_equity * asset_wallet_exposure / 100.0
