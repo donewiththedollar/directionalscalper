@@ -22,6 +22,7 @@ from directionalscalper.core.strategies.bitget.bitget_grid_dynamic import Bitget
 from directionalscalper.core.strategies.bitget.bitget_fivemin import BitgetFiveMinuteStrategy
 from directionalscalper.core.strategies.okx.okx_hedge import OKXHedgeStrategy
 from directionalscalper.core.strategies.bybit.bybit_hedge import BybitHedgeStrategy
+from directionalscalper.core.strategies.bybit.bybit_hedge_volatility import BybitVolatilityHedgeStrategy
 from directionalscalper.core.strategies.bybit.bybit_violent import BybitViolentHedgeStrategy
 from directionalscalper.core.strategies.bybit.bybit_dynamic import BybitDynamicHedgeStrategy
 from directionalscalper.core.strategies.bybit.bybit_hedge_unified import BybitHedgeUnifiedStrategy
@@ -58,7 +59,8 @@ class DirectionalMarketMaker:
         elif self.exchange_name == 'mexc':
             return self.exchange.get_balance_mexc(quote, market_type='swap')
         elif self.exchange_name == 'huobi':
-            return self.exchange.get_balance_huobi(quote, type=market_type, subType=sub_type)
+            print("Huobi starting..")
+            #return self.exchange.get_balance_huobi(quote, type=market_type, subType=sub_type)
         elif self.exchange_name == 'okx':
             #return self.exchange.get_balance_okx(quote)
             print(f"Unsupported for now")
@@ -102,8 +104,9 @@ if __name__ == '__main__':
 
     quote = "USDT"
     if exchange_name.lower() == 'huobi':
-        balance = market_maker.get_balance(quote, 'swap', 'linear')
-        print(f"Futures balance: {balance}")
+        #balance = market_maker.get_balance(quote, 'swap', 'linear')
+        #print(f"Futures balance: {balance}")
+        print(f"Loading huobi strategy..")
     elif exchange_name.lower() == 'mexc':
         balance = market_maker.get_balance(quote, type='swap')
         print(f"Futures balance: {balance}")
@@ -142,6 +145,10 @@ if __name__ == '__main__':
 
         elif strategy_name.lower() == 'bybit_hedge':
             strategy = BybitHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol, amount)
+
+        elif strategy_name.lower() == 'bybit_hedge_volatility':
+            strategy = BybitVolatilityHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
 
         elif strategy_name.lower() == 'bybit_hedge_unified':
