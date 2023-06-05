@@ -100,20 +100,62 @@ class Exchange:
         )
 
         return max_trade_qty
+    
+    def get_market_tick_size_bybit(self, symbol):
+        # Fetch the market data
+        markets = self.exchange.fetch_markets()
+
+        # Filter for the specific symbol
+        for market in markets:
+            if market['symbol'] == symbol:
+                tick_size = market['info']['priceFilter']['tickSize']
+                return tick_size
+        
+        return None
+
+    def get_precision_and_limits_bybit(self, symbol):
+        # Fetch the market data
+        markets = self.exchange.fetch_markets()
+
+        # Filter for the specific symbol
+        for market in markets:
+            if market['symbol'] == symbol:
+                precision_amount = market['precision']['amount']
+                precision_price = market['precision']['price']
+                min_amount = market['limits']['amount']['min']
+
+                return precision_amount, precision_price, min_amount
+
+        return None, None, None
+
+    def get_market_precision_data_bybit(self, symbol):
+        # Fetch the market data
+        markets = self.exchange.fetch_markets()
+        
+        # Print the first market from the list
+        print(markets[0])
+
+        # Filter for the specific symbol
+        for market in markets:
+            if market['symbol'] == symbol:
+                return market['precision']
+        
+        return None
 
     # Bybit
-    def get_market_precision_bybit(self, symbol):
-        # Fetch the market data
-        markets = self.exchange.fetch_derivatives_markets({})
-        # Find the market for the specified symbol
-        market = next((market for market in markets if market['symbol'] == symbol), None)
-        if market is None:
-            raise ValueError(f"Symbol {symbol} not found in market data.")
-        # Extract and return the precision data
-        precision = market.get('precision', None)
-        if precision is None:
-            raise ValueError(f"No precision data found for symbol {symbol}.")
-        return precision
+    # def get_market_precision_bybit(self, symbol):
+    #     # Fetch the market data
+    #     markets = self.exchange.fetch_markets()
+    #     # Find the market for the specified symbol
+    #     market = next((market for market in markets if market['symbol'] == symbol), None)
+    #     if market is None:
+    #         raise ValueError(f"Symbol {symbol} not found in market data.")
+    #     # Extract and return the precision data
+    #     precision = market.get('precision', None)
+    #     if precision is None:
+    #         raise ValueError(f"No precision data found for symbol {symbol}.")
+    #     return precision
+
 
 
     # Bybit

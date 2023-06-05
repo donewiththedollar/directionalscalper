@@ -142,7 +142,7 @@ class BybitDynamicHedgeStrategy(Strategy):
             self.exchange.set_leverage_bybit(max_leverage, symbol)
 
         while True:
-            print(f"Bybit hedge strategy running")
+            print(f"Bybit dynamic hedge strategy running")
             print(f"Min volume: {min_vol}")
             print(f"Min distance: {min_dist}")
 
@@ -169,6 +169,10 @@ class BybitDynamicHedgeStrategy(Strategy):
             print(f"Best bid: {best_bid_price}")
             print(f"Best ask: {best_ask_price}")
             print(f"Current price: {current_price}")
+
+            price_precision = int(self.exchange.get_price_precision(symbol))
+
+            print(f"Precision: {price_precision}")
 
             old_max_trade_qty = round(
                 (float(total_equity) * wallet_exposure / float(best_ask_price))

@@ -17,6 +17,22 @@ class BybitVolatilityHedgeStrategy(Strategy):
         self.current_wallet_exposure = 1.0
         self.printed_trade_quantities = False
 
+    # def format_symbol(self, symbol):
+    #     base = symbol[:-4]  # Get all characters in symbol except last 4 ('USDT')
+    #     return f"{base}/USD"
+
+    def format_symbol(self, symbol):
+        """
+        Format the given symbol string to include a '/' between the base and quote currencies.
+        The function handles base currencies of 3 to 4 characters and quote currencies of 3 to 4 characters.
+        """
+        quote_currencies = ["USDT", "USD", "BTC", "ETH"]
+        for quote in quote_currencies:
+            if symbol.endswith(quote):
+                base = symbol[:-len(quote)]
+                return base + '/' + quote
+        return None
+
     def calculate_trade_quantity(self, symbol, leverage):
         dex_equity = self.exchange.get_balance_bybit('USDT')
         trade_qty = (float(dex_equity) * self.current_wallet_exposure) / leverage
@@ -32,10 +48,8 @@ class BybitVolatilityHedgeStrategy(Strategy):
             # Reduce the position to the desired wallet exposure level
             self.exchange.reduce_position_bybit(symbol, reduction_qty)
 
-
     def truncate(self, number: float, precision: int) -> float:
         return float(Decimal(number).quantize(Decimal('0.' + '0'*precision), rounding=ROUND_DOWN))
-
 
     def limit_order(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
         params = {"reduceOnly": reduceOnly}
@@ -256,19 +270,17 @@ class BybitVolatilityHedgeStrategy(Strategy):
                 self.printed_trade_quantities = True
 
 
-            precision = self.exchange.get_market_precision_bybit(symbol)
+            # formatted_symbol = self.format_symbol(symbol)
+            # tick_size = self.exchange.get_market_tick_size_bybit(formatted_symbol)
 
-            print(precision)
+            # print(f"Tick size: {tick_size}")
 
+            # precision_amount, precision_price, min_amount = self.exchange.get_precision_and_limits_bybit(formatted_symbol)
 
-            # Precision is annoying
+            # print('Precision Amount:', precision_amount)
+            # print('Precision Price:', precision_price)
+            # print('Minimum Amount:', min_amount)
 
-            # price_precision = int(self.exchange.get_price_precision(symbol))
-
-            # print(f"Price Precision: {price_precision}")
-
-            # Precision
-            #price_precision, quantity_precision = self.exchange.get_symbol_precision_bybit(symbol)
 
             # Take profit calc
             short_take_profit = self.calculate_short_take_profit(short_pos_price, symbol)
@@ -287,35 +299,38 @@ class BybitVolatilityHedgeStrategy(Strategy):
             if long_pos_price is not None:
                 should_add_to_long = long_pos_price > ma_6_low
 
+            price_precision = int(self.exchange.get_price_precision(symbol))
+
+            print(f"Precision: {price_precision}")
+
+
             if short_pos_price is not None:
-                # Calculate the ratio between the short position price and the sum of four-hour distance and thirty-minute distance
                 combined_distance = float(four_hour_distance or 0) + float(thirty_minute_distance or 0)
+                average_distance = combined_distance / 2.0 if combined_distance else 0.0
+                print(f"Average distance short: {average_distance}")
+                distance_factor = average_distance / 100.0  # scale down the distance to a reasonable factor. Change the denominator based on your requirement.
+                
                 ratio = float(short_pos_price) / combined_distance if combined_distance else 1.0
-                # Scale the quantity inversely with the ratio. The larger the distance, the smaller the quantity.
                 scale_factor = 1 / ratio
                 ob_short_qty = abs(scale_factor * (float(short_take_profit) - float(short_pos_price)) / float(best_ask_price))
-                # Add the user's amount to the calculated quantity
                 ob_short_qty += float(amount)
+                ob_short_qty *= (1.0 + distance_factor)  # Increase order quantity based on distance factor
+                ob_short_qty = round(ob_short_qty / min_qty_bybit) * min_qty_bybit  # ensure it's a multiple of min_qty
                 print(f"Short QTY: {ob_short_qty}")
 
             if long_pos_price is not None:
-                # Calculate the ratio between the long position price and the sum of four-hour distance and thirty-minute distance
                 combined_distance = float(four_hour_distance or 0) + float(thirty_minute_distance or 0)
+                average_distance = combined_distance / 2.0 if combined_distance else 0.0
+                print(f"Average distance long: {average_distance}")
+                distance_factor = average_distance / 100.0  # scale down the distance to a reasonable factor. Change the denominator based on your requirement.
+                
                 ratio = float(long_pos_price) / combined_distance if combined_distance else 1.0
-                # Scale the quantity inversely with the ratio. The larger the distance, the smaller the quantity.
                 scale_factor = 1 / ratio
                 ob_long_qty = abs(scale_factor * (float(long_take_profit) - float(long_pos_price)) / float(best_ask_price))
-                # Add the user's amount to the calculated quantity
                 ob_long_qty += float(amount)
+                ob_long_qty *= (1.0 + distance_factor)  # Increase order quantity based on distance factor
+                ob_long_qty = round(ob_long_qty / min_qty_bybit) * min_qty_bybit  # ensure it's a multiple of min_qty
                 print(f"Long QTY: {ob_long_qty}")
-
-            # if short_pos_price is not None:
-            #     ob_short_qty = self.calculate_quantity(short_pos_price, short_take_profit, best_ask_price, amount, symbol, four_hour_distance, thirty_minute_distance) 
-            #     print(f"Short QTY: {ob_short_qty}")
-
-            # if long_pos_price is not None:
-            #     ob_long_qty = self.calculate_quantity(long_pos_price, long_take_profit, best_ask_price, amount, symbol, four_hour_distance, thirty_minute_distance)
-            #     print(f"Long QTY: {ob_long_qty}")
 
 
             print(f"Short condition: {should_short}")
