@@ -209,7 +209,9 @@ class BybitShortStrategy(Strategy):
             
             if short_pos_price is not None:
                 should_add_to_short = short_pos_price < ma_6_low
-
+                short_tp_distance_percent = ((short_take_profit - best_ask_price) / best_ask_price) * 100
+                print(f"Short TP price: {short_take_profit}, TP distance in percent: {short_tp_distance_percent:.2f}%")
+                
             print(f"Short condition: {should_short}")
             print(f"Add short condition: {should_add_to_short}")
 

@@ -128,6 +128,10 @@ class BybitLongStrategy(Strategy):
             print(f"5m Spread: {five_minute_distance}")
             print(f"Trend: {trend}")
 
+            price_precision = int(self.exchange.get_price_precision(symbol))
+
+            print(f"Precision: {price_precision}")
+
             quote_currency = "USDT"
 
             for i in range(max_retries):
@@ -214,6 +218,8 @@ class BybitLongStrategy(Strategy):
             
             if long_pos_price is not None:
                 should_add_to_long = long_pos_price > ma_6_low
+                long_tp_distance_percent = ((long_take_profit - best_bid_price) / best_bid_price) * 100
+                print(f"Long TP price: {long_take_profit}, TP distance in percent: {long_tp_distance_percent:.2f}%")
 
             print(f"Long condition: {should_long}")
             print(f"Add long condition: {should_add_to_long}")

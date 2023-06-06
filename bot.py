@@ -29,6 +29,8 @@ from directionalscalper.core.strategies.bybit.bybit_hedge_unified import BybitHe
 from directionalscalper.core.strategies.bybit.bybit_hedge_grid import BybitHedgeGridStrategy
 from directionalscalper.core.strategies.bybit.bybit_longonly import BybitLongStrategy
 from directionalscalper.core.strategies.bybit.bybit_shortonly import BybitShortStrategy
+from directionalscalper.core.strategies.bybit.bybit_longonly_dynamictp import BybitLongDynamicTP
+from directionalscalper.core.strategies.bybit.bybit_hedge_dynamictp import BybitHedgeDynamicTP
 from directionalscalper.core.strategies.huobi.huobi_hedge import HuobiHedgeStrategy
 from directionalscalper.core.strategies.binance.binance_hedge import BinanceHedgeStrategy
 from directionalscalper.core.strategies.phemex.phemex_hedge import PhemexHedgeStrategy
@@ -157,6 +159,14 @@ if __name__ == '__main__':
 
         elif strategy_name.lower() == 'bybit_shortonly':
             strategy = BybitShortStrategy(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol, amount)
+
+        elif strategy_name.lower() == 'bybit_longonly_dynamictp':
+            strategy = BybitLongDynamicTP(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol, amount)
+
+        elif strategy_name.lower() == 'bybit_hedge_dynamictp':
+            strategy = BybitHedgeDynamicTP(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
 
         elif strategy_name.lower() == 'bybit_hedge_volatility':
