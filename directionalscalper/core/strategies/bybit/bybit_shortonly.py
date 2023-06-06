@@ -3,12 +3,8 @@ import math
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_DOWN
 from ..strategy import Strategy
 from typing import Tuple
-#from ...tables import create_strategy_table, start_live_table
-#from directionalscalper.core.tables import create_strategy_table, start_live_table
-import threading
-import os
 
-class BybitHedgeStrategy(Strategy):
+class BybitShortStrategy(Strategy):
     def __init__(self, exchange, manager, config):
         super().__init__(exchange, config)
         self.manager = manager
@@ -31,7 +27,6 @@ class BybitHedgeStrategy(Strategy):
             reduction_qty = current_trade_qty - max_trade_qty
             # Reduce the position to the desired wallet exposure level
             self.exchange.reduce_position_bybit(symbol, reduction_qty)
-
 
     def truncate(self, number: float, precision: int) -> float:
         return float(Decimal(number).quantize(Decimal('0.' + '0'*precision), rounding=ROUND_DOWN))
@@ -94,41 +89,6 @@ class BybitHedgeStrategy(Strategy):
             return float(short_profit_price)
         return None
 
-    def calculate_long_take_profit(self, long_pos_price, symbol):
-        if long_pos_price is None:
-            return None
-
-        five_min_data = self.manager.get_5m_moving_averages(symbol)
-        price_precision = int(self.exchange.get_price_precision(symbol))
-
-        #print("Debug: Price Precision for Symbol (", symbol, "):", price_precision)
-
-        if five_min_data is not None:
-            ma_6_high = Decimal(five_min_data["MA_6_H"])
-            ma_6_low = Decimal(five_min_data["MA_6_L"])
-
-            try:
-                long_target_price = Decimal(long_pos_price) + (ma_6_high - ma_6_low)
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when calculating long_target_price. long_pos_price={long_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
-                return None
-
-            try:
-                long_target_price = long_target_price.quantize(
-                    Decimal('1e-{}'.format(price_precision)),
-                    rounding=ROUND_HALF_UP
-                )
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when quantizing long_target_price. long_target_price={long_target_price}, price_precision={price_precision}")
-                return None
-
-            #print("Debug: Long Target Price:", long_target_price)
-
-            long_profit_price = long_target_price
-
-            return float(long_profit_price)
-        return None
-
     def run(self, symbol, amount):
         wallet_exposure = self.config.wallet_exposure
         min_dist = self.config.min_distance
@@ -146,11 +106,8 @@ class BybitHedgeStrategy(Strategy):
             print(f"Current leverage is not at maximum. Setting leverage to maximum. Maximum is {max_leverage}")
             self.exchange.set_leverage_bybit(max_leverage, symbol)
 
-        # # Create the strategy table
-        # strategy_table = create_strategy_table(symbol, total_equity, long_upnl, short_upnl, short_pos
-
         while True:
-            print(f"Bybit hedge strategy running")
+            print(f"Bybit short only strategy running")
             print(f"Min volume: {min_vol}")
             print(f"Min distance: {min_dist}")
 
@@ -227,63 +184,38 @@ class BybitHedgeStrategy(Strategy):
             #print(f"Bybit pos data: {position_data}")
 
             short_pos_qty = position_data["short"]["qty"]
-            long_pos_qty = position_data["long"]["qty"]
 
             print(f"Short pos qty: {short_pos_qty}")
-            print(f"Long pos qty: {long_pos_qty}")
 
             short_upnl = position_data["short"]["upnl"]
-            long_upnl = position_data["long"]["upnl"]
 
             print(f"Short uPNL: {short_upnl}")
-            print(f"Long uPNL: {long_upnl}")
 
-            cum_realised_pnl_long = position_data["long"]["cum_realised"]
             cum_realised_pnl_short = position_data["short"]["cum_realised"]
 
             print(f"Short cum. PNL: {cum_realised_pnl_short}")
-            print(f"Long cum. PNL: {cum_realised_pnl_long}")
 
             short_pos_price = position_data["short"]["price"] if short_pos_qty > 0 else None
-            long_pos_price = position_data["long"]["price"] if long_pos_qty > 0 else None
 
-            print(f"Long pos price {long_pos_price}")
             print(f"Short pos price {short_pos_price}")
 
             # Take profit calc
             short_take_profit = self.calculate_short_take_profit(short_pos_price, symbol)
-            long_take_profit = self.calculate_long_take_profit(long_pos_price, symbol)
-
 
             should_short = best_bid_price > ma_3_high
             should_long = best_bid_price < ma_3_high
 
             should_add_to_short = False
-            should_add_to_long = False
             
             if short_pos_price is not None:
                 should_add_to_short = short_pos_price < ma_6_low
 
-            if long_pos_price is not None:
-                should_add_to_long = long_pos_price > ma_6_low
-
             print(f"Short condition: {should_short}")
-            print(f"Long condition: {should_long}")
             print(f"Add short condition: {should_add_to_short}")
-            print(f"Add long condition: {should_add_to_long}")
 
             if trend is not None and isinstance(trend, str):
                 if one_minute_volume is not None and five_minute_distance is not None:
                     if one_minute_volume > min_vol and five_minute_distance > min_dist:
-
-                        if trend.lower() == "long" and should_long and long_pos_qty == 0:
-                            print(f"Placing initial long entry")
-                            self.limit_order(symbol, "buy", amount, best_bid_price, positionIdx=1, reduceOnly=False)
-                            print(f"Placed initial long entry")
-                        else:
-                            if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
-                                print(f"Placed additional long entry")
-                                self.limit_order(symbol, "buy", amount, best_bid_price, positionIdx=1, reduceOnly=False)
 
                         if trend.lower() == "short" and should_short and short_pos_qty == 0:
                             print(f"Placing initial short entry")
@@ -295,33 +227,6 @@ class BybitHedgeStrategy(Strategy):
                                 self.limit_order(symbol, "sell", amount, best_bid_price, positionIdx=2, reduceOnly=False)
         
             open_orders = self.exchange.get_open_orders(symbol)
-
-            # # Call the get_open_take_profit_order_quantity function for the 'buy' side
-            # buy_qty, buy_id = self.get_open_take_profit_order_quantity(open_orders, 'buy')
-
-            # # Call the get_open_take_profit_order_quantity function for the 'sell' side
-            # sell_qty, sell_id = self.get_open_take_profit_order_quantity(open_orders, 'sell')
-
-            # # Print the results
-            # print("Buy Take Profit Order - Quantity: ", buy_qty, "ID: ", buy_id)
-            # print("Sell Take Profit Order - Quantity: ", sell_qty, "ID: ", sell_id)
-
-            if long_pos_qty > 0 and long_take_profit is not None:
-                existing_long_tps = self.get_open_take_profit_order_quantities(open_orders, "sell")
-                total_existing_long_tp_qty = sum(qty for qty, _ in existing_long_tps)
-                if not math.isclose(total_existing_long_tp_qty, long_pos_qty):
-                    try:
-                        for _, existing_long_tp_id in existing_long_tps:
-                            self.exchange.cancel_take_profit_orders_bybit(symbol, "sell")  # Corrected side value to "sell"
-                            print(f"Long take profit canceled")
-                            time.sleep(0.05)
-
-                        #print(f"Debug: Long Position Quantity {long_pos_qty}, Long Take Profit {long_take_profit}")
-                        self.exchange.create_take_profit_order_bybit(symbol, "limit", "sell", long_pos_qty, long_take_profit, positionIdx=1, reduce_only=True)
-                        print(f"Long take profit set at {long_take_profit}")
-                        time.sleep(0.05)
-                    except Exception as e:
-                        print(f"Error in placing long TP: {e}")
 
             if short_pos_qty > 0 and short_take_profit is not None:
                 existing_short_tps = self.get_open_take_profit_order_quantities(open_orders, "buy")
@@ -354,9 +259,3 @@ class BybitHedgeStrategy(Strategy):
                 self.last_cancel_time = current_time  # Update the last cancel time
 
             time.sleep(30)
-
-            # # Create the strategy table
-            # strategy_table = create_strategy_table(symbol, total_equity, long_upnl, short_upnl, short_pos_qty, long_pos_qty, amount, cumulative_realized_pnl, one_minute_volume, five_minute_distance)
-
-            # # Display the table
-            # self.display_table(strategy_table)

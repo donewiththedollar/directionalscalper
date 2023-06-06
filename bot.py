@@ -28,6 +28,7 @@ from directionalscalper.core.strategies.bybit.bybit_dynamic import BybitDynamicH
 from directionalscalper.core.strategies.bybit.bybit_hedge_unified import BybitHedgeUnifiedStrategy
 from directionalscalper.core.strategies.bybit.bybit_hedge_grid import BybitHedgeGridStrategy
 from directionalscalper.core.strategies.bybit.bybit_longonly import BybitLongStrategy
+from directionalscalper.core.strategies.bybit.bybit_shortonly import BybitShortStrategy
 from directionalscalper.core.strategies.huobi.huobi_hedge import HuobiHedgeStrategy
 from directionalscalper.core.strategies.binance.binance_hedge import BinanceHedgeStrategy
 from directionalscalper.core.strategies.phemex.phemex_hedge import PhemexHedgeStrategy
@@ -116,6 +117,7 @@ if __name__ == '__main__':
         print(f"Futures balance: {balance}")
 
     try:
+        # Bitget strategies
         if strategy_name.lower() == 'bitget_hedge':
             strategy = BitgetHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
@@ -144,12 +146,17 @@ if __name__ == '__main__':
             strategy = BitgetGridStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
 
+        # Bybit strategies
         elif strategy_name.lower() == 'bybit_hedge':
             strategy = BybitHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
 
         elif strategy_name.lower() == 'bybit_longonly':
             strategy = BybitLongStrategy(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol, amount)
+
+        elif strategy_name.lower() == 'bybit_shortonly':
+            strategy = BybitShortStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
 
         elif strategy_name.lower() == 'bybit_hedge_volatility':
@@ -172,22 +179,27 @@ if __name__ == '__main__':
             strategy = BybitHedgeGridStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
 
+        # Huobi strategies
         elif strategy_name.lower() == 'huobi_hedge':
             strategy = HuobiHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
 
+        # Mexc Strategies
         elif strategy_name.lower() == 'mexc_hedge':
             strategy = MEXCHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
 
+        # OKX strategies
         elif strategy_name.lower() == 'okx_hedge':
             strategy = OKXHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
 
+        # Binance Strategies
         elif strategy_name.lower() == 'binance_hedge':
             strategy = BinanceHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
         
+        # Phemex strategies
         elif strategy_name.lower() == 'phemex_hedge':
             strategy = PhemexHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
