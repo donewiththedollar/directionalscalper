@@ -27,6 +27,7 @@ from directionalscalper.core.strategies.bybit.bybit_violent import BybitViolentH
 from directionalscalper.core.strategies.bybit.bybit_dynamic import BybitDynamicHedgeStrategy
 from directionalscalper.core.strategies.bybit.bybit_hedge_unified import BybitHedgeUnifiedStrategy
 from directionalscalper.core.strategies.bybit.bybit_hedge_grid import BybitHedgeGridStrategy
+from directionalscalper.core.strategies.bybit.bybit_longonly import BybitLongStrategy
 from directionalscalper.core.strategies.huobi.huobi_hedge import HuobiHedgeStrategy
 from directionalscalper.core.strategies.binance.binance_hedge import BinanceHedgeStrategy
 from directionalscalper.core.strategies.phemex.phemex_hedge import PhemexHedgeStrategy
@@ -145,6 +146,10 @@ if __name__ == '__main__':
 
         elif strategy_name.lower() == 'bybit_hedge':
             strategy = BybitHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol, amount)
+
+        elif strategy_name.lower() == 'bybit_longonly':
+            strategy = BybitLongStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
 
         elif strategy_name.lower() == 'bybit_hedge_volatility':
