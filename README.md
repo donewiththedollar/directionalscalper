@@ -106,12 +106,19 @@ Make sure you are in the directory bot-multiexchange
 > python3.11 bot.py --exchange bitget --symbol XRPUSDT_UMCBL --strategy bitget_hedge_dynamic --config config_main.json
 
  
-### Current strategies
+# Current strategies
+## Bybit
 * bybit_hedge
+* bybit_longonly
+* bybit_shortonly
+ 
+## Bitget 
 * bitget_hedge
 * bitget_hedge_dynamic
 * bitget_longonly_dynamic
 * bitget_shortonly_dynamic
+ 
+## Huobi
 * huobi_hedge
  
  
