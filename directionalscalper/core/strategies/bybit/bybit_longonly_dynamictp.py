@@ -214,8 +214,10 @@ class BybitLongDynamicTP(Strategy):
              
             if long_pos_price is not None:
                 should_add_to_long = long_pos_price > ma_6_low
-                long_tp_distance_percent = ((long_take_profit - best_bid_price) / best_bid_price) * 100
-                print(f"Long TP price: {long_take_profit}, TP distance in percent: {long_tp_distance_percent:.2f}%")
+                long_tp_distance_percent = ((long_take_profit - long_pos_price) / long_pos_price) * 100
+                long_expected_profit_usdt = long_tp_distance_percent / 100 * long_pos_price * long_pos_qty
+                print(f"Long TP price: {long_take_profit}, TP distance in percent: {long_tp_distance_percent:.2f}%, Expected profit: {long_expected_profit_usdt:.2f} USDT")
+
 
             print(f"Long condition: {should_long}")
             print(f"Add long condition: {should_add_to_long}")
