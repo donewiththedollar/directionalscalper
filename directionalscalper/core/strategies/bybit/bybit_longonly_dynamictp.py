@@ -59,44 +59,6 @@ class BybitHedgeDynamicTP(Strategy):
     def cancel_take_profit_orders(self, symbol, side):
         self.exchange.cancel_close_bybit(symbol, side)
 
-    def calculate_short_take_profit(self, short_pos_price, symbol, increase_percentage=0):
-        if short_pos_price is None:
-            return None
-
-        five_min_data = self.manager.get_5m_moving_averages(symbol)
-        price_precision = int(self.exchange.get_price_precision(symbol))
-
-        if five_min_data is not None:
-            ma_6_high = Decimal(five_min_data["MA_6_H"])
-            ma_6_low = Decimal(five_min_data["MA_6_L"])
-
-            try:
-                short_target_price = Decimal(short_pos_price) - (ma_6_high - ma_6_low)
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when calculating short_target_price. short_pos_price={short_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
-                return None
-
-            if increase_percentage is None:
-                increase_percentage = 0
-
-            # Apply increase percentage to the calculated short target price
-            short_target_price = short_target_price * (Decimal('1') - Decimal(increase_percentage) / Decimal('100'))
-
-            try:
-                short_target_price = short_target_price.quantize(
-                    Decimal('1e-{}'.format(price_precision)),
-                    rounding=ROUND_HALF_UP
-                )
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when quantizing short_target_price. short_target_price={short_target_price}, price_precision={price_precision}")
-                return None
-
-            short_profit_price = short_target_price
-
-            return float(short_profit_price)
-        return None
-
-
     def calculate_long_take_profit(self, long_pos_price, symbol, increase_percentage=0):
         if long_pos_price is None:
             return None
@@ -133,10 +95,6 @@ class BybitHedgeDynamicTP(Strategy):
 
             return float(long_profit_price)
         return None
-
-
-
-
 
 
     def run(self, symbol, amount):
@@ -250,53 +208,34 @@ class BybitHedgeDynamicTP(Strategy):
 
             #print(f"Bybit pos data: {position_data}")
 
-            short_pos_qty = position_data["short"]["qty"]
             long_pos_qty = position_data["long"]["qty"]
 
-            print(f"Short pos qty: {short_pos_qty}")
             print(f"Long pos qty: {long_pos_qty}")
 
-            short_upnl = position_data["short"]["upnl"]
             long_upnl = position_data["long"]["upnl"]
 
-            print(f"Short uPNL: {short_upnl}")
             print(f"Long uPNL: {long_upnl}")
 
             cum_realised_pnl_long = position_data["long"]["cum_realised"]
-            cum_realised_pnl_short = position_data["short"]["cum_realised"]
 
-            print(f"Short cum. PNL: {cum_realised_pnl_short}")
             print(f"Long cum. PNL: {cum_realised_pnl_long}")
 
-            short_pos_price = position_data["short"]["price"] if short_pos_qty > 0 else None
             long_pos_price = position_data["long"]["price"] if long_pos_qty > 0 else None
 
             print(f"Long pos price {long_pos_price}")
-            print(f"Short pos price {short_pos_price}")
 
             if five_minute_distance != previous_five_minute_distance:
                 # Take profit calc
-                short_take_profit = self.calculate_short_take_profit(short_pos_price, symbol, five_minute_distance)
                 long_take_profit = self.calculate_long_take_profit(long_pos_price, symbol, five_minute_distance)
 
             # Take profit calc
-            short_take_profit = self.calculate_short_take_profit(short_pos_price, symbol, five_minute_distance)
             long_take_profit = self.calculate_long_take_profit(long_pos_price, symbol, five_minute_distance)
 
-            print(f"Short TP: {short_take_profit}")
             print(f"Long TP: {long_take_profit}")
 
-            should_short = best_bid_price > ma_3_high
             should_long = best_bid_price < ma_3_high
 
-            should_add_to_short = False
             should_add_to_long = False
-
-            if short_pos_price is not None:
-                should_add_to_short = short_pos_price < ma_6_low
-                short_tp_distance_percent = ((short_take_profit - best_ask_price) / best_ask_price) * 100
-                short_expected_profit_usdt = short_tp_distance_percent / 100 * best_ask_price * short_pos_qty
-                print(f"Short TP price: {short_take_profit}, TP distance in percent: {-short_tp_distance_percent:.2f}%, Expected profit: {-short_expected_profit_usdt:.2f} USDT")
 
             if long_pos_price is not None:
                 should_add_to_long = long_pos_price > ma_6_low
@@ -304,19 +243,7 @@ class BybitHedgeDynamicTP(Strategy):
                 long_expected_profit_usdt = long_tp_distance_percent / 100 * best_bid_price * long_pos_qty
                 print(f"Long TP price: {long_take_profit}, TP distance in percent: {long_tp_distance_percent:.2f}%, Expected profit: {long_expected_profit_usdt:.2f} USDT")
 
-            # if short_pos_price is not None:
-            #     should_add_to_short = short_pos_price < ma_6_low
-            #     short_tp_distance_percent = ((short_take_profit - best_ask_price) / best_ask_price) * 100
-            #     print(f"Short TP price: {short_take_profit}, TP distance in percent: {short_tp_distance_percent:.2f}%")
-                
-            # if long_pos_price is not None:
-            #     should_add_to_long = long_pos_price > ma_6_low
-            #     long_tp_distance_percent = ((long_take_profit - best_bid_price) / best_bid_price) * 100
-            #     print(f"Long TP price: {long_take_profit}, TP distance in percent: {long_tp_distance_percent:.2f}%")
-
-            print(f"Short condition: {should_short}")
             print(f"Long condition: {should_long}")
-            print(f"Add short condition: {should_add_to_short}")
             print(f"Add long condition: {should_add_to_long}")
 
             if trend is not None and isinstance(trend, str):
@@ -332,15 +259,6 @@ class BybitHedgeDynamicTP(Strategy):
                                 print(f"Placed additional long entry")
                                 self.limit_order(symbol, "buy", amount, best_bid_price, positionIdx=1, reduceOnly=False)
 
-                        if trend.lower() == "short" and should_short and short_pos_qty == 0:
-                            print(f"Placing initial short entry")
-                            self.limit_order(symbol, "sell", amount, best_ask_price, positionIdx=2, reduceOnly=False)
-                            print("Placed initial short entry")
-                        else:
-                            if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
-                                print(f"Placed additional short entry")
-                                self.limit_order(symbol, "sell", amount, best_bid_price, positionIdx=2, reduceOnly=False)
-        
             open_orders = self.exchange.get_open_orders(symbol)
 
             if long_pos_qty > 0 and long_take_profit is not None:
@@ -363,28 +281,6 @@ class BybitHedgeDynamicTP(Strategy):
                         time.sleep(0.05)
                     except Exception as e:
                         print(f"Error in placing long TP: {e}")
-
-            if short_pos_qty > 0 and short_take_profit is not None:
-                existing_short_tps = self.get_open_take_profit_order_quantities(open_orders, "buy")
-                if len(existing_short_tps) > 1:
-                    try:
-                        for _, existing_short_tp_id in existing_short_tps:
-                            print(f"Existing short TPs: {existing_short_tps}")
-                            self.exchange.cancel_take_profit_orders_bybit(symbol, "buy")
-                            print(f"Short take profit canceled")
-                            time.sleep(0.05)
-                    except Exception as e:
-                        print(f"Error in cancelling short TP orders: {e}")
-
-                #if short_pos_qty >= min_qty_bybit
-                if len(existing_short_tps) < 0:
-                    try:
-                        self.exchange.create_take_profit_order_bybit(symbol, "limit", "buy", short_pos_qty, short_take_profit, positionIdx=2, reduce_only=True)
-                        print(f"Short take profit set at {short_take_profit}")
-                        time.sleep(0.05)
-                    except Exception as e:
-                        print(f"Error in placing short TP: {e}")
-
 
             # Cancel entries
             current_time = time.time()
