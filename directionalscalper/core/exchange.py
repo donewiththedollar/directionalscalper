@@ -143,22 +143,6 @@ class Exchange:
         return None
 
     # Bybit
-    # def get_market_precision_bybit(self, symbol):
-    #     # Fetch the market data
-    #     markets = self.exchange.fetch_markets()
-    #     # Find the market for the specified symbol
-    #     market = next((market for market in markets if market['symbol'] == symbol), None)
-    #     if market is None:
-    #         raise ValueError(f"Symbol {symbol} not found in market data.")
-    #     # Extract and return the precision data
-    #     precision = market.get('precision', None)
-    #     if precision is None:
-    #         raise ValueError(f"No precision data found for symbol {symbol}.")
-    #     return precision
-
-
-
-    # Bybit
     def calculate_trade_quantity(self, symbol, leverage, asset_wallet_exposure, best_ask_price):
         dex_equity = self.get_balance_bybit('USDT')
         asset_exposure = dex_equity * asset_wallet_exposure / 100.0
@@ -1429,6 +1413,14 @@ class Exchange:
         except Exception as e:
             print(f"An unknown error occurred in cancel_take_profit_orders: {e}")
 
+    # Bybit
+    def cancel_take_profit_order_by_id(self, order_id, symbol):
+        try:
+            self.exchange.cancel_derivatives_order(order_id, symbol)
+            print(f"Canceled take profit order - ID: {order_id}")
+        except Exception as e:
+            print(f"An unknown error occurred in cancel_take_profit_orders: {e}")
+
     # def cancel_take_profit_orders_bybit(self, symbol, side):
     #     try:
     #         open_orders = self.exchange.fetch_open_orders(symbol)
@@ -1483,60 +1475,6 @@ class Exchange:
         except Exception as e:
             print(f"Exception caught {e}")
 
-    # def cancel_close_huobi(self, symbol: str, side: str) -> None:
-    #     side = side.lower()
-    #     side_map = {"long": "buy", "short": "sell"}
-    #     side = side_map.get(side, side)
-        
-    #     try:
-    #         orders = self.exchange.fetch_open_orders(symbol)
-    #         print(orders)
-    #         if len(orders) > 0:
-    #             for order in orders:
-    #                 if "info" in order:
-    #                     order_id = order["info"]["order_id"]
-    #                     order_status = order["info"]["order_status"]
-    #                     order_side = order["info"]["side"]
-    #                     reduce_only = order["info"]["reduce_only"]  # Adjust this line if 'reduce_only' is not available in Huobi's order info
-
-    #                     if (
-    #                         order_status != "Filled"
-    #                         and order_side.lower() == side
-    #                         and order_status != "Cancelled"
-    #                         and reduce_only
-    #                     ):
-    #                         # Use the new cancel_order_huobi function
-    #                         self.cancel_order_huobi(order_id, symbol)
-    #                         log.info(f"Cancelling order: {order_id}")
-    #     except Exception as e:
-    #         log.warning(f"An unknown error occurred in cancel_close_huobi(): {e}")
-
-    # def cancel_close_bybit(self, symbol: str, side: str) -> None:
-    #     position_idx_map = {"long": 1, "short": 2}
-    #     try:
-    #         orders = self.exchange.fetch_open_orders(symbol)
-    #         #print(orders)
-    #         if len(orders) > 0:
-    #             for order in orders:
-    #                 if "info" in order:
-    #                     order_id = order["info"]["orderId"]
-    #                     order_status = order["info"]["orderStatus"]
-    #                     order_side = order["info"]["side"]
-    #                     reduce_only = order["info"]["reduceOnly"]
-    #                     position_idx = order["info"]["positionIdx"]
-
-    #                     if (
-    #                         order_status != "Filled"
-    #                         and order_side.lower() == side.lower()
-    #                         and order_status != "Cancelled"
-    #                         and reduce_only
-    #                         and position_idx == position_idx_map[side]
-    #                     ):
-    #                         self.exchange.cancel_order(symbol=symbol, id=order_id)
-    #                         log.info(f"Cancelling order: {order_id}")
-    #     except Exception as e:
-    #         log.warning(f"An unknown error occurred in cancel_close_bybit(): {e}")
-
     def cancel_close_bitget(self, symbol: str, side: str) -> None:
         side_map = {"long": "close_long", "short": "close_short"}
         try:
@@ -1583,7 +1521,6 @@ class Exchange:
                         log.info(f"Cancelling order: {order_id}")
         except Exception as e:
             log.warning(f"An unknown error occurred in cancel_close_huobi(): {e}")
-
 
     # def cancel_close_huobi(self, symbol: str, side: str) -> None:
     #     side_map = {"long": "buy", "short": "sell"}

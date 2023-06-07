@@ -32,6 +32,7 @@ class BybitLongDynamicTP(Strategy):
     def truncate(self, number: float, precision: int) -> float:
         return float(Decimal(number).quantize(Decimal('0.' + '0'*precision), rounding=ROUND_DOWN))
 
+
     def limit_order(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
         params = {"reduceOnly": reduceOnly}
         #print(f"Symbol: {symbol}, Side: {side}, Amount: {amount}, Price: {price}, Params: {params}")
@@ -109,16 +110,8 @@ class BybitLongDynamicTP(Strategy):
             print(f"Current leverage is not at maximum. Setting leverage to maximum. Maximum is {max_leverage}")
             self.exchange.set_leverage_bybit(max_leverage, symbol)
 
-        # # Create the strategy table
-        # strategy_table = create_strategy_table(symbol, total_equity, long_upnl, short_upnl, short_pos
-
-        previous_five_minute_distance = None
-        previous_thirty_minute_distance = None
-        previous_one_hour_distance = None
-        previous_four_hour_distance = None
-
         while True:
-            print(f"Bybit hedge strategy running")
+            print(f"Bybit long only strategy running")
             print(f"Min volume: {min_vol}")
             print(f"Min distance: {min_dist}")
 
@@ -128,18 +121,12 @@ class BybitLongDynamicTP(Strategy):
             five_minute_distance = self.manager.get_asset_value(symbol, data, "5mSpread")
             thirty_minute_distance = self.manager.get_asset_value(symbol, data, "30mSpread")
             one_hour_distance = self.manager.get_asset_value(symbol, data, "1hSpread")
-            four_hour_distance = self.manager.get_asset_value(symbol, data, "4hSpread")
             trend = self.manager.get_asset_value(symbol, data, "Trend")
             print(f"1m Volume: {one_minute_volume}")
             print(f"5m Spread: {five_minute_distance}")
             print(f"30m Spread: {thirty_minute_distance}")
             print(f"1h Spread: {one_hour_distance}")
-            print(f"4h Spread: {four_hour_distance}")
             print(f"Trend: {trend}")
-
-            price_precision = int(self.exchange.get_price_precision(symbol))
-
-            print(f"Precision: {price_precision}")
 
             quote_currency = "USDT"
 
@@ -196,9 +183,6 @@ class BybitLongDynamicTP(Strategy):
             ma_1m_3_high = self.manager.get_1m_moving_averages(symbol)["MA_3_H"]
             ma_5m_3_high = self.manager.get_5m_moving_averages(symbol)["MA_3_H"]
 
-            print(f"MA 6 LOW: {ma_6_low}")
-            print(f"MA 3 HIGH: {ma_3_high}")
-
             position_data = self.exchange.get_positions_bybit(symbol)
 
             #print(f"Bybit pos data: {position_data}")
@@ -219,24 +203,19 @@ class BybitLongDynamicTP(Strategy):
 
             print(f"Long pos price {long_pos_price}")
 
-            if five_minute_distance != previous_five_minute_distance:
-                # Take profit calc
-                long_take_profit = self.calculate_long_take_profit(long_pos_price, symbol, five_minute_distance)
-
             # Take profit calc
-            long_take_profit = self.calculate_long_take_profit(long_pos_price, symbol, five_minute_distance)
+            long_take_profit = self.calculate_long_take_profit(long_pos_price, symbol, thirty_minute_distance)
 
-            print(f"Long TP: {long_take_profit}")
-
+            should_short = best_bid_price > ma_3_high
             should_long = best_bid_price < ma_3_high
 
+            should_add_to_short = False
             should_add_to_long = False
-
+             
             if long_pos_price is not None:
                 should_add_to_long = long_pos_price > ma_6_low
                 long_tp_distance_percent = ((long_take_profit - best_bid_price) / best_bid_price) * 100
-                long_expected_profit_usdt = long_tp_distance_percent / 100 * best_bid_price * long_pos_qty
-                print(f"Long TP price: {long_take_profit}, TP distance in percent: {long_tp_distance_percent:.2f}%, Expected profit: {long_expected_profit_usdt:.2f} USDT")
+                print(f"Long TP price: {long_take_profit}, TP distance in percent: {long_tp_distance_percent:.2f}%")
 
             print(f"Long condition: {should_long}")
             print(f"Add long condition: {should_add_to_long}")
@@ -258,17 +237,18 @@ class BybitLongDynamicTP(Strategy):
 
             if long_pos_qty > 0 and long_take_profit is not None:
                 existing_long_tps = self.get_open_take_profit_order_quantities(open_orders, "sell")
-                if len(existing_long_tps) > 1:
+                total_existing_long_tp_qty = sum(qty for qty, _ in existing_long_tps)
+                print(f"Existing long TPs: {existing_long_tps}")
+                if not math.isclose(total_existing_long_tp_qty, long_pos_qty):
                     try:
-                        for _, existing_long_tp_id in existing_long_tps:
-                            print(f"Existing long TPs: {existing_long_tps}")
-                            self.exchange.cancel_take_profit_orders_bybit(symbol, "sell")
-                            print(f"Long take profit canceled")
-                            time.sleep(0.05)
+                        for qty, existing_long_tp_id in existing_long_tps:
+                            if not math.isclose(qty, long_pos_qty):
+                                self.exchange.cancel_take_profit_order_by_id(existing_long_tp_id, symbol)
+                                print(f"Long take profit {existing_long_tp_id} canceled")
+                                time.sleep(0.05)
                     except Exception as e:
                         print(f"Error in cancelling long TP orders {e}")
 
-                #if long_pos_qty >= min_qty_bybit:
                 if len(existing_long_tps) < 1:
                     try:
                         self.exchange.create_take_profit_order_bybit(symbol, "limit", "sell", long_pos_qty, long_take_profit, positionIdx=1, reduce_only=True)
@@ -291,9 +271,3 @@ class BybitLongDynamicTP(Strategy):
                 self.last_cancel_time = current_time  # Update the last cancel time
 
             time.sleep(30)
-
-            # # Create the strategy table
-            # strategy_table = create_strategy_table(symbol, total_equity, long_upnl, short_upnl, short_pos_qty, long_pos_qty, amount, cumulative_realized_pnl, one_minute_volume, five_minute_distance)
-
-            # # Display the table
-            # self.display_table(strategy_table)
