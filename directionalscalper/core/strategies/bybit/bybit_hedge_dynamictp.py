@@ -356,7 +356,7 @@ class BybitHedgeDynamicTP(Strategy):
                         print(f"Error in cancelling long TP orders {e}")
 
                 #if long_pos_qty >= min_qty_bybit:
-                if len(existing_long_tps) < 0:
+                if len(existing_long_tps) < 1:
                     try:
                         self.exchange.create_take_profit_order_bybit(symbol, "limit", "sell", long_pos_qty, long_take_profit, positionIdx=1, reduce_only=True)
                         print(f"Long take profit set at {long_take_profit}")
@@ -377,7 +377,7 @@ class BybitHedgeDynamicTP(Strategy):
                         print(f"Error in cancelling short TP orders: {e}")
 
                 #if short_pos_qty >= min_qty_bybit
-                if len(existing_short_tps) < 0:
+                if len(existing_short_tps) < 1:
                     try:
                         self.exchange.create_take_profit_order_bybit(symbol, "limit", "buy", short_pos_qty, short_take_profit, positionIdx=2, reduce_only=True)
                         print(f"Short take profit set at {short_take_profit}")

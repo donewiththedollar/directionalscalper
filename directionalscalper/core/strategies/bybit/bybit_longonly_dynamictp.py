@@ -32,7 +32,6 @@ class BybitLongDynamicTP(Strategy):
     def truncate(self, number: float, precision: int) -> float:
         return float(Decimal(number).quantize(Decimal('0.' + '0'*precision), rounding=ROUND_DOWN))
 
-
     def limit_order(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
         params = {"reduceOnly": reduceOnly}
         #print(f"Symbol: {symbol}, Side: {side}, Amount: {amount}, Price: {price}, Params: {params}")
@@ -270,7 +269,7 @@ class BybitLongDynamicTP(Strategy):
                         print(f"Error in cancelling long TP orders {e}")
 
                 #if long_pos_qty >= min_qty_bybit:
-                if len(existing_long_tps) < 0:
+                if len(existing_long_tps) < 1:
                     try:
                         self.exchange.create_take_profit_order_bybit(symbol, "limit", "sell", long_pos_qty, long_take_profit, positionIdx=1, reduce_only=True)
                         print(f"Long take profit set at {long_take_profit}")
