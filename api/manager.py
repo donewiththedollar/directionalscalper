@@ -124,6 +124,8 @@ class Manager:
                     return asset_data["15m Spread"]
                 if value == "30mSpread" and "30m Spread" in asset_data:
                     return asset_data["30m Spread"]
+                if value == "1hSpread" and "1h Spread" in asset_data:
+                    return asset_data["1h Spread"]
                 if value == "4hSpread" and "4h Spread" in asset_data:
                     return asset_data["4h Spread"]
                 if value == "Trend" and "Trend" in asset_data:

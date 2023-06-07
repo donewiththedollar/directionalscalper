@@ -164,9 +164,13 @@ class BybitHedgeDynamicTP(Strategy):
             data = self.manager.get_data()
             one_minute_volume = self.manager.get_asset_value(symbol, data, "1mVol")
             five_minute_distance = self.manager.get_asset_value(symbol, data, "5mSpread")
+            thirty_minute_distance = self.manager.get_asset_value(symbol, data, "30mSpread")
+            one_hour_distance = self.manager.get_asset_value(symbol, data, "1hSpread")
             trend = self.manager.get_asset_value(symbol, data, "Trend")
             print(f"1m Volume: {one_minute_volume}")
             print(f"5m Spread: {five_minute_distance}")
+            print(f"30m Spread: {thirty_minute_distance}")
+            print(f"1h Spread: {one_hour_distance}")
             print(f"Trend: {trend}")
 
             price_precision = int(self.exchange.get_price_precision(symbol))
@@ -257,8 +261,8 @@ class BybitHedgeDynamicTP(Strategy):
             print(f"Short pos price {short_pos_price}")
 
             # Take profit calc
-            short_take_profit = self.calculate_short_take_profit(short_pos_price, symbol, five_minute_distance)
-            long_take_profit = self.calculate_long_take_profit(long_pos_price, symbol, five_minute_distance)
+            short_take_profit = self.calculate_short_take_profit(short_pos_price, symbol, thirty_minute_distance)
+            long_take_profit = self.calculate_long_take_profit(long_pos_price, symbol, thirty_minute_distance)
 
             should_short = best_bid_price > ma_3_high
             should_long = best_bid_price < ma_3_high

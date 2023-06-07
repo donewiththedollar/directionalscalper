@@ -195,6 +195,7 @@ class Scraper:
         values["1m Spread"] = self.get_spread(symbol=symbol, limit=1, data=data[-1:])
         values["5m Spread"] = self.get_spread(symbol=symbol, limit=5, data=data[-5:])
         values["30m Spread"] = self.get_spread(symbol=symbol, limit=30, data=data[-30:])
+        values["1h Spread"] = self.get_spread(symbol=symbol, limit=60, data=data[-60:])
         values["4h Spread"] = self.get_spread(symbol=symbol, limit=240, data=data)
 
         # Define 1x 5m candle volume
@@ -265,6 +266,7 @@ class Scraper:
                 "1m Spread",
                 "5m Spread",
                 "30m Spread",
+                "1h Spread",
                 "4h Spread",
                 "trend%",
                 "Trend",
