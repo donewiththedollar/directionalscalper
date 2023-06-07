@@ -263,13 +263,15 @@ class BybitHedgeStrategy(Strategy):
         
             if short_pos_price is not None:
                 should_add_to_short = short_pos_price < ma_6_low
-                short_tp_distance_percent = ((short_take_profit - best_ask_price) / best_ask_price) * 100
-                print(f"Short TP price: {short_take_profit}, TP distance in percent: {short_tp_distance_percent:.2f}%")
-                
+                short_tp_distance_percent = ((short_take_profit - short_pos_price) / short_pos_price) * 100
+                short_expected_profit_usdt = short_tp_distance_percent / 100 * short_pos_price * short_pos_qty
+                print(f"Short TP price: {short_take_profit}, TP distance in percent: {-short_tp_distance_percent:.2f}%, Expected profit: {-short_expected_profit_usdt:.2f} USDT")
+
             if long_pos_price is not None:
                 should_add_to_long = long_pos_price > ma_6_low
-                long_tp_distance_percent = ((long_take_profit - best_bid_price) / best_bid_price) * 100
-                print(f"Long TP price: {long_take_profit}, TP distance in percent: {long_tp_distance_percent:.2f}%")
+                long_tp_distance_percent = ((long_take_profit - long_pos_price) / long_pos_price) * 100
+                long_expected_profit_usdt = long_tp_distance_percent / 100 * long_pos_price * long_pos_qty
+                print(f"Long TP price: {long_take_profit}, TP distance in percent: {long_tp_distance_percent:.2f}%, Expected profit: {long_expected_profit_usdt:.2f} USDT")
 
             print(f"Short condition: {should_short}")
             print(f"Long condition: {should_long}")
