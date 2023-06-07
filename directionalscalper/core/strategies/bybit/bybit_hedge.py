@@ -315,36 +315,96 @@ class BybitHedgeStrategy(Strategy):
             if long_pos_qty > 0 and long_take_profit is not None:
                 existing_long_tps = self.get_open_take_profit_order_quantities(open_orders, "sell")
                 total_existing_long_tp_qty = sum(qty for qty, _ in existing_long_tps)
+                print(f"Existing long TPs: {existing_long_tps}")
                 if not math.isclose(total_existing_long_tp_qty, long_pos_qty):
                     try:
-                        for _, existing_long_tp_id in existing_long_tps:
-                            self.exchange.cancel_take_profit_orders_bybit(symbol, "sell")  # Corrected side value to "sell"
-                            print(f"Long take profit canceled")
-                            time.sleep(0.05)
+                        for qty, existing_long_tp_id in existing_long_tps:
+                            if not math.isclose(qty, long_pos_qty):
+                                self.exchange.cancel_take_profit_order_by_id(existing_long_tp_id, symbol)
+                                print(f"Long take profit {existing_long_tp_id} canceled")
+                                time.sleep(0.05)
+                    except Exception as e:
+                        print(f"Error in cancelling long TP orders {e}")
 
-                        #print(f"Debug: Long Position Quantity {long_pos_qty}, Long Take Profit {long_take_profit}")
+                if len(existing_long_tps) < 1:
+                    try:
                         self.exchange.create_take_profit_order_bybit(symbol, "limit", "sell", long_pos_qty, long_take_profit, positionIdx=1, reduce_only=True)
                         print(f"Long take profit set at {long_take_profit}")
                         time.sleep(0.05)
                     except Exception as e:
                         print(f"Error in placing long TP: {e}")
 
+                if len(existing_long_tps) > 1:
+                    try:
+                        self.exchange.cancel_take_profit_order_by_id(existing_long_tp_id, symbol)
+                        print(f"Long take profit {existing_long_tp_id} canceled")
+                        time.sleep(0.05)
+                    except Exception as e:
+                        print(f"Error in placing short TP: {e}")
+
             if short_pos_qty > 0 and short_take_profit is not None:
                 existing_short_tps = self.get_open_take_profit_order_quantities(open_orders, "buy")
                 total_existing_short_tp_qty = sum(qty for qty, _ in existing_short_tps)
+                print(f"Existing short TPs: {existing_short_tps}")
                 if not math.isclose(total_existing_short_tp_qty, short_pos_qty):
                     try:
-                        for _, existing_short_tp_id in existing_short_tps:
-                            self.exchange.cancel_take_profit_orders_bybit(symbol, "buy")  # Corrected side value to "buy"
-                            print(f"Short take profit canceled")
-                            time.sleep(0.05)
+                        for qty, existing_short_tp_id in existing_short_tps:
+                            if not math.isclose(qty, short_pos_qty):
+                                self.exchange.cancel_take_profit_order_by_id(existing_short_tp_id, symbol)
+                                print(f"Short take profit {existing_short_tp_id} canceled")
+                                time.sleep(0.05)
+                    except Exception as e:
+                        print(f"Error in cancelling short TP orders: {e}")
 
-                        #print(f"Debug: Short Position Quantity {short_pos_qty}, Short Take Profit {short_take_profit}")
+                if len(existing_short_tps) < 1:
+                    try:
                         self.exchange.create_take_profit_order_bybit(symbol, "limit", "buy", short_pos_qty, short_take_profit, positionIdx=2, reduce_only=True)
                         print(f"Short take profit set at {short_take_profit}")
                         time.sleep(0.05)
                     except Exception as e:
                         print(f"Error in placing short TP: {e}")
+
+                if len(existing_short_tps) > 1:
+                    try:
+                        self.exchange.cancel_take_profit_order_by_id(existing_short_tp_id, symbol)
+                        print(f"Short take profit {existing_short_tp_id} canceled")
+                        time.sleep(0.05)
+                    except Exception as e:
+                        print(f"Error in placing short TP: {e}")
+
+            # if long_pos_qty > 0 and long_take_profit is not None:
+            #     existing_long_tps = self.get_open_take_profit_order_quantities(open_orders, "sell")
+            #     total_existing_long_tp_qty = sum(qty for qty, _ in existing_long_tps)
+            #     if not math.isclose(total_existing_long_tp_qty, long_pos_qty):
+            #         try:
+            #             for _, existing_long_tp_id in existing_long_tps:
+            #                 self.exchange.cancel_take_profit_orders_bybit(symbol, "sell")  # Corrected side value to "sell"
+            #                 print(f"Long take profit canceled")
+            #                 time.sleep(0.05)
+
+            #             #print(f"Debug: Long Position Quantity {long_pos_qty}, Long Take Profit {long_take_profit}")
+            #             self.exchange.create_take_profit_order_bybit(symbol, "limit", "sell", long_pos_qty, long_take_profit, positionIdx=1, reduce_only=True)
+            #             print(f"Long take profit set at {long_take_profit}")
+            #             time.sleep(0.05)
+            #         except Exception as e:
+            #             print(f"Error in placing long TP: {e}")
+
+            # if short_pos_qty > 0 and short_take_profit is not None:
+            #     existing_short_tps = self.get_open_take_profit_order_quantities(open_orders, "buy")
+            #     total_existing_short_tp_qty = sum(qty for qty, _ in existing_short_tps)
+            #     if not math.isclose(total_existing_short_tp_qty, short_pos_qty):
+            #         try:
+            #             for _, existing_short_tp_id in existing_short_tps:
+            #                 self.exchange.cancel_take_profit_orders_bybit(symbol, "buy")  # Corrected side value to "buy"
+            #                 print(f"Short take profit canceled")
+            #                 time.sleep(0.05)
+
+            #             #print(f"Debug: Short Position Quantity {short_pos_qty}, Short Take Profit {short_take_profit}")
+            #             self.exchange.create_take_profit_order_bybit(symbol, "limit", "buy", short_pos_qty, short_take_profit, positionIdx=2, reduce_only=True)
+            #             print(f"Short take profit set at {short_take_profit}")
+            #             time.sleep(0.05)
+            #         except Exception as e:
+            #             print(f"Error in placing short TP: {e}")
 
             # Cancel entries
             current_time = time.time()
