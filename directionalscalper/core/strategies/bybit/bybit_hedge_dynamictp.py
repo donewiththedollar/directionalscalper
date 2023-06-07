@@ -76,6 +76,9 @@ class BybitHedgeDynamicTP(Strategy):
                 print(f"Error: Invalid operation when calculating short_target_price. short_pos_price={short_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
                 return None
 
+            if increase_percentage is None:
+                increase_percentage = 0
+
             # Apply increase percentage to the calculated short target price
             short_target_price *= (Decimal('1') + Decimal(increase_percentage) / Decimal('100'))
 
@@ -93,8 +96,7 @@ class BybitHedgeDynamicTP(Strategy):
             return float(short_profit_price)
         return None
 
-
-    def calculate_long_take_profit(self, long_pos_price, symbol, tp_increase_percent=0):
+    def calculate_long_take_profit(self, long_pos_price, symbol, increase_percentage=0):
         if long_pos_price is None:
             return None
 
@@ -111,8 +113,11 @@ class BybitHedgeDynamicTP(Strategy):
                 print(f"Error: Invalid operation when calculating long_target_price. long_pos_price={long_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
                 return None
 
+            if increase_percentage is None:
+                increase_percentage = 0
+
             # Add the specified percentage to the take profit target price
-            long_target_price = long_target_price * (1 + Decimal(tp_increase_percent)/100)
+            long_target_price = long_target_price * (1 + Decimal(increase_percentage)/100)
 
             try:
                 long_target_price = long_target_price.quantize(
@@ -127,6 +132,7 @@ class BybitHedgeDynamicTP(Strategy):
 
             return float(long_profit_price)
         return None
+
 
 
     def run(self, symbol, amount):
@@ -298,16 +304,6 @@ class BybitHedgeDynamicTP(Strategy):
                                 self.limit_order(symbol, "sell", amount, best_bid_price, positionIdx=2, reduceOnly=False)
         
             open_orders = self.exchange.get_open_orders(symbol)
-
-            # # Call the get_open_take_profit_order_quantity function for the 'buy' side
-            # buy_qty, buy_id = self.get_open_take_profit_order_quantity(open_orders, 'buy')
-
-            # # Call the get_open_take_profit_order_quantity function for the 'sell' side
-            # sell_qty, sell_id = self.get_open_take_profit_order_quantity(open_orders, 'sell')
-
-            # # Print the results
-            # print("Buy Take Profit Order - Quantity: ", buy_qty, "ID: ", buy_id)
-            # print("Sell Take Profit Order - Quantity: ", sell_qty, "ID: ", sell_id)
 
             if long_pos_qty > 0 and long_take_profit is not None:
                 existing_long_tps = self.get_open_take_profit_order_quantities(open_orders, "sell")

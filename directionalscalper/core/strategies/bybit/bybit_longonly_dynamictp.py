@@ -55,7 +55,7 @@ class BybitLongDynamicTP(Strategy):
     def cancel_take_profit_orders(self, symbol, side):
         self.exchange.cancel_close_bybit(symbol, side)
 
-    def calculate_long_take_profit(self, long_pos_price, symbol, tp_increase_percent=0):
+    def calculate_long_take_profit(self, long_pos_price, symbol, increase_percentage=0):
         if long_pos_price is None:
             return None
 
@@ -72,8 +72,11 @@ class BybitLongDynamicTP(Strategy):
                 print(f"Error: Invalid operation when calculating long_target_price. long_pos_price={long_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
                 return None
 
+            if increase_percentage is None:
+                increase_percentage = 0
+
             # Add the specified percentage to the take profit target price
-            long_target_price = long_target_price * (1 + Decimal(tp_increase_percent)/100)
+            long_target_price = long_target_price * (1 + Decimal(increase_percentage)/100)
 
             try:
                 long_target_price = long_target_price.quantize(
@@ -88,6 +91,7 @@ class BybitLongDynamicTP(Strategy):
 
             return float(long_profit_price)
         return None
+
 
     def run(self, symbol, amount):
         wallet_exposure = self.config.wallet_exposure
