@@ -137,6 +137,13 @@ Make sure you are in the directory bot-multiexchange
 To run the bot inside docker container use the following command:
 > docker-compose run directional-scalper python3 bot.py --mode hedge --symbol GALAUSDT --iqty 1 --tg off
 
+### Proxy
+If you need to use a proxy to access the Exchange API, you can set the environment variables as shown in the following example:
+```bash
+$ export HTTP_PROXY="http://10.10.1.10:3128"  # these proxies won't work for you, they are here for example
+$ export HTTPS_PROXY="http://10.10.1.10:1080"
+```
+
 ### Developer instructions
 - Install developer requirements from pipenv `pipenv install --dev` (to keep requirements in a virtual environment)
 - Install pre-commit hooks `pre-commit install` (if you intend to commit code to the repo)
