@@ -191,25 +191,48 @@ class BybitDynamicHedgeStrategy(Strategy):
             
             print(f"Max trade quantity for {symbol}: {max_trade_qty}")
 
+            # Calculate the dynamic amount
             amount = 0.001 * max_trade_qty
 
-            # Check if the asset can be traded in decimal quantities
-            if contract_size.is_integer():
-                # The asset can only be traded in whole numbers
-                amount = round(amount)
+            # Get the precision level of the minimum quantity
+            min_qty = float(market_data["min_qty"])
+            min_qty_str = str(min_qty)
+            if "." in min_qty_str:
+                # The minimum quantity has a fractional part, get its precision level
+                precision_level = len(min_qty_str.split(".")[1])
             else:
-                # The asset can be traded in decimal quantities
-                # Round the amount to the allowed precision
-                precision = market_data["precision"]
-                print(f"Precision: {precision}")
-                amount = round(amount, int(-math.log10(precision)))
+                # The minimum quantity does not have a fractional part, precision is 0
+                precision_level = 0
+
+            # Round the amount to the precision level of the minimum quantity
+            amount = round(amount, precision_level)
 
             print(f"Dynamic amount: {amount}")
 
             # Check if the amount is less than the minimum quantity allowed by the exchange
-            if amount < float(market_data["min_qty"]):
+            if amount < min_qty:
                 print(f"Dynamic amount too small for 0.001x, using min_qty")
-                amount = float(market_data["min_qty"])
+                amount = min_qty
+                
+            # amount = 0.001 * max_trade_qty
+
+            # # Check if the asset can be traded in decimal quantities
+            # if contract_size.is_integer():
+            #     # The asset can only be traded in whole numbers
+            #     amount = round(amount)
+            # else:
+            #     # The asset can be traded in decimal quantities
+            #     # Round the amount to the allowed precision
+            #     precision = market_data["precision"]
+            #     print(f"Precision: {precision}")
+            #     amount = round(amount, int(-math.log10(precision)))
+
+            # print(f"Dynamic amount: {amount}")
+
+            # # Check if the amount is less than the minimum quantity allowed by the exchange
+            # if amount < float(market_data["min_qty"]):
+            #     print(f"Dynamic amount too small for 0.001x, using min_qty")
+            #     amount = float(market_data["min_qty"])
 
             min_qty_bybit = market_data["min_qty"]
             print(f"Min qty: {min_qty_bybit}")
@@ -224,7 +247,7 @@ class BybitDynamicHedgeStrategy(Strategy):
                 self.exchange.print_trade_quantities_bybit(max_trade_qty, [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
                 self.printed_trade_quantities = True
 
-            print(f"Market data for {symbol}: {market_data}")
+            #print(f"Market data for {symbol}: {market_data}")
 
             #self.exchange.debug_derivatives_positions(symbol)
 
