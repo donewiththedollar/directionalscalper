@@ -171,6 +171,13 @@ class Exchange:
 
         return entry_amount
 
+    def debug_derivatives_positions(self, symbol):
+        try:
+            positions = self.exchange.fetch_derivatives_positions([symbol])
+            print(f"Debug positions: {positions}")
+        except Exception as e:
+            print(f"Exception in debug derivs func: {e}")
+
     # Bybit
     def get_current_leverage_bybit(self, symbol):
         try:
@@ -1294,7 +1301,10 @@ class Exchange:
                         return float(maxLeverage)
         return None
 
-
+    # Bybit
+    def get_contract_size_bybit(self, symbol):
+        positions = self.exchange.fetch_derivatives_positions([symbol])
+        return positions[0]['contractSize']
 
     # Bybit
     def get_max_leverage_bybit(self, symbol):

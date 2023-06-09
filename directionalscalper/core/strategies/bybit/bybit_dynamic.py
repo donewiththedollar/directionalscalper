@@ -175,6 +175,7 @@ class BybitDynamicHedgeStrategy(Strategy):
 
             current_price = self.exchange.get_current_price(symbol)
             market_data = self.exchange.get_market_data_bybit(symbol)
+            contract_size = self.exchange.get_contract_size_bybit(symbol)
             best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
             best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
@@ -192,9 +193,20 @@ class BybitDynamicHedgeStrategy(Strategy):
 
             amount = 0.001 * max_trade_qty
 
+            # Check if the asset can be traded in decimal quantities
+            if contract_size.is_integer():
+                # The asset can only be traded in whole numbers
+                amount = round(amount)
+            else:
+                # The asset can be traded in decimal quantities
+                # Round the amount to the allowed precision
+                precision = market_data["precision"]
+                print(f"Precision: {precision}")
+                amount = round(amount, int(-math.log10(precision)))
+
             print(f"Dynamic amount: {amount}")
 
-            # check if the amount is less than the minimum quantity allowed by the exchange
+            # Check if the amount is less than the minimum quantity allowed by the exchange
             if amount < float(market_data["min_qty"]):
                 print(f"Dynamic amount too small for 0.001x, using min_qty")
                 amount = float(market_data["min_qty"])
@@ -212,6 +224,9 @@ class BybitDynamicHedgeStrategy(Strategy):
                 self.exchange.print_trade_quantities_bybit(max_trade_qty, [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
                 self.printed_trade_quantities = True
 
+            print(f"Market data for {symbol}: {market_data}")
+
+            #self.exchange.debug_derivatives_positions(symbol)
 
             # Get the 1-minute moving averages
             print(f"Fetching MA data")
