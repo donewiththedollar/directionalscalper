@@ -55,62 +55,6 @@ class HuobiHedgeStrategy(Strategy):
             ):
                 take_profit_orders.append((order_info['qty'], order_info['id']))
         return take_profit_orders
-    
-    # def get_open_take_profit_order_quantities(self, orders, side):
-    #     take_profit_orders = []
-    #     for order in orders:
-    #         print(order)  # Print the order dictionary
-    #         order_info = {
-    #             "id": order['id'],
-    #             "price": order['price'],
-    #             "qty": order['qty'],
-    #             "order_status": order['order_status'],
-    #             "side": order['side']
-    #         }
-    #         if (
-    #             order_info['side'].lower() == side.lower()
-    #             and order_info['order_status'] == '3'  # Adjust the condition based on your order status values
-    #         ):
-    #             take_profit_orders.append((order_info['qty'], order_info['id']))
-    #     return take_profit_orders
-
-
-    # def get_open_take_profit_order_quantities(self, orders, side):
-    #     take_profit_orders = []
-    #     for order in orders:
-    #         order_info = {
-    #             "id": order['id'],
-    #             "price": order['price'],
-    #             "qty": order['qty'],
-    #             "order_status": order['order_status'],
-    #             "side": order['side']
-    #         }
-    #         if (
-    #             order_info['side'].lower() == side.lower()
-    #             and order_info['order_status'] == '3'  # Adjust the condition based on your order status values
-    #         ):
-    #             take_profit_orders.append((order_info['qty'], order_info['id']))
-    #     return take_profit_orders
-
-    # def get_open_take_profit_order_quantities(self, orders, side):
-    #     take_profit_orders = []
-    #     for order in orders:
-    #         order_info = {
-    #             "id": order['id'],
-    #             "price": order['price'],
-    #             "qty": order['qty'],
-    #             "order_status": order['order_status'],
-    #             "side": order['side']
-    #         }
-    #         print(f"Processing order: {order_info}")
-    #         if (
-    #             order_info['side'].lower() == side.lower()
-    #             and order_info['order_status'] == '3'  # Adjust the condition based on your order status values
-    #         ):
-    #             take_profit_orders.append((order_info['qty'], order_info['id']))
-    #     print(f"Take profit orders: {take_profit_orders}")
-    #     return take_profit_orders
-
 
     def get_open_take_profit_order_quantity(self, symbol, orders, side):
         current_price = self.get_current_price(symbol)  # You'd need to implement this function
@@ -358,42 +302,118 @@ class HuobiHedgeStrategy(Strategy):
             print(f"Add short condition: {should_add_to_short}")
             print(f"Add long condition: {should_add_to_long}")
 
+            # Old hedge logic
+            # if trend is not None and isinstance(trend, str):
+            #     if one_minute_volume is not None and five_minute_distance is not None:
+            #         if one_minute_volume > min_vol and five_minute_distance > min_dist:
+
+            #             if trend.lower() == "long" and should_long and long_pos_qty == 0:
+            #                 order = self.exchange.safe_order_operation(
+            #                     self.exchange.create_contract_order_huobi, parsed_symbol_swap, 'limit', 'buy', amount, price=best_bid_price
+            #                 )
+            #                 self.long_entry_order_ids.add(order['id'])
+            #                 print(f"Placed initial long entry")
+            #                 time.sleep(0.05)
+            #             else:
+            #                 if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
+            #                     print(f"Placed additional long entry")
+            #                     order = self.exchange.safe_order_operation(
+            #                         self.exchange.create_contract_order_huobi, parsed_symbol_swap, 'limit', 'buy', amount, price=best_bid_price
+            #                     )
+            #                     self.long_entry_order_ids.add(order['id'])
+            #                     time.sleep(0.05)
+
+            #             if trend.lower() == "short" and should_short and short_pos_qty == 0:
+            #                 order = self.exchange.safe_order_operation(
+            #                     self.exchange.create_contract_order_huobi, parsed_symbol_swap, 'limit', 'sell', amount, price=best_ask_price
+            #                 )
+            #                 self.short_entry_order_ids.add(order['id'])
+            #                 print("Placed initial short entry")
+            #                 time.sleep(0.05)
+            #             else:
+            #                 if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
+            #                     print(f"Placed additional short entry")
+            #                     order = self.exchange.safe_order_operation(
+            #                         self.exchange.create_contract_order_huobi, parsed_symbol_swap, 'limit', 'sell', amount, price=best_ask_price
+            #                     )
+            #                     self.short_entry_order_ids.add(order['id'])
+            #                     time.sleep(0.05)
+
             # New hedge logic
+
             if trend is not None and isinstance(trend, str):
                 if one_minute_volume is not None and five_minute_distance is not None:
                     if one_minute_volume > min_vol and five_minute_distance > min_dist:
 
                         if trend.lower() == "long" and should_long and long_pos_qty == 0:
-                            order = self.exchange.safe_order_operation(
-                                self.exchange.create_contract_order_huobi, parsed_symbol_swap, 'limit', 'buy', amount, price=best_bid_price
-                            )
-                            self.long_entry_order_ids.add(order['id'])
-                            print(f"Placed initial long entry")
-                            time.sleep(0.05)
+                            for i in range(max_retries):
+                                try:
+                                    order = self.exchange.safe_order_operation(
+                                        self.exchange.create_contract_order_huobi, parsed_symbol_swap, 'limit', 'buy', amount, price=best_bid_price
+                                    )
+                                    self.long_entry_order_ids.add(order['id'])
+                                    print(f"Placed initial long entry")
+                                    time.sleep(0.05)
+                                    break
+                                except Exception as e:
+                                    if i < max_retries - 1:  # if not the last try
+                                        print(f"Error occurred while placing an order: {e}. Retrying in {retry_delay} seconds...")
+                                        time.sleep(retry_delay)
+                                    else:
+                                        raise e 
+
                         else:
                             if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
                                 print(f"Placed additional long entry")
-                                order = self.exchange.safe_order_operation(
-                                    self.exchange.create_contract_order_huobi, parsed_symbol_swap, 'limit', 'buy', amount, price=best_bid_price
-                                )
-                                self.long_entry_order_ids.add(order['id'])
-                                time.sleep(0.05)
+                                for i in range(max_retries):
+                                    try:
+                                        order = self.exchange.safe_order_operation(
+                                            self.exchange.create_contract_order_huobi, parsed_symbol_swap, 'limit', 'buy', amount, price=best_bid_price
+                                        )
+                                        self.long_entry_order_ids.add(order['id'])
+                                        time.sleep(0.05)
+                                        break
+                                    except Exception as e:
+                                        if i < max_retries - 1:  # if not the last try
+                                            print(f"Error occurred while placing an order: {e}. Retrying in {retry_delay} seconds...")
+                                            time.sleep(retry_delay)
+                                        else:
+                                            raise e 
 
                         if trend.lower() == "short" and should_short and short_pos_qty == 0:
-                            order = self.exchange.safe_order_operation(
-                                self.exchange.create_contract_order_huobi, parsed_symbol_swap, 'limit', 'sell', amount, price=best_ask_price
-                            )
-                            self.short_entry_order_ids.add(order['id'])
-                            print("Placed initial short entry")
-                            time.sleep(0.05)
+                            for i in range(max_retries):
+                                try:
+                                    order = self.exchange.safe_order_operation(
+                                        self.exchange.create_contract_order_huobi, parsed_symbol_swap, 'limit', 'sell', amount, price=best_ask_price
+                                    )
+                                    self.short_entry_order_ids.add(order['id'])
+                                    print("Placed initial short entry")
+                                    time.sleep(0.05)
+                                    break
+                                except Exception as e:
+                                    if i < max_retries - 1:  # if not the last try
+                                        print(f"Error occurred while placing an order: {e}. Retrying in {retry_delay} seconds...")
+                                        time.sleep(retry_delay)
+                                    else:
+                                        raise e 
+
                         else:
                             if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
                                 print(f"Placed additional short entry")
-                                order = self.exchange.safe_order_operation(
-                                    self.exchange.create_contract_order_huobi, parsed_symbol_swap, 'limit', 'sell', amount, price=best_ask_price
-                                )
-                                self.short_entry_order_ids.add(order['id'])
-                                time.sleep(0.05)
+                                for i in range(max_retries):
+                                    try:
+                                        order = self.exchange.safe_order_operation(
+                                            self.exchange.create_contract_order_huobi, parsed_symbol_swap, 'limit', 'sell', amount, price=best_ask_price
+                                        )
+                                        self.short_entry_order_ids.add(order['id'])
+                                        time.sleep(0.05)
+                                        break
+                                    except Exception as e:
+                                        if i < max_retries - 1:  # if not the last try
+                                            print(f"Error occurred while placing an order: {e}. Retrying in {retry_delay} seconds...")
+                                            time.sleep(retry_delay)
+                                        else:
+                                            raise e 
 
             open_orders = self.exchange.get_open_orders_huobi(parsed_symbol_swap)
 
