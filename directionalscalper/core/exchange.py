@@ -452,6 +452,26 @@ class Exchange:
                 return balance[quote]['free']
         return None
 
+    def cancel_order_huobi(self, id: str, symbol: Optional[str] = None, params={}):
+        try:
+            result = self.exchange.cancel_order(id, symbol, params)
+            return result
+        except Exception as e:
+            # Log exception details, if any
+            print(f"Failed to cancel order: {str(e)}")
+            return None
+
+    def get_contract_orders_huobi(self, symbol, status='open', type='limit', limit=20):
+        if self.exchange.has['fetchOrders']:
+            params = {
+                'symbol': symbol,
+                'status': status,  # 'open', 'closed', or 'all'
+                'type': type,  # 'limit' or 'market'
+                'limit': limit,  # maximum number of orders
+            }
+            return self.exchange.fetch_orders(params)
+        return None
+    
     def fetch_balance_huobi(self, params={}):
         # Call base class's fetch_balance for spot balances
         spot_balance = self.exchange.fetch_balance(params)
@@ -814,15 +834,31 @@ class Exchange:
     #     return values
 
     
+    # # Huobi
+    # def safe_order_operation(self, operation, *args, **kwargs):
+    #     while True:
+    #         try:
+    #             return operation(*args, **kwargs)
+    #         except ccxt.BaseError as e:
+    #             if 'In settlement' in str(e) or 'In delivery' in str(e):
+    #                 print(f"Contract is in settlement or delivery. Cannot perform operation currently. Retrying in 10 seconds...")
+    #                 time.sleep(10)
+    #             else:
+    #                 raise
+
     # Huobi
     def safe_order_operation(self, operation, *args, **kwargs):
         while True:
             try:
                 return operation(*args, **kwargs)
             except ccxt.BaseError as e:
-                if 'In settlement' in str(e) or 'In delivery' in str(e):
+                e_str = str(e)
+                if 'In settlement' in e_str or 'In delivery' in e_str:
                     print(f"Contract is in settlement or delivery. Cannot perform operation currently. Retrying in 10 seconds...")
                     time.sleep(10)
+                elif 'Insufficient close amount available' in e_str:
+                    print(f"Insufficient close amount available. Retrying in 5 seconds...")
+                    time.sleep(5)
                 else:
                     raise
 
@@ -1184,8 +1220,8 @@ class Exchange:
                     elif position_idx == 2 and order_side == "Sell":
                         short_orders += 1
 
-            # Cancel extra long or short orders if more than one open order per side
-            if long_orders > 1 or short_orders > 1:
+            # Cancel extra long or short orders
+            if long_orders > 0 or short_orders > 0:
                 for order in orders:
                     order_info = order["info"]
                     order_id = order_info["orderId"]
@@ -1502,6 +1538,7 @@ class Exchange:
         side_map = {"long": "buy", "short": "sell"}
         try:
             orders = self.exchange.fetch_open_orders(symbol)
+            print(f"Orders: {orders}")
             if orders:
                 for order in orders:
                     order_info = order["info"]
