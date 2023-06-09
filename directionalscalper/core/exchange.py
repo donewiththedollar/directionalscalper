@@ -1,3 +1,4 @@
+import os
 import logging
 import time
 import ccxt
@@ -30,6 +31,11 @@ class Exchange:
             "apiKey": self.api_key,
             "secret": self.secret_key,
         }
+        if os.environ.get('HTTP_PROXY') and os.environ.get('HTTPS_PROXY'):
+            exchange_params["proxies"] = {
+                'http': os.environ.get('HTTP_PROXY'),
+                'https': os.environ.get('HTTPS_PROXY'),
+            }
         if self.exchange_id.lower() == 'huobi':
             exchange_params['options'] = {
                 'defaultType': 'swap',
