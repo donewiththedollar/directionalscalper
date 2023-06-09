@@ -7,6 +7,8 @@ class HuobiHedgeStrategy(Strategy):
         super().__init__(exchange, config)
         self.manager = manager
         self.last_cancel_time = 0
+        self.long_entry_order_ids = set()
+        self.short_entry_order_ids = set()
 
     def parse_symbol(self, symbol):
         if "huobi" in self.exchange.name.lower():
@@ -49,9 +51,46 @@ class HuobiHedgeStrategy(Strategy):
             if (
                 order_info['side'].lower() == side.lower()
                 and order_info['order_status'] == '3'  # Adjust the condition based on your order status values
+                and order_info['id'] not in (self.long_entry_order_ids if side.lower() == 'sell' else self.short_entry_order_ids)
             ):
                 take_profit_orders.append((order_info['qty'], order_info['id']))
         return take_profit_orders
+    
+    # def get_open_take_profit_order_quantities(self, orders, side):
+    #     take_profit_orders = []
+    #     for order in orders:
+    #         print(order)  # Print the order dictionary
+    #         order_info = {
+    #             "id": order['id'],
+    #             "price": order['price'],
+    #             "qty": order['qty'],
+    #             "order_status": order['order_status'],
+    #             "side": order['side']
+    #         }
+    #         if (
+    #             order_info['side'].lower() == side.lower()
+    #             and order_info['order_status'] == '3'  # Adjust the condition based on your order status values
+    #         ):
+    #             take_profit_orders.append((order_info['qty'], order_info['id']))
+    #     return take_profit_orders
+
+
+    # def get_open_take_profit_order_quantities(self, orders, side):
+    #     take_profit_orders = []
+    #     for order in orders:
+    #         order_info = {
+    #             "id": order['id'],
+    #             "price": order['price'],
+    #             "qty": order['qty'],
+    #             "order_status": order['order_status'],
+    #             "side": order['side']
+    #         }
+    #         if (
+    #             order_info['side'].lower() == side.lower()
+    #             and order_info['order_status'] == '3'  # Adjust the condition based on your order status values
+    #         ):
+    #             take_profit_orders.append((order_info['qty'], order_info['id']))
+    #     return take_profit_orders
 
     # def get_open_take_profit_order_quantities(self, orders, side):
     #     take_profit_orders = []
@@ -325,33 +364,37 @@ class HuobiHedgeStrategy(Strategy):
                     if one_minute_volume > min_vol and five_minute_distance > min_dist:
 
                         if trend.lower() == "long" and should_long and long_pos_qty == 0:
-                            self.exchange.safe_order_operation(
+                            order = self.exchange.safe_order_operation(
                                 self.exchange.create_contract_order_huobi, parsed_symbol_swap, 'limit', 'buy', amount, price=best_bid_price
                             )
+                            self.long_entry_order_ids.add(order['id'])
                             print(f"Placed initial long entry")
                             time.sleep(0.05)
                         else:
                             if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
                                 print(f"Placed additional long entry")
-                                self.exchange.safe_order_operation(
+                                order = self.exchange.safe_order_operation(
                                     self.exchange.create_contract_order_huobi, parsed_symbol_swap, 'limit', 'buy', amount, price=best_bid_price
                                 )
+                                self.long_entry_order_ids.add(order['id'])
                                 time.sleep(0.05)
 
                         if trend.lower() == "short" and should_short and short_pos_qty == 0:
-                            self.exchange.safe_order_operation(
+                            order = self.exchange.safe_order_operation(
                                 self.exchange.create_contract_order_huobi, parsed_symbol_swap, 'limit', 'sell', amount, price=best_ask_price
                             )
+                            self.short_entry_order_ids.add(order['id'])
                             print("Placed initial short entry")
                             time.sleep(0.05)
                         else:
                             if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
                                 print(f"Placed additional short entry")
-                                self.exchange.safe_order_operation(
+                                order = self.exchange.safe_order_operation(
                                     self.exchange.create_contract_order_huobi, parsed_symbol_swap, 'limit', 'sell', amount, price=best_ask_price
                                 )
+                                self.short_entry_order_ids.add(order['id'])
                                 time.sleep(0.05)
-            
+
             open_orders = self.exchange.get_open_orders_huobi(parsed_symbol_swap)
 
             #print(f"Open orders: {open_orders}")
@@ -409,7 +452,7 @@ class HuobiHedgeStrategy(Strategy):
                         time.sleep(0.05)
                     except Exception as e:
                         print(f"Error in placing short TP: {e}")
-                        
+
             # Cancel entries
             current_time = time.time()
             if current_time - self.last_cancel_time >= 60:  # Execute this block every 1 minute
