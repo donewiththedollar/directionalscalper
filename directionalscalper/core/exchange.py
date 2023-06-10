@@ -901,14 +901,30 @@ class Exchange:
     #             else:
     #                 raise
 
-    # Huobi
+    # # Huobi
+    # def safe_order_operation(self, operation, *args, **kwargs):
+    #     while True:
+    #         try:
+    #             return operation(*args, **kwargs)
+    #         except ccxt.BaseError as e:
+    #             e_str = str(e)
+    #             if 'In settlement' in e_str or 'In delivery' in e_str:
+    #                 print(f"Contract is in settlement or delivery. Cannot perform operation currently. Retrying in 10 seconds...")
+    #                 time.sleep(10)
+    #             elif 'Insufficient close amount available' in e_str:
+    #                 print(f"Insufficient close amount available. Retrying in 5 seconds...")
+    #                 time.sleep(5)
+    #             else:
+    #                 raise
+
+    #Huobi 
     def safe_order_operation(self, operation, *args, **kwargs):
         while True:
             try:
                 return operation(*args, **kwargs)
             except ccxt.BaseError as e:
                 e_str = str(e)
-                if 'In settlement' in e_str or 'In delivery' in e_str:
+                if 'In settlement' in e_str or 'In delivery' in e_str or 'Settling. Unable to place/cancel orders currently.' in e_str:
                     print(f"Contract is in settlement or delivery. Cannot perform operation currently. Retrying in 10 seconds...")
                     time.sleep(10)
                 elif 'Insufficient close amount available' in e_str:
@@ -916,6 +932,7 @@ class Exchange:
                     time.sleep(5)
                 else:
                     raise
+
 
     # Huobi                
     def get_contract_size_huobi(self, symbol):
