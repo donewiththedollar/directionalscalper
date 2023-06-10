@@ -247,6 +247,8 @@ class BybitDynamicHedgeStrategy(Strategy):
                 self.exchange.print_trade_quantities_bybit(max_trade_qty, [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
                 self.printed_trade_quantities = True
 
+            #self.exchange.debug_derivatives_markets_bybit()
+
             #print(f"Market data for {symbol}: {market_data}")
 
             #self.exchange.debug_derivatives_positions(symbol)

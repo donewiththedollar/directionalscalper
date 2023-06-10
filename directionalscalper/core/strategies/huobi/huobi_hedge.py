@@ -301,44 +301,7 @@ class HuobiHedgeStrategy(Strategy):
             print(f"Long condition: {should_long}")
             print(f"Add short condition: {should_add_to_short}")
             print(f"Add long condition: {should_add_to_long}")
-
-            # Old hedge logic
-            # if trend is not None and isinstance(trend, str):
-            #     if one_minute_volume is not None and five_minute_distance is not None:
-            #         if one_minute_volume > min_vol and five_minute_distance > min_dist:
-
-            #             if trend.lower() == "long" and should_long and long_pos_qty == 0:
-            #                 order = self.exchange.safe_order_operation(
-            #                     self.exchange.create_contract_order_huobi, parsed_symbol_swap, 'limit', 'buy', amount, price=best_bid_price
-            #                 )
-            #                 self.long_entry_order_ids.add(order['id'])
-            #                 print(f"Placed initial long entry")
-            #                 time.sleep(0.05)
-            #             else:
-            #                 if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
-            #                     print(f"Placed additional long entry")
-            #                     order = self.exchange.safe_order_operation(
-            #                         self.exchange.create_contract_order_huobi, parsed_symbol_swap, 'limit', 'buy', amount, price=best_bid_price
-            #                     )
-            #                     self.long_entry_order_ids.add(order['id'])
-            #                     time.sleep(0.05)
-
-            #             if trend.lower() == "short" and should_short and short_pos_qty == 0:
-            #                 order = self.exchange.safe_order_operation(
-            #                     self.exchange.create_contract_order_huobi, parsed_symbol_swap, 'limit', 'sell', amount, price=best_ask_price
-            #                 )
-            #                 self.short_entry_order_ids.add(order['id'])
-            #                 print("Placed initial short entry")
-            #                 time.sleep(0.05)
-            #             else:
-            #                 if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
-            #                     print(f"Placed additional short entry")
-            #                     order = self.exchange.safe_order_operation(
-            #                         self.exchange.create_contract_order_huobi, parsed_symbol_swap, 'limit', 'sell', amount, price=best_ask_price
-            #                     )
-            #                     self.short_entry_order_ids.add(order['id'])
-            #                     time.sleep(0.05)
-
+            
             # New hedge logic
 
             if trend is not None and isinstance(trend, str):

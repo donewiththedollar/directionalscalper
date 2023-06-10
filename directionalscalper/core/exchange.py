@@ -24,6 +24,7 @@ class Exchange:
         self.name = exchange_id
         self.initialise()
         self.symbols = self._get_symbols()
+        self.market_precisions = {}
 
     def initialise(self):
         exchange_class = getattr(ccxt, self.exchange_id)
@@ -177,6 +178,47 @@ class Exchange:
             print(f"Debug positions: {positions}")
         except Exception as e:
             print(f"Exception in debug derivs func: {e}")
+
+    def debug_derivatives_markets_bybit(self):
+        try:
+            markets = self.exchange.fetch_derivatives_markets({'category': 'linear'})
+            print(f"Debug markets: {markets}")
+        except Exception as e:
+            print(f"Exception in debug_derivatives_markets_bybit: {e}")
+
+    # Bybit
+    def bybit_fetch_precision(self, symbol):
+        try:
+            markets = self.exchange.fetch_derivatives_markets()
+            for market in markets['result']['list']:
+                if market['symbol'] == symbol:
+                    qty_step = market['lotSizeFilter']['qtyStep']
+                    self.market_precisions[symbol] = {'amount': float(qty_step)}
+                    break
+        except Exception as e:
+            print(f"Exception in bybit_fetch_precision: {e}")
+
+
+    # # Bybit
+    # def bybit_fetch_precision(self, symbol):
+    #     market_data = self.exchange.fetch_derivatives_markets(symbol)
+    #     self.market_precisions[symbol] = market_data['precision']
+
+    # def bybit_fetch_precision(self, symbol):
+    #     market_data = self.exchange.fetch_derivatives_markets([symbol])
+    #     self.market_precisions[symbol] = market_data['precision']
+
+    # def bybit_fetch_precision(self, symbol):
+    #     market_data = self.exchange.fetch_derivatives_markets({'symbol': symbol})
+    #     self.market_precisions[symbol] = market_data['precision']
+
+    # def bybit_fetch_precision(self, symbol):
+    #     try:
+    #         market_data = self.exchange.fetch_derivatives_markets(symbol)
+    #         print("Market Data:", market_data)
+    #     except Exception as e:
+    #         print(f"Error in fetching precision: {e}")
+
 
     # Bybit
     def get_current_leverage_bybit(self, symbol):
