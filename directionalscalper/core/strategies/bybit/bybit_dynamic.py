@@ -191,18 +191,29 @@ class BybitDynamicHedgeStrategy(Strategy):
             
             print(f"Max trade quantity for {symbol}: {max_trade_qty}")
 
+            # tick_size = self.exchange.get_market_tick_size_bybit(symbol)
+
+            # print(f"Tick size: {tick_size}")
+
+            # debug_data = market_data
+            # print(f"Debug market data: {debug_data}")
+
             # Calculate the dynamic amount
             amount = 0.001 * max_trade_qty
 
-            # Get the precision level of the minimum quantity
             min_qty = float(market_data["min_qty"])
             min_qty_str = str(min_qty)
-            if "." in min_qty_str:
-                # The minimum quantity has a fractional part, get its precision level
-                precision_level = len(min_qty_str.split(".")[1])
-            else:
+
+            # Get the precision level of the minimum quantity
+            if ".0" in min_qty_str:
                 # The minimum quantity does not have a fractional part, precision is 0
                 precision_level = 0
+            else:
+                # The minimum quantity has a fractional part, get its precision level
+                precision_level = len(min_qty_str.split(".")[1])
+
+            # Calculate the dynamic amount
+            amount = 0.001 * max_trade_qty
 
             # Round the amount to the precision level of the minimum quantity
             amount = round(amount, precision_level)
@@ -213,7 +224,31 @@ class BybitDynamicHedgeStrategy(Strategy):
             if amount < min_qty:
                 print(f"Dynamic amount too small for 0.001x, using min_qty")
                 amount = min_qty
-                
+
+
+            # # Get the precision level of the minimum quantity
+            # min_qty = float(market_data["min_qty"])
+            # min_qty_str = str(min_qty)
+            # print({min_qty_str})
+            # if "*.0" in min_qty_str:
+            #     # The minimum quantity has a fractional part, get its precision level
+            #     precision_level = len(min_qty_str.split(".")[1])
+            # else:
+            #     # The minimum quantity does not have a fractional part, precision is 0
+            #     precision_level = 0
+
+            # # Round the amount to the precision level of the minimum quantity
+            # amount = round(amount, precision_level)
+
+            # print(f"Dynamic amount: {amount}")
+
+            # # Check if the amount is less than the minimum quantity allowed by the exchange
+            # if amount < min_qty:
+            #     print(f"Dynamic amount too small for 0.001x, using min_qty")
+            #     amount = min_qty
+
+            ##########################################
+
             # amount = 0.001 * max_trade_qty
 
             # # Check if the asset can be traded in decimal quantities
@@ -234,11 +269,11 @@ class BybitDynamicHedgeStrategy(Strategy):
             #     print(f"Dynamic amount too small for 0.001x, using min_qty")
             #     amount = float(market_data["min_qty"])
 
-            min_qty_bybit = market_data["min_qty"]
-            print(f"Min qty: {min_qty_bybit}")
+            #min_qty_bybit = market_data["min_qty"]
+            print(f"Min qty: {min_qty}")
 
-            if float(amount) < min_qty_bybit:
-                print(f"The amount you entered ({amount}) is less than the minimum required by Bybit for {symbol}: {min_qty_bybit}.")
+            if float(amount) < min_qty:
+                print(f"The amount you entered ({amount}) is less than the minimum required by Bybit for {symbol}: {min_qty}.")
                 break
             else:
                 print(f"The amount you entered ({amount}) is valid for {symbol}")
@@ -246,6 +281,7 @@ class BybitDynamicHedgeStrategy(Strategy):
             if not self.printed_trade_quantities:
                 self.exchange.print_trade_quantities_bybit(max_trade_qty, [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
                 self.printed_trade_quantities = True
+
 
             #self.exchange.debug_derivatives_markets_bybit()
 
