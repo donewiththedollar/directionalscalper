@@ -31,6 +31,7 @@ from directionalscalper.core.strategies.bybit.bybit_longonly import BybitLongStr
 from directionalscalper.core.strategies.bybit.bybit_shortonly import BybitShortStrategy
 from directionalscalper.core.strategies.bybit.bybit_longonly_dynamictp import BybitLongDynamicTP
 from directionalscalper.core.strategies.bybit.bybit_hedge_dynamictp import BybitHedgeDynamicTP
+from directionalscalper.core.strategies.bybit.bybit_hedge_dynamic_entryexit import BybitHedgeEntryExitDynamic
 from directionalscalper.core.strategies.huobi.huobi_hedge import HuobiHedgeStrategy
 from directionalscalper.core.strategies.binance.binance_hedge import BinanceHedgeStrategy
 from directionalscalper.core.strategies.phemex.phemex_hedge import PhemexHedgeStrategy
@@ -183,6 +184,10 @@ if __name__ == '__main__':
         
         elif strategy_name.lower() == 'bybit_hedge_dynamic':
             strategy = BybitDynamicHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol)
+
+        elif strategy_name.lower() == 'bybit_hedge_dynamic_full':
+            strategy = BybitHedgeEntryExitDynamic(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
 
         elif strategy_name.lower() == 'bybit_hedge_grid':
