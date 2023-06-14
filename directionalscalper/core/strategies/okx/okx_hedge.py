@@ -3,7 +3,7 @@ from ..strategy import Strategy
 
 class OKXHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):
-        super().__init__(exchange, config)
+        super().__init__(exchange, config, manager)
         self.manager = manager
 
     def run(self, symbol, amount):

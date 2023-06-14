@@ -4,7 +4,7 @@ from ..strategy import Strategy
 
 class BitgetHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):
-        super().__init__(exchange, config)
+        super().__init__(exchange, config, manager)
         self.manager = manager
         self.leverage_set = False
         self.last_cancel_time = 0

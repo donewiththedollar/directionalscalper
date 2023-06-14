@@ -4,18 +4,11 @@ from ..strategy import Strategy
 
 class HuobiHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):
-        super().__init__(exchange, config)
+        super().__init__(exchange, config, manager)
         self.manager = manager
         self.last_cancel_time = 0
         self.long_entry_order_ids = set()
         self.short_entry_order_ids = set()
-
-    def parse_symbol(self, symbol):
-        if "huobi" in self.exchange.name.lower():
-            base_currency = symbol[:-4]  # Extracts everything except last 4 characters
-            quote_currency = symbol[-4:]  # Extracts last 4 characters
-            return f"{base_currency}/{quote_currency}"
-        return symbol
 
     def parse_symbol_swap(self, symbol):
         if "huobi" in self.exchange.name.lower():

@@ -3,15 +3,10 @@ import math
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_DOWN
 from ..strategy import Strategy
 from typing import Tuple
-#from ...tables import create_strategy_table, start_live_table
-import threading
-#from directionalscalper.core.tables import create_strategy_table, start_live_table
-import threading
-import os
 
 class BybitViolentHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):
-        super().__init__(exchange, config)
+        super().__init__(exchange, config, manager)
         self.manager = manager
         self.last_cancel_time = 0
         self.wallet_exposure_limit = self.config.wallet_exposure_limit
@@ -32,7 +27,6 @@ class BybitViolentHedgeStrategy(Strategy):
             reduction_qty = current_trade_qty - max_trade_qty
             # Reduce the position to the desired wallet exposure level
             self.exchange.reduce_position_bybit(symbol, reduction_qty)
-
 
     def truncate(self, number: float, precision: int) -> float:
         return float(Decimal(number).quantize(Decimal('0.' + '0'*precision), rounding=ROUND_DOWN))
@@ -145,9 +139,6 @@ class BybitViolentHedgeStrategy(Strategy):
             print(f"Current leverage is not at maximum. Setting leverage to maximum. Maximum is {max_leverage}")
             self.exchange.set_leverage_bybit(max_leverage, symbol)
 
-        # # Create the strategy table
-        # strategy_table = create_strategy_table(symbol, total_equity, long_upnl, short_upnl, short_pos
-
         while True:
             print(f"Bybit hedge strategy running")
             print(f"Min volume: {min_vol}")
@@ -225,26 +216,11 @@ class BybitViolentHedgeStrategy(Strategy):
             print(f"Long pos price {long_pos_price}")
             print(f"Short pos price {short_pos_price}")
 
-            if float(amount) < min_qty_bybit:
-                print(f"The amount you entered ({amount}) is less than the minimum required by Bybit for {symbol}: {min_qty_bybit}.")
-                break
-            else:
-                print(f"The amount you entered ({amount}) is valid for {symbol}")
+            self.check_amount_validity_bybit(amount)
 
             if not self.printed_trade_quantities:
                 self.exchange.print_trade_quantities_bybit(max_trade_qty, [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
                 self.printed_trade_quantities = True
-
-
-
-            # Precision is annoying
-
-            # price_precision = int(self.exchange.get_price_precision(symbol))
-
-            # print(f"Price Precision: {price_precision}")
-
-            # Precision
-            #price_precision, quantity_precision = self.exchange.get_symbol_precision_bybit(symbol)
 
             # Take profit calc
             short_take_profit = self.calculate_short_take_profit(short_pos_price, symbol)

@@ -4,7 +4,7 @@ from ..strategy import Strategy
 
 class BitgetDynamicAuctionBasedStrategy(Strategy):
     def __init__(self, exchange, manager, config):
-        super().__init__(exchange, config)
+        super().__init__(exchange, config, manager)
         self.manager = manager
         self.last_cancel_time = 0
         self.leverage_set = False

@@ -6,7 +6,7 @@ from typing import Tuple
 
 class BybitHedgeDynamicTP(Strategy):
     def __init__(self, exchange, manager, config):
-        super().__init__(exchange, config)
+        super().__init__(exchange, config, manager)
         self.manager = manager
         self.last_cancel_time = 0
         self.wallet_exposure_limit = self.config.wallet_exposure_limit
@@ -208,12 +208,8 @@ class BybitHedgeDynamicTP(Strategy):
             min_qty_bybit = market_data["min_qty"]
             print(f"Min qty: {min_qty_bybit}")
 
-            if float(amount) < min_qty_bybit:
-                print(f"The amount you entered ({amount}) is less than the minimum required by Bybit for {symbol}: {min_qty_bybit}.")
-                break
-            else:
-                print(f"The amount you entered ({amount}) is valid for {symbol}")
-
+            self.check_amount_validity_bybit(amount)
+            
             if not self.printed_trade_quantities:
                 self.exchange.print_trade_quantities_bybit(max_trade_qty, [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
                 self.printed_trade_quantities = True
