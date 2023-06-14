@@ -54,41 +54,6 @@ class BybitShortStrategy(Strategy):
     def cancel_take_profit_orders(self, symbol, side):
         self.exchange.cancel_close_bybit(symbol, side)
 
-    def calculate_short_take_profit(self, short_pos_price, symbol):
-        if short_pos_price is None:
-            return None
-
-        five_min_data = self.manager.get_5m_moving_averages(symbol)
-        price_precision = int(self.exchange.get_price_precision(symbol))
-
-        #print("Debug: Price Precision for Symbol (", symbol, "):", price_precision)
-
-        if five_min_data is not None:
-            ma_6_high = Decimal(five_min_data["MA_6_H"])
-            ma_6_low = Decimal(five_min_data["MA_6_L"])
-
-            try:
-                short_target_price = Decimal(short_pos_price) - (ma_6_high - ma_6_low)
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when calculating short_target_price. short_pos_price={short_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
-                return None
-
-            try:
-                short_target_price = short_target_price.quantize(
-                    Decimal('1e-{}'.format(price_precision)),
-                    rounding=ROUND_HALF_UP
-                )
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when quantizing short_target_price. short_target_price={short_target_price}, price_precision={price_precision}")
-                return None
-
-            #print("Debug: Short Target Price:", short_target_price)
-
-            short_profit_price = short_target_price
-
-            return float(short_profit_price)
-        return None
-
     def run(self, symbol, amount):
         wallet_exposure = self.config.wallet_exposure
         min_dist = self.config.min_distance
@@ -192,7 +157,7 @@ class BybitShortStrategy(Strategy):
             print(f"Short pos price {short_pos_price}")
 
             # Take profit calc
-            short_take_profit = self.calculate_short_take_profit(short_pos_price, symbol)
+            short_take_profit = self.calculate_short_take_profit_bybit(short_pos_price, symbol)
 
             should_short = best_bid_price > ma_3_high
             should_long = best_bid_price < ma_3_high

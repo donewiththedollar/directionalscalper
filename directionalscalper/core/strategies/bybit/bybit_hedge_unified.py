@@ -60,76 +60,6 @@ class BybitHedgeUnifiedStrategy(Strategy):
     def cancel_take_profit_orders(self, symbol, side):
         self.exchange.cancel_close_bybit(symbol, side)
 
-    def calculate_short_take_profit(self, short_pos_price, symbol):
-        if short_pos_price is None:
-            return None
-
-        five_min_data = self.manager.get_5m_moving_averages(symbol)
-        price_precision = int(self.exchange.get_price_precision(symbol))
-
-        #print("Debug: Price Precision for Symbol (", symbol, "):", price_precision)
-
-        if five_min_data is not None:
-            ma_6_high = Decimal(five_min_data["MA_6_H"])
-            ma_6_low = Decimal(five_min_data["MA_6_L"])
-
-            try:
-                short_target_price = Decimal(short_pos_price) - (ma_6_high - ma_6_low)
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when calculating short_target_price. short_pos_price={short_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
-                return None
-
-            try:
-                short_target_price = short_target_price.quantize(
-                    Decimal('1e-{}'.format(price_precision)),
-                    rounding=ROUND_HALF_UP
-                )
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when quantizing short_target_price. short_target_price={short_target_price}, price_precision={price_precision}")
-                return None
-
-            #print("Debug: Short Target Price:", short_target_price)
-
-            short_profit_price = short_target_price
-
-            return float(short_profit_price)
-        return None
-
-    def calculate_long_take_profit(self, long_pos_price, symbol):
-        if long_pos_price is None:
-            return None
-
-        five_min_data = self.manager.get_5m_moving_averages(symbol)
-        price_precision = int(self.exchange.get_price_precision(symbol))
-
-        #print("Debug: Price Precision for Symbol (", symbol, "):", price_precision)
-
-        if five_min_data is not None:
-            ma_6_high = Decimal(five_min_data["MA_6_H"])
-            ma_6_low = Decimal(five_min_data["MA_6_L"])
-
-            try:
-                long_target_price = Decimal(long_pos_price) + (ma_6_high - ma_6_low)
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when calculating long_target_price. long_pos_price={long_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
-                return None
-
-            try:
-                long_target_price = long_target_price.quantize(
-                    Decimal('1e-{}'.format(price_precision)),
-                    rounding=ROUND_HALF_UP
-                )
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when quantizing long_target_price. long_target_price={long_target_price}, price_precision={price_precision}")
-                return None
-
-            #print("Debug: Long Target Price:", long_target_price)
-
-            long_profit_price = long_target_price
-
-            return float(long_profit_price)
-        return None
-
     def run(self, symbol, amount):
         wallet_exposure = self.config.wallet_exposure
         min_dist = self.config.min_distance
@@ -146,9 +76,6 @@ class BybitHedgeUnifiedStrategy(Strategy):
         if current_leverage != max_leverage:
             print(f"Current leverage is not at maximum. Setting leverage to maximum. Maximum is {max_leverage}")
             self.exchange.set_leverage_bybit(max_leverage, symbol)
-
-        # # Create the strategy table
-        # strategy_table = create_strategy_table(symbol, total_equity, long_upnl, short_upnl, short_pos
 
         while True:
             print(f"Bybit hedge strategy running")
@@ -243,18 +170,9 @@ class BybitHedgeUnifiedStrategy(Strategy):
             print(f"Long pos price {long_pos_price}")
             print(f"Short pos price {short_pos_price}")
 
-            # Precision is annoying
-
-            # price_precision = int(self.exchange.get_price_precision(symbol))
-
-            # print(f"Price Precision: {price_precision}")
-
-            # Precision
-            #price_precision, quantity_precision = self.exchange.get_symbol_precision_bybit(symbol)
-
             # Take profit calc
-            short_take_profit = self.calculate_short_take_profit(short_pos_price, symbol)
-            long_take_profit = self.calculate_long_take_profit(long_pos_price, symbol)
+            short_take_profit = self.calculate_short_take_profit_bybit(short_pos_price, symbol)
+            long_take_profit = self.calculate_long_take_profit_bybit(long_pos_price, symbol)
 
 
             should_short = best_bid_price > ma_3_high
@@ -360,9 +278,3 @@ class BybitHedgeUnifiedStrategy(Strategy):
                 self.last_cancel_time = current_time  # Update the last cancel time
 
             time.sleep(30)
-
-            # # Create the strategy table
-            # strategy_table = create_strategy_table(symbol, total_equity, long_upnl, short_upnl, short_pos_qty, long_pos_qty, amount, cumulative_realized_pnl, one_minute_volume, five_minute_distance)
-
-            # # Display the table
-            # self.display_table(strategy_table)

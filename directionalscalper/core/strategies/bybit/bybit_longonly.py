@@ -59,41 +59,6 @@ class BybitLongStrategy(Strategy):
     def cancel_take_profit_orders(self, symbol, side):
         self.exchange.cancel_close_bybit(symbol, side)
 
-    def calculate_long_take_profit(self, long_pos_price, symbol):
-        if long_pos_price is None:
-            return None
-
-        five_min_data = self.manager.get_5m_moving_averages(symbol)
-        price_precision = int(self.exchange.get_price_precision(symbol))
-
-        #print("Debug: Price Precision for Symbol (", symbol, "):", price_precision)
-
-        if five_min_data is not None:
-            ma_6_high = Decimal(five_min_data["MA_6_H"])
-            ma_6_low = Decimal(five_min_data["MA_6_L"])
-
-            try:
-                long_target_price = Decimal(long_pos_price) + (ma_6_high - ma_6_low)
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when calculating long_target_price. long_pos_price={long_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
-                return None
-
-            try:
-                long_target_price = long_target_price.quantize(
-                    Decimal('1e-{}'.format(price_precision)),
-                    rounding=ROUND_HALF_UP
-                )
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when quantizing long_target_price. long_target_price={long_target_price}, price_precision={price_precision}")
-                return None
-
-            #print("Debug: Long Target Price:", long_target_price)
-
-            long_profit_price = long_target_price
-
-            return float(long_profit_price)
-        return None
-
     def run(self, symbol, amount):
         wallet_exposure = self.config.wallet_exposure
         min_dist = self.config.min_distance
@@ -168,7 +133,7 @@ class BybitLongStrategy(Strategy):
             self.check_amount_validity_bybit(amount, symbol)
 
             self.print_trade_quantities_once_bybit(max_trade_qty)
-            
+
             # Get the 1-minute moving averages
             print(f"Fetching MA data")
             m_moving_averages = self.manager.get_1m_moving_averages(symbol)
@@ -200,7 +165,7 @@ class BybitLongStrategy(Strategy):
             print(f"Long pos price {long_pos_price}")
 
             # Take profit calc
-            long_take_profit = self.calculate_long_take_profit(long_pos_price, symbol)
+            long_take_profit = self.calculate_long_take_profit_bybit(long_pos_price, symbol)
 
             should_short = best_bid_price > ma_3_high
             should_long = best_bid_price < ma_3_high

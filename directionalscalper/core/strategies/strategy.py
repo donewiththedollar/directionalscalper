@@ -1,4 +1,5 @@
 from colorama import Fore
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_DOWN
 import time
 
 class Strategy:
@@ -96,14 +97,152 @@ class Strategy:
             self.exchange.print_trade_quantities_bybit(max_trade_qty, [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
             self.printed_trade_quantities = True
 
-    def get_moving_averages(self):
-        m_moving_averages = self.manager.get_1m_moving_averages(self.symbol)
-        return m_moving_averages
+    def get_1m_moving_averages(self, symbol):
+        return self.manager.get_1m_moving_averages(symbol)
+
+    def get_5m_moving_averages(self, symbol):
+        return self.manager.get_5m_moving_averages(symbol)
 
     def get_positions_bybit(self):
         position_data = self.exchange.get_positions_bybit(self.symbol)
         return position_data
 
+    def calculate_short_take_profit_spread_bybit(self, short_pos_price, symbol, increase_percentage=0):
+        if short_pos_price is None:
+            return None
+
+        five_min_data = self.manager.get_5m_moving_averages(symbol)
+        price_precision = int(self.exchange.get_price_precision(symbol))
+
+        if five_min_data is not None:
+            ma_6_high = Decimal(five_min_data["MA_6_H"])
+            ma_6_low = Decimal(five_min_data["MA_6_L"])
+
+            try:
+                short_target_price = Decimal(short_pos_price) - (ma_6_high - ma_6_low)
+            except InvalidOperation as e:
+                print(f"Error: Invalid operation when calculating short_target_price. short_pos_price={short_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
+                return None
+
+            if increase_percentage is None:
+                increase_percentage = 0
+
+            # Apply increase percentage to the calculated short target price
+            short_target_price = short_target_price * (Decimal('1') - Decimal(increase_percentage) / Decimal('100'))
+
+            try:
+                short_target_price = short_target_price.quantize(
+                    Decimal('1e-{}'.format(price_precision)),
+                    rounding=ROUND_HALF_UP
+                )
+            except InvalidOperation as e:
+                print(f"Error: Invalid operation when quantizing short_target_price. short_target_price={short_target_price}, price_precision={price_precision}")
+                return None
+
+            short_profit_price = short_target_price
+
+            return float(short_profit_price)
+        return None
+
+    def calculate_short_take_profit_bybit(self, short_pos_price, symbol):
+        if short_pos_price is None:
+            return None
+
+        five_min_data = self.manager.get_5m_moving_averages(symbol)
+        price_precision = int(self.exchange.get_price_precision(symbol))
+
+        if five_min_data is not None:
+            ma_6_high = Decimal(five_min_data["MA_6_H"])
+            ma_6_low = Decimal(five_min_data["MA_6_L"])
+
+            try:
+                short_target_price = Decimal(short_pos_price) - (ma_6_high - ma_6_low)
+            except InvalidOperation as e:
+                print(f"Error: Invalid operation when calculating short_target_price. short_pos_price={short_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
+                return None
+
+            try:
+                short_target_price = short_target_price.quantize(
+                    Decimal('1e-{}'.format(price_precision)),
+                    rounding=ROUND_HALF_UP
+                )
+            except InvalidOperation as e:
+                print(f"Error: Invalid operation when quantizing short_target_price. short_target_price={short_target_price}, price_precision={price_precision}")
+                return None
+
+            short_profit_price = short_target_price
+
+            return float(short_profit_price)
+        return None
+
+    def calculate_long_take_profit_bybit(self, long_pos_price, symbol):
+        if long_pos_price is None:
+            return None
+
+        five_min_data = self.manager.get_5m_moving_averages(symbol)
+        price_precision = int(self.exchange.get_price_precision(symbol))
+
+        if five_min_data is not None:
+            ma_6_high = Decimal(five_min_data["MA_6_H"])
+            ma_6_low = Decimal(five_min_data["MA_6_L"])
+
+            try:
+                long_target_price = Decimal(long_pos_price) + (ma_6_high - ma_6_low)
+            except InvalidOperation as e:
+                print(f"Error: Invalid operation when calculating long_target_price. long_pos_price={long_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
+                return None
+
+            try:
+                long_target_price = long_target_price.quantize(
+                    Decimal('1e-{}'.format(price_precision)),
+                    rounding=ROUND_HALF_UP
+                )
+            except InvalidOperation as e:
+                print(f"Error: Invalid operation when quantizing long_target_price. long_target_price={long_target_price}, price_precision={price_precision}")
+                return None
+
+            long_profit_price = long_target_price
+
+            return float(long_profit_price)
+        return None
+
+    def calculate_long_take_profit_spread_bybit(self, long_pos_price, symbol, increase_percentage=0):
+        if long_pos_price is None:
+            return None
+
+        five_min_data = self.manager.get_5m_moving_averages(symbol)
+        price_precision = int(self.exchange.get_price_precision(symbol))
+
+        if five_min_data is not None:
+            ma_6_high = Decimal(five_min_data["MA_6_H"])
+            ma_6_low = Decimal(five_min_data["MA_6_L"])
+
+            try:
+                long_target_price = Decimal(long_pos_price) + (ma_6_high - ma_6_low)
+            except InvalidOperation as e:
+                print(f"Error: Invalid operation when calculating long_target_price. long_pos_price={long_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
+                return None
+
+            if increase_percentage is None:
+                increase_percentage = 0
+
+            # Add the specified percentage to the take profit target price
+            long_target_price = long_target_price * (1 + Decimal(increase_percentage)/100)
+
+            try:
+                long_target_price = long_target_price.quantize(
+                    Decimal('1e-{}'.format(price_precision)),
+                    rounding=ROUND_HALF_UP
+                )
+            except InvalidOperation as e:
+                print(f"Error: Invalid operation when quantizing long_target_price. long_target_price={long_target_price}, price_precision={price_precision}")
+                return None
+
+            long_profit_price = long_target_price
+
+            return float(long_profit_price)
+        return None
+    
     # def calculate_short_take_profit(self, short_pos_price):
     #     # Your existing logic here
 

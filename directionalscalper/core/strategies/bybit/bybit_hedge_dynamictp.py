@@ -55,80 +55,6 @@ class BybitHedgeDynamicTP(Strategy):
     def cancel_take_profit_orders(self, symbol, side):
         self.exchange.cancel_close_bybit(symbol, side)
 
-    def calculate_short_take_profit(self, short_pos_price, symbol, increase_percentage=0):
-        if short_pos_price is None:
-            return None
-
-        five_min_data = self.manager.get_5m_moving_averages(symbol)
-        price_precision = int(self.exchange.get_price_precision(symbol))
-
-        if five_min_data is not None:
-            ma_6_high = Decimal(five_min_data["MA_6_H"])
-            ma_6_low = Decimal(five_min_data["MA_6_L"])
-
-            try:
-                short_target_price = Decimal(short_pos_price) - (ma_6_high - ma_6_low)
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when calculating short_target_price. short_pos_price={short_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
-                return None
-
-            if increase_percentage is None:
-                increase_percentage = 0
-
-            # Apply increase percentage to the calculated short target price
-            short_target_price = short_target_price * (Decimal('1') - Decimal(increase_percentage) / Decimal('100'))
-
-            try:
-                short_target_price = short_target_price.quantize(
-                    Decimal('1e-{}'.format(price_precision)),
-                    rounding=ROUND_HALF_UP
-                )
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when quantizing short_target_price. short_target_price={short_target_price}, price_precision={price_precision}")
-                return None
-
-            short_profit_price = short_target_price
-
-            return float(short_profit_price)
-        return None
-
-    def calculate_long_take_profit(self, long_pos_price, symbol, increase_percentage=0):
-        if long_pos_price is None:
-            return None
-
-        five_min_data = self.manager.get_5m_moving_averages(symbol)
-        price_precision = int(self.exchange.get_price_precision(symbol))
-
-        if five_min_data is not None:
-            ma_6_high = Decimal(five_min_data["MA_6_H"])
-            ma_6_low = Decimal(five_min_data["MA_6_L"])
-
-            try:
-                long_target_price = Decimal(long_pos_price) + (ma_6_high - ma_6_low)
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when calculating long_target_price. long_pos_price={long_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
-                return None
-
-            if increase_percentage is None:
-                increase_percentage = 0
-
-            # Add the specified percentage to the take profit target price
-            long_target_price = long_target_price * (1 + Decimal(increase_percentage)/100)
-
-            try:
-                long_target_price = long_target_price.quantize(
-                    Decimal('1e-{}'.format(price_precision)),
-                    rounding=ROUND_HALF_UP
-                )
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when quantizing long_target_price. long_target_price={long_target_price}, price_precision={price_precision}")
-                return None
-
-            long_profit_price = long_target_price
-
-            return float(long_profit_price)
-        return None
-
     def run(self, symbol, amount):
         wallet_exposure = self.config.wallet_exposure
         min_dist = self.config.min_distance
@@ -253,8 +179,8 @@ class BybitHedgeDynamicTP(Strategy):
 
             if five_minute_distance != previous_five_minute_distance:
                 # Take profit calc
-                short_take_profit = self.calculate_short_take_profit(short_pos_price, symbol, five_minute_distance)
-                long_take_profit = self.calculate_long_take_profit(long_pos_price, symbol, five_minute_distance)
+                short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, five_minute_distance)
+                long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
 
             # Take profit calc
             short_take_profit = self.calculate_short_take_profit(short_pos_price, symbol, five_minute_distance)

@@ -248,7 +248,7 @@ class BybitHedgeGridStrategy(Strategy):
 
             self.check_amount_validity_bybit(amount, symbol)
             self.print_trade_quantities_once_bybit(max_trade_qty)
-            
+
             # Get the 1-minute moving averages
             print(f"Fetching MA data")
             m_moving_averages = self.manager.get_1m_moving_averages(symbol)
@@ -286,19 +286,10 @@ class BybitHedgeGridStrategy(Strategy):
 
             print(f"Long pos price {long_pos_price}")
             print(f"Short pos price {short_pos_price}")
-
-            # Precision is annoying
-
-            # price_precision = int(self.exchange.get_price_precision(symbol))
-
-            # print(f"Price Precision: {price_precision}")
-
-            # Precision
-            #price_precision, quantity_precision = self.exchange.get_symbol_precision_bybit(symbol)
-
+            
             # Take profit calc
-            short_take_profit = self.calculate_short_take_profit(short_pos_price, symbol)
-            long_take_profit = self.calculate_long_take_profit(long_pos_price, symbol)
+            short_take_profit = self.calculate_short_take_profit_bybit(short_pos_price, symbol)
+            long_take_profit = self.calculate_long_take_profit_bybit(long_pos_price, symbol)
 
 
             should_short = best_bid_price > ma_3_high
@@ -399,9 +390,3 @@ class BybitHedgeGridStrategy(Strategy):
                 self.last_cancel_time = current_time  # Update the last cancel time
 
             time.sleep(30)
-
-            # # Create the strategy table
-            # strategy_table = create_strategy_table(symbol, total_equity, long_upnl, short_upnl, short_pos_qty, long_pos_qty, amount, cumulative_realized_pnl, one_minute_volume, five_minute_distance)
-
-            # # Display the table
-            # self.display_table(strategy_table)

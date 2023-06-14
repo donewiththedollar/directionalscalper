@@ -186,10 +186,6 @@ class BybitDynamicHedgeStrategy(Strategy):
             
             print(f"Max trade quantity for {symbol}: {max_trade_qty}")
 
-            # tick_size = self.exchange.get_market_tick_size_bybit(symbol)
-
-            # print(f"Tick size: {tick_size}")
-
             # debug_data = market_data
             # print(f"Debug market data: {debug_data}")
 
@@ -390,9 +386,3 @@ class BybitDynamicHedgeStrategy(Strategy):
             # # Print the results
             # print("Buy Take Profit Order - Quantity: ", buy_qty, "ID: ", buy_id)
             # print("Sell Take Profit Order - Quantity: ", sell_qty, "ID: ", sell_id)
-
-            # # Create the strategy table
-            # strategy_table = create_strategy_table(symbol, total_equity, long_upnl, short_upnl, short_pos_qty, long_pos_qty, amount, cumulative_realized_pnl, one_minute_volume, five_minute_distance)
-
-            # # Display the table
-            # self.display_table(strategy_table)
