@@ -148,7 +148,7 @@ class BybitLongStrategy(Strategy):
             print(f"Total equity: {total_equity}")
 
             current_price = self.exchange.get_current_price(symbol)
-            market_data = self.exchange.get_market_data_bybit(symbol)
+            market_data = self.get_market_data_with_retry(symbol, max_retries = 5, retry_delay = 5)
             best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
             best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
@@ -156,23 +156,19 @@ class BybitLongStrategy(Strategy):
             print(f"Best ask: {best_ask_price}")
             print(f"Current price: {current_price}")
 
-            max_trade_qty = round(
-                (float(total_equity) * wallet_exposure / float(best_ask_price))
-                / (100 / max_leverage),
-                int(float(market_data["min_qty"])),
-            )            
+            max_trade_qty = self.calc_max_trade_qty(total_equity,
+                                                     best_ask_price,
+                                                     max_leverage)
             
             print(f"Max trade quantity for {symbol}: {max_trade_qty}")
 
             min_qty_bybit = market_data["min_qty"]
             print(f"Min qty: {min_qty_bybit}")
 
-            self.check_amount_validity_bybit(amount)
-            
-            if not self.printed_trade_quantities:
-                self.exchange.print_trade_quantities_bybit(max_trade_qty, [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
-                self.printed_trade_quantities = True
+            self.check_amount_validity_bybit(amount, symbol)
 
+            self.print_trade_quantities_once_bybit(max_trade_qty)
+            
             # Get the 1-minute moving averages
             print(f"Fetching MA data")
             m_moving_averages = self.manager.get_1m_moving_averages(symbol)
@@ -266,9 +262,3 @@ class BybitLongStrategy(Strategy):
                 self.last_cancel_time = current_time  # Update the last cancel time
 
             time.sleep(30)
-
-            # # Create the strategy table
-            # strategy_table = create_strategy_table(symbol, total_equity, long_upnl, short_upnl, short_pos_qty, long_pos_qty, amount, cumulative_realized_pnl, one_minute_volume, five_minute_distance)
-
-            # # Display the table
-            # self.display_table(strategy_table)

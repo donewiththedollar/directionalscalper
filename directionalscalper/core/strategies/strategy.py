@@ -9,6 +9,24 @@ class Strategy:
         self.symbol = config.symbol
         self.printed_trade_quantities = False
 
+    def calculate_short_conditions(self, short_pos_price, ma_6_low, short_take_profit, short_pos_qty):
+        if short_pos_price is not None:
+            should_add_to_short = short_pos_price < ma_6_low
+            short_tp_distance_percent = ((short_take_profit - short_pos_price) / short_pos_price) * 100
+            short_expected_profit_usdt = short_tp_distance_percent / 100 * short_pos_price * short_pos_qty
+            print(f"Short TP price: {short_take_profit}, TP distance in percent: {-short_tp_distance_percent:.2f}%, Expected profit: {-short_expected_profit_usdt:.2f} USDT")
+            return should_add_to_short, short_tp_distance_percent, short_expected_profit_usdt
+        return None, None, None
+
+    def calculate_long_conditions(self, long_pos_price, ma_6_low, long_take_profit, long_pos_qty):
+        if long_pos_price is not None:
+            should_add_to_long = long_pos_price > ma_6_low
+            long_tp_distance_percent = ((long_take_profit - long_pos_price) / long_pos_price) * 100
+            long_expected_profit_usdt = long_tp_distance_percent / 100 * long_pos_price * long_pos_qty
+            print(f"Long TP price: {long_take_profit}, TP distance in percent: {long_tp_distance_percent:.2f}%, Expected profit: {long_expected_profit_usdt:.2f} USDT")
+            return should_add_to_long, long_tp_distance_percent, long_expected_profit_usdt
+        return None, None, None
+    
     def short_trade_condition(self, current_ask, ma_3_high):
         if current_ask is None or ma_3_high is None:
             return False
@@ -28,6 +46,17 @@ class Strategy:
         if long_pos_price is None or ma_6_low is None:
             return False
         return long_pos_price < ma_6_low
+
+    def get_market_data_with_retry(self, symbol, max_retries=5, retry_delay=5):
+        for i in range(max_retries):
+            try:
+                return self.exchange.get_market_data_bybit(symbol)
+            except Exception as e:
+                if i < max_retries - 1:
+                    print(f"Error occurred while fetching market data: {e}. Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    raise e
 
     def get_balance_with_retry(self, quote_currency, max_retries=5, retry_delay=5):
         for i in range(max_retries):
@@ -50,17 +79,17 @@ class Strategy:
         )
         return max_trade_qty
 
-    def check_amount_validity_bybit(self, amount):
-        market_data = self.exchange.get_market_data_bybit(self.symbol)
+    def check_amount_validity_bybit(self, amount, symbol):
+        market_data = self.exchange.get_market_data_bybit(symbol)
         min_qty_bybit = market_data["min_qty"]
         if float(amount) < min_qty_bybit:
-            print(f"The amount you entered ({amount}) is less than the minimum required by Bybit for {self.symbol}: {min_qty_bybit}.")
+            print(f"The amount you entered ({amount}) is less than the minimum required by Bybit for {symbol}: {min_qty_bybit}.")
             return False
         else:
-            print(f"The amount you entered ({amount}) is valid for {self.symbol}")
+            print(f"The amount you entered ({amount}) is valid for {symbol}")
             return True
 
-    def print_trade_quantities_once(self, max_trade_qty):
+    def print_trade_quantities_once_bybit(self, max_trade_qty):
         if not self.printed_trade_quantities:
             wallet_exposure = self.config.wallet_exposure
             best_ask_price = self.exchange.get_orderbook(self.symbol)['asks'][0][0]
@@ -76,10 +105,11 @@ class Strategy:
         return position_data
 
     # def calculate_short_take_profit(self, short_pos_price):
-
+    #     # Your existing logic here
 
     # def calculate_long_take_profit(self, long_pos_price):
-    
+    #     # Your existing logic here
+
     def check_short_long_conditions(self, best_bid_price, ma_3_high):
         should_short = best_bid_price > ma_3_high
         should_long = best_bid_price < ma_3_high

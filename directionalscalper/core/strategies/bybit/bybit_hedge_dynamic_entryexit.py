@@ -170,7 +170,7 @@ class BybitHedgeEntryExitDynamic(Strategy):
             print(f"4h Spread: {four_hour_distance}")
             print(f"Trend: {trend}")
 
-            price_precision = int(self.exchange.get_price_precision(symbol))
+            #price_precision = int(self.exchange.get_price_precision(symbol))
 
             #print(f"Precision: {price_precision}")
 
@@ -190,8 +190,8 @@ class BybitHedgeEntryExitDynamic(Strategy):
             print(f"Total equity: {total_equity}")
 
             current_price = self.exchange.get_current_price(symbol)
-            market_data = self.exchange.get_market_data_bybit(symbol)
-            contract_size = self.exchange.get_contract_size_bybit(symbol)
+            market_data = self.get_market_data_with_retry(symbol, max_retries = 5, retry_delay = 5)
+            #contract_size = self.exchange.get_contract_size_bybit(symbol)
             best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
             best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
@@ -199,17 +199,11 @@ class BybitHedgeEntryExitDynamic(Strategy):
             print(f"Best ask: {best_ask_price}")
             print(f"Current price: {current_price}")
 
-            max_trade_qty = round(
-                (float(total_equity) * wallet_exposure / float(best_ask_price))
-                / (100 / max_leverage),
-                int(float(market_data["min_qty"])),
-            )            
-            
+            max_trade_qty = self.calc_max_trade_qty(total_equity,
+                                                     best_ask_price,
+                                                     max_leverage)
+
             print(f"Max trade quantity for {symbol}: {max_trade_qty}")
-
-            # tick_size = self.exchange.get_market_tick_size_bybit(symbol)
-
-            # print(f"Tick size: {tick_size}")
 
             # debug_data = market_data
             # print(f"Debug market data: {debug_data}")
@@ -243,11 +237,9 @@ class BybitHedgeEntryExitDynamic(Strategy):
 
             print(f"Min qty: {min_qty}")
 
-            self.check_amount_validity_bybit(amount)
-            
-            if not self.printed_trade_quantities:
-                self.exchange.print_trade_quantities_bybit(max_trade_qty, [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
-                self.printed_trade_quantities = True
+            self.check_amount_validity_bybit(amount, symbol)
+
+            self.print_trade_quantities_once_bybit(max_trade_qty)
 
             #self.exchange.debug_derivatives_markets_bybit()
 
@@ -305,8 +297,8 @@ class BybitHedgeEntryExitDynamic(Strategy):
             print(f"Short TP: {short_take_profit}")
             print(f"Long TP: {long_take_profit}")
 
-            should_short = best_bid_price > ma_3_high
-            should_long = best_bid_price < ma_3_high
+            should_short = self.short_trade_condition(best_bid_price, ma_3_high)
+            should_long = self.long_trade_condition(best_bid_price, ma_3_low)
 
             should_add_to_short = False
             should_add_to_long = False

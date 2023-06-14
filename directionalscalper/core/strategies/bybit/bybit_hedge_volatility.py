@@ -202,7 +202,7 @@ class BybitVolatilityHedgeStrategy(Strategy):
             print(f"Total equity: {total_equity}")
 
             current_price = self.exchange.get_current_price(symbol)
-            market_data = self.exchange.get_market_data_bybit(symbol)
+            market_data = self.get_market_data_with_retry(symbol, max_retries = 5, retry_delay = 5)
             best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
             best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
@@ -210,11 +210,9 @@ class BybitVolatilityHedgeStrategy(Strategy):
             print(f"Best ask: {best_ask_price}")
             print(f"Current price: {current_price}")
 
-            max_trade_qty = round(
-                (float(total_equity) * wallet_exposure / float(best_ask_price))
-                / (100 / max_leverage),
-                int(float(market_data["min_qty"])),
-            )            
+            max_trade_qty = self.calc_max_trade_qty(total_equity,
+                                                     best_ask_price,
+                                                     max_leverage)      
             
             print(f"Max trade quantity for {symbol}: {max_trade_qty}")
 
@@ -259,24 +257,8 @@ class BybitVolatilityHedgeStrategy(Strategy):
             print(f"Long pos price {long_pos_price}")
             print(f"Short pos price {short_pos_price}")
 
-            self.check_amount_validity_bybit(amount)
-            
-            if not self.printed_trade_quantities:
-                self.exchange.print_trade_quantities_bybit(max_trade_qty, [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
-                self.printed_trade_quantities = True
-
-
-            # formatted_symbol = self.format_symbol(symbol)
-            # tick_size = self.exchange.get_market_tick_size_bybit(formatted_symbol)
-
-            # print(f"Tick size: {tick_size}")
-
-            # precision_amount, precision_price, min_amount = self.exchange.get_precision_and_limits_bybit(formatted_symbol)
-
-            # print('Precision Amount:', precision_amount)
-            # print('Precision Price:', precision_price)
-            # print('Minimum Amount:', min_amount)
-
+            self.check_amount_validity_bybit(amount, symbol)
+            self.print_trade_quantities_once_bybit(max_trade_qty)
 
             # Take profit calc
             short_take_profit = self.calculate_short_take_profit(short_pos_price, symbol)
