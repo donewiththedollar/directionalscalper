@@ -5,6 +5,7 @@ project_dir = str(Path(__file__).resolve().parent)
 print("Project directory:", project_dir)
 sys.path.insert(0, project_dir)
 
+from rich.live import Live
 import argparse
 from pathlib import Path
 from config import load_config, Config
@@ -32,6 +33,7 @@ from directionalscalper.core.strategies.bybit.bybit_shortonly import BybitShortS
 from directionalscalper.core.strategies.bybit.bybit_longonly_dynamictp import BybitLongDynamicTP
 from directionalscalper.core.strategies.bybit.bybit_hedge_dynamictp import BybitHedgeDynamicTP
 from directionalscalper.core.strategies.bybit.bybit_hedge_dynamic_entryexit import BybitHedgeEntryExitDynamic
+from directionalscalper.core.strategies.bybit.bybit_hedge_dynamic_table import BybitHedgeDynamicTable
 from directionalscalper.core.strategies.huobi.huobi_hedge import HuobiHedgeStrategy
 from directionalscalper.core.strategies.binance.binance_hedge import BinanceHedgeStrategy
 from directionalscalper.core.strategies.phemex.phemex_hedge import PhemexHedgeStrategy
@@ -189,6 +191,15 @@ if __name__ == '__main__':
         elif strategy_name.lower() == 'bybit_hedge_dynamic_full':
             strategy = BybitHedgeEntryExitDynamic(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
+
+        elif strategy_name.lower() == 'bybit_hedge_dynamic_table':
+            strategy = BybitHedgeDynamicTable(market_maker.exchange, market_maker.manager, config.bot)
+            
+            if hasattr(strategy, 'table'):  # check if 'table' attribute exists
+                with Live(strategy.table.table, refresh_per_second=4) as live:  # adjust refresh rate as needed
+                    strategy.run(symbol)
+            else:
+                strategy.run(symbol) 
 
         elif strategy_name.lower() == 'bybit_hedge_grid':
             strategy = BybitHedgeGridStrategy(market_maker.exchange, market_maker.manager, config.bot)

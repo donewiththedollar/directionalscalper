@@ -300,10 +300,18 @@ class Strategy:
         else:
             return 0
 
+    def update_table(self):
+        # Define conditions
+        short_condition = "Short Take Profit"
+        long_condition = "Long Take Profit"
 
-class HedgeStrategy(Strategy):
-    # HedgeStrategy specific methods go here
+        # Define status (You may want to replace this with actual checks)
+        short_status = "[green]:heavy_check_mark:" if self.short_take_profit else "off"
+        long_status = "[green]:heavy_check_mark:" if self.long_take_profit else "off"
 
-    def create_limit_order(self, symbol, side, amount, price):
-        # 
-        pass
+        # Clear the existing table rows
+        self.table.table.rows.clear()
+
+        # Add updated rows
+        self.table.add_row(short_condition, self.short_take_profit, self.short_take_profit, short_status)
+        self.table.add_row(long_condition, self.long_take_profit, self.long_take_profit, long_status)
