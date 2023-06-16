@@ -300,18 +300,18 @@ class Strategy:
         else:
             return 0
 
+
     def update_table(self):
-        # Define conditions
-        short_condition = "Short Take Profit"
-        long_condition = "Long Take Profit"
-
-        # Define status (You may want to replace this with actual checks)
-        short_status = "[green]:heavy_check_mark:" if self.short_take_profit else "off"
-        long_status = "[green]:heavy_check_mark:" if self.long_take_profit else "off"
-
         # Clear the existing table rows
         self.table.table.rows.clear()
 
-        # Add updated rows
-        self.table.add_row(short_condition, self.short_take_profit, self.short_take_profit, short_status)
-        self.table.add_row(long_condition, self.long_take_profit, self.long_take_profit, long_status)
+        # Add rows individually
+        self.table.add_row('Symbol', self.symbol)
+        self.table.add_row('Long pos qty', self.long_pos_qty)
+        self.table.add_row('Short pos qty', self.short_pos_qty)
+        self.table.add_row('Long upnl', self.long_upnl)
+        self.table.add_row('Short upnl', self.short_upnl)
+        self.table.add_row('Long cum pnl', self.cum_realised_pnl_long)
+        self.table.add_row('Short cum pnl', self.cum_realised_pnl_short)
+        self.table.add_row('Long take profit', self.long_take_profit)
+        self.table.add_row('Short Take profit', self.short_take_profit)
