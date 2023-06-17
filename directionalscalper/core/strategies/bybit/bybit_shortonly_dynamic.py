@@ -4,7 +4,7 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_DOWN
 from ..strategy import Strategy
 from typing import Tuple
 
-class BybitLongDynamicTP(Strategy):
+class BybitShortOnlyDynamic(Strategy):
     def __init__(self, exchange, manager, config):
         super().__init__(exchange, config, manager)
         self.manager = manager
@@ -28,10 +28,8 @@ class BybitLongDynamicTP(Strategy):
             # Reduce the position to the desired wallet exposure level
             self.exchange.reduce_position_bybit(symbol, reduction_qty)
 
-
     def truncate(self, number: float, precision: int) -> float:
         return float(Decimal(number).quantize(Decimal('0.' + '0'*precision), rounding=ROUND_DOWN))
-
 
     def limit_order(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
         params = {"reduceOnly": reduceOnly}
@@ -55,7 +53,7 @@ class BybitLongDynamicTP(Strategy):
     def cancel_take_profit_orders(self, symbol, side):
         self.exchange.cancel_close_bybit(symbol, side)
 
-    def run(self, symbol, amount):
+    def run(self, symbol):
         wallet_exposure = self.config.wallet_exposure
         min_dist = self.config.min_distance
         min_vol = self.config.min_volume
@@ -120,16 +118,36 @@ class BybitLongDynamicTP(Strategy):
             
             print(f"Max trade quantity for {symbol}: {max_trade_qty}")
 
-            min_qty_bybit = market_data["min_qty"]
-            print(f"Min qty: {min_qty_bybit}")
+            # Calculate the dynamic amount
+            amount = 0.001 * max_trade_qty
+
+            min_qty = float(market_data["min_qty"])
+            min_qty_str = str(min_qty)
+
+            # Get the precision level of the minimum quantity
+            if ".0" in min_qty_str:
+                # The minimum quantity does not have a fractional part, precision is 0
+                precision_level = 0
+            else:
+                # The minimum quantity has a fractional part, get its precision level
+                precision_level = len(min_qty_str.split(".")[1])
+
+            # Calculate the dynamic amount
+            amount = 0.001 * max_trade_qty
+
+            # Round the amount to the precision level of the minimum quantity
+            amount = round(amount, precision_level)
+
+            print(f"Dynamic amount: {amount}")
+
+            # Check if the amount is less than the minimum quantity allowed by the exchange
+            if amount < min_qty:
+                print(f"Dynamic amount too small for 0.001x, using min_qty")
+                amount = min_qty
 
             self.check_amount_validity_bybit(amount, symbol)
 
             self.print_trade_quantities_once_bybit(max_trade_qty)
-
-            if not self.printed_trade_quantities:
-                self.exchange.print_trade_quantities_bybit(max_trade_qty, [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
-                self.printed_trade_quantities = True
 
             # Get the 1-minute moving averages
             print(f"Fetching MA data")
@@ -143,79 +161,77 @@ class BybitLongDynamicTP(Strategy):
 
             position_data = self.exchange.get_positions_bybit(symbol)
 
+            short_pos_qty = position_data["short"]["qty"]
+
+            print(f"Short pos qty: {short_pos_qty}")
+
+            short_upnl = position_data["short"]["upnl"]
+
+            print(f"Short uPNL: {short_upnl}")
+
+            cum_realised_pnl_short = position_data["short"]["cum_realised"]
+
+            print(f"Short cum. PNL: {cum_realised_pnl_short}")
+
+            short_pos_price = position_data["short"]["price"] if short_pos_qty > 0 else None
+
+            print(f"Short pos price {short_pos_price}")
+
             #print(f"Bybit pos data: {position_data}")
 
-            long_pos_qty = position_data["long"]["qty"]
-
-            print(f"Long pos qty: {long_pos_qty}")
-
-            long_upnl = position_data["long"]["upnl"]
-
-            print(f"Long uPNL: {long_upnl}")
-
-            cum_realised_pnl_long = position_data["long"]["cum_realised"]
-
-            print(f"Long cum. PNL: {cum_realised_pnl_long}")
-
-            long_pos_price = position_data["long"]["price"] if long_pos_qty > 0 else None
-
-            print(f"Long pos price {long_pos_price}")
-
             # Take profit calc
-            long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, thirty_minute_distance)
+            short_take_profit = self.calculate_long_take_profit_spread_bybit(short_pos_price, symbol, thirty_minute_distance)
 
             should_short = best_bid_price > ma_3_high
-            should_long = best_bid_price < ma_3_high
 
             should_add_to_short = False
-            should_add_to_long = False
              
-            if long_pos_price is not None:
-                should_add_to_long = long_pos_price > ma_6_low
-                long_tp_distance_percent = ((long_take_profit - long_pos_price) / long_pos_price) * 100
-                long_expected_profit_usdt = long_tp_distance_percent / 100 * long_pos_price * long_pos_qty
-                print(f"Long TP price: {long_take_profit}, TP distance in percent: {long_tp_distance_percent:.2f}%, Expected profit: {long_expected_profit_usdt:.2f} USDT")
+            if short_pos_price is not None:
+                should_add_to_short = short_pos_price < ma_6_low
+                short_tp_distance_percent = ((short_take_profit - short_pos_price) / short_pos_price) * 100
+                short_expected_profit_usdt = short_tp_distance_percent / 100 * short_pos_price * short_pos_qty
+                print(f"Short TP price: {short_take_profit}, TP distance in percent: {-short_tp_distance_percent:.2f}%, Expected profit: {-short_expected_profit_usdt:.2f} USDT")
 
 
-            print(f"Long condition: {should_long}")
-            print(f"Add long condition: {should_add_to_long}")
+            print(f"Short condition: {should_short}")
+            print(f"Add short condition: {should_add_to_short}")
 
             if trend is not None and isinstance(trend, str):
                 if one_minute_volume is not None and five_minute_distance is not None:
                     if one_minute_volume > min_vol and five_minute_distance > min_dist:
 
-                        if trend.lower() == "long" and should_long and long_pos_qty == 0:
-                            print(f"Placing initial long entry")
-                            self.limit_order(symbol, "buy", amount, best_bid_price, positionIdx=1, reduceOnly=False)
-                            print(f"Placed initial long entry")
+                        if trend.lower() == "short" and should_short and short_pos_qty == 0:
+                            print(f"Placing initial short entry")
+                            self.limit_order(symbol, "sell", amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                            print("Placed initial short entry")
                         else:
-                            if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
-                                print(f"Placed additional long entry")
-                                self.limit_order(symbol, "buy", amount, best_bid_price, positionIdx=1, reduceOnly=False)
-
+                            if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
+                                print(f"Placed additional short entry")
+                                self.limit_order(symbol, "sell", amount, best_bid_price, positionIdx=2, reduceOnly=False)
+        
             open_orders = self.exchange.get_open_orders(symbol)
 
-            if long_pos_qty > 0 and long_take_profit is not None:
-                existing_long_tps = self.get_open_take_profit_order_quantities(open_orders, "sell")
-                total_existing_long_tp_qty = sum(qty for qty, _ in existing_long_tps)
-                print(f"Existing long TPs: {existing_long_tps}")
-                if not math.isclose(total_existing_long_tp_qty, long_pos_qty):
+            if short_pos_qty > 0 and short_take_profit is not None:
+                existing_short_tps = self.get_open_take_profit_order_quantities(open_orders, "buy")
+                total_existing_short_tp_qty = sum(qty for qty, _ in existing_short_tps)
+                print(f"Existing short TPs: {existing_short_tps}")
+                if not math.isclose(total_existing_short_tp_qty, short_pos_qty):
                     try:
-                        for qty, existing_long_tp_id in existing_long_tps:
-                            if not math.isclose(qty, long_pos_qty):
-                                self.exchange.cancel_take_profit_order_by_id(existing_long_tp_id, symbol)
-                                print(f"Long take profit {existing_long_tp_id} canceled")
+                        for qty, existing_short_tp_id in existing_short_tps:
+                            if not math.isclose(qty, short_pos_qty):
+                                self.exchange.cancel_take_profit_order_by_id(existing_short_tp_id, symbol)
+                                print(f"Short take profit {existing_short_tp_id} canceled")
                                 time.sleep(0.05)
                     except Exception as e:
-                        print(f"Error in cancelling long TP orders {e}")
+                        print(f"Error in cancelling short TP orders: {e}")
 
-                if len(existing_long_tps) < 1:
+                if len(existing_short_tps) < 1:
                     try:
-                        self.exchange.create_take_profit_order_bybit(symbol, "limit", "sell", long_pos_qty, long_take_profit, positionIdx=1, reduce_only=True)
-                        print(f"Long take profit set at {long_take_profit}")
+                        self.exchange.create_take_profit_order_bybit(symbol, "limit", "buy", short_pos_qty, short_take_profit, positionIdx=2, reduce_only=True)
+                        print(f"Short take profit set at {short_take_profit}")
                         time.sleep(0.05)
                     except Exception as e:
-                        print(f"Error in placing long TP: {e}")
+                        print(f"Error in placing short TP: {e}")
 
             # Cancel entries
             current_time = time.time()
