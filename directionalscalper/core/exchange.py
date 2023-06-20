@@ -445,6 +445,22 @@ class Exchange:
                     return float(currency_balance['equity'])
         return None
 
+    # Bybit
+    def get_available_balance_bybit(self, quote):
+        if self.exchange.has['fetchBalance']:
+            # Fetch the balance
+            balance = self.exchange.fetch_balance()
+
+            # Find the quote balance
+            try:
+                for currency_balance in balance['info']['result']['list']:
+                    if currency_balance['coin'] == quote:
+                        return float(currency_balance['availableBalance'])
+            except KeyError as e:
+                print(f"KeyError: {e}")
+                print(balance)  # Print the balance if there was a KeyError
+        return None
+
     # Binance
     def get_balance_binance(self, symbol: str):
         if self.exchange.has['fetchBalance']:
@@ -712,6 +728,21 @@ class Exchange:
         except Exception as e:
             log.warning(f"An unknown error occurred in get_positions_bitget(): {e}")
         return values
+
+    # Bybit
+    def get_best_bid_ask_bybit(self, symbol):
+        orderbook = self.exchange.get_orderbook(symbol)
+        try:
+            best_ask_price = orderbook['asks'][0][0]
+        except IndexError:
+            best_ask_price = None
+        try:
+            best_bid_price = orderbook['bids'][0][0]
+        except IndexError:
+            best_bid_price = None
+
+        return best_bid_price, best_ask_price
+
 
     # Bybit 
     def get_positions_bybit(self, symbol) -> dict:

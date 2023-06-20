@@ -83,12 +83,14 @@ class BybitHedgeEntryExitDynamic(Strategy):
             # Get API data
             data = self.manager.get_data()
             one_minute_volume = self.manager.get_asset_value(symbol, data, "1mVol")
+            one_minute_distance = self.manager.get_asset_value(symbol, data, "1mSpread")
             five_minute_distance = self.manager.get_asset_value(symbol, data, "5mSpread")
             thirty_minute_distance = self.manager.get_asset_value(symbol, data, "30mSpread")
             one_hour_distance = self.manager.get_asset_value(symbol, data, "1hSpread")
             four_hour_distance = self.manager.get_asset_value(symbol, data, "4hSpread")
             trend = self.manager.get_asset_value(symbol, data, "Trend")
             print(f"1m Volume: {one_minute_volume}")
+            print(f"1m Spread: {one_minute_distance}")
             print(f"5m Spread: {five_minute_distance}")
             print(f"30m Spread: {thirty_minute_distance}")
             print(f"1h Spread: {one_hour_distance}")
@@ -113,6 +115,19 @@ class BybitHedgeEntryExitDynamic(Strategy):
                         raise e
                     
             print(f"Total equity: {total_equity}")
+
+            for i in range(max_retries):
+                try:
+                    available_equity = self.exchange.get_available_balance_bybit(quote_currency)
+                    break
+                except Exception as e:
+                    if i < max_retries - 1:
+                        print(f"Error occurred while fetching available balance: {e}. Retrying in {retry_delay} seconds...")
+                        time.sleep(retry_delay)
+                    else:
+                        raise e
+
+            print(f"Available equity: {available_equity}")
 
             current_price = self.exchange.get_current_price(symbol)
             market_data = self.get_market_data_with_retry(symbol, max_retries = 5, retry_delay = 5)
@@ -210,6 +225,9 @@ class BybitHedgeEntryExitDynamic(Strategy):
             print(f"Long pos price {long_pos_price}")
             print(f"Short pos price {short_pos_price}")
 
+            short_take_profit = None
+            long_take_profit = None
+
             if five_minute_distance != previous_five_minute_distance:
                 short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, five_minute_distance)
                 long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
@@ -224,7 +242,7 @@ class BybitHedgeEntryExitDynamic(Strategy):
             print(f"Long TP: {long_take_profit}")
 
             should_short = self.short_trade_condition(best_bid_price, ma_3_high)
-            should_long = self.long_trade_condition(best_bid_price, ma_3_low)
+            should_long = self.long_trade_condition(best_bid_price, ma_3_high)
 
             should_add_to_short = False
             should_add_to_long = False

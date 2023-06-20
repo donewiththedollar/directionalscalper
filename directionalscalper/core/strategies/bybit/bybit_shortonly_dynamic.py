@@ -71,7 +71,7 @@ class BybitShortOnlyDynamic(Strategy):
             self.exchange.set_leverage_bybit(max_leverage, symbol)
 
         while True:
-            print(f"Bybit long only strategy running")
+            print(f"Bybit short only strategy running")
             print(f"Min volume: {min_vol}")
             print(f"Min distance: {min_dist}")
 
