@@ -3,10 +3,6 @@ import math
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_DOWN
 from ..strategy import Strategy
 from typing import Tuple
-#from ...tables import create_strategy_table, start_live_table
-#from directionalscalper.core.tables import create_strategy_table, start_live_table
-import threading
-import os
 
 class BybitVolatilityHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):
@@ -16,132 +12,6 @@ class BybitVolatilityHedgeStrategy(Strategy):
         self.wallet_exposure_limit = self.config.wallet_exposure_limit
         self.current_wallet_exposure = 1.0
         self.printed_trade_quantities = False
-
-    # def format_symbol(self, symbol):
-    #     base = symbol[:-4]  # Get all characters in symbol except last 4 ('USDT')
-    #     return f"{base}/USD"
-
-    def format_symbol(self, symbol):
-        """
-        Format the given symbol string to include a '/' between the base and quote currencies.
-        The function handles base currencies of 3 to 4 characters and quote currencies of 3 to 4 characters.
-        """
-        quote_currencies = ["USDT", "USD", "BTC", "ETH"]
-        for quote in quote_currencies:
-            if symbol.endswith(quote):
-                base = symbol[:-len(quote)]
-                return base + '/' + quote
-        return None
-
-    def calculate_trade_quantity(self, symbol, leverage):
-        dex_equity = self.exchange.get_balance_bybit('USDT')
-        trade_qty = (float(dex_equity) * self.current_wallet_exposure) / leverage
-        return trade_qty
-
-    def adjust_position_wallet_exposure(self, symbol):
-        if self.current_wallet_exposure > self.wallet_exposure_limit:
-            desired_wallet_exposure = self.wallet_exposure_limit
-            # Calculate the necessary position size to achieve the desired wallet exposure
-            max_trade_qty = self.calculate_trade_quantity(symbol, 1)
-            current_trade_qty = self.calculate_trade_quantity(symbol, 1 / self.current_wallet_exposure)
-            reduction_qty = current_trade_qty - max_trade_qty
-            # Reduce the position to the desired wallet exposure level
-            self.exchange.reduce_position_bybit(symbol, reduction_qty)
-
-    def truncate(self, number: float, precision: int) -> float:
-        return float(Decimal(number).quantize(Decimal('0.' + '0'*precision), rounding=ROUND_DOWN))
-
-    def limit_order(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
-        params = {"reduceOnly": reduceOnly}
-        #print(f"Symbol: {symbol}, Side: {side}, Amount: {amount}, Price: {price}, Params: {params}")
-        order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
-        return order
-
-    def get_open_take_profit_order_quantity(self, orders, side):
-        for order in orders:
-            if order['side'].lower() == side.lower() and order['reduce_only']:
-                return order['qty'], order['id']
-        return None, None
-
-    def get_open_take_profit_order_quantities(self, orders, side):
-        take_profit_orders = []
-        for order in orders:
-            if order['side'].lower() == side.lower() and order['reduce_only']:
-                take_profit_orders.append((order['qty'], order['id']))
-        return take_profit_orders
-
-    def cancel_take_profit_orders(self, symbol, side):
-        self.exchange.cancel_close_bybit(symbol, side)
-
-    def calculate_short_take_profit(self, short_pos_price, symbol):
-        if short_pos_price is None:
-            return None
-
-        five_min_data = self.manager.get_5m_moving_averages(symbol)
-        price_precision = int(self.exchange.get_price_precision(symbol))
-
-        #print("Debug: Price Precision for Symbol (", symbol, "):", price_precision)
-
-        if five_min_data is not None:
-            ma_6_high = Decimal(five_min_data["MA_6_H"])
-            ma_6_low = Decimal(five_min_data["MA_6_L"])
-
-            try:
-                short_target_price = Decimal(short_pos_price) - (ma_6_high - ma_6_low)
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when calculating short_target_price. short_pos_price={short_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
-                return None
-
-            try:
-                short_target_price = short_target_price.quantize(
-                    Decimal('1e-{}'.format(price_precision)),
-                    rounding=ROUND_HALF_UP
-                )
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when quantizing short_target_price. short_target_price={short_target_price}, price_precision={price_precision}")
-                return None
-
-            #print("Debug: Short Target Price:", short_target_price)
-
-            short_profit_price = short_target_price
-
-            return float(short_profit_price)
-        return None
-
-    def calculate_long_take_profit(self, long_pos_price, symbol):
-        if long_pos_price is None:
-            return None
-
-        five_min_data = self.manager.get_5m_moving_averages(symbol)
-        price_precision = int(self.exchange.get_price_precision(symbol))
-
-        #print("Debug: Price Precision for Symbol (", symbol, "):", price_precision)
-
-        if five_min_data is not None:
-            ma_6_high = Decimal(five_min_data["MA_6_H"])
-            ma_6_low = Decimal(five_min_data["MA_6_L"])
-
-            try:
-                long_target_price = Decimal(long_pos_price) + (ma_6_high - ma_6_low)
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when calculating long_target_price. long_pos_price={long_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
-                return None
-
-            try:
-                long_target_price = long_target_price.quantize(
-                    Decimal('1e-{}'.format(price_precision)),
-                    rounding=ROUND_HALF_UP
-                )
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when quantizing long_target_price. long_target_price={long_target_price}, price_precision={price_precision}")
-                return None
-
-            print("Debug: Long Target Price:", long_target_price)
-
-            long_profit_price = long_target_price
-
-            return float(long_profit_price)
-        return None
 
     def calculate_quantity(self, pos_price, take_profit, best_ask_price, amount, symbol, four_hour_distance, thirty_minute_distance):
         # Fetch the precision for the symbol
@@ -326,21 +196,21 @@ class BybitVolatilityHedgeStrategy(Strategy):
 
                         if trend.lower() == "long" and should_long and long_pos_qty == 0:
                             print(f"Placing initial long entry")
-                            self.limit_order(symbol, "buy", amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                            self.limit_order_bybit(symbol, "buy", amount, best_bid_price, positionIdx=1, reduceOnly=False)
                             print(f"Placed initial long entry")
                         else:
                             if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
                                 print(f"Placed additional long entry")
-                                self.limit_order(symbol, "buy", ob_long_qty, best_bid_price, positionIdx=1, reduceOnly=False)
+                                self.limit_order_bybit(symbol, "buy", ob_long_qty, best_bid_price, positionIdx=1, reduceOnly=False)
 
                         if trend.lower() == "short" and should_short and short_pos_qty == 0:
                             print(f"Placing initial short entry")
-                            self.limit_order(symbol, "sell", amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                            self.limit_order_bybit(symbol, "sell", amount, best_ask_price, positionIdx=2, reduceOnly=False)
                             print("Placed initial short entry")
                         else:
                             if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
                                 print(f"Placed additional short entry")
-                                self.limit_order(symbol, "sell", ob_short_qty, best_bid_price, positionIdx=2, reduceOnly=False)
+                                self.limit_order_bybit(symbol, "sell", ob_short_qty, best_bid_price, positionIdx=2, reduceOnly=False)
         
             open_orders = self.exchange.get_open_orders(symbol)
 

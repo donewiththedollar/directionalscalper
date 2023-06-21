@@ -15,118 +15,6 @@ class BybitHedgeGridStrategy(Strategy):
         self.current_wallet_exposure = 1.0
         self.printed_trade_quantities = False
 
-    def calculate_trade_quantity(self, symbol, leverage):
-        dex_equity = self.exchange.get_balance_bybit('USDT')
-        trade_qty = (float(dex_equity) * self.current_wallet_exposure) / leverage
-        return trade_qty
-
-    def adjust_position_wallet_exposure(self, symbol):
-        if self.current_wallet_exposure > self.wallet_exposure_limit:
-            desired_wallet_exposure = self.wallet_exposure_limit
-            # Calculate the necessary position size to achieve the desired wallet exposure
-            max_trade_qty = self.calculate_trade_quantity(symbol, 1)
-            current_trade_qty = self.calculate_trade_quantity(symbol, 1 / self.current_wallet_exposure)
-            reduction_qty = current_trade_qty - max_trade_qty
-            # Reduce the position to the desired wallet exposure level
-            self.exchange.reduce_position_bybit(symbol, reduction_qty)
-
-
-    def truncate(self, number: float, precision: int) -> float:
-        return float(Decimal(number).quantize(Decimal('0.' + '0'*precision), rounding=ROUND_DOWN))
-
-
-    def limit_order(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
-        params = {"reduceOnly": reduceOnly}
-        #print(f"Symbol: {symbol}, Side: {side}, Amount: {amount}, Price: {price}, Params: {params}")
-        order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
-        return order
-
-    def get_open_take_profit_order_quantity(self, orders, side):
-        for order in orders:
-            if order['side'].lower() == side.lower() and order['reduce_only']:
-                return order['qty'], order['id']
-        return None, None
-
-    def get_open_take_profit_order_quantities(self, orders, side):
-        take_profit_orders = []
-        for order in orders:
-            if order['side'].lower() == side.lower() and order['reduce_only']:
-                take_profit_orders.append((order['qty'], order['id']))
-        return take_profit_orders
-
-    def cancel_take_profit_orders(self, symbol, side):
-        self.exchange.cancel_close_bybit(symbol, side)
-
-    def calculate_short_take_profit(self, short_pos_price, symbol):
-        if short_pos_price is None:
-            return None
-
-        five_min_data = self.manager.get_5m_moving_averages(symbol)
-        price_precision = int(self.exchange.get_price_precision(symbol))
-
-        #print("Debug: Price Precision for Symbol (", symbol, "):", price_precision)
-
-        if five_min_data is not None:
-            ma_6_high = Decimal(five_min_data["MA_6_H"])
-            ma_6_low = Decimal(five_min_data["MA_6_L"])
-
-            try:
-                short_target_price = Decimal(short_pos_price) - (ma_6_high - ma_6_low)
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when calculating short_target_price. short_pos_price={short_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
-                return None
-
-            try:
-                short_target_price = short_target_price.quantize(
-                    Decimal('1e-{}'.format(price_precision)),
-                    rounding=ROUND_HALF_UP
-                )
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when quantizing short_target_price. short_target_price={short_target_price}, price_precision={price_precision}")
-                return None
-
-            #print("Debug: Short Target Price:", short_target_price)
-
-            short_profit_price = short_target_price
-
-            return float(short_profit_price)
-        return None
-
-    def calculate_long_take_profit(self, long_pos_price, symbol):
-        if long_pos_price is None:
-            return None
-
-        five_min_data = self.manager.get_5m_moving_averages(symbol)
-        price_precision = int(self.exchange.get_price_precision(symbol))
-
-        #print("Debug: Price Precision for Symbol (", symbol, "):", price_precision)
-
-        if five_min_data is not None:
-            ma_6_high = Decimal(five_min_data["MA_6_H"])
-            ma_6_low = Decimal(five_min_data["MA_6_L"])
-
-            try:
-                long_target_price = Decimal(long_pos_price) + (ma_6_high - ma_6_low)
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when calculating long_target_price. long_pos_price={long_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
-                return None
-
-            try:
-                long_target_price = long_target_price.quantize(
-                    Decimal('1e-{}'.format(price_precision)),
-                    rounding=ROUND_HALF_UP
-                )
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when quantizing long_target_price. long_target_price={long_target_price}, price_precision={price_precision}")
-                return None
-
-            #print("Debug: Long Target Price:", long_target_price)
-
-            long_profit_price = long_target_price
-
-            return float(long_profit_price)
-        return None
-
     # def create_long_grid_entries(self, symbol, amount, price, distance):
     #     # Create long grid entries
     #     entry_prices = [round(price / distance * (1 - i), 8) for i in range(3)]
@@ -165,9 +53,9 @@ class BybitHedgeGridStrategy(Strategy):
         # Place the grid orders
         for i in range(max_orders):
             if position.lower() == "long":
-                self.limit_order(symbol, "buy", amount, order_price, positionIdx=1, reduceOnly=False)
+                self.limit_order_bybit(symbol, "buy", amount, order_price, positionIdx=1, reduceOnly=False)
             elif position.lower() == "short":
-                self.limit_order(symbol, "sell", amount, order_price, positionIdx=2, reduceOnly=False)
+                self.limit_order_bybit(symbol, "sell", amount, order_price, positionIdx=2, reduceOnly=False)
             else:
                 print(f"Invalid position type: {position}")
                 return
@@ -286,7 +174,7 @@ class BybitHedgeGridStrategy(Strategy):
 
             print(f"Long pos price {long_pos_price}")
             print(f"Short pos price {short_pos_price}")
-            
+
             # Take profit calc
             short_take_profit = self.calculate_short_take_profit_bybit(short_pos_price, symbol)
             long_take_profit = self.calculate_long_take_profit_bybit(long_pos_price, symbol)
