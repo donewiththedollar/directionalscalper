@@ -142,7 +142,7 @@ class BybitShortOnlyDynamic(Strategy):
             #print(f"Bybit pos data: {position_data}")
 
             # Take profit calc
-            short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, thirty_minute_distance)
+            short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, five_minute_distance)
 
             should_short = best_bid_price > ma_3_high
 

@@ -140,7 +140,7 @@ class BybitLongOnlyDynamic(Strategy):
             print(f"Long pos price {long_pos_price}")
 
             # Take profit calc
-            long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, thirty_minute_distance)
+            long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
 
             should_short = best_bid_price > ma_3_high
             should_long = best_bid_price < ma_3_high
