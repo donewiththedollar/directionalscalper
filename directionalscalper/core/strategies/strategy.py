@@ -118,6 +118,17 @@ class Strategy:
             print(f"The amount you entered ({amount}) is valid for {symbol}")
             return True
 
+    def check_amount_validity_once_bybit(self, amount, symbol):
+        if not self.check_amount_validity_bybit:
+            market_data = self.exchange.get_market_data_bybit(symbol)
+            min_qty_bybit = market_data["min_qty"]
+            if float(amount) < min_qty_bybit:
+                print(f"The amount you entered ({amount}) is less than the minimum required by Bybit for {symbol}: {min_qty_bybit}.")
+                return False
+            else:
+                print(f"The amount you entered ({amount}) is valid for {symbol}")
+                return True
+
     def print_trade_quantities_once_bybit(self, max_trade_qty):
         if not self.printed_trade_quantities:
             wallet_exposure = self.config.wallet_exposure
@@ -429,6 +440,21 @@ class Strategy:
     #         self.table.add_row('Long take profit', self.long_take_profit)
     #         self.table.add_row('Short Take profit', self.short_take_profit)
 
+### WORKING ###
+    # def update_table(self):
+    #     # Clear the existing table rows
+    #     self.table.table.rows.clear()
+
+    #     # Add rows individually
+    #     self.table.add_row('Symbol', self.symbol)
+    #     self.table.add_row('Long pos qty', self.long_pos_qty)
+    #     self.table.add_row('Short pos qty', self.short_pos_qty)
+    #     self.table.add_row('Long upnl', self.long_upnl)
+    #     self.table.add_row('Short upnl', self.short_upnl)
+    #     self.table.add_row('Long cum pnl', self.cum_realised_pnl_long)
+    #     self.table.add_row('Short cum pnl', self.cum_realised_pnl_short)
+    #     self.table.add_row('Long take profit', self.long_take_profit)
+    #     self.table.add_row('Short Take profit', self.short_take_profit)
 
 
     def update_table(self):
@@ -445,20 +471,3 @@ class Strategy:
         self.table.add_row('Short cum pnl', self.cum_realised_pnl_short if self.cum_realised_pnl_short is not None else 'N/A')
         self.table.add_row('Long take profit', self.long_take_profit if self.long_take_profit is not None else 'N/A')
         self.table.add_row('Short Take profit', self.short_take_profit if self.short_take_profit is not None else 'N/A')
-
-
-### WORKING ###
-    # def update_table(self):
-    #     # Clear the existing table rows
-    #     self.table.table.rows.clear()
-
-    #     # Add rows individually
-    #     self.table.add_row('Symbol', self.symbol)
-    #     self.table.add_row('Long pos qty', self.long_pos_qty)
-    #     self.table.add_row('Short pos qty', self.short_pos_qty)
-    #     self.table.add_row('Long upnl', self.long_upnl)
-    #     self.table.add_row('Short upnl', self.short_upnl)
-    #     self.table.add_row('Long cum pnl', self.cum_realised_pnl_long)
-    #     self.table.add_row('Short cum pnl', self.cum_realised_pnl_short)
-    #     self.table.add_row('Long take profit', self.long_take_profit)
-    #     self.table.add_row('Short Take profit', self.short_take_profit)

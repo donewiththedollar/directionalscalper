@@ -12,7 +12,13 @@ class BybitHedgeUnstuckStrategy(Strategy):
         self.wallet_exposure_limit = self.config.wallet_exposure_limit
         self.current_wallet_exposure = 1.0
         self.printed_trade_quantities = False
-        self.max_trade_qty = None
+        self.checked_amount_validity = False
+        self.max_long_trade_qty = None
+        self.max_short_trade_qty = None
+        self.initial_max_long_trade_qty = None
+        self.initial_max_short_trade_qty = None
+        self.long_leverage_increased = False
+        self.short_leverage_increased = False
 
     def run(self, symbol):
         wallet_exposure = self.config.wallet_exposure
@@ -37,7 +43,7 @@ class BybitHedgeUnstuckStrategy(Strategy):
         previous_four_hour_distance = None
 
         while True:
-            print(f"Bybit hedge dynamic entry/exit strategy running")
+            print(f"[Bybit hedge dynamic entry/exit unstuck strategy running]")
             print(f"Min volume: {min_vol}")
             print(f"Min distance: {min_dist}")
 
@@ -100,23 +106,29 @@ class BybitHedgeUnstuckStrategy(Strategy):
             print(f"Best ask: {best_ask_price}")
             print(f"Current price: {current_price}")
 
-            if self.max_trade_qty is None:
-                self.max_trade_qty = self.calc_max_trade_qty(total_equity,
-                                                            best_ask_price,
-                                                            max_leverage)
-                
-            # max_trade_qty = self.calc_max_trade_qty(total_equity,
-            #                                          best_ask_price,
-            #                                          max_leverage)
+            if self.max_long_trade_qty is None or self.max_short_trade_qty is None:
+                self.max_long_trade_qty = self.max_short_trade_qty = self.calc_max_trade_qty(total_equity,
+                                                                                             best_ask_price,
+                                                                                             max_leverage)
 
-            print(f"Max trade quantity for {symbol}: {self.max_trade_qty}")
-
-
+                # Set initial quantities if they're None
+                if self.initial_max_long_trade_qty is None:
+                    self.initial_max_long_trade_qty = self.max_long_trade_qty
+                    print(f"Initial max trade qty set to {self.initial_max_long_trade_qty}")
+                if self.initial_max_short_trade_qty is None:
+                    self.initial_max_short_trade_qty = self.max_short_trade_qty  
+                    print(f"Initial trade qty set to {self.initial_max_short_trade_qty}")                                                            
+                        
+            print(f"Max long trade quantity for {symbol}: {self.max_long_trade_qty}")
+            print(f"Max short trade quantity for {symbol}: {self.max_short_trade_qty}")
+            print(f"Initial long trade qty locked: {self.initial_max_long_trade_qty}")
+            print(f"Initial short trade qty locked: {self.initial_short_trade_qty}")
             # debug_data = market_data
             # print(f"Debug market data: {debug_data}")
 
             # Calculate the dynamic amount
-            amount = 0.001 * self.max_trade_qty
+            long_dynamic_amount = 0.001 * self.initial_max_long_trade_qty
+            short_dynamic_amount = 0.001 * self.initial_max_short_trade_qty
 
             min_qty = float(market_data["min_qty"])
             min_qty_str = str(min_qty)
@@ -129,24 +141,29 @@ class BybitHedgeUnstuckStrategy(Strategy):
                 # The minimum quantity has a fractional part, get its precision level
                 precision_level = len(min_qty_str.split(".")[1])
 
-            # Calculate the dynamic amount
-            amount = 0.001 * self.max_trade_qty
-
             # Round the amount to the precision level of the minimum quantity
-            amount = round(amount, precision_level)
+            long_dynamic_amount = round(long_dynamic_amount, precision_level)
+            short_dynamic_amount = round(short_dynamic_amount, precision_level)
 
-            print(f"Dynamic amount: {amount}")
+            print(f"Long dynamic amount: {long_dynamic_amount}")
+            print(f"Short dynamic amount: {short_dynamic_amount}")
+
+            self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
+            self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
 
             # Check if the amount is less than the minimum quantity allowed by the exchange
-            if amount < min_qty:
+            if long_dynamic_amount < min_qty:
                 print(f"Dynamic amount too small for 0.001x, using min_qty")
-                amount = min_qty
+                long_dynamic_amount = min_qty
+            
+            if short_dynamic_amount < min_qty:
+                print(f"Dynamic amount too small for 0.001x, using min_qty")
+                short_dynamic_amount = min_qty
 
             print(f"Min qty: {min_qty}")
 
-            self.check_amount_validity_bybit(amount, symbol)
-
-            self.print_trade_quantities_once_bybit(self.max_trade_qty)
+            self.print_trade_quantities_once_bybit(self.max_long_trade_qty)
+            self.print_trade_quantities_once_bybit(self.max_short_trade_qty)
 
             #self.exchange.debug_derivatives_markets_bybit()
 
@@ -174,13 +191,37 @@ class BybitHedgeUnstuckStrategy(Strategy):
             print(f"Short pos qty: {short_pos_qty}")
             print(f"Long pos qty: {long_pos_qty}")
 
-            if long_pos_qty >= self.max_trade_qty or short_pos_qty >= self.max_trade_qty:
-                self.max_trade_qty *= 2  # double the maximum trade quantity
-                print(f"Leverage increased to 2x")
-            elif long_pos_qty < self.max_trade_qty and short_pos_qty < self.max_trade_qty:
-                self.max_trade_qty = self.calc_max_trade_qty(total_equity,
-                                                            best_ask_price,
-                                                            max_leverage)  # reset to the default value
+            if long_pos_qty >= self.max_long_trade_qty:
+                self.max_long_trade_qty *= 2  # double the maximum long trade quantity
+                print(f"Long leverage temporarily increased to 2x")
+                self.long_leverage_increased = True
+            elif long_pos_qty < self.max_long_trade_qty:
+                self.max_long_trade_qty = self.calc_max_trade_qty(total_equity,
+                                                                  best_ask_price,
+                                                                  max_leverage)
+                print(f"Long leverage returned to normal 1x")
+                self.long_leverage_increased = False
+
+            if short_pos_qty >= self.max_short_trade_qty:
+                self.max_short_trade_qty *= 2  # double the maximum short trade quantity
+                print(f"Short leverage temporarily increased to 2x")
+                self.short_leverage_increased = True
+            elif short_pos_qty < self.max_short_trade_qty:
+                self.max_short_trade_qty = self.calc_max_trade_qty(total_equity,
+                                                                   best_ask_price,
+                                                                   max_leverage)
+                print(f"Short leverage returned to normal 1x")
+                self.short_leverage_increased = False
+
+            if self.long_leverage_increased:
+                print(f"Long position currently increased to 2x")
+            else:
+                print(f"Long position currently at normal leverage 1x")
+            
+            if self.short_leverage_increased:
+                print(f"Short position currently increased to 2x")
+            else:
+                print(f"Short position currently at normal leverage 1x")
 
             short_upnl = position_data["short"]["upnl"]
             long_upnl = position_data["long"]["upnl"]
@@ -245,21 +286,21 @@ class BybitHedgeUnstuckStrategy(Strategy):
 
                         if trend.lower() == "long" and should_long and long_pos_qty == 0:
                             print(f"Placing initial long entry")
-                            self.limit_order_bybit(symbol, "buy", amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                            self.limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
                             print(f"Placed initial long entry")
                         else:
-                            if trend.lower() == "long" and should_add_to_long and long_pos_qty < self.max_trade_qty and best_bid_price < long_pos_price:
+                            if trend.lower() == "long" and should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price:
                                 print(f"Placed additional long entry")
-                                self.limit_order_bybit(symbol, "buy", amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                                self.limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
 
                         if trend.lower() == "short" and should_short and short_pos_qty == 0:
                             print(f"Placing initial short entry")
-                            self.limit_order_bybit(symbol, "sell", amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                            self.limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
                             print("Placed initial short entry")
                         else:
-                            if trend.lower() == "short" and should_add_to_short and short_pos_qty < self.max_trade_qty and best_ask_price > short_pos_price:
+                            if trend.lower() == "short" and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price:
                                 print(f"Placed additional short entry")
-                                self.limit_order_bybit(symbol, "sell", amount, best_bid_price, positionIdx=2, reduceOnly=False)
+                                self.limit_order_bybit(symbol, "sell", short_dynamic_amount, best_bid_price, positionIdx=2, reduceOnly=False)
         
             open_orders = self.exchange.get_open_orders(symbol)
 
