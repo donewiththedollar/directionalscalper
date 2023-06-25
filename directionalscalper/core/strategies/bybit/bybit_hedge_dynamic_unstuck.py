@@ -122,7 +122,7 @@ class BybitHedgeUnstuckStrategy(Strategy):
             print(f"Max long trade quantity for {symbol}: {self.max_long_trade_qty}")
             print(f"Max short trade quantity for {symbol}: {self.max_short_trade_qty}")
             print(f"Initial long trade qty locked: {self.initial_max_long_trade_qty}")
-            print(f"Initial short trade qty locked: {self.initial_short_trade_qty}")
+            print(f"Initial short trade qty locked: {self.initial_max_short_trade_qty}")
             # debug_data = market_data
             # print(f"Debug market data: {debug_data}")
 
