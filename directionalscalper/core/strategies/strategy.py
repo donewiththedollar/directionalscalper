@@ -457,17 +457,93 @@ class Strategy:
     #     self.table.add_row('Short Take profit', self.short_take_profit)
 
 
+    # def update_table(self):
+    #     # Clear the existing table rows
+    #     self.table.table.rows.clear()
+
+    #     # Add rows individually
+    #     self.table.add_row('Symbol', self.symbol if self.symbol is not None else 'N/A')
+    #     self.table.add_row('Long pos qty', self.long_pos_qty if self.long_pos_qty is not None else 'N/A')
+    #     self.table.add_row('Short pos qty', self.short_pos_qty if self.short_pos_qty is not None else 'N/A')
+    #     self.table.add_row('Long upnl', self.long_upnl if self.long_upnl is not None else 'N/A')
+    #     self.table.add_row('Short upnl', self.short_upnl if self.short_upnl is not None else 'N/A')
+    #     self.table.add_row('Long cum pnl', self.cum_realised_pnl_long if self.cum_realised_pnl_long is not None else 'N/A')
+    #     self.table.add_row('Short cum pnl', self.cum_realised_pnl_short if self.cum_realised_pnl_short is not None else 'N/A')
+    #     self.table.add_row('Long take profit', self.long_take_profit if self.long_take_profit is not None else 'N/A')
+    #     self.table.add_row('Short Take profit', self.short_take_profit if self.short_take_profit is not None else 'N/A')
+
+    # def update_table(self):
+    #     # Clear the existing table rows
+    #     self.table.table.rows.clear()
+
+    #     # Add rows individually
+    #     try:
+    #         self.table.add_row('Symbol', self.symbol if self.symbol is not None else 'N/A')
+    #     except Exception as e:
+    #         print(f"Error updating 'Symbol': {e}")
+
+    #     try:
+    #         self.table.add_row('Long pos qty', self.long_pos_qty if self.long_pos_qty is not None else 'N/A')
+    #     except Exception as e:
+    #         print(f"Error updating 'Long pos qty': {e}")
+
+    #     try:
+    #         self.table.add_row('Short pos qty', self.short_pos_qty if self.short_pos_qty is not None else 'N/A')
+    #     except Exception as e:
+    #         print(f"Error updating 'Short pos qty': {e}")
+
+    #     try:
+    #         self.table.add_row('Long upnl', self.long_upnl if self.long_upnl is not None else 'N/A')
+    #     except Exception as e:
+    #         print(f"Error updating 'Long upnl': {e}")
+
+    #     try:
+    #         self.table.add_row('Short upnl', self.short_upnl if self.short_upnl is not None else 'N/A')
+    #     except Exception as e:
+    #         print(f"Error updating 'Short upnl': {e}")
+
+    #     try:
+    #         self.table.add_row('Long cum pnl', self.cum_realised_pnl_long if self.cum_realised_pnl_long is not None else 'N/A')
+    #     except Exception as e:
+    #         print(f"Error updating 'Long cum pnl': {e}")
+
+    #     try:
+    #         self.table.add_row('Short cum pnl', self.cum_realised_pnl_short if self.cum_realised_pnl_short is not None else 'N/A')
+    #     except Exception as e:
+    #         print(f"Error updating 'Short cum pnl': {e}")
+
+    #     try:
+    #         self.table.add_row('Long take profit', self.long_take_profit if self.long_take_profit is not None else 'N/A')
+    #     except Exception as e:
+    #         print(f"Error updating 'Long take profit': {e}")
+
+    #     try:
+    #         self.table.add_row('Short Take profit', self.short_take_profit if self.short_take_profit is not None else 'N/A')
+    #     except Exception as e:
+    #         print(f"Error updating 'Short Take profit': {e}")
+
     def update_table(self):
+        print("Updating table...")
         # Clear the existing table rows
         self.table.table.rows.clear()
 
         # Add rows individually
-        self.table.add_row('Symbol', self.symbol if self.symbol is not None else 'N/A')
-        self.table.add_row('Long pos qty', self.long_pos_qty if self.long_pos_qty is not None else 'N/A')
-        self.table.add_row('Short pos qty', self.short_pos_qty if self.short_pos_qty is not None else 'N/A')
-        self.table.add_row('Long upnl', self.long_upnl if self.long_upnl is not None else 'N/A')
-        self.table.add_row('Short upnl', self.short_upnl if self.short_upnl is not None else 'N/A')
-        self.table.add_row('Long cum pnl', self.cum_realised_pnl_long if self.cum_realised_pnl_long is not None else 'N/A')
-        self.table.add_row('Short cum pnl', self.cum_realised_pnl_short if self.cum_realised_pnl_short is not None else 'N/A')
-        self.table.add_row('Long take profit', self.long_take_profit if self.long_take_profit is not None else 'N/A')
-        self.table.add_row('Short Take profit', self.short_take_profit if self.short_take_profit is not None else 'N/A')
+        rows = [
+            ('Symbol', self.symbol),
+            ('Long pos qty', self.long_pos_qty),
+            ('Short pos qty', self.short_pos_qty),
+            ('Long upnl', self.long_upnl),
+            ('Short upnl', self.short_upnl),
+            ('Long cum pnl', self.cum_realised_pnl_long),
+            ('Short cum pnl', self.cum_realised_pnl_short),
+            ('Long take profit', self.long_take_profit),
+            ('Short Take profit', self.short_take_profit),
+        ]
+
+        for label, value in rows:
+            try:
+                print(f"Adding row: {label}")
+                self.table.add_row(label, value if value is not None else 'N/A')
+            except Exception as e:
+                print(f"Error updating '{label}': {e}")
+        print("Finished updating table.")
