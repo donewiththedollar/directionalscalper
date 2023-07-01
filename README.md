@@ -116,6 +116,12 @@ Make sure you are in the directory bot-multiexchange
 * bybit_hedge
 * bybit_longonly
 * bybit_shortonly
+* bybit_longonly_dynamic
+* bybit_shortonly_dynamic
+* bybit_longonly_dynamic_leverage
+* bybit_shortonly_dynamic_leverage
+* bybit_hedge_dynamic_unstuck
+* bybit_hedge_dynamic_table
  
 ## Bitget 
 * bitget_hedge
