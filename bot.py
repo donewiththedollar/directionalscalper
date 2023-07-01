@@ -38,7 +38,7 @@ from directionalscalper.core.strategies.bybit.bybit_shortonly_dynamic import Byb
 from directionalscalper.core.strategies.bybit.bybit_hedge_dynamictp import BybitHedgeDynamicTP
 from directionalscalper.core.strategies.bybit.bybit_hedge_dynamic_entryexit import BybitHedgeEntryExitDynamic
 from directionalscalper.core.strategies.bybit.bybit_hedge_dynamic_unstuck import BybitHedgeUnstuckStrategy
-from directionalscalper.core.strategies.bybit.bybit_hedge_dynamic_table import BybitHedgeDynamicTable
+from directionalscalper.core.strategies.bybit.bybit_hedge_dynamic_table import BybitHedgeDynamicLeverageTable
 from directionalscalper.core.strategies.huobi.huobi_hedge import HuobiHedgeStrategy
 from directionalscalper.core.strategies.binance.binance_hedge import BinanceHedgeStrategy
 from directionalscalper.core.strategies.phemex.phemex_hedge import PhemexHedgeStrategy
@@ -214,95 +214,8 @@ if __name__ == '__main__':
             strategy.run(symbol)
 
         elif strategy_name.lower() == 'bybit_hedge_dynamic_table':
-            strategy = BybitHedgeDynamicTable(market_maker.exchange, market_maker.manager, config.bot)
-
-            while True:  # keep the bot running
-                try:
-                    # If strategy has a table, refresh it and run strategy
-                    if hasattr(strategy, 'table'):  
-                        live = Live(strategy.table.table, refresh_per_second=2)
-                        
-                        with live:  # this ensures that live update is happening while strategy is running
-                            try:
-                                print("Running strategy with table...")
-                                strategy.run(symbol)
-                            except IndexError as e:  # error in strategy
-                                print("Error while running strategy: ", str(e))
-
-                    # If strategy doesn't have a table, just run it
-                    else:  
-                        print("Running strategy without table...")
-                        strategy.run(symbol)
-
-                except IndexError as e:  # error during live update
-                    print("Error while refreshing live table from bot.py: ", str(e))
-
-        # elif strategy_name.lower() == 'bybit_hedge_dynamic_table':
-        #     strategy = BybitHedgeDynamicTable(market_maker.exchange, market_maker.manager, config.bot)
-
-        #     while True:  # keep the bot running
-        #         try:
-        #             # If strategy has a table, refresh it and run strategy
-        #             if hasattr(strategy, 'table'):  
-        #                 live = Live(strategy.table.table, refresh_per_second=4)
-                        
-        #                 with live:  # this ensures that live update is happening while strategy is running
-        #                     try:
-        #                         strategy.run(symbol)
-        #                     except IndexError as e:  # error in strategy
-        #                         print("Error while running strategy: ", str(e))
-
-        #             # If strategy doesn't have a table, just run it
-        #             else:  
-        #                 strategy.run(symbol)
-
-        #         except IndexError as e:  # error during live update
-        #             print("Error while refreshing live table from bot.py: ", str(e))
-
-        # elif strategy_name.lower() == 'bybit_hedge_dynamic_table':
-        #     strategy = BybitHedgeDynamicTable(market_maker.exchange, market_maker.manager, config.bot)
-
-        #     while True:  # keep the bot running
-        #         try:
-        #             # If strategy has a table, refresh it and run strategy
-        #             if hasattr(strategy, 'table'):  
-        #                 live = Live(strategy.table.table, refresh_per_second=4)
-        #                 live.start()  # start live update
-                        
-        #                 try:
-        #                     strategy.run(symbol)
-        #                 except IndexError as e:  # error in strategy
-        #                     print("Error while running strategy: ", str(e))
-
-        #                 live.stop()  # stop live update after strategy run
-
-        #             # If strategy doesn't have a table, just run it
-        #             else:  
-        #                 strategy.run(symbol)
-
-        #         except IndexError as e:  # error during live update
-        #             print("Error while refreshing live table from bot.py: ", str(e))
-
-        # elif strategy_name.lower() == 'bybit_hedge_dynamic_table':
-        #     strategy = BybitHedgeDynamicTable(market_maker.exchange, market_maker.manager, config.bot)
-                    
-        #     if hasattr(strategy, 'table'):  # check if 'table' attribute exists
-        #         try:
-        #             with Live(strategy.table.table, refresh_per_second=4) as live:  # adjust refresh rate as needed
-        #                 strategy.run(symbol)
-        #         except IndexError as e:
-        #             print("Error while refreshing live table from bot.py: ", e)
-        #     else:
-        #         strategy.run(symbol)
-
-        # elif strategy_name.lower() == 'bybit_hedge_dynamic_table':
-        #     strategy = BybitHedgeDynamicTable(market_maker.exchange, market_maker.manager, config.bot)
-            
-        #     if hasattr(strategy, 'table'):  # check if 'table' attribute exists
-        #         with Live(strategy.table.table, refresh_per_second=4) as live:  # adjust refresh rate as needed
-        #             strategy.run(symbol)
-        #     else:
-        #         strategy.run(symbol) 
+            strategy = BybitHedgeDynamicLeverageTable(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol)
 
         elif strategy_name.lower() == 'bybit_hedge_grid':
             strategy = BybitHedgeGridStrategy(market_maker.exchange, market_maker.manager, config.bot)

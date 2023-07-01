@@ -18,7 +18,6 @@ class BybitLongOnlyDynamicLeverage(Strategy):
         self.initial_max_long_trade_qty = None
         self.initial_max_short_trade_qty = None
         self.long_leverage_increased = False
-        self.short_leverage_increased = False
 
     def run(self, symbol):
         wallet_exposure = self.config.wallet_exposure
@@ -114,8 +113,7 @@ class BybitLongOnlyDynamicLeverage(Strategy):
             print(f"Max long trade quantity for {symbol}: {self.max_long_trade_qty}")
             print(f"Max short trade quantity for {symbol}: {self.max_short_trade_qty}")
             print(f"Initial long trade qty locked: {self.initial_max_long_trade_qty}")
-            print(f"Initial short trade qty locked: {self.initial_max_short_trade_qty}")
-
+            
             max_trade_qty = self.calc_max_trade_qty(total_equity,
                                                      best_ask_price,
                                                      max_leverage)   
