@@ -35,7 +35,7 @@ Steps to set up Directionalscalper v2
 
 - `sudo apt-get update`
 - `sudo apt-get upgrade -y`
-- `git clone https://github.com/donewiththedollar/directionalscalper.git —branch bot-multiexchange`
+- `git clone https://github.com/donewiththedollar/directionalscalper.git`
 
 Now you have the bot but you must install Python 3.11
 
