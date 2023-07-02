@@ -25,15 +25,48 @@ class BybitHedgeDynamicLeverageTablePretty(Strategy):
         self.long_leverage_increased = False
         self.short_leverage_increased = False
 
+    def generate_main_table(self, symbol, volume, spread, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl):
+        try:
+            table = Table(show_header=False, header_style="bold magenta", title="Directional Scalper v2.0.0")
+            table.add_column("Key")
+            table.add_column("Value")
+            #min_vol_dist_data = self.manager.get_min_vol_dist_data(self.symbol)
+            #mode = self.find_mode()
+            #trend = self.find_trend()
+            #market_data = self.get_market_data()
+
+            table_data = {
+                "Symbol": symbol,
+                "Long pos. QTY": long_pos_qty,
+                "Short pos. QTY": short_pos_qty,
+                "Long uPNL": long_upnl,
+                "Short uPNL": short_upnl,
+                "Long cum. uPNL": long_upnl,
+                "Short cum. uPNL": short_upnl,
+                "1m Vol": volume,
+                "1m Spread:": spread,
+                #"min_vol_dist_data": min_vol_dist_data,
+                "min_volume": self.config.min_volume,
+                "min_distance": self.config.min_distance,
+                #"mode": mode,
+                #"trend": trend,
+                # Add other variables you want to display
+            }
+
+            for key, value in table_data.items():
+                table.add_row(key, str(value))
+            
+            return table
+
+        except Exception as e:
+            print("Exception caught {e}")
+            return Table()
+
+
     def run(self, symbol):
-        # Create console and table instances
         console = Console()
 
-        # Create table with two columns
-        table = Table(show_header=False, header_style="bold magenta", title="Directional Scalper v2.0.0")
-        table.add_column("Key")
-        table.add_column("Value")
-        live = Live(table, refresh_per_second=2)
+        live = Live(console=console, refresh_per_second=2)
 
         quote_currency = "USDT"
         max_retries = 5
@@ -299,6 +332,18 @@ class BybitHedgeDynamicLeverageTablePretty(Strategy):
                 print(f"Add short condition: {should_add_to_short}")
                 print(f"Add long condition: {should_add_to_long}")
 
+                live.update(self.generate_main_table(
+                    symbol,
+                    one_minute_volume,
+                    five_minute_distance,
+                    long_pos_qty,
+                    short_pos_qty,
+                    long_upnl,
+                    short_upnl,
+                    cum_realised_pnl_long,
+                    cum_realised_pnl_short
+                ))
+
                 if trend is not None and isinstance(trend, str):
                     if one_minute_volume is not None and five_minute_distance is not None:
                         if one_minute_volume > min_vol and five_minute_distance > min_dist:
@@ -380,41 +425,4 @@ class BybitHedgeDynamicLeverageTablePretty(Strategy):
 
                     self.last_cancel_time = current_time  # Update the last cancel time
 
-                # Clear all rows from the table to avoid growing the table indefinitely
-                table.rows.clear()
-
-                # Add key-value pairs to the table
-                table.add_row("1m Volume", str(one_minute_volume))
-                table.add_row("1m Spread", str(one_minute_distance))
-                table.add_row("5m Spread", str(five_minute_distance))
-                table.add_row("30m Spread", str(thirty_minute_distance))
-                table.add_row("1h Spread", str(one_hour_distance))
-                table.add_row("4h Spread", str(four_hour_distance))
-                table.add_row("Trend", str(trend))
-
-                time.sleep(2)  # Adjust sleep time as needed
-                # time.sleep(2)
                 time.sleep(30)
-
-                # # Clear all rows from the table to avoid growing the table indefinitely
-                # table.rows.clear()
-
-                # # Add key-value pairs to the table
-                # timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-                # table.add_row("Timestamp", timestamp)
-                # table.add_row("Symbol", str(symbol))
-                # table.add_row("Total Equity", str(total_equity))
-                # table.add_row("Available Equity", str(available_equity))
-                # table.add_row("Current Price", str(current_price))
-                # table.add_row("Best Bid", str(best_bid_price))
-                # table.add_row("Best Ask", str(best_ask_price))
-                # table.add_row("Max Long Trade Quantity", str(self.max_long_trade_qty))
-                # table.add_row("Initial Max Long Trade Quantity", str(self.initial_max_long_trade_qty))
-                # table.add_row("Max Trade Quantity", str(long_dynamic_amount))
-                # table.add_row("Long Position Quantity", str(long_pos_qty))
-                # table.add_row("Long uPNL", str(long_upnl))
-                # table.add_row("Long Cumulative PNL", str(cum_realised_pnl_long))
-                # table.add_row("Long Position Price", str(long_pos_price))
-                # table.add_row("Long Take Profit", str(long_take_profit))
-                # table.add_row("Should Long", str(should_long))
-                # table.add_row("Should Add to Long", str(should_add_to_long))
