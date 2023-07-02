@@ -141,7 +141,7 @@ Make sure you are in the directory bot-multiexchange
 
 ### Docker
 To run the bot inside docker container use the following command:
-> docker-compose run directional-scalper python3 bot.py --mode hedge --symbol GALAUSDT --iqty 1 --tg off
+> docker-compose run directional-scalper python3.11 bot.py --symbol SUIUSDT --strategy bybit_hedge_dynamic_unstuck --config config_main.json
 
 ### Proxy
 If you need to use a proxy to access the Exchange API, you can set the environment variables as shown in the following example:
