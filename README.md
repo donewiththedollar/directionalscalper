@@ -13,13 +13,8 @@ A hedge scalping strategy based on directional analysis using a quantitative app
 >  Exchanges that are WIP: Binance, MEXC, Phemex
  
 >  Minor bugs: 
- 
->> Bybit: Dynamic size calculation may round quantities when unnecessary.
- 
+
 >> Huobi: Possible leverage issue per symbol
- 
->> Bitget: 
- 
  
 ### Links
 * Dashboard: https://tradesimple.xyz
