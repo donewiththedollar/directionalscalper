@@ -33,18 +33,19 @@ Directional Scalper        |  API Scraper
 ## Quickstart
 - Clone the repo `git clone https://github.com/donewiththedollar/directionalscalper.git`
 - Install requirements `pip3.11 install -r requirements.txt`
+- Add API key(s) to config.json in /configs folder
+- Run the bot `python3.11 bot.py --exchange bybit --symbol DOGEUSDT --strategy bybit_hedge_dynamic_unstuck --config config.json`
  
-### Install Instructions
-Steps to set up bot-multiexchange
+### Full installation instructions
+Steps to set up Directionalscalper v2
 
 - `sudo apt-get update`
 - `sudo apt-get upgrade -y`
 - `git clone https://github.com/donewiththedollar/directionalscalper.git —branch bot-multiexchange`
 
-Now you have the bot, but need to set up python correctly.
+Now you have the bot but you must install Python 3.11
 
-
-Now install Python 3.11
+Here is how you can install Python 3.11 from source: 
 
 All of these commands one by one copy and pasted into terminal: 
 `wget https://www.python.org/ftp/python/3.11.0/Python-3.11.0.tgz`
@@ -89,7 +90,7 @@ Make sure you are in the directory bot-multiexchange
 ### Setting up the bot
  1. Create `config.json` from `config.example.json` in /configs directory
  2. Enter exchange_api_key and exchange_api_secret
- 3. Check/fill all other options. For telegram see below
+ 3. Check/fill all other options. For telegram/discord see below
 
  ### Setting up Telegram alerts
  1. Get token from botfather after creating new bot, send a message to your new bot
