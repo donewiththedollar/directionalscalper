@@ -23,7 +23,6 @@ A hedge scalping strategy based on directional analysis using a quantitative app
  
 ### Links
 * Dashboard: https://tradesimple.xyz
-* API: http://api.tradesimple.xyz/data/quantdata.json
 * APIv2: http://api.tradesimple.xyz/data/quantdatav2.json
 
 Directional Scalper        |  API Scraper
