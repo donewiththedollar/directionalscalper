@@ -157,12 +157,11 @@ $ export HTTPS_PROXY="http://10.10.1.10:1080"
 
 
 ### To do:
+* Pretty table
 * Instance manager
-* Auto calculation for violent parameters (violent_multiplier and wallet_exposure are key)
-* Auto calculation for lot size so the user does not have to determine size
-* Take over all exchanges
+* Binance, Phemex, MEXC base. (MEXC Futs API down until Q4)
 
 
 ### Donations
-If you would like to show your appreciation for this project through donations, there are a few addresses here to choose from
+Funds acquired through contributions will be judiciously allocated towards the maintenance and enhancement of our API server infrastructure. This financial support is instrumental in ensuring seamless operations, while also facilitating continuous improvements to our broader network infrastructure.
 * **BTC**: bc1q9hyvvtcsm0k39svz59hjgz4f6dr6c2k4wlrxmc
