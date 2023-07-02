@@ -29,22 +29,22 @@ class BybitHedgeDynamicLeverageTablePretty(Strategy):
         # Create console and table instances
         console = Console()
 
-        # Create table with two columns
-        table = Table(show_header=False, header_style="bold magenta", title="Directional Scalper v2.0.0")
-        table.add_column("Key")
-        table.add_column("Value")
+        # Set up table with four columns
+        table = Table(width=100, show_header=False, title="Directional Scalper v2.0.0")
+        table.add_column("Condition")
+        table.add_column("Config")
+        table.add_column("Current")
+        table.add_column("Status")
+
         live = Live(table, refresh_per_second=2)
 
-        quote_currency = "USDT"
-        max_retries = 5
-        retry_delay = 5
-
-        # Initialize exchange-related variables outside the live context
         wallet_exposure = self.config.wallet_exposure
         min_dist = self.config.min_distance
         min_vol = self.config.min_volume
         current_leverage = self.exchange.get_current_leverage_bybit(symbol)
         max_leverage = self.exchange.get_max_leverage_bybit(symbol)
+        retry_delay = 5
+        max_retries = 5
 
         print("Setting up exchange")
         self.exchange.setup_exchange_bybit(symbol)
@@ -59,9 +59,8 @@ class BybitHedgeDynamicLeverageTablePretty(Strategy):
         previous_one_hour_distance = None
         previous_four_hour_distance = None
 
-        with live:
+        with Live(table, refresh_per_second=2):
             while True:
-
                 print(f"[Bybit hedge dynamic entry/exit unstuck strategy running]")
                 print(f"Min volume: {min_vol}")
                 print(f"Min distance: {min_dist}")
@@ -380,41 +379,28 @@ class BybitHedgeDynamicLeverageTablePretty(Strategy):
 
                     self.last_cancel_time = current_time  # Update the last cancel time
 
-                # Clear all rows from the table to avoid growing the table indefinitely
+                timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+
+                # Clear all rows from the table (this is to avoid appending the rows and growing the table indefinitely)
                 table.rows.clear()
 
-                # Add key-value pairs to the table
-                table.add_row("1m Volume", str(one_minute_volume))
-                table.add_row("1m Spread", str(one_minute_distance))
-                table.add_row("5m Spread", str(five_minute_distance))
-                table.add_row("30m Spread", str(thirty_minute_distance))
-                table.add_row("1h Spread", str(one_hour_distance))
-                table.add_row("4h Spread", str(four_hour_distance))
-                table.add_row("Trend", str(trend))
+                # Add the data to the table
+                table.add_row("Timestamp", "", timestamp, "")
+                table.add_row("Symbol", "", str(symbol), "")
+                table.add_row("Total Equity", "", str(total_equity), "")
+                table.add_row("Available Equity", "", str(available_equity), "")
+                table.add_row("Current Price", "", str(current_price), "")
+                table.add_row("Best Bid Price", "", str(best_bid_price), "")
+                table.add_row("Best Ask Price", "", str(best_ask_price), "")
+                table.add_row("Max Long Trade Qty", "", str(self.max_long_trade_qty), "")
+                table.add_row("Initial Max Long Trade Qty", "", str(self.initial_max_long_trade_qty), "")
+                table.add_row("Long Dynamic Amount", "", str(long_dynamic_amount), "")
+                table.add_row("Long Pos Qty", "", str(long_pos_qty), "")
+                table.add_row("Long uPNL", "", str(long_upnl), "")
+                table.add_row("Long Cum. PNL", "", str(cum_realised_pnl_long), "")
+                table.add_row("Long Pos Price", "", str(long_pos_price), "")
+                table.add_row("Long TP", "", str(long_take_profit), "")
+                table.add_row("Should Long", "", str(should_long), "")
+                table.add_row("Should Add to Long", "", str(should_add_to_long), "")
 
-                time.sleep(2)  # Adjust sleep time as needed
-                # time.sleep(2)
                 time.sleep(30)
-
-                # # Clear all rows from the table to avoid growing the table indefinitely
-                # table.rows.clear()
-
-                # # Add key-value pairs to the table
-                # timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-                # table.add_row("Timestamp", timestamp)
-                # table.add_row("Symbol", str(symbol))
-                # table.add_row("Total Equity", str(total_equity))
-                # table.add_row("Available Equity", str(available_equity))
-                # table.add_row("Current Price", str(current_price))
-                # table.add_row("Best Bid", str(best_bid_price))
-                # table.add_row("Best Ask", str(best_ask_price))
-                # table.add_row("Max Long Trade Quantity", str(self.max_long_trade_qty))
-                # table.add_row("Initial Max Long Trade Quantity", str(self.initial_max_long_trade_qty))
-                # table.add_row("Max Trade Quantity", str(long_dynamic_amount))
-                # table.add_row("Long Position Quantity", str(long_pos_qty))
-                # table.add_row("Long uPNL", str(long_upnl))
-                # table.add_row("Long Cumulative PNL", str(cum_realised_pnl_long))
-                # table.add_row("Long Position Price", str(long_pos_price))
-                # table.add_row("Long Take Profit", str(long_take_profit))
-                # table.add_row("Should Long", str(should_long))
-                # table.add_row("Should Add to Long", str(should_add_to_long))
