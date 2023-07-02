@@ -78,11 +78,12 @@ class Discord(BaseModel):
 
     @validator("webhook_url")
     def minimum_divider(cls, v):
-        if not v.startswith("https://discord.com/api/webhooks/"):
+        if not str(v).startswith("https://discord.com/api/webhooks/"):
             raise ValueError(
                 "Discord webhook begins: https://discord.com/api/webhooks/"
             )
         return v
+
 
 
 class Telegram(BaseModel):
