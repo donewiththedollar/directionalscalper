@@ -25,7 +25,7 @@ class BybitHedgeDynamicLeverageTablePretty(Strategy):
         self.long_leverage_increased = False
         self.short_leverage_increased = False
 
-    def generate_main_table(self, symbol, volume, spread, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl):
+    def generate_main_table(self, symbol, volume, spread, long_max_size, short_max_size, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl):
         try:
             table = Table(show_header=False, header_style="bold magenta", title="Directional Scalper v2.0.0")
             table.add_column("Key")
@@ -37,6 +37,8 @@ class BybitHedgeDynamicLeverageTablePretty(Strategy):
 
             table_data = {
                 "Symbol": symbol,
+                "Long max QTY": long_max_size,
+                "Short max QTY": short_max_size,
                 "Long pos. QTY": long_pos_qty,
                 "Short pos. QTY": short_pos_qty,
                 "Long uPNL": long_upnl,
@@ -44,7 +46,7 @@ class BybitHedgeDynamicLeverageTablePretty(Strategy):
                 "Long cum. uPNL": long_upnl,
                 "Short cum. uPNL": short_upnl,
                 "1m Vol": volume,
-                "1m Spread:": spread,
+                "5m Spread:": spread,
                 #"min_vol_dist_data": min_vol_dist_data,
                 "min_volume": self.config.min_volume,
                 "min_distance": self.config.min_distance,
@@ -243,6 +245,14 @@ class BybitHedgeDynamicLeverageTablePretty(Strategy):
                 print(f"Short pos qty: {short_pos_qty}")
                 print(f"Long pos qty: {long_pos_qty}")
 
+                # long_max_trade_qty = self.max_long_trade_qty = self.calc_max_trade_qty(total_equity,
+                #                                 best_ask_price,
+                #                                 max_leverage)
+
+                # short_max_trade_qty = self.max_short_trade_qty = self.calc_max_trade_qty(total_equity,
+                #                                                 best_ask_price,
+                #                                                 max_leverage)
+                
                 if long_pos_qty >= self.max_long_trade_qty:
                     self.max_long_trade_qty *= 2  # double the maximum long trade quantity
                     print(f"Long leverage temporarily increased to 2x")
@@ -336,6 +346,8 @@ class BybitHedgeDynamicLeverageTablePretty(Strategy):
                     symbol,
                     one_minute_volume,
                     five_minute_distance,
+                    self.max_long_trade_qty,
+                    self.max_short_trade_qty,
                     long_pos_qty,
                     short_pos_qty,
                     long_upnl,
