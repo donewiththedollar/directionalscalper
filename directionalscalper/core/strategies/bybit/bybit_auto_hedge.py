@@ -12,6 +12,10 @@ class BybitAutoHedgeStrategy(Strategy):
         self.manager = manager
         self.last_cancel_time = 0
         self.current_wallet_exposure = 1.0
+        self.short_tp_distance_percent = 0.0
+        self.short_expected_profit_usdt = 0.0
+        self.long_tp_distance_percent = 0.0
+        self.long_expected_profit_usdt = 0.0
         self.printed_trade_quantities = False
         self.checked_amount_validity = False
         self.long_pos_leverage = 1.0
@@ -24,7 +28,7 @@ class BybitAutoHedgeStrategy(Strategy):
         self.short_leverage_increased = False
         self.version = "2.0.1"
 
-    def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev, long_max_trade_qty, short_max_trade_qty):
+    def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev, long_max_trade_qty, short_max_trade_qty, long_expected_profit, short_expected_profit):
         try:
             table = Table(show_header=False, header_style="bold magenta", title=f"Directional Scalper {self.version}")
             table.add_column("Key")
@@ -51,8 +55,10 @@ class BybitAutoHedgeStrategy(Strategy):
                 "Short cum. uPNL": short_cum_pnl,
                 "Long pos. price": long_pos_price,
                 "Long take profit": long_take_profit,
+                "Long expected profit": "{:.2f} USDT".format(long_expected_profit),
                 "Short pos. price": short_pos_price,
                 "Short take profit": short_take_profit,
+                "Short expected profit": "{:.2f} USDT".format(short_expected_profit),
                 "Long pos. lev.": long_pos_lev,
                 "Short pos. lev.": short_pos_lev,
                 "1m Vol": volume,
@@ -61,8 +67,6 @@ class BybitAutoHedgeStrategy(Strategy):
                 "Min. volume": self.config.min_volume,
                 "Min. spread": self.config.min_distance,
                 "Min. qty": min_qty,
-                #"mode": mode,
-                #"trend": trend,
             }
 
             for key, value in table_data.items():
@@ -171,10 +175,8 @@ class BybitAutoHedgeStrategy(Strategy):
                         self.initial_max_short_trade_qty = self.max_short_trade_qty  
                         print(f"Initial trade qty set to {self.initial_max_short_trade_qty}")                                                            
                             
-                print(f"Max long trade quantity for {symbol}: {self.max_long_trade_qty}")
-                print(f"Max short trade quantity for {symbol}: {self.max_short_trade_qty}")
-                print(f"Initial long trade qty locked: {self.initial_max_long_trade_qty}")
-                print(f"Initial short trade qty locked: {self.initial_max_short_trade_qty}")
+                # print(f"Initial long trade qty locked: {self.initial_max_long_trade_qty}")
+                # print(f"Initial short trade qty locked: {self.initial_max_short_trade_qty}")
                 # debug_data = market_data
                 # print(f"Debug market data: {debug_data}")
 
@@ -299,16 +301,16 @@ class BybitAutoHedgeStrategy(Strategy):
             
                 if short_pos_price is not None:
                     should_add_to_short = short_pos_price < ma_6_low
-                    short_tp_distance_percent = ((short_take_profit - short_pos_price) / short_pos_price) * 100
-                    short_expected_profit_usdt = short_tp_distance_percent / 100 * short_pos_price * short_pos_qty
-                    print(f"Short TP price: {short_take_profit}, TP distance in percent: {-short_tp_distance_percent:.2f}%, Expected profit: {-short_expected_profit_usdt:.2f} USDT")
+                    self.short_tp_distance_percent = ((short_take_profit - short_pos_price) / short_pos_price) * 100
+                    self.short_expected_profit_usdt = abs(self.short_tp_distance_percent / 100 * short_pos_price * short_pos_qty)
+                    print(f"Short TP price: {short_take_profit}, TP distance in percent: {-self.short_tp_distance_percent:.2f}%, Expected profit: {self.short_expected_profit_usdt:.2f} USDT")
 
                 if long_pos_price is not None:
                     should_add_to_long = long_pos_price > ma_6_low
-                    long_tp_distance_percent = ((long_take_profit - long_pos_price) / long_pos_price) * 100
-                    long_expected_profit_usdt = long_tp_distance_percent / 100 * long_pos_price * long_pos_qty
-                    print(f"Long TP price: {long_take_profit}, TP distance in percent: {long_tp_distance_percent:.2f}%, Expected profit: {long_expected_profit_usdt:.2f} USDT")
-
+                    self.long_tp_distance_percent = ((long_take_profit - long_pos_price) / long_pos_price) * 100
+                    self.long_expected_profit_usdt = self.long_tp_distance_percent / 100 * long_pos_price * long_pos_qty
+                    print(f"Long TP price: {long_take_profit}, TP distance in percent: {self.long_tp_distance_percent:.2f}%, Expected profit: {self.long_expected_profit_usdt:.2f} USDT")
+                    
                 print(f"Short condition: {should_short}")
                 print(f"Long condition: {should_long}")
                 print(f"Add short condition: {should_add_to_short}")
@@ -339,6 +341,8 @@ class BybitAutoHedgeStrategy(Strategy):
                     self.short_pos_leverage,
                     self.max_long_trade_qty,
                     self.max_short_trade_qty,
+                    self.long_expected_profit_usdt,
+                    self.short_expected_profit_usdt,
                 ))
 
                 if trend is not None and isinstance(trend, str):
