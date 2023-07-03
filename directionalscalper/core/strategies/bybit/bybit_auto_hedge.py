@@ -15,6 +15,8 @@ class BybitAutoHedgeStrategy(Strategy):
         self.current_wallet_exposure = 1.0
         self.printed_trade_quantities = False
         self.checked_amount_validity = False
+        self.long_pos_leverage = 1.0
+        self.short_pos_leverage = 1.0
         self.max_long_trade_qty = None
         self.max_short_trade_qty = None
         self.initial_max_long_trade_qty = None
@@ -23,7 +25,7 @@ class BybitAutoHedgeStrategy(Strategy):
         self.short_leverage_increased = False
         self.version = "2.0.1"
 
-    def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit):
+    def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev):
         try:
             table = Table(show_header=False, header_style="bold magenta", title=f"Directional Scalper {self.version}")
             table.add_column("Key")
@@ -50,6 +52,8 @@ class BybitAutoHedgeStrategy(Strategy):
                 "Long take profit": long_take_profit,
                 "Short pos. price": short_pos_price,
                 "Short take profit": short_take_profit,
+                "Long pos. lev.": long_pos_lev,
+                "Short pos. lev.": short_pos_lev,
                 "1m Vol": volume,
                 "1m Spread:": spread,
                 "Trend": trend,
@@ -101,11 +105,6 @@ class BybitAutoHedgeStrategy(Strategy):
 
         with live:
             while True:
-
-                # print(f"[Bybit hedge dynamic entry/exit unstuck strategy running]")
-                # print(f"Min volume: {min_vol}")
-                # print(f"Min distance: {min_dist}")
-
                 # Get API data
                 data = self.manager.get_data()
                 one_minute_volume = self.manager.get_asset_value(symbol, data, "1mVol")
@@ -115,13 +114,6 @@ class BybitAutoHedgeStrategy(Strategy):
                 one_hour_distance = self.manager.get_asset_value(symbol, data, "1hSpread")
                 four_hour_distance = self.manager.get_asset_value(symbol, data, "4hSpread")
                 trend = self.manager.get_asset_value(symbol, data, "Trend")
-                # print(f"1m Volume: {one_minute_volume}")
-                # print(f"1m Spread: {one_minute_distance}")
-                # print(f"5m Spread: {five_minute_distance}")
-                # print(f"30m Spread: {thirty_minute_distance}")
-                # print(f"1h Spread: {one_hour_distance}")
-                # print(f"4h Spread: {four_hour_distance}")
-                # print(f"Trend: {trend}")
 
                 #price_precision = int(self.exchange.get_price_precision(symbol))
 
@@ -247,58 +239,43 @@ class BybitAutoHedgeStrategy(Strategy):
                 short_pos_qty = position_data["short"]["qty"]
                 long_pos_qty = position_data["long"]["qty"]
 
-                # print(f"Short pos qty: {short_pos_qty}")
-                # print(f"Long pos qty: {long_pos_qty}")
-
                 if long_pos_qty >= self.max_long_trade_qty:
                     self.max_long_trade_qty *= 2  # double the maximum long trade quantity
-                    print(f"Long leverage temporarily increased to 2x")
                     self.long_leverage_increased = True
+                    self.long_pos_leverage = 2.0
+                    print(f"Long leverage temporarily increased to {self.long_pos_leverage}x")
                 elif long_pos_qty < self.max_long_trade_qty:
                     self.max_long_trade_qty = self.calc_max_trade_qty(total_equity,
                                                                     best_ask_price,
                                                                     max_leverage)
-                    print(f"Long leverage returned to normal 1x")
                     self.long_leverage_increased = False
+                    self.long_pos_leverage = 1.0
+                    print(f"Long leverage returned to normal {self.long_pos_leverage}x")
 
                 if short_pos_qty >= self.max_short_trade_qty:
                     self.max_short_trade_qty *= 2  # double the maximum short trade quantity
-                    print(f"Short leverage temporarily increased to 2x")
                     self.short_leverage_increased = True
+                    self.short_pos_leverage = 2.0
+                    print(f"Short leverage temporarily increased to {self.short_pos_leverage}x")
                 elif short_pos_qty < self.max_short_trade_qty:
                     self.max_short_trade_qty = self.calc_max_trade_qty(total_equity,
                                                                     best_ask_price,
                                                                     max_leverage)
-                    print(f"Short leverage returned to normal 1x")
                     self.short_leverage_increased = False
+                    self.short_pos_leverage = 1.0
+                    print(f"Short leverage returned to normal {self.short_pos_leverage}x")
 
-                if self.long_leverage_increased:
-                    print(f"Long position currently increased to 2x")
-                else:
-                    print(f"Long position currently at normal leverage 1x")
-                
-                if self.short_leverage_increased:
-                    print(f"Short position currently increased to 2x")
-                else:
-                    print(f"Short position currently at normal leverage 1x")
+                print(f"Long position currently at {self.long_pos_leverage}x leverage")
+                print(f"Short position currently at {self.short_pos_leverage}x leverage")
 
                 short_upnl = position_data["short"]["upnl"]
                 long_upnl = position_data["long"]["upnl"]
 
-                # print(f"Short uPNL: {short_upnl}")
-                # print(f"Long uPNL: {long_upnl}")
-
                 cum_realised_pnl_long = position_data["long"]["cum_realised"]
                 cum_realised_pnl_short = position_data["short"]["cum_realised"]
 
-                # print(f"Short cum. PNL: {cum_realised_pnl_short}")
-                # print(f"Long cum. PNL: {cum_realised_pnl_long}")
-
                 short_pos_price = position_data["short"]["price"] if short_pos_qty > 0 else None
                 long_pos_price = position_data["long"]["price"] if long_pos_qty > 0 else None
-
-                # print(f"Long pos price {long_pos_price}")
-                # print(f"Short pos price {short_pos_price}")
 
                 short_take_profit = None
                 long_take_profit = None
@@ -312,9 +289,6 @@ class BybitAutoHedgeStrategy(Strategy):
                         long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
                         
                 previous_five_minute_distance = five_minute_distance
-
-                # print(f"Short TP: {short_take_profit}")
-                # print(f"Long TP: {long_take_profit}")
 
                 should_short = self.short_trade_condition(best_bid_price, ma_3_high)
                 should_long = self.long_trade_condition(best_bid_price, ma_3_high)
@@ -359,7 +333,9 @@ class BybitAutoHedgeStrategy(Strategy):
                     long_dynamic_amount,
                     short_dynamic_amount,
                     long_take_profit,
-                    short_take_profit
+                    short_take_profit,
+                    self.long_pos_leverage,
+                    self.short_pos_leverage,
                 ))
 
                 if trend is not None and isinstance(trend, str):
