@@ -98,15 +98,37 @@ class Strategy:
                 else:
                     raise e
 
-    def calc_max_trade_qty(self, total_equity, best_ask_price, max_leverage):
+    def calc_max_trade_qty(self, total_equity, best_ask_price, max_leverage, max_retries=5, retry_delay=5):
         wallet_exposure = self.config.wallet_exposure
-        market_data = self.exchange.get_market_data_bybit(self.symbol)
-        max_trade_qty = round(
-            (float(total_equity) * wallet_exposure / float(best_ask_price))
-            / (100 / max_leverage),
-            int(float(market_data["min_qty"])),
-        )
-        return max_trade_qty
+        for i in range(max_retries):
+            try:
+                market_data = self.exchange.get_market_data_bybit(self.symbol)
+                max_trade_qty = round(
+                    (float(total_equity) * wallet_exposure / float(best_ask_price))
+                    / (100 / max_leverage),
+                    int(float(market_data["min_qty"])),
+                )
+                return max_trade_qty
+            except TypeError as e:
+                if total_equity is None:
+                    print(f"Error: total_equity is None. Retrying in {retry_delay} seconds...")
+                if best_ask_price is None:
+                    print(f"Error: best_ask_price is None. Retrying in {retry_delay} seconds...")
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}. Retrying in {retry_delay} seconds...")
+            time.sleep(retry_delay)
+
+        raise Exception("Failed to calculate maximum trade quantity after maximum retries.")
+
+    # def calc_max_trade_qty(self, total_equity, best_ask_price, max_leverage):
+    #     wallet_exposure = self.config.wallet_exposure
+    #     market_data = self.exchange.get_market_data_bybit(self.symbol)
+    #     max_trade_qty = round(
+    #         (float(total_equity) * wallet_exposure / float(best_ask_price))
+    #         / (100 / max_leverage),
+    #         int(float(market_data["min_qty"])),
+    #     )
+    #     return max_trade_qty
 
     def check_amount_validity_bybit(self, amount, symbol):
         market_data = self.exchange.get_market_data_bybit(symbol)
