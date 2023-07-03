@@ -3,8 +3,6 @@ import math
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_DOWN
 from ..strategy import Strategy
 from typing import Tuple
-#from ...tables import create_strategy_table, start_live_table
-#from directionalscalper.core.tables import create_strategy_table, start_live_table
 import threading
 import os
 
@@ -13,7 +11,6 @@ class BybitHedgeStrategy(Strategy):
         super().__init__(exchange, config, manager)
         self.manager = manager
         self.last_cancel_time = 0
-        self.wallet_exposure_limit = self.config.wallet_exposure_limit
         self.current_wallet_exposure = 1.0
         self.printed_trade_quantities = False
 

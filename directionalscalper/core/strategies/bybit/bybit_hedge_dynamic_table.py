@@ -13,7 +13,6 @@ class BybitHedgeDynamicLeverageTable(Strategy):
         super().__init__(exchange, config, manager)
         self.manager = manager
         self.last_cancel_time = 0
-        self.wallet_exposure_limit = self.config.wallet_exposure_limit
         self.current_wallet_exposure = 1.0
         self.printed_trade_quantities = False
         self.checked_amount_validity = False
