@@ -22,7 +22,7 @@ class BybitAutoHedgeStrategy(Strategy):
         self.long_leverage_increased = False
         self.short_leverage_increased = False
 
-    def generate_main_table(self, symbol, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl):
+    def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit):
         try:
             table = Table(show_header=False, header_style="bold magenta", title="Directional Scalper v2.0.0")
             table.add_column("Key")
@@ -34,19 +34,27 @@ class BybitAutoHedgeStrategy(Strategy):
 
             table_data = {
                 "Symbol": symbol,
+                "Price": current_price,
                 "Balance": balance,
                 "Available bal.": available_bal,
+                "Long entry QTY": long_dynamic_amount,
+                "Short entry QTY": short_dynamic_amount,
                 "Long pos. QTY": long_pos_qty,
                 "Short pos. QTY": short_pos_qty,
                 "Long uPNL": long_upnl,
                 "Short uPNL": short_upnl,
                 "Long cum. uPNL": long_cum_pnl,
                 "Short cum. uPNL": short_cum_pnl,
+                "Long pos. price": long_pos_price,
+                "Long take profit": long_take_profit,
+                "Short pos. price": short_pos_price,
+                "Short take profit": short_take_profit,
                 "1m Vol": volume,
                 "1m Spread:": spread,
                 "Trend": trend,
                 "Min. volume": self.config.min_volume,
                 "Min. spread": self.config.min_distance,
+                "Min. qty": min_qty,
                 #"mode": mode,
                 #"trend": trend,
             }
@@ -93,9 +101,9 @@ class BybitAutoHedgeStrategy(Strategy):
         with live:
             while True:
 
-                print(f"[Bybit hedge dynamic entry/exit unstuck strategy running]")
-                print(f"Min volume: {min_vol}")
-                print(f"Min distance: {min_dist}")
+                # print(f"[Bybit hedge dynamic entry/exit unstuck strategy running]")
+                # print(f"Min volume: {min_vol}")
+                # print(f"Min distance: {min_dist}")
 
                 # Get API data
                 data = self.manager.get_data()
@@ -106,13 +114,13 @@ class BybitAutoHedgeStrategy(Strategy):
                 one_hour_distance = self.manager.get_asset_value(symbol, data, "1hSpread")
                 four_hour_distance = self.manager.get_asset_value(symbol, data, "4hSpread")
                 trend = self.manager.get_asset_value(symbol, data, "Trend")
-                print(f"1m Volume: {one_minute_volume}")
-                print(f"1m Spread: {one_minute_distance}")
-                print(f"5m Spread: {five_minute_distance}")
-                print(f"30m Spread: {thirty_minute_distance}")
-                print(f"1h Spread: {one_hour_distance}")
-                print(f"4h Spread: {four_hour_distance}")
-                print(f"Trend: {trend}")
+                # print(f"1m Volume: {one_minute_volume}")
+                # print(f"1m Spread: {one_minute_distance}")
+                # print(f"5m Spread: {five_minute_distance}")
+                # print(f"30m Spread: {thirty_minute_distance}")
+                # print(f"1h Spread: {one_hour_distance}")
+                # print(f"4h Spread: {four_hour_distance}")
+                # print(f"Trend: {trend}")
 
                 #price_precision = int(self.exchange.get_price_precision(symbol))
 
@@ -144,7 +152,7 @@ class BybitAutoHedgeStrategy(Strategy):
                         else:
                             raise e
 
-                print(f"Available equity: {available_equity}")
+                # print(f"Available equity: {available_equity}")
 
                 current_price = self.exchange.get_current_price(symbol)
                 market_data = self.get_market_data_with_retry(symbol, max_retries = 5, retry_delay = 5)
@@ -154,7 +162,7 @@ class BybitAutoHedgeStrategy(Strategy):
 
                 print(f"Best bid: {best_bid_price}")
                 print(f"Best ask: {best_ask_price}")
-                print(f"Current price: {current_price}")
+                # print(f"Current price: {current_price}")
 
                 if self.max_long_trade_qty is None or self.max_short_trade_qty is None:
                     self.max_long_trade_qty = self.max_short_trade_qty = self.calc_max_trade_qty(total_equity,
@@ -238,8 +246,8 @@ class BybitAutoHedgeStrategy(Strategy):
                 short_pos_qty = position_data["short"]["qty"]
                 long_pos_qty = position_data["long"]["qty"]
 
-                print(f"Short pos qty: {short_pos_qty}")
-                print(f"Long pos qty: {long_pos_qty}")
+                # print(f"Short pos qty: {short_pos_qty}")
+                # print(f"Long pos qty: {long_pos_qty}")
 
                 if long_pos_qty >= self.max_long_trade_qty:
                     self.max_long_trade_qty *= 2  # double the maximum long trade quantity
@@ -276,20 +284,20 @@ class BybitAutoHedgeStrategy(Strategy):
                 short_upnl = position_data["short"]["upnl"]
                 long_upnl = position_data["long"]["upnl"]
 
-                print(f"Short uPNL: {short_upnl}")
-                print(f"Long uPNL: {long_upnl}")
+                # print(f"Short uPNL: {short_upnl}")
+                # print(f"Long uPNL: {long_upnl}")
 
                 cum_realised_pnl_long = position_data["long"]["cum_realised"]
                 cum_realised_pnl_short = position_data["short"]["cum_realised"]
 
-                print(f"Short cum. PNL: {cum_realised_pnl_short}")
-                print(f"Long cum. PNL: {cum_realised_pnl_long}")
+                # print(f"Short cum. PNL: {cum_realised_pnl_short}")
+                # print(f"Long cum. PNL: {cum_realised_pnl_long}")
 
                 short_pos_price = position_data["short"]["price"] if short_pos_qty > 0 else None
                 long_pos_price = position_data["long"]["price"] if long_pos_qty > 0 else None
 
-                print(f"Long pos price {long_pos_price}")
-                print(f"Short pos price {short_pos_price}")
+                # print(f"Long pos price {long_pos_price}")
+                # print(f"Short pos price {short_pos_price}")
 
                 short_take_profit = None
                 long_take_profit = None
@@ -304,8 +312,8 @@ class BybitAutoHedgeStrategy(Strategy):
                         
                 previous_five_minute_distance = five_minute_distance
 
-                print(f"Short TP: {short_take_profit}")
-                print(f"Long TP: {long_take_profit}")
+                # print(f"Short TP: {short_take_profit}")
+                # print(f"Long TP: {long_take_profit}")
 
                 should_short = self.short_trade_condition(best_bid_price, ma_3_high)
                 should_long = self.long_trade_condition(best_bid_price, ma_3_high)
@@ -332,6 +340,8 @@ class BybitAutoHedgeStrategy(Strategy):
 
                 live.update(self.generate_main_table(
                     symbol,
+                    min_qty,
+                    current_price,
                     total_equity,
                     available_equity,
                     one_minute_volume,
@@ -342,7 +352,13 @@ class BybitAutoHedgeStrategy(Strategy):
                     long_upnl,
                     short_upnl,
                     cum_realised_pnl_long,
-                    cum_realised_pnl_short
+                    cum_realised_pnl_short,
+                    long_pos_price,
+                    short_pos_price,
+                    long_dynamic_amount,
+                    short_dynamic_amount,
+                    long_take_profit,
+                    short_take_profit
                 ))
 
                 if trend is not None and isinstance(trend, str):
