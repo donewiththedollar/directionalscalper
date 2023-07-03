@@ -109,14 +109,13 @@ Make sure you are in the directory bot-multiexchange
 # Current strategies
 ## Bybit
 * bybit_hedge
+* bybit_auto_hedge - Dynamic entry, take profit distance, position leverage per side. Table included.
 * bybit_longonly
 * bybit_shortonly
 * bybit_longonly_dynamic
 * bybit_shortonly_dynamic
 * bybit_longonly_dynamic_leverage
 * bybit_shortonly_dynamic_leverage
-* bybit_hedge_dynamic_unstuck
-* bybit_hedge_dynamic_table
  
 ## Bitget 
 * bitget_hedge
