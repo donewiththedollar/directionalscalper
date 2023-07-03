@@ -21,10 +21,11 @@ class BybitAutoHedgeStrategy(Strategy):
         self.initial_max_short_trade_qty = None
         self.long_leverage_increased = False
         self.short_leverage_increased = False
+        self.version = "2.0.1"
 
     def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit):
         try:
-            table = Table(show_header=False, header_style="bold magenta", title="Directional Scalper v2.0.0")
+            table = Table(show_header=False, header_style="bold magenta", title=f"Directional Scalper {self.version}")
             table.add_column("Key")
             table.add_column("Value")
             #min_vol_dist_data = self.manager.get_min_vol_dist_data(self.symbol)
