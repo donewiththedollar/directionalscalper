@@ -28,7 +28,7 @@ Directional Scalper        |  API Scraper
 - Clone the repo `git clone https://github.com/donewiththedollar/directionalscalper.git`
 - Install requirements `pip3.11 install -r requirements.txt`
 - Add API key(s) to config.json in /configs folder
-- Run the bot `python3.11 bot.py --exchange bybit --symbol DOGEUSDT --strategy bybit_hedge_dynamic_unstuck --config config.json`
+- Run the bot `python3.11 bot.py --exchange bybit --symbol DOGEUSDT --strategy bybit_auto_hedge --config config.json`
  
 ### Full installation instructions
 Steps to set up Directionalscalper v2
