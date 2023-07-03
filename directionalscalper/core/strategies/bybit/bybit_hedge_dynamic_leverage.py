@@ -4,7 +4,7 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_DOWN
 from ..strategy import Strategy
 from typing import Tuple
 
-class BybitHedgeUnstuckStrategy(Strategy):
+class BybitHedgeDynamicStrategy(Strategy):
     def __init__(self, exchange, manager, config):
         super().__init__(exchange, config, manager)
         self.manager = manager
