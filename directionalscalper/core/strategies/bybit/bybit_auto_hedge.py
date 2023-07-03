@@ -25,7 +25,7 @@ class BybitAutoHedgeStrategy(Strategy):
         self.short_leverage_increased = False
         self.version = "2.0.1"
 
-    def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev):
+    def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev, long_max_trade_qty, short_max_trade_qty):
         try:
             table = Table(show_header=False, header_style="bold magenta", title=f"Directional Scalper {self.version}")
             table.add_column("Key")
@@ -40,6 +40,8 @@ class BybitAutoHedgeStrategy(Strategy):
                 "Price": current_price,
                 "Balance": balance,
                 "Available bal.": available_bal,
+                "Long MAX QTY": long_max_trade_qty,
+                "Short MAX QTY": short_max_trade_qty,
                 "Long entry QTY": long_dynamic_amount,
                 "Short entry QTY": short_dynamic_amount,
                 "Long pos. QTY": long_pos_qty,
@@ -336,6 +338,8 @@ class BybitAutoHedgeStrategy(Strategy):
                     short_take_profit,
                     self.long_pos_leverage,
                     self.short_pos_leverage,
+                    self.max_long_trade_qty,
+                    self.max_short_trade_qty,
                 ))
 
                 if trend is not None and isinstance(trend, str):
