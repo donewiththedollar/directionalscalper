@@ -674,18 +674,40 @@ class Exchange:
         return values
     
     # Universal
-    def get_orderbook(self, symbol) -> dict:
+    def get_orderbook(self, symbol, max_retries=3, retry_delay=5) -> dict:
         values = {"bids": [], "asks": []}
-        try:
-            data = self.exchange.fetch_order_book(symbol)
-            if "bids" in data and "asks" in data:
-                if len(data["bids"]) > 0 and len(data["asks"]) > 0:
-                    if len(data["bids"][0]) > 0 and len(data["asks"][0]) > 0:
-                        values["bids"] = data["bids"]
-                        values["asks"] = data["asks"]
-        except Exception as e:
-            log.warning(f"An unknown error occurred in get_orderbook(): {e}")
+        
+        for i in range(max_retries):
+            try:
+                data = self.exchange.fetch_order_book(symbol)
+                if "bids" in data and "asks" in data:
+                    if len(data["bids"]) > 0 and len(data["asks"]) > 0:
+                        if len(data["bids"][0]) > 0 and len(data["asks"][0]) > 0:
+                            values["bids"] = data["bids"]
+                            values["asks"] = data["asks"]
+                break  # if the fetch was successful, break out of the loop
+            except Exception as e:
+                if i < max_retries - 1:  # if not the last attempt
+                    log.warning(f"An unknown error occurred in get_orderbook(): {e}. Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    log.error(f"Failed to fetch order book after {max_retries} attempts: {e}")
+                    raise e  # If it's still failing after max_retries, re-raise the exception.
+        
         return values
+
+    # def get_orderbook(self, symbol) -> dict:
+    #     values = {"bids": [], "asks": []}
+    #     try:
+    #         data = self.exchange.fetch_order_book(symbol)
+    #         if "bids" in data and "asks" in data:
+    #             if len(data["bids"]) > 0 and len(data["asks"]) > 0:
+    #                 if len(data["bids"][0]) > 0 and len(data["asks"][0]) > 0:
+    #                     values["bids"] = data["bids"]
+    #                     values["asks"] = data["asks"]
+    #     except Exception as e:
+    #         log.warning(f"An unknown error occurred in get_orderbook(): {e}")
+    #     return values
 
     # Bitget
     def get_positions_bitget(self, symbol) -> dict:
@@ -745,7 +767,7 @@ class Exchange:
 
 
     # Bybit 
-    def get_positions_bybit(self, symbol) -> dict:
+    def get_positions_bybit(self, symbol, max_retries=3, retry_delay=5) -> dict:
         values = {
             "long": {
                 "qty": 0.0,
@@ -768,35 +790,84 @@ class Exchange:
                 "entry_price": 0,
             },
         }
-        try:
-            data = self.exchange.fetch_positions(symbol)
-            #print(data)  # Print debug info
-            if len(data) == 2:
-                sides = ["long", "short"]
-                for side in [0, 1]:
-                    values[sides[side]]["qty"] = float(data[side]["contracts"])
-                    values[sides[side]]["price"] = float(data[side]["entryPrice"] or 0)
-                    values[sides[side]]["realised"] = round(
-                        float(data[side]["info"]["unrealisedPnl"] or 0), 4
-                    )
-                    values[sides[side]]["cum_realised"] = round(
-                        float(data[side]["info"]["cumRealisedPnl"] or 0), 4
-                    )
-                    values[sides[side]]["upnl"] = round(
-                        float(data[side]["info"]["unrealisedPnl"] or 0), 4
-                    )
-                    values[sides[side]]["upnl_pct"] = round(
-                        float(data[side]["percentage"] or 0), 4  # Change 'precentage' to 'percentage'
-                    )
-                    values[sides[side]]["liq_price"] = float(
-                        data[side]["liquidationPrice"] or 0
-                    )
-                    values[sides[side]]["entry_price"] = float(
-                        data[side]["entryPrice"] or 0
-                    )
-        except Exception as e:
-            log.warning(f"An unknown error occurred in get_positions(): {e}")
+
+        for i in range(max_retries):
+            try:
+                data = self.exchange.fetch_positions(symbol)
+                if len(data) == 2:
+                    sides = ["long", "short"]
+                    for side in [0, 1]:
+                        values[sides[side]]["qty"] = float(data[side]["contracts"])
+                        values[sides[side]]["price"] = float(data[side]["entryPrice"] or 0)
+                        values[sides[side]]["realised"] = round(float(data[side]["info"]["unrealisedPnl"] or 0), 4)
+                        values[sides[side]]["cum_realised"] = round(float(data[side]["info"]["cumRealisedPnl"] or 0), 4)
+                        values[sides[side]]["upnl"] = round(float(data[side]["info"]["unrealisedPnl"] or 0), 4)
+                        values[sides[side]]["upnl_pct"] = round(float(data[side]["percentage"] or 0), 4)
+                        values[sides[side]]["liq_price"] = float(data[side]["liquidationPrice"] or 0)
+                        values[sides[side]]["entry_price"] = float(data[side]["entryPrice"] or 0)
+                break  # If the fetch was successful, break out of the loop
+            except Exception as e:
+                if i < max_retries - 1:  # If not the last attempt
+                    log.warning(f"An unknown error occurred in get_positions_bybit(): {e}. Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    log.error(f"Failed to fetch positions after {max_retries} attempts: {e}")
+                    raise e  # If it's still failing after max_retries, re-raise the exception.
+
         return values
+
+    # def get_positions_bybit(self, symbol) -> dict:
+    #     values = {
+    #         "long": {
+    #             "qty": 0.0,
+    #             "price": 0.0,
+    #             "realised": 0,
+    #             "cum_realised": 0,
+    #             "upnl": 0,
+    #             "upnl_pct": 0,
+    #             "liq_price": 0,
+    #             "entry_price": 0,
+    #         },
+    #         "short": {
+    #             "qty": 0.0,
+    #             "price": 0.0,
+    #             "realised": 0,
+    #             "cum_realised": 0,
+    #             "upnl": 0,
+    #             "upnl_pct": 0,
+    #             "liq_price": 0,
+    #             "entry_price": 0,
+    #         },
+    #     }
+    #     try:
+    #         data = self.exchange.fetch_positions(symbol)
+    #         #print(data)  # Print debug info
+    #         if len(data) == 2:
+    #             sides = ["long", "short"]
+    #             for side in [0, 1]:
+    #                 values[sides[side]]["qty"] = float(data[side]["contracts"])
+    #                 values[sides[side]]["price"] = float(data[side]["entryPrice"] or 0)
+    #                 values[sides[side]]["realised"] = round(
+    #                     float(data[side]["info"]["unrealisedPnl"] or 0), 4
+    #                 )
+    #                 values[sides[side]]["cum_realised"] = round(
+    #                     float(data[side]["info"]["cumRealisedPnl"] or 0), 4
+    #                 )
+    #                 values[sides[side]]["upnl"] = round(
+    #                     float(data[side]["info"]["unrealisedPnl"] or 0), 4
+    #                 )
+    #                 values[sides[side]]["upnl_pct"] = round(
+    #                     float(data[side]["percentage"] or 0), 4  # Change 'precentage' to 'percentage'
+    #                 )
+    #                 values[sides[side]]["liq_price"] = float(
+    #                     data[side]["liquidationPrice"] or 0
+    #                 )
+    #                 values[sides[side]]["entry_price"] = float(
+    #                     data[side]["entryPrice"] or 0
+    #                 )
+    #     except Exception as e:
+    #         log.warning(f"An unknown error occurred in get_positions(): {e}")
+    #     return values
 
     def print_positions_structure_binance(self):
         try:
@@ -1096,29 +1167,60 @@ class Exchange:
             log.warning(f"An unknown error occurred in get_positions(): {e}")
         return current_price
 
-    def get_moving_averages(
-        self, symbol: str, timeframe: str = "1m", num_bars: int = 20
-    ) -> dict:
+    def get_moving_averages(self, symbol: str, timeframe: str = "1m", num_bars: int = 20, max_retries=3, retry_delay=5) -> dict:
         values = {"MA_3_H": 0.0, "MA_3_L": 0.0, "MA_6_H": 0.0, "MA_6_L": 0.0}
-        try:
-            bars = self.exchange.fetch_ohlcv(
-                symbol=symbol, timeframe=timeframe, limit=num_bars
-            )
-            df = pd.DataFrame(
-                bars, columns=["Time", "Open", "High", "Low", "Close", "Volume"]
-            )
-            df["Time"] = pd.to_datetime(df["Time"], unit="ms")
-            df["MA_3_High"] = df.High.rolling(3).mean()
-            df["MA_3_Low"] = df.Low.rolling(3).mean()
-            df["MA_6_High"] = df.High.rolling(6).mean()
-            df["MA_6_Low"] = df.Low.rolling(6).mean()
-            values["MA_3_H"] = df["MA_3_High"].iat[-1]
-            values["MA_3_L"] = df["MA_3_Low"].iat[-1]
-            values["MA_6_H"] = df["MA_6_High"].iat[-1]
-            values["MA_6_L"] = df["MA_6_Low"].iat[-1]
-        except Exception as e:
-            log.warning(f"An unknown error occurred in get_moving_averages(): {e}")
+
+        for i in range(max_retries):
+            try:
+                bars = self.exchange.fetch_ohlcv(
+                    symbol=symbol, timeframe=timeframe, limit=num_bars
+                )
+                df = pd.DataFrame(
+                    bars, columns=["Time", "Open", "High", "Low", "Close", "Volume"]
+                )
+                df["Time"] = pd.to_datetime(df["Time"], unit="ms")
+                df["MA_3_High"] = df.High.rolling(3).mean()
+                df["MA_3_Low"] = df.Low.rolling(3).mean()
+                df["MA_6_High"] = df.High.rolling(6).mean()
+                df["MA_6_Low"] = df.Low.rolling(6).mean()
+                values["MA_3_H"] = df["MA_3_High"].iat[-1]
+                values["MA_3_L"] = df["MA_3_Low"].iat[-1]
+                values["MA_6_H"] = df["MA_6_High"].iat[-1]
+                values["MA_6_L"] = df["MA_6_Low"].iat[-1]
+                break  # If the fetch was successful, break out of the loop
+            except Exception as e:
+                if i < max_retries - 1:  # If not the last attempt
+                    log.warning(f"An unknown error occurred in get_moving_averages(): {e}. Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    log.error(f"Failed to fetch moving averages after {max_retries} attempts: {e}")
+                    raise e  # If it's still failing after max_retries, re-raise the exception.
+        
         return values
+
+    # def get_moving_averages(
+    #     self, symbol: str, timeframe: str = "1m", num_bars: int = 20
+    # ) -> dict:
+    #     values = {"MA_3_H": 0.0, "MA_3_L": 0.0, "MA_6_H": 0.0, "MA_6_L": 0.0}
+    #     try:
+    #         bars = self.exchange.fetch_ohlcv(
+    #             symbol=symbol, timeframe=timeframe, limit=num_bars
+    #         )
+    #         df = pd.DataFrame(
+    #             bars, columns=["Time", "Open", "High", "Low", "Close", "Volume"]
+    #         )
+    #         df["Time"] = pd.to_datetime(df["Time"], unit="ms")
+    #         df["MA_3_High"] = df.High.rolling(3).mean()
+    #         df["MA_3_Low"] = df.Low.rolling(3).mean()
+    #         df["MA_6_High"] = df.High.rolling(6).mean()
+    #         df["MA_6_Low"] = df.Low.rolling(6).mean()
+    #         values["MA_3_H"] = df["MA_3_High"].iat[-1]
+    #         values["MA_3_L"] = df["MA_3_Low"].iat[-1]
+    #         values["MA_6_H"] = df["MA_6_High"].iat[-1]
+    #         values["MA_6_L"] = df["MA_6_Low"].iat[-1]
+    #     except Exception as e:
+    #         log.warning(f"An unknown error occurred in get_moving_averages(): {e}")
+    #     return values
 
     def get_open_orders(self, symbol: str) -> list:
         open_orders_list = []
