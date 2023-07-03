@@ -24,7 +24,6 @@ from directionalscalper.core.strategies.bitget.bitget_grid_dynamic import Bitget
 from directionalscalper.core.strategies.bitget.bitget_fivemin import BitgetFiveMinuteStrategy
 from directionalscalper.core.strategies.okx.okx_hedge import OKXHedgeStrategy
 from directionalscalper.core.strategies.bybit.bybit_hedge import BybitHedgeStrategy
-from directionalscalper.core.strategies.bybit.bybit_hedge_volatility import BybitVolatilityHedgeStrategy
 from directionalscalper.core.strategies.bybit.bybit_violent import BybitViolentHedgeStrategy
 from directionalscalper.core.strategies.bybit.bybit_hedge_unified import BybitHedgeUnifiedStrategy
 from directionalscalper.core.strategies.bybit.bybit_hedge_grid import BybitHedgeGridStrategy
@@ -37,7 +36,7 @@ from directionalscalper.core.strategies.bybit.bybit_shortonly_dynamic import Byb
 from directionalscalper.core.strategies.bybit.bybit_hedge_dynamic_entryexit import BybitHedgeEntryExitDynamic
 from directionalscalper.core.strategies.bybit.bybit_hedge_dynamic_leverage import BybitHedgeDynamicStrategy
 from directionalscalper.core.strategies.bybit.bybit_hedge_dynamic_table import BybitHedgeDynamicLeverageTable
-from directionalscalper.core.strategies.bybit.bybit_hedge_dynamic_table_pretty import BybitHedgeDynamicLeverageTablePretty
+from directionalscalper.core.strategies.bybit.bybit_auto_hedge import BybitAutoHedgeStrategy
 from directionalscalper.core.strategies.huobi.huobi_hedge import HuobiHedgeStrategy
 from directionalscalper.core.strategies.binance.binance_hedge import BinanceHedgeStrategy
 from directionalscalper.core.strategies.phemex.phemex_hedge import PhemexHedgeStrategy
@@ -184,10 +183,6 @@ if __name__ == '__main__':
             strategy = BybitShortOnlyDynamicLeverage(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
 
-        elif strategy_name.lower() == 'bybit_hedge_volatility':
-            strategy = BybitVolatilityHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
-            strategy.run(symbol, amount)
-
         elif strategy_name.lower() == 'bybit_hedge_unified':
             strategy = BybitHedgeUnifiedStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
@@ -204,12 +199,12 @@ if __name__ == '__main__':
             strategy = BybitHedgeDynamicStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
 
-        elif strategy_name.lower() == 'bybit_hedge_dynamic_table':
+        elif strategy_name.lower() == 'bybit_hedge_dynamic_table_old':
             strategy = BybitHedgeDynamicLeverageTable(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
 
-        elif strategy_name.lower() == 'bybit_hedge_prettytable':
-            strategy = BybitHedgeDynamicLeverageTablePretty(market_maker.exchange, market_maker.manager, config.bot)
+        elif strategy_name.lower() == 'bybit_auto_hedge':
+            strategy = BybitAutoHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
 
         elif strategy_name.lower() == 'bybit_hedge_grid':
