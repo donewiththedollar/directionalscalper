@@ -28,7 +28,7 @@ class BybitAutoHedgeStrategy(Strategy):
         self.short_leverage_increased = False
         self.version = "2.0.1"
 
-    def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev, long_max_trade_qty, short_max_trade_qty, long_expected_profit, short_expected_profit):
+    def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev, long_max_trade_qty, short_max_trade_qty, long_expected_profit, short_expected_profit, long_liq_price, short_liq_price):
         try:
             table = Table(show_header=False, header_style="bold magenta", title=f"Directional Scalper {self.version}")
             table.add_column("Key")
@@ -61,6 +61,8 @@ class BybitAutoHedgeStrategy(Strategy):
                 "Short expected profit": "{:.2f} USDT".format(short_expected_profit),
                 "Long pos. lev.": long_pos_lev,
                 "Short pos. lev.": short_pos_lev,
+                "Long liq price": long_liq_price,
+                "Short liq price": short_liq_price,
                 "1m Vol": volume,
                 "1m Spread:": spread,
                 "Trend": trend,
@@ -242,6 +244,13 @@ class BybitAutoHedgeStrategy(Strategy):
                 short_pos_qty = position_data["short"]["qty"]
                 long_pos_qty = position_data["long"]["qty"]
 
+                # get liquidation prices
+                short_liq_price = position_data["short"]["liq_price"]
+                long_liq_price = position_data["long"]["liq_price"]
+
+                # print(f"Short liq price: {short_liq_price}")
+                # print(f"Long liq price: {long_liq_price}")
+
                 if long_pos_qty >= self.max_long_trade_qty:
                     self.max_long_trade_qty *= 2  # double the maximum long trade quantity
                     self.long_leverage_increased = True
@@ -343,6 +352,8 @@ class BybitAutoHedgeStrategy(Strategy):
                     self.max_short_trade_qty,
                     self.long_expected_profit_usdt,
                     self.short_expected_profit_usdt,
+                    long_liq_price,
+                    short_liq_price,
                 ))
 
                 if trend is not None and isinstance(trend, str):
