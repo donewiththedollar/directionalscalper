@@ -50,7 +50,7 @@ All of these commands one by one copy and pasted into terminal: 
 - `sudo apt-get update`
 - `sudo apt-get install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libsqlite3-dev libreadline-dev libffi-dev libbz2-dev`
 
-- `/configure --enable-optimizations`
+- `./configure --enable-optimizations`
 - `make`
 - `sudo make altinstall`
 
