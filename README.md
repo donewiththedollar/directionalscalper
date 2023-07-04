@@ -69,9 +69,9 @@ This pip3.11 -V should show you have pip3.11 installed, no error.
 
 Starting the bot for the first time making sure it works
 
-Make sure you are in the directory bot-multiexchange
+Make sure you are in the directory directionalscalper
 
-- `so cd ~/bot-multiexchange should bring you there if you are not already there.`
+- `so cd ~/directionalscalper should bring you there if you are not already there.`
 
 > Run these:
 
@@ -79,7 +79,8 @@ Make sure you are in the directory bot-multiexchange
 
 > Modify your config_example.json file with your bitget API keys and then run this:
 - `python3.11 bot.py --exchange bitget --symbol OPUSDT_UMCBL --strategy bitget_hedge_dynamic --config config_example.json`
-
+> or a different exchange:
+- `python3.11 bot.py --exchange bybit --symbol SUIUSDT --strategy bybit_auto_hedge --config config_bybit_sub1.json`
  
 ### Setting up the bot
  1. Create `config.json` from `config.example.json` in /configs directory
@@ -92,12 +93,12 @@ Make sure you are in the directory bot-multiexchange
  3. Replacing <bot_token> with your token from the botfather after creating new bot
  4. Look for chat id and copy the chat id into config.json
  
-### Starting the bot
+### Starting the bot examples
 * Hedge strategy is recommended, but you can of course use the other strategies as well. Low entry size is recommended.
 
-> python3.11 bot.py --exchange bitget --symbol XRPUSDT_UMCBL --amount 15 --strategy bitget_hedge --config config_main.json
+> python3.11 bot.py --exchange bybit --symbol SUIUSDT --strategy bybit_auto_hedge --config config_bybit_sub1.json
 
-> python3.11 bot.py --exchange bybit --symbol XRPUSDT --amount 1 --strategy bybit_hedge --config config_sub1.json
+> python3.11 bot.py --exchange bitget --symbol XRPUSDT_UMCBL --amount 15 --strategy bitget_hedge --config config_main.json
  
 > python3.11 bot.py --exchange huobi --symbol XRPUSDT --amount 1 --strategy huobi_hedge --config config_whatever.json
  
