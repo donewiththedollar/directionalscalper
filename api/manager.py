@@ -80,13 +80,31 @@ class Manager:
         self.update_last_checked()
         return self.data
 
+    # def get_remote_data(self):
+    #     if not self.check_timestamp():
+    #         return self.data
+    #     header, raw_json = send_public_request(url=self.url)
+    #     self.data = raw_json
+    #     self.update_last_checked()
+    #     return self.data
+
     def get_remote_data(self):
-        if not self.check_timestamp():
+            if not self.check_timestamp():
+                return self.data
+            while True:  # Keep trying until a successful request is made
+                try:
+                    header, raw_json = send_public_request(url=self.url)
+                    self.data = raw_json
+                    break  # if the request was successful, break the loop
+                except requests.exceptions.RequestException as e:
+                    log.error(f"Request failed: {e}, retrying...")
+                except json.decoder.JSONDecodeError as e:
+                    log.error(f"Failed to parse JSON: {e}, retrying...")
+                except Exception as e:
+                    log.error(f"Unexpected error occurred: {e}, retrying...")
+                finally:
+                    self.update_last_checked()
             return self.data
-        header, raw_json = send_public_request(url=self.url)
-        self.data = raw_json
-        self.update_last_checked()
-        return self.data
 
     def check_timestamp(self):
         return datetime.now().timestamp() - self.last_checked > self.cache_life_seconds
