@@ -37,6 +37,7 @@ from directionalscalper.core.strategies.bybit.bybit_hedge_dynamic_entryexit impo
 from directionalscalper.core.strategies.bybit.bybit_hedge_dynamic_leverage import BybitHedgeDynamicStrategy
 from directionalscalper.core.strategies.bybit.bybit_hedge_dynamic_table import BybitHedgeDynamicLeverageTable
 from directionalscalper.core.strategies.bybit.bybit_auto_hedge import BybitAutoHedgeStrategy
+from directionalscalper.core.strategies.bybit.bybit_auto_hedge_fixed import BybitAutoHedgeStrategyFixed
 from directionalscalper.core.strategies.huobi.huobi_hedge import HuobiHedgeStrategy
 from directionalscalper.core.strategies.binance.binance_hedge import BinanceHedgeStrategy
 from directionalscalper.core.strategies.phemex.phemex_hedge import PhemexHedgeStrategy
@@ -205,6 +206,10 @@ if __name__ == '__main__':
 
         elif strategy_name.lower() == 'bybit_auto_hedge':
             strategy = BybitAutoHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol)
+
+        elif strategy_name.lower() == 'bybit_auto_hedge_fixed':
+            strategy = BybitAutoHedgeStrategyFixed(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
 
         elif strategy_name.lower() == 'bybit_hedge_grid':
