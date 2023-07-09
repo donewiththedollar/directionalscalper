@@ -10,6 +10,9 @@ class Strategy:
         self.symbol = config.symbol
         self.printed_trade_quantities = False
 
+    def get_current_price(self, symbol):
+        return self.exchange.get_current_price(symbol)
+
     def limit_order_bybit_unified(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
         params = {"reduceOnly": reduceOnly}
         #print(f"Symbol: {symbol}, Side: {side}, Amount: {amount}, Price: {price}, Params: {params}")
@@ -304,12 +307,6 @@ class Strategy:
             return float(long_profit_price)
         return None
     
-    # def calculate_short_take_profit(self, short_pos_price):
-    #     # Your existing logic here
-
-    # def calculate_long_take_profit(self, long_pos_price):
-    #     # Your existing logic here
-
     def check_short_long_conditions(self, best_bid_price, ma_3_high):
         should_short = best_bid_price > ma_3_high
         should_long = best_bid_price < ma_3_high
@@ -391,181 +388,121 @@ class Strategy:
                 return base + '/' + quote
         return None
 
+#### HUOBI ####
 
-    # def update_table(self):
-    #     print("Acquiring lock and updating table...")
-    #     with self.table.lock:  # acquire the lock
-    #         # Clear the existing table rows
-    #         self.table.table.rows.clear()
+    def calculate_short_take_profit_huobi(self, short_pos_price, symbol):
+        if short_pos_price is None:
+            return None
 
-    #         # Add rows individually
-    #         print(f'Symbol: {self.symbol}')  # print before adding
-    #         self.table.add_row('Symbol', self.symbol)
+        five_min_data = self.manager.get_5m_moving_averages(symbol)
+        price_precision = int(self.exchange.get_price_precision(symbol))
 
-    #         print(f'Long pos qty: {self.long_pos_qty}')
-    #         self.table.add_row('Long pos qty', self.long_pos_qty)
+        if five_min_data is not None:
+            ma_6_high = Decimal(five_min_data["MA_6_H"])
+            ma_6_low = Decimal(five_min_data["MA_6_L"])
 
-    #         print(f'Short pos qty: {self.short_pos_qty}')
-    #         self.table.add_row('Short pos qty', self.short_pos_qty)
+            short_target_price = Decimal(short_pos_price) - (ma_6_high - ma_6_low)
+            short_target_price = short_target_price.quantize(
+                Decimal('1e-{}'.format(price_precision)),
+                #rounding=ROUND_HALF_UP
+                rounding=ROUND_DOWN
+            )
 
-    #         print(f'Long upnl: {self.long_upnl}')
-    #         self.table.add_row('Long upnl', self.long_upnl)
+            short_profit_price = short_target_price
 
-    #         print(f'Short upnl: {self.short_upnl}')
-    #         self.table.add_row('Short upnl', self.short_upnl)
+            return float(short_profit_price)
+        return None
 
-    #         print(f'Long cum pnl: {self.cum_realised_pnl_long}')
-    #         self.table.add_row('Long cum pnl', self.cum_realised_pnl_long)
+    def calculate_long_take_profit_huobi(self, long_pos_price, symbol):
+        if long_pos_price is None:
+            return None
 
-    #         print(f'Short cum pnl: {self.cum_realised_pnl_short}')
-    #         self.table.add_row('Short cum pnl', self.cum_realised_pnl_short)
+        five_min_data = self.manager.get_5m_moving_averages(symbol)
+        price_precision = int(self.exchange.get_price_precision(symbol))
 
-    #         print(f'Long take profit: {self.long_take_profit}')
-    #         self.table.add_row('Long take profit', self.long_take_profit)
+        if five_min_data is not None:
+            ma_6_high = Decimal(five_min_data["MA_6_H"])
+            ma_6_low = Decimal(five_min_data["MA_6_L"])
 
-    #         print(f'Short Take profit: {self.short_take_profit}')
-    #         self.table.add_row('Short Take profit', self.short_take_profit)
-    #     print("Table updated, lock released.")
+            long_target_price = Decimal(long_pos_price) + (ma_6_high - ma_6_low)
+            long_target_price = long_target_price.quantize(
+                Decimal('1e-{}'.format(price_precision)),
+                rounding=ROUND_HALF_UP
+            )
 
-    # def update_table(self):
-    #     print("Acquiring lock and updating table...")
-    #     with self.table.lock:  # acquire the lock
-    #         # Clear the existing table rows
-    #         self.table.table.rows.clear()
+            long_profit_price = long_target_price
 
-    #         # Add rows individually
-    #         self.table.add_row('Symbol', self.symbol)
-    #         self.table.add_row('Long pos qty', self.long_pos_qty)
-    #         self.table.add_row('Short pos qty', self.short_pos_qty)
-    #         self.table.add_row('Long upnl', self.long_upnl)
-    #         self.table.add_row('Short upnl', self.short_upnl)
-    #         self.table.add_row('Long cum pnl', self.cum_realised_pnl_long)
-    #         self.table.add_row('Short cum pnl', self.cum_realised_pnl_short)
-    #         self.table.add_row('Long take profit', self.long_take_profit)
-    #         self.table.add_row('Short Take profit', self.short_take_profit)
-    #     print("Table updated, lock released.")
+            return float(long_profit_price)
+        return None
 
-
-    # def update_table(self):
-    #     with self.table.lock:  # acquire the lock
-    #         # Clear the existing table rows
-    #         self.table.table.rows.clear()
-
-    #         # Add rows individually
-    #         self.table.add_row('Symbol', self.symbol)
-    #         self.table.add_row('Long pos qty', self.long_pos_qty)
-    #         self.table.add_row('Short pos qty', self.short_pos_qty)
-    #         self.table.add_row('Long upnl', self.long_upnl)
-    #         self.table.add_row('Short upnl', self.short_upnl)
-    #         self.table.add_row('Long cum pnl', self.cum_realised_pnl_long)
-    #         self.table.add_row('Short cum pnl', self.cum_realised_pnl_short)
-    #         self.table.add_row('Long take profit', self.long_take_profit)
-    #         self.table.add_row('Short Take profit', self.short_take_profit)
-
-### WORKING ###
-    # def update_table(self):
-    #     # Clear the existing table rows
-    #     self.table.table.rows.clear()
-
-    #     # Add rows individually
-    #     self.table.add_row('Symbol', self.symbol)
-    #     self.table.add_row('Long pos qty', self.long_pos_qty)
-    #     self.table.add_row('Short pos qty', self.short_pos_qty)
-    #     self.table.add_row('Long upnl', self.long_upnl)
-    #     self.table.add_row('Short upnl', self.short_upnl)
-    #     self.table.add_row('Long cum pnl', self.cum_realised_pnl_long)
-    #     self.table.add_row('Short cum pnl', self.cum_realised_pnl_short)
-    #     self.table.add_row('Long take profit', self.long_take_profit)
-    #     self.table.add_row('Short Take profit', self.short_take_profit)
+    def get_open_take_profit_order_quantities_huobi(self, orders, side):
+        take_profit_orders = []
+        for order in orders:
+            order_info = {
+                "id": order['id'],
+                "price": order['price'],
+                "qty": order['qty'],
+                "order_status": order['order_status'],
+                "side": order['side']
+            }
+            if (
+                order_info['side'].lower() == side.lower()
+                and order_info['order_status'] == '3'  # Adjust the condition based on your order status values
+                and order_info['id'] not in (self.long_entry_order_ids if side.lower() == 'sell' else self.short_entry_order_ids)
+            ):
+                take_profit_orders.append((order_info['qty'], order_info['id']))
+        return take_profit_orders
 
 
-    # def update_table(self):
-    #     # Clear the existing table rows
-    #     self.table.table.rows.clear()
+    def get_open_take_profit_order_quantity_huobi(self, symbol, orders, side):
+        current_price = self.get_current_price(symbol)  # You'd need to implement this function
+        long_quantity = None
+        long_order_id = None
+        short_quantity = None
+        short_order_id = None
 
-    #     # Add rows individually
-    #     self.table.add_row('Symbol', self.symbol if self.symbol is not None else 'N/A')
-    #     self.table.add_row('Long pos qty', self.long_pos_qty if self.long_pos_qty is not None else 'N/A')
-    #     self.table.add_row('Short pos qty', self.short_pos_qty if self.short_pos_qty is not None else 'N/A')
-    #     self.table.add_row('Long upnl', self.long_upnl if self.long_upnl is not None else 'N/A')
-    #     self.table.add_row('Short upnl', self.short_upnl if self.short_upnl is not None else 'N/A')
-    #     self.table.add_row('Long cum pnl', self.cum_realised_pnl_long if self.cum_realised_pnl_long is not None else 'N/A')
-    #     self.table.add_row('Short cum pnl', self.cum_realised_pnl_short if self.cum_realised_pnl_short is not None else 'N/A')
-    #     self.table.add_row('Long take profit', self.long_take_profit if self.long_take_profit is not None else 'N/A')
-    #     self.table.add_row('Short Take profit', self.short_take_profit if self.short_take_profit is not None else 'N/A')
+        for order in orders:
+            order_price = float(order['price'])
+            if order['side'] == 'sell':
+                if side == "close_long" and order_price > current_price:
+                    if 'reduce_only' in order and order['reduce_only']:
+                        continue
+                    long_quantity = order['qty']
+                    long_order_id = order['id']
+                elif side == "close_short" and order_price < current_price:
+                    if 'reduce_only' in order and order['reduce_only']:
+                        continue
+                    short_quantity = order['qty']
+                    short_order_id = order['id']
+            else:
+                if side == "close_short" and order_price > current_price:
+                    if 'reduce_only' in order and not order['reduce_only']:
+                        continue
+                    short_quantity = order['qty']
+                    short_order_id = order['id']
+                elif side == "close_long" and order_price < current_price:
+                    if 'reduce_only' in order and not order['reduce_only']:
+                        continue
+                    long_quantity = order['qty']
+                    long_order_id = order['id']
 
-    # def update_table(self):
-    #     # Clear the existing table rows
-    #     self.table.table.rows.clear()
+        if side == "close_long":
+            return long_quantity, long_order_id
+        elif side == "close_short":
+            return short_quantity, short_order_id
 
-    #     # Add rows individually
-    #     try:
-    #         self.table.add_row('Symbol', self.symbol if self.symbol is not None else 'N/A')
-    #     except Exception as e:
-    #         print(f"Error updating 'Symbol': {e}")
+        return None, None
 
-    #     try:
-    #         self.table.add_row('Long pos qty', self.long_pos_qty if self.long_pos_qty is not None else 'N/A')
-    #     except Exception as e:
-    #         print(f"Error updating 'Long pos qty': {e}")
+    def calculate_actual_quantity_huobi(self, position_qty, parsed_symbol_swap):
+        contract_size_per_unit = self.exchange.get_contract_size_huobi(parsed_symbol_swap)
+        return position_qty * contract_size_per_unit
 
-    #     try:
-    #         self.table.add_row('Short pos qty', self.short_pos_qty if self.short_pos_qty is not None else 'N/A')
-    #     except Exception as e:
-    #         print(f"Error updating 'Short pos qty': {e}")
+    def parse_symbol_swap_huobi(self, symbol):
+        if "huobi" in self.exchange.name.lower():
+            base_currency = symbol[:-4]
+            quote_currency = symbol[-4:] 
+            return f"{base_currency}/{quote_currency}:{quote_currency}"
+        return symbol
 
-    #     try:
-    #         self.table.add_row('Long upnl', self.long_upnl if self.long_upnl is not None else 'N/A')
-    #     except Exception as e:
-    #         print(f"Error updating 'Long upnl': {e}")
-
-    #     try:
-    #         self.table.add_row('Short upnl', self.short_upnl if self.short_upnl is not None else 'N/A')
-    #     except Exception as e:
-    #         print(f"Error updating 'Short upnl': {e}")
-
-    #     try:
-    #         self.table.add_row('Long cum pnl', self.cum_realised_pnl_long if self.cum_realised_pnl_long is not None else 'N/A')
-    #     except Exception as e:
-    #         print(f"Error updating 'Long cum pnl': {e}")
-
-    #     try:
-    #         self.table.add_row('Short cum pnl', self.cum_realised_pnl_short if self.cum_realised_pnl_short is not None else 'N/A')
-    #     except Exception as e:
-    #         print(f"Error updating 'Short cum pnl': {e}")
-
-    #     try:
-    #         self.table.add_row('Long take profit', self.long_take_profit if self.long_take_profit is not None else 'N/A')
-    #     except Exception as e:
-    #         print(f"Error updating 'Long take profit': {e}")
-
-    #     try:
-    #         self.table.add_row('Short Take profit', self.short_take_profit if self.short_take_profit is not None else 'N/A')
-    #     except Exception as e:
-    #         print(f"Error updating 'Short Take profit': {e}")
-
-    def update_table(self):
-        print("Updating table...")
-        # Clear the existing table rows
-        self.table.table.rows.clear()
-
-        # Add rows individually
-        rows = [
-            ('Symbol', self.symbol),
-            ('Long pos qty', self.long_pos_qty),
-            ('Short pos qty', self.short_pos_qty),
-            ('Long upnl', self.long_upnl),
-            ('Short upnl', self.short_upnl),
-            ('Long cum pnl', self.cum_realised_pnl_long),
-            ('Short cum pnl', self.cum_realised_pnl_short),
-            ('Long take profit', self.long_take_profit),
-            ('Short Take profit', self.short_take_profit),
-        ]
-
-        for label, value in rows:
-            try:
-                print(f"Adding row: {label}")
-                self.table.add_row(label, value if value is not None else 'N/A')
-            except Exception as e:
-                print(f"Error updating '{label}': {e}")
-        print("Finished updating table.")
+    def cancel_take_profit_orders_huobi(self, symbol, side):
+        self.exchange.cancel_close_huobi(symbol, side)
