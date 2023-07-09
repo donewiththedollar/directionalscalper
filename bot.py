@@ -15,6 +15,7 @@ import config
 from api.manager import Manager
 from directionalscalper.core.exchange import Exchange
 from directionalscalper.core.strategies.strategy import Strategy
+# BITGET
 from directionalscalper.core.strategies.bitget.bitget_hedge import BitgetHedgeStrategy
 from directionalscalper.core.strategies.bitget.bitget_hedge_dynamic import BitgetDynamicHedgeStrategy
 from directionalscalper.core.strategies.bitget.bitget_longonly_dynamic import BitgetLongOnlyDynamicStrategy
@@ -22,7 +23,9 @@ from directionalscalper.core.strategies.bitget.bitget_shortonly_dynamic import B
 from directionalscalper.core.strategies.bitget.bitget_auctionbased_dynamic import BitgetDynamicAuctionBasedStrategy
 from directionalscalper.core.strategies.bitget.bitget_grid_dynamic import BitgetGridStrategy
 from directionalscalper.core.strategies.bitget.bitget_fivemin import BitgetFiveMinuteStrategy
+# OKX
 from directionalscalper.core.strategies.okx.okx_hedge import OKXHedgeStrategy
+# BYBIT
 from directionalscalper.core.strategies.bybit.bybit_hedge import BybitHedgeStrategy
 from directionalscalper.core.strategies.bybit.bybit_violent import BybitViolentHedgeStrategy
 from directionalscalper.core.strategies.bybit.bybit_hedge_unified import BybitHedgeUnifiedStrategy
@@ -33,13 +36,15 @@ from directionalscalper.core.strategies.bybit.bybit_longonly_dynamic_leverage im
 from directionalscalper.core.strategies.bybit.bybit_shortonly_dynamic_leverage import BybitShortOnlyDynamicLeverage
 from directionalscalper.core.strategies.bybit.bybit_longonly_dynamic import BybitLongOnlyDynamic
 from directionalscalper.core.strategies.bybit.bybit_shortonly_dynamic import BybitShortOnlyDynamic
-from directionalscalper.core.strategies.bybit.bybit_hedge_dynamic_entryexit import BybitHedgeEntryExitDynamic
 from directionalscalper.core.strategies.bybit.bybit_hedge_dynamic_leverage import BybitHedgeDynamicStrategy
-from directionalscalper.core.strategies.bybit.bybit_hedge_dynamic_table import BybitHedgeDynamicLeverageTable
 from directionalscalper.core.strategies.bybit.bybit_auto_hedge import BybitAutoHedgeStrategy
+# HUOBI
 from directionalscalper.core.strategies.huobi.huobi_hedge import HuobiHedgeStrategy
+# BINANCE
 from directionalscalper.core.strategies.binance.binance_hedge import BinanceHedgeStrategy
+# PHEMEX
 from directionalscalper.core.strategies.phemex.phemex_hedge import PhemexHedgeStrategy
+# MEXC
 from directionalscalper.core.strategies.mexc.mexc_hedge import MEXCHedgeStrategy
 
 class DirectionalMarketMaker:
@@ -191,16 +196,8 @@ if __name__ == '__main__':
             strategy = BybitViolentHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
 
-        elif strategy_name.lower() == 'bybit_hedge_dynamic_safemode':
-            strategy = BybitHedgeEntryExitDynamic(market_maker.exchange, market_maker.manager, config.bot)
-            strategy.run(symbol)
-
         elif strategy_name.lower() == 'bybit_hedge_dynamic':
             strategy = BybitHedgeDynamicStrategy(market_maker.exchange, market_maker.manager, config.bot)
-            strategy.run(symbol)
-
-        elif strategy_name.lower() == 'bybit_hedge_dynamic_table_old':
-            strategy = BybitHedgeDynamicLeverageTable(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
 
         elif strategy_name.lower() == 'bybit_auto_hedge':
