@@ -5,6 +5,7 @@ from typing import Tuple
 from rich.console import Console
 from rich.table import Table
 from rich.live import Live
+from rich.text import Text
 
 class BybitAutoHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):
@@ -26,7 +27,7 @@ class BybitAutoHedgeStrategy(Strategy):
         self.initial_max_short_trade_qty = None
         self.long_leverage_increased = False
         self.short_leverage_increased = False
-        self.version = "2.0.1"
+        self.version = "2.0.2"
 
     def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev, long_max_trade_qty, short_max_trade_qty, long_expected_profit, short_expected_profit, long_liq_price, short_liq_price):
         try:
@@ -64,12 +65,25 @@ class BybitAutoHedgeStrategy(Strategy):
                 "Long liq price": long_liq_price,
                 "Short liq price": short_liq_price,
                 "1m Vol": volume,
-                "1m Spread:": spread,
+                "5m Spread:": spread,
                 "Trend": trend,
                 "Min. volume": self.config.min_volume,
                 "Min. spread": self.config.min_distance,
                 "Min. qty": min_qty,
             }
+
+            # for key, value in table_data.items():
+            #     try:
+            #         if float(value) < 0:
+            #             table.add_row(Text(key, style="bold blue"), Text(str(value), style="bold red"))
+            #         else:
+            #             table.add_row(Text(key, style="bold blue"), Text(str(value), style="bold cyan"))
+            #     except ValueError:
+            #         # Value could not be converted to a float, so it's not a number
+            #         table.add_row(Text(key, style="bold blue"), Text(str(value), style="bold cyan"))
+
+            # for key, value in table_data.items():
+            #     table.add_row(Text(key, style="bold blue"), Text(str(value), style="bold cyan"))
 
             for key, value in table_data.items():
                 table.add_row(key, str(value))
@@ -77,7 +91,7 @@ class BybitAutoHedgeStrategy(Strategy):
             return table
 
         except Exception as e:
-            print("Exception caught {e}")
+            print(f"Exception caught {e}")
             return Table()
 
 
@@ -197,6 +211,14 @@ class BybitAutoHedgeStrategy(Strategy):
                     # The minimum quantity has a fractional part, get its precision level
                     precision_level = len(min_qty_str.split(".")[1])
 
+                # # Get the precision level of the minimum quantity
+                # if ".0" in min_qty_str:
+                #     # The minimum quantity has a fractional part, get its precision level
+                #     precision_level = len(min_qty_str.split(".")[1])
+                # else:
+                #     # The minimum quantity does not have a fractional part, precision is 0
+                #     precision_level = 0
+
                 # Round the amount to the precision level of the minimum quantity
                 long_dynamic_amount = round(long_dynamic_amount, precision_level)
                 short_dynamic_amount = round(short_dynamic_amount, precision_level)
@@ -231,11 +253,15 @@ class BybitAutoHedgeStrategy(Strategy):
                 print(f"Fetching MA data")
                 m_moving_averages = self.manager.get_1m_moving_averages(symbol)
                 m5_moving_averages = self.manager.get_5m_moving_averages(symbol)
+                ma_6_high = m_moving_averages["MA_6_H"]
                 ma_6_low = m_moving_averages["MA_6_L"]
                 ma_3_low = m_moving_averages["MA_3_L"]
                 ma_3_high = m_moving_averages["MA_3_H"]
                 ma_1m_3_high = self.manager.get_1m_moving_averages(symbol)["MA_3_H"]
                 ma_5m_3_high = self.manager.get_5m_moving_averages(symbol)["MA_3_H"]
+
+                print(f"MA 6 HIGH: {ma_6_high}")
+                print(f"MA 6 LOW: {ma_6_low}")
 
                 position_data = self.exchange.get_positions_bybit(symbol)
 
@@ -303,7 +329,7 @@ class BybitAutoHedgeStrategy(Strategy):
                 previous_five_minute_distance = five_minute_distance
 
                 should_short = self.short_trade_condition(best_bid_price, ma_3_high)
-                should_long = self.long_trade_condition(best_bid_price, ma_3_high)
+                should_long = self.long_trade_condition(best_bid_price, ma_3_low)
 
                 should_add_to_short = False
                 should_add_to_long = False
@@ -315,7 +341,7 @@ class BybitAutoHedgeStrategy(Strategy):
                     print(f"Short TP price: {short_take_profit}, TP distance in percent: {-self.short_tp_distance_percent:.2f}%, Expected profit: {self.short_expected_profit_usdt:.2f} USDT")
 
                 if long_pos_price is not None:
-                    should_add_to_long = long_pos_price > ma_6_low
+                    should_add_to_long = long_pos_price > ma_6_high
                     self.long_tp_distance_percent = ((long_take_profit - long_pos_price) / long_pos_price) * 100
                     self.long_expected_profit_usdt = self.long_tp_distance_percent / 100 * long_pos_price * long_pos_qty
                     print(f"Long TP price: {long_take_profit}, TP distance in percent: {self.long_tp_distance_percent:.2f}%, Expected profit: {self.long_expected_profit_usdt:.2f} USDT")
