@@ -262,19 +262,19 @@ class Exchange:
         log.info(values)
 
     # Bybit
-    def get_trading_fee_bybit(self, symbol: str):
-        market = self.market(symbol)
-        if market['spot']:
-            raise Exception("Fetching trading fee is not supported for spot market.")
+    # def get_trading_fee_bybit(self, symbol: str):
+    #     market = self.market(symbol)
+    #     if market['spot']:
+    #         raise Exception("Fetching trading fee is not supported for spot market.")
 
-        request = {
-            'symbol': market['id'],
-        }
-        response = self.privateGetV5AccountFeeRate(self.extend(request, params))
-        result = self.safe_value(response, 'result', {})
-        fees = self.safe_value(result, 'list', [])
-        first = self.safe_value(fees, 0, {})
-        return self.parse_trading_fee(first)
+    #     request = {
+    #         'symbol': market['id'],
+    #     }
+    #     response = self.privateGetV5AccountFeeRate(self.extend(request, params))
+    #     result = self.safe_value(response, 'result', {})
+    #     fees = self.safe_value(result, 'list', [])
+    #     first = self.safe_value(fees, 0, {})
+    #     return self.parse_trading_fee(first)
 
     def parse_trading_fee(self, fee_data):
         maker_fee = float(fee_data.get('makerFeeRate', '0'))
@@ -674,6 +674,30 @@ class Exchange:
         return values
     
     # Universal
+    def fetch_ohlcv(self, symbol, timeframe='1d'):
+        """
+        Fetch OHLCV data for the given symbol and timeframe.
+
+        :param symbol: Trading symbol.
+        :param timeframe: Timeframe string.
+        :return: DataFrame with OHLCV data.
+        """
+        try:
+            # Fetch the OHLCV data from the exchange
+            ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe)
+
+            df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+
+            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+
+            df.set_index('timestamp', inplace=True)
+
+            return df
+
+        except ccxt.BaseError as e:
+            print(f'Failed to fetch OHLCV data: {e}')
+            return pd.DataFrame()
+        
     def get_orderbook(self, symbol, max_retries=3, retry_delay=5) -> dict:
         values = {"bids": [], "asks": []}
         
