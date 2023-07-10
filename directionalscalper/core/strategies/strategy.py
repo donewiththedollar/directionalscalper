@@ -1,6 +1,7 @@
 from colorama import Fore
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_DOWN
 import time
+import ta as ta
 
 class Strategy:
     def __init__(self, exchange, config, manager):
@@ -506,3 +507,27 @@ class Strategy:
 
     def cancel_take_profit_orders_huobi(self, symbol, side):
         self.exchange.cancel_close_huobi(symbol, side)
+
+# RSIMFI
+
+    def initialize_MFIRSI(self, symbol):
+        df = self.exchange.fetch_ohlcv(symbol, timeframe='5m')
+
+        df['mfi'] = ta.volume.money_flow_index(df['high'], df['low'], df['close'], df['volume'], window=14)
+        df['rsi'] = ta.momentum.rsi(df['close'], window=14)
+        df['ma'] = ta.trend.sma_indicator(df['close'], window=14)
+        df['open_less_close'] = (df['open'] < df['close']).astype(int)
+
+        df['buy_condition'] = ((df['mfi'] < 20) & (df['rsi'] < 35) & (df['open_less_close'] == 1)).astype(int)
+        df['sell_condition'] = ((df['mfi'] > 80) & (df['rsi'] > 35) & (df['open_less_close'] == 0)).astype(int)
+
+        return df
+
+
+    def should_long_MFI(self, symbol):
+        df = self.initialize_MFIRSI(symbol)
+        return df.iloc[-1]['buy_condition'] == 1
+
+    def should_short_MFI(self, symbol):
+        df = self.initialize_MFIRSI(symbol)
+        return df.iloc[-1]['sell_condition'] == 1
