@@ -150,6 +150,8 @@ class Manager:
                     return asset_data["Trend"]
                 if value == "Funding" and "Funding" in asset_data:
                     return asset_data["Funding"]
+                if value == "MFI" and "MFI" in asset_data:
+                    return asset_data["MFI"]
         except Exception as e:
             log.warning(f"{e}")
         return None
