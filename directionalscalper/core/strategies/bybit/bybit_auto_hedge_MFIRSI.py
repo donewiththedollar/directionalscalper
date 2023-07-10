@@ -396,23 +396,25 @@ class BybitAutoHedgeStrategyMFIRSI(Strategy):
                     mfirsi_signal,
                 ))
 
-                if trend is not None and isinstance(trend, str):
-                    if one_minute_volume is not None and five_minute_distance is not None:
-                        if one_minute_volume > min_vol and five_minute_distance > min_dist:
+                if one_minute_volume is not None and five_minute_distance is not None:
+                    if one_minute_volume > min_vol and five_minute_distance > min_dist:
 
-                            if trend.lower() == "long" and should_long and long_pos_qty == 0 and should_long_MFIRSI:
+                        mfi = self.manager.get_asset_value(symbol, data, "MFI")
+
+                        if mfi is not None and isinstance(mfi, str):
+                            if mfi.lower() == "long" and should_long and long_pos_qty == 0:
                                 print(f"Placing initial long entry")
                                 self.limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
                                 print(f"Placed initial long entry")
-                            elif trend.lower() == "long" and should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price and should_long_MFIRSI:
+                            elif mfi.lower() == "long" and should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price:
                                 print(f"Placed additional long entry")
                                 self.limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
 
-                            if trend.lower() == "short" and should_short and short_pos_qty == 0 and should_short_MFIRSI:
+                            if mfi.lower() == "short" and should_short and short_pos_qty == 0:
                                 print(f"Placing initial short entry")
                                 self.limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
                                 print("Placed initial short entry")
-                            elif trend.lower() == "short" and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price and should_short_MFIRSI:
+                            elif mfi.lower() == "short" and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price:
                                 print(f"Placed additional short entry")
                                 self.limit_order_bybit(symbol, "sell", short_dynamic_amount, best_bid_price, positionIdx=2, reduceOnly=False)
 
