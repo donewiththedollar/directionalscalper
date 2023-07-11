@@ -81,7 +81,7 @@ class Exchange:
     
     def switch_account_type_huobi(self, account_type: int):
         if self.exchange_id.lower() != 'huobi':
-            print("This operation is only available for Huobi.")
+            logging.info("This operation is only available for Huobi.")
             return
 
         body = {
@@ -137,7 +137,7 @@ class Exchange:
         markets = self.exchange.fetch_markets()
         
         # Print the first market from the list
-        print(markets[0])
+        logging.info(markets[0])
 
         # Filter for the specific symbol
         for market in markets:
@@ -164,7 +164,7 @@ class Exchange:
     # Bybit calc lot size based on spread
     def spread_based_entry_size_bybit(self, symbol, spread, min_order_qty):
         current_price = self.get_current_price(symbol)
-        print(f"Current price debug: {current_price}")
+        logging.info(f"Current price debug: {current_price}")
         entry_amount = min_order_qty + (spread * current_price) / 100
 
         return entry_amount
@@ -172,16 +172,16 @@ class Exchange:
     def debug_derivatives_positions(self, symbol):
         try:
             positions = self.exchange.fetch_derivatives_positions([symbol])
-            print(f"Debug positions: {positions}")
+            logging.info(f"Debug positions: {positions}")
         except Exception as e:
-            print(f"Exception in debug derivs func: {e}")
+            logging.info(f"Exception in debug derivs func: {e}")
 
     def debug_derivatives_markets_bybit(self):
         try:
             markets = self.exchange.fetch_derivatives_markets({'category': 'linear'})
-            print(f"Debug markets: {markets}")
+            logging.info(f"Debug markets: {markets}")
         except Exception as e:
-            print(f"Exception in debug_derivatives_markets_bybit: {e}")
+            logging.info(f"Exception in debug_derivatives_markets_bybit: {e}")
 
     # Bybit
     def bybit_fetch_precision(self, symbol):
@@ -193,7 +193,7 @@ class Exchange:
                     self.market_precisions[symbol] = {'amount': float(qty_step)}
                     break
         except Exception as e:
-            print(f"Exception in bybit_fetch_precision: {e}")
+            logging.info(f"Exception in bybit_fetch_precision: {e}")
 
 
     # # Bybit
@@ -228,7 +228,7 @@ class Exchange:
             else:
                 logging.info(f"No positions found for symbol {symbol}")
         except Exception as e:
-            print(f"Error retrieving current leverage: {e}")
+            logging.info(f"Error retrieving current leverage: {e}")
             
     # Bybit
     def set_leverage_bybit(self, leverage, symbol):
