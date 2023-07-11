@@ -2,6 +2,11 @@ from colorama import Fore
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_DOWN
 import time
 import ta as ta
+import os
+import logging
+from .logger import Logger
+
+logging = Logger(filename="strategy.log", stream=True)
 
 class Strategy:
     def __init__(self, exchange, config, manager):
@@ -10,6 +15,7 @@ class Strategy:
         self.manager = manager
         self.symbol = config.symbol
         self.printed_trade_quantities = False
+        self.last_mfirsi_signal = None
 
     def get_current_price(self, symbol):
         return self.exchange.get_current_price(symbol)
@@ -47,7 +53,7 @@ class Strategy:
             should_add_to_short = short_pos_price < ma_6_low
             short_tp_distance_percent = ((short_take_profit - short_pos_price) / short_pos_price) * 100
             short_expected_profit_usdt = short_tp_distance_percent / 100 * short_pos_price * short_pos_qty
-            print(f"Short TP price: {short_take_profit}, TP distance in percent: {-short_tp_distance_percent:.2f}%, Expected profit: {-short_expected_profit_usdt:.2f} USDT")
+            logging.info(f"Short TP price: {short_take_profit}, TP distance in percent: {-short_tp_distance_percent:.2f}%, Expected profit: {-short_expected_profit_usdt:.2f} USDT")
             return should_add_to_short, short_tp_distance_percent, short_expected_profit_usdt
         return None, None, None
 
@@ -56,7 +62,7 @@ class Strategy:
             should_add_to_long = long_pos_price > ma_6_low
             long_tp_distance_percent = ((long_take_profit - long_pos_price) / long_pos_price) * 100
             long_expected_profit_usdt = long_tp_distance_percent / 100 * long_pos_price * long_pos_qty
-            print(f"Long TP price: {long_take_profit}, TP distance in percent: {long_tp_distance_percent:.2f}%, Expected profit: {long_expected_profit_usdt:.2f} USDT")
+            logging.info(f"Long TP price: {long_take_profit}, TP distance in percent: {long_tp_distance_percent:.2f}%, Expected profit: {long_expected_profit_usdt:.2f} USDT")
             return should_add_to_long, long_tp_distance_percent, long_expected_profit_usdt
         return None, None, None
     
@@ -526,8 +532,22 @@ class Strategy:
 
     def should_long_MFI(self, symbol):
         df = self.initialize_MFIRSI(symbol)
-        return df.iloc[-1]['buy_condition'] == 1
+        condition = df.iloc[-1]['buy_condition'] == 1
+        if condition:
+            self.last_mfirsi_signal = 'long'
+        return condition
 
     def should_short_MFI(self, symbol):
         df = self.initialize_MFIRSI(symbol)
-        return df.iloc[-1]['sell_condition'] == 1
+        condition = df.iloc[-1]['sell_condition'] == 1
+        if condition:
+            self.last_mfirsi_signal = 'short'
+        return condition
+
+    # def should_long_MFI(self, symbol):
+    #     df = self.initialize_MFIRSI(symbol)
+    #     return df.iloc[-1]['buy_condition'] == 1
+
+    # def should_short_MFI(self, symbol):
+    #     df = self.initialize_MFIRSI(symbol)
+    #     return df.iloc[-1]['sell_condition'] == 1
