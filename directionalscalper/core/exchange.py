@@ -73,7 +73,7 @@ class Exchange:
 
     def check_account_type_huobi(self):
         if self.exchange_id.lower() != 'huobi':
-            print("This operation is only available for Huobi.")
+            logging.info("This operation is only available for Huobi.")
             return
 
         response = self.exchange.contractPrivateGetLinearSwapApiV3SwapUnifiedAccountType()
@@ -1292,9 +1292,9 @@ class Exchange:
     def debug_open_orders(self, symbol: str) -> None:
         try:
             open_orders = self.exchange.fetch_open_orders(symbol)
-            print(open_orders)
+            logging.info(open_orders)
         except:
-            print(f"Fuck")
+            logging.info(f"Fuck")
 
     def cancel_long_entry(self, symbol: str) -> None:
         self._cancel_entry(symbol, order_side="Buy")
@@ -1353,7 +1353,7 @@ class Exchange:
 
                     if order_status != "closed" and not reduce_only:
                         self.exchange.cancel_order(symbol=symbol, id=order_id)
-                        print(f"Cancelling order: {order_id}")
+                        logging.info(f"Cancelling order: {order_id}")
                         # log.info(f"Cancelling order: {order_id}")
         except Exception as e:
             logging.info(f"An unknown error occurred in cancel_all_entries_binance(): {e}")
@@ -1394,7 +1394,7 @@ class Exchange:
                         and not reduce_only
                     ):
                         self.exchange.cancel_order(symbol=symbol, id=order_id)
-                        print(f"Cancelling order: {order_id}")
+                        logging.info(f"Cancelling order: {order_id}")
         except Exception as e:
             logging.warning(f"An unknown error occurred in cancel_all_entries_bybit(): {e}")
 
@@ -1475,7 +1475,7 @@ class Exchange:
             return max_leverage
 
         except Exception as e:
-            print(f"An error occurred while fetching max leverage: {e}")
+            logging.info(f"An error occurred while fetching max leverage: {e}")
             return None
 
     # Bitget
@@ -1604,7 +1604,7 @@ class Exchange:
                 ):
                     order_id = order['info']['orderId']
                     self.exchange.cancel_derivatives_order(order_id, symbol)
-                    print(f"Canceled take profit order - ID: {order_id}")
+                    logging.info(f"Canceled take profit order - ID: {order_id}")
         except Exception as e:
             print(f"An unknown error occurred in cancel_take_profit_orders: {e}")
 
@@ -1612,9 +1612,9 @@ class Exchange:
     def cancel_take_profit_order_by_id(self, order_id, symbol):
         try:
             self.exchange.cancel_derivatives_order(order_id, symbol)
-            print(f"Canceled take profit order - ID: {order_id}")
+            logging.info(f"Canceled take profit order - ID: {order_id}")
         except Exception as e:
-            print(f"An unknown error occurred in cancel_take_profit_orders: {e}")
+            logging.info(f"An unknown error occurred in cancel_take_profit_orders: {e}")
 
     # def cancel_take_profit_orders_bybit(self, symbol, side):
     #     try:
