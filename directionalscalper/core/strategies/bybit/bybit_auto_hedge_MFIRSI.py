@@ -405,28 +405,6 @@ class BybitAutoHedgeStrategyMFIRSI(Strategy):
                     mfirsi_signal,
                 ))
 
-                # if one_minute_volume is not None and five_minute_distance is not None:
-                #     if one_minute_volume > min_vol and five_minute_distance > min_dist:
-
-                #         mfi = self.manager.get_asset_value(symbol, data, "MFI")
-
-                #         if mfi is not None and isinstance(mfi, str):
-                #             if mfi.lower() == "long" and should_long and long_pos_qty == 0:
-                #                 logging.info(f"Placing initial long entry")
-                #                 self.limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-                #                 logging.info(f"Placed initial long entry")
-                #             elif mfi.lower() == "long" and should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price:
-                #                 logging.info(f"Placed additional long entry")
-                #                 self.limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-
-                #             if mfi.lower() == "short" and should_short and short_pos_qty == 0:
-                #                 logging.info(f"Placing initial short entry")
-                #                 self.limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
-                #                 logging.info("Placed initial short entry")
-                #             elif mfi.lower() == "short" and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price:
-                #                 logging.info(f"Placed additional short entry")
-                #                 self.limit_order_bybit(symbol, "sell", short_dynamic_amount, best_bid_price, positionIdx=2, reduceOnly=False)
-
                 if one_minute_volume is not None and five_minute_distance is not None:
                     if one_minute_volume > min_vol and five_minute_distance > min_dist:
 
@@ -437,16 +415,17 @@ class BybitAutoHedgeStrategyMFIRSI(Strategy):
                                 logging.info(f"Placing initial long entry")
                                 self.limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
                                 logging.info(f"Placed initial long entry")
-                            elif mfi.lower() == "long" and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price:
+                            elif mfi.lower() == "long" and should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price:
                                 logging.info(f"Placed additional long entry")
                                 self.limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+
                             if mfi.lower() == "short" and short_pos_qty == 0:
                                 logging.info(f"Placing initial short entry")
                                 self.limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
                                 logging.info("Placed initial short entry")
-                            elif mfi.lower() == "short" and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price:
+                            elif mfi.lower() == "short" and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price:
                                 logging.info(f"Placed additional short entry")
-                                self.limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                                self.limit_order_bybit(symbol, "sell", short_dynamic_amount, best_bid_price, positionIdx=2, reduceOnly=False)
 
                 open_orders = self.exchange.get_open_orders(symbol)
 
