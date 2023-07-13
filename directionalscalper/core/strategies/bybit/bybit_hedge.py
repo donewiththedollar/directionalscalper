@@ -5,6 +5,10 @@ from ..strategy import Strategy
 from typing import Tuple
 import threading
 import os
+import logging
+from ..logger import Logger
+
+logging = Logger(filename="bybithedge.log", stream=True)
 
 class BybitHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):
@@ -236,19 +240,3 @@ class BybitHedgeStrategy(Strategy):
                 self.last_cancel_time = current_time  # Update the last cancel time
 
             time.sleep(30)
-
-            # # Call the get_open_take_profit_order_quantity function for the 'buy' side
-            # buy_qty, buy_id = self.get_open_take_profit_order_quantity(open_orders, 'buy')
-
-            # # Call the get_open_take_profit_order_quantity function for the 'sell' side
-            # sell_qty, sell_id = self.get_open_take_profit_order_quantity(open_orders, 'sell')
-
-            # # Print the results
-            # print("Buy Take Profit Order - Quantity: ", buy_qty, "ID: ", buy_id)
-            # print("Sell Take Profit Order - Quantity: ", sell_qty, "ID: ", sell_id)
-
-            # # Create the strategy table
-            # strategy_table = create_strategy_table(symbol, total_equity, long_upnl, short_upnl, short_pos_qty, long_pos_qty, amount, cumulative_realized_pnl, one_minute_volume, five_minute_distance)
-
-            # # Display the table
-            # self.display_table(strategy_table)

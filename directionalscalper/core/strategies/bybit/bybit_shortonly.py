@@ -3,6 +3,10 @@ import math
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_DOWN
 from ..strategy import Strategy
 from typing import Tuple
+import logging
+from ..logger import Logger
+
+logging = Logger(filename="bybitshortonly.log", stream=True)
 
 class BybitShortStrategy(Strategy):
     def __init__(self, exchange, manager, config):

@@ -180,15 +180,6 @@ class BybitAutoHedgeStrategyMFIRSI(Strategy):
                 trend = self.manager.get_asset_value(symbol, data, "Trend")
                 mfirsi_signal = self.manager.get_asset_value(symbol, data, "MFI")
 
-                # self.initialize_MFIRSI(symbol)
-
-                # should_long_MFIRSI = self.should_long_MFI(symbol)
-                # should_short_MFIRSI = self.should_short_MFI(symbol)
-
-                #price_precision = int(self.exchange.get_price_precision(symbol))
-
-                #print(f"Precision: {price_precision}")
-
                 quote_currency = "USDT"
 
                 for i in range(max_retries):
@@ -202,7 +193,7 @@ class BybitAutoHedgeStrategyMFIRSI(Strategy):
                         else:
                             raise e
                         
-                #print(f"Total equity: {total_equity}")
+                #logging.info(f"Total equity: {total_equity}")
 
                 for i in range(max_retries):
                     try:
@@ -215,7 +206,7 @@ class BybitAutoHedgeStrategyMFIRSI(Strategy):
                         else:
                             raise e
 
-                # print(f"Available equity: {available_equity}")
+                #logging.info(f"Available equity: {available_equity}")
 
                 current_price = self.exchange.get_current_price(symbol)
                 market_data = self.get_market_data_with_retry(symbol, max_retries = 5, retry_delay = 5)
@@ -298,35 +289,31 @@ class BybitAutoHedgeStrategyMFIRSI(Strategy):
                 short_liq_price = position_data["short"]["liq_price"]
                 long_liq_price = position_data["long"]["liq_price"]
 
-                # Auto unstucking long
-                if long_pos_qty >= self.max_long_trade_qty:
+                if long_pos_qty >= self.max_long_trade_qty and self.long_pos_leverage <= 1.0:
                     self.max_long_trade_qty *= 2  # double the maximum long trade quantity
                     self.long_leverage_increased = True
                     self.long_pos_leverage = 2.0
                     logging.info(f"Long leverage temporarily increased to {self.long_pos_leverage}x")
-                elif long_pos_qty < self.max_long_trade_qty:
+                elif long_pos_qty < (self.max_long_trade_qty / 2) and self.long_pos_leverage > 1.0:
                     self.max_long_trade_qty = self.calc_max_trade_qty(total_equity,
                                                                     best_ask_price,
                                                                     max_leverage)
                     self.long_leverage_increased = False
                     self.long_pos_leverage = 1.0
                     logging.info(f"Long leverage returned to normal {self.long_pos_leverage}x")
-                # Auto unstucking short
-                if short_pos_qty >= self.max_short_trade_qty:
+
+                if short_pos_qty >= self.max_short_trade_qty and self.short_pos_leverage <= 1.0:
                     self.max_short_trade_qty *= 2  # double the maximum short trade quantity
                     self.short_leverage_increased = True
                     self.short_pos_leverage = 2.0
                     logging.info(f"Short leverage temporarily increased to {self.short_pos_leverage}x")
-                elif short_pos_qty < self.max_short_trade_qty:
+                elif short_pos_qty < (self.max_short_trade_qty / 2) and self.short_pos_leverage > 1.0:
                     self.max_short_trade_qty = self.calc_max_trade_qty(total_equity,
                                                                     best_ask_price,
                                                                     max_leverage)
                     self.short_leverage_increased = False
                     self.short_pos_leverage = 1.0
                     logging.info(f"Short leverage returned to normal {self.short_pos_leverage}x")
-
-                # print(f"Long position currently at {self.long_pos_leverage}x leverage")
-                # print(f"Short position currently at {self.short_pos_leverage}x leverage")
 
                 short_upnl = position_data["short"]["upnl"]
                 long_upnl = position_data["long"]["upnl"]

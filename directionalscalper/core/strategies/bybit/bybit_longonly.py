@@ -3,10 +3,12 @@ import math
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_DOWN
 from ..strategy import Strategy
 from typing import Tuple
-#from ...tables import create_strategy_table, start_live_table
-#from directionalscalper.core.tables import create_strategy_table, start_live_table
 import threading
 import os
+import logging
+from ..logger import Logger
+
+logging = Logger(filename="bybitlongonly.log", stream=True)
 
 class BybitLongStrategy(Strategy):
     def __init__(self, exchange, manager, config):

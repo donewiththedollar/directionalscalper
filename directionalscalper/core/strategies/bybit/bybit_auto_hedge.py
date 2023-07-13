@@ -269,15 +269,12 @@ class BybitAutoHedgeStrategy(Strategy):
                 short_liq_price = position_data["short"]["liq_price"]
                 long_liq_price = position_data["long"]["liq_price"]
 
-                # print(f"Short liq price: {short_liq_price}")
-                # print(f"Long liq price: {long_liq_price}")
-
-                if long_pos_qty >= self.max_long_trade_qty:
+                if long_pos_qty >= self.max_long_trade_qty and self.long_pos_leverage <= 1.0:
                     self.max_long_trade_qty *= 2  # double the maximum long trade quantity
                     self.long_leverage_increased = True
                     self.long_pos_leverage = 2.0
                     logging.info(f"Long leverage temporarily increased to {self.long_pos_leverage}x")
-                elif long_pos_qty < self.max_long_trade_qty:
+                elif long_pos_qty < (self.max_long_trade_qty / 2) and self.long_pos_leverage > 1.0:
                     self.max_long_trade_qty = self.calc_max_trade_qty(total_equity,
                                                                     best_ask_price,
                                                                     max_leverage)
@@ -285,12 +282,12 @@ class BybitAutoHedgeStrategy(Strategy):
                     self.long_pos_leverage = 1.0
                     logging.info(f"Long leverage returned to normal {self.long_pos_leverage}x")
 
-                if short_pos_qty >= self.max_short_trade_qty:
+                if short_pos_qty >= self.max_short_trade_qty and self.short_pos_leverage <= 1.0:
                     self.max_short_trade_qty *= 2  # double the maximum short trade quantity
                     self.short_leverage_increased = True
                     self.short_pos_leverage = 2.0
                     logging.info(f"Short leverage temporarily increased to {self.short_pos_leverage}x")
-                elif short_pos_qty < self.max_short_trade_qty:
+                elif short_pos_qty < (self.max_short_trade_qty / 2) and self.short_pos_leverage > 1.0:
                     self.max_short_trade_qty = self.calc_max_trade_qty(total_equity,
                                                                     best_ask_price,
                                                                     max_leverage)

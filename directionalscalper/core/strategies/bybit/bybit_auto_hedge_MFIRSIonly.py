@@ -184,18 +184,8 @@ class BybitAutoHedgeStrategyMFIRSIOnly(Strategy):
                 should_long_mfirsi = self.should_long_MFI(symbol)
                 should_short_mfirsi = self.should_short_MFI(symbol)
 
-
                 logging.info(f"Should long MFIRSI: {should_long_mfirsi}")
                 logging.info(f"Should short MFRSI: {should_short_mfirsi}")
-
-                # self.initialize_MFIRSI(symbol)
-
-                # should_long_MFIRSI = self.should_long_MFI(symbol)
-                # should_short_MFIRSI = self.should_short_MFI(symbol)
-
-                #price_precision = int(self.exchange.get_price_precision(symbol))
-
-                #print(f"Precision: {price_precision}")
 
                 quote_currency = "USDT"
 
@@ -307,25 +297,25 @@ class BybitAutoHedgeStrategyMFIRSIOnly(Strategy):
                 long_liq_price = position_data["long"]["liq_price"]
 
                 # Auto unstucking long
-                if long_pos_qty >= self.max_long_trade_qty:
+                if long_pos_qty >= self.max_long_trade_qty and self.long_pos_leverage <= 1.0:
                     self.max_long_trade_qty *= 2  # double the maximum long trade quantity
                     self.long_leverage_increased = True
                     self.long_pos_leverage = 2.0
                     logging.info(f"Long leverage temporarily increased to {self.long_pos_leverage}x")
-                elif long_pos_qty < self.max_long_trade_qty:
+                elif long_pos_qty < (self.max_long_trade_qty / 2) and self.long_pos_leverage > 1.0:
                     self.max_long_trade_qty = self.calc_max_trade_qty(total_equity,
                                                                     best_ask_price,
                                                                     max_leverage)
                     self.long_leverage_increased = False
                     self.long_pos_leverage = 1.0
                     logging.info(f"Long leverage returned to normal {self.long_pos_leverage}x")
-                # Auto unstucking short
-                if short_pos_qty >= self.max_short_trade_qty:
+
+                if short_pos_qty >= self.max_short_trade_qty and self.short_pos_leverage <= 1.0:
                     self.max_short_trade_qty *= 2  # double the maximum short trade quantity
                     self.short_leverage_increased = True
                     self.short_pos_leverage = 2.0
                     logging.info(f"Short leverage temporarily increased to {self.short_pos_leverage}x")
-                elif short_pos_qty < self.max_short_trade_qty:
+                elif short_pos_qty < (self.max_short_trade_qty / 2) and self.short_pos_leverage > 1.0:
                     self.max_short_trade_qty = self.calc_max_trade_qty(total_equity,
                                                                     best_ask_price,
                                                                     max_leverage)
@@ -333,8 +323,8 @@ class BybitAutoHedgeStrategyMFIRSIOnly(Strategy):
                     self.short_pos_leverage = 1.0
                     logging.info(f"Short leverage returned to normal {self.short_pos_leverage}x")
 
-                # print(f"Long position currently at {self.long_pos_leverage}x leverage")
-                # print(f"Short position currently at {self.short_pos_leverage}x leverage")
+                # logging.info(f"Long position currently at {self.long_pos_leverage}x leverage")
+                # logging.info(f"Short position currently at {self.short_pos_leverage}x leverage")
 
                 short_upnl = position_data["short"]["upnl"]
                 long_upnl = position_data["long"]["upnl"]

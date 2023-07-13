@@ -3,6 +3,10 @@ import math
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_DOWN
 from ..strategy import Strategy
 from typing import Tuple
+import logging
+from ..logger import Logger
+
+logging = Logger(filename="bybithedgedynamicleverage.log", stream=True)
 
 class BybitHedgeDynamicStrategy(Strategy):
     def __init__(self, exchange, manager, config):
@@ -190,27 +194,31 @@ class BybitHedgeDynamicStrategy(Strategy):
             print(f"Short pos qty: {short_pos_qty}")
             print(f"Long pos qty: {long_pos_qty}")
 
-            if long_pos_qty >= self.max_long_trade_qty:
+            if long_pos_qty >= self.max_long_trade_qty and self.long_pos_leverage <= 1.0:
                 self.max_long_trade_qty *= 2  # double the maximum long trade quantity
-                print(f"Long leverage temporarily increased to 2x")
                 self.long_leverage_increased = True
-            elif long_pos_qty < self.max_long_trade_qty:
+                self.long_pos_leverage = 2.0
+                logging.info(f"Long leverage temporarily increased to {self.long_pos_leverage}x")
+            elif long_pos_qty < (self.max_long_trade_qty / 2) and self.long_pos_leverage > 1.0:
                 self.max_long_trade_qty = self.calc_max_trade_qty(total_equity,
-                                                                  best_ask_price,
-                                                                  max_leverage)
-                print(f"Long leverage returned to normal 1x")
+                                                                best_ask_price,
+                                                                max_leverage)
                 self.long_leverage_increased = False
+                self.long_pos_leverage = 1.0
+                logging.info(f"Long leverage returned to normal {self.long_pos_leverage}x")
 
-            if short_pos_qty >= self.max_short_trade_qty:
+            if short_pos_qty >= self.max_short_trade_qty and self.short_pos_leverage <= 1.0:
                 self.max_short_trade_qty *= 2  # double the maximum short trade quantity
-                print(f"Short leverage temporarily increased to 2x")
                 self.short_leverage_increased = True
-            elif short_pos_qty < self.max_short_trade_qty:
+                self.short_pos_leverage = 2.0
+                logging.info(f"Short leverage temporarily increased to {self.short_pos_leverage}x")
+            elif short_pos_qty < (self.max_short_trade_qty / 2) and self.short_pos_leverage > 1.0:
                 self.max_short_trade_qty = self.calc_max_trade_qty(total_equity,
-                                                                   best_ask_price,
-                                                                   max_leverage)
-                print(f"Short leverage returned to normal 1x")
+                                                                best_ask_price,
+                                                                max_leverage)
                 self.short_leverage_increased = False
+                self.short_pos_leverage = 1.0
+                logging.info(f"Short leverage returned to normal {self.short_pos_leverage}x")
 
             if self.long_leverage_increased:
                 print(f"Long position currently increased to 2x")
