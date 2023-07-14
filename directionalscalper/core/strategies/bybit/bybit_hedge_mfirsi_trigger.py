@@ -14,7 +14,7 @@ from ..logger import Logger
 
 logging = Logger(filename="bybitautohedgemfrsionly.log", stream=True)
 
-class BybitAutoHedgeStrategyMFIRSIOnly(Strategy):
+class BybitHedgeMFIRSITrigger(Strategy):
     def __init__(self, exchange, manager, config):
         super().__init__(exchange, config, manager)
         self.manager = manager
