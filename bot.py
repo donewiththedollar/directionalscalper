@@ -40,6 +40,7 @@ from directionalscalper.core.strategies.bybit.bybit_hedge_dynamic_leverage impor
 from directionalscalper.core.strategies.bybit.bybit_auto_hedge import BybitAutoHedgeStrategy
 from directionalscalper.core.strategies.bybit.bybit_auto_hedge_MFIRSI import BybitAutoHedgeStrategyMFIRSI
 from directionalscalper.core.strategies.bybit.bybit_auto_hedge_MFIRSIonly import BybitAutoHedgeStrategyMFIRSIOnly
+from directionalscalper.core.strategies.bybit.bybit_mfirsi_countertrade import BybitMFIRSICountertrade
 # HUOBI
 from directionalscalper.core.strategies.huobi.huobi_hedge import HuobiHedgeStrategy
 # BINANCE
@@ -212,6 +213,10 @@ if __name__ == '__main__':
 
         elif strategy_name.lower() == 'bybit_auto_mfirsionly':
             strategy = BybitAutoHedgeStrategyMFIRSIOnly(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol)
+
+        elif strategy_name.lower() == 'bybit_mfirsi_counter':
+            strategy = BybitMFIRSICountertrade(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
 
         elif strategy_name.lower() == 'bybit_hedge_grid':
