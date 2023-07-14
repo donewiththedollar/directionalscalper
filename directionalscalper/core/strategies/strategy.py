@@ -5,6 +5,7 @@ import ta as ta
 import os
 import logging
 from .logger import Logger
+from datetime import datetime, timedelta
 
 logging = Logger(filename="strategy.log", stream=True)
 
@@ -177,6 +178,15 @@ class Strategy:
     def get_positions_bybit(self):
         position_data = self.exchange.get_positions_bybit(self.symbol)
         return position_data
+
+    def calculate_next_update_time(self):
+        # 5 min interval calc
+        now = datetime.now()
+        next_update_minute = (now.minute // 5 + 1) * 5
+        if next_update_minute == 60:
+            next_update_minute = 0
+            now += timedelta(hours=1)
+        return now.replace(minute=next_update_minute, second=0, microsecond=0)
 
     def calculate_short_take_profit_spread_bybit(self, short_pos_price, symbol, increase_percentage=0):
         if short_pos_price is None:
