@@ -524,7 +524,7 @@ class BybitAutoHedgeStrategyMFIRSI(Strategy):
                             self.next_short_tp_update = self.calculate_next_update_time()  # Calculate the next update time after placing the order
                         except Exception as e:
                             logging.info(f"Error in updating short TP: {e}")
-                            
+                        
                 # Cancel entries
                 current_time = time.time()
                 if current_time - self.last_cancel_time >= 60:  # Execute this block every 1 minute
