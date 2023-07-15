@@ -301,13 +301,13 @@ class BybitAutoHedgeStrategyMFIRSI(Strategy):
                 long_liq_price = position_data["long"]["liq_price"]
 
                 # Leverage increase logic for long positions
-                if long_pos_qty >= self.max_long_trade_qty and self.long_pos_leverage <= 1.0:
-                    self.max_long_trade_qty *= 2  # double the maximum long trade quantity
+                if long_pos_qty >= self.initial_max_long_trade_qty and self.long_pos_leverage <= 1.0:
+                    self.max_long_trade_qty = 2 * self.initial_max_long_trade_qty  # double the maximum long trade quantity
                     self.long_leverage_increased = True
                     self.long_pos_leverage = 2.0
                     logging.info(f"Long leverage temporarily increased to {self.long_pos_leverage}x")
-                elif long_pos_qty >= 2 * self.max_long_trade_qty and self.long_pos_leverage <= 2.0:
-                    self.max_long_trade_qty *= 2  # double the maximum long trade quantity again
+                elif long_pos_qty >= 2 * self.initial_max_long_trade_qty and self.long_pos_leverage <= 2.0:
+                    self.max_long_trade_qty = 3 * self.initial_max_long_trade_qty  # triple the maximum long trade quantity
                     self.long_pos_leverage = 3.0
                     logging.info(f"Long leverage temporarily increased to {self.long_pos_leverage}x")
                 elif long_pos_qty < (self.max_long_trade_qty / 2) and self.long_pos_leverage > 1.0:
@@ -319,13 +319,13 @@ class BybitAutoHedgeStrategyMFIRSI(Strategy):
                     logging.info(f"Long leverage returned to normal {self.long_pos_leverage}x")
 
                 # Leverage increase logic for short positions
-                if short_pos_qty >= self.max_short_trade_qty and self.short_pos_leverage <= 1.0:
-                    self.max_short_trade_qty *= 2  # double the maximum short trade quantity
+                if short_pos_qty >= self.initial_max_short_trade_qty and self.short_pos_leverage <= 1.0:
+                    self.max_short_trade_qty = 2 * self.initial_max_short_trade_qty  # double the maximum short trade quantity
                     self.short_leverage_increased = True
                     self.short_pos_leverage = 2.0
                     logging.info(f"Short leverage temporarily increased to {self.short_pos_leverage}x")
-                elif short_pos_qty >= 2 * self.max_short_trade_qty and self.short_pos_leverage <= 2.0:
-                    self.max_short_trade_qty *= 2  # double the maximum short trade quantity again
+                elif short_pos_qty >= 2 * self.initial_max_short_trade_qty and self.short_pos_leverage <= 2.0:
+                    self.max_short_trade_qty = 3 * self.initial_max_short_trade_qty  # triple the maximum short trade quantity
                     self.short_pos_leverage = 3.0
                     logging.info(f"Short leverage temporarily increased to {self.short_pos_leverage}x")
                 elif short_pos_qty < (self.max_short_trade_qty / 2) and self.short_pos_leverage > 1.0:
@@ -335,6 +335,42 @@ class BybitAutoHedgeStrategyMFIRSI(Strategy):
                     self.short_leverage_increased = False
                     self.short_pos_leverage = 1.0
                     logging.info(f"Short leverage returned to normal {self.short_pos_leverage}x")
+                    
+                # # Leverage increase logic for long positions
+                # if long_pos_qty >= self.max_long_trade_qty and self.long_pos_leverage <= 1.0:
+                #     self.max_long_trade_qty *= 2  # double the maximum long trade quantity
+                #     self.long_leverage_increased = True
+                #     self.long_pos_leverage = 2.0
+                #     logging.info(f"Long leverage temporarily increased to {self.long_pos_leverage}x")
+                # elif long_pos_qty >= 2 * self.max_long_trade_qty and self.long_pos_leverage <= 2.0:
+                #     self.max_long_trade_qty *= 2  # double the maximum long trade quantity again
+                #     self.long_pos_leverage = 3.0
+                #     logging.info(f"Long leverage temporarily increased to {self.long_pos_leverage}x")
+                # elif long_pos_qty < (self.max_long_trade_qty / 2) and self.long_pos_leverage > 1.0:
+                #     self.max_long_trade_qty = self.calc_max_trade_qty(total_equity,
+                #                                                     best_ask_price,
+                #                                                     max_leverage)
+                #     self.long_leverage_increased = False
+                #     self.long_pos_leverage = 1.0
+                #     logging.info(f"Long leverage returned to normal {self.long_pos_leverage}x")
+
+                # # Leverage increase logic for short positions
+                # if short_pos_qty >= self.max_short_trade_qty and self.short_pos_leverage <= 1.0:
+                #     self.max_short_trade_qty *= 2  # double the maximum short trade quantity
+                #     self.short_leverage_increased = True
+                #     self.short_pos_leverage = 2.0
+                #     logging.info(f"Short leverage temporarily increased to {self.short_pos_leverage}x")
+                # elif short_pos_qty >= 2 * self.max_short_trade_qty and self.short_pos_leverage <= 2.0:
+                #     self.max_short_trade_qty *= 2  # double the maximum short trade quantity again
+                #     self.short_pos_leverage = 3.0
+                #     logging.info(f"Short leverage temporarily increased to {self.short_pos_leverage}x")
+                # elif short_pos_qty < (self.max_short_trade_qty / 2) and self.short_pos_leverage > 1.0:
+                #     self.max_short_trade_qty = self.calc_max_trade_qty(total_equity,
+                #                                                     best_ask_price,
+                #                                                     max_leverage)
+                #     self.short_leverage_increased = False
+                #     self.short_pos_leverage = 1.0
+                #     logging.info(f"Short leverage returned to normal {self.short_pos_leverage}x")
 
                 short_upnl = position_data["short"]["upnl"]
                 long_upnl = position_data["long"]["upnl"]
@@ -447,6 +483,54 @@ class BybitAutoHedgeStrategyMFIRSI(Strategy):
                                     logging.info(f"Placing additional short entry")
                                     self.limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
                                     
+                # if one_minute_volume is not None and five_minute_distance is not None:
+                #     if one_minute_volume > min_vol and five_minute_distance > min_dist:
+
+                #         mfi = self.manager.get_asset_value(symbol, data, "MFI")
+                #         trend = self.manager.get_asset_value(symbol, data, "Trend")
+
+                #         if mfi is not None and isinstance(mfi, str):
+                #             if mfi.lower() == "neutral":
+                #                 mfi = trend
+
+                #             if mfi.lower() == "long" and long_pos_qty == 0:
+                #                 logging.info(f"Placing initial long entry")
+                #                 self.limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                #                 logging.info(f"Placed initial long entry")
+                #             elif mfi.lower() == "long" and should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price:
+                #                 logging.info(f"Placing additional long entry")
+                #                 self.limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+
+                #             if mfi.lower() == "short" and short_pos_qty == 0:
+                #                 logging.info(f"Placing initial short entry")
+                #                 self.limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                #                 logging.info(f"Placed initial short entry")
+                #             elif mfi.lower() == "short" and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price:
+                #                 logging.info(f"Placing additional short entry")
+                #                 self.limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+
+                # if one_minute_volume is not None and five_minute_distance is not None:
+                #     if one_minute_volume > min_vol and five_minute_distance > min_dist:
+
+                #         mfi = self.manager.get_asset_value(symbol, data, "MFI")
+
+                #         if mfi is not None and isinstance(mfi, str):
+                #             if mfi.lower() == "long" and long_pos_qty == 0:
+                #                 logging.info(f"Placing initial long entry")
+                #                 self.limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                #                 logging.info(f"Placed initial long entry")
+                #             elif mfi.lower() == "long" and should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price:
+                #                 logging.info(f"Placed additional long entry")
+                #                 self.limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+
+                #             if mfi.lower() == "short" and short_pos_qty == 0:
+                #                 logging.info(f"Placing initial short entry")
+                #                 self.limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                #                 logging.info("Placed initial short entry")
+                #             elif mfi.lower() == "short" and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price:
+                #                 logging.info(f"Placed additional short entry")
+                #                 self.limit_order_bybit(symbol, "sell", short_dynamic_amount, best_bid_price, positionIdx=2, reduceOnly=False)
+
                 open_orders = self.exchange.get_open_orders(symbol)
 
                 if long_pos_qty > 0 and long_take_profit is not None:
