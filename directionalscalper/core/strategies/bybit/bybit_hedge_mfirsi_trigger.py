@@ -37,7 +37,7 @@ class BybitHedgeMFIRSITrigger(Strategy):
         self.initial_max_short_trade_qty = None
         self.long_leverage_increased = False
         self.short_leverage_increased = False
-        self.version = "2.0.3"
+        self.version = "2.0.5"
 
     # def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev, long_max_trade_qty, short_max_trade_qty, long_expected_profit, short_expected_profit, long_liq_price, short_liq_price,  mfirsi_signal):
     #     try:
@@ -88,7 +88,7 @@ class BybitHedgeMFIRSITrigger(Strategy):
     #         print(f"Exception caught {e}")
     #         return Table()
 
-    def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev, long_max_trade_qty, short_max_trade_qty, long_expected_profit, short_expected_profit, long_liq_price, short_liq_price,  mfirsi_signal, eri_trend):
+    def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev, long_max_trade_qty, short_max_trade_qty, long_expected_profit, short_expected_profit, long_liq_price, short_liq_price,  mfirsi_signal, should_long, should_add_to_long, should_short, should_add_to_short, eri_trend):
         try:
             table = Table(show_header=False, header_style="bold magenta", title=f"Directional Scalper MFIRSI ONLY {self.version}")
             table.add_column("Key")
@@ -128,6 +128,10 @@ class BybitHedgeMFIRSITrigger(Strategy):
                 "Trend": trend,
                 "ERI Trend": eri_trend,
                 "MFIRSI Signal": mfirsi_signal,
+                "Long condition": should_long,
+                "Add long cond.": should_add_to_long,
+                "Short condition": should_short,
+                "Add short cond.": should_add_to_short,
                 "Min. volume": self.config.min_volume,
                 "Min. spread": self.config.min_distance,
                 "Min. qty": min_qty,
@@ -405,6 +409,10 @@ class BybitHedgeMFIRSITrigger(Strategy):
                     self.short_expected_profit_usdt,
                     long_liq_price,
                     short_liq_price,
+                    should_long,
+                    should_add_to_long,
+                    should_short,
+                    should_add_to_short,
                     mfirsi_signal,
                     eri_trend,
                 ))
