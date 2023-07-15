@@ -36,7 +36,7 @@ class BybitAutoHedgeStrategy(Strategy):
         self.short_leverage_increased = False
         self.version = "2.0.2"
 
-    def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev, long_max_trade_qty, short_max_trade_qty, long_expected_profit, short_expected_profit, long_liq_price, short_liq_price):
+    def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev, long_max_trade_qty, short_max_trade_qty, long_expected_profit, short_expected_profit, long_liq_price, short_liq_price, eri_trend):
         try:
             table = Table(show_header=False, header_style="bold magenta", title=f"Directional Scalper {self.version}")
             table.add_column("Key")
@@ -74,6 +74,7 @@ class BybitAutoHedgeStrategy(Strategy):
                 "1m Vol": volume,
                 "5m Spread:": spread,
                 "Trend": trend,
+                "ERI Trend": eri_trend,
                 "Min. volume": self.config.min_volume,
                 "Min. spread": self.config.min_distance,
                 "Min. qty": min_qty,
@@ -142,6 +143,7 @@ class BybitAutoHedgeStrategy(Strategy):
                 one_hour_distance = self.manager.get_asset_value(symbol, data, "1hSpread")
                 four_hour_distance = self.manager.get_asset_value(symbol, data, "4hSpread")
                 trend = self.manager.get_asset_value(symbol, data, "Trend")
+                eri_trend = self.manager.get_asset_value(symbol, data, "ERI Trend")
 
                 quote_currency = "USDT"
 
@@ -375,6 +377,7 @@ class BybitAutoHedgeStrategy(Strategy):
                     self.short_expected_profit_usdt,
                     long_liq_price,
                     short_liq_price,
+                    eri_trend,
                 ))
 
                 if trend is not None and isinstance(trend, str):
