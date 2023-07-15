@@ -152,6 +152,12 @@ class Manager:
                     return asset_data["Funding"]
                 if value == "MFI" and "MFI" in asset_data:
                     return asset_data["MFI"]
+                if value == "ERI Bull Power" in asset_data:
+                    return asset_data["ERI Bull Power"]
+                if value == "ERI Bear Power" in asset_data:
+                    return asset_data["ERI Bear Power"]
+                if value == "ERI Trend" in asset_data:
+                    return asset_data["ERI Trend"]
         except Exception as e:
             log.warning(f"{e}")
         return None
