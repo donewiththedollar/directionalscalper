@@ -165,3 +165,4 @@ $ export HTTPS_PROXY="http://10.10.1.10:1080"
 ### Donations
 Funds acquired through contributions will be judiciously allocated towards the maintenance and enhancement of our API server infrastructure. This financial support is instrumental in ensuring seamless operations, while also facilitating continuous improvements to our broader network infrastructure.
 * **BTC**: bc1q9hyvvtcsm0k39svz59hjgz4f6dr6c2k4wlrxmc
+* **USDT (ERC20)**: 0xb40b2842d4ce93e31CFC8DC2629E2Bd426e4b87E
