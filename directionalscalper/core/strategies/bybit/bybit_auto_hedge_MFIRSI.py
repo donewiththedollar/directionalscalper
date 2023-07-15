@@ -39,7 +39,7 @@ class BybitAutoHedgeStrategyMFIRSI(Strategy):
         self.initial_max_short_trade_qty = None
         self.long_leverage_increased = False
         self.short_leverage_increased = False
-        self.version = "2.0.3"
+        self.version = "2.0.5"
 
     # def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev, long_max_trade_qty, short_max_trade_qty, long_expected_profit, short_expected_profit, long_liq_price, short_liq_price,  mfirsi_signal):
     #     try:
@@ -402,7 +402,6 @@ class BybitAutoHedgeStrategyMFIRSI(Strategy):
 
                 if one_minute_volume is not None and five_minute_distance is not None:
                     if one_minute_volume > min_vol and five_minute_distance > min_dist:
-
                         mfi = self.manager.get_asset_value(symbol, data, "MFI")
                         trend = self.manager.get_asset_value(symbol, data, "Trend")
 
@@ -410,21 +409,51 @@ class BybitAutoHedgeStrategyMFIRSI(Strategy):
                             if mfi.lower() == "neutral":
                                 mfi = trend
 
-                            if mfi.lower() == "long" and long_pos_qty == 0:
-                                logging.info(f"Placing initial long entry")
-                                self.limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-                                logging.info(f"Placed initial long entry")
-                            elif mfi.lower() == "long" and should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price:
-                                logging.info(f"Placing additional long entry")
-                                self.limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                            # Place long orders when MFI is long and ERI trend is bearish
+                            if mfi.lower() == "long" and eri_trend.lower() == "bearish":
+                                if long_pos_qty == 0:
+                                    logging.info(f"Placing initial long entry")
+                                    self.limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                                    logging.info(f"Placed initial long entry")
+                                elif should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price:
+                                    logging.info(f"Placing additional long entry")
+                                    self.limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
 
-                            if mfi.lower() == "short" and short_pos_qty == 0:
-                                logging.info(f"Placing initial short entry")
-                                self.limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
-                                logging.info(f"Placed initial short entry")
-                            elif mfi.lower() == "short" and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price:
-                                logging.info(f"Placing additional short entry")
-                                self.limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                            # Place short orders when MFI is short and ERI trend is bullish
+                            if mfi.lower() == "short" and eri_trend.lower() == "bullish":
+                                if short_pos_qty == 0:
+                                    logging.info(f"Placing initial short entry")
+                                    self.limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                                    logging.info(f"Placed initial short entry")
+                                elif should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price:
+                                    logging.info(f"Placing additional short entry")
+                                    self.limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                                    
+                # if one_minute_volume is not None and five_minute_distance is not None:
+                #     if one_minute_volume > min_vol and five_minute_distance > min_dist:
+
+                #         mfi = self.manager.get_asset_value(symbol, data, "MFI")
+                #         trend = self.manager.get_asset_value(symbol, data, "Trend")
+
+                #         if mfi is not None and isinstance(mfi, str):
+                #             if mfi.lower() == "neutral":
+                #                 mfi = trend
+
+                #             if mfi.lower() == "long" and long_pos_qty == 0:
+                #                 logging.info(f"Placing initial long entry")
+                #                 self.limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                #                 logging.info(f"Placed initial long entry")
+                #             elif mfi.lower() == "long" and should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price:
+                #                 logging.info(f"Placing additional long entry")
+                #                 self.limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+
+                #             if mfi.lower() == "short" and short_pos_qty == 0:
+                #                 logging.info(f"Placing initial short entry")
+                #                 self.limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                #                 logging.info(f"Placed initial short entry")
+                #             elif mfi.lower() == "short" and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price:
+                #                 logging.info(f"Placing additional short entry")
+                #                 self.limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
                 # if one_minute_volume is not None and five_minute_distance is not None:
                 #     if one_minute_volume > min_vol and five_minute_distance > min_dist:
