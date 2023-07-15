@@ -347,13 +347,13 @@ class BybitMFIRSICountertrade(Strategy):
                 should_add_to_long = False
             
                 if short_pos_price is not None:
-                    should_add_to_short = short_pos_price < ma_6_low
+                    should_add_to_short = short_pos_price < ma_6_low and self.short_trade_condition(best_ask_price, ma_6_high)
                     self.short_tp_distance_percent = ((short_take_profit - short_pos_price) / short_pos_price) * 100
                     self.short_expected_profit_usdt = abs(self.short_tp_distance_percent / 100 * short_pos_price * short_pos_qty)
                     logging.info(f"Short TP price: {short_take_profit}, TP distance in percent: {-self.short_tp_distance_percent:.2f}%, Expected profit: {self.short_expected_profit_usdt:.2f} USDT")
 
                 if long_pos_price is not None:
-                    should_add_to_long = long_pos_price > ma_6_high
+                    should_add_to_long = long_pos_price > ma_6_high and self.long_trade_condition(best_bid_price, ma_6_low)
                     self.long_tp_distance_percent = ((long_take_profit - long_pos_price) / long_pos_price) * 100
                     self.long_expected_profit_usdt = self.long_tp_distance_percent / 100 * long_pos_price * long_pos_qty
                     logging.info(f"Long TP price: {long_take_profit}, TP distance in percent: {self.long_tp_distance_percent:.2f}%, Expected profit: {self.long_expected_profit_usdt:.2f} USDT")
