@@ -10,6 +10,7 @@ import pandas as pd
 import pidfile
 import ta
 
+
 sys.path.append(".")
 from directionalscalper.api.exchanges.binance import Binance
 from directionalscalper.api.exchanges.bybit import Bybit
@@ -123,6 +124,34 @@ class Scraper:
             "low_6": df["MA_6_Low"].iat[-1],
         }
 
+    # def get_candle_data(self, symbol: str, interval: str, limit: int):
+    #     bars = self.exchange.get_futures_kline(
+    #         symbol=symbol, interval=interval, limit=limit
+    #     )
+    #     df = pd.DataFrame(
+    #         bars, columns=["timestamp", "open", "high", "low", "close", "volume"]
+    #     )
+    #     df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+    #     df["MA_3_High"] = df.high.rolling(3).mean()
+    #     df["MA_3_Low"] = df.low.rolling(3).mean()
+    #     df["MA_6_High"] = df.high.rolling(6).mean()
+    #     df["MA_6_Low"] = df.low.rolling(6).mean()
+
+    #     # Log the DataFrame
+    #     log.info(f"DataFrame for {symbol} with {limit} {interval} candles:\n{df}")
+
+    #     ma_values = {
+    #         "high_3": df["MA_3_High"].iat[-1],
+    #         "low_3": df["MA_3_Low"].iat[-1],
+    #         "high_6": df["MA_6_High"].iat[-1],
+    #         "low_6": df["MA_6_Low"].iat[-1],
+    #     }
+
+    #     # Log the calculated moving averages
+    #     log.info(f"Moving averages for {symbol} with {limit} {interval} candles:\n{ma_values}")
+
+    #     return ma_values
+
     def get_ema(self, symbol: str, interval: str, limit: int, column: str, window: int):
         bars = self.exchange.get_futures_kline(
             symbol=symbol, interval=interval, limit=limit
@@ -169,108 +198,8 @@ class Scraper:
         tr = data[["high-low", "high-pc", "low-pc"]].max(axis=1)
         return tr
 
-    # def get_mfi(self, symbol: str, interval: str, limit: int) -> str:
-    #     bars = self.exchange.get_futures_kline(
-    #         symbol=symbol, interval=interval, limit=limit
-    #     )
-    #     df = pd.DataFrame(
-    #         bars, columns=["timestamp", "open", "high", "low", "close", "volume"]
-    #     )
-
-    #     # Calculate MFI, RSI, MA and whether open < close
-    #     df['mfi'] = ta.volume.MFIIndicator(
-    #         high=df['high'],
-    #         low=df['low'],
-    #         close=df['close'],
-    #         volume=df['volume'],
-    #         window=14,
-    #         fillna=False
-    #     ).money_flow_index()
-    #     df['rsi'] = ta.momentum.rsi(df['close'], window=14)
-    #     df['ma'] = ta.trend.sma_indicator(df['close'], window=14)
-    #     df['open_less_close'] = (df['open'] < df['close']).astype(int)
-
-
-    #     df['buy_condition'] = ((df['mfi'] < 20) & (df['rsi'] < 35) & (df['open_less_close'] == 1)).astype(int)
-    #     df['sell_condition'] = ((df['mfi'] > 80) & (df['rsi'] > 35) & (df['open_less_close'] == 0)).astype(int)
-
-    #     # Check the last row for whether it's a buy or sell condition
-    #     if df.iloc[-1]['buy_condition'] == 1:
-    #         return 'long'
-    #     elif df.iloc[-1]['sell_condition'] == 1:
-    #         return 'short'
-    #     else:
-    #         return 'neutral'
-
-
-### Best lookback with logging
-    # def get_mfi(self, symbol: str, interval: str, limit: int, lookback: int = 100) -> str:
-    #     log.info(f"Getting MFI for symbol {symbol} with interval {interval}, limit {limit} and lookback {lookback}")
-
-    #     bars = self.exchange.get_futures_kline(symbol=symbol, interval=interval, limit=limit)
-    #     df = pd.DataFrame(bars, columns=["timestamp", "open", "high", "low", "close", "volume"])
-
-    #     df['mfi'] = ta.volume.MFIIndicator(high=df['high'], low=df['low'], close=df['close'], volume=df['volume'], window=14, fillna=False).money_flow_index()
-    #     df['rsi'] = ta.momentum.rsi(df['close'], window=14)
-    #     df['ma'] = ta.trend.sma_indicator(df['close'], window=14)
-    #     df['open_less_close'] = (df['open'] < df['close']).astype(int)
-
-    #     df['buy_condition'] = ((df['mfi'] < 20) & (df['rsi'] < 35) & (df['open_less_close'] == 1)).astype(int)
-    #     df['sell_condition'] = ((df['mfi'] > 80) & (df['rsi'] > 35) & (df['open_less_close'] == 0)).astype(int)
-
-    #     log.info(f"Last MFI: {df.iloc[-1]['mfi']}, Last RSI: {df.iloc[-1]['rsi']}")
-
-    #     if df.iloc[-1]['buy_condition'] == 1:
-    #         log.info("Last condition was a buy.")
-    #         return 'long'
-    #     elif df.iloc[-1]['sell_condition'] == 1:
-    #         log.info("Last condition was a sell.")
-    #         return 'short'
-    #     else:
-    #         for i in range(2, min(len(df), lookback) + 1):  # look back up to 'lookback' bars
-    #             if df.iloc[-i]['buy_condition'] == 1:
-    #                 log.info(f"Found buy condition {i} bars ago.")
-    #                 return 'long'
-    #             elif df.iloc[-i]['sell_condition'] == 1:
-    #                 log.info(f"Found sell condition {i} bars ago.")
-    #                 return 'short'
-
-    #     log.info("No buy or sell conditions met.")
-    #     return 'neutral'
-        
-    # def get_mfi(self, symbol: str, interval: str, limit: int) -> str:
-    #     log.info(f"Getting MFI for symbol {symbol} with interval {interval}, limit {limit}")
-    #     bars = self.exchange.get_futures_kline(symbol=symbol, interval=interval, limit=limit)
-    #     df = pd.DataFrame(bars, columns=["timestamp", "open", "high", "low", "close", "volume"])
-
-    #     df['mfi'] = ta.volume.MFIIndicator(
-    #         high=df['high'],
-    #         low=df['low'],
-    #         close=df['close'],
-    #         volume=df['volume'],
-    #         window=14,
-    #         fillna=False
-    #     ).money_flow_index()
-    #     df['rsi'] = ta.momentum.rsi(df['close'], window=14)
-    #     df['ma'] = ta.trend.sma_indicator(df['close'], window=14)
-    #     df['open_less_close'] = (df['open'] < df['close']).astype(int)
-
-    #     log.info(f"Last MFI: {df.iloc[-1]['mfi']}, Last RSI: {df.iloc[-1]['rsi']}")
-
-    #     df['buy_condition'] = ((df['mfi'] < 20) & (df['rsi'] < 35) & (df['open_less_close'] == 1)).astype(int)
-    #     df['sell_condition'] = ((df['mfi'] > 80) & (df['rsi'] > 35) & (df['open_less_close'] == 0)).astype(int)
-
-    #     if df.iloc[-1]['buy_condition'] == 1:
-    #         log.info("Last condition was a buy.")
-    #         return 'long'
-    #     elif df.iloc[-1]['sell_condition'] == 1:
-    #         log.info("Last condition was a sell.")
-    #         return 'short'
-    #     else:
-    #         log.info("No buy or sell conditions met.")
-    #         return 'neutral'
-
     def get_mfi(self, symbol: str, interval: str, limit: int, lookback: int = 100) -> str:
+        log.info(f"Getting MFI for symbol: {symbol}, interval: {interval}, limit: {limit}")
         bars = self.exchange.get_futures_kline(
             symbol=symbol, interval=interval, limit=limit
         )
@@ -279,6 +208,7 @@ class Scraper:
         )
 
         # Calculate MFI, RSI, MA and whether open < close
+        log.info(f"Input data for MFI calculation: {df[['high', 'low', 'close', 'volume']].tail(15)}")
         df['mfi'] = ta.volume.MFIIndicator(
             high=df['high'],
             low=df['low'],
@@ -287,29 +217,45 @@ class Scraper:
             window=14,
             fillna=False
         ).money_flow_index()
+        log.info(f"Calculated MFI: {df['mfi'].tail(15)}")
         df['rsi'] = ta.momentum.rsi(df['close'], window=14)
         df['ma'] = ta.trend.sma_indicator(df['close'], window=14)
         df['open_less_close'] = (df['open'] < df['close']).astype(int)
 
+        last_mfi = df.iloc[-1]['mfi']
+        last_rsi = df.iloc[-1]['rsi']
+        last_ma = df.iloc[-1]['ma']
+        last_open = df.iloc[-1]['open']
+        last_close = df.iloc[-1]['close']
+        log.info(f"Calculated MFI: {last_mfi}, RSI: {last_rsi}, MA: {last_ma}, Open: {last_open}, Close: {last_close} for symbol: {symbol}")
+
         df['buy_condition'] = ((df['mfi'] < 20) & (df['rsi'] < 35) & (df['open_less_close'] == 1)).astype(int)
-        df['sell_condition'] = ((df['mfi'] > 80) & (df['rsi'] > 35) & (df['open_less_close'] == 0)).astype(int)
+        df['sell_condition'] = ((df['mfi'] > 80) & (df['rsi'] > 65) & (df['open_less_close'] == 0)).astype(int)
+        #df['sell_condition'] = ((df['mfi'] > 80) & (df['rsi'] > 35) & (df['open_less_close'] == 0)).astype(int)
 
         # Check the last row for whether it's a buy or sell condition
         if df.iloc[-1]['buy_condition'] == 1:
+            log.info(f"Buy condition met for symbol: {symbol}")
             return 'long'
         elif df.iloc[-1]['sell_condition'] == 1:
+            log.info(f"Sell condition met for symbol: {symbol}")
             return 'short'
         else:
             # If neither condition is met on the last bar, look back at previous bars
             for i in range(2, min(len(df), lookback) + 1):  # look back up to 'lookback' bars
                 if df.iloc[-i]['buy_condition'] == 1:
+                    log.info(f"Buy condition met on a lookback for symbol: {symbol}")
                     return 'long'
                 elif df.iloc[-i]['sell_condition'] == 1:
+                    log.info(f"Sell condition met on a lookback for symbol: {symbol}")
                     return 'short'
             # In case no buy or sell condition was ever met, return 'neutral'
+            log.info(f"No buy or sell condition met for symbol: {symbol}")
             return 'neutral'
 
     def analyse_symbol(self, symbol: str) -> dict:
+        len_slow_ma = 64
+        len_power_ema = 13
         log.info(f"Analysing: {symbol}")
         values = {"Asset": symbol}
 
@@ -325,6 +271,10 @@ class Scraper:
         candles_5m = self.exchange.get_futures_kline(
             symbol=symbol, interval="5m", limit=5
         )
+
+        # Log the 3 most recent 5-minute candles
+        log.info(f"3 most recent 5-minute candles for {symbol}: {candles_5m[-3:]}")
+
         candles_1m = self.exchange.get_futures_kline(
             symbol=symbol, interval="1m", limit=5
         )
@@ -377,9 +327,34 @@ class Scraper:
 
         # Get MFI
         #mfi = self.get_mfi(symbol=symbol, interval="5m", limit=200, lookback=100)
-        mfi = self.get_mfi(symbol=symbol, interval="1m", limit=100, lookback=100)
+        mfi = self.get_mfi(symbol=symbol, interval="1m", limit=200, lookback=100)
         #mfi = self.get_mfi(symbol=symbol, interval="5m", limit=25)
         values["MFI"] = mfi
+
+        df = pd.DataFrame(data)
+        df["close"] = pd.to_numeric(df["close"])
+        df["high"] = pd.to_numeric(df["high"])
+        df["low"] = pd.to_numeric(df["low"])
+
+        # Calculate slow EMA of closing prices
+        slow_ma = df['close'].ewm(span=len_slow_ma, adjust=False).mean()
+
+        # Determine the trend
+        last_price = df['close'].values[-1]
+        eri_trend = "bullish" if last_price > slow_ma.values[-1] else "bearish"
+
+        # Calculate bull power and bear power
+        bull_power = df['high'] - slow_ma
+        bear_power = df['low'] - slow_ma
+
+        # Smooth the power values using EMA
+        bull_power_smoothed = bull_power.ewm(span=len_power_ema, adjust=False).mean()
+        bear_power_smoothed = bear_power.ewm(span=len_power_ema, adjust=False).mean()
+
+        # Add to the values dict
+        values["ERI Bull Power"] = bull_power_smoothed.values[-1]
+        values["ERI Bear Power"] = bear_power_smoothed.values[-1]
+        values["ERI Trend"] = eri_trend
 
         return values
 
@@ -420,6 +395,9 @@ class Scraper:
                 "Funding",
                 "Timestamp",
                 "MFI",
+                "ERI Bull Power",
+                "ERI Bear Power",
+                "ERI Trend",
             ],
         )
 
