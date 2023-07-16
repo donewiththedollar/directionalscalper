@@ -359,12 +359,17 @@ class HuobiAutoHedgeStrategy(Strategy):
 
             open_orders = self.exchange.get_open_orders_huobi(parsed_symbol_swap)
 
-            #print(f"Open orders: {open_orders}")
+            # Log all open orders
+            print(f"All open orders: {open_orders}")
 
             if long_pos_qty > 0 and long_take_profit is not None:
                 existing_long_tps = self.get_open_take_profit_order_quantities_huobi(open_orders, "sell")
                 total_existing_long_tp_qty = sum(qty for qty, _ in existing_long_tps)
                 print(f"Existing long TPs: {existing_long_tps}")
+                
+                # Log the current long position
+                print(f"Current long position: {long_pos_qty}")
+                
                 if not math.isclose(total_existing_long_tp_qty, long_pos_qty):
                     try:
                         for qty, existing_long_tp_id in existing_long_tps:
@@ -378,12 +383,12 @@ class HuobiAutoHedgeStrategy(Strategy):
                     except Exception as e:
                         print(f"Error in cancelling long TP orders {e}")
 
-                if not any(math.isclose(qty, long_pos_actual_qty) for qty, _ in existing_long_tps):
+                if not any(math.isclose(qty, long_pos_qty) for qty, _ in existing_long_tps):
                     try:
                         print(f"Long pos actual qty: {long_pos_actual_qty}")
                         self.exchange.safe_order_operation(
                             self.exchange.create_take_profit_order,
-                            parsed_symbol_swap, "limit", "sell", long_pos_actual_qty, long_take_profit, reduce_only=True
+                            parsed_symbol_swap, "limit", "sell", long_pos_qty, long_take_profit, reduce_only=True
                         )
                         print(f"Long take profit set at {long_take_profit}")
                         time.sleep(0.05)
