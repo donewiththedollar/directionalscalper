@@ -1,6 +1,15 @@
 import time, math
 from decimal import Decimal, ROUND_HALF_UP, ROUND_HALF_DOWN, ROUND_DOWN
 from ..strategy import Strategy
+from rich.console import Console
+from rich.table import Table
+from rich.live import Live
+from rich.text import Text
+from rich import box
+import logging
+from ..logger import Logger
+
+logging = Logger(filename="huobihedge.log", stream=True)
 
 class HuobiHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):
@@ -9,6 +18,65 @@ class HuobiHedgeStrategy(Strategy):
         self.last_cancel_time = 0
         self.long_entry_order_ids = set()
         self.short_entry_order_ids = set()
+        self.account_type_verified = False
+
+    def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev, long_max_trade_qty, short_max_trade_qty, long_expected_profit, short_expected_profit, long_liq_price, short_liq_price, should_long, should_add_to_long, should_short, should_add_to_short,  mfirsi_signal, eri_trend):
+        try:
+            table = Table(show_header=False, header_style="bold magenta", title=f"Directional Scalper {self.version}")
+            table.add_column("Key")
+            table.add_column("Value")
+            #min_vol_dist_data = self.manager.get_min_vol_dist_data(self.symbol)
+            #mode = self.find_mode()
+            #trend = self.find_trend()
+            #market_data = self.get_market_data()
+
+            table_data = {
+                "Symbol": symbol,
+                "Price": current_price,
+                "Balance": balance,
+                "Available bal.": available_bal,
+                "Long MAX QTY": long_max_trade_qty,
+                "Short MAX QTY": short_max_trade_qty,
+                "Long entry QTY": long_dynamic_amount,
+                "Short entry QTY": short_dynamic_amount,
+                "Long pos. QTY": long_pos_qty,
+                "Short pos. QTY": short_pos_qty,
+                "Long uPNL": long_upnl,
+                "Short uPNL": short_upnl,
+                "Long cum. uPNL": long_cum_pnl,
+                "Short cum. uPNL": short_cum_pnl,
+                "Long pos. price": long_pos_price,
+                "Long take profit": long_take_profit,
+                "Long expected profit": "{:.2f} USDT".format(long_expected_profit),
+                "Short pos. price": short_pos_price,
+                "Short take profit": short_take_profit,
+                "Short expected profit": "{:.2f} USDT".format(short_expected_profit),
+                "Long pos. lev.": long_pos_lev,
+                "Short pos. lev.": short_pos_lev,
+                "Long liq price": long_liq_price,
+                "Short liq price": short_liq_price,
+                "1m Vol": volume,
+                "5m Spread:": spread,
+                "Trend": trend,
+                "ERI Trend": eri_trend,
+                "MFIRSI Signal": mfirsi_signal,
+                "Long condition": should_long,
+                "Add long cond.": should_add_to_long,
+                "Short condition": should_short,
+                "Add short cond.": should_add_to_short, 
+                "Min. volume": self.config.min_volume,
+                "Min. spread": self.config.min_distance,
+                "Min. qty": min_qty,
+            }
+
+            for key, value in table_data.items():
+                table.add_row(key, str(value))
+            
+            return table
+
+        except Exception as e:
+            logging.info(f"Exception caught {e}")
+            return Table()
 
     def run(self, symbol, amount):
         min_dist = self.config.min_distance
@@ -18,20 +86,10 @@ class HuobiHedgeStrategy(Strategy):
         max_retries = 5
         retry_delay = 5
 
+        self.verify_account_type_huobi()
+
         while True:
             print(f"Huobi strategy running")
-
-            try:
-                current_account_type = self.exchange.check_account_type_huobi()
-                print(f"Current account type at start: {current_account_type}")
-                if current_account_type['data']['account_type'] != '1':
-                    self.exchange.switch_account_type_huobi(1)
-                    time.sleep(0.05)
-                    print(f"Changed account type")
-                else:
-                    print(f"Account type is already 1")
-            except Exception as e:
-                print(f"Error in switching account type {e}")
 
             # Annoying symbol parsing
             #parsed_symbol = self.parse_symbol(symbol)
@@ -68,12 +126,16 @@ class HuobiHedgeStrategy(Strategy):
 
             price_precision = market_data["precision"]
 
+            min_qty = float(market_data["min_qty"])
+
+            print(f"Min qty: {min_qty}")
+
             leverage = market_data["leverage"] if market_data["leverage"] != 0 else 50.0
 
             max_trade_qty = round(
                 (float(total_equity) * wallet_exposure / float(best_ask_price))
                 / (100 / 50),
-                int(float(min_contract_size)),
+                int(float(market_data["min_qty"])),
             )
 
             print(f"Max trade quantity for {symbol}: {max_trade_qty}")
@@ -96,6 +158,9 @@ class HuobiHedgeStrategy(Strategy):
             one_minute_volume = self.manager.get_asset_value(symbol, data, "1mVol")
             five_minute_distance = self.manager.get_asset_value(symbol, data, "5mSpread")
             trend = self.manager.get_asset_value(symbol, data, "Trend")
+            mfirsi_signal = self.manager.get_asset_value(symbol, data, "MFI")
+            eri_trend = self.manager.get_asset_value(symbol, data, "ERI Trend")
+
             print(f"1m Volume: {one_minute_volume}")
             print(f"5m Spread: {five_minute_distance}")
             print(f"Trend: {trend}")
@@ -115,7 +180,7 @@ class HuobiHedgeStrategy(Strategy):
                     else:
                         raise e
 
-            #print(f"Debug position data: {position_data}")
+            print(f"Debug position data: {position_data}")
 
             short_pos_qty = position_data["short"]["qty"]
             long_pos_qty = position_data["long"]["qty"]
@@ -136,6 +201,16 @@ class HuobiHedgeStrategy(Strategy):
             short_upnl = position_data["short"]["upnl"]
             print(f"Long uPNL: {long_upnl}")
             print(f"Short uPNL: {short_upnl}")
+
+            #Debug position data: {'long': {'qty': 0.0, 'price': 0.0, 'realised': 0, 'cum_realised': 0, 'upnl': 0, 'upnl_pct': 0, 'liq_price': 0, 'entry_price': 0}, 'short': {'qty': 5.0, 'price': 0.071529, 'realised': -0.0235, 'cum_realised': -0.0235, 'upnl': -0.0235, 'upnl_pct': -0.03285380754658945, 'liq_price': 0.0, 'entry_price': 0.071529}}
+            long_cum_pnl = position_data["long"]["cum_realised"]
+            short_cum_pnl = position_data["short"]["cum_realised"]
+
+            print(f"Long cum. PNL: {long_cum_pnl}")
+            print(f"Short cum. PNL: {short_cum_pnl}")
+
+            long_liq_price = position_data["long"]["liq_price"]
+            short_liq_price = position_data["short"]["liq_price"]
 
             # Get the 1-minute moving averages
             print(f"Fetching MA data")
