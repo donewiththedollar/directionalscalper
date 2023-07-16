@@ -253,6 +253,255 @@ class Scraper:
             log.info(f"No buy or sell condition met for symbol: {symbol}")
             return 'neutral'
 
+    # def get_mfi(self, symbol: str, interval: str, limit: int) -> str:
+    #     bars = self.exchange.get_futures_kline(
+    #         symbol=symbol, interval=interval, limit=limit
+    #     )
+    #     df = pd.DataFrame(
+    #         bars, columns=["timestamp", "open", "high", "low", "close", "volume"]
+    #     )
+
+    #     # Calculate MFI, RSI, MA and whether open < close
+    #     df['mfi'] = ta.volume.MFIIndicator(
+    #         high=df['high'],
+    #         low=df['low'],
+    #         close=df['close'],
+    #         volume=df['volume'],
+    #         window=14,
+    #         fillna=False
+    #     ).money_flow_index()
+    #     df['rsi'] = ta.momentum.rsi(df['close'], window=14)
+    #     df['ma'] = ta.trend.sma_indicator(df['close'], window=14)
+    #     df['open_less_close'] = (df['open'] < df['close']).astype(int)
+
+
+    #     df['buy_condition'] = ((df['mfi'] < 20) & (df['rsi'] < 35) & (df['open_less_close'] == 1)).astype(int)
+    #     df['sell_condition'] = ((df['mfi'] > 80) & (df['rsi'] > 35) & (df['open_less_close'] == 0)).astype(int)
+
+    #     # Check the last row for whether it's a buy or sell condition
+    #     if df.iloc[-1]['buy_condition'] == 1:
+    #         return 'long'
+    #     elif df.iloc[-1]['sell_condition'] == 1:
+    #         return 'short'
+    #     else:
+    #         return 'neutral'
+
+
+### Best lookback with logging
+    # def get_mfi(self, symbol: str, interval: str, limit: int, lookback: int = 100) -> str:
+    #     log.info(f"Getting MFI for symbol {symbol} with interval {interval}, limit {limit} and lookback {lookback}")
+
+    #     bars = self.exchange.get_futures_kline(symbol=symbol, interval=interval, limit=limit)
+    #     df = pd.DataFrame(bars, columns=["timestamp", "open", "high", "low", "close", "volume"])
+
+    #     df['mfi'] = ta.volume.MFIIndicator(high=df['high'], low=df['low'], close=df['close'], volume=df['volume'], window=14, fillna=False).money_flow_index()
+    #     df['rsi'] = ta.momentum.rsi(df['close'], window=14)
+    #     df['ma'] = ta.trend.sma_indicator(df['close'], window=14)
+    #     df['open_less_close'] = (df['open'] < df['close']).astype(int)
+
+    #     df['buy_condition'] = ((df['mfi'] < 20) & (df['rsi'] < 35) & (df['open_less_close'] == 1)).astype(int)
+    #     df['sell_condition'] = ((df['mfi'] > 80) & (df['rsi'] > 35) & (df['open_less_close'] == 0)).astype(int)
+
+    #     log.info(f"Last MFI: {df.iloc[-1]['mfi']}, Last RSI: {df.iloc[-1]['rsi']}")
+
+    #     if df.iloc[-1]['buy_condition'] == 1:
+    #         log.info("Last condition was a buy.")
+    #         return 'long'
+    #     elif df.iloc[-1]['sell_condition'] == 1:
+    #         log.info("Last condition was a sell.")
+    #         return 'short'
+    #     else:
+    #         for i in range(2, min(len(df), lookback) + 1):  # look back up to 'lookback' bars
+    #             if df.iloc[-i]['buy_condition'] == 1:
+    #                 log.info(f"Found buy condition {i} bars ago.")
+    #                 return 'long'
+    #             elif df.iloc[-i]['sell_condition'] == 1:
+    #                 log.info(f"Found sell condition {i} bars ago.")
+    #                 return 'short'
+
+    #     log.info("No buy or sell conditions met.")
+    #     return 'neutral'
+        
+## MFI Return neutral
+    # def get_mfi(self, symbol: str, interval: str, limit: int, lookback: int = 100) -> str:
+    #     bars = self.exchange.get_futures_kline(
+    #         symbol=symbol, interval=interval, limit=limit
+    #     )
+    #     df = pd.DataFrame(
+    #         bars, columns=["timestamp", "open", "high", "low", "close", "volume"]
+    #     )
+
+    #     # Calculate MFI, RSI, MA and whether open < close
+    #     df['mfi'] = ta.volume.MFIIndicator(
+    #         high=df['high'],
+    #         low=df['low'],
+    #         close=df['close'],
+    #         volume=df['volume'],
+    #         window=14,
+    #         fillna=False
+    #     ).money_flow_index()
+    #     df['rsi'] = ta.momentum.rsi(df['close'], window=14)
+    #     df['ma'] = ta.trend.sma_indicator(df['close'], window=14)
+    #     df['open_less_close'] = (df['open'] < df['close']).astype(int)
+
+    #     df['buy_condition'] = ((df['mfi'] < 20) & (df['rsi'] < 35) & (df['open_less_close'] == 1)).astype(int)
+    #     df['sell_condition'] = ((df['mfi'] > 80) & (df['rsi'] > 35) & (df['open_less_close'] == 0)).astype(int)
+
+    #     # Check the last row for whether it's a buy or sell condition
+    #     if df.iloc[-1]['buy_condition'] == 1:
+    #         return 'long'
+    #     elif df.iloc[-1]['sell_condition'] == 1:
+    #         return 'short'
+    #     else:
+    #         # If neither condition is met on the last bar, look back at previous bars
+    #         for i in range(2, min(len(df), lookback) + 1):  # look back up to 'lookback' bars
+    #             if df.iloc[-i]['buy_condition'] == 1:
+    #                 return 'long'
+    #             elif df.iloc[-i]['sell_condition'] == 1:
+    #                 return 'short'
+    #         # In case no buy or sell condition was ever met, return 'neutral'
+    #         return 'neutral'
+
+## Old mfi function
+    # def get_mfi(self, symbol: str, interval: str, limit: int) -> str:
+    #     log.info(f"Getting MFI for symbol {symbol} with interval {interval}, limit {limit}")
+    #     bars = self.exchange.get_futures_kline(symbol=symbol, interval=interval, limit=limit)
+    #     df = pd.DataFrame(bars, columns=["timestamp", "open", "high", "low", "close", "volume"])
+
+    #     df['mfi'] = ta.volume.MFIIndicator(
+    #         high=df['high'],
+    #         low=df['low'],
+    #         close=df['close'],
+    #         volume=df['volume'],
+    #         window=14,
+    #         fillna=False
+    #     ).money_flow_index()
+    #     df['rsi'] = ta.momentum.rsi(df['close'], window=14)
+    #     df['ma'] = ta.trend.sma_indicator(df['close'], window=14)
+    #     df['open_less_close'] = (df['open'] < df['close']).astype(int)
+
+    #     log.info(f"Last MFI: {df.iloc[-1]['mfi']}, Last RSI: {df.iloc[-1]['rsi']}")
+
+    #     df['buy_condition'] = ((df['mfi'] < 20) & (df['rsi'] < 35) & (df['open_less_close'] == 1)).astype(int)
+    #     df['sell_condition'] = ((df['mfi'] > 80) & (df['rsi'] > 35) & (df['open_less_close'] == 0)).astype(int)
+
+    #     if df.iloc[-1]['buy_condition'] == 1:
+    #         log.info("Last condition was a buy.")
+    #         return 'long'
+    #     elif df.iloc[-1]['sell_condition'] == 1:
+    #         log.info("Last condition was a sell.")
+    #         return 'short'
+    #     else:
+    #         log.info("No buy or sell conditions met.")
+    #         return 'neutral'
+
+    ### Original analyse_symbol
+    # def analyse_symbol(self, symbol: str) -> dict:
+    #     len_slow_ma = 64
+    #     len_power_ema = 13
+    #     log.info(f"Analysing: {symbol}")
+    #     values = {"Asset": symbol}
+
+    #     values["Min qty"] = exchange.get_symbol_info(
+    #         symbol=symbol, info="min_order_qty"
+    #     )
+
+    #     values["Price"] = self.prices[symbol]
+
+    #     candles_30m = self.exchange.get_futures_kline(
+    #         symbol=symbol, interval="30m", limit=5
+    #     )
+    #     candles_5m = self.exchange.get_futures_kline(
+    #         symbol=symbol, interval="5m", limit=5
+    #     )
+
+    #     # Log the 3 most recent 5-minute candles
+    #     log.info(f"3 most recent 5-minute candles for {symbol}: {candles_5m[-3:]}")
+
+    #     candles_1m = self.exchange.get_futures_kline(
+    #         symbol=symbol, interval="1m", limit=5
+    #     )
+
+    #     # Get data for the last 4 hours (240 minutes)
+    #     data = self.exchange.get_futures_kline(symbol=symbol, interval="1m", limit=240)
+    #     values["1m Spread"] = self.get_spread(symbol=symbol, limit=1, data=data[-1:])
+    #     values["5m Spread"] = self.get_spread(symbol=symbol, limit=5, data=data[-5:])
+    #     values["30m Spread"] = self.get_spread(symbol=symbol, limit=30, data=data[-30:])
+    #     values["1h Spread"] = self.get_spread(symbol=symbol, limit=60, data=data[-60:])
+    #     values["4h Spread"] = self.get_spread(symbol=symbol, limit=240, data=data)
+
+    #     # Define 1x 5m candle volume
+    #     onexcandlevol = candles_5m[-1]["volume"]
+    #     volume_1x_5m = values["Price"] * onexcandlevol
+    #     values["5m 1x Volume (USDT)"] = round(volume_1x_5m)
+
+    #     # Define 1x 1m candle volume
+    #     onex1mcandlevol = candles_1m[-1]["volume"]
+    #     volume_1x = values["Price"] * onex1mcandlevol
+    #     values["1m 1x Volume (USDT)"] = round(volume_1x)
+
+    #     # Define 1x 30m candle volume
+    #     onex30mcandlevol = candles_30m[-1]["volume"]
+    #     volume_1x_30m = values["Price"] * onex30mcandlevol
+    #     values["30m 1x Volume (USDT)"] = round(volume_1x_30m)
+
+    #     # Define MA data
+    #     values["5m MA6 high"] = self.get_candle_data(
+    #         symbol=symbol, interval="5m", limit=20
+    #     )["high_6"]
+    #     values["5m MA6 low"] = self.get_candle_data(
+    #         symbol=symbol, interval="5m", limit=20
+    #     )["low_6"]
+
+    #     ma_order_pct = self.get_sma(
+    #         symbol=symbol, interval="1m", limit=30, column="close", window=14
+    #     )
+    #     values["trend%"] = ma_order_pct
+
+    #     if ma_order_pct > 0:
+    #         values["Trend"] = "short"
+    #     else:
+    #         values["Trend"] = "long"
+
+    #     # Define funding rates
+    #     values["Funding"] = self.exchange.get_funding_rate(symbol=symbol) * 100
+
+    #     values["Timestamp"] = str(int(datetime.now().timestamp()))
+
+    #     # Get MFI
+    #     #mfi = self.get_mfi(symbol=symbol, interval="5m", limit=200, lookback=100)
+    #     mfi = self.get_mfi(symbol=symbol, interval="1m", limit=200, lookback=100)
+    #     #mfi = self.get_mfi(symbol=symbol, interval="5m", limit=25)
+    #     values["MFI"] = mfi
+
+    #     df = pd.DataFrame(data)
+    #     df["close"] = pd.to_numeric(df["close"])
+    #     df["high"] = pd.to_numeric(df["high"])
+    #     df["low"] = pd.to_numeric(df["low"])
+
+    #     # Calculate slow EMA of closing prices
+    #     slow_ma = df['close'].ewm(span=len_slow_ma, adjust=False).mean()
+
+    #     # Determine the trend
+    #     last_price = df['close'].values[-1]
+    #     eri_trend = "bullish" if last_price > slow_ma.values[-1] else "bearish"
+
+    #     # Calculate bull power and bear power
+    #     bull_power = df['high'] - slow_ma
+    #     bear_power = df['low'] - slow_ma
+
+    #     # Smooth the power values using EMA
+    #     bull_power_smoothed = bull_power.ewm(span=len_power_ema, adjust=False).mean()
+    #     bear_power_smoothed = bear_power.ewm(span=len_power_ema, adjust=False).mean()
+
+    #     # Add to the values dict
+    #     values["ERI Bull Power"] = bull_power_smoothed.values[-1]
+    #     values["ERI Bear Power"] = bear_power_smoothed.values[-1]
+    #     values["ERI Trend"] = eri_trend
+
+    #     return values
+
+
     def analyse_symbol(self, symbol: str) -> dict:
         len_slow_ma = 64
         len_power_ema = 13
@@ -265,44 +514,63 @@ class Scraper:
 
         values["Price"] = self.prices[symbol]
 
+        # Define 1x 30m candle volume
         candles_30m = self.exchange.get_futures_kline(
             symbol=symbol, interval="30m", limit=5
         )
+        df_30m = pd.DataFrame(
+            candles_30m,
+            columns=["timestamp", "open", "high", "low", "close", "volume"]
+        )
+        df_30m[['open', 'high', 'low', 'close', 'volume']] = df_30m[['open', 'high', 'low', 'close', 'volume']].apply(pd.to_numeric)
+        df_30m['typical_price'] = (df_30m['high'] + df_30m['low'] + df_30m['close']) / 3
+        onex30mcandlevol = df_30m['typical_price'].iloc[-1] * df_30m['volume'].iloc[-1]
+        volume_1x_30m = values["Price"] * onex30mcandlevol
+        values["30m 1x Volume (USDT)"] = round(volume_1x_30m)
+
+        # Define 1x 5m candle volume
         candles_5m = self.exchange.get_futures_kline(
             symbol=symbol, interval="5m", limit=5
         )
+        df_5m = pd.DataFrame(
+            candles_5m,
+            columns=["timestamp", "open", "high", "low", "close", "volume"]
+        )
+        df_5m[['open', 'high', 'low', 'close', 'volume']] = df_5m[['open', 'high', 'low', 'close', 'volume']].apply(pd.to_numeric)
+        df_5m['typical_price'] = (df_5m['high'] + df_5m['low'] + df_5m['close']) / 3
+        onex5mcandlevol = df_5m['typical_price'].iloc[-1] * df_5m['volume'].iloc[-1]
+        volume_1x_5m = values["Price"] * onex5mcandlevol
+        values["5m 1x Volume (USDT)"] = round(volume_1x_5m)
 
-        # Log the 3 most recent 5-minute candles
-        log.info(f"3 most recent 5-minute candles for {symbol}: {candles_5m[-3:]}")
-
+        # Define 1x 1m candle volume
         candles_1m = self.exchange.get_futures_kline(
             symbol=symbol, interval="1m", limit=5
         )
+        df_1m = pd.DataFrame(
+            candles_1m,
+            columns=["timestamp", "open", "high", "low", "close", "volume"]
+        )
+        df_1m[['open', 'high', 'low', 'close', 'volume']] = df_1m[['open', 'high', 'low', 'close', 'volume']].apply(pd.to_numeric)
+        df_1m['typical_price'] = (df_1m['high'] + df_1m['low'] + df_1m['close']) / 3
+        onex1mcandlevol = df_1m['typical_price'].iloc[-1] * df_1m['volume'].iloc[-1]
+        volume_1x_1m = values["Price"] * onex1mcandlevol
+        values["1m 1x Volume (USDT)"] = round(volume_1x_1m)
 
         # Get data for the last 4 hours (240 minutes)
         data = self.exchange.get_futures_kline(symbol=symbol, interval="1m", limit=240)
+        df = pd.DataFrame(
+            data,
+            columns=["timestamp", "open", "high", "low", "close", "volume"]
+        )
+        df[['open', 'high', 'low', 'close', 'volume']] = df[['open', 'high', 'low', 'close', 'volume']].apply(pd.to_numeric)
+        df['typical_price'] = (df['high'] + df['low'] + df['close']) / 3
+
         values["1m Spread"] = self.get_spread(symbol=symbol, limit=1, data=data[-1:])
         values["5m Spread"] = self.get_spread(symbol=symbol, limit=5, data=data[-5:])
         values["30m Spread"] = self.get_spread(symbol=symbol, limit=30, data=data[-30:])
         values["1h Spread"] = self.get_spread(symbol=symbol, limit=60, data=data[-60:])
         values["4h Spread"] = self.get_spread(symbol=symbol, limit=240, data=data)
 
-        # Define 1x 5m candle volume
-        onexcandlevol = candles_5m[-1]["volume"]
-        volume_1x_5m = values["Price"] * onexcandlevol
-        values["5m 1x Volume (USDT)"] = round(volume_1x_5m)
-
-        # Define 1x 1m candle volume
-        onex1mcandlevol = candles_1m[-1]["volume"]
-        volume_1x = values["Price"] * onex1mcandlevol
-        values["1m 1x Volume (USDT)"] = round(volume_1x)
-
-        # Define 1x 30m candle volume
-        onex30mcandlevol = candles_30m[-1]["volume"]
-        volume_1x_30m = values["Price"] * onex30mcandlevol
-        values["30m 1x Volume (USDT)"] = round(volume_1x_30m)
-
-        # Define MA data
         values["5m MA6 high"] = self.get_candle_data(
             symbol=symbol, interval="5m", limit=20
         )["high_6"]
@@ -326,12 +594,10 @@ class Scraper:
         values["Timestamp"] = str(int(datetime.now().timestamp()))
 
         # Get MFI
-        #mfi = self.get_mfi(symbol=symbol, interval="5m", limit=200, lookback=100)
-        mfi = self.get_mfi(symbol=symbol, interval="1m", limit=200, lookback=100)
-        #mfi = self.get_mfi(symbol=symbol, interval="5m", limit=25)
+        mfi = self.get_mfi(symbol=symbol, interval="1m", limit=100, lookback=100)
         values["MFI"] = mfi
 
-        df = pd.DataFrame(data)
+        # Get ERI
         df["close"] = pd.to_numeric(df["close"])
         df["high"] = pd.to_numeric(df["high"])
         df["low"] = pd.to_numeric(df["low"])
@@ -357,6 +623,114 @@ class Scraper:
         values["ERI Trend"] = eri_trend
 
         return values
+
+
+    # def analyse_symbol(self, symbol: str) -> dict:
+    #     len_slow_ma = 64
+    #     len_power_ema = 13
+    #     log.info(f"Analysing: {symbol}")
+    #     values = {"Asset": symbol}
+
+    #     values["Min qty"] = exchange.get_symbol_info(
+    #         symbol=symbol, info="min_order_qty"
+    #     )
+
+    #     values["Price"] = self.prices[symbol]
+
+    #     candles_30m = self.exchange.get_futures_kline(
+    #         symbol=symbol, interval="30m", limit=5
+    #     )
+    #     candles_5m = self.exchange.get_futures_kline(
+    #         symbol=symbol, interval="5m", limit=5
+    #     )
+
+    #     # Log the 3 most recent 5-minute candles
+    #     log.info(f"3 most recent 5-minute candles for {symbol}: {candles_5m[-3:]}")
+
+    #     candles_1m = self.exchange.get_futures_kline(
+    #         symbol=symbol, interval="1m", limit=5
+    #     )
+
+    #     # Get data for the last 4 hours (240 minutes)
+    #     data = self.exchange.get_futures_kline(symbol=symbol, interval="1m", limit=240)
+    #     values["1m Spread"] = self.get_spread(symbol=symbol, limit=1, data=data[-1:])
+    #     values["5m Spread"] = self.get_spread(symbol=symbol, limit=5, data=data[-5:])
+    #     values["30m Spread"] = self.get_spread(symbol=symbol, limit=30, data=data[-30:])
+    #     values["1h Spread"] = self.get_spread(symbol=symbol, limit=60, data=data[-60:])
+    #     values["4h Spread"] = self.get_spread(symbol=symbol, limit=240, data=data)
+
+    #     # Define 1x 5m candle volume
+    #     typical_price_5m = candles_5m[-1]["typical_price"]
+    #     onexcandlevol = candles_5m[-1]["volume"]
+    #     volume_1x_5m = typical_price_5m * onexcandlevol
+    #     values["5m 1x Volume (USDT)"] = round(volume_1x_5m)
+
+    #     # Define 1x 1m candle volume
+    #     typical_price_1m = candles_1m[-1]["typical_price"]
+    #     onex1mcandlevol = candles_1m[-1]["volume"]
+    #     volume_1x = typical_price_1m * onex1mcandlevol
+    #     values["1m 1x Volume (USDT)"] = round(volume_1x)
+
+    #     # Define 1x 30m candle volume
+    #     typical_price_30m = candles_30m[-1]["typical_price"]
+    #     onex30mcandlevol = candles_30m[-1]["volume"]
+    #     volume_1x_30m = typical_price_30m * onex30mcandlevol
+    #     values["30m 1x Volume (USDT)"] = round(volume_1x_30m)
+
+    #     # Define MA data
+    #     values["5m MA6 high"] = self.get_candle_data(
+    #         symbol=symbol, interval="5m", limit=20
+    #     )["high_6"]
+    #     values["5m MA6 low"] = self.get_candle_data(
+    #         symbol=symbol, interval="5m", limit=20
+    #     )["low_6"]
+
+    #     ma_order_pct = self.get_sma(
+    #         symbol=symbol, interval="1m", limit=30, column="close", window=14
+    #     )
+    #     values["trend%"] = ma_order_pct
+
+    #     if ma_order_pct > 0:
+    #         values["Trend"] = "short"
+    #     else:
+    #         values["Trend"] = "long"
+
+    #     # Define funding rates
+    #     values["Funding"] = self.exchange.get_funding_rate(symbol=symbol) * 100
+
+    #     values["Timestamp"] = str(int(datetime.now().timestamp()))
+
+    #     # Get MFI
+    #     mfi = self.get_mfi(symbol=symbol, interval="1m", limit=200, lookback=100)
+    #     values["MFI"] = mfi
+
+    #     df = pd.DataFrame(data)
+    #     df["close"] = pd.to_numeric(df["close"])
+    #     df["high"] = pd.to_numeric(df["high"])
+    #     df["low"] = pd.to_numeric(df["low"])
+
+    #     # Calculate slow EMA of closing prices
+    #     slow_ma = df['close'].ewm(span=len_slow_ma, adjust=False).mean()
+
+    #     # Determine the trend
+    #     last_price = df['close'].values[-1]
+    #     eri_trend = "bullish" if last_price > slow_ma.values[-1] else "bearish"
+
+    #     # Calculate bull power and bear power
+    #     bull_power = df['high'] - slow_ma
+    #     bear_power = df['low'] - slow_ma
+
+    #     # Smooth the power values using EMA
+    #     bull_power_smoothed = bull_power.ewm(span=len_power_ema, adjust=False).mean()
+    #     bear_power_smoothed = bear_power.ewm(span=len_power_ema, adjust=False).mean()
+
+    #     # Add to the values dict
+    #     values["ERI Bull Power"] = bull_power_smoothed.values[-1]
+    #     values["ERI Bear Power"] = bear_power_smoothed.values[-1]
+    #     values["ERI Trend"] = eri_trend
+
+    #     return values
+
 
     def analyse_all_symbols(self, max_workers: int = 20, retry_limit: int = 5):
         data = []
