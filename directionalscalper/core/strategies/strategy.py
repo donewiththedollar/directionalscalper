@@ -169,6 +169,14 @@ class Strategy:
             self.exchange.print_trade_quantities_bybit(max_trade_qty, [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
             self.printed_trade_quantities = True
 
+    def print_trade_quantities_once_huobi(self, max_trade_qty, symbol):
+        if not self.printed_trade_quantities:
+            wallet_exposure = self.config.wallet_exposure
+            best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+            self.exchange.print_trade_quantities_bybit(max_trade_qty, [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
+            self.printed_trade_quantities = True
+
+
     def get_1m_moving_averages(self, symbol):
         return self.manager.get_1m_moving_averages(symbol)
 
@@ -577,3 +585,8 @@ class Strategy:
     # def should_short_MFI(self, symbol):
     #     df = self.initialize_MFIRSI(symbol)
     #     return df.iloc[-1]['sell_condition'] == 1
+
+    def parse_contract_code(self, symbol):
+        parsed_symbol = symbol.split(':')[0]  # Remove ':USDT'
+        parsed_symbol = parsed_symbol.replace('/', '-')  # Replace '/' with '-'
+        return parsed_symbol

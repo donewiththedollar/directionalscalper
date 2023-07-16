@@ -384,6 +384,39 @@ class Exchange:
         return values
 
     # Huobi
+    # def fetch_max_leverage_huobi(self, symbol):
+    #     """
+    #     Retrieve the maximum leverage for a given symbol
+    #     :param str symbol: unified market symbol
+    #     :returns int: maximum leverage for the symbol
+    #     """
+    #     leverage_tiers = self.exchange.fetch_leverage_tiers([symbol])
+    #     if symbol in leverage_tiers:
+    #         symbol_tiers = leverage_tiers[symbol]
+    #         print(symbol_tiers)  # print the content of symbol_tiers
+    #         max_leverage = max([tier['lever_rate'] for tier in symbol_tiers])
+    #         return max_leverage
+    #     else:
+    #         return None
+
+    def fetch_max_leverage_huobi(self, symbol):
+        """
+        Retrieve the maximum leverage for a given symbol
+        :param str symbol: unified market symbol
+        :returns int: maximum leverage for the symbol
+        """
+        leverage_tiers = self.exchange.fetch_leverage_tiers([symbol])
+        if symbol in leverage_tiers:
+            symbol_tiers = leverage_tiers[symbol]
+            #print(symbol_tiers)  # print the content of symbol_tiers
+            #max_leverage = max([tier['lever_rate'] for tier in symbol_tiers])
+            max_leverage = max([tier['maxLeverage'] for tier in symbol_tiers])
+            return max_leverage
+        else:
+            return None
+
+        
+    # Huobi
     def get_market_data_huobi(self, symbol: str) -> dict:
         values = {"precision": 0.0, "min_qty": 0.0, "leverage": 0.0}
         try:
@@ -442,6 +475,28 @@ class Exchange:
                 print(f"KeyError: {e}")
                 print(balance)  # Print the balance if there was a KeyError
         return None
+
+    def get_available_balance_huobi(self, symbol):
+        try:
+            balance_data = self.exchange.fetch_balance()
+            contract_details = balance_data.get('info', {}).get('data', [{}])[0].get('futures_contract_detail', [])
+            for contract in contract_details:
+                if contract['contract_code'] == symbol:
+                    return float(contract['margin_available'])
+            return "No contract found for symbol " + symbol
+        except Exception as e:
+            return f"An error occurred while fetching balance: {str(e)}"
+
+
+    def debug_print_balance_huobi(self):
+        try:
+            balance = self.exchange.fetch_balance()
+            print("Full balance data:")
+            print(balance)
+        except Exception as e:
+            print(f"An error occurred while fetching balance: {str(e)}")
+
+
 
     # Binance
     def get_balance_binance(self, symbol: str):
