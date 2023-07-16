@@ -11,7 +11,7 @@ from ..logger import Logger
 
 logging = Logger(filename="huobihedge.log", stream=True)
 
-class HuobiHedgeStrategy(Strategy):
+class HuobiAutoHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):
         super().__init__(exchange, config, manager)
         self.manager = manager
@@ -369,6 +369,7 @@ class HuobiHedgeStrategy(Strategy):
                     try:
                         for qty, existing_long_tp_id in existing_long_tps:
                             if not math.isclose(qty, long_pos_qty):
+                                print(f"Long pos actual qty: {long_pos_actual_qty}")
                                 self.exchange.safe_order_operation(
                                     self.exchange.cancel_order_huobi, id=existing_long_tp_id, symbol=parsed_symbol_swap
                                 )
@@ -379,6 +380,7 @@ class HuobiHedgeStrategy(Strategy):
 
                 if not any(math.isclose(qty, long_pos_actual_qty) for qty, _ in existing_long_tps):
                     try:
+                        print(f"Long pos actual qty: {long_pos_actual_qty}")
                         self.exchange.safe_order_operation(
                             self.exchange.create_take_profit_order,
                             parsed_symbol_swap, "limit", "sell", long_pos_actual_qty, long_take_profit, reduce_only=True

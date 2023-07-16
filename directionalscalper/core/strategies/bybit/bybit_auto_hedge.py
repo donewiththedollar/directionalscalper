@@ -208,12 +208,22 @@ class BybitAutoHedgeStrategy(Strategy):
                 min_qty_str = str(min_qty)
 
                 # Get the precision level of the minimum quantity
-                if ".0" in min_qty_str:
-                    # The minimum quantity does not have a fractional part, precision is 0
-                    precision_level = 0
-                else:
+                if "." in min_qty_str:
                     # The minimum quantity has a fractional part, get its precision level
                     precision_level = len(min_qty_str.split(".")[1])
+                else:
+                    # The minimum quantity does not have a fractional part, precision is 0
+                    precision_level = 0
+
+                # Old precision revisions
+                
+                # # Get the precision level of the minimum quantity
+                # if ".0" in min_qty_str:
+                #     # The minimum quantity does not have a fractional part, precision is 0
+                #     precision_level = 0
+                # else:
+                #     # The minimum quantity has a fractional part, get its precision level
+                #     precision_level = len(min_qty_str.split(".")[1])
 
                 # # Get the precision level of the minimum quantity
                 # if ".0" in min_qty_str:
@@ -329,7 +339,7 @@ class BybitAutoHedgeStrategy(Strategy):
                         
                 previous_five_minute_distance = five_minute_distance
 
-                should_short = self.short_trade_condition(best_bid_price, ma_3_high)
+                should_short = self.short_trade_condition(best_ask_price, ma_3_high)
                 should_long = self.long_trade_condition(best_bid_price, ma_3_low)
 
                 should_add_to_short = False

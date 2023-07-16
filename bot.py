@@ -44,6 +44,7 @@ from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_countertrade im
 from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trigger_countertrade import BybitHedgeMFIRSITriggerCountertrade
 # HUOBI
 from directionalscalper.core.strategies.huobi.huobi_hedge import HuobiHedgeStrategy
+from directionalscalper.core.strategies.huobi.huobi_auto_hedge import HuobiAutoHedgeStrategy
 # BINANCE
 from directionalscalper.core.strategies.binance.binance_hedge import BinanceHedgeStrategy
 # PHEMEX
@@ -230,6 +231,10 @@ if __name__ == '__main__':
 
         # Huobi strategies
         elif strategy_name.lower() == 'huobi_hedge':
+            strategy = HuobiHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol, amount)
+        
+        elif strategy_name.lower() == 'huobi_hedge_auto':
             strategy = HuobiHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
 
