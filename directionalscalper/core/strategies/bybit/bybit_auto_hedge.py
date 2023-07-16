@@ -216,7 +216,7 @@ class BybitAutoHedgeStrategy(Strategy):
                     precision_level = 0
 
                 # Old precision revisions
-                
+
                 # # Get the precision level of the minimum quantity
                 # if ".0" in min_qty_str:
                 #     # The minimum quantity does not have a fractional part, precision is 0

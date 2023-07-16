@@ -394,8 +394,8 @@ class BybitAutoHedgeStrategyMFIRSI(Strategy):
                         
                 previous_five_minute_distance = five_minute_distance
 
-                should_short = self.short_trade_condition(best_bid_price, ma_3_high)
-                should_long = self.long_trade_condition(best_ask_price, ma_3_low)
+                should_short = self.short_trade_condition(best_ask_price, ma_3_high)
+                should_long = self.long_trade_condition(best_bid_price, ma_3_low)
 
                 should_add_to_short = False
                 should_add_to_long = False
