@@ -524,6 +524,22 @@ class Strategy:
     def cancel_take_profit_orders_huobi(self, symbol, side):
         self.exchange.cancel_close_huobi(symbol, side)
 
+    def verify_account_type_huobi(self):
+        if not self.account_type_verified:
+            try:
+                current_account_type = self.exchange.check_account_type_huobi()
+                print(f"Current account type at start: {current_account_type}")
+                if current_account_type['data']['account_type'] != '1':
+                    self.exchange.switch_account_type_huobi(1)
+                    time.sleep(0.05)
+                    print(f"Changed account type")
+                else:
+                    print(f"Account type is already 1")
+
+                self.account_type_verified = True  # set to True after account type is verified or changed
+            except Exception as e:
+                print(f"Error in switching account type {e}")
+                
 # RSIMFI
 
     def initialize_MFIRSI(self, symbol):
