@@ -464,7 +464,7 @@ class BybitAutoHedgeStrategyMFIRSI(Strategy):
                                 mfi = trend
 
                             # Place long orders when MFI is long and ERI trend is bearish
-                            if mfi.lower() == "long" and eri_trend.lower() == "bearish":
+                            if (mfi.lower() == "long" and eri_trend.lower() == "bearish") or (mfi.lower() == "long" and trend.lower() == "long"):
                                 if long_pos_qty == 0:
                                     logging.info(f"Placing initial long entry")
                                     self.limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
@@ -474,7 +474,7 @@ class BybitAutoHedgeStrategyMFIRSI(Strategy):
                                     self.limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
 
                             # Place short orders when MFI is short and ERI trend is bullish
-                            if mfi.lower() == "short" and eri_trend.lower() == "bullish":
+                            if (mfi.lower() == "short" and eri_trend.lower() == "bullish") or (mfi.lower() == "short" and trend.lower() == "short"):
                                 if short_pos_qty == 0:
                                     logging.info(f"Placing initial short entry")
                                     self.limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
