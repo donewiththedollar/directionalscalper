@@ -458,7 +458,7 @@ class HuobiAutoHedgeStrategy(Strategy):
                                             raise e 
 
                             else:
-                                if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
+                                if trend.lower() == "long" and should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price:
                                     print(f"Placed additional long entry")
                                     for i in range(max_retries):
                                         try:
@@ -493,7 +493,7 @@ class HuobiAutoHedgeStrategy(Strategy):
                                             raise e 
 
                             else:
-                                if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
+                                if trend.lower() == "short" and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price:
                                     print(f"Placed additional short entry")
                                     for i in range(max_retries):
                                         try:
