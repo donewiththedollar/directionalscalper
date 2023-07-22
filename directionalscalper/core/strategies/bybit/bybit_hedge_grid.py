@@ -235,7 +235,7 @@ class BybitHedgeGridStrategy(Strategy):
                 if not math.isclose(total_existing_long_tp_qty, long_pos_qty):
                     try:
                         for _, existing_long_tp_id in existing_long_tps:
-                            self.exchange.cancel_take_profit_orders_bybit(symbol, "sell")  # Corrected side value to "sell"
+                            self.exchange.cancel_order_by_id(symbol, "sell")  # Corrected side value to "sell"
                             print(f"Long take profit canceled")
                             time.sleep(0.05)
 
@@ -252,7 +252,7 @@ class BybitHedgeGridStrategy(Strategy):
                 if not math.isclose(total_existing_short_tp_qty, short_pos_qty):
                     try:
                         for _, existing_short_tp_id in existing_short_tps:
-                            self.exchange.cancel_take_profit_orders_bybit(symbol, "buy")  # Corrected side value to "buy"
+                            self.exchange.cancel_order_by_id(symbol, "buy")  # Corrected side value to "buy"
                             print(f"Short take profit canceled")
                             time.sleep(0.05)
 

@@ -1,6 +1,7 @@
 import time
 import math
 from ..strategy import Strategy
+from datetime import datetime, timedelta
 from typing import Tuple
 from rich.console import Console
 from rich.table import Table
@@ -12,12 +13,16 @@ import ta
 import logging
 from ..logger import Logger
 
-logging = Logger(filename="bybitmfirsicountertrade.log", stream=True)
+logging = Logger(filename="bybitautohedgemfrsi.log", stream=True)
 
-class BybitMFIRSICountertrade(Strategy):
+class BybitAutoHedgeMFIRSIPostOnly(Strategy):
     def __init__(self, exchange, manager, config):
         super().__init__(exchange, config, manager)
         self.manager = manager
+        self.last_long_tp_update = datetime.now()
+        self.last_short_tp_update = datetime.now()
+        self.next_long_tp_update = self.calculate_next_update_time()
+        self.next_short_tp_update = self.calculate_next_update_time()
         self.last_cancel_time = 0
         self.current_wallet_exposure = 1.0
         self.short_tp_distance_percent = 0.0
@@ -34,58 +39,9 @@ class BybitMFIRSICountertrade(Strategy):
         self.initial_max_short_trade_qty = None
         self.long_leverage_increased = False
         self.short_leverage_increased = False
-        self.version = "2.0.3"
+        self.version = "2.0.5"
 
-    # def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev, long_max_trade_qty, short_max_trade_qty, long_expected_profit, short_expected_profit, long_liq_price, short_liq_price,  mfirsi_signal):
-    #     try:
-    #         table = Table(show_header=True, header_style="bold magenta", title=f"Directional Scalper MFIRSI {self.version}", box=box.SQUARE)
-    #         table.add_column("Key", style="bold cyan", justify="right")
-    #         table.add_column("Value")
-
-    #         table_data = {
-    #             "Symbol": symbol,
-    #             "Price": current_price,
-    #             "Balance": balance,
-    #             "Available bal.": available_bal,
-    #             "Long MAX QTY": long_max_trade_qty,
-    #             "Short MAX QTY": short_max_trade_qty,
-    #             "Long entry QTY": long_dynamic_amount,
-    #             "Short entry QTY": short_dynamic_amount,
-    #             "Long pos. QTY": long_pos_qty,
-    #             "Short pos. QTY": short_pos_qty,
-    #             "Long uPNL": long_upnl,
-    #             "Short uPNL": short_upnl,
-    #             "Long cum. uPNL": long_cum_pnl,
-    #             "Short cum. uPNL": short_cum_pnl,
-    #             "Long pos. price": long_pos_price,
-    #             "Long take profit": long_take_profit,
-    #             "Long expected profit": "{:.2f} USDT".format(long_expected_profit),
-    #             "Short pos. price": short_pos_price,
-    #             "Short take profit": short_take_profit,
-    #             "Short expected profit": "{:.2f} USDT".format(short_expected_profit),
-    #             "Long pos. lev.": long_pos_lev,
-    #             "Short pos. lev.": short_pos_lev,
-    #             "Long liq price": long_liq_price,
-    #             "Short liq price": short_liq_price,
-    #             "1m Vol": volume,
-    #             "5m Spread:": spread,
-    #             "Trend": trend,
-    #             "MFIRSI Signal": mfirsi_signal,
-    #             "Min. volume": self.config.min_volume,
-    #             "Min. spread": self.config.min_distance,
-    #             "Min. qty": min_qty,
-    #         }
-            
-    #         for key, value in sorted(table_data.items()):
-    #             table.add_row(key, str(value))
-            
-    #         return table
-
-    #     except Exception as e:
-    #         print(f"Exception caught {e}")
-    #         return Table()
-
-    def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev, long_max_trade_qty, short_max_trade_qty, long_expected_profit, short_expected_profit, long_liq_price, short_liq_price,  mfirsi_signal):
+    def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev, long_max_trade_qty, short_max_trade_qty, long_expected_profit, short_expected_profit, long_liq_price, short_liq_price, should_long, should_add_to_long, should_short, should_add_to_short,  mfirsi_signal, eri_trend):
         try:
             table = Table(show_header=False, header_style="bold magenta", title=f"Directional Scalper MFIRSI {self.version}")
             table.add_column("Key")
@@ -123,7 +79,12 @@ class BybitMFIRSICountertrade(Strategy):
                 "1m Vol": volume,
                 "5m Spread:": spread,
                 "Trend": trend,
+                "ERI Trend": eri_trend,
                 "MFIRSI Signal": mfirsi_signal,
+                "Long condition": should_long,
+                "Add long cond.": should_add_to_long,
+                "Short condition": should_short,
+                "Add short cond.": should_add_to_short, 
                 "Min. volume": self.config.min_volume,
                 "Min. spread": self.config.min_distance,
                 "Min. qty": min_qty,
@@ -179,6 +140,7 @@ class BybitMFIRSICountertrade(Strategy):
                 four_hour_distance = self.manager.get_asset_value(symbol, data, "4hSpread")
                 trend = self.manager.get_asset_value(symbol, data, "Trend")
                 mfirsi_signal = self.manager.get_asset_value(symbol, data, "MFI")
+                eri_trend = self.manager.get_asset_value(symbol, data, "ERI Trend")
 
                 quote_currency = "USDT"
 
@@ -289,10 +251,15 @@ class BybitMFIRSICountertrade(Strategy):
                 short_liq_price = position_data["short"]["liq_price"]
                 long_liq_price = position_data["long"]["liq_price"]
 
-                if long_pos_qty >= self.max_long_trade_qty and self.long_pos_leverage <= 1.0:
-                    self.max_long_trade_qty *= 2  # double the maximum long trade quantity
+                # Leverage increase logic for long positions
+                if long_pos_qty >= self.initial_max_long_trade_qty and self.long_pos_leverage <= 1.0:
+                    self.max_long_trade_qty = 2 * self.initial_max_long_trade_qty  # double the maximum long trade quantity
                     self.long_leverage_increased = True
                     self.long_pos_leverage = 2.0
+                    logging.info(f"Long leverage temporarily increased to {self.long_pos_leverage}x")
+                elif long_pos_qty >= 2 * self.initial_max_long_trade_qty and self.long_pos_leverage <= 2.0:
+                    self.max_long_trade_qty = 3 * self.initial_max_long_trade_qty  # triple the maximum long trade quantity
+                    self.long_pos_leverage = 3.0
                     logging.info(f"Long leverage temporarily increased to {self.long_pos_leverage}x")
                 elif long_pos_qty < (self.max_long_trade_qty / 2) and self.long_pos_leverage > 1.0:
                     self.max_long_trade_qty = self.calc_max_trade_qty(total_equity,
@@ -302,10 +269,15 @@ class BybitMFIRSICountertrade(Strategy):
                     self.long_pos_leverage = 1.0
                     logging.info(f"Long leverage returned to normal {self.long_pos_leverage}x")
 
-                if short_pos_qty >= self.max_short_trade_qty and self.short_pos_leverage <= 1.0:
-                    self.max_short_trade_qty *= 2  # double the maximum short trade quantity
+                # Leverage increase logic for short positions
+                if short_pos_qty >= self.initial_max_short_trade_qty and self.short_pos_leverage <= 1.0:
+                    self.max_short_trade_qty = 2 * self.initial_max_short_trade_qty  # double the maximum short trade quantity
                     self.short_leverage_increased = True
                     self.short_pos_leverage = 2.0
+                    logging.info(f"Short leverage temporarily increased to {self.short_pos_leverage}x")
+                elif short_pos_qty >= 2 * self.initial_max_short_trade_qty and self.short_pos_leverage <= 2.0:
+                    self.max_short_trade_qty = 3 * self.initial_max_short_trade_qty  # triple the maximum short trade quantity
+                    self.short_pos_leverage = 3.0
                     logging.info(f"Short leverage temporarily increased to {self.short_pos_leverage}x")
                 elif short_pos_qty < (self.max_short_trade_qty / 2) and self.short_pos_leverage > 1.0:
                     self.max_short_trade_qty = self.calc_max_trade_qty(total_equity,
@@ -314,7 +286,7 @@ class BybitMFIRSICountertrade(Strategy):
                     self.short_leverage_increased = False
                     self.short_pos_leverage = 1.0
                     logging.info(f"Short leverage returned to normal {self.short_pos_leverage}x")
-
+                    
                 short_upnl = position_data["short"]["upnl"]
                 long_upnl = position_data["long"]["upnl"]
 
@@ -337,20 +309,20 @@ class BybitMFIRSICountertrade(Strategy):
                         
                 previous_five_minute_distance = five_minute_distance
 
-                should_short = self.short_trade_condition(best_bid_price, ma_3_high)
-                should_long = self.long_trade_condition(best_ask_price, ma_3_low)
+                should_short = self.short_trade_condition(best_ask_price, ma_3_high)
+                should_long = self.long_trade_condition(best_bid_price, ma_3_low)
 
                 should_add_to_short = False
                 should_add_to_long = False
             
                 if short_pos_price is not None:
-                    should_add_to_short = short_pos_price < ma_6_low
+                    should_add_to_short = short_pos_price < ma_6_low and self.short_trade_condition(best_ask_price, ma_6_high)
                     self.short_tp_distance_percent = ((short_take_profit - short_pos_price) / short_pos_price) * 100
                     self.short_expected_profit_usdt = abs(self.short_tp_distance_percent / 100 * short_pos_price * short_pos_qty)
                     logging.info(f"Short TP price: {short_take_profit}, TP distance in percent: {-self.short_tp_distance_percent:.2f}%, Expected profit: {self.short_expected_profit_usdt:.2f} USDT")
 
                 if long_pos_price is not None:
-                    should_add_to_long = long_pos_price > ma_6_high
+                    should_add_to_long = long_pos_price > ma_6_high and self.long_trade_condition(best_bid_price, ma_6_low)
                     self.long_tp_distance_percent = ((long_take_profit - long_pos_price) / long_pos_price) * 100
                     self.long_expected_profit_usdt = self.long_tp_distance_percent / 100 * long_pos_price * long_pos_qty
                     logging.info(f"Long TP price: {long_take_profit}, TP distance in percent: {self.long_tp_distance_percent:.2f}%, Expected profit: {self.long_expected_profit_usdt:.2f} USDT")
@@ -389,33 +361,47 @@ class BybitMFIRSICountertrade(Strategy):
                     self.short_expected_profit_usdt,
                     long_liq_price,
                     short_liq_price,
+                    should_long,
+                    should_add_to_long,
+                    should_short,
+                    should_add_to_short,
                     mfirsi_signal,
+                    eri_trend,
                 ))
-
-                if one_minute_volume is not None and five_minute_distance is not None:
-                    if one_minute_volume > min_vol and five_minute_distance > min_dist:
-
-                        mfi = self.manager.get_asset_value(symbol, data, "MFI")
-
-                        if mfi is not None and isinstance(mfi, str):
-                            if mfi.lower() == "short" and long_pos_qty == 0:
-                                logging.info(f"Placing initial long entry")
-                                self.limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-                                logging.info(f"Placed initial long entry")
-                            elif mfi.lower() == "short" and should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price:
-                                logging.info(f"Placed additional long entry")
-                                self.limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-
-                            if mfi.lower() == "long" and short_pos_qty == 0:
-                                logging.info(f"Placing initial short entry")
-                                self.limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
-                                logging.info("Placed initial short entry")
-                            elif mfi.lower() == "long" and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price:
-                                logging.info(f"Placed additional short entry")
-                                self.limit_order_bybit(symbol, "sell", short_dynamic_amount, best_bid_price, positionIdx=2, reduceOnly=False)
 
                 open_orders = self.exchange.get_open_orders(symbol)
 
+                if one_minute_volume is not None and five_minute_distance is not None:
+                    if one_minute_volume > min_vol and five_minute_distance > min_dist:
+                        mfi = self.manager.get_asset_value(symbol, data, "MFI")
+                        trend = self.manager.get_asset_value(symbol, data, "Trend")
+
+                        if mfi is not None and isinstance(mfi, str):
+                            if mfi.lower() == "neutral":
+                                mfi = trend
+
+                            # Place long orders when MFI is long and ERI trend is bearish
+                            if (mfi.lower() == "long" and eri_trend.lower() == "bearish") or (mfi.lower() == "long" and trend.lower() == "long"):
+                                existing_order = next((o for o in open_orders if o['side'] == 'Buy' and o['position_idx'] == 1), None)
+                                if long_pos_qty == 0 or (should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price):
+                                    if existing_order is None or existing_order['price'] != best_bid_price:
+                                        if existing_order is not None:
+                                            self.exchange.cancel_order_by_id(existing_order['id'], symbol)
+                                        logging.info(f"Placing long entry")
+                                        self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                                        logging.info(f"Placed long entry")
+
+                            # Place short orders when MFI is short and ERI trend is bullish
+                            if (mfi.lower() == "short" and eri_trend.lower() == "bullish") or (mfi.lower() == "short" and trend.lower() == "short"):
+                                existing_order = next((o for o in open_orders if o['side'] == 'Sell' and o['position_idx'] == 2), None)
+                                if short_pos_qty == 0 or (should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price):
+                                    if existing_order is None or existing_order['price'] != best_ask_price:
+                                        if existing_order is not None:
+                                            self.exchange.cancel_order_by_id(existing_order['id'], symbol)
+                                        logging.info(f"Placing short entry")
+                                        self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                                        logging.info(f"Placed short entry")
+                
                 if long_pos_qty > 0 and long_take_profit is not None:
                     existing_long_tps = self.get_open_take_profit_order_quantities(open_orders, "sell")
                     total_existing_long_tp_qty = sum(qty for qty, _ in existing_long_tps)
@@ -424,7 +410,7 @@ class BybitMFIRSICountertrade(Strategy):
                         try:
                             for qty, existing_long_tp_id in existing_long_tps:
                                 if not math.isclose(qty, long_pos_qty):
-                                    self.exchange.cancel_take_profit_order_by_id(existing_long_tp_id, symbol)
+                                    self.exchange.cancel_order_by_id(existing_long_tp_id, symbol)
                                     logging.info(f"Long take profit {existing_long_tp_id} canceled")
                                     time.sleep(0.05)
                         except Exception as e:
@@ -446,7 +432,7 @@ class BybitMFIRSICountertrade(Strategy):
                         try:
                             for qty, existing_short_tp_id in existing_short_tps:
                                 if not math.isclose(qty, short_pos_qty):
-                                    self.exchange.cancel_take_profit_order_by_id(existing_short_tp_id, symbol)
+                                    self.exchange.cancel_order_by_id(existing_short_tp_id, symbol)
                                     logging.info(f"Short take profit {existing_short_tp_id} canceled")
                                     time.sleep(0.05)
                         except Exception as e:
@@ -460,6 +446,40 @@ class BybitMFIRSICountertrade(Strategy):
                         except Exception as e:
                             logging.info(f"Error in placing short TP: {e}")
 
+                if long_pos_qty > 0 and long_take_profit is not None:
+                    existing_long_tps = self.get_open_take_profit_order_quantities(open_orders, "sell")
+                    total_existing_long_tp_qty = sum(qty for qty, _ in existing_long_tps)
+                    logging.info(f"Existing long TPs: {existing_long_tps}")
+                    now = datetime.now()
+                    if now >= self.next_long_tp_update or not math.isclose(total_existing_long_tp_qty, long_pos_qty):
+                        try:
+                            for qty, existing_long_tp_id in existing_long_tps:
+                                self.exchange.cancel_order_by_id(existing_long_tp_id, symbol)
+                                logging.info(f"Long take profit {existing_long_tp_id} canceled")
+                                time.sleep(0.05)
+                            self.exchange.create_take_profit_order_bybit(symbol, "limit", "sell", long_pos_qty, long_take_profit, positionIdx=1, reduce_only=True)
+                            logging.info(f"Long take profit set at {long_take_profit}")
+                            self.next_long_tp_update = self.calculate_next_update_time()  # Calculate the next update time after placing the order
+                        except Exception as e:
+                            logging.info(f"Error in updating long TP: {e}")
+
+                if short_pos_qty > 0 and short_take_profit is not None:
+                    existing_short_tps = self.get_open_take_profit_order_quantities(open_orders, "buy")
+                    total_existing_short_tp_qty = sum(qty for qty, _ in existing_short_tps)
+                    logging.info(f"Existing short TPs: {existing_short_tps}")
+                    now = datetime.now()
+                    if now >= self.next_short_tp_update or not math.isclose(total_existing_short_tp_qty, short_pos_qty):
+                        try:
+                            for qty, existing_short_tp_id in existing_short_tps:
+                                self.exchange.cancel_order_by_id(existing_short_tp_id, symbol)
+                                logging.info(f"Short take profit {existing_short_tp_id} canceled")
+                                time.sleep(0.05)
+                            self.exchange.create_take_profit_order_bybit(symbol, "limit", "buy", short_pos_qty, short_take_profit, positionIdx=2, reduce_only=True)
+                            logging.info(f"Short take profit set at {short_take_profit}")
+                            self.next_short_tp_update = self.calculate_next_update_time()  # Calculate the next update time after placing the order
+                        except Exception as e:
+                            logging.info(f"Error in updating short TP: {e}")
+                        
                 # Cancel entries
                 current_time = time.time()
                 if current_time - self.last_cancel_time >= 60:  # Execute this block every 1 minute

@@ -430,7 +430,7 @@ class BybitAutoHedgeStrategy(Strategy):
                         try:
                             for qty, existing_long_tp_id in existing_long_tps:
                                 if not math.isclose(qty, long_pos_qty):
-                                    self.exchange.cancel_take_profit_order_by_id(existing_long_tp_id, symbol)
+                                    self.exchange.cancel_order_by_id(existing_long_tp_id, symbol)
                                     logging.info(f"Long take profit {existing_long_tp_id} canceled")
                                     time.sleep(0.05)
                         except Exception as e:
@@ -452,7 +452,7 @@ class BybitAutoHedgeStrategy(Strategy):
                         try:
                             for qty, existing_short_tp_id in existing_short_tps:
                                 if not math.isclose(qty, short_pos_qty):
-                                    self.exchange.cancel_take_profit_order_by_id(existing_short_tp_id, symbol)
+                                    self.exchange.cancel_order_by_id(existing_short_tp_id, symbol)
                                     logging.info(f"Short take profit {existing_short_tp_id} canceled")
                                     time.sleep(0.05)
                         except Exception as e:
@@ -475,7 +475,7 @@ class BybitAutoHedgeStrategy(Strategy):
                     if now >= self.next_long_tp_update or not math.isclose(total_existing_long_tp_qty, long_pos_qty):
                         try:
                             for qty, existing_long_tp_id in existing_long_tps:
-                                self.exchange.cancel_take_profit_order_by_id(existing_long_tp_id, symbol)
+                                self.exchange.cancel_order_by_id(existing_long_tp_id, symbol)
                                 logging.info(f"Long take profit {existing_long_tp_id} canceled")
                                 time.sleep(0.05)
                             self.exchange.create_take_profit_order_bybit(symbol, "limit", "sell", long_pos_qty, long_take_profit, positionIdx=1, reduce_only=True)
@@ -492,7 +492,7 @@ class BybitAutoHedgeStrategy(Strategy):
                     if now >= self.next_short_tp_update or not math.isclose(total_existing_short_tp_qty, short_pos_qty):
                         try:
                             for qty, existing_short_tp_id in existing_short_tps:
-                                self.exchange.cancel_take_profit_order_by_id(existing_short_tp_id, symbol)
+                                self.exchange.cancel_order_by_id(existing_short_tp_id, symbol)
                                 logging.info(f"Short take profit {existing_short_tp_id} canceled")
                                 time.sleep(0.05)
                             self.exchange.create_take_profit_order_bybit(symbol, "limit", "buy", short_pos_qty, short_take_profit, positionIdx=2, reduce_only=True)

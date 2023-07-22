@@ -1664,7 +1664,7 @@ class Exchange:
             print(f"An unknown error occurred in cancel_take_profit_orders: {e}")
 
     # Bybit
-    def cancel_take_profit_order_by_id(self, order_id, symbol):
+    def cancel_order_by_id(self, order_id, symbol):
         try:
             self.exchange.cancel_derivatives_order(order_id, symbol)
             logging.info(f"Canceled take profit order - ID: {order_id}")

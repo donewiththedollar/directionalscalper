@@ -255,7 +255,7 @@ class BybitShortOnlyDynamicLeverage(Strategy):
                     try:
                         for qty, existing_short_tp_id in existing_short_tps:
                             if not math.isclose(qty, short_pos_qty):
-                                self.exchange.cancel_take_profit_order_by_id(existing_short_tp_id, symbol)
+                                self.exchange.cancel_order_by_id(existing_short_tp_id, symbol)
                                 print(f"Short take profit {existing_short_tp_id} canceled")
                                 time.sleep(0.05)
                     except Exception as e:

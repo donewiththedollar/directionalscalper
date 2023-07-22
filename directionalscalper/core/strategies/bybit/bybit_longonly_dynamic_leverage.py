@@ -253,7 +253,7 @@ class BybitLongOnlyDynamicLeverage(Strategy):
                     try:
                         for qty, existing_long_tp_id in existing_long_tps:
                             if not math.isclose(qty, long_pos_qty):
-                                self.exchange.cancel_take_profit_order_by_id(existing_long_tp_id, symbol)
+                                self.exchange.cancel_order_by_id(existing_long_tp_id, symbol)
                                 print(f"Long take profit {existing_long_tp_id} canceled")
                                 time.sleep(0.05)
                     except Exception as e:
