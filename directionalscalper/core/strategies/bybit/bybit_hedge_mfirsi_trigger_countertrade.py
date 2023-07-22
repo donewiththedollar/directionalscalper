@@ -13,7 +13,7 @@ import ta
 import logging
 from ..logger import Logger
 
-logging = Logger(filename="bybitautohedgemfrsionly.log", stream=True)
+logging = Logger(filename="bybithedgemfirsipostonlycounter.log", stream=True)
 
 class BybitHedgeMFIRSITriggerCountertrade(Strategy):
     def __init__(self, exchange, manager, config):
@@ -38,55 +38,6 @@ class BybitHedgeMFIRSITriggerCountertrade(Strategy):
         self.long_leverage_increased = False
         self.short_leverage_increased = False
         self.version = "2.0.3"
-
-    # def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev, long_max_trade_qty, short_max_trade_qty, long_expected_profit, short_expected_profit, long_liq_price, short_liq_price,  mfirsi_signal):
-    #     try:
-    #         table = Table(show_header=True, header_style="bold magenta", title=f"Directional Scalper MFIRSI ONLY {self.version}", box=box.SQUARE)
-    #         table.add_column("Key", style="bold cyan", justify="right")
-    #         table.add_column("Value")
-
-    #         table_data = {
-    #             "Symbol": symbol,
-    #             "Price": current_price,
-    #             "Balance": balance,
-    #             "Available bal.": available_bal,
-    #             "Long MAX QTY": long_max_trade_qty,
-    #             "Short MAX QTY": short_max_trade_qty,
-    #             "Long entry QTY": long_dynamic_amount,
-    #             "Short entry QTY": short_dynamic_amount,
-    #             "Long pos. QTY": long_pos_qty,
-    #             "Short pos. QTY": short_pos_qty,
-    #             "Long uPNL": long_upnl,
-    #             "Short uPNL": short_upnl,
-    #             "Long cum. uPNL": long_cum_pnl,
-    #             "Short cum. uPNL": short_cum_pnl,
-    #             "Long pos. price": long_pos_price,
-    #             "Long take profit": long_take_profit,
-    #             "Long expected profit": "{:.2f} USDT".format(long_expected_profit),
-    #             "Short pos. price": short_pos_price,
-    #             "Short take profit": short_take_profit,
-    #             "Short expected profit": "{:.2f} USDT".format(short_expected_profit),
-    #             "Long pos. lev.": long_pos_lev,
-    #             "Short pos. lev.": short_pos_lev,
-    #             "Long liq price": long_liq_price,
-    #             "Short liq price": short_liq_price,
-    #             "1m Vol": volume,
-    #             "5m Spread:": spread,
-    #             "Trend": trend,
-    #             "MFIRSI Signal": mfirsi_signal,
-    #             "Min. volume": self.config.min_volume,
-    #             "Min. spread": self.config.min_distance,
-    #             "Min. qty": min_qty,
-    #         }
-            
-    #         for key, value in sorted(table_data.items()):
-    #             table.add_row(key, str(value))
-            
-    #         return table
-
-    #     except Exception as e:
-    #         print(f"Exception caught {e}")
-    #         return Table()
 
     def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev, long_max_trade_qty, short_max_trade_qty, long_expected_profit, short_expected_profit, long_liq_price, short_liq_price,  mfirsi_signal):
         try:

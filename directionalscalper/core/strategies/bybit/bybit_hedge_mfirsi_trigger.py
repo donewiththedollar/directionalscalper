@@ -13,7 +13,7 @@ import ta
 import logging
 from ..logger import Logger
 
-logging = Logger(filename="bybitautohedgemfrsionly.log", stream=True)
+logging = Logger(filename="bybithedgemfirsitrigger.log", stream=True)
 
 class BybitHedgeMFIRSITrigger(Strategy):
     def __init__(self, exchange, manager, config):
