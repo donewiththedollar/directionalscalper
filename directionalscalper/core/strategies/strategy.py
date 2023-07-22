@@ -17,6 +17,7 @@ class Strategy:
         self.symbol = config.symbol
         self.printed_trade_quantities = False
         self.last_mfirsi_signal = None
+        self.taker_fee_rate = 0.055 / 100
 
     def get_current_price(self, symbol):
         return self.exchange.get_current_price(symbol)
@@ -201,6 +202,88 @@ class Strategy:
             next_update_minute = 0
             now += timedelta(hours=1)
         return now.replace(minute=next_update_minute, second=0, microsecond=0)
+
+    def calculate_long_take_profit_spread_bybit_fees(self, long_pos_price, quantity, symbol, increase_percentage=0):
+        if long_pos_price is None:
+            return None
+
+        five_min_data = self.manager.get_5m_moving_averages(symbol)
+        price_precision = int(self.exchange.get_price_precision(symbol))
+
+        if five_min_data is not None:
+            ma_6_high = Decimal(five_min_data["MA_6_H"])
+            ma_6_low = Decimal(five_min_data["MA_6_L"])
+
+            try:
+                long_target_price = Decimal(long_pos_price) + (ma_6_high - ma_6_low)
+            except InvalidOperation as e:
+                print(f"Error: Invalid operation when calculating long_target_price. long_pos_price={long_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
+                return None
+
+            if increase_percentage is None:
+                increase_percentage = 0
+
+            # Calculate the order value
+            order_value = Decimal(quantity) / long_target_price
+            # Calculate the trading fee for this order
+            trading_fee = order_value * Decimal(self.taker_fee_rate)
+            # Add the trading fee to the take profit target price
+            long_target_price = long_target_price + trading_fee
+
+            try:
+                long_target_price = long_target_price.quantize(
+                    Decimal('1e-{}'.format(price_precision)),
+                    rounding=ROUND_HALF_UP
+                )
+            except InvalidOperation as e:
+                print(f"Error: Invalid operation when quantizing long_target_price. long_target_price={long_target_price}, price_precision={price_precision}")
+                return None
+
+            long_profit_price = long_target_price
+
+            return float(long_profit_price)
+        return None
+
+    def calculate_short_take_profit_spread_bybit_fees(self, short_pos_price, quantity, symbol, decrease_percentage=0):
+        if short_pos_price is None:
+            return None
+
+        five_min_data = self.manager.get_5m_moving_averages(symbol)
+        price_precision = int(self.exchange.get_price_precision(symbol))
+
+        if five_min_data is not None:
+            ma_6_high = Decimal(five_min_data["MA_6_H"])
+            ma_6_low = Decimal(five_min_data["MA_6_L"])
+
+            try:
+                short_target_price = Decimal(short_pos_price) - (ma_6_high - ma_6_low)
+            except InvalidOperation as e:
+                print(f"Error: Invalid operation when calculating short_target_price. short_pos_price={short_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
+                return None
+
+            if decrease_percentage is None:
+                decrease_percentage = 0
+
+            # Calculate the order value
+            order_value = Decimal(quantity) / short_target_price
+            # Calculate the trading fee for this order
+            trading_fee = order_value * Decimal(self.taker_fee_rate)
+            # Subtract the trading fee from the take profit target price
+            short_target_price = short_target_price - trading_fee
+
+            try:
+                short_target_price = short_target_price.quantize(
+                    Decimal('1e-{}'.format(price_precision)),
+                    rounding=ROUND_HALF_UP
+                )
+            except InvalidOperation as e:
+                print(f"Error: Invalid operation when quantizing short_target_price. short_target_price={short_target_price}, price_precision={price_precision}")
+                return None
+
+            short_profit_price = short_target_price
+
+            return float(short_profit_price)
+        return None
 
     def calculate_short_take_profit_spread_bybit(self, short_pos_price, symbol, increase_percentage=0):
         if short_pos_price is None:
