@@ -34,15 +34,22 @@ class Exchange:
                 'http': os.environ.get('HTTP_PROXY'),
                 'https': os.environ.get('HTTPS_PROXY'),
             }
-        if self.exchange_id.lower() == 'huobi':
+            
+        if self.passphrase:
+            exchange_params["password"] = self.passphrase
+
+        exchange_id_lower = self.exchange_id.lower()
+
+        if exchange_id_lower == 'huobi':
             exchange_params['options'] = {
                 'defaultType': 'swap',
                 'defaultSubType': 'linear',
             }
-        if self.passphrase:
-            exchange_params["password"] = self.passphrase
-
-        elif self.exchange_id.lower() == 'binance':
+        elif exchange_id_lower == 'bybit_spot':
+            exchange_params['options'] = {
+                'defaultType': 'spot',
+            }
+        elif exchange_id_lower == 'binance':
             exchange_params['options'] = {
                 'defaultType': 'future',
             }
