@@ -27,6 +27,7 @@ class API(BaseModel):
 class Bot(BaseModel):
     bot_name: str
     min_distance: float = 0.15
+    min_distance_btc: float = 0.03
     min_fee: float = 0.17
     min_volume: int = 15000
     symbol: str
@@ -44,6 +45,12 @@ class Bot(BaseModel):
         if v < 0.0:
             raise ValueError("min_distance must be greater than 0")
         return v
+
+    # @validator("min_distance_btc")
+    # def minimum_min_distance(cls, v):
+    #     if v < 0.0:
+    #         raise ValueError("min_distance must be greater than 0")
+    #     return v
 
 class Exchange(BaseModel):
     name: str
@@ -95,8 +102,6 @@ class Discord(BaseModel):
 #                 "Discord webhook begins: https://discord.com/api/webhooks/"
 #             )
 #         return v
-
-
 
 class Telegram(BaseModel):
     active: bool = False
