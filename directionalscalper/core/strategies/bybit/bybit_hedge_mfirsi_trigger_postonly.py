@@ -421,7 +421,7 @@ class BybitHedgeMFIRSITriggerPostOnly(Strategy):
 
                     if len(existing_long_tps) < 1:
                         try:
-                            self.exchange.create_take_profit_order_bybit(symbol, "limit", "sell", long_pos_qty, long_take_profit, positionIdx=1, reduce_only=True)
+                            self.exchange.postonly_create_take_profit_order_bybit(symbol, "limit", "sell", long_pos_qty, long_take_profit, positionIdx=1, reduce_only=True)
                             logging.info(f"Long take profit set at {long_take_profit}")
                             time.sleep(0.05)
                         except Exception as e:
@@ -443,7 +443,7 @@ class BybitHedgeMFIRSITriggerPostOnly(Strategy):
 
                     if len(existing_short_tps) < 1:
                         try:
-                            self.exchange.create_take_profit_order_bybit(symbol, "limit", "buy", short_pos_qty, short_take_profit, positionIdx=2, reduce_only=True)
+                            self.exchange.postonly_create_take_profit_order_bybit(symbol, "limit", "buy", short_pos_qty, short_take_profit, positionIdx=2, reduce_only=True)
                             logging.info(f"Short take profit set at {short_take_profit}")
                             time.sleep(0.05)
                         except Exception as e:
@@ -460,7 +460,7 @@ class BybitHedgeMFIRSITriggerPostOnly(Strategy):
                                 self.exchange.cancel_order_by_id(existing_long_tp_id, symbol)
                                 logging.info(f"Long take profit {existing_long_tp_id} canceled")
                                 time.sleep(0.05)
-                            self.exchange.create_take_profit_order_bybit(symbol, "limit", "sell", long_pos_qty, long_take_profit, positionIdx=1, reduce_only=True)
+                            self.exchange.postonly_create_take_profit_order_bybit(symbol, "limit", "sell", long_pos_qty, long_take_profit, positionIdx=1, reduce_only=True)
                             logging.info(f"Long take profit set at {long_take_profit}")
                             self.next_long_tp_update = self.calculate_next_update_time()  # Calculate the next update time after placing the order
                         except Exception as e:
@@ -477,12 +477,12 @@ class BybitHedgeMFIRSITriggerPostOnly(Strategy):
                                 self.exchange.cancel_order_by_id(existing_short_tp_id, symbol)
                                 logging.info(f"Short take profit {existing_short_tp_id} canceled")
                                 time.sleep(0.05)
-                            self.exchange.create_take_profit_order_bybit(symbol, "limit", "buy", short_pos_qty, short_take_profit, positionIdx=2, reduce_only=True)
+                            self.exchange.postonly_create_take_profit_order_bybit(symbol, "limit", "buy", short_pos_qty, short_take_profit, positionIdx=2, reduce_only=True)
                             logging.info(f"Short take profit set at {short_take_profit}")
                             self.next_short_tp_update = self.calculate_next_update_time()  # Calculate the next update time after placing the order
                         except Exception as e:
                             logging.info(f"Error in updating short TP: {e}")
-               
+
                 # Cancel entries
                 current_time = time.time()
                 if current_time - self.last_cancel_time >= 60:  # Execute this block every 1 minute
