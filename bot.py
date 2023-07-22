@@ -36,12 +36,12 @@ from directionalscalper.core.strategies.bybit.bybit_longonly_dynamic_leverage im
 from directionalscalper.core.strategies.bybit.bybit_shortonly_dynamic_leverage import BybitShortOnlyDynamicLeverage
 from directionalscalper.core.strategies.bybit.bybit_longonly_dynamic import BybitLongOnlyDynamic
 from directionalscalper.core.strategies.bybit.bybit_shortonly_dynamic import BybitShortOnlyDynamic
-from directionalscalper.core.strategies.bybit.bybit_hedge_dynamic_leverage import BybitHedgeDynamicStrategy
 from directionalscalper.core.strategies.bybit.bybit_auto_hedge import BybitAutoHedgeStrategy
 from directionalscalper.core.strategies.bybit.bybit_auto_hedge_MFIRSI import BybitAutoHedgeStrategyMFIRSI
 from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trigger import BybitHedgeMFIRSITrigger
 from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_countertrade import BybitMFIRSICountertrade
 from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trigger_countertrade import BybitHedgeMFIRSITriggerCountertrade
+from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_postonly import BybitAutoHedgeMFIRSIPostOnly
 # HUOBI
 from directionalscalper.core.strategies.huobi.huobi_hedge import HuobiHedgeStrategy
 from directionalscalper.core.strategies.huobi.huobi_auto_hedge import HuobiAutoHedgeStrategy
@@ -201,10 +201,6 @@ if __name__ == '__main__':
             strategy = BybitViolentHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
 
-        elif strategy_name.lower() == 'bybit_hedge_dynamic':
-            strategy = BybitHedgeDynamicStrategy(market_maker.exchange, market_maker.manager, config.bot)
-            strategy.run(symbol)
-
         elif strategy_name.lower() == 'bybit_auto_hedge':
             strategy = BybitAutoHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
@@ -225,6 +221,10 @@ if __name__ == '__main__':
             strategy = BybitHedgeMFIRSITriggerCountertrade(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
 
+        elif strategy_name.lower() == 'bybit_auto_hedge_mfirsi_postonly':
+            strategy = BybitAutoHedgeMFIRSIPostOnly(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol)
+
         elif strategy_name.lower() == 'bybit_hedge_grid':
             strategy = BybitHedgeGridStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
@@ -234,8 +234,8 @@ if __name__ == '__main__':
             strategy = HuobiHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
         
-        elif strategy_name.lower() == 'huobi_hedge_auto':
-            strategy = HuobiHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
+        elif strategy_name.lower() == 'huobi_auto_hedge':
+            strategy = HuobiAutoHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
 
         # Mexc Strategies
