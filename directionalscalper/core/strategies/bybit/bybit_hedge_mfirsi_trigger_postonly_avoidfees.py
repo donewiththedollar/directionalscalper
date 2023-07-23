@@ -13,9 +13,9 @@ import ta
 import logging
 from ..logger import Logger
 
-logging = Logger(filename="bybithedgemfirsitriggerpost.log", stream=True)
+logging = Logger(filename="bybithedgemfirsitriggerpostfees.log", stream=True)
 
-class BybitHedgeMFIRSITriggerPostOnlyBTC(Strategy):
+class BybitHedgeMFIRSITriggerPostOnlyAvoidFees(Strategy):
     def __init__(self, exchange, manager, config):
         super().__init__(exchange, config, manager)
         self.manager = manager
@@ -37,7 +37,7 @@ class BybitHedgeMFIRSITriggerPostOnlyBTC(Strategy):
         self.initial_max_short_trade_qty = None
         self.long_leverage_increased = False
         self.short_leverage_increased = False
-        self.version = "2.0.5"
+        self.version = "2.0.6"
 
 
 
@@ -310,16 +310,16 @@ class BybitHedgeMFIRSITriggerPostOnlyBTC(Strategy):
                 short_take_profit = None
                 long_take_profit = None
 
-                # if five_minute_distance != previous_five_minute_distance:
-                #     short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, five_minute_distance)
-                #     long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
-                # else:
-                #     if short_take_profit is None or long_take_profit is None:
-                #         short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, five_minute_distance)
-                #         long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
+                if five_minute_distance != previous_five_minute_distance:
+                    short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, five_minute_distance)
+                    long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
+                else:
+                    if short_take_profit is None or long_take_profit is None:
+                        short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, five_minute_distance)
+                        long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
                         
 
-                # previous_five_minute_distance = five_minute_distance
+                previous_five_minute_distance = five_minute_distance
 
                 # if thirty_minute_distance != previous_thirty_minute_distance:
                 #     short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, thirty_minute_distance)
@@ -331,15 +331,15 @@ class BybitHedgeMFIRSITriggerPostOnlyBTC(Strategy):
                 #self, short_pos_price, quantity, symbol, decrease_percentage=0
                 # 
                     
-                if thirty_minute_distance != previous_thirty_minute_distance:
-                    short_take_profit = self.calculate_short_take_profit_spread_bybit_fees(short_pos_price, short_pos_qty, symbol, thirty_minute_distance)
-                    long_take_profit = self.calculate_long_take_profit_spread_bybit_fees(long_pos_price, long_pos_qty, symbol, thirty_minute_distance)
-                else:
-                    if short_take_profit is None or long_take_profit is None:
-                        short_take_profit = self.calculate_short_take_profit_spread_bybit_fees(short_pos_price, short_pos_qty, symbol, thirty_minute_distance)
-                        long_take_profit = self.calculate_long_take_profit_spread_bybit_fees(long_pos_price, long_pos_qty, symbol, thirty_minute_distance)
+                # if thirty_minute_distance != previous_thirty_minute_distance:
+                #     short_take_profit = self.calculate_short_take_profit_spread_bybit_fees(short_pos_price, short_pos_qty, symbol, thirty_minute_distance)
+                #     long_take_profit = self.calculate_long_take_profit_spread_bybit_fees(long_pos_price, long_pos_qty, symbol, thirty_minute_distance)
+                # else:
+                #     if short_take_profit is None or long_take_profit is None:
+                #         short_take_profit = self.calculate_short_take_profit_spread_bybit_fees(short_pos_price, short_pos_qty, symbol, thirty_minute_distance)
+                #         long_take_profit = self.calculate_long_take_profit_spread_bybit_fees(long_pos_price, long_pos_qty, symbol, thirty_minute_distance)
                         
-                previous_thirty_minute_distance = thirty_minute_distance
+                #previous_thirty_minute_distance = thirty_minute_distance
 
                 should_short = self.short_trade_condition(best_bid_price, ma_3_high)
                 should_long = self.long_trade_condition(best_ask_price, ma_3_low)
@@ -414,14 +414,14 @@ class BybitHedgeMFIRSITriggerPostOnlyBTC(Strategy):
                                 logging.info(f"Placing initial long entry with post-only order")
                                 self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1)
                                 logging.info(f"Placed initial long entry with post-only order")
-                            elif mfi.lower() == "long" and best_bid_price < long_pos_price:
+                            elif mfi.lower() == "long" and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price:
                                 logging.info(f"Placing additional long entry with post-only order")
                                 self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1)
                             elif mfi.lower() == "short" and short_pos_qty == 0:
                                 logging.info(f"Placing initial short entry with post-only order")
                                 self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2)
                                 logging.info(f"Placed initial short entry with post-only order")
-                            elif mfi.lower() == "short" and best_ask_price > short_pos_price:
+                            elif mfi.lower() == "short" and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price:
                                 logging.info(f"Placing additional short entry with post-only order")
                                 self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2)
 

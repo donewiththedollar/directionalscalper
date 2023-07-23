@@ -44,7 +44,7 @@ from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_countertrade im
 from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trigger_countertrade import BybitHedgeMFIRSITriggerCountertrade
 from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_postonly import BybitAutoHedgeMFIRSIPostOnly
 from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trigger_postonly import BybitHedgeMFIRSITriggerPostOnly
-from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trigger_postonly_btc import BybitHedgeMFIRSITriggerPostOnlyBTC
+from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trigger_postonly_avoidfees import BybitHedgeMFIRSITriggerPostOnlyAvoidFees
 # HUOBI
 from directionalscalper.core.strategies.huobi.huobi_hedge import HuobiHedgeStrategy
 from directionalscalper.core.strategies.huobi.huobi_auto_hedge import HuobiAutoHedgeStrategy
@@ -224,8 +224,8 @@ if __name__ == '__main__':
             strategy = BybitHedgeMFIRSITriggerPostOnly(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
     
-        elif strategy_name.lower() == 'bybit_hedge_mfirsionly_maker_btc':
-            strategy = BybitHedgeMFIRSITriggerPostOnlyBTC(market_maker.exchange, market_maker.manager, config.bot)
+        elif strategy_name.lower() == 'bybit_hedge_mfirsionly_maker_avoidfees':
+            strategy = BybitHedgeMFIRSITriggerPostOnlyAvoidFees(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
 
         elif strategy_name.lower() == 'bybit_mfirsi_counter':
