@@ -78,9 +78,9 @@ Make sure you are in the directory directionalscalper
 - `pip3.11 install -r requirements.txt`
 
 > Modify your config_example.json file with your bitget API keys and then run this:
-- `python3.11 bot.py --exchange bitget --symbol OPUSDT_UMCBL --strategy bitget_hedge_dynamic --config config_example.json`
+- `python3.11 bot.py --exchange bybit --symbol SUIUSDT --strategy bybit_hedge_mfirsi_maker --config config_bybit_sub1.json`
 > or a different exchange:
-- `python3.11 bot.py --exchange bybit --symbol SUIUSDT --strategy bybit_auto_hedge --config config_bybit_sub1.json`
+- `python3.11 bot.py --exchange bitget --symbol OPUSDT_UMCBL --strategy bitget_hedge_dynamic --config config_example.json`
  
 ### Setting up the bot
  1. Create `config.json` from `config.example.json` in /configs directory
@@ -96,7 +96,7 @@ Make sure you are in the directory directionalscalper
 ### Starting the bot examples
 * Hedge strategy is recommended, but you can of course use the other strategies as well. Low entry size is recommended.
 
-> python3.11 bot.py --exchange bybit --symbol SUIUSDT --strategy bybit_auto_hedge --config config_bybit_sub1.json
+> python3.11 bot.py --exchange bybit --symbol SUIUSDT --strategy bybit_hedge_mfirsi_maker --config config_bybit_sub1.json
 
 > python3.11 bot.py --exchange bitget --symbol XRPUSDT_UMCBL --amount 15 --strategy bitget_hedge --config config_main.json
  
@@ -143,7 +143,7 @@ Make sure you are in the directory directionalscalper
 
 ### Docker
 To run the bot inside docker container use the following command:
-> docker-compose run directional-scalper python3.11 bot.py --symbol SUIUSDT --strategy bybit_hedge_dynamic_unstuck --config config_main.json
+> docker-compose run directional-scalper python3.11 bot.py --symbol SUIUSDT --strategy bybit_hedge_mfirsi_maker --config config_main.json
 
 ### Proxy
 If you need to use a proxy to access the Exchange API, you can set the environment variables as shown in the following example:
