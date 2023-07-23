@@ -712,7 +712,7 @@ class Strategy:
                     else:
                         if trend.lower() == "short" and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price:
                             logging.info(f"Placed additional short entry")
-                            self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_bid_price, positionIdx=2, reduceOnly=False)
+                            self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
 # Bybit update take profit based on time and spread
 
