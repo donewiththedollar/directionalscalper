@@ -111,6 +111,8 @@ Make sure you are in the directory directionalscalper
 ## Bybit
 * bybit_hedge
 * bybit_auto_hedge - Dynamic entry, take profit distance, position leverage per side. Table included.
+* bybit_hedge_mfirsi_maker - MFI, RSI, ERI, MA for entry. Pure maker, dynamic entry size, dynamic take profit based on 5m spread
+* bybit_hedge_mfirsionly_maker - MFIRSI only as entry. Pure maker, dynamic entry size, dynamic take profit based on 5m spread
 * bybit_longonly
 * bybit_shortonly
 * bybit_longonly_dynamic
