@@ -34,7 +34,7 @@ class BybitAutoHedgeStrategyMaker(Strategy):
         self.initial_max_short_trade_qty = None
         self.long_leverage_increased = False
         self.short_leverage_increased = False
-        self.version = "2.0.5"
+        self.version = "2.0.6"
 
     def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev, long_max_trade_qty, short_max_trade_qty, long_expected_profit, short_expected_profit, long_liq_price, short_liq_price, should_long, should_add_to_long, should_short, should_add_to_short, eri_trend):
         try:
@@ -398,9 +398,9 @@ class BybitAutoHedgeStrategyMaker(Strategy):
                     eri_trend,
                 ))
 
-                self.bybit_auto_hedge_entry_logic(symbol, trend, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
-
                 open_orders = self.exchange.get_open_orders(symbol)
+
+                self.bybit_hedge_entry_maker(symbol, trend, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
 
                 if long_pos_qty > 0 and long_take_profit is not None:
                     existing_long_tps = self.get_open_take_profit_order_quantities(open_orders, "sell")
@@ -448,39 +448,11 @@ class BybitAutoHedgeStrategyMaker(Strategy):
 
                 # Take profit spread replacement
                 if long_pos_qty > 0 and long_take_profit is not None:
-                    existing_long_tps = self.get_open_take_profit_order_quantities(open_orders, "sell")
-                    total_existing_long_tp_qty = sum(qty for qty, _ in existing_long_tps)
-                    logging.info(f"Existing long TPs: {existing_long_tps}")
-                    now = datetime.now()
-                    if now >= self.next_long_tp_update or not math.isclose(total_existing_long_tp_qty, long_pos_qty):
-                        try:
-                            for qty, existing_long_tp_id in existing_long_tps:
-                                self.exchange.cancel_order_by_id(existing_long_tp_id, symbol)
-                                logging.info(f"Long take profit {existing_long_tp_id} canceled")
-                                time.sleep(0.05)
-                            self.exchange.create_take_profit_order_bybit(symbol, "limit", "sell", long_pos_qty, long_take_profit, positionIdx=1, reduce_only=True)
-                            logging.info(f"Long take profit set at {long_take_profit}")
-                            self.next_long_tp_update = self.calculate_next_update_time()  # Calculate the next update time after placing the order
-                        except Exception as e:
-                            logging.info(f"Error in updating long TP: {e}")
+                    self.next_long_tp_update = self.update_take_profit_spread_bybit(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders, next_tp_update=self.next_long_tp_update)
 
                 if short_pos_qty > 0 and short_take_profit is not None:
-                    existing_short_tps = self.get_open_take_profit_order_quantities(open_orders, "buy")
-                    total_existing_short_tp_qty = sum(qty for qty, _ in existing_short_tps)
-                    logging.info(f"Existing short TPs: {existing_short_tps}")
-                    now = datetime.now()
-                    if now >= self.next_short_tp_update or not math.isclose(total_existing_short_tp_qty, short_pos_qty):
-                        try:
-                            for qty, existing_short_tp_id in existing_short_tps:
-                                self.exchange.cancel_order_by_id(existing_short_tp_id, symbol)
-                                logging.info(f"Short take profit {existing_short_tp_id} canceled")
-                                time.sleep(0.05)
-                            self.exchange.create_take_profit_order_bybit(symbol, "limit", "buy", short_pos_qty, short_take_profit, positionIdx=2, reduce_only=True)
-                            logging.info(f"Short take profit set at {short_take_profit}")
-                            self.next_short_tp_update = self.calculate_next_update_time()  # Calculate the next update time after placing the order
-                        except Exception as e:
-                            logging.info(f"Error in updating short TP: {e}")
-                            
+                    self.next_short_tp_update = self.update_take_profit_spread_bybit(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders, next_tp_update=self.next_short_tp_update)
+
                 # Cancel entries
                 current_time = time.time()
                 if current_time - self.last_cancel_time >= 60:  # Execute this block every 1 minute

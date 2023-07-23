@@ -1,6 +1,7 @@
 from colorama import Fore
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_DOWN
 import time
+import math
 import ta as ta
 import os
 import logging
@@ -684,9 +685,10 @@ class Strategy:
         parsed_symbol = parsed_symbol.replace('/', '-')  # Replace '/' with '-'
         return parsed_symbol
 
-# Bybit regular auto hedge entry logic
+# Bybit regular auto hedge logic
+# Bybit entry logic
 
-    def bybit_auto_hedge_entry_logic(self, symbol: str, trend: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
+    def bybit_hedge_entry_maker(self, symbol: str, trend: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
         best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
         best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
@@ -711,3 +713,23 @@ class Strategy:
                         if trend.lower() == "short" and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price:
                             logging.info(f"Placed additional short entry")
                             self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_bid_price, positionIdx=2, reduceOnly=False)
+
+# Bybit update take profit based on time and spread
+
+    def update_take_profit_spread_bybit(self, symbol, pos_qty, take_profit_price, positionIdx, order_side, open_orders, next_tp_update):
+        existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
+        total_existing_tp_qty = sum(qty for qty, _ in existing_tps)
+        logging.info(f"Existing {order_side} TPs: {existing_tps}")
+        now = datetime.now()
+        if now >= next_tp_update or not math.isclose(total_existing_tp_qty, pos_qty):
+            try:
+                for qty, existing_tp_id in existing_tps:
+                    self.exchange.cancel_order_by_id(existing_tp_id, symbol)
+                    logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
+                    time.sleep(0.05)
+                self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, take_profit_price, positionIdx=positionIdx, reduce_only=True)
+                logging.info(f"{order_side.capitalize()} take profit set at {take_profit_price}")
+                next_tp_update = self.calculate_next_update_time()  # Calculate the next update time after placing the order
+            except Exception as e:
+                logging.info(f"Error in updating {order_side} TP: {e}")
+        return next_tp_update
