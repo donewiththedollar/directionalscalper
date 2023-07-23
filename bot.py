@@ -215,11 +215,11 @@ if __name__ == '__main__':
             strategy = BybitHedgeMFIRSITrigger(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
 
-        elif strategy_name.lower() == 'bybit_auto_mfirsi_trigger_postonly':
+        elif strategy_name.lower() == 'bybit_hedge_mfirsionly_maker':
             strategy = BybitHedgeMFIRSITriggerPostOnly(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
     
-        elif strategy_name.lower() == 'bybit_auto_mfirsi_trigger_postonly_btc':
+        elif strategy_name.lower() == 'bybit_hedge_mfirsionly_maker_btc':
             strategy = BybitHedgeMFIRSITriggerPostOnlyBTC(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
 
@@ -231,7 +231,7 @@ if __name__ == '__main__':
             strategy = BybitHedgeMFIRSITriggerCountertrade(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
 
-        elif strategy_name.lower() == 'bybit_auto_hedge_mfirsi_postonly':
+        elif strategy_name.lower() == 'bybit_hedge_mfirsi_maker':
             strategy = BybitAutoHedgeMFIRSIPostOnly(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
 
