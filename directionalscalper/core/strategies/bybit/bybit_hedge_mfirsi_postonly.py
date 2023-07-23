@@ -39,7 +39,7 @@ class BybitAutoHedgeMFIRSIPostOnly(Strategy):
         self.initial_max_short_trade_qty = None
         self.long_leverage_increased = False
         self.short_leverage_increased = False
-        self.version = "2.0.5"
+        self.version = "2.0.6"
 
     def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev, long_max_trade_qty, short_max_trade_qty, long_expected_profit, short_expected_profit, long_liq_price, short_liq_price, should_long, should_add_to_long, should_short, should_add_to_short,  mfirsi_signal, eri_trend):
         try:
@@ -371,126 +371,31 @@ class BybitAutoHedgeMFIRSIPostOnly(Strategy):
 
                 open_orders = self.exchange.get_open_orders(symbol)
 
-                if one_minute_volume is not None and five_minute_distance is not None:
-                    if one_minute_volume > min_vol and five_minute_distance > min_dist:
-                        mfi = self.manager.get_asset_value(symbol, data, "MFI")
-                        trend = self.manager.get_asset_value(symbol, data, "Trend")
+                # Entry logic
+                self.bybit_hedge_entry_maker_mfirsitrend(symbol, data, min_vol, min_dist, one_minute_volume, five_minute_distance, 
+                                                        eri_trend, open_orders, long_pos_qty, should_add_to_long, 
+                                                        self.max_long_trade_qty, best_bid_price, long_pos_price, long_dynamic_amount,
+                                                        short_pos_qty, should_add_to_short, self.max_short_trade_qty, 
+                                                        best_ask_price, short_pos_price, short_dynamic_amount)
 
-                        if mfi is not None and isinstance(mfi, str):
-                            if mfi.lower() == "neutral":
-                                mfi = trend
+                # Take profit placement 
 
-                            # Place long orders when MFI is long and ERI trend is bearish
-                            if (mfi.lower() == "long" and eri_trend.lower() == "bearish") or (mfi.lower() == "long" and trend.lower() == "long"):
-                                existing_order = next((o for o in open_orders if o['side'] == 'Buy' and o['position_idx'] == 1), None)
-                                if long_pos_qty == 0 or (should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price):
-                                    if existing_order is None or existing_order['price'] != best_bid_price:
-                                        if existing_order is not None:
-                                            self.exchange.cancel_order_by_id(existing_order['id'], symbol)
-                                        logging.info(f"Placing long entry")
-                                        self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-                                        logging.info(f"Placed long entry")
-
-                            # Place short orders when MFI is short and ERI trend is bullish
-                            if (mfi.lower() == "short" and eri_trend.lower() == "bullish") or (mfi.lower() == "short" and trend.lower() == "short"):
-                                existing_order = next((o for o in open_orders if o['side'] == 'Sell' and o['position_idx'] == 2), None)
-                                if short_pos_qty == 0 or (should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price):
-                                    if existing_order is None or existing_order['price'] != best_ask_price:
-                                        if existing_order is not None:
-                                            self.exchange.cancel_order_by_id(existing_order['id'], symbol)
-                                        logging.info(f"Placing short entry")
-                                        self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
-                                        logging.info(f"Placed short entry")
-                
+                # Call the function to update long take profit spread
                 if long_pos_qty > 0 and long_take_profit is not None:
-                    existing_long_tps = self.get_open_take_profit_order_quantities(open_orders, "sell")
-                    total_existing_long_tp_qty = sum(qty for qty, _ in existing_long_tps)
-                    logging.info(f"Existing long TPs: {existing_long_tps}")
-                    if not math.isclose(total_existing_long_tp_qty, long_pos_qty):
-                        try:
-                            for qty, existing_long_tp_id in existing_long_tps:
-                                if not math.isclose(qty, long_pos_qty):
-                                    self.exchange.cancel_order_by_id(existing_long_tp_id, symbol)
-                                    logging.info(f"Long take profit {existing_long_tp_id} canceled")
-                                    time.sleep(0.05)
-                        except Exception as e:
-                            logging.info(f"Error in cancelling long TP orders {e}")
+                    self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
 
-                    if len(existing_long_tps) < 1:
-                        try:
-                            self.exchange.postonly_create_take_profit_order_bybit(symbol, "limit", "sell", long_pos_qty, long_take_profit, positionIdx=1, reduce_only=True)
-                            logging.info(f"Long take profit set at {long_take_profit}")
-                            time.sleep(0.05)
-                        except Exception as e:
-                            logging.info(f"Error in placing long TP: {e}")
+                # Call the function to update short take profit spread
+                if short_pos_qty > 0 and short_take_profit is not None:
+                    self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
+
+                # Take profit spread replacement
+                if long_pos_qty > 0 and long_take_profit is not None:
+                    self.next_long_tp_update = self.update_take_profit_spread_bybit(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders, next_tp_update=self.next_long_tp_update)
 
                 if short_pos_qty > 0 and short_take_profit is not None:
-                    existing_short_tps = self.get_open_take_profit_order_quantities(open_orders, "buy")
-                    total_existing_short_tp_qty = sum(qty for qty, _ in existing_short_tps)
-                    logging.info(f"Existing short TPs: {existing_short_tps}")
-                    if not math.isclose(total_existing_short_tp_qty, short_pos_qty):
-                        try:
-                            for qty, existing_short_tp_id in existing_short_tps:
-                                if not math.isclose(qty, short_pos_qty):
-                                    self.exchange.cancel_order_by_id(existing_short_tp_id, symbol)
-                                    logging.info(f"Short take profit {existing_short_tp_id} canceled")
-                                    time.sleep(0.05)
-                        except Exception as e:
-                            logging.info(f"Error in cancelling short TP orders: {e}")
-
-                    if len(existing_short_tps) < 1:
-                        try:
-                            self.exchange.postonly_create_take_profit_order_bybit(symbol, "limit", "buy", short_pos_qty, short_take_profit, positionIdx=2, reduce_only=True)
-                            logging.info(f"Short take profit set at {short_take_profit}")
-                            time.sleep(0.05)
-                        except Exception as e:
-                            logging.info(f"Error in placing short TP: {e}")
-
-                if long_pos_qty > 0 and long_take_profit is not None:
-                    existing_long_tps = self.get_open_take_profit_order_quantities(open_orders, "sell")
-                    total_existing_long_tp_qty = sum(qty for qty, _ in existing_long_tps)
-                    logging.info(f"Existing long TPs: {existing_long_tps}")
-                    now = datetime.now()
-                    if now >= self.next_long_tp_update or not math.isclose(total_existing_long_tp_qty, long_pos_qty):
-                        try:
-                            for qty, existing_long_tp_id in existing_long_tps:
-                                self.exchange.cancel_order_by_id(existing_long_tp_id, symbol)
-                                logging.info(f"Long take profit {existing_long_tp_id} canceled")
-                                time.sleep(0.05)
-                            self.exchange.postonly_create_take_profit_order_bybit(symbol, "limit", "sell", long_pos_qty, long_take_profit, positionIdx=1, reduce_only=True)
-                            logging.info(f"Long take profit set at {long_take_profit}")
-                            self.next_long_tp_update = self.calculate_next_update_time()  # Calculate the next update time after placing the order
-                        except Exception as e:
-                            logging.info(f"Error in updating long TP: {e}")
-
-                if short_pos_qty > 0 and short_take_profit is not None:
-                    existing_short_tps = self.get_open_take_profit_order_quantities(open_orders, "buy")
-                    total_existing_short_tp_qty = sum(qty for qty, _ in existing_short_tps)
-                    logging.info(f"Existing short TPs: {existing_short_tps}")
-                    now = datetime.now()
-                    if now >= self.next_short_tp_update or not math.isclose(total_existing_short_tp_qty, short_pos_qty):
-                        try:
-                            for qty, existing_short_tp_id in existing_short_tps:
-                                self.exchange.cancel_order_by_id(existing_short_tp_id, symbol)
-                                logging.info(f"Short take profit {existing_short_tp_id} canceled")
-                                time.sleep(0.05)
-                            self.exchange.postonly_create_take_profit_order_bybit(symbol, "limit", "buy", short_pos_qty, short_take_profit, positionIdx=2, reduce_only=True)
-                            logging.info(f"Short take profit set at {short_take_profit}")
-                            self.next_short_tp_update = self.calculate_next_update_time()  # Calculate the next update time after placing the order
-                        except Exception as e:
-                            logging.info(f"Error in updating short TP: {e}")
+                    self.next_short_tp_update = self.update_take_profit_spread_bybit(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders, next_tp_update=self.next_short_tp_update)
 
                 # Cancel entries
-                current_time = time.time()
-                if current_time - self.last_cancel_time >= 60:  # Execute this block every 1 minute
-                    try:
-                        if best_ask_price < ma_1m_3_high or best_ask_price < ma_5m_3_high:
-                            self.exchange.cancel_all_entries_bybit(symbol)
-                            logging.info(f"Canceled entry orders for {symbol}")
-                            time.sleep(0.05)
-                    except Exception as e:
-                        logging.info(f"An error occurred while canceling entry orders: {e}")
-
-                    self.last_cancel_time = current_time  # Update the last cancel time
-
+                self.cancel_entries_bybit(symbol, best_ask_price, ma_1m_3_high, ma_5m_3_high)
+                
                 time.sleep(30)
