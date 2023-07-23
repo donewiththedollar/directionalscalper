@@ -203,47 +203,6 @@ class Strategy:
             now += timedelta(hours=1)
         return now.replace(minute=next_update_minute, second=0, microsecond=0)
 
-    def calculate_long_take_profit_spread_bybit_fees(self, long_pos_price, quantity, symbol, increase_percentage=0):
-        if long_pos_price is None:
-            return None
-
-        five_min_data = self.manager.get_5m_moving_averages(symbol)
-        price_precision = int(self.exchange.get_price_precision(symbol))
-
-        if five_min_data is not None:
-            ma_6_high = Decimal(five_min_data["MA_6_H"])
-            ma_6_low = Decimal(five_min_data["MA_6_L"])
-
-            try:
-                long_target_price = Decimal(long_pos_price) + (ma_6_high - ma_6_low)
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when calculating long_target_price. long_pos_price={long_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
-                return None
-
-            if increase_percentage is None:
-                increase_percentage = 0
-
-            # Calculate the order value
-            order_value = Decimal(quantity) / long_target_price
-            # Calculate the trading fee for this order
-            trading_fee = order_value * Decimal(self.taker_fee_rate)
-            # Add the trading fee to the take profit target price
-            long_target_price = long_target_price + trading_fee
-
-            try:
-                long_target_price = long_target_price.quantize(
-                    Decimal('1e-{}'.format(price_precision)),
-                    rounding=ROUND_HALF_UP
-                )
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when quantizing long_target_price. long_target_price={long_target_price}, price_precision={price_precision}")
-                return None
-
-            long_profit_price = long_target_price
-
-            return float(long_profit_price)
-        return None
-
     def calculate_short_take_profit_spread_bybit_fees(self, short_pos_price, quantity, symbol, decrease_percentage=0):
         if short_pos_price is None:
             return None
@@ -280,9 +239,54 @@ class Strategy:
                 print(f"Error: Invalid operation when quantizing short_target_price. short_target_price={short_target_price}, price_precision={price_precision}")
                 return None
 
+            short_target_price -= short_target_price * Decimal(decrease_percentage) / 100
             short_profit_price = short_target_price
 
             return float(short_profit_price)
+
+        return None
+
+    def calculate_long_take_profit_spread_bybit_fees(self, long_pos_price, quantity, symbol, increase_percentage=0):
+        if long_pos_price is None:
+            return None
+
+        five_min_data = self.manager.get_5m_moving_averages(symbol)
+        price_precision = int(self.exchange.get_price_precision(symbol))
+
+        if five_min_data is not None:
+            ma_6_high = Decimal(five_min_data["MA_6_H"])
+            ma_6_low = Decimal(five_min_data["MA_6_L"])
+
+            try:
+                long_target_price = Decimal(long_pos_price) + (ma_6_high - ma_6_low)
+            except InvalidOperation as e:
+                print(f"Error: Invalid operation when calculating long_target_price. long_pos_price={long_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
+                return None
+
+            if increase_percentage is None:
+                increase_percentage = 0
+
+            # Calculate the order value
+            order_value = Decimal(quantity) / long_target_price
+            # Calculate the trading fee for this order
+            trading_fee = order_value * Decimal(self.taker_fee_rate)
+            # Add the trading fee to the take profit target price
+            long_target_price = long_target_price + trading_fee
+
+            try:
+                long_target_price = long_target_price.quantize(
+                    Decimal('1e-{}'.format(price_precision)),
+                    rounding=ROUND_HALF_UP
+                )
+            except InvalidOperation as e:
+                print(f"Error: Invalid operation when quantizing long_target_price. long_target_price={long_target_price}, price_precision={price_precision}")
+                return None
+
+            long_target_price += long_target_price * Decimal(increase_percentage) / 100
+            long_profit_price = long_target_price
+
+            return float(long_profit_price)
+
         return None
 
     def calculate_short_take_profit_spread_bybit(self, short_pos_price, symbol, increase_percentage=0):
@@ -679,3 +683,36 @@ class Strategy:
         parsed_symbol = symbol.split(':')[0]  # Remove ':USDT'
         parsed_symbol = parsed_symbol.replace('/', '-')  # Replace '/' with '-'
         return parsed_symbol
+
+# Bybit regular auto hedge logic
+# Bybit entry logic
+
+    def bybit_auto_hedge_entry_logic(self, symbol: str, trend: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float):
+        best_bid_price, best_ask_price = self.get_best_bid_ask(symbol)
+
+        should_long = self.should_long_entry()
+        should_short = self.should_short_entry()
+        should_add_to_long = self.should_add_to_long()
+        should_add_to_short = self.should_add_to_short()
+
+        if trend is not None and isinstance(trend, str):
+            if one_minute_volume is not None and five_minute_distance is not None:
+                if one_minute_volume > min_vol and five_minute_distance > min_dist:
+
+                    if trend.lower() == "long" and should_long and long_pos_qty == 0:
+                        logging.info(f"Placing initial long entry")
+                        self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                        logging.info(f"Placed initial long entry")
+                    else:
+                        if trend.lower() == "long" and should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price:
+                            logging.info(f"Placed additional long entry")
+                            self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+
+                    if trend.lower() == "short" and should_short and short_pos_qty == 0:
+                        logging.info(f"Placing initial short entry")
+                        self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                        logging.info("Placed initial short entry")
+                    else:
+                        if trend.lower() == "short" and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price:
+                            logging.info(f"Placed additional short entry")
+                            self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_bid_price, positionIdx=2, reduceOnly=False)
