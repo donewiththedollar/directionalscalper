@@ -733,3 +733,28 @@ class Strategy:
             except Exception as e:
                 logging.info(f"Error in updating {order_side} TP: {e}")
         return next_tp_update
+
+# Bybit take profit placement based on 5 minute spread
+
+    def bybit_hedge_placetp_maker(self, symbol, pos_qty, take_profit_price, positionIdx, order_side, open_orders):
+        existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
+        total_existing_tp_qty = sum(qty for qty, _ in existing_tps)
+        logging.info(f"Existing {order_side} TPs: {existing_tps}")
+        if not math.isclose(total_existing_tp_qty, pos_qty):
+            try:
+                for qty, existing_tp_id in existing_tps:
+                    if not math.isclose(qty, pos_qty):
+                        self.exchange.cancel_order_by_id(existing_tp_id, symbol)
+                        logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
+                        time.sleep(0.05)
+            except Exception as e:
+                logging.info(f"Error in cancelling {order_side} TP orders {e}")
+
+        if len(existing_tps) < 1:
+            try:
+                # Use postonly_limit_order_bybit function to place take profit order
+                self.postonly_limit_order_bybit(symbol, order_side, pos_qty, take_profit_price, reduce_only=True)
+                logging.info(f"{order_side.capitalize()} take profit set at {take_profit_price}")
+                time.sleep(0.05)
+            except Exception as e:
+                logging.info(f"Error in placing {order_side} TP: {e}")

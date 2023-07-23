@@ -400,51 +400,19 @@ class BybitAutoHedgeStrategyMaker(Strategy):
 
                 open_orders = self.exchange.get_open_orders(symbol)
 
+                # Long and short entry placement
                 self.bybit_hedge_entry_maker(symbol, trend, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
 
+                # Take profit placement 
+
+                # Call the function to update long take profit spread
                 if long_pos_qty > 0 and long_take_profit is not None:
-                    existing_long_tps = self.get_open_take_profit_order_quantities(open_orders, "sell")
-                    total_existing_long_tp_qty = sum(qty for qty, _ in existing_long_tps)
-                    logging.info(f"Existing long TPs: {existing_long_tps}")
-                    if not math.isclose(total_existing_long_tp_qty, long_pos_qty):
-                        try:
-                            for qty, existing_long_tp_id in existing_long_tps:
-                                if not math.isclose(qty, long_pos_qty):
-                                    self.exchange.cancel_order_by_id(existing_long_tp_id, symbol)
-                                    logging.info(f"Long take profit {existing_long_tp_id} canceled")
-                                    time.sleep(0.05)
-                        except Exception as e:
-                            logging.info(f"Error in cancelling long TP orders {e}")
+                    self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
 
-                    if len(existing_long_tps) < 1:
-                        try:
-                            self.exchange.create_take_profit_order_bybit(symbol, "limit", "sell", long_pos_qty, long_take_profit, positionIdx=1, reduce_only=True)
-                            logging.info(f"Long take profit set at {long_take_profit}")
-                            time.sleep(0.05)
-                        except Exception as e:
-                            logging.info(f"Error in placing long TP: {e}")
-
+                # Call the function to update short take profit spread
                 if short_pos_qty > 0 and short_take_profit is not None:
-                    existing_short_tps = self.get_open_take_profit_order_quantities(open_orders, "buy")
-                    total_existing_short_tp_qty = sum(qty for qty, _ in existing_short_tps)
-                    logging.info(f"Existing short TPs: {existing_short_tps}")
-                    if not math.isclose(total_existing_short_tp_qty, short_pos_qty):
-                        try:
-                            for qty, existing_short_tp_id in existing_short_tps:
-                                if not math.isclose(qty, short_pos_qty):
-                                    self.exchange.cancel_order_by_id(existing_short_tp_id, symbol)
-                                    logging.info(f"Short take profit {existing_short_tp_id} canceled")
-                                    time.sleep(0.05)
-                        except Exception as e:
-                            logging.info(f"Error in cancelling short TP orders: {e}")
+                    self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
 
-                    if len(existing_short_tps) < 1:
-                        try:
-                            self.exchange.create_take_profit_order_bybit(symbol, "limit", "buy", short_pos_qty, short_take_profit, positionIdx=2, reduce_only=True)
-                            logging.info(f"Short take profit set at {short_take_profit}")
-                            time.sleep(0.05)
-                        except Exception as e:
-                            logging.info(f"Error in placing short TP: {e}")
 
                 # Take profit spread replacement
                 if long_pos_qty > 0 and long_take_profit is not None:
