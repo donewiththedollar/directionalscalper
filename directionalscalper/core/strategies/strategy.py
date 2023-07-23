@@ -684,16 +684,11 @@ class Strategy:
         parsed_symbol = parsed_symbol.replace('/', '-')  # Replace '/' with '-'
         return parsed_symbol
 
-# Bybit regular auto hedge logic
-# Bybit entry logic
+# Bybit regular auto hedge entry logic
 
-    def bybit_auto_hedge_entry_logic(self, symbol: str, trend: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float):
-        best_bid_price, best_ask_price = self.get_best_bid_ask(symbol)
-
-        should_long = self.should_long_entry()
-        should_short = self.should_short_entry()
-        should_add_to_long = self.should_add_to_long()
-        should_add_to_short = self.should_add_to_short()
+    def bybit_auto_hedge_entry_logic(self, symbol: str, trend: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
+        best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+        best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
         if trend is not None and isinstance(trend, str):
             if one_minute_volume is not None and five_minute_distance is not None:

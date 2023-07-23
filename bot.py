@@ -37,6 +37,7 @@ from directionalscalper.core.strategies.bybit.bybit_shortonly_dynamic_leverage i
 from directionalscalper.core.strategies.bybit.bybit_longonly_dynamic import BybitLongOnlyDynamic
 from directionalscalper.core.strategies.bybit.bybit_shortonly_dynamic import BybitShortOnlyDynamic
 from directionalscalper.core.strategies.bybit.bybit_auto_hedge import BybitAutoHedgeStrategy
+from directionalscalper.core.strategies.bybit.bybit_auto_hedge_maker import BybitAutoHedgeStrategyMaker
 from directionalscalper.core.strategies.bybit.bybit_auto_hedge_MFIRSI import BybitAutoHedgeStrategyMFIRSI
 from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trigger import BybitHedgeMFIRSITrigger
 from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_countertrade import BybitMFIRSICountertrade
@@ -205,6 +206,10 @@ if __name__ == '__main__':
 
         elif strategy_name.lower() == 'bybit_auto_hedge':
             strategy = BybitAutoHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol)
+
+        elif strategy_name.lower() == 'bybit_auto_hedge_maker':
+            strategy = BybitAutoHedgeStrategyMaker(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
 
         elif strategy_name.lower() == 'bybit_auto_hedge_mfi':
