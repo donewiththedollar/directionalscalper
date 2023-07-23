@@ -758,3 +758,18 @@ class Strategy:
                 time.sleep(0.05)
             except Exception as e:
                 logging.info(f"Error in placing {order_side} TP: {e}")
+
+# Bybit cancel all entries
+    def cancel_entries_bybit(self, symbol, best_ask_price, ma_1m_3_high, ma_5m_3_high):
+        # Cancel entries
+        current_time = time.time()
+        if current_time - self.last_cancel_time >= 60:  # Execute this block every 1 minute
+            try:
+                if best_ask_price < ma_1m_3_high or best_ask_price < ma_5m_3_high:
+                    self.exchange.cancel_all_entries_bybit(symbol)
+                    logging.info(f"Canceled entry orders for {symbol}")
+                    time.sleep(0.05)
+            except Exception as e:
+                logging.info(f"An error occurred while canceling entry orders: {e}")
+
+            self.last_cancel_time = current_time
