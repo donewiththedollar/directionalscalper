@@ -27,8 +27,7 @@ class API(BaseModel):
 class Bot(BaseModel):
     bot_name: str
     min_distance: float = 0.15
-    min_distance_btc: float = 0.03
-    min_fee: float = 0.17
+    min_distance_largecap: float = 0.085
     min_volume: int = 15000
     symbol: str
     violent_multiplier: float = 2.00
@@ -102,6 +101,8 @@ class Discord(BaseModel):
 #                 "Discord webhook begins: https://discord.com/api/webhooks/"
 #             )
 #         return v
+
+
 
 class Telegram(BaseModel):
     active: bool = False

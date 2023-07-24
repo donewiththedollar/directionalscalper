@@ -112,7 +112,7 @@ class BybitHedgeMFIRSITriggerPostOnlyAvoidFees(Strategy):
         wallet_exposure = self.config.wallet_exposure
         min_dist = self.config.min_distance
         min_vol = self.config.min_volume
-        min_dist_btc = self.config.min_distance_btc
+        min_dist_largecap = self.config.min_distance_largecap
         current_leverage = self.exchange.get_current_leverage_bybit(symbol)
         max_leverage = self.exchange.get_max_leverage_bybit(symbol)
 
@@ -276,12 +276,12 @@ class BybitHedgeMFIRSITriggerPostOnlyAvoidFees(Strategy):
                 long_take_profit = None
 
                 if five_minute_distance != previous_five_minute_distance:
-                    short_take_profit = self.calculate_short_take_profit_spread_bybit_fees(short_pos_price, symbol, five_minute_distance)
-                    long_take_profit = self.calculate_short_take_profit_spread_bybit_fees(long_pos_price, symbol, five_minute_distance)
+                    short_take_profit = self.calculate_short_take_profit_spread_bybit_fees(short_pos_price, short_pos_qty, symbol, five_minute_distance)
+                    long_take_profit = self.calculate_short_take_profit_spread_bybit_fees(long_pos_price, long_pos_qty, symbol, five_minute_distance)
                 else:
                     if short_take_profit is None or long_take_profit is None:
-                        short_take_profit = self.calculate_short_take_profit_spread_bybit_fees(short_pos_price, symbol, five_minute_distance)
-                        long_take_profit = self.calculate_short_take_profit_spread_bybit_fees(long_pos_price, symbol, five_minute_distance)
+                        short_take_profit = self.calculate_short_take_profit_spread_bybit_fees(short_pos_price, short_pos_qty, symbol, five_minute_distance)
+                        long_take_profit = self.calculate_short_take_profit_spread_bybit_fees(long_pos_price, short_pos_qty, symbol, five_minute_distance)
                         
 
                 previous_five_minute_distance = five_minute_distance
@@ -349,7 +349,7 @@ class BybitHedgeMFIRSITriggerPostOnlyAvoidFees(Strategy):
                     eri_trend,
                 ))
 
-                self.bybit_hedge_entry_maker_mfirsi(symbol, data, min_vol, min_dist, one_minute_volume, five_minute_distance, 
+                self.bybit_hedge_entry_maker_mfirsi(symbol, data, min_vol, min_dist_largecap, one_minute_volume, five_minute_distance, 
                                                     long_pos_qty, self.max_long_trade_qty, best_bid_price, long_pos_price, long_dynamic_amount,
                                                     short_pos_qty, self.max_short_trade_qty, best_ask_price, short_pos_price, short_dynamic_amount)
 

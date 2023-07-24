@@ -7,7 +7,7 @@
   "bot": {
     "bot_name": "your_bot_name",
     "min_distance": 0.15,
-    "min_fee": 0.17,
+    "min_distance_largecap": 0.085,
     "min_volume": 15000,
     "symbol": "BTCUSDT",
     "violent_multiplier": 2.00,
