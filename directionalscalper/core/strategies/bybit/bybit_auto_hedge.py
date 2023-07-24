@@ -34,7 +34,7 @@ class BybitAutoHedgeStrategy(Strategy):
         self.initial_max_short_trade_qty = None
         self.long_leverage_increased = False
         self.short_leverage_increased = False
-        self.version = "2.0.5"
+        self.version = "2.0.6"
 
     def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev, long_max_trade_qty, short_max_trade_qty, long_expected_profit, short_expected_profit, long_liq_price, short_liq_price, should_long, should_add_to_long, should_short, should_add_to_short, eri_trend):
         try:
@@ -501,17 +501,7 @@ class BybitAutoHedgeStrategy(Strategy):
                         except Exception as e:
                             logging.info(f"Error in updating short TP: {e}")
                             
-                # Cancel entries
-                current_time = time.time()
-                if current_time - self.last_cancel_time >= 60:  # Execute this block every 1 minute
-                    try:
-                        if best_ask_price < ma_1m_3_high or best_ask_price < ma_5m_3_high:
-                            self.exchange.cancel_all_entries_bybit(symbol)
-                            logging.info(f"Canceled entry orders for {symbol}")
-                            time.sleep(0.05)
-                    except Exception as e:
-                        logging.info(f"An error occurred while canceling entry orders: {e}")
-
-                    self.last_cancel_time = current_time  # Update the last cancel time
+                # Cancel all entries routinely
+                self.cancel_entries_bybit(symbol, best_ask_price, ma_1m_3_high, ma_5m_3_high)
 
                 time.sleep(30)

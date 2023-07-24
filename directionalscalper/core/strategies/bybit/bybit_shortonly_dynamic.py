@@ -184,7 +184,7 @@ class BybitShortOnlyDynamic(Strategy):
                     try:
                         for qty, existing_short_tp_id in existing_short_tps:
                             if not math.isclose(qty, short_pos_qty):
-                                self.exchange.cancel_take_profit_order_by_id(existing_short_tp_id, symbol)
+                                self.exchange.cancel_order_by_id(existing_short_tp_id, symbol)
                                 print(f"Short take profit {existing_short_tp_id} canceled")
                                 time.sleep(0.05)
                     except Exception as e:
@@ -198,17 +198,7 @@ class BybitShortOnlyDynamic(Strategy):
                     except Exception as e:
                         print(f"Error in placing short TP: {e}")
 
-            # Cancel entries
-            current_time = time.time()
-            if current_time - self.last_cancel_time >= 60:  # Execute this block every 1 minute
-                try:
-                    if best_ask_price < ma_1m_3_high or best_ask_price < ma_5m_3_high:
-                        self.exchange.cancel_all_entries_bybit(symbol)
-                        print(f"Canceled entry orders for {symbol}")
-                        time.sleep(0.05)
-                except Exception as e:
-                    print(f"An error occurred while canceling entry orders: {e}")
-
-                self.last_cancel_time = current_time  # Update the last cancel time
+            # Cancel all entries routinely
+            self.cancel_entries_bybit(symbol, best_ask_price, ma_1m_3_high, ma_5m_3_high)
 
             time.sleep(30)
