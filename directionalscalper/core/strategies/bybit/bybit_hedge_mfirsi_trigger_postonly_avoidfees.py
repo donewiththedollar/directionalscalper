@@ -277,13 +277,12 @@ class BybitHedgeMFIRSITriggerPostOnlyAvoidFees(Strategy):
 
                 if five_minute_distance != previous_five_minute_distance:
                     short_take_profit = self.calculate_short_take_profit_spread_bybit_fees(short_pos_price, short_pos_qty, symbol, five_minute_distance)
-                    long_take_profit = self.calculate_short_take_profit_spread_bybit_fees(long_pos_price, long_pos_qty, symbol, five_minute_distance)
+                    long_take_profit = self.calculate_long_take_profit_spread_bybit_fees(long_pos_price, long_pos_qty, symbol, five_minute_distance)
                 else:
                     if short_take_profit is None or long_take_profit is None:
                         short_take_profit = self.calculate_short_take_profit_spread_bybit_fees(short_pos_price, short_pos_qty, symbol, five_minute_distance)
-                        long_take_profit = self.calculate_short_take_profit_spread_bybit_fees(long_pos_price, short_pos_qty, symbol, five_minute_distance)
+                        long_take_profit = self.calculate_long_take_profit_spread_bybit_fees(long_pos_price, short_pos_qty, symbol, five_minute_distance)
                         
-
                 previous_five_minute_distance = five_minute_distance
 
                 should_short = self.short_trade_condition(best_bid_price, ma_3_high)
