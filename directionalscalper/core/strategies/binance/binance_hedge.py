@@ -8,10 +8,9 @@ import os
 
 class BinanceHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):
-        super().__init__(exchange, config)
+        super().__init__(exchange, config, manager)
         self.manager = manager
         self.last_cancel_time = 0
-        self.wallet_exposure_limit = self.config.wallet_exposure_limit
         self.current_wallet_exposure = 1.0
         self.printed_trade_quantities = False
 
@@ -19,16 +18,6 @@ class BinanceHedgeStrategy(Strategy):
         dex_equity = self.exchange.get_balance_bybit('USDT')
         trade_qty = (float(dex_equity) * self.current_wallet_exposure) / leverage
         return trade_qty
-
-    def adjust_position_wallet_exposure(self, symbol):
-        if self.current_wallet_exposure > self.wallet_exposure_limit:
-            desired_wallet_exposure = self.wallet_exposure_limit
-            # Calculate the necessary position size to achieve the desired wallet exposure
-            max_trade_qty = self.calculate_trade_quantity(symbol, 1)
-            current_trade_qty = self.calculate_trade_quantity(symbol, 1 / self.current_wallet_exposure)
-            reduction_qty = current_trade_qty - max_trade_qty
-            # Reduce the position to the desired wallet exposure level
-            self.exchange.reduce_position_bybit(symbol, reduction_qty)
 
     def truncate(self, number: float, precision: int) -> float:
         return float(Decimal(number).quantize(Decimal('0.' + '0'*precision), rounding=ROUND_DOWN))
@@ -169,6 +158,8 @@ class BinanceHedgeStrategy(Strategy):
             best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
             best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
+            print(f"Market data: {market_data}")
+
             print(f"Best bid: {best_bid_price}")
             print(f"Best ask: {best_ask_price}")
             print(f"Current price: {current_price}")
@@ -279,21 +270,21 @@ class BinanceHedgeStrategy(Strategy):
 
                         if trend.lower() == "long" and should_long and long_pos_qty == 0:
                             print(f"Placing initial long entry")
-                            self.exchange.create_limit_order_binance(symbol, "buy", amount, best_bid_price)
+                            self.exchange.binance_create_limit_order(symbol, "buy", amount, best_bid_price)
                             print(f"Placed initial long entry")
                         else:
                             if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
                                 print(f"Placed additional long entry")
-                                self.exchange.create_limit_order_binance(symbol, "buy", amount, best_bid_price)
+                                self.exchange.binance_create_limit_order(symbol, "buy", amount, best_bid_price)
 
                         if trend.lower() == "short" and should_short and short_pos_qty == 0:
                             print(f"Placing initial short entry")
-                            self.exchange.create_limit_order_binance(symbol, "sell", amount, best_ask_price)
+                            self.exchange.binance_create_limit_order(symbol, "sell", amount, best_ask_price)
                             print("Placed initial short entry")
                         else:
                             if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
                                 print(f"Placed additional short entry")
-                                self.exchange.create_limit_order_binance(symbol, "sell", amount, best_ask_price)
+                                self.exchange.binance_create_limit_order(symbol, "sell", amount, best_ask_price)
         
             open_orders = self.exchange.get_open_orders_binance(symbol)
 
@@ -357,9 +348,3 @@ class BinanceHedgeStrategy(Strategy):
                 self.last_cancel_time = current_time  # Update the last cancel time
 
             time.sleep(30)
-
-            # # Create the strategy table
-            # strategy_table = create_strategy_table(symbol, total_equity, long_upnl, short_upnl, short_pos_qty, long_pos_qty, amount, cumulative_realized_pnl, one_minute_volume, five_minute_distance)
-
-            # # Display the table
-            # self.display_table(strategy_table)

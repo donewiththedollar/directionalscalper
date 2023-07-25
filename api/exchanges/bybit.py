@@ -5,6 +5,7 @@ import logging
 from directionalscalper.api.exchanges.exchange import Exchange
 from directionalscalper.api.exchanges.utils import Intervals
 from directionalscalper.core.utils import send_public_request
+from decimal import Decimal
 
 log = logging.getLogger(__name__)
 
@@ -84,7 +85,8 @@ class Bybit(Exchange):
                     volumes[pair["symbol"]] = float(pair["volume24h"])
         return volumes
 
-    # get_futures_kline original
+    # Original get_futures_kline func
+
     # def get_futures_kline(
     #     self,
     #     symbol: str,
@@ -129,56 +131,8 @@ class Bybit(Exchange):
     #                 ]
     #     return []
 
-    # get_futures_kline reverse data
-    # def get_futures_kline(
-    #     self,
-    #     symbol: str,
-    #     interval: Intervals = Intervals.ONE_DAY,
-    #     limit: int = 200,
-    # ) -> list:
-    #     self.check_weight()
-    #     custom_intervals = {
-    #         "1m": 1,
-    #         "5m": 5,
-    #         "15m": 15,
-    #         "30m": 30,
-    #         "1h": 60,
-    #         "4h": 240,
-    #         "1d": "D",
-    #         "1w": "W",
-    #     }
 
-    #     # Increase the limit by 1 to fetch an additional candle
-    #     params = {
-    #         "category": "linear",
-    #         "symbol": symbol,
-    #         "limit": limit + 1,
-    #         "interval": custom_intervals[interval],
-    #     }
-    #     header, raw_json = send_public_request(
-    #         url=self.futures_api_url, url_path="/v5/market/kline", payload=params
-    #     )
-
-    #     if "result" in [*raw_json]:
-    #         if "list" in [*raw_json["result"]]:
-    #             if len(raw_json["result"]["list"]) > 0:
-    #                 converted_data = [
-    #                     {
-    #                         "timestamp": int(candle[0]),
-    #                         "open": float(candle[1]),
-    #                         "high": float(candle[2]),
-    #                         "low": float(candle[3]),
-    #                         "close": float(candle[4]),
-    #                         "volume": float(candle[5]),
-    #                         "typical_price": (float(candle[2]) + float(candle[3]) + float(candle[4])) / 3,
-    #                     }
-    #                     for candle in raw_json["result"]["list"][1:]
-    #                 ]
-    #                 reversed_data = converted_data[::-1]
-    #                 return reversed_data
-    #     return []
-
-    ### Original get_futures_kline, reversed data, skip first candlestick
+### Reverse data, skip first candle
     # def get_futures_kline(
     #     self,
     #     symbol: str,
@@ -227,13 +181,14 @@ class Bybit(Exchange):
     #                 return reversed_data
     #     return []
 
-    # Get futures kline with reverse data, skip first candlestick, typical_price
+# Typical price, skip candle, everything works here but with logging
     def get_futures_kline(
         self,
         symbol: str,
         interval: Intervals = Intervals.ONE_DAY,
         limit: int = 200,
     ) -> list:
+        log.info(f"Fetching kline data for {symbol}")
         self.check_weight()
         custom_intervals = {
             "1m": 1,
@@ -253,6 +208,7 @@ class Bybit(Exchange):
             "limit": limit + 1,
             "interval": custom_intervals[interval],
         }
+        log.info(f"Sending request with params: {params}")
         header, raw_json = send_public_request(
             url=self.futures_api_url, url_path="/v5/market/kline", payload=params
         )
@@ -260,6 +216,7 @@ class Bybit(Exchange):
         if "result" in [*raw_json]:
             if "list" in [*raw_json["result"]]:
                 if len(raw_json["result"]["list"]) > 0:
+                    log.info(f"Received kline data for {symbol}")
                     converted_data = [
                         {
                             "timestamp": int(candle[0]),
@@ -273,9 +230,107 @@ class Bybit(Exchange):
                         # Skip the first candlestick
                         for candle in raw_json["result"]["list"][1:]
                     ]
+                    log.info(f"Processed kline data for {symbol}")
                     reversed_data = converted_data[::-1]
                     return reversed_data
+        log.warning(f"No kline data received for {symbol}")
         return []
+
+# Modified get_futures_kline for decimal precision
+    # def get_futures_kline(
+    #     self,
+    #     symbol: str,
+    #     interval: Intervals = Intervals.ONE_DAY,
+    #     limit: int = 200,
+    # ) -> list:
+    #     self.check_weight()
+    #     custom_intervals = {
+    #         "1m": 1,
+    #         "5m": 5,
+    #         "15m": 15,
+    #         "30m": 30,
+    #         "1h": 60,
+    #         "4h": 240,
+    #         "1d": "D",
+    #         "1w": "W",
+    #     }
+
+    #     # Increase the limit by 1 to fetch an additional candle
+    #     params = {
+    #         "category": "linear",
+    #         "symbol": symbol,
+    #         "limit": limit + 1,
+    #         "interval": custom_intervals[interval],
+    #     }
+    #     header, raw_json = send_public_request(
+    #         url=self.futures_api_url, url_path="/v5/market/kline", payload=params
+    #     )
+
+    #     if "result" in [*raw_json]:
+    #         if "list" in [*raw_json["result"]]:
+    #             if len(raw_json["result"]["list"]) > 0:
+    #                 converted_data = [
+    #                     {
+    #                         "timestamp": int(candle[0]),
+    #                         "open": Decimal(candle[1]),
+    #                         "high": Decimal(candle[2]),
+    #                         "low": Decimal(candle[3]),
+    #                         "close": Decimal(candle[4]),
+    #                         "typical_price": (Decimal(candle[2]) + Decimal(candle[3]) + Decimal(candle[4])) / Decimal(3),
+    #                         "volume": Decimal(candle[5]),
+    #                     }
+    #                     # Skip the first candlestick
+    #                     for candle in raw_json["result"]["list"][1:]
+    #                 ]
+    #                 reversed_data = converted_data[::-1]
+    #                 return reversed_data
+    #     return []
+
+    # def get_futures_kline(
+    #     self,
+    #     symbol: str,
+    #     interval: Intervals = Intervals.ONE_DAY,
+    #     limit: int = 200,
+    # ) -> list:
+    #     self.check_weight()
+    #     custom_intervals = {
+    #         "1m": 1,
+    #         "5m": 5,
+    #         "15m": 15,
+    #         "30m": 30,
+    #         "1h": 60,
+    #         "4h": 240,
+    #         "1d": "D",
+    #         "1w": "W",
+    #     }
+
+    #     params = {
+    #         "category": "linear",
+    #         "symbol": symbol,
+    #         "limit": limit,
+    #         "interval": custom_intervals[interval],
+    #     }
+    #     header, raw_json = send_public_request(
+    #         url=self.futures_api_url, url_path="/v5/market/kline", payload=params
+    #     )
+
+    #     if "result" in [*raw_json]:
+    #         if "list" in [*raw_json["result"]]:
+    #             if len(raw_json["result"]["list"]) > 0:
+    #                 converted_data = [
+    #                     {
+    #                         "timestamp": int(candle[0]),
+    #                         "open": float(candle[1]),
+    #                         "high": float(candle[2]),
+    #                         "low": float(candle[3]),
+    #                         "close": float(candle[4]),
+    #                         "volume": float(candle[5]),
+    #                     }
+    #                     for candle in raw_json["result"]["list"]
+    #                 ]
+    #                 reversed_data = converted_data[::-1]
+    #                 return reversed_data
+    #     return []
 
     def get_funding_rate(self, symbol: str) -> float:
         self.check_weight()

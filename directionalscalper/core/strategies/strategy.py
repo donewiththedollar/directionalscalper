@@ -642,21 +642,47 @@ class Strategy:
             except Exception as e:
                 print(f"Error in switching account type {e}")
                 
-# RSIMFI
-
+    # MFIRSI with retry
     def initialize_MFIRSI(self, symbol):
-        df = self.exchange.fetch_ohlcv(symbol, timeframe='5m')
+        max_retries = 5
+        retry_delay = 2  # delay in seconds
+        for attempt in range(max_retries):
+            try:
+                df = self.exchange.fetch_ohlcv(symbol, timeframe='5m')
 
-        df['mfi'] = ta.volume.money_flow_index(df['high'], df['low'], df['close'], df['volume'], window=14)
-        df['rsi'] = ta.momentum.rsi(df['close'], window=14)
-        df['ma'] = ta.trend.sma_indicator(df['close'], window=14)
-        df['open_less_close'] = (df['open'] < df['close']).astype(int)
+                #print(df.head())
+                df['mfi'] = ta.volume.money_flow_index(df['high'], df['low'], df['close'], df['volume'], window=14)
+                df['rsi'] = ta.momentum.rsi(df['close'], window=14)
+                df['ma'] = ta.trend.sma_indicator(df['close'], window=14)
+                df['open_less_close'] = (df['open'] < df['close']).astype(int)
 
-        df['buy_condition'] = ((df['mfi'] < 20) & (df['rsi'] < 35) & (df['open_less_close'] == 1)).astype(int)
-        df['sell_condition'] = ((df['mfi'] > 80) & (df['rsi'] > 65) & (df['open_less_close'] == 0)).astype(int)
+                df['buy_condition'] = ((df['mfi'] < 20) & (df['rsi'] < 35) & (df['open_less_close'] == 1)).astype(int)
+                df['sell_condition'] = ((df['mfi'] > 80) & (df['rsi'] > 65) & (df['open_less_close'] == 0)).astype(int)
 
-        return df
+                return df
+            except Exception as e:
+                if attempt < max_retries - 1:  # If not the last attempt
+                    print(f"Error occurred while fetching OHLCV data: {e}. Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                    continue
+                else:  # If the last attempt
+                    print(f"Error occurred while fetching OHLCV data: {e}. No more retries left.")
+                    raise
 
+    # MFIRSI without retry
+    # def initialize_MFIRSI(self, symbol):
+    #     df = self.exchange.fetch_ohlcv(symbol, timeframe='5m')
+
+    #     print(df.head())
+    #     df['mfi'] = ta.volume.money_flow_index(df['high'], df['low'], df['close'], df['volume'], window=14)
+    #     df['rsi'] = ta.momentum.rsi(df['close'], window=14)
+    #     df['ma'] = ta.trend.sma_indicator(df['close'], window=14)
+    #     df['open_less_close'] = (df['open'] < df['close']).astype(int)
+
+    #     df['buy_condition'] = ((df['mfi'] < 20) & (df['rsi'] < 35) & (df['open_less_close'] == 1)).astype(int)
+    #     df['sell_condition'] = ((df['mfi'] > 80) & (df['rsi'] > 65) & (df['open_less_close'] == 0)).astype(int)
+
+    #     return df
 
     def should_long_MFI(self, symbol):
         df = self.initialize_MFIRSI(symbol)
