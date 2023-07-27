@@ -124,6 +124,7 @@ class BinanceHedgeStrategy(Strategy):
         true_max_leverage = self.exchange.get_max_leverage_binance(symbol)
         print(f"True max leverage: {true_max_leverage}")
         max_leverage = 20.0
+        min_notional = 5.0
         print(f"Max leverage {max_leverage}")
 
         # print("Setting up exchange")
@@ -153,16 +154,20 @@ class BinanceHedgeStrategy(Strategy):
 
             print(f"Total equity: {total_equity}")
 
-            current_price = self.exchange.get_current_price(symbol)
+            current_price = self.exchange.get_current_price_binance(symbol)
+            print(f"Current price: {current_price}")
+            
             market_data = self.exchange.get_market_data_bybit(symbol)
             best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
             best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+
 
             print(f"Market data: {market_data}")
 
             print(f"Best bid: {best_bid_price}")
             print(f"Best ask: {best_ask_price}")
-            print(f"Current price: {current_price}")
+
+            min_qty = min_notional / current_price  # Compute minimum quantity
 
             max_trade_qty = round(
                 (float(total_equity) * wallet_exposure / float(best_ask_price))
@@ -172,11 +177,13 @@ class BinanceHedgeStrategy(Strategy):
             
             print(f"Max trade quantity for {symbol}: {max_trade_qty}")
 
-            min_qty_bybit = market_data["min_qty"]
-            print(f"Min qty: {min_qty_bybit}")
+            min_qty_binance = market_data["min_qty"]
+            print(f"Min qty: {min_qty_binance}")
 
-            if float(amount) < min_qty_bybit:
-                print(f"The amount you entered ({amount}) is less than the minimum required by Bybit for {symbol}: {min_qty_bybit}.")
+            print(f"Min qty based on notional: {min_qty}")
+
+            if float(amount) < min_qty:
+                print(f"The amount you entered ({amount}) is less than the minimum required by Binance for {symbol}: {min_qty}.")
                 break
             else:
                 print(f"The amount you entered ({amount}) is valid for {symbol}")

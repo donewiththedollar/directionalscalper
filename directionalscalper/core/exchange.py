@@ -1182,6 +1182,19 @@ class Exchange:
             logging.info(f"An unknown error occurred in get_positions(): {e}")
         return current_price
 
+    # Binance
+    def get_current_price_binance(self, symbol: str) -> float:
+        current_price = 0.0
+        try:
+            orderbook = self.exchange.fetch_order_book(symbol)
+            highest_bid = orderbook['bids'][0][0] if len(orderbook['bids']) > 0 else None
+            lowest_ask = orderbook['asks'][0][0] if len(orderbook['asks']) > 0 else None
+            if highest_bid and lowest_ask:
+                current_price = (highest_bid + lowest_ask) / 2
+        except Exception as e:
+            logging.info(f"An unknown error occurred in get_current_price_binance(): {e}")
+        return current_price
+        
     def get_moving_averages(self, symbol: str, timeframe: str = "1m", num_bars: int = 20, max_retries=3, retry_delay=5) -> dict:
         values = {"MA_3_H": 0.0, "MA_3_L": 0.0, "MA_6_H": 0.0, "MA_6_L": 0.0}
 
