@@ -1533,6 +1533,18 @@ class Exchange:
             logging.info(f"An unknown error occurred in get_open_orders_binance(): {e}")
         return open_orders_list
 
+    def cancel_all_entries_binance(self, symbol: str):
+        try:
+            # Fetch all open orders
+            open_orders = self.get_open_orders_binance(symbol)
+
+            for order in open_orders:
+                # If the order is a 'LIMIT' order (i.e., an 'entry' order), cancel it
+                if order['type'].upper() == 'LIMIT':
+                    self.exchange.cancel_order(order['id'], symbol)
+        except Exception as e:
+            print(f"An error occurred while canceling entry orders: {e}")
+
 
     def get_open_orders_bybit_unified(self, symbol: str) -> list:
         open_orders_list = []
@@ -1635,42 +1647,6 @@ class Exchange:
         except Exception as e:
             logging.info(f"An unknown error occurred in _cancel_entry(): {e}")
 
-    # Binance
-    def cancel_all_entries_binance(self, symbol: str) -> None:
-        try:
-            orders = self.exchange.fetch_open_orders(symbol)
-            long_orders = 0
-            short_orders = 0
-
-            # Count the number of open long and short orders
-            for order in orders:
-                order_status = order["status"]
-                order_side = order["side"]
-                reduce_only = False  # Binance does not have a "reduceOnly" field
-                position_idx = None  # Binance does not have a "positionIdx" field
-
-                if order_status != "closed" and not reduce_only:
-                    if position_idx == 1 and order_side == "buy":
-                        long_orders += 1
-                    elif position_idx == 2 and order_side == "sell":
-                        short_orders += 1
-
-            # Cancel extra long or short orders if more than one open order per side
-            if long_orders > 1 or short_orders > 1:
-                for order in orders:
-                    order_id = order["id"]
-                    order_status = order["status"]
-                    order_side = order["side"]
-                    reduce_only = False  # Binance does not have a "reduceOnly" field
-                    position_idx = None  # Binance does not have a "positionIdx" field
-
-                    if order_status != "closed" and not reduce_only:
-                        self.exchange.cancel_order(symbol=symbol, id=order_id)
-                        logging.info(f"Cancelling order: {order_id}")
-                        # log.info(f"Cancelling order: {order_id}")
-        except Exception as e:
-            logging.info(f"An unknown error occurred in cancel_all_entries_binance(): {e}")
-
     def cancel_all_entries_bybit(self, symbol: str) -> None:
         try:
             orders = self.exchange.fetch_open_orders(symbol)
@@ -1769,17 +1745,6 @@ class Exchange:
             print(f"An error occurred while setting the margin mode: {e}")
 
     # Binance
-    # def get_max_leverage_binance(self, symbol):
-    #     if self.exchange.has['fetchLeverageTiers']:
-    #         tiers = self.exchange.fetch_leverage_tiers()
-    #         if symbol in tiers:
-    #             brackets = tiers[symbol].get('brackets', [])
-    #             if len(brackets) > 0:
-    #                 maxLeverage = brackets[0].get('initialLeverage')
-    #                 if maxLeverage is not None:
-    #                     return float(maxLeverage)
-    #     return None
-
     def get_max_leverage_binance(self, symbol):
         # Split symbol into base and quote
         base = symbol[:-4]
@@ -1800,7 +1765,7 @@ class Exchange:
             print(f"Error getting max leverage: {e}")
             return None
 
-
+    # Binance
     def get_leverage_tiers_binance_binance(self):
         try:
             leverage_tiers = self.exchange.fetchLeverageTiers()
@@ -1808,13 +1773,6 @@ class Exchange:
         except Exception as e:
             print(f"Error getting leverage tiers: {e}")
             
-    # def get_leverage_tiers_binance(self, symbol):
-    #     try:
-    #         leverage_tiers = self.exchange.fetchLeverageTiers([symbol])
-    #         print(f"Leverage tiers for {symbol}: {leverage_tiers}")
-    #     except Exception as e:
-    #         print(f"Error getting leverage tiers: {e}")
-
     # Bybit
     def get_contract_size_bybit(self, symbol):
         positions = self.exchange.fetch_derivatives_positions([symbol])
@@ -1829,25 +1787,6 @@ class Exchange:
                 return float(info.get('maxLeverage'))
         return None
     
-    # def get_max_leverage_binance(self, symbol):
-    #     # split the symbol into base and quote
-    #     base, quote = symbol[:3], symbol[3:]
-    #     formatted_symbol = f"{base}/{quote}:{quote}"
-        
-    #     try:
-    #         leverage_tiers = self.exchange.fetchLeverageTiers()
-    #         symbol_tiers = leverage_tiers.get(formatted_symbol)
-            
-    #         if not symbol_tiers:
-    #             raise Exception(f"No leverage tier data available for symbol {formatted_symbol}")
-
-    #         max_leverage = symbol_tiers[0]['maxLeverage']
-    #         print(f"Max leverage for {formatted_symbol}: {max_leverage}")
-    #         return max_leverage
-    #     except Exception as e:
-    #         print(f"Error getting max leverage: {e}")
-    #         return None
-
     # Bitget 
     def get_max_leverage_bitget(self, symbol):
         try:

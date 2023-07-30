@@ -297,6 +297,10 @@ class BinanceAutoHedgeStrategy(Strategy):
                 print(f"Long pos price {long_pos_price}")
                 print(f"Short pos price {short_pos_price}")
 
+                # Leverage increase / reset
+                self.bybit_reset_position_leverage_long(long_pos_qty, total_equity, best_ask_price, max_leverage)
+                self.bybit_reset_position_leverage_short(short_pos_qty, total_equity, best_ask_price, max_leverage)
+
                 short_take_profit = None
                 long_take_profit = None
 
