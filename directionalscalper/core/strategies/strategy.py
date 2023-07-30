@@ -106,6 +106,17 @@ class Strategy:
                 else:
                     raise e
 
+    def get_market_data_with_retry_binance(self, symbol, max_retries=5, retry_delay=5):
+        for i in range(max_retries):
+            try:
+                return self.exchange.get_market_data_binance(symbol)
+            except Exception as e:
+                if i < max_retries - 1:
+                    print(f"Error occurred while fetching market data: {e}. Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    raise e
+
     def get_balance_with_retry(self, quote_currency, max_retries=5, retry_delay=5):
         for i in range(max_retries):
             try:
@@ -139,15 +150,27 @@ class Strategy:
 
         raise Exception("Failed to calculate maximum trade quantity after maximum retries.")
 
-    # def calc_max_trade_qty(self, total_equity, best_ask_price, max_leverage):
-    #     wallet_exposure = self.config.wallet_exposure
-    #     market_data = self.exchange.get_market_data_bybit(self.symbol)
-    #     max_trade_qty = round(
-    #         (float(total_equity) * wallet_exposure / float(best_ask_price))
-    #         / (100 / max_leverage),
-    #         int(float(market_data["min_qty"])),
-    #     )
-    #     return max_trade_qty
+    def calc_max_trade_qty_binance(self, total_equity, best_ask_price, max_leverage, step_size, max_retries=5, retry_delay=5):
+        wallet_exposure = self.config.wallet_exposure
+        precision = int(-math.log10(float(step_size)))
+        for i in range(max_retries):
+            try:
+                max_trade_qty = (
+                    float(total_equity) * wallet_exposure / float(best_ask_price)
+                ) / (100 / max_leverage)
+                max_trade_qty = math.floor(max_trade_qty * 10**precision) / 10**precision
+
+                return max_trade_qty
+            except TypeError as e:
+                if total_equity is None:
+                    print(f"Error: total_equity is None. Retrying in {retry_delay} seconds...")
+                if best_ask_price is None:
+                    print(f"Error: best_ask_price is None. Retrying in {retry_delay} seconds...")
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}. Retrying in {retry_delay} seconds...")
+            time.sleep(retry_delay)
+
+        raise Exception("Failed to calculate maximum trade quantity after maximum retries.")
 
     def check_amount_validity_bybit(self, amount, symbol):
         market_data = self.exchange.get_market_data_bybit(symbol)
@@ -169,6 +192,24 @@ class Strategy:
             else:
                 print(f"The amount you entered ({amount}) is valid for {symbol}")
                 return True
+
+    def check_amount_validity_once_binance(self, amount, symbol):
+        if not self.checked_amount_validity_binance:
+            market_data = self.exchange.get_market_data_binance(symbol)
+            min_qty = float(market_data["min_qty"])
+            step_size = float(market_data['step_size'])
+            precision = int(-math.log10(step_size))
+            
+            # Ensure the amount is a multiple of step_size
+            amount = round(amount, precision)
+            
+            if amount < min_qty:
+                print(f"The amount you entered ({amount}) is less than the minimum required by Binance for {symbol}: {min_qty}.")
+                return False
+            else:
+                print(f"The amount you entered ({amount}) is valid for {symbol}")
+                return True
+
 
     def print_trade_quantities_once_bybit(self, max_trade_qty):
         if not self.printed_trade_quantities:
@@ -426,6 +467,76 @@ class Strategy:
             return float(long_profit_price)
         return None
     
+    def calculate_short_take_profit_binance(self, short_pos_price, symbol):
+        if short_pos_price is None:
+            return None
+
+        five_min_data = self.manager.get_5m_moving_averages(symbol)
+        price_precision = int(self.exchange.get_price_precision(symbol))
+
+        #print("Debug: Price Precision for Symbol (", symbol, "):", price_precision)
+
+        if five_min_data is not None:
+            ma_6_high = Decimal(five_min_data["MA_6_H"])
+            ma_6_low = Decimal(five_min_data["MA_6_L"])
+
+            try:
+                short_target_price = Decimal(short_pos_price) - (ma_6_high - ma_6_low)
+            except InvalidOperation as e:
+                print(f"Error: Invalid operation when calculating short_target_price. short_pos_price={short_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
+                return None
+
+            try:
+                short_target_price = short_target_price.quantize(
+                    Decimal('1e-{}'.format(price_precision)),
+                    rounding=ROUND_HALF_UP
+                )
+            except InvalidOperation as e:
+                print(f"Error: Invalid operation when quantizing short_target_price. short_target_price={short_target_price}, price_precision={price_precision}")
+                return None
+
+            #print("Debug: Short Target Price:", short_target_price)
+
+            short_profit_price = short_target_price
+
+            return float(short_profit_price)
+        return None
+
+    def calculate_long_take_profit_binance(self, long_pos_price, symbol):
+        if long_pos_price is None:
+            return None
+
+        five_min_data = self.manager.get_5m_moving_averages(symbol)
+        price_precision = int(self.exchange.get_price_precision(symbol))
+
+        #print("Debug: Price Precision for Symbol (", symbol, "):", price_precision)
+
+        if five_min_data is not None:
+            ma_6_high = Decimal(five_min_data["MA_6_H"])
+            ma_6_low = Decimal(five_min_data["MA_6_L"])
+
+            try:
+                long_target_price = Decimal(long_pos_price) + (ma_6_high - ma_6_low)
+            except InvalidOperation as e:
+                print(f"Error: Invalid operation when calculating long_target_price. long_pos_price={long_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
+                return None
+
+            try:
+                long_target_price = long_target_price.quantize(
+                    Decimal('1e-{}'.format(price_precision)),
+                    rounding=ROUND_HALF_UP
+                )
+            except InvalidOperation as e:
+                print(f"Error: Invalid operation when quantizing long_target_price. long_target_price={long_target_price}, price_precision={price_precision}")
+                return None
+
+            #print("Debug: Long Target Price:", long_target_price)
+
+            long_profit_price = long_target_price
+
+            return float(long_profit_price)
+        return None
+        
     def check_short_long_conditions(self, best_bid_price, ma_3_high):
         should_short = best_bid_price > ma_3_high
         should_long = best_bid_price < ma_3_high
@@ -667,7 +778,7 @@ class Strategy:
                     continue
                 else:  # If the last attempt
                     print(f"Error occurred while fetching OHLCV data: {e}. No more retries left.")
-                    raise
+                    raise  # Re-raise the last exception
 
     # MFIRSI without retry
     # def initialize_MFIRSI(self, symbol):

@@ -49,7 +49,7 @@ from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trigger_postonl
 from directionalscalper.core.strategies.huobi.huobi_hedge import HuobiHedgeStrategy
 from directionalscalper.core.strategies.huobi.huobi_auto_hedge import HuobiAutoHedgeStrategy
 # BINANCE
-from directionalscalper.core.strategies.binance.binance_hedge import BinanceHedgeStrategy
+from directionalscalper.core.strategies.binance.binance_auto_hedge import BinanceAutoHedgeStrategy
 # PHEMEX
 from directionalscalper.core.strategies.phemex.phemex_hedge import PhemexHedgeStrategy
 # MEXC
@@ -264,9 +264,9 @@ if __name__ == '__main__':
             strategy.run(symbol, amount)
 
         # Binance Strategies
-        elif strategy_name.lower() == 'binance_hedge':
-            strategy = BinanceHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
-            strategy.run(symbol, amount)
+        elif strategy_name.lower() == 'binance_auto_hedge':
+            strategy = BinanceAutoHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol)
         
         # Phemex strategies
         elif strategy_name.lower() == 'phemex_hedge':

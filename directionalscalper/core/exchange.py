@@ -6,7 +6,7 @@ import pandas as pd
 import json
 import requests, hmac, hashlib
 import urllib.parse
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 from ccxt.base.errors import RateLimitExceeded
 from .strategies.logger import Logger
 
@@ -202,28 +202,6 @@ class Exchange:
         except Exception as e:
             logging.info(f"Exception in bybit_fetch_precision: {e}")
 
-
-    # # Bybit
-    # def bybit_fetch_precision(self, symbol):
-    #     market_data = self.exchange.fetch_derivatives_markets(symbol)
-    #     self.market_precisions[symbol] = market_data['precision']
-
-    # def bybit_fetch_precision(self, symbol):
-    #     market_data = self.exchange.fetch_derivatives_markets([symbol])
-    #     self.market_precisions[symbol] = market_data['precision']
-
-    # def bybit_fetch_precision(self, symbol):
-    #     market_data = self.exchange.fetch_derivatives_markets({'symbol': symbol})
-    #     self.market_precisions[symbol] = market_data['precision']
-
-    # def bybit_fetch_precision(self, symbol):
-    #     try:
-    #         market_data = self.exchange.fetch_derivatives_markets(symbol)
-    #         print("Market Data:", market_data)
-    #     except Exception as e:
-    #         print(f"Error in fetching precision: {e}")
-
-
     # Bybit
     def get_current_leverage_bybit(self, symbol):
         try:
@@ -389,6 +367,41 @@ class Exchange:
         except Exception as e:
             logging.info(f"An unknown error occurred in get_market_data_bybit(): {e}")
         return values
+
+    # Binance
+    def get_market_data_binance(self, symbol: str) -> dict:
+        values = {"precision": 0.0, "leverage": 0.0, "min_qty": 0.0, "step_size": 0.0}
+        try:
+            self.exchange.load_markets()
+            symbol_data = self.exchange.market(symbol)
+                
+            if "precision" in symbol_data:
+                values["precision"] = symbol_data["precision"]["price"]
+            if "limits" in symbol_data:
+                values["min_qty"] = symbol_data["limits"]["amount"]["min"]
+
+            # Fetch positions
+            positions = self.exchange.fetch_positions()
+
+            for position in positions:
+                if position['symbol'] == symbol:
+                    values["leverage"] = float(position['leverage'])
+
+            # Fetch step size
+            if "info" in symbol_data and "filters" in symbol_data["info"]:
+                values["step_size"] = next(filter['stepSize'] for filter in symbol_data["info"]["filters"] if filter['filterType'] == 'LOT_SIZE')
+
+        except Exception as e:
+            logging.info(f"An unknown error occurred in get_market_data_binance(): {e}")
+        return values
+
+    def debug_binance_market_data(self, symbol: str) -> dict:
+        try:
+            self.exchange.load_markets()
+            symbol_data = self.exchange.market(symbol)
+            print(symbol_data)
+        except Exception as e:
+            logging.info(f"Error occurred in debug_binance_market_data: {e}")
 
     # Huobi
     # def fetch_max_leverage_huobi(self, symbol):
@@ -1194,7 +1207,58 @@ class Exchange:
         except Exception as e:
             logging.info(f"An unknown error occurred in get_current_price_binance(): {e}")
         return current_price
-        
+
+    # def get_leverage_tiers_binance(self, symbols: Optional[List[str]] = None):
+    #     try:
+    #         tiers = self.exchange.fetch_leverage_tiers(symbols)
+    #         for symbol, brackets in tiers.items():
+    #             print(f"\nSymbol: {symbol}")
+    #             for bracket in brackets:
+    #                 print(f"Bracket ID: {bracket['bracket']}")
+    #                 print(f"Initial Leverage: {bracket['initialLeverage']}")
+    #                 print(f"Notional Cap: {bracket['notionalCap']}")
+    #                 print(f"Notional Floor: {bracket['notionalFloor']}")
+    #                 print(f"Maintenance Margin Ratio: {bracket['maintMarginRatio']}")
+    #                 print(f"Cumulative: {bracket['cum']}")
+    #     except Exception as e:
+    #         logging.error(f"An error occurred while fetching leverage tiers: {e}")
+
+    def get_symbol_info_binance(self, symbol):
+        try:
+            markets = self.exchange.fetch_markets()
+            print(markets)
+            for market in markets:
+                if market['symbol'] == symbol:
+                    filters = market['info']['filters']
+                    min_notional = [f['minNotional'] for f in filters if f['filterType'] == 'MIN_NOTIONAL'][0]
+                    min_qty = [f['minQty'] for f in filters if f['filterType'] == 'LOT_SIZE'][0]
+                    return min_notional, min_qty
+        except Exception as e:
+            logging.error(f"An error occurred while fetching symbol info: {e}")
+
+    # def get_market_data_binance(self, symbol):
+    #     market_data = self.exchange.load_markets(reload=True)  # Force a reload to get fresh data
+    #     return market_data[symbol]
+
+    # def get_market_data_binance(self, symbol):
+    #     market_data = self.exchange.load_markets(reload=True)  # Force a reload to get fresh data
+    #     print("Symbols:", market_data.keys())  # Print out all available symbols
+    #     return market_data[symbol]
+
+    def get_min_lot_size_binance(self, symbol):
+        market_data = self.get_market_data_binance(symbol)
+
+        # Extract the filters from the market data
+        filters = market_data['info']['filters']
+
+        # Find the 'LOT_SIZE' filter and get its 'minQty' value
+        for f in filters:
+            if f['filterType'] == 'LOT_SIZE':
+                return float(f['minQty'])
+
+        # If no 'LOT_SIZE' filter was found, return None
+        return None
+
     def get_moving_averages(self, symbol: str, timeframe: str = "1m", num_bars: int = 20, max_retries=3, retry_delay=5) -> dict:
         values = {"MA_3_H": 0.0, "MA_3_L": 0.0, "MA_6_H": 0.0, "MA_6_L": 0.0}
 
@@ -1531,16 +1595,51 @@ class Exchange:
             print(f"An error occurred while setting the margin mode: {e}")
 
     # Binance
+    # def get_max_leverage_binance(self, symbol):
+    #     if self.exchange.has['fetchLeverageTiers']:
+    #         tiers = self.exchange.fetch_leverage_tiers()
+    #         if symbol in tiers:
+    #             brackets = tiers[symbol].get('brackets', [])
+    #             if len(brackets) > 0:
+    #                 maxLeverage = brackets[0].get('initialLeverage')
+    #                 if maxLeverage is not None:
+    #                     return float(maxLeverage)
+    #     return None
+
     def get_max_leverage_binance(self, symbol):
-        if self.exchange.has['fetchLeverageTiers']:
-            tiers = self.exchange.fetch_leverage_tiers()
-            if symbol in tiers:
-                brackets = tiers[symbol].get('brackets', [])
-                if len(brackets) > 0:
-                    maxLeverage = brackets[0].get('initialLeverage')
-                    if maxLeverage is not None:
-                        return float(maxLeverage)
-        return None
+        # Split symbol into base and quote
+        base = symbol[:-4]
+        quote = symbol[-4:]
+        formatted_symbol = f"{base}/{quote}:{quote}"
+        
+        try:
+            leverage_tiers = self.exchange.fetchLeverageTiers()
+            symbol_tiers = leverage_tiers.get(formatted_symbol)
+            
+            if not symbol_tiers:
+                raise Exception(f"No leverage tier data available for symbol {formatted_symbol}")
+
+            max_leverage = symbol_tiers[0]['maxLeverage']
+            print(f"Max leverage for {formatted_symbol}: {max_leverage}")
+            return max_leverage
+        except Exception as e:
+            print(f"Error getting max leverage: {e}")
+            return None
+
+
+    def get_leverage_tiers_binance_binance(self):
+        try:
+            leverage_tiers = self.exchange.fetchLeverageTiers()
+            print(f"Leverage tiers: {leverage_tiers}")
+        except Exception as e:
+            print(f"Error getting leverage tiers: {e}")
+            
+    # def get_leverage_tiers_binance(self, symbol):
+    #     try:
+    #         leverage_tiers = self.exchange.fetchLeverageTiers([symbol])
+    #         print(f"Leverage tiers for {symbol}: {leverage_tiers}")
+    #     except Exception as e:
+    #         print(f"Error getting leverage tiers: {e}")
 
     # Bybit
     def get_contract_size_bybit(self, symbol):
@@ -1556,6 +1655,25 @@ class Exchange:
                 return float(info.get('maxLeverage'))
         return None
     
+    # def get_max_leverage_binance(self, symbol):
+    #     # split the symbol into base and quote
+    #     base, quote = symbol[:3], symbol[3:]
+    #     formatted_symbol = f"{base}/{quote}:{quote}"
+        
+    #     try:
+    #         leverage_tiers = self.exchange.fetchLeverageTiers()
+    #         symbol_tiers = leverage_tiers.get(formatted_symbol)
+            
+    #         if not symbol_tiers:
+    #             raise Exception(f"No leverage tier data available for symbol {formatted_symbol}")
+
+    #         max_leverage = symbol_tiers[0]['maxLeverage']
+    #         print(f"Max leverage for {formatted_symbol}: {max_leverage}")
+    #         return max_leverage
+    #     except Exception as e:
+    #         print(f"Error getting max leverage: {e}")
+    #         return None
+
     # Bitget 
     def get_max_leverage_bitget(self, symbol):
         try:

@@ -5,24 +5,27 @@ from ..strategy import Strategy
 from typing import Tuple
 import threading
 import os
+import logging
+from ..logger import Logger
 
-class BinanceHedgeStrategy(Strategy):
+logging = Logger(filename="binanceautohedge.log", stream=True)
+
+class BinanceAutoHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):
         super().__init__(exchange, config, manager)
         self.manager = manager
         self.last_cancel_time = 0
         self.current_wallet_exposure = 1.0
         self.printed_trade_quantities = False
+        self.max_long_trade_qty = None
+        self.max_short_trade_qty = None
+        self.initial_max_long_trade_qty = None
+        self.initial_max_short_trade_qty = None
+        self.long_leverage_increased = False
+        self.short_leverage_increased = False
+        self.checked_amount_validity_binance = False
 
-    def calculate_trade_quantity(self, symbol, leverage):
-        dex_equity = self.exchange.get_balance_bybit('USDT')
-        trade_qty = (float(dex_equity) * self.current_wallet_exposure) / leverage
-        return trade_qty
-
-    def truncate(self, number: float, precision: int) -> float:
-        return float(Decimal(number).quantize(Decimal('0.' + '0'*precision), rounding=ROUND_DOWN))
-
-    def limit_order(self, symbol, side, amount, price, reduceOnly=False):
+    def limit_order_binance(self, symbol, side, amount, price, reduceOnly=False):
         try:
             params = {"reduceOnly": reduceOnly}
             order = self.exchange.create_limit_order_binance(symbol, side, amount, price, params=params)
@@ -43,89 +46,21 @@ class BinanceHedgeStrategy(Strategy):
                 take_profit_orders.append((order['origQty'], order['orderId']))
         return take_profit_orders
 
-    def cancel_take_profit_orders(self, symbol, side):
+    def cancel_take_profit_orders_binance(self, symbol, side):
         self.exchange.cancel_close_bybit(symbol, side)
 
-    def calculate_short_take_profit(self, short_pos_price, symbol):
-        if short_pos_price is None:
-            return None
-
-        five_min_data = self.manager.get_5m_moving_averages(symbol)
-        price_precision = int(self.exchange.get_price_precision(symbol))
-
-        #print("Debug: Price Precision for Symbol (", symbol, "):", price_precision)
-
-        if five_min_data is not None:
-            ma_6_high = Decimal(five_min_data["MA_6_H"])
-            ma_6_low = Decimal(five_min_data["MA_6_L"])
-
-            try:
-                short_target_price = Decimal(short_pos_price) - (ma_6_high - ma_6_low)
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when calculating short_target_price. short_pos_price={short_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
-                return None
-
-            try:
-                short_target_price = short_target_price.quantize(
-                    Decimal('1e-{}'.format(price_precision)),
-                    rounding=ROUND_HALF_UP
-                )
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when quantizing short_target_price. short_target_price={short_target_price}, price_precision={price_precision}")
-                return None
-
-            #print("Debug: Short Target Price:", short_target_price)
-
-            short_profit_price = short_target_price
-
-            return float(short_profit_price)
-        return None
-
-    def calculate_long_take_profit(self, long_pos_price, symbol):
-        if long_pos_price is None:
-            return None
-
-        five_min_data = self.manager.get_5m_moving_averages(symbol)
-        price_precision = int(self.exchange.get_price_precision(symbol))
-
-        #print("Debug: Price Precision for Symbol (", symbol, "):", price_precision)
-
-        if five_min_data is not None:
-            ma_6_high = Decimal(five_min_data["MA_6_H"])
-            ma_6_low = Decimal(five_min_data["MA_6_L"])
-
-            try:
-                long_target_price = Decimal(long_pos_price) + (ma_6_high - ma_6_low)
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when calculating long_target_price. long_pos_price={long_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
-                return None
-
-            try:
-                long_target_price = long_target_price.quantize(
-                    Decimal('1e-{}'.format(price_precision)),
-                    rounding=ROUND_HALF_UP
-                )
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when quantizing long_target_price. long_target_price={long_target_price}, price_precision={price_precision}")
-                return None
-
-            #print("Debug: Long Target Price:", long_target_price)
-
-            long_profit_price = long_target_price
-
-            return float(long_profit_price)
-        return None
-
-    def run(self, symbol, amount):
+    def run(self, symbol):
         wallet_exposure = self.config.wallet_exposure
         min_dist = self.config.min_distance
         min_vol = self.config.min_volume
+        max_leverage = self.exchange.get_max_leverage_binance(symbol)
+        quote_currency = "USDT"
+        max_retries = 5
+        retry_delay = 5
+        print(f"Max leverage: {max_leverage}")
         #current_leverage = self.exchange.get_current_leverage_bybit(symbol)
-        true_max_leverage = self.exchange.get_max_leverage_binance(symbol)
-        print(f"True max leverage: {true_max_leverage}")
-        max_leverage = 20.0
         min_notional = 5.0
-        print(f"Max leverage {max_leverage}")
+
 
         # print("Setting up exchange")
         # self.exchange.setup_exchange_bybit(symbol)
@@ -136,61 +71,150 @@ class BinanceHedgeStrategy(Strategy):
         #     self.exchange.set_leverage_bybit(max_leverage, symbol)
 
         while True:
-            print(f"Binance hedge strategy running")
-            print(f"Min volume: {min_vol}")
-            print(f"Min distance: {min_dist}")
-
             # Get API data
             data = self.manager.get_data()
             one_minute_volume = self.manager.get_asset_value(symbol, data, "1mVol")
             five_minute_distance = self.manager.get_asset_value(symbol, data, "5mSpread")
             trend = self.manager.get_asset_value(symbol, data, "Trend")
+            print(f"Binance auto hedge strategy running")
+            print(f"Min volume: {min_vol}")
+            print(f"Min distance: {min_dist}")
             print(f"1m Volume: {one_minute_volume}")
             print(f"5m Spread: {five_minute_distance}")
             print(f"Trend: {trend}")
 
-            quote_currency = "USDT"
-            total_equity = self.exchange.get_balance_binance(quote_currency)
-
-            print(f"Total equity: {total_equity}")
+            for i in range(max_retries):
+                try:
+                    total_equity = self.exchange.get_balance_binance(quote_currency)
+                    print(f"Total equity: {total_equity}")
+                    break
+                except Exception as e:
+                    if i < max_retries - 1:
+                        logging.info(f"Error occurred while fetching available balance: {e}. Retrying in {retry_delay} seconds...")
+                        time.sleep(retry_delay)
+                    else:
+                        raise e
 
             current_price = self.exchange.get_current_price_binance(symbol)
             print(f"Current price: {current_price}")
-            
-            market_data = self.exchange.get_market_data_bybit(symbol)
+
+            # market_info = self.exchange.get_symbol_info_binance(symbol)
+
+            # print(market_info)
+
+            market_data = self.get_market_data_with_retry_binance(symbol, max_retries = 5, retry_delay = 5)
             best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
             best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
-
-
-            print(f"Market data: {market_data}")
-
             print(f"Best bid: {best_bid_price}")
             print(f"Best ask: {best_ask_price}")
 
-            min_qty = min_notional / current_price  # Compute minimum quantity
 
-            max_trade_qty = round(
-                (float(total_equity) * wallet_exposure / float(best_ask_price))
-                / (100 / max_leverage),
-                int(float(market_data["min_qty"])),
-            )            
+            #self.exchange.debug_binance_market_data(symbol)
+
+            # step_size = market_data['step_size']
+
+            # print(f"Step size: {step_size}")
+
+            # min_qty = market_data['min_qty']
+            # min_qty_str = str(min_qty)
+
+            # print(f"Min qty: {min_qty}")
+
+            # min_qty_notional = min_notional / current_price  # Compute minimum quantity
+
+            # print(f"Min qty based on notional: {min_qty_notional}")
+
+            # precision = int(-math.log10(float(step_size)))
+
+            # precise_min_qty = round(min_qty_notional, precision)
+
+            # print(f"Min qty rounded precision: {precise_min_qty}")
+
+            # if min_qty * current_price < min_notional:
+            #     min_qty = min_qty_notional
+
+            # print(f"Min qty: {min_qty}")
+
+            step_size = market_data['step_size']
+            print(f"Step size: {step_size}")
+
+            min_qty = market_data['min_qty']
+            min_qty_str = str(min_qty)
+            print(f"Min qty: {min_qty}")
+
+            min_qty_notional = min_notional / current_price  # Compute minimum quantity
+            print(f"Min qty based on notional: {min_qty_notional}")
+
+            precision = int(-math.log10(float(step_size)))
+
+            # Use floor division to make sure it's a multiple of step_size
+            precise_min_qty = math.floor(min_qty_notional * 10**precision) / 10**precision
+
+            print(f"Min qty rounded precision: {precise_min_qty}")
+
+            # ensure the min_qty is respected
+            min_qty = max(min_qty, precise_min_qty)
+
+            print(f"Min qty value: {min_qty}")
+
+            if self.max_long_trade_qty is None or self.max_short_trade_qty is None:
+                self.max_long_trade_qty = self.max_short_trade_qty = self.calc_max_trade_qty_binance(total_equity,
+                                                                                            best_ask_price,
+                                                                                            max_leverage, step_size)
+
+                # Set initial quantities if they're None
+                if self.initial_max_long_trade_qty is None:
+                    self.initial_max_long_trade_qty = self.max_long_trade_qty
+                    print(f"Initial max trade qty: {self.initial_max_long_trade_qty}")
+                    logging.info(f"Initial max trade qty set to {self.initial_max_long_trade_qty}")
+                if self.initial_max_short_trade_qty is None:
+                    self.initial_max_short_trade_qty = self.max_short_trade_qty  
+                    print(f"Initial max trade qty short set to {self.initial_max_short_trade_qty}")
+                    logging.info(f"Initial trade qty set to {self.initial_max_short_trade_qty}")                                                            
+                        
+            self.print_trade_quantities_once_bybit(self.max_long_trade_qty)
+            self.print_trade_quantities_once_bybit(self.max_short_trade_qty)
+
+            # Calculate the dynamic amount
+            # Calculate the dynamic amounts based on the initial max trade quantities
+            long_dynamic_amount = 0.001 * self.initial_max_long_trade_qty
+            short_dynamic_amount = 0.001 * self.initial_max_short_trade_qty
+
+            print(f"Long dynamic amount before adjustment: {long_dynamic_amount}")
+            print(f"Short dynamic amount before adjustment: {short_dynamic_amount}")
+
+            # Ensure dynamic amounts meet the minimum requirements
+            long_dynamic_amount = max(long_dynamic_amount, precise_min_qty)
+            short_dynamic_amount = max(short_dynamic_amount, precise_min_qty)
+
+            print(f"Long dynamic amount after adjustment: {long_dynamic_amount}")
+            print(f"Short dynamic amount after adjustment: {short_dynamic_amount}")
+
+            # Get the precision of the step size
+            precision = int(-math.log10(float(step_size)))
+
+            # Round the amounts to the precision level of the step size
+            long_dynamic_amount = round(long_dynamic_amount, precision)
+            short_dynamic_amount = round(short_dynamic_amount, precision)
+
+            print(f"Long dynamic amount after rounding: {long_dynamic_amount}")
+            print(f"Short dynamic amount after rounding: {short_dynamic_amount}")
+
+            # max_trade_qty = round(
+            #     (float(total_equity) * wallet_exposure / float(best_ask_price))
+            #     / (100 / max_leverage),
+            #     int(float(market_data["min_qty"])),
+            # )            
             
-            print(f"Max trade quantity for {symbol}: {max_trade_qty}")
+            #print(f"Max trade quantity for {symbol}: {max_trade_qty}")
 
-            min_qty_binance = market_data["min_qty"]
-            print(f"Min qty: {min_qty_binance}")
+            # #tiers = self.exchange.get_leverage_tiers_binance_binance([symbol])
+            # tiers = self.exchange.get_leverage_tiers_binance_binance()
 
-            print(f"Min qty based on notional: {min_qty}")
+            # print(tiers)
 
-            if float(amount) < min_qty:
-                print(f"The amount you entered ({amount}) is less than the minimum required by Binance for {symbol}: {min_qty}.")
-                break
-            else:
-                print(f"The amount you entered ({amount}) is valid for {symbol}")
-
-            if not self.printed_trade_quantities:
-                self.exchange.print_trade_quantities_bybit(max_trade_qty, [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
-                self.printed_trade_quantities = True
+            self.check_amount_validity_once_binance(long_dynamic_amount, symbol)
+            self.check_amount_validity_once_binance(short_dynamic_amount, symbol)
 
             # Get the 1-minute moving averages
             print(f"Fetching MA data")
@@ -208,7 +232,7 @@ class BinanceHedgeStrategy(Strategy):
 
             #self.exchange.print_positions_structure_binance()
 
-            #print(f"Bybit pos data: {position_data}")
+            #print(f"Binance pos data: {position_data}")
 
             short_pos_qty = position_data["short"]["qty"]
             long_pos_qty = position_data["long"]["qty"]
@@ -234,18 +258,9 @@ class BinanceHedgeStrategy(Strategy):
             print(f"Long pos price {long_pos_price}")
             print(f"Short pos price {short_pos_price}")
 
-            # Precision is annoying
-
-            # price_precision = int(self.exchange.get_price_precision(symbol))
-
-            # print(f"Price Precision: {price_precision}")
-
-            # Precision
-            #price_precision, quantity_precision = self.exchange.get_symbol_precision_bybit(symbol)
-
             # Take profit calc
-            short_take_profit = self.calculate_short_take_profit(short_pos_price, symbol)
-            long_take_profit = self.calculate_long_take_profit(long_pos_price, symbol)
+            short_take_profit = self.calculate_short_take_profit_binance(short_pos_price, symbol)
+            long_take_profit = self.calculate_long_take_profit_binance(long_pos_price, symbol)
 
             print(f"Long take profit: {long_take_profit}")
             print(f"Short take profit: {short_take_profit}")
@@ -277,25 +292,25 @@ class BinanceHedgeStrategy(Strategy):
 
                         if trend.lower() == "long" and should_long and long_pos_qty == 0:
                             print(f"Placing initial long entry")
-                            self.exchange.binance_create_limit_order(symbol, "buy", amount, best_bid_price)
+                            self.exchange.binance_create_limit_order(symbol, "buy", long_dynamic_amount, best_bid_price)
                             print(f"Placed initial long entry")
                         else:
-                            if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
+                            if trend.lower() == "long" and should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price:
                                 print(f"Placed additional long entry")
-                                self.exchange.binance_create_limit_order(symbol, "buy", amount, best_bid_price)
+                                self.exchange.binance_create_limit_order(symbol, "buy", long_dynamic_amount, best_bid_price)
 
                         if trend.lower() == "short" and should_short and short_pos_qty == 0:
                             print(f"Placing initial short entry")
-                            self.exchange.binance_create_limit_order(symbol, "sell", amount, best_ask_price)
+                            self.exchange.binance_create_limit_order(symbol, "sell", short_dynamic_amount, best_ask_price)
                             print("Placed initial short entry")
                         else:
-                            if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
+                            if trend.lower() == "short" and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price:
                                 print(f"Placed additional short entry")
-                                self.exchange.binance_create_limit_order(symbol, "sell", amount, best_ask_price)
+                                self.exchange.binance_create_limit_order(symbol, "sell", short_dynamic_amount, best_ask_price)
         
             open_orders = self.exchange.get_open_orders_binance(symbol)
 
-            print(open_orders)
+            print(f"Open orders: {open_orders}")
 
             # # Call the get_open_take_profit_order_quantity function for the 'buy' side
             # buy_qty, buy_id = self.get_open_take_profit_order_quantity(open_orders, 'buy')
@@ -355,3 +370,9 @@ class BinanceHedgeStrategy(Strategy):
                 self.last_cancel_time = current_time  # Update the last cancel time
 
             time.sleep(30)
+
+            # # Create the strategy table
+            # strategy_table = create_strategy_table(symbol, total_equity, long_upnl, short_upnl, short_pos_qty, long_pos_qty, amount, cumulative_realized_pnl, one_minute_volume, five_minute_distance)
+
+            # # Display the table
+            # self.display_table(strategy_table)
