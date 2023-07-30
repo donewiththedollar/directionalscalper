@@ -370,7 +370,7 @@ class Exchange:
 
     # Binance
     def get_market_data_binance(self, symbol: str) -> dict:
-        values = {"precision": 0.0, "leverage": 0.0, "min_qty": 0.0, "step_size": 0.0}
+        values = {"precision": 0.0, "leverage": 0.0, "min_qty": 0.0, "step_size": 0.0, "min_notional": 0.0}
         try:
             self.exchange.load_markets()
             symbol_data = self.exchange.market(symbol)
@@ -387,13 +387,44 @@ class Exchange:
                 if position['symbol'] == symbol:
                     values["leverage"] = float(position['leverage'])
 
-            # Fetch step size
+            # Fetch step size and min notional
             if "info" in symbol_data and "filters" in symbol_data["info"]:
-                values["step_size"] = next(filter['stepSize'] for filter in symbol_data["info"]["filters"] if filter['filterType'] == 'LOT_SIZE')
+                for filter in symbol_data["info"]["filters"]:
+                    if filter['filterType'] == 'LOT_SIZE':
+                        values["step_size"] = filter['stepSize']
+                    if filter['filterType'] == 'MIN_NOTIONAL':
+                        values["min_notional"] = filter['minNotional']
 
         except Exception as e:
             logging.info(f"An unknown error occurred in get_market_data_binance(): {e}")
         return values
+
+    # Binance
+    # def get_market_data_binance(self, symbol: str) -> dict:
+    #     values = {"precision": 0.0, "leverage": 0.0, "min_qty": 0.0, "step_size": 0.0}
+    #     try:
+    #         self.exchange.load_markets()
+    #         symbol_data = self.exchange.market(symbol)
+                
+    #         if "precision" in symbol_data:
+    #             values["precision"] = symbol_data["precision"]["price"]
+    #         if "limits" in symbol_data:
+    #             values["min_qty"] = symbol_data["limits"]["amount"]["min"]
+
+    #         # Fetch positions
+    #         positions = self.exchange.fetch_positions()
+
+    #         for position in positions:
+    #             if position['symbol'] == symbol:
+    #                 values["leverage"] = float(position['leverage'])
+
+    #         # Fetch step size
+    #         if "info" in symbol_data and "filters" in symbol_data["info"]:
+    #             values["step_size"] = next(filter['stepSize'] for filter in symbol_data["info"]["filters"] if filter['filterType'] == 'LOT_SIZE')
+
+    #     except Exception as e:
+    #         logging.info(f"An unknown error occurred in get_market_data_binance(): {e}")
+    #     return values
 
     def debug_binance_market_data(self, symbol: str) -> dict:
         try:
@@ -1338,25 +1369,66 @@ class Exchange:
         return open_orders_list
 
     # Binance
+    # def get_open_orders_binance(self, symbol: str) -> list:
+    #     open_orders_list = []
+    #     try:
+    #         orders = self.exchange.fetch_open_orders(symbol)
+    #         if len(orders) > 0:
+    #             for order in orders:
+    #                 if "info" in order:
+    #                     order_info = {
+    #                         "id": order["id"],
+    #                         "price": float(order["price"]),
+    #                         "qty": float(order["amount"]),
+    #                         "order_status": order["status"],
+    #                         "side": order["side"],
+    #                         "reduce_only": False,  # Binance does not have a "reduceOnly" field
+    #                         "position_idx": None  # Binance does not have a "positionIdx" field
+    #                     }
+    #                     open_orders_list.append(order_info)
+    #     except Exception as e:
+    #         logging.info(f"An unknown error occurred in get_open_orders(): {e}")
+    #     return open_orders_list
+
+    # def get_open_orders_binance(self, symbol: str):
+    #     """
+    #     Fetch open orders for a futures market in hedged mode.
+        
+    #     :param str symbol: Unified market symbol
+    #     :return: List of order structures
+    #     """
+    #     params = {
+    #         'type': 'future'   # specify that this is a futures market
+    #     }
+
+    #     try:
+    #         # leverage ccxt's fetch_open_orders method
+    #         orders = self.exchange.fetch_open_orders(symbol, params=params)
+    #         return orders
+    #     except Exception as e:
+    #         print(f"An error occurred while fetching open orders: {e}")
+    #         return None
+
     def get_open_orders_binance(self, symbol: str) -> list:
         open_orders_list = []
         try:
             orders = self.exchange.fetch_open_orders(symbol)
+            #print(orders)
             if len(orders) > 0:
                 for order in orders:
                     if "info" in order:
                         order_info = {
-                            "id": order["id"],
-                            "price": float(order["price"]),
-                            "qty": float(order["amount"]),
-                            "order_status": order["status"],
-                            "side": order["side"],
-                            "reduce_only": False,  # Binance does not have a "reduceOnly" field
-                            "position_idx": None  # Binance does not have a "positionIdx" field
+                            "id": order["info"]["orderId"],
+                            "price": order["info"]["price"],
+                            "amount": float(order["info"]["origQty"]),
+                            "status": order["info"]["status"],
+                            "side": order["info"]["side"],
+                            "reduce_only": order["info"]["reduceOnly"],
+                            "type": order["info"]["type"]
                         }
                         open_orders_list.append(order_info)
         except Exception as e:
-            logging.info(f"An unknown error occurred in get_open_orders(): {e}")
+            logging.info(f"An unknown error occurred in get_open_orders_binance(): {e}")
         return open_orders_list
 
 
@@ -1823,6 +1895,23 @@ class Exchange:
         except Exception as e:
             print(f"An unknown error occurred in cancel_take_profit_orders: {e}")
 
+    def cancel_take_profit_orders_binance(self, symbol, side):
+        side = side.lower()
+        
+        try:
+            open_orders = self.exchange.fetch_open_orders(symbol)
+            for order in open_orders:
+                if (
+                    order['side'].lower() == side
+                    and order['reduce_only']  # Checking if the order is a reduce-only order
+                    and order['type'] in ['TAKE_PROFIT', 'TAKE_PROFIT_LIMIT']  # Checking if the order is a take profit order
+                ):
+                    order_id = order['id']
+                    self.exchange.cancel_order(order_id, symbol)  # Cancel the order
+                    logging.info(f"Canceled take profit order - ID: {order_id}")
+        except Exception as e:
+            print(f"An unknown error occurred in cancel_take_profit_orders_binance: {e}")
+
     # Bybit
     def cancel_order_by_id(self, order_id, symbol):
         try:
@@ -2145,18 +2234,17 @@ class Exchange:
         except Exception as e:
             logging.warning(f"An unknown error occurred in create_limit_order(): {e}")
 
-    # # Binance
-    # def create_take_profit_order_binance(self, symbol, side, amount, price):
-    #     if side not in ["buy", "sell"]:
-    #         raise ValueError(f"Invalid side: {side}")
-        
-    #     params={"reduceOnly": True}
-
-    #     # Create the limit order for the take profit
-    #     order = self.create_limit_order_binance(symbol, side, amount, price, params)
-
-    #     return order
-    
+    def set_hedge_mode_binance(self):
+        """
+        set hedged to True for the account
+        :returns dict: response from the exchange
+        """
+        try:
+            response = self.exchange.set_position_mode(True)
+            return response
+        except Exception as e:
+            print(f"An error occurred while setting position mode: {e}")
+            
     # Binance
     def create_close_position_limit_order_binance(self, symbol: str, side: str, qty: float, price: float):
         try:
@@ -2193,20 +2281,77 @@ class Exchange:
         return order
 
     def binance_create_limit_order(self, symbol: str, side: str, amount: float, price: float, params={}):
-        """
-        create a limit order
-        :param str symbol: unified symbol of the market to create an order in
-        :param str side: 'buy' or 'sell'
-        :param float amount: how much of currency you want to trade in units of base currency
-        :param float price: the price at which the order is to be fulfilled, in units of the quote currency
-        :param dict [params]: extra parameters specific to the binance api endpoint
-        :returns dict: an `order structure <https://docs.ccxt.com/#/?id=order-structure>`
-        """
+        params["positionSide"] = "LONG" if side.lower() == "buy" else "SHORT"  # set positionSide parameter
         try:
             order = self.exchange.create_order(symbol, "limit", side, amount, price, params)
             return order
         except Exception as e:
             print(f"An error occurred while creating the limit order: {e}")
+
+    def binance_create_take_profit_order(self, symbol: str, side: str, positionSide: str, amount: float, price: float, params={}):
+        try:
+            order_params = {
+                'positionSide': positionSide,
+                **params
+            }
+            order = self.exchange.create_order(symbol, "TAKE_PROFIT_MARKET", side, amount, price, order_params)
+            return order
+        except Exception as e:
+            print(f"An error occurred while creating the take-profit order: {e}")
+
+    # def binance_create_take_profit_order(self, symbol: str, side: str, positionSide: str, amount: float, stopPrice: float, params={}):
+    #     """
+    #     create a take-profit order
+    #     :param str symbol: unified symbol of the market to create an order in
+    #     :param str side: 'buy' or 'sell'
+    #     :param str positionSide: 'LONG' or 'SHORT'
+    #     :param float amount: how much of currency you want to trade in units of base currency
+    #     :param float stopPrice: the price at which the order is to be fulfilled, in units of the quote currency
+    #     :param dict [params]: extra parameters specific to the binance api endpoint
+    #     :returns dict: an `order structure <https://docs.ccxt.com/#/?id=order-structure>`
+    #     """
+    #     try:
+    #         order_params = {
+    #             'stopPrice': stopPrice,
+    #             'positionSide': positionSide,
+    #             **params
+    #         }
+    #         order = self.exchange.create_order(symbol, "TAKE_PROFIT_MARKET", side, amount, None, order_params)
+    #         return order
+    #     except Exception as e:
+    #         print(f"An error occurred while creating the take-profit order: {e}")
+
+    # def binance_create_take_profit_order(self, symbol: str, side: str, amount: float, price: float, stopPrice: float, params={}):
+    #     params["positionSide"] = "LONG" if side.lower() == "buy" else "SHORT"  # set positionSide parameter
+    #     try:
+    #         order = self.exchange.create_order(symbol, "TAKE_PROFIT_LIMIT", side, amount, price, params)
+    #         order['info']['stopPrice'] = stopPrice
+    #         return order
+    #     except Exception as e:
+    #         print(f"An error occurred while creating the take-profit order: {e}")
+
+    # def binance_create_take_profit_order(self, symbol: str, side: str, amount: float, stopPrice: float, params={}):
+    #     """
+    #     create a take-profit order
+    #     :param str symbol: unified symbol of the market to create an order in
+    #     :param str side: 'buy' or 'sell'
+    #     :param float amount: how much of currency you want to trade in units of base currency
+    #     :param float stopPrice: the price at which the order is to be fulfilled, in units of the quote currency
+    #     :param dict [params]: extra parameters specific to the binance api endpoint
+    #     :returns dict: an `order structure <https://docs.ccxt.com/#/?id=order-structure>`
+    #     """
+    #     try:
+    #         order = self.exchange.create_order(symbol, "TAKE_PROFIT_MARKET", side, amount, None, {'stopPrice': stopPrice, **params})
+    #         return order
+    #     except Exception as e:
+    #         print(f"An error occurred while creating the take-profit order: {e}")
+
+    def test_func(self):
+        try:
+            market = self.exchange.market('DOGEUSDT')
+            print(market['info'])
+        except Exception as e:
+            print(f"Exception caught in test func {e}")
 
     # Binance
     def create_limit_order_binance(self, symbol: str, side: str, qty: float, price: float, params={}):

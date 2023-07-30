@@ -57,6 +57,31 @@ class Strategy:
     def cancel_take_profit_orders(self, symbol, side):
         self.exchange.cancel_close_bybit(symbol, side)
 
+    def limit_order_binance(self, symbol, side, amount, price, reduceOnly=False):
+        try:
+            params = {"reduceOnly": reduceOnly}
+            order = self.exchange.create_limit_order_binance(symbol, side, amount, price, params=params)
+            return order
+        except Exception as e:
+            print(f"An error occurred in limit_order(): {e}")
+
+    def get_open_take_profit_order_quantity_binance(self, orders, side):
+        for order in orders:
+            if order['side'].lower() == side.lower() and order.get('reduce_only', False):
+                return order['origQty'], order['orderId']
+        return None, None
+
+    def get_open_take_profit_order_quantities_binance(self, orders, side):
+        take_profit_orders = []
+        for order in orders:
+            if order['side'].lower() == side.lower() and order.get('reduce_only', False):
+                take_profit_orders.append((order['amount'], order['id']))
+        return take_profit_orders
+
+    def cancel_take_profit_orders_binance(self, symbol, side):
+        self.exchange.cancel_close_bybit(symbol, side)
+
+
     def calculate_short_conditions(self, short_pos_price, ma_6_low, short_take_profit, short_pos_qty):
         if short_pos_price is not None:
             should_add_to_short = short_pos_price < ma_6_low
@@ -1021,3 +1046,33 @@ class Strategy:
             self.short_leverage_increased = False
             self.short_pos_leverage = 1.0
             logging.info(f"Short leverage returned to normal {self.short_pos_leverage}x")
+
+    def binance_hedge_placetp_maker(self, symbol, pos_qty, take_profit_price, position_side, open_orders):
+        order_side = 'sell' if position_side == 'LONG' else 'buy'
+        existing_tps = self.get_open_take_profit_order_quantities_binance(open_orders, order_side)
+        print(f"Existing TP IDs: {[order_id for _, order_id in existing_tps]}")
+        total_existing_tp_qty = sum(qty for qty, _ in existing_tps)
+        logging.info(f"Existing {order_side} TPs: {existing_tps}")
+        if not math.isclose(total_existing_tp_qty, pos_qty):
+            logging.info(f"Existing TP qty {total_existing_tp_qty} and position qty {pos_qty} not close.")
+            try:
+                for qty, existing_tp_id in existing_tps:
+                    if not math.isclose(qty, pos_qty):
+                        self.exchange.cancel_order(existing_tp_id, symbol)
+                        logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
+                        time.sleep(0.05)
+            except Exception as e:
+                logging.info(f"Error in cancelling {order_side} TP orders {e}")
+        else:
+            logging.info(f"Existing TP qty {total_existing_tp_qty} and position qty {pos_qty} close. Not cancelling TP orders.")
+        if len(existing_tps) < 1:
+            logging.info(f"No existing TP orders. Attempting to create new TP order.")
+            try:
+                # Use binance_create_take_profit_order function to place take profit order
+                self.exchange.binance_create_take_profit_order(symbol, order_side, position_side, pos_qty, take_profit_price, {'stopPrice': take_profit_price})
+                logging.info(f"{position_side} take profit set at {take_profit_price}")
+                time.sleep(0.05)
+            except Exception as e:
+                logging.info(f"Error in placing {position_side} TP: {e}")
+        else:
+            logging.info(f"Existing TP orders found. Not creating new TP order.")

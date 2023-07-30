@@ -25,30 +25,6 @@ class BinanceAutoHedgeStrategy(Strategy):
         self.short_leverage_increased = False
         self.checked_amount_validity_binance = False
 
-    def limit_order_binance(self, symbol, side, amount, price, reduceOnly=False):
-        try:
-            params = {"reduceOnly": reduceOnly}
-            order = self.exchange.create_limit_order_binance(symbol, side, amount, price, params=params)
-            return order
-        except Exception as e:
-            print(f"An error occurred in limit_order(): {e}")
-
-    def get_open_take_profit_order_quantity_binance(self, orders, side):
-        for order in orders:
-            if order['side'].lower() == side.lower() and order.get('reduce_only', False):
-                return order['origQty'], order['orderId']
-        return None, None
-
-    def get_open_take_profit_order_quantities_binance(self, orders, side):
-        take_profit_orders = []
-        for order in orders:
-            if order['side'].lower() == side.lower() and order.get('reduce_only', False):
-                take_profit_orders.append((order['origQty'], order['orderId']))
-        return take_profit_orders
-
-    def cancel_take_profit_orders_binance(self, symbol, side):
-        self.exchange.cancel_close_bybit(symbol, side)
-
     def run(self, symbol):
         wallet_exposure = self.config.wallet_exposure
         min_dist = self.config.min_distance
@@ -59,7 +35,8 @@ class BinanceAutoHedgeStrategy(Strategy):
         retry_delay = 5
         print(f"Max leverage: {max_leverage}")
         #current_leverage = self.exchange.get_current_leverage_bybit(symbol)
-        min_notional = 5.0
+        min_notional = 5.10
+        self.exchange.set_hedge_mode_binance()
 
 
         # print("Setting up exchange")
@@ -108,32 +85,7 @@ class BinanceAutoHedgeStrategy(Strategy):
             print(f"Best bid: {best_bid_price}")
             print(f"Best ask: {best_ask_price}")
 
-
-            #self.exchange.debug_binance_market_data(symbol)
-
-            # step_size = market_data['step_size']
-
-            # print(f"Step size: {step_size}")
-
-            # min_qty = market_data['min_qty']
-            # min_qty_str = str(min_qty)
-
-            # print(f"Min qty: {min_qty}")
-
-            # min_qty_notional = min_notional / current_price  # Compute minimum quantity
-
-            # print(f"Min qty based on notional: {min_qty_notional}")
-
-            # precision = int(-math.log10(float(step_size)))
-
-            # precise_min_qty = round(min_qty_notional, precision)
-
-            # print(f"Min qty rounded precision: {precise_min_qty}")
-
-            # if min_qty * current_price < min_notional:
-            #     min_qty = min_qty_notional
-
-            # print(f"Min qty: {min_qty}")
+            #self.exchange.test_func()
 
             step_size = market_data['step_size']
             print(f"Step size: {step_size}")
@@ -283,9 +235,6 @@ class BinanceAutoHedgeStrategy(Strategy):
             print(f"Add short condition: {should_add_to_short}")
             print(f"Add long condition: {should_add_to_long}")
 
-            #self.exchange.create_limit_order_binance(symbol, "buy", amount, best_bid_price)
-            #self.limit_order(symbol, "buy", amount, best_bid_price, reduceOnly=False)
-
             if trend is not None and isinstance(trend, str):
                 if one_minute_volume is not None and five_minute_distance is not None:
                     if one_minute_volume > min_vol and five_minute_distance > min_dist:
@@ -322,39 +271,42 @@ class BinanceAutoHedgeStrategy(Strategy):
             # print("Buy Take Profit Order - Quantity: ", buy_qty, "ID: ", buy_id)
             # print("Sell Take Profit Order - Quantity: ", sell_qty, "ID: ", sell_id)
 
-            if long_pos_qty > 0 and long_take_profit is not None:
-                existing_long_tps = self.get_open_take_profit_order_quantities_binance(open_orders, "sell")
-                total_existing_long_tp_qty = sum(qty for qty, _ in existing_long_tps)
-                if not math.isclose(total_existing_long_tp_qty, long_pos_qty):
-                    try:
-                        for _, existing_long_tp_id in existing_long_tps:
-                            self.exchange.cancel_take_profit_orders_bybit(symbol, "sell")  # Corrected side value to "sell"
-                            print(f"Long take profit canceled")
-                            time.sleep(0.05)
+            self.binance_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, "LONG", open_orders)
 
-                        #print(f"Debug: Long Position Quantity {long_pos_qty}, Long Take Profit {long_take_profit}")
-                        self.exchange.create_close_position_limit_order_binance(symbol, "sell", long_pos_qty, long_take_profit)
-                        print(f"Long take profit set at {long_take_profit}")
-                        time.sleep(0.05)
-                    except Exception as e:
-                        print(f"Error in placing long TP: {e}")
+            self.binance_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, "SHORT", open_orders)
 
-            if short_pos_qty > 0 and short_take_profit is not None:
-                existing_short_tps = self.get_open_take_profit_order_quantities_binance(open_orders, "buy")
-                total_existing_short_tp_qty = sum(qty for qty, _ in existing_short_tps)
-                if not math.isclose(total_existing_short_tp_qty, short_pos_qty):
-                    try:
-                        for _, existing_short_tp_id in existing_short_tps:
-                            self.exchange.cancel_take_profit_orders_bybit(symbol, "buy")  # Corrected side value to "buy"
-                            print(f"Short take profit canceled")
-                            time.sleep(0.05)
+            # if long_pos_qty > 0 and long_take_profit is not None:
+            #     existing_long_tps = self.get_open_take_profit_order_quantities_binance(open_orders, "sell")
+            #     total_existing_long_tp_qty = sum(qty for qty, _ in existing_long_tps)
+            #     if not math.isclose(total_existing_long_tp_qty, long_pos_qty):
+            #         try:
+            #             for _, existing_long_tp_id in existing_long_tps:
+            #                 self.exchange.cancel_take_profit_orders_binance(symbol, "sell")  # Corrected side value to "sell"
+            #                 print(f"Long take profit canceled")
+            #                 time.sleep(0.05)
 
-                        #print(f"Debug: Short Position Quantity {short_pos_qty}, Short Take Profit {short_take_profit}")
-                        self.exchange.create_close_position_limit_order_binance(symbol, "limit", "buy", short_pos_qty, short_take_profit)
-                        print(f"Short take profit set at {short_take_profit}")
-                        time.sleep(0.05)
-                    except Exception as e:
-                        print(f"Error in placing short TP: {e}")
+            #             self.exchange.binance_create_take_profit_order(symbol, "sell", "LONG", long_pos_qty, long_take_profit, {'newOrderRespType': 'ACK'})
+            #             print(f"Long take profit set at {long_take_profit}")
+            #             time.sleep(0.05)
+            #         except Exception as e:
+            #             print(f"Error in placing long TP: {e}")
+
+            # if short_pos_qty > 0 and short_take_profit is not None:
+            #     existing_short_tps = self.get_open_take_profit_order_quantities_binance(open_orders, "buy")
+            #     total_existing_short_tp_qty = sum(qty for qty, _ in existing_short_tps)
+            #     if not math.isclose(total_existing_short_tp_qty, short_pos_qty):
+            #         try:
+            #             for _, existing_short_tp_id in existing_short_tps:
+            #                 self.exchange.cancel_take_profit_orders_binance(symbol, "buy")  # Corrected side value to "buy"
+            #                 print(f"Short take profit canceled")
+            #                 time.sleep(0.05)
+
+            #             self.exchange.binance_create_take_profit_order(symbol, "buy", "SHORT", short_pos_qty, short_take_profit, {'newOrderRespType': 'ACK'})
+            #             print(f"Short take profit set at {short_take_profit}")
+            #             time.sleep(0.05)
+            #         except Exception as e:
+            #             print(f"Error in placing short TP: {e}")
+
 
             # Cancel entries
             current_time = time.time()
@@ -370,9 +322,3 @@ class BinanceAutoHedgeStrategy(Strategy):
                 self.last_cancel_time = current_time  # Update the last cancel time
 
             time.sleep(30)
-
-            # # Create the strategy table
-            # strategy_table = create_strategy_table(symbol, total_equity, long_upnl, short_upnl, short_pos_qty, long_pos_qty, amount, cumulative_realized_pnl, one_minute_volume, five_minute_distance)
-
-            # # Display the table
-            # self.display_table(strategy_table)
