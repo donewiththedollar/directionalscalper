@@ -177,15 +177,7 @@ if __name__ == '__main__':
         elif strategy_name.lower() == 'bybit_shortonly':
             strategy = BybitShortStrategy(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol, amount)
-
-        elif strategy_name.lower() == 'bybit_longonly_dynamic':
-            strategy = BybitLongOnlyDynamic(market_maker.exchange, market_maker.manager, config.bot)
-            strategy.run(symbol)
-
-        elif strategy_name.lower() == 'bybit_shortonly_dynamic':
-            strategy = BybitShortOnlyDynamic(market_maker.exchange, market_maker.manager, config.bot)
-            strategy.run(symbol)
-
+            
         elif strategy_name.lower() == 'bybit_longonly_dynamic_leverage':
             strategy = BybitLongOnlyDynamicLeverage(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
