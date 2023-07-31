@@ -105,6 +105,9 @@ Make sure you are in the directory directionalscalper
 
  
 # Current strategies
+## Binance
+* binance_auto_hedge
+  
 ## Bybit
 * bybit_hedge
 * bybit_auto_hedge - Dynamic entry, take profit distance, position leverage per side. Table included.
