@@ -10,7 +10,7 @@ from rich.text import Text
 import logging
 from ..logger import Logger
 
-logging = Logger(filename="bybitautohedge.log", stream=True)
+logging = Logger(logger_name="BybitAutoHedge", filename="BybitAutoHedge.log", stream=True)
 
 class BybitAutoHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):

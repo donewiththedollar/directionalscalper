@@ -6,7 +6,7 @@ from typing import Tuple
 import logging
 from ..logger import Logger
 
-logging = Logger(filename="bybit_hedge_unified.log", stream=True)
+logging = Logger(logger_name="BybitHedgeUnified", filename="BybitHedgeUnified.log", stream=True)
 
 class BybitHedgeUnifiedStrategy(Strategy):
     def __init__(self, exchange, manager, config):

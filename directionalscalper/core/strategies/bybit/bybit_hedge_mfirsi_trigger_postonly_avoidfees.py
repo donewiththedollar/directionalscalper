@@ -13,7 +13,7 @@ import ta
 import logging
 from ..logger import Logger
 
-logging = Logger(filename="bybithedgemfirsitriggerpostfees.log", stream=True)
+logging = Logger(logger_name="BybitHedgeMFIRSITriggerMakerAvoidFees", filename="BybitHedgeMFIRSITriggerMakerAvoidFees.log", stream=True)
 
 class BybitHedgeMFIRSITriggerPostOnlyAvoidFees(Strategy):
     def __init__(self, exchange, manager, config):

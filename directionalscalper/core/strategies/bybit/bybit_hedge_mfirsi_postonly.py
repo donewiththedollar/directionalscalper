@@ -13,7 +13,9 @@ import ta
 import logging
 from ..logger import Logger
 
-logging = Logger(filename="bybithedgemfirsipostonly.log", stream=True)
+logging = Logger(logger_name="BybitAutoHedgeMFIRSIMaker", filename="BybitAutoHedgeMFIRSIMaker.log", stream=True)
+
+
 
 class BybitAutoHedgeMFIRSIPostOnly(Strategy):
     def __init__(self, exchange, manager, config):

@@ -13,7 +13,7 @@ import ta
 import logging
 from ..logger import Logger
 
-logging = Logger(filename="bybithedgemfirsitrigger.log", stream=True)
+logging = Logger(logger_name="BybitHedgeMFIRISTrigger", filename="BybitHedgeMFIRSITrigger.log", stream=True)
 
 class BybitHedgeMFIRSITrigger(Strategy):
     def __init__(self, exchange, manager, config):
@@ -90,7 +90,7 @@ class BybitHedgeMFIRSITrigger(Strategy):
 
     def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev, long_max_trade_qty, short_max_trade_qty, long_expected_profit, short_expected_profit, long_liq_price, short_liq_price, should_long, should_add_to_long, should_short, should_add_to_short, mfirsi_signal, eri_trend):
         try:
-            table = Table(show_header=False, header_style="bold magenta", title=f"Directional Scalper MFIRSI ONLY {self.version}")
+            table = Table(show_header=False, header_style="bold magenta", title=f"Directional Scalper {self.version}")
             table.add_column("Key")
             table.add_column("Value")
             #min_vol_dist_data = self.manager.get_min_vol_dist_data(self.symbol)

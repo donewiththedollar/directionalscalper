@@ -6,7 +6,7 @@ from typing import Tuple
 import logging
 from ..logger import Logger
 
-logging = Logger(filename="bybitshortonlydynamiclev.log", stream=True)
+logging = Logger(logger_name="BybitShortOnlyDynamicLev", filename="BybitShortOnlyDynamicLev.log", stream=True)
 
 class BybitShortOnlyDynamicLeverage(Strategy):
     def __init__(self, exchange, manager, config):

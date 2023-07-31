@@ -9,7 +9,7 @@ import logging
 from .logger import Logger
 from datetime import datetime, timedelta
 
-logging = Logger(filename="strategy.log", stream=True)
+logging = Logger(logger_name="Strategy", filename="Strategy.log", stream=True)
 
 class Strategy:
     def __init__(self, exchange, config, manager):
@@ -246,11 +246,33 @@ class Strategy:
                 print(f"The amount you entered ({amount}) is valid for {symbol}")
                 return True
 
+    # def check_amount_validity_once_binance(self, amount, symbol):
+    #     if not self.checked_amount_validity_binance:
+    #         market_data = self.exchange.get_market_data_binance(symbol)
+    #         min_qty = float(market_data["min_qty"])
+    #         step_size = float(market_data['step_size'])
+    #         precision = int(-math.log10(step_size))
+            
+    #         # Ensure the amount is a multiple of step_size
+    #         amount = round(amount, precision)
+            
+    #         if amount < min_qty:
+    #             print(f"The amount you entered ({amount}) is less than the minimum required by Binance for {symbol}: {min_qty}.")
+    #             return False
+    #         else:
+    #             print(f"The amount you entered ({amount}) is valid for {symbol}")
+    #             return True
+
     def check_amount_validity_once_binance(self, amount, symbol):
         if not self.checked_amount_validity_binance:
             market_data = self.exchange.get_market_data_binance(symbol)
             min_qty = float(market_data["min_qty"])
             step_size = float(market_data['step_size'])
+            
+            if step_size == 0.0:
+                print(f"Step size is zero for {symbol}. Cannot calculate precision.")
+                return False
+
             precision = int(-math.log10(step_size))
             
             # Ensure the amount is a multiple of step_size
@@ -262,7 +284,6 @@ class Strategy:
             else:
                 print(f"The amount you entered ({amount}) is valid for {symbol}")
                 return True
-
 
     def print_trade_quantities_once_bybit(self, max_trade_qty):
         if not self.printed_trade_quantities:

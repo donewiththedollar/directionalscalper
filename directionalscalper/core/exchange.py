@@ -10,7 +10,7 @@ from typing import Optional, Tuple, List
 from ccxt.base.errors import RateLimitExceeded
 from .strategies.logger import Logger
 
-logging = Logger(filename="exchange.log", stream=True)
+logging = Logger(logger_name="Exchange", filename="Exchange.log", stream=True)
 
 class Exchange:
     def __init__(self, exchange_id, api_key, secret_key, passphrase=None):

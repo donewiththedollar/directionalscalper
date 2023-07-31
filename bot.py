@@ -29,13 +29,10 @@ from directionalscalper.core.strategies.okx.okx_hedge import OKXHedgeStrategy
 from directionalscalper.core.strategies.bybit.bybit_hedge import BybitHedgeStrategy
 from directionalscalper.core.strategies.bybit.bybit_violent import BybitViolentHedgeStrategy
 from directionalscalper.core.strategies.bybit.bybit_hedge_unified import BybitHedgeUnifiedStrategy
-from directionalscalper.core.strategies.bybit.bybit_hedge_grid import BybitHedgeGridStrategy
 from directionalscalper.core.strategies.bybit.bybit_longonly import BybitLongStrategy
 from directionalscalper.core.strategies.bybit.bybit_shortonly import BybitShortStrategy
 from directionalscalper.core.strategies.bybit.bybit_longonly_dynamic_leverage import BybitLongOnlyDynamicLeverage
 from directionalscalper.core.strategies.bybit.bybit_shortonly_dynamic_leverage import BybitShortOnlyDynamicLeverage
-from directionalscalper.core.strategies.bybit.bybit_longonly_dynamic import BybitLongOnlyDynamic
-from directionalscalper.core.strategies.bybit.bybit_shortonly_dynamic import BybitShortOnlyDynamic
 from directionalscalper.core.strategies.bybit.bybit_auto_hedge import BybitAutoHedgeStrategy
 from directionalscalper.core.strategies.bybit.bybit_auto_hedge_maker import BybitAutoHedgeStrategyMaker
 from directionalscalper.core.strategies.bybit.bybit_auto_hedge_MFIRSI import BybitAutoHedgeStrategyMFIRSI
@@ -239,10 +236,6 @@ if __name__ == '__main__':
         elif strategy_name.lower() == 'bybit_hedge_mfirsi_maker':
             strategy = BybitAutoHedgeMFIRSIPostOnly(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
-
-        elif strategy_name.lower() == 'bybit_hedge_grid':
-            strategy = BybitHedgeGridStrategy(market_maker.exchange, market_maker.manager, config.bot)
-            strategy.run(symbol, amount)
 
         # Huobi strategies
         elif strategy_name.lower() == 'huobi_hedge':

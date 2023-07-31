@@ -8,7 +8,7 @@ import os
 import logging
 from ..logger import Logger
 
-logging = Logger(filename="bybitlongonly.log", stream=True)
+logging = Logger(logger_name="BybitLongOnly", filename="BybitLongOnly.log", stream=True)
 
 class BybitLongStrategy(Strategy):
     def __init__(self, exchange, manager, config):

@@ -13,7 +13,7 @@ import ta
 import logging
 from ..logger import Logger
 
-logging = Logger(filename="bybitmfirsicountertrade.log", stream=True)
+logging = Logger(logger_name="BybitMFIRSICountertrade", filename="BybitMFIRSICountertrade.log", stream=True)
 
 class BybitMFIRSICountertrade(Strategy):
     def __init__(self, exchange, manager, config):

@@ -6,7 +6,7 @@ from typing import Tuple
 import logging
 from ..logger import Logger
 
-logging = Logger(filename="bybitshortonly.log", stream=True)
+logging = Logger(logger_name="BybitShortOnly", filename="BybitShortOnly.log", stream=True)
 
 class BybitShortStrategy(Strategy):
     def __init__(self, exchange, manager, config):

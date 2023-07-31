@@ -9,7 +9,7 @@ from rich import box
 import logging
 from ..logger import Logger
 
-logging = Logger(filename="huobiautohedge.log", stream=True)
+logging = Logger(logger_name="HuobiAutoHedge", filename="HuobiAutoHedge.log", stream=True)
 
 class HuobiAutoHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):
