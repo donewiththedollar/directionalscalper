@@ -8,7 +8,7 @@ import os
 import logging
 from ..logger import Logger
 
-logging = Logger(filename="bybithedge.log", stream=True)
+logging = Logger(logger_name="BybitHedge", filename="BybitHedge.log", stream=True)
 
 class BybitHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):
