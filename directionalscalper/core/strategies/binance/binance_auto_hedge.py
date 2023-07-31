@@ -13,7 +13,7 @@ import os
 import logging
 from ..logger import Logger
 
-logging = Logger(filename="binanceautohedge.log", stream=True)
+logging = Logger(logger_name="BinanceAutoHedge", filename="binanceautohedge.log", stream=True)
 
 class BinanceAutoHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):
@@ -375,6 +375,8 @@ class BinanceAutoHedgeStrategy(Strategy):
                 ))
 
                 open_orders = self.exchange.get_open_orders_binance(symbol)
+
+                print(f"Open orders: {open_orders}")
 
                 self.binance_auto_hedge_entry(trend, one_minute_volume, five_minute_distance, min_vol, min_dist, should_long, 
                                             long_pos_qty, long_dynamic_amount, best_bid_price, long_pos_price,
