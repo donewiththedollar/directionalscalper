@@ -8,14 +8,11 @@ A hedge scalping strategy based on directional analysis using a quantitative app
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
 </p>
 
->  Working exchanges: Bybit, Bitget, Huobi
+>  Working exchanges: Bybit, Binance, Bitget, Huobi
  
->  Exchanges that are WIP: Binance, MEXC, Phemex
- 
->  Minor bugs: 
+>  Exchanges that are WIP: MEXC, Phemex
 
->> Huobi: Possible leverage issue per symbol
- 
+
 ### Links
 * Dashboard: https://tradesimple.xyz
 * APIv2: http://api.tradesimple.xyz/data/quantdatav2.json
@@ -111,12 +108,11 @@ Make sure you are in the directory directionalscalper
 ## Bybit
 * bybit_hedge
 * bybit_auto_hedge - Dynamic entry, take profit distance, position leverage per side. Table included.
+* bybit_auto_hedge_maker
 * bybit_hedge_mfirsi_maker - MFI, RSI, ERI, MA for entry. Pure maker, dynamic entry size, dynamic take profit based on 5m spread
 * bybit_hedge_mfirsionly_maker - MFIRSI only as entry. Pure maker, dynamic entry size, dynamic take profit based on 5m spread
 * bybit_longonly
 * bybit_shortonly
-* bybit_longonly_dynamic
-* bybit_shortonly_dynamic
 * bybit_longonly_dynamic_leverage
 * bybit_shortonly_dynamic_leverage
  
@@ -128,6 +124,7 @@ Make sure you are in the directory directionalscalper
  
 ## Huobi
 * huobi_hedge
+* huobi_auto_hedge
  
  
 ### Parameters
