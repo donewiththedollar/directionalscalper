@@ -134,6 +134,8 @@ class Manager:
                     return asset_data["1m 1x Volume (USDT)"]
                 if value == "5mVol" and "5m 1x Volume (USDT)" in asset_data:
                     return asset_data["5m 1x Volume (USDT)"]
+                if value == "1hVol" and "1m 1h Volume (USDT)" in asset_data:
+                    return asset_data["1h 1x Volume (USDT)"]
                 if value == "1mSpread" and "1m Spread" in asset_data:
                     return asset_data["1m Spread"]
                 if value == "5mSpread" and "5m Spread" in asset_data:
