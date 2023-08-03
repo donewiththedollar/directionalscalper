@@ -9,9 +9,8 @@
     "min_distance": 0.15,
     "min_distance_largecap": 0.085,
     "min_volume": 15000,
-    "symbol": "BTCUSDT",
-    "violent_multiplier": 2.00,
-    "wallet_exposure": 1.00
+    "wallet_exposure": 1.00,
+    "min_qty_threshold": 0
   },
   "exchanges": [
     {
