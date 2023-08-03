@@ -397,65 +397,6 @@ class Exchange:
             logging.info(f"An unknown error occurred in get_market_data_binance(): {e}")
         return values
 
-
-    # # Binance
-    # def get_market_data_binance(self, symbol: str) -> dict:
-    #     values = {"precision": 0.0, "leverage": 0.0, "min_qty": 0.0, "step_size": 0.0, "min_notional": 0.0}
-    #     try:
-    #         self.exchange.load_markets()
-    #         symbol_data = self.exchange.market(symbol)
-                
-    #         if "precision" in symbol_data:
-    #             values["precision"] = symbol_data["precision"]["price"]
-    #         if "limits" in symbol_data:
-    #             values["min_qty"] = symbol_data["limits"]["amount"]["min"]
-
-    #         # Fetch positions
-    #         positions = self.exchange.fetch_positions()
-
-    #         for position in positions:
-    #             if position['symbol'] == symbol:
-    #                 values["leverage"] = float(position['leverage'])
-
-    #         # Fetch step size and min notional
-    #         if "info" in symbol_data and "filters" in symbol_data["info"]:
-    #             for filter in symbol_data["info"]["filters"]:
-    #                 if filter['filterType'] == 'LOT_SIZE':
-    #                     values["step_size"] = filter['stepSize']
-    #                 if filter['filterType'] == 'MIN_NOTIONAL':
-    #                     values["min_notional"] = filter['minNotional']
-
-    #     except Exception as e:
-    #         logging.info(f"An unknown error occurred in get_market_data_binance(): {e}")
-    #     return values
-
-    # Binance
-    # def get_market_data_binance(self, symbol: str) -> dict:
-    #     values = {"precision": 0.0, "leverage": 0.0, "min_qty": 0.0, "step_size": 0.0}
-    #     try:
-    #         self.exchange.load_markets()
-    #         symbol_data = self.exchange.market(symbol)
-                
-    #         if "precision" in symbol_data:
-    #             values["precision"] = symbol_data["precision"]["price"]
-    #         if "limits" in symbol_data:
-    #             values["min_qty"] = symbol_data["limits"]["amount"]["min"]
-
-    #         # Fetch positions
-    #         positions = self.exchange.fetch_positions()
-
-    #         for position in positions:
-    #             if position['symbol'] == symbol:
-    #                 values["leverage"] = float(position['leverage'])
-
-    #         # Fetch step size
-    #         if "info" in symbol_data and "filters" in symbol_data["info"]:
-    #             values["step_size"] = next(filter['stepSize'] for filter in symbol_data["info"]["filters"] if filter['filterType'] == 'LOT_SIZE')
-
-    #     except Exception as e:
-    #         logging.info(f"An unknown error occurred in get_market_data_binance(): {e}")
-    #     return values
-
     def debug_binance_market_data(self, symbol: str) -> dict:
         try:
             self.exchange.load_markets()
@@ -2328,8 +2269,24 @@ class Exchange:
 
         return order
 
+    def create_normal_take_profit_order_binance(self, symbol, side, quantity, price, stopPrice):
+        params = {
+            'stopPrice': stopPrice,  # the price at which the order is triggered
+            'type': 'TAKE_PROFIT'  # specifies the type of the order
+        }
+        return self.exchange.create_order(symbol, 'limit', side, quantity, price, params)
+
     def binance_create_limit_order(self, symbol: str, side: str, amount: float, price: float, params={}):
         params["positionSide"] = "LONG" if side.lower() == "buy" else "SHORT"  # set positionSide parameter
+        try:
+            order = self.exchange.create_order(symbol, "limit", side, amount, price, params)
+            return order
+        except Exception as e:
+            print(f"An error occurred while creating the limit order: {e}")
+
+    def binance_create_limit_order_with_time_in_force(self, symbol: str, side: str, amount: float, price: float, time_in_force: str, params={}):
+        params["positionSide"] = "LONG" if side.lower() == "buy" else "SHORT"  # set positionSide parameter
+        params["timeInForce"] = time_in_force
         try:
             order = self.exchange.create_order(symbol, "limit", side, amount, price, params)
             return order
@@ -2346,6 +2303,39 @@ class Exchange:
             return order
         except Exception as e:
             print(f"An error occurred while creating the take-profit order: {e}")
+
+    def binance_create_limit_maker_order(self, symbol: str, side: str, amount: float, price: float):
+        try:
+            order_params = {
+                'timeInForce': 'GTC'
+            }
+            order = self.exchange.create_order(symbol, "LIMIT", side, amount, price, order_params)
+            return order
+        except Exception as e:
+            print(f"An error occurred while creating the limit maker order: {e}")
+
+    def binance_create_take_profit_limit_maker_order(self, symbol: str, side: str, amount: float, stop_price: float, price: float):
+        try:
+            order_params = {
+                'stopPrice': stop_price,
+                'timeInForce': 'GTC'
+            }
+            order = self.exchange.create_order(symbol, "TAKE_PROFIT", side, amount, price, order_params)
+            return order
+        except Exception as e:
+            print(f"An error occurred while creating the take profit limit maker order: {e}")
+
+    def binance_create_reduce_only_limit_order(self, symbol: str, side: str, amount: float, price: float):
+        try:
+            order_params = {
+                'reduceOnly': 'true',
+                'timeInForce': 'GTC'
+            }
+            order = self.exchange.create_order(symbol, "LIMIT", side, amount, price, order_params)
+            return order
+        except Exception as e:
+            raise Exception(f"An error occurred while creating the reduce only limit order: {e}") from e
+
 
     # def binance_create_take_profit_order(self, symbol: str, side: str, positionSide: str, amount: float, stopPrice: float, params={}):
     #     """

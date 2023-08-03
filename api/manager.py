@@ -80,6 +80,139 @@ class Manager:
         self.update_last_checked()
         return self.data
 
+
+    def get_auto_rotate_symbols(self, min_qty_threshold: float = None, whitelist: list = None, blacklist: list = None, max_symbols: int = 10):
+        symbols = []
+        try:
+            url = "http://api.tradesimple.xyz/data/rotatorsymbols.json"
+            log.debug(f"Sending request to {url}")
+            header, raw_json = send_public_request(url=url)
+            if isinstance(raw_json, list):
+                log.debug(f"Received {len(raw_json)} assets from API")
+                for asset in raw_json:
+                    symbol = asset.get("Asset", "")
+                    min_qty = asset.get("Min qty", 0)
+                    log.debug(f"Processing symbol {symbol} with min_qty {min_qty}")
+
+                    # Only consider the whitelist if it's not empty or None
+                    if whitelist and symbol not in whitelist and len(whitelist) > 0:
+                        log.debug(f"Skipping {symbol} as it's not in whitelist")
+                        continue
+
+                    # Consider the blacklist regardless of whether it's empty or not
+                    if blacklist and symbol in blacklist:
+                        log.debug(f"Skipping {symbol} as it's in blacklist")
+                        continue
+
+                    if min_qty_threshold is None or min_qty <= min_qty_threshold:
+                        symbols.append(symbol)
+
+                    # Break the loop if we've reached the maximum number of allowed symbols
+                    if len(symbols) >= max_symbols:
+                        break
+
+                log.debug(f"Returning {len(symbols)} symbols")
+                return symbols
+            else:
+                log.error("Unexpected data format. Expected a list of assets.")
+                return []
+        except requests.exceptions.RequestException as e:
+            log.error(f"Request failed: {e}")
+            return []
+        except json.decoder.JSONDecodeError as e:
+            log.error(f"Failed to parse JSON: {e}")
+            return []
+        except Exception as e:
+            log.error(f"Unexpected error occurred: {e}")
+            return []
+
+    # def get_auto_rotate_symbols(self, min_qty_threshold: float = None, whitelist: list = None, blacklist: list = None):
+    #     symbols = []
+    #     try:
+    #         url = "http://api.tradesimple.xyz/data/rotatorsymbols.json"
+    #         log.debug(f"Sending request to {url}")
+    #         header, raw_json = send_public_request(url=url)
+    #         if isinstance(raw_json, list):
+    #             log.debug(f"Received {len(raw_json)} assets from API")
+    #             for asset in raw_json:
+    #                 symbol = asset.get("Asset", "")
+    #                 min_qty = asset.get("Min qty", 0)
+    #                 log.debug(f"Processing symbol {symbol} with min_qty {min_qty}")
+
+    #                 # Only consider the whitelist if it's not empty or None
+    #                 if whitelist and symbol not in whitelist and len(whitelist) > 0:
+    #                     log.debug(f"Skipping {symbol} as it's not in whitelist")
+    #                     continue
+
+    #                 # Consider the blacklist regardless of whether it's empty or not
+    #                 if blacklist and symbol in blacklist:
+    #                     log.debug(f"Skipping {symbol} as it's in blacklist")
+    #                     continue
+
+    #                 if min_qty_threshold is None or min_qty <= min_qty_threshold:
+    #                     symbols.append(symbol)
+    #             log.debug(f"Returning {len(symbols)} symbols")
+    #             return symbols
+    #         else:
+    #             log.error("Unexpected data format. Expected a list of assets.")
+    #             return []
+    #     except requests.exceptions.RequestException as e:
+    #         log.error(f"Request failed: {e}")
+    #         return []
+    #     except json.decoder.JSONDecodeError as e:
+    #         log.error(f"Failed to parse JSON: {e}")
+    #         return []
+    #     except Exception as e:
+    #         log.error(f"Unexpected error occurred: {e}")
+    #         return []
+
+            
+    # Need to add a parameter to this for whitelist and blacklist which holds a list of symbols
+    # 
+    # def get_auto_rotate_symbols(self, min_qty_threshold: float = None):
+    #     symbols = []
+    #     try:
+    #         url = "http://api.tradesimple.xyz/data/rotatorsymbols.json"
+    #         header, raw_json = send_public_request(url=url)
+    #         if isinstance(raw_json, list):
+    #             for asset in raw_json:
+    #                 min_qty = asset.get("Min qty", 0)
+    #                 if min_qty_threshold is None or min_qty <= min_qty_threshold:
+    #                     symbols.append(asset.get("Asset", ""))
+    #             return symbols
+    #         else:
+    #             log.error("Unexpected data format. Expected a list of assets.")
+    #             return []
+    #     except requests.exceptions.RequestException as e:
+    #         log.error(f"Request failed: {e}")
+    #         return []
+    #     except json.decoder.JSONDecodeError as e:
+    #         log.error(f"Failed to parse JSON: {e}")
+    #         return []
+    #     except Exception as e:
+    #         log.error(f"Unexpected error occurred: {e}")
+    #         return []
+
+
+    def get_symbols(self):
+        url = "http://api.tradesimple.xyz/data/rotatorsymbols.json"
+        try:
+            header, raw_json = send_public_request(url=url)
+            if isinstance(raw_json, list):
+                return raw_json
+            else:
+                log.error("Unexpected data format. Expected a list of symbols.")
+                return []
+        except requests.exceptions.RequestException as e:
+            log.error(f"Request failed: {e}")
+            return []
+        except json.decoder.JSONDecodeError as e:
+            log.error(f"Failed to parse JSON: {e}")
+            return []
+        except Exception as e:
+            log.error(f"Unexpected error occurred: {e}")
+            return []
+
     # def get_remote_data(self):
     #     if not self.check_timestamp():
     #         return self.data
