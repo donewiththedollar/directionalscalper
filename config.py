@@ -29,7 +29,7 @@ class Bot(BaseModel):
     min_distance: float = 0.15
     min_distance_largecap: float = 0.085
     min_volume: int = 15000
-    min_qty_threshold: float = 0.001
+    min_qty_threshold: float = 0
     symbol: str
     violent_multiplier: float = 2.00
     wallet_exposure: float = 1.00
