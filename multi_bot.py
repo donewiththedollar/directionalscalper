@@ -18,7 +18,7 @@ from directionalscalper.core.exchange import Exchange
 from directionalscalper.core.strategies.strategy import Strategy
 # Bybit rotator
 from directionalscalper.core.strategies.bybit.bybit_auto_rotator import BybitAutoRotator
-
+from directionalscalper.core.strategies.bybit.bybit_auto_rotator_mfirsi import BybitAutoRotatorMFIRSI
 
 class DirectionalMarketMaker:
     def __init__(self, config: Config, exchange_name: str):
@@ -44,6 +44,9 @@ class DirectionalMarketMaker:
             strategy = BybitAutoRotator(self.exchange, self.manager, config.bot)
             print(f"Calling run method with symbols: {symbols}")
             strategy.run(symbol)
+        elif strategy_name.lower() == 'bybit_hedge_rotator_mfirsi':
+            strategy = BybitAutoRotatorMFIRSI(self.exchange, self.manager, config.bot)
+            strategy.run(symbol)
 
     def get_balance(self, quote, market_type=None, sub_type=None):
         if self.exchange_name == 'bitget':
@@ -66,6 +69,36 @@ class DirectionalMarketMaker:
 
     def get_symbols(self):
         return self.exchange.symbols
+
+# def run_bot(symbol, args):
+#     config_file_path = Path('configs/' + args.config)
+#     print("Loading config from:", config_file_path)
+#     config = load_config(config_file_path)
+
+#     exchange_name = args.exchange
+#     strategy_name = args.strategy
+#     amount = args.amount
+
+#     print(f"Symbol: {symbol}")
+#     print(f"Exchange name: {exchange_name}")
+#     print(f"Strategy name: {strategy_name}")
+
+#     market_maker = DirectionalMarketMaker(config, exchange_name)
+#     manager = Manager(market_maker.exchange, api=config.api.mode, path=Path("data", config.api.filename), url=f"{config.api.url}{config.api.filename}")
+#     market_maker.manager = manager 
+
+
+#     quote = "USDT"
+#     if exchange_name.lower() == 'huobi':
+#         print(f"Loading huobi strategy..")
+#     elif exchange_name.lower() == 'mexc':
+#         balance = market_maker.get_balance(quote, type='swap')
+#         print(f"Futures balance: {balance}")
+#     else:
+#         balance = market_maker.get_balance(quote)
+#         print(f"Futures balance: {balance}")
+
+#     market_maker.run_strategy(symbol, strategy_name, config)  # Calling the run_strategy method
 
 def run_bot(symbol, args, manager):
     config_file_path = Path('configs/' + args.config)
@@ -93,7 +126,7 @@ def run_bot(symbol, args, manager):
         balance = market_maker.get_balance(quote)
         print(f"Futures balance: {balance}")
 
-    market_maker.run_strategy(symbol, strategy_name, config)
+    market_maker.run_strategy(symbol, strategy_name, config)  # Calling the run_strategy method
 
 
 if __name__ == '__main__':
