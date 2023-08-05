@@ -37,6 +37,7 @@ from directionalscalper.core.strategies.bybit.bybit_auto_hedge import BybitAutoH
 from directionalscalper.core.strategies.bybit.bybit_auto_hedge_maker import BybitAutoHedgeStrategyMaker
 from directionalscalper.core.strategies.bybit.bybit_auto_hedge_maker_mfirsi import BybitAutoHedgeStrategyMakerMFIRSI
 from directionalscalper.core.strategies.bybit.bybit_auto_hedge_MFIRSI import BybitAutoHedgeStrategyMFIRSI
+from directionalscalper.core.strategies.bybit.bybit_auto_hedge_maker_eri_trend import BybitAutoHedgeStrategyMakerERITrend
 from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trigger import BybitHedgeMFIRSITrigger
 from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trenderi_maker import BybitAutoHedgeMFIRSIPostOnly
 from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trend_maker import BybitAutoHedgeMFIRSITrendMaker
@@ -204,6 +205,10 @@ if __name__ == '__main__':
 
         elif strategy_name.lower() == 'bybit_auto_hedge_maker_v2':
             strategy = BybitAutoHedgeStrategyMakerMFIRSI(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol)
+
+        elif strategy_name.lower() == 'bybit_auto_hedge_maker_eritrend':
+            strategy = BybitAutoHedgeStrategyMakerERITrend(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
 
         elif strategy_name.lower() == 'bybit_hedge_maker_mfirsi_trend':
