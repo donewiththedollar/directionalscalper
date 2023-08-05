@@ -11,7 +11,9 @@
     "min_distance_largecap": 0.085,
     "min_volume": 15000,
     "wallet_exposure": 1.00,
-    "min_qty_threshold": 0
+    "min_qty_threshold": 0,
+    "whitelist": ["ORDIUSDT", "1000PEPEUSDT", "MINAUSDT", "ILVUSDT", "YGGUSDT", "XRPUSDT", "MATICUSDT", "INJUSDT", "LTCUSDT", "AVAXUSDT", "DOTUSDT", "ATOMUSDT", "ETCUSDT", "SHIB1000USDT", "UNIUSDT", "FILUSDT", "APTUSDT", "ARBUSDT", "XLMUSDT", "NEARUSDT", "OPUSDT", "ALGOUSDT", "SANDUSDT", "MANAUSDT", "FTMUSDT", "CTSIUSDT", "COMPUSDT", "STMXUSDT", "APEUSDT"],
+    "blacklist": ["BTCUSDT", "ETHUSDT"]
   },
   "exchanges": [
     {
