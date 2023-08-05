@@ -15,8 +15,6 @@ from ..logger import Logger
 
 logging = Logger(logger_name="BybitAutoHedgeMFIRSIMaker", filename="BybitAutoHedgeMFIRSIMaker.log", stream=True)
 
-
-
 class BybitAutoHedgeMFIRSIPostOnly(Strategy):
     def __init__(self, exchange, manager, config):
         super().__init__(exchange, config, manager)
@@ -341,7 +339,7 @@ class BybitAutoHedgeMFIRSIPostOnly(Strategy):
                 open_orders = self.exchange.get_open_orders(symbol)
 
                 # Entry logic
-                self.bybit_hedge_entry_maker_mfirsitrend(symbol, data, min_vol, min_dist, one_minute_volume, five_minute_distance, 
+                self.bybit_hedge_entry_maker_mfirsitrenderi(symbol, data, min_vol, min_dist, one_minute_volume, five_minute_distance, 
                                                         eri_trend, open_orders, long_pos_qty, should_add_to_long, 
                                                         self.max_long_trade_qty, best_bid_price, long_pos_price, long_dynamic_amount,
                                                         short_pos_qty, should_add_to_short, self.max_short_trade_qty, 

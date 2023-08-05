@@ -70,36 +70,6 @@ class DirectionalMarketMaker:
     def get_symbols(self):
         return self.exchange.symbols
 
-# def run_bot(symbol, args):
-#     config_file_path = Path('configs/' + args.config)
-#     print("Loading config from:", config_file_path)
-#     config = load_config(config_file_path)
-
-#     exchange_name = args.exchange
-#     strategy_name = args.strategy
-#     amount = args.amount
-
-#     print(f"Symbol: {symbol}")
-#     print(f"Exchange name: {exchange_name}")
-#     print(f"Strategy name: {strategy_name}")
-
-#     market_maker = DirectionalMarketMaker(config, exchange_name)
-#     manager = Manager(market_maker.exchange, api=config.api.mode, path=Path("data", config.api.filename), url=f"{config.api.url}{config.api.filename}")
-#     market_maker.manager = manager 
-
-
-#     quote = "USDT"
-#     if exchange_name.lower() == 'huobi':
-#         print(f"Loading huobi strategy..")
-#     elif exchange_name.lower() == 'mexc':
-#         balance = market_maker.get_balance(quote, type='swap')
-#         print(f"Futures balance: {balance}")
-#     else:
-#         balance = market_maker.get_balance(quote)
-#         print(f"Futures balance: {balance}")
-
-#     market_maker.run_strategy(symbol, strategy_name, config)  # Calling the run_strategy method
-
 def run_bot(symbol, args, manager):
     config_file_path = Path('configs/' + args.config)
     print("Loading config from:", config_file_path)
@@ -144,7 +114,8 @@ if __name__ == '__main__':
     market_maker = DirectionalMarketMaker(config, exchange_name)
     manager = Manager(market_maker.exchange, api=config.api.mode, path=Path("data", config.api.filename), url=f"{config.api.url}{config.api.filename}")
     
-    whitelist = ['ILVUSDT', 'YGGUSDT', 'XRPUSDT, MATICUSDT, INJUSDT, LTCUSDT, AVAXUSDT, DOTUSDT, ATOMUSDT, ETCUSDT, SHIB1000USDT, UNIUSDT, FILUSDT, APTUSDT, ARBUSDT, XLMUSDT, NEARUSDT, OPUSDT, ALGOUSDT, SANDUSDT, MANAUSDT, FTMUSDT, CTSIUSDT', 'COMPUSDT', 'STMXUSDT', 'APEUSDT']  # Symbols that you want to include
+
+    whitelist = ['1000PEPEUSDT', 'MINAUSDT', 'ILVUSDT', 'YGGUSDT', 'XRPUSDT, MATICUSDT, INJUSDT, LTCUSDT, AVAXUSDT, DOTUSDT, ATOMUSDT, ETCUSDT, SHIB1000USDT, UNIUSDT, FILUSDT, APTUSDT, ARBUSDT, XLMUSDT, NEARUSDT, OPUSDT, ALGOUSDT, SANDUSDT, MANAUSDT, FTMUSDT, CTSIUSDT', 'COMPUSDT', 'STMXUSDT', 'APEUSDT']  # Symbols that you want to include]
     blacklist = ['BTCUSDT', 'ETHUSDT']  # Symbols that you want to exclude
 
     symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist)

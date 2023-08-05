@@ -980,6 +980,33 @@ class Strategy:
                             logging.info(f"Placed additional short entry")
                             self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
+
+    # Revised consistent maker strategy using MA Trend OR MFI as well while maintaining same original MA logic
+    def bybit_hedge_entry_maker_v2(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
+        best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+        best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+
+        if one_minute_volume is not None and five_minute_distance is not None:
+            if one_minute_volume > min_vol and five_minute_distance > min_dist:
+
+                if (trend.lower() == "long" or mfi.lower() == "long") and should_long and long_pos_qty == 0:
+                    logging.info(f"Placing initial long entry")
+                    self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                    logging.info(f"Placed initial long entry")
+                else:
+                    if (trend.lower() == "long" or mfi.lower() == "long") and should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price:
+                        logging.info(f"Placing additional long entry")
+                        self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+
+                if (trend.lower() == "short" or mfi.lower() == "short") and should_short and short_pos_qty == 0:
+                    logging.info(f"Placing initial short entry")
+                    self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                    logging.info("Placed initial short entry")
+                else:
+                    if (trend.lower() == "short" or mfi.lower() == "short") and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price:
+                        logging.info(f"Placing additional short entry")
+                        self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+
 # Bybit update take profit based on time and spread
 
     def update_take_profit_spread_bybit(self, symbol, pos_qty, take_profit_price, positionIdx, order_side, open_orders, next_tp_update):
@@ -1057,7 +1084,7 @@ class Strategy:
 
 # Bybit MFI ERI Trend entry logic
 
-    def bybit_hedge_entry_maker_mfirsitrend(self, symbol, data, min_vol, min_dist, one_minute_volume, five_minute_distance, 
+    def bybit_hedge_entry_maker_mfirsitrenderi(self, symbol, data, min_vol, min_dist, one_minute_volume, five_minute_distance, 
                                            eri_trend, open_orders, long_pos_qty, should_add_to_long, 
                                            max_long_trade_qty, best_bid_price, long_pos_price, long_dynamic_amount,
                                            short_pos_qty, should_add_to_short, max_short_trade_qty, 
@@ -1079,7 +1106,6 @@ class Strategy:
                             if existing_order is None or existing_order['price'] != best_bid_price:
                                 if existing_order is not None:
                                     self.exchange.cancel_order_by_id(existing_order['id'], symbol)
-                                    time.sleep(0.05)
                                 logging.info(f"Placing long entry")
                                 self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
                                 logging.info(f"Placed long entry")
@@ -1091,11 +1117,77 @@ class Strategy:
                             if existing_order is None or existing_order['price'] != best_ask_price:
                                 if existing_order is not None:
                                     self.exchange.cancel_order_by_id(existing_order['id'], symbol)
-                                    time.sleep(0.05)
                                 logging.info(f"Placing short entry")
                                 self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
                                 logging.info(f"Placed short entry")
-                                time.sleep(0.05)
+
+    def bybit_hedge_entry_maker_mfirsitrend(self, symbol, data, min_vol, min_dist, one_minute_volume, five_minute_distance, 
+                                            open_orders, long_pos_qty, should_add_to_long, 
+                                           max_long_trade_qty, best_bid_price, long_pos_price, long_dynamic_amount,
+                                           short_pos_qty, should_long: bool, should_short: bool, should_add_to_short, max_short_trade_qty, 
+                                           best_ask_price, short_pos_price, short_dynamic_amount):
+
+        if one_minute_volume is not None and five_minute_distance is not None:
+            if one_minute_volume > min_vol and five_minute_distance > min_dist:
+                mfi = self.manager.get_asset_value(symbol, data, "MFI")
+                trend = self.manager.get_asset_value(symbol, data, "Trend")
+
+                if mfi is not None and isinstance(mfi, str):
+                    if mfi.lower() == "neutral":
+                        mfi = trend
+
+                    # Place long orders when MFI is long and ERI trend is bearish
+                    if (mfi.lower() == "long" and trend.lower() == "long"):
+                        existing_order = next((o for o in open_orders if o['side'] == 'Buy' and o['position_idx'] == 1), None)
+                        if (should_long and long_pos_qty == 0) or (should_add_to_long and long_pos_qty < max_long_trade_qty and best_bid_price < long_pos_price):
+                            if existing_order is None or existing_order['price'] != best_bid_price:
+                                if existing_order is not None:
+                                    self.exchange.cancel_order_by_id(existing_order['id'], symbol)
+                                logging.info(f"Placing long entry")
+                                self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                                logging.info(f"Placed long entry")
+
+                    # Place short orders when MFI is short and ERI trend is bullish
+                    if (mfi.lower() == "short" and trend.lower() == "short"):
+                        existing_order = next((o for o in open_orders if o['side'] == 'Sell' and o['position_idx'] == 2), None)
+                        if (should_short and short_pos_qty == 0) or (should_add_to_short and short_pos_qty < max_short_trade_qty and best_ask_price > short_pos_price):
+                            if existing_order is None or existing_order['price'] != best_ask_price:
+                                if existing_order is not None:
+                                    self.exchange.cancel_order_by_id(existing_order['id'], symbol)
+                                logging.info(f"Placing short entry")
+                                self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                                logging.info(f"Placed short entry")
+
+        # if one_minute_volume is not None and five_minute_distance is not None:
+        #     if one_minute_volume > min_vol and five_minute_distance > min_dist:
+        #         mfi = self.manager.get_asset_value(symbol, data, "MFI")
+        #         trend = self.manager.get_asset_value(symbol, data, "Trend")
+
+        #         if mfi is not None and isinstance(mfi, str):
+        #             if mfi.lower() == "neutral":
+        #                 mfi = trend
+
+        #             # Place long orders when MFI is long and ERI trend is bearish
+        #             if (mfi.lower() == "long" and trend.lower() == "long"):
+        #                 existing_order = next((o for o in open_orders if o['side'] == 'Buy' and o['position_idx'] == 1), None)
+        #                 if long_pos_qty == 0 or (should_add_to_long and long_pos_qty < max_long_trade_qty and best_bid_price < long_pos_price):
+        #                     if existing_order is None or existing_order['price'] != best_bid_price:
+        #                         if existing_order is not None:
+        #                             self.exchange.cancel_order_by_id(existing_order['id'], symbol)
+        #                         logging.info(f"Placing long entry")
+        #                         self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+        #                         logging.info(f"Placed long entry")
+
+        #             # Place short orders when MFI is short and ERI trend is bullish
+        #             if (mfi.lower() == "short" and trend.lower() == "short"):
+        #                 existing_order = next((o for o in open_orders if o['side'] == 'Sell' and o['position_idx'] == 2), None)
+        #                 if short_pos_qty == 0 or (should_add_to_short and short_pos_qty < max_short_trade_qty and best_ask_price > short_pos_price):
+        #                     if existing_order is None or existing_order['price'] != best_ask_price:
+        #                         if existing_order is not None:
+        #                             self.exchange.cancel_order_by_id(existing_order['id'], symbol)
+        #                         logging.info(f"Placing short entry")
+        #                         self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+        #                         logging.info(f"Placed short entry")
 
 # Bybit MFIRSI only entry logic
 
@@ -1111,20 +1203,16 @@ class Strategy:
                         logging.info(f"Placing initial long entry with post-only order")
                         self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1)
                         logging.info(f"Placed initial long entry with post-only order")
-                        time.sleep(0.05)
                     elif mfi.lower() == "long" and long_pos_qty < max_long_trade_qty and best_bid_price < long_pos_price:
                         logging.info(f"Placing additional long entry with post-only order")
                         self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1)
-                        time.sleep(0.05)
                     elif mfi.lower() == "short" and short_pos_qty == 0:
                         logging.info(f"Placing initial short entry with post-only order")
                         self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2)
                         logging.info(f"Placed initial short entry with post-only order")
-                        time.sleep(0.05)
                     elif mfi.lower() == "short" and short_pos_qty < max_short_trade_qty and best_ask_price > short_pos_price:
                         logging.info(f"Placing additional short entry with post-only order")
                         self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2)
-                        time.sleep(0.05)
 
 # Bybit position leverage management
 

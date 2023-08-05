@@ -35,11 +35,13 @@ from directionalscalper.core.strategies.bybit.bybit_longonly_dynamic_leverage im
 from directionalscalper.core.strategies.bybit.bybit_shortonly_dynamic_leverage import BybitShortOnlyDynamicLeverage
 from directionalscalper.core.strategies.bybit.bybit_auto_hedge import BybitAutoHedgeStrategy
 from directionalscalper.core.strategies.bybit.bybit_auto_hedge_maker import BybitAutoHedgeStrategyMaker
+from directionalscalper.core.strategies.bybit.bybit_auto_hedge_maker_mfirsi import BybitAutoHedgeStrategyMakerMFIRSI
 from directionalscalper.core.strategies.bybit.bybit_auto_hedge_MFIRSI import BybitAutoHedgeStrategyMFIRSI
 from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trigger import BybitHedgeMFIRSITrigger
 from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_countertrade import BybitMFIRSICountertrade
 from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trigger_countertrade import BybitHedgeMFIRSITriggerCountertrade
-from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_postonly import BybitAutoHedgeMFIRSIPostOnly
+from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trenderi_maker import BybitAutoHedgeMFIRSIPostOnly
+from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trend_maker import BybitAutoHedgeMFIRSITrendMaker
 from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trigger_postonly import BybitHedgeMFIRSITriggerPostOnly
 from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trigger_postonly_avoidfees import BybitHedgeMFIRSITriggerPostOnlyAvoidFees
 # HUOBI
@@ -200,6 +202,14 @@ if __name__ == '__main__':
 
         elif strategy_name.lower() == 'bybit_auto_hedge_maker':
             strategy = BybitAutoHedgeStrategyMaker(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol)
+
+        elif strategy_name.lower() == 'bybit_auto_hedge_maker_v2':
+            strategy = BybitAutoHedgeStrategyMakerMFIRSI(market_maker.exchange, market_maker.manager, config.bot)
+            strategy.run(symbol)
+
+        elif strategy_name.lower() == 'bybit_hedge_maker_mfirsi_trend':
+            strategy = BybitAutoHedgeMFIRSITrendMaker(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
 
         elif strategy_name.lower() == 'bybit_auto_hedge_mfi':
