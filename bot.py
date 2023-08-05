@@ -38,8 +38,6 @@ from directionalscalper.core.strategies.bybit.bybit_auto_hedge_maker import Bybi
 from directionalscalper.core.strategies.bybit.bybit_auto_hedge_maker_mfirsi import BybitAutoHedgeStrategyMakerMFIRSI
 from directionalscalper.core.strategies.bybit.bybit_auto_hedge_MFIRSI import BybitAutoHedgeStrategyMFIRSI
 from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trigger import BybitHedgeMFIRSITrigger
-from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_countertrade import BybitMFIRSICountertrade
-from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trigger_countertrade import BybitHedgeMFIRSITriggerCountertrade
 from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trenderi_maker import BybitAutoHedgeMFIRSIPostOnly
 from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trend_maker import BybitAutoHedgeMFIRSITrendMaker
 from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trigger_postonly import BybitHedgeMFIRSITriggerPostOnly
@@ -226,14 +224,6 @@ if __name__ == '__main__':
     
         elif strategy_name.lower() == 'bybit_hedge_mfirsionly_maker_avoidfees':
             strategy = BybitHedgeMFIRSITriggerPostOnlyAvoidFees(market_maker.exchange, market_maker.manager, config.bot)
-            strategy.run(symbol)
-
-        elif strategy_name.lower() == 'bybit_mfirsi_counter':
-            strategy = BybitMFIRSICountertrade(market_maker.exchange, market_maker.manager, config.bot)
-            strategy.run(symbol)
-
-        elif strategy_name.lower() == 'bybit_mfirsi_trigger_counter':
-            strategy = BybitHedgeMFIRSITriggerCountertrade(market_maker.exchange, market_maker.manager, config.bot)
             strategy.run(symbol)
 
         elif strategy_name.lower() == 'bybit_hedge_mfirsi_maker':
