@@ -119,7 +119,7 @@ if __name__ == '__main__':
     manager = Manager(market_maker.exchange, api=config.api.mode, path=Path("data", config.api.filename), url=f"{config.api.url}{config.api.filename}")
     
 
-    whitelist = ['1000PEPEUSDT', 'MINAUSDT', 'ILVUSDT', 'YGGUSDT', 'XRPUSDT, MATICUSDT, INJUSDT, LTCUSDT, AVAXUSDT, DOTUSDT, ATOMUSDT, ETCUSDT, SHIB1000USDT, UNIUSDT, FILUSDT, APTUSDT, ARBUSDT, XLMUSDT, NEARUSDT, OPUSDT, ALGOUSDT, SANDUSDT, MANAUSDT, FTMUSDT, CTSIUSDT', 'COMPUSDT', 'STMXUSDT', 'APEUSDT']  # Symbols that you want to include]
+    whitelist = ['ORDIUSDT', '1000PEPEUSDT', 'MINAUSDT', 'ILVUSDT', 'YGGUSDT', 'XRPUSDT, MATICUSDT, INJUSDT, LTCUSDT, AVAXUSDT, DOTUSDT, ATOMUSDT, ETCUSDT, SHIB1000USDT, UNIUSDT, FILUSDT, APTUSDT, ARBUSDT, XLMUSDT, NEARUSDT, OPUSDT, ALGOUSDT, SANDUSDT, MANAUSDT, FTMUSDT, CTSIUSDT', 'COMPUSDT', 'STMXUSDT', 'APEUSDT']  # Symbols that you want to include]
     blacklist = ['BTCUSDT', 'ETHUSDT']  # Symbols that you want to exclude
 
     symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist)
