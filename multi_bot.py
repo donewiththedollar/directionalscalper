@@ -19,6 +19,7 @@ from directionalscalper.core.strategies.strategy import Strategy
 # Bybit rotator
 from directionalscalper.core.strategies.bybit.bybit_auto_rotator import BybitAutoRotator
 from directionalscalper.core.strategies.bybit.bybit_auto_rotator_mfirsi import BybitAutoRotatorMFIRSI
+from directionalscalper.core.strategies.bybit.bybit_auto_hedge_maker_mfirsi_rotator import BybitAutoHedgeStrategyMakerMFIRSIRotator
 
 class DirectionalMarketMaker:
     def __init__(self, config: Config, exchange_name: str):
@@ -45,6 +46,9 @@ class DirectionalMarketMaker:
             print(f"Calling run method with symbols: {symbols}")
             strategy.run(symbol)
         elif strategy_name.lower() == 'bybit_hedge_rotator_mfirsi':
+            strategy = BybitAutoRotatorMFIRSI(self.exchange, self.manager, config.bot)
+            strategy.run(symbol)
+        elif strategy_name.lower() == 'bybit_auto_hedge_mfi_rotator':
             strategy = BybitAutoRotatorMFIRSI(self.exchange, self.manager, config.bot)
             strategy.run(symbol)
 
