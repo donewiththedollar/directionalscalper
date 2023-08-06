@@ -42,6 +42,7 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
         self.long_leverage_increased = False
         self.short_leverage_increased = False
         self.version = "2.0.6"
+        self.rows = {}
 
 
     # def generate_main_table(self, symbol_data):
