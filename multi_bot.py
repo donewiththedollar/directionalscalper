@@ -49,7 +49,7 @@ class DirectionalMarketMaker:
             strategy = BybitAutoRotatorMFIRSI(self.exchange, self.manager, config.bot)
             strategy.run(symbol)
         elif strategy_name.lower() == 'bybit_auto_hedge_mfi_rotator':
-            strategy = BybitAutoRotatorMFIRSI(self.exchange, self.manager, config.bot)
+            strategy = BybitAutoHedgeStrategyMakerMFIRSIRotator(self.exchange, self.manager, config.bot)
             strategy.run(symbol)
 
     def get_balance(self, quote, market_type=None, sub_type=None):
@@ -118,10 +118,6 @@ if __name__ == '__main__':
     market_maker = DirectionalMarketMaker(config, exchange_name)
     manager = Manager(market_maker.exchange, api=config.api.mode, path=Path("data", config.api.filename), url=f"{config.api.url}{config.api.filename}")
     
-
-    # whitelist = ['ORDIUSDT', '1000PEPEUSDT', 'MINAUSDT', 'ILVUSDT', 'YGGUSDT', 'XRPUSDT, MATICUSDT, INJUSDT, LTCUSDT, AVAXUSDT, DOTUSDT, ATOMUSDT, ETCUSDT, SHIB1000USDT, UNIUSDT, FILUSDT, APTUSDT, ARBUSDT, XLMUSDT, NEARUSDT, OPUSDT, ALGOUSDT, SANDUSDT, MANAUSDT, FTMUSDT, CTSIUSDT', 'COMPUSDT', 'STMXUSDT', 'APEUSDT']  # Symbols that you want to include]
-    # blacklist = ['BTCUSDT', 'ETHUSDT']  # Symbols that you want to exclude
-
     whitelist = config.bot.whitelist
     blacklist = config.bot.blacklist
 
