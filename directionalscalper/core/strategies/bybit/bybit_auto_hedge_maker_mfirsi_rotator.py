@@ -1,6 +1,6 @@
 import time
 import math
-from threading import Thread
+from threading import Thread, Lock
 from ..strategy import Strategy
 from datetime import datetime, timedelta
 from typing import Tuple
@@ -42,6 +42,7 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
         self.long_leverage_increased = False
         self.short_leverage_increased = False
         self.version = "2.0.6"
+        self.lock = Lock()
         self.rows = {}
         # Recreate the table
         self.table = Table(header_style="bold magenta", title=f"Directional Scalper MFIRSI {self.version}")
@@ -208,16 +209,26 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
     #         logging.info(f"Exception caught {e}")
     #         return Table()
 
-    def run(self, symbol):
-        threads = [Thread(target=self.run_single_symbol, args=(symbol,))]
+    def run(self, symbols):
+        threads = [Thread(target=self.run_single_symbol, args=(symbol, self.lock)) for symbol in symbols]
 
         for thread in threads:
             thread.start()
 
         for thread in threads:
             thread.join()
+
+    # def run(self, symbol):
+    #     threads = [Thread(target=self.run_single_symbol, args=(symbol,))]
+
+    #     for thread in threads:
+    #         thread.start()
+
+    #     for thread in threads:
+    #         thread.join()
             
-    def run_single_symbol(self, symbol):
+    #def run_single_symbol(self, symbol):
+    def run_single_symbol(self, symbol, lock):
         print(f"Running for symbol (inside run_single_symbol method): {symbol}")
         console = Console()
         live = Live(console=console, refresh_per_second=10)
@@ -465,8 +476,20 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
                     # ... continue adding all parameters ...
                 }
 
-                # Generate and update the table
-                live.update(self.generate_main_table(symbol_data))
+                # # Generate and update the table
+                # live.update(self.generate_main_table(symbol_data))
+
+                # Acquire the lock before updating the table
+                lock.acquire()
+                try:
+                    # Update the table data for this symbol
+                    self.generate_main_table(symbol_data)
+
+                    # Update the live table
+                    live.update(self.table)
+                finally:
+                    # Release the lock
+                    lock.release()
                 
                 # symbol_data = {
                 #     'symbol': symbol,
