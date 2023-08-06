@@ -62,17 +62,15 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
         self.table.add_column("Long Pos. Price")
         self.table.add_column("Short Pos. Price")
 
+
     def generate_main_table(self, symbol_data):
         try:
             symbol = symbol_data['symbol']
 
-            # If symbol not in table yet, add a new row for it
-            if symbol not in self.all_symbol_data:
-                self.table.add_row(*["N/A"]*16)  # Assuming you have 16 columns
-
-            # Update the symbol_data for this symbol
-            self.all_symbol_data[symbol] = [
+            # Create row data
+            row_data = [
                 symbol,
+                str(symbol_data['min_qty']),
                 str(symbol_data['min_qty']),
                 str(symbol_data['current_price']),
                 str(symbol_data['balance']),
@@ -91,16 +89,21 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
                 # ... convert all symbol_data values to string and add them here ...
             ]
 
-            # Update the row for this symbol in the table
-            for i, row in enumerate(self.table.rows):
-                if row[0] == symbol:  # assuming symbol is the first column
-                    self.table.rows[i] = self.all_symbol_data[symbol]
+            # If symbol not in table yet, add a new row for it
+            if symbol not in self.all_symbol_data:
+                new_row = self.table.add_row(*row_data)
+                self.all_symbol_data[symbol] = new_row
+            else:
+                # Update the row for this symbol in the table
+                row = self.all_symbol_data[symbol]
+                for i, cell in enumerate(row.cells):
+                    cell.text = row_data[i]
 
             return self.table
         except Exception as e:
             logging.info(f"Exception caught {e}")
             return Table()
-
+        
     # def generate_main_table(self, symbol_data):
     #     try:
     #         symbol = symbol_data['symbol']
