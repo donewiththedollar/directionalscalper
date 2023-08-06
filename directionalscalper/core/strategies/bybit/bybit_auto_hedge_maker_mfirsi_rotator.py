@@ -43,48 +43,59 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
         self.short_leverage_increased = False
         self.version = "2.0.6"
         self.rows = {}
+        # Recreate the table
+        self.table = Table(header_style="bold magenta", title=f"Directional Scalper MFIRSI {self.version}")
+        self.table.add_column("Symbol")
+        self.table.add_column("Min. Qty")
+        self.table.add_column("Price")
+        self.table.add_column("Balance")
+        self.table.add_column("Available Bal.")
+        self.table.add_column("1m Vol")
+        self.table.add_column("5m Spread")
+        self.table.add_column("Trend")
+        self.table.add_column("Long Pos. Qty")
+        self.table.add_column("Short Pos. Qty")
+        self.table.add_column("Long uPNL")
+        self.table.add_column("Short uPNL")
+        self.table.add_column("Long cum. uPNL")
+        self.table.add_column("Short cum. uPNL")
+        self.table.add_column("Long Pos. Price")
+        self.table.add_column("Short Pos. Price")
 
-    def generate_main_table(self):
+    def generate_main_table(self, symbol_data):
         try:
-            # Recreate the table
-            self.table = Table(header_style="bold magenta", title=f"Directional Scalper MFIRSI {self.version}")
-            self.table.add_column("Symbol")
-            self.table.add_column("Min. Qty")
-            self.table.add_column("Price")
-            self.table.add_column("Balance")
-            self.table.add_column("Available Bal.")
-            self.table.add_column("1m Vol")
-            self.table.add_column("5m Spread")
-            self.table.add_column("Trend")
-            self.table.add_column("Long Pos. Qty")
-            self.table.add_column("Short Pos. Qty")
-            self.table.add_column("Long uPNL")
-            self.table.add_column("Short uPNL")
-            self.table.add_column("Long cum. uPNL")
-            self.table.add_column("Short cum. uPNL")
-            self.table.add_column("Long Pos. Price")
-            self.table.add_column("Short Pos. Price")
+            symbol = symbol_data['symbol']
 
-            # Iterate over all_symbol_data to generate the table rows
-            for symbol, symbol_data in self.all_symbol_data.items():
-                self.table.add_row(
-                    symbol,
-                    str(symbol_data['min_qty']),
-                    str(symbol_data['current_price']),
-                    str(symbol_data['balance']),
-                    str(symbol_data['available_bal']),
-                    str(symbol_data['volume']),
-                    str(symbol_data['spread']),
-                    str(symbol_data['trend']),
-                    str(symbol_data['long_pos_qty']),
-                    str(symbol_data['short_pos_qty']),
-                    str(symbol_data['long_upnl']),
-                    str(symbol_data['short_upnl']),
-                    str(symbol_data['long_cum_pnl']),
-                    str(symbol_data['short_cum_pnl']),
-                    str(symbol_data['long_pos_price']),
-                    str(symbol_data['short_pos_price'])
-                )
+            # If symbol not in table yet, add a new row for it
+            if symbol not in self.all_symbol_data:
+                self.table.add_row(*["N/A"]*16)  # Assuming you have 16 columns
+
+            # Update the symbol_data for this symbol
+            self.all_symbol_data[symbol] = [
+                symbol,
+                str(symbol_data['min_qty']),
+                str(symbol_data['current_price']),
+                str(symbol_data['balance']),
+                str(symbol_data['available_bal']),
+                str(symbol_data['volume']),
+                str(symbol_data['spread']),
+                str(symbol_data['trend']),
+                str(symbol_data['long_pos_qty']),
+                str(symbol_data['short_pos_qty']),
+                str(symbol_data['long_upnl']),
+                str(symbol_data['short_upnl']),
+                str(symbol_data['long_cum_pnl']),
+                str(symbol_data['short_cum_pnl']),
+                str(symbol_data['long_pos_price']),
+                str(symbol_data['short_pos_price'])
+                # ... convert all symbol_data values to string and add them here ...
+            ]
+
+            # Update the row for this symbol in the table
+            for i, row in enumerate(self.table.rows):
+                if row[0] == symbol:  # assuming symbol is the first column
+                    self.table.rows[i] = self.all_symbol_data[symbol]
+
             return self.table
         except Exception as e:
             logging.info(f"Exception caught {e}")
@@ -451,11 +462,34 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
                     # ... continue adding all parameters ...
                 }
 
-                # Update the data for this symbol
-                self.all_symbol_data[symbol] = symbol_data
-
                 # Generate and update the table
-                live.update(self.generate_main_table())
+                live.update(self.generate_main_table(symbol_data))
+                
+                # symbol_data = {
+                #     'symbol': symbol,
+                #     'min_qty': min_qty,
+                #     'current_price': current_price,
+                #     'balance': total_equity,
+                #     'available_bal': available_equity,
+                #     'volume': one_minute_volume,
+                #     'spread': five_minute_distance,
+                #     'trend': trend,
+                #     'long_pos_qty': long_pos_qty,
+                #     'short_pos_qty': short_pos_qty,
+                #     'long_upnl': long_upnl,
+                #     'short_upnl': short_upnl,
+                #     'long_cum_pnl': cum_realised_pnl_long,
+                #     'short_cum_pnl': cum_realised_pnl_short,
+                #     'long_pos_price': long_pos_price,
+                #     'short_pos_price': short_pos_price
+                #     # ... continue adding all parameters ...
+                # }
+
+                # # Update the data for this symbol
+                # self.all_symbol_data[symbol] = symbol_data
+
+                # # Generate and update the table
+                # live.update(self.generate_main_table())
 
 
                 open_orders = self.exchange.get_open_orders(symbol)
