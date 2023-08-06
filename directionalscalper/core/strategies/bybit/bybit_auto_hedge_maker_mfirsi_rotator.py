@@ -42,76 +42,16 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
         self.long_leverage_increased = False
         self.short_leverage_increased = False
         self.version = "2.0.6"
-        self.lock = Lock()
-        self.rows = {}
-        # Recreate the table
-        self.table = Table(header_style="bold magenta", title=f"Directional Scalper MFIRSI {self.version}")
-        self.table.add_column("Symbol")
-        self.table.add_column("Min. Qty")
-        self.table.add_column("Price")
-        self.table.add_column("Balance")
-        self.table.add_column("Available Bal.")
-        self.table.add_column("1m Vol")
-        self.table.add_column("5m Spread")
-        self.table.add_column("Trend")
-        self.table.add_column("Long Pos. Qty")
-        self.table.add_column("Short Pos. Qty")
-        self.table.add_column("Long uPNL")
-        self.table.add_column("Short uPNL")
-        self.table.add_column("Long cum. uPNL")
-        self.table.add_column("Short cum. uPNL")
-        self.table.add_column("Long Pos. Price")
-        self.table.add_column("Short Pos. Price")
 
 
-    def generate_main_table(self, symbol_data):
-        try:
-            symbol = symbol_data['symbol']
-
-            # Create row data
-            row_data = [
-                symbol,
-                str(symbol_data['min_qty']),
-                str(symbol_data['min_qty']),
-                str(symbol_data['current_price']),
-                str(symbol_data['balance']),
-                str(symbol_data['available_bal']),
-                str(symbol_data['volume']),
-                str(symbol_data['spread']),
-                str(symbol_data['trend']),
-                str(symbol_data['long_pos_qty']),
-                str(symbol_data['short_pos_qty']),
-                str(symbol_data['long_upnl']),
-                str(symbol_data['short_upnl']),
-                str(symbol_data['long_cum_pnl']),
-                str(symbol_data['short_cum_pnl']),
-                str(symbol_data['long_pos_price']),
-                str(symbol_data['short_pos_price'])
-                # ... convert all symbol_data values to string and add them here ...
-            ]
-
-            # If symbol not in table yet, add a new row for it
-            if symbol not in self.all_symbol_data:
-                new_row = self.table.add_row(*row_data)
-                self.all_symbol_data[symbol] = new_row
-            else:
-                # Update the row for this symbol in the table
-                row = self.all_symbol_data[symbol]
-                for i, cell in enumerate(row.cells):
-                    cell.text = row_data[i]
-
-            return self.table
-        except Exception as e:
-            logging.info(f"Exception caught {e}")
-            return Table()
-        
     # def generate_main_table(self, symbol_data):
     #     try:
     #         symbol = symbol_data['symbol']
 
-    #         # Update the rows dictionary
-    #         self.rows[symbol] = [
+    #         # Create row data
+    #         row_data = [
     #             symbol,
+    #             str(symbol_data['min_qty']),
     #             str(symbol_data['min_qty']),
     #             str(symbol_data['current_price']),
     #             str(symbol_data['balance']),
@@ -127,35 +67,75 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
     #             str(symbol_data['short_cum_pnl']),
     #             str(symbol_data['long_pos_price']),
     #             str(symbol_data['short_pos_price'])
+    #             # ... convert all symbol_data values to string and add them here ...
     #         ]
 
-    #         # Recreate the table
-    #         self.table = Table(header_style="bold magenta", title=f"Directional Scalper MFIRSI {self.version}")
-    #         self.table.add_column("Symbol")
-    #         self.table.add_column("Min. Qty")
-    #         self.table.add_column("Price")
-    #         self.table.add_column("Balance")
-    #         self.table.add_column("Available Bal.")
-    #         self.table.add_column("1m Vol")
-    #         self.table.add_column("5m Spread")
-    #         self.table.add_column("Trend")
-    #         self.table.add_column("Long Pos. Qty")
-    #         self.table.add_column("Short Pos. Qty")
-    #         self.table.add_column("Long uPNL")
-    #         self.table.add_column("Short uPNL")
-    #         self.table.add_column("Long cum. uPNL")
-    #         self.table.add_column("Short cum. uPNL")
-    #         self.table.add_column("Long Pos. Price")
-    #         self.table.add_column("Short Pos. Price")
-
-    #         # Add all the rows from the dictionary
-    #         for row_data in self.rows.values():
-    #             self.table.add_row(*row_data)
+    #         # If symbol not in table yet, add a new row for it
+    #         if symbol not in self.all_symbol_data:
+    #             new_row = self.table.add_row(*row_data)
+    #             self.all_symbol_data[symbol] = new_row
+    #         else:
+    #             # Update the row for this symbol in the table
+    #             row = self.all_symbol_data[symbol]
+    #             for i, cell in enumerate(row.cells):
+    #                 cell.text = row_data[i]
 
     #         return self.table
     #     except Exception as e:
     #         logging.info(f"Exception caught {e}")
     #         return Table()
+        
+    def generate_main_table(self, symbol_data):
+        try:
+            symbol = symbol_data['symbol']
+
+            # Update the rows dictionary
+            self.rows[symbol] = [
+                symbol,
+                str(symbol_data['min_qty']),
+                str(symbol_data['current_price']),
+                str(symbol_data['balance']),
+                str(symbol_data['available_bal']),
+                str(symbol_data['volume']),
+                str(symbol_data['spread']),
+                str(symbol_data['trend']),
+                str(symbol_data['long_pos_qty']),
+                str(symbol_data['short_pos_qty']),
+                str(symbol_data['long_upnl']),
+                str(symbol_data['short_upnl']),
+                str(symbol_data['long_cum_pnl']),
+                str(symbol_data['short_cum_pnl']),
+                str(symbol_data['long_pos_price']),
+                str(symbol_data['short_pos_price'])
+            ]
+
+            # Recreate the table
+            self.table = Table(header_style="bold magenta", title=f"Directional Scalper MFIRSI {self.version}")
+            self.table.add_column("Symbol")
+            self.table.add_column("Min. Qty")
+            self.table.add_column("Price")
+            self.table.add_column("Balance")
+            self.table.add_column("Available Bal.")
+            self.table.add_column("1m Vol")
+            self.table.add_column("5m Spread")
+            self.table.add_column("Trend")
+            self.table.add_column("Long Pos. Qty")
+            self.table.add_column("Short Pos. Qty")
+            self.table.add_column("Long uPNL")
+            self.table.add_column("Short uPNL")
+            self.table.add_column("Long cum. uPNL")
+            self.table.add_column("Short cum. uPNL")
+            self.table.add_column("Long Pos. Price")
+            self.table.add_column("Short Pos. Price")
+
+            # Add all the rows from the dictionary
+            for row_data in self.rows.values():
+                self.table.add_row(*row_data)
+
+            return self.table
+        except Exception as e:
+            logging.info(f"Exception caught {e}")
+            return Table()
 
 # Works well but does not have rows per symbol    
     # def generate_main_table(self, symbol_data):
@@ -209,26 +189,16 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
     #         logging.info(f"Exception caught {e}")
     #         return Table()
 
-    def run(self, symbols):
-        threads = [Thread(target=self.run_single_symbol, args=(symbol, self.lock)) for symbol in symbols]
+    def run(self, symbol):
+        threads = [Thread(target=self.run_single_symbol, args=(symbol,))]
 
         for thread in threads:
             thread.start()
 
         for thread in threads:
             thread.join()
-
-    # def run(self, symbol):
-    #     threads = [Thread(target=self.run_single_symbol, args=(symbol,))]
-
-    #     for thread in threads:
-    #         thread.start()
-
-    #     for thread in threads:
-    #         thread.join()
             
-    #def run_single_symbol(self, symbol):
-    def run_single_symbol(self, symbol, lock):
+    def run_single_symbol(self, symbol):
         print(f"Running for symbol (inside run_single_symbol method): {symbol}")
         console = Console()
         live = Live(console=console, refresh_per_second=10)
@@ -434,28 +404,6 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
                 logging.info(f"Add short condition: {should_add_to_short}")
                 logging.info(f"Add long condition: {should_add_to_long}")
 
-                # symbol_data = {
-                #     'symbol': symbol,
-                #     'min_qty': min_qty,
-                #     'current_price': current_price,
-                #     'balance': total_equity,
-                #     'available_bal': available_equity,
-                #     'volume': one_minute_volume,
-                #     'spread': five_minute_distance,
-                #     'trend': trend,
-                #     'long_pos_qty': long_pos_qty,
-                #     'short_pos_qty': short_pos_qty,
-                #     'long_upnl': long_upnl,
-                #     'short_upnl': short_upnl,
-                #     'long_cum_pnl': cum_realised_pnl_long,
-                #     'short_cum_pnl': cum_realised_pnl_short,
-                #     'long_pos_price': long_pos_price,
-                #     'short_pos_price': short_pos_price
-                #     # ... continue adding all parameters ...
-                # }
-
-                # live.update(self.generate_main_table(symbol_data))
-
                 symbol_data = {
                     'symbol': symbol,
                     'min_qty': min_qty,
@@ -476,20 +424,42 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
                     # ... continue adding all parameters ...
                 }
 
-                # # Generate and update the table
-                # live.update(self.generate_main_table(symbol_data))
+                live.update(self.generate_main_table(symbol_data))
 
-                # Acquire the lock before updating the table
-                lock.acquire()
-                try:
-                    # Update the table data for this symbol
-                    self.generate_main_table(symbol_data)
+                # symbol_data = {
+                #     'symbol': symbol,
+                #     'min_qty': min_qty,
+                #     'current_price': current_price,
+                #     'balance': total_equity,
+                #     'available_bal': available_equity,
+                #     'volume': one_minute_volume,
+                #     'spread': five_minute_distance,
+                #     'trend': trend,
+                #     'long_pos_qty': long_pos_qty,
+                #     'short_pos_qty': short_pos_qty,
+                #     'long_upnl': long_upnl,
+                #     'short_upnl': short_upnl,
+                #     'long_cum_pnl': cum_realised_pnl_long,
+                #     'short_cum_pnl': cum_realised_pnl_short,
+                #     'long_pos_price': long_pos_price,
+                #     'short_pos_price': short_pos_price
+                #     # ... continue adding all parameters ...
+                # }
 
-                    # Update the live table
-                    live.update(self.table)
-                finally:
-                    # Release the lock
-                    lock.release()
+                # # # Generate and update the table
+                # # live.update(self.generate_main_table(symbol_data))
+
+                # # Acquire the lock before updating the table
+                # lock.acquire()
+                # try:
+                #     # Update the table data for this symbol
+                #     self.generate_main_table(symbol_data)
+
+                #     # Update the live table
+                #     live.update(self.table)
+                # finally:
+                #     # Release the lock
+                #     lock.release()
                 
                 # symbol_data = {
                 #     'symbol': symbol,
