@@ -899,6 +899,23 @@ class Exchange:
 
         return values
 
+    def get_all_open_positions_bybit(self) -> List[dict]:
+        """
+        Get all open positions across all symbols available in the account.
+        
+        Returns:
+            List[dict]: A list of dictionaries, each representing a position.
+        """
+        try:
+            # No symbol is passed to fetch_positions to get positions for all symbols.
+            all_positions = self.exchange.fetch_positions() 
+            open_positions = [position for position in all_positions if float(position.get('contracts', 0)) != 0] 
+            return open_positions
+        except Exception as e:
+            # Handle or log the exception as you see fit.
+            print(f"Error fetching open positions: {e}")
+            return []
+
     def print_positions_structure_binance(self):
         try:
             data = self.exchange.fetch_positions_risk()
@@ -1137,16 +1154,25 @@ class Exchange:
                 else:
                     raise
 
+    # Huobi     
+    def get_contract_size_huobi(self, symbol, max_retries=3, retry_delay=5):
+        for i in range(max_retries):
+            try:
+                markets = self.exchange.fetch_markets_by_type_and_sub_type('swap', 'linear')
+                for market in markets:
+                    if market['symbol'] == symbol:
+                        return market['contractSize']
+                # If the contract size is not found in the markets, return None
+                return None
 
-    # Huobi                
-    def get_contract_size_huobi(self, symbol):
-        markets = self.exchange.fetch_markets_by_type_and_sub_type('swap', 'linear')
-        for market in markets:
-            if market['symbol'] == symbol:
-                return market['contractSize']
-        return None
-    
-
+            except Exception as e:
+                if i < max_retries - 1:  # If not the last attempt
+                    logging.info(f"An unknown error occurred in get_contract_size_huobi(): {e}. Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    logging.info(f"Failed to fetch contract size after {max_retries} attempts: {e}")
+                    raise e  # If it's still failing after max_retries, re-raise the exception.
+ 
     # Huobi
     def get_positions_huobi(self, symbol) -> dict:
         print(f"Symbol received in get_positions_huobi: {symbol}")
