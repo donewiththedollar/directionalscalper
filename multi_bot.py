@@ -123,8 +123,6 @@ if __name__ == '__main__':
 
     symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist)
 
-    #symbols = manager.get_auto_rotate_symbols()  # Assuming this is the method to get symbols
-
     threads = [threading.Thread(target=run_bot, args=(symbol, args, manager)) for symbol in symbols]
 
     for thread in threads:

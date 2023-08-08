@@ -32,9 +32,32 @@ class Strategy:
 
     def postonly_limit_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
         params = {"reduceOnly": reduceOnly, "postOnly": True}
-        #print(f"Symbol: {symbol}, Side: {side}, Amount: {amount}, Price: {price}, Params: {params}")
-        order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
-        return order
+        logging.info(f"Placing {side} limit order for {symbol} at {price} with qty {amount} and params {params}...")
+        try:
+            order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
+            logging.info(f"Order result: {order}")
+            if order is None:
+                logging.warning(f"Order result is None for {side} limit order on {symbol}")
+            return order
+        except Exception as e:
+            logging.error(f"Error placing order: {str(e)}")
+            logging.exception("Stack trace for error in placing order:")  # This will log the full stack trace
+
+    # def postonly_limit_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
+    #     params = {"reduceOnly": reduceOnly, "postOnly": True}
+    #     logging.info(f"Placing {side} limit order for {symbol} at {price} with qty {amount} and params {params}...")
+    #     try:
+    #         order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
+    #         logging.info(f"Order result: {order}")
+    #         return order
+    #     except Exception as e:
+    #         logging.info(f"Error placing order: {str(e)}")
+
+    # def postonly_limit_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
+    #     params = {"reduceOnly": reduceOnly, "postOnly": True}
+    #     #print(f"Symbol: {symbol}, Side: {side}, Amount: {amount}, Price: {price}, Params: {params}")
+    #     order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
+    #     return order
     
     def limit_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
         params = {"reduceOnly": reduceOnly}
@@ -951,6 +974,11 @@ class Strategy:
         parsed_symbol = parsed_symbol.replace('/', '-')  # Replace '/' with '-'
         return parsed_symbol
 
+
+    def extract_symbols_from_positions_bybit(self, positions):
+        symbols = [position['symbol'].split(':')[0] for position in positions]
+        return list(set(symbols))
+
 # Bybit regular auto hedge logic
 # Bybit entry logic
 
@@ -1072,11 +1100,64 @@ class Strategy:
         if len(existing_tps) < 1:
             try:
                 # Use postonly_limit_order_bybit function to place take profit order
-                self.postonly_limit_order_bybit(symbol, order_side, pos_qty, take_profit_price, reduce_only=True)
+                self.postonly_limit_order_bybit(symbol, order_side, pos_qty, take_profit_price, positionIdx, reduce_only=True)
                 logging.info(f"{order_side.capitalize()} take profit set at {take_profit_price}")
                 time.sleep(0.05)
             except Exception as e:
                 logging.info(f"Error in placing {order_side} TP: {e}")
+            
+    def graceful_stop_checker_bybit(self):
+        while True:
+            # Get current rotator symbols
+            rotator_symbols = self.manager.get_auto_rotate_symbols()
+            logging.debug(f"Current rotator symbols: {rotator_symbols}")
+
+            # Get all open positions from the exchange
+            open_positions = self.exchange.get_all_open_positions_bybit()
+
+            # Remove '/' from open symbols
+            open_symbols = [symbol.replace('/', '') for symbol in self.extract_symbols_from_positions_bybit(open_positions)]
+            logging.debug(f"Currently open symbols: {open_symbols}")
+
+            for symbol in open_symbols:
+                # If this symbol is not in your actively traded symbols
+                if symbol not in rotator_symbols:
+                    logging.info(f"Symbol {symbol} is no longer in rotation. Placing take profit orders.")
+
+                    # Retrieve the position data for this symbol
+                    position_data = self.exchange.get_positions_bybit(symbol)
+
+                    # Get current five minute distance for the symbol
+                    data = self.manager.get_data()
+                    five_minute_distance = self.manager.get_asset_value(symbol, data, "5mSpread")
+                    logging.debug(f"Five minute distance for {symbol}: {five_minute_distance}")
+
+                    # For both long and short
+                    for side in ['long', 'short']:
+                        pos_qty = position_data[side]['qty']
+                        pos_price = position_data[side]['price']
+                        positionIdx = 1 if side == 'long' else 2
+
+                        if pos_qty > 0:  # If there's an open position
+                            # Calculate the take profit price based on the current five minute distance
+                            if side == 'long':
+                                take_profit_price = self.calculate_long_take_profit_spread_bybit(pos_price, symbol, five_minute_distance)
+                            else:  # side == 'short'
+                                take_profit_price = self.calculate_short_take_profit_spread_bybit(pos_price, symbol, five_minute_distance)
+                            logging.info(f"Calculated {side} take profit price for {symbol}: {take_profit_price}")
+
+                            # Place take profit order
+                            side_order = 'sell' if side == 'long' else 'buy'
+                            logging.info(f"Order parameters: symbol={symbol}, side={side_order}, pos_qty={pos_qty}, take_profit_price={take_profit_price}, positionIdx={positionIdx}")
+                            order_result = self.postonly_limit_order_bybit(symbol, side_order, pos_qty, take_profit_price, positionIdx, reduceOnly=True)
+                            
+                            # Check for errors in the order result
+                            if "error" in order_result:
+                                logging.error(f"Error occurred while placing order: {order_result['error']}")
+                            else:
+                                logging.info(f"Placed {side_order} take profit order for {symbol} at {take_profit_price}")
+
+            time.sleep(300)  # For example, do this check every 5 minutes
 
 # Bybit cancel all entries
     def cancel_entries_bybit(self, symbol, best_ask_price, ma_1m_3_high, ma_5m_3_high):

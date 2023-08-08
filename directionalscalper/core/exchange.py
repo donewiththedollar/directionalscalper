@@ -2231,7 +2231,6 @@ class Exchange:
         except Exception as e:
             logging.warning(f"An unknown error occurred in create_limit_order(): {e}")
 
-    # Bybit
     def create_limit_order_bybit(self, symbol: str, side: str, qty: float, price: float, positionIdx=0, params={}):
         try:
             if side == "buy" or side == "sell":
@@ -2246,8 +2245,28 @@ class Exchange:
                 return order
             else:
                 logging.warning(f"side {side} does not exist")
+                return {"error": f"side {side} does not exist"}
         except Exception as e:
             logging.warning(f"An unknown error occurred in create_limit_order(): {e}")
+            return {"error": str(e)}
+
+    # # Bybit
+    # def create_limit_order_bybit(self, symbol: str, side: str, qty: float, price: float, positionIdx=0, params={}):
+    #     try:
+    #         if side == "buy" or side == "sell":
+    #             order = self.exchange.create_order(
+    #                 symbol=symbol,
+    #                 type='limit',
+    #                 side=side,
+    #                 amount=qty,
+    #                 price=price,
+    #                 params={**params, 'positionIdx': positionIdx}  # Pass the 'positionIdx' parameter here
+    #             )
+    #             return order
+    #         else:
+    #             logging.warning(f"side {side} does not exist")
+    #     except Exception as e:
+    #         logging.warning(f"An unknown error occurred in create_limit_order(): {e}")
 
     def set_hedge_mode_binance(self):
         """

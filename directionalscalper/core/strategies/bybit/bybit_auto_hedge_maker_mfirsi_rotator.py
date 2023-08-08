@@ -190,8 +190,20 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
     #         logging.info(f"Exception caught {e}")
     #         return Table()
 
+    # def run(self, symbol):
+    #     threads = [Thread(target=self.run_single_symbol, args=(symbol,))]
+
+    #     for thread in threads:
+    #         thread.start()
+
+    #     for thread in threads:
+    #         thread.join()
+
     def run(self, symbol):
-        threads = [Thread(target=self.run_single_symbol, args=(symbol,))]
+        threads = [
+            Thread(target=self.run_single_symbol, args=(symbol,)),
+            Thread(target=self.graceful_stop_checker_bybit)
+        ]
 
         for thread in threads:
             thread.start()
@@ -349,6 +361,15 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
                 ma_5m_3_high = self.manager.get_5m_moving_averages(symbol)["MA_3_H"]
 
                 position_data = self.exchange.get_positions_bybit(symbol)
+
+                open_position_data = self.exchange.get_all_open_positions_bybit()
+
+                #print(f"Open positions: {open_position_data}")
+
+                open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
+
+                print(f"Open symbols: {open_symbols}")
+
 
                 short_pos_qty = position_data["short"]["qty"]
                 long_pos_qty = position_data["long"]["qty"]
