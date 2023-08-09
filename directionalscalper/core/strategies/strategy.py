@@ -20,6 +20,8 @@ class Strategy:
         self.printed_trade_quantities = False
         self.last_mfirsi_signal = None
         self.taker_fee_rate = 0.055 / 100
+        self.initial_max_long_trade_qty = None
+        self.initial_max_short_trade_qty = None
 
     def get_current_price(self, symbol):
         return self.exchange.get_current_price(symbol)
@@ -240,23 +242,6 @@ class Strategy:
             else:
                 print(f"The amount you entered ({amount}) is valid for {symbol}")
                 return True
-
-    # def check_amount_validity_once_binance(self, amount, symbol):
-    #     if not self.checked_amount_validity_binance:
-    #         market_data = self.exchange.get_market_data_binance(symbol)
-    #         min_qty = float(market_data["min_qty"])
-    #         step_size = float(market_data['step_size'])
-    #         precision = int(-math.log10(step_size))
-            
-    #         # Ensure the amount is a multiple of step_size
-    #         amount = round(amount, precision)
-            
-    #         if amount < min_qty:
-    #             print(f"The amount you entered ({amount}) is less than the minimum required by Binance for {symbol}: {min_qty}.")
-    #             return False
-    #         else:
-    #             print(f"The amount you entered ({amount}) is valid for {symbol}")
-    #             return True
 
     def check_amount_validity_once_binance(self, amount, symbol):
         if not self.checked_amount_validity_binance:
@@ -617,77 +602,6 @@ class Strategy:
 
             return float(long_profit_price)
         return None
-
-
-    # def calculate_short_take_profit_binance(self, short_pos_price, symbol):
-    #     if short_pos_price is None:
-    #         return None
-
-    #     five_min_data = self.manager.get_5m_moving_averages(symbol)
-    #     price_precision = int(self.exchange.get_price_precision(symbol))
-
-    #     #print("Debug: Price Precision for Symbol (", symbol, "):", price_precision)
-
-    #     if five_min_data is not None:
-    #         ma_6_high = Decimal(five_min_data["MA_6_H"])
-    #         ma_6_low = Decimal(five_min_data["MA_6_L"])
-
-    #         try:
-    #             short_target_price = Decimal(short_pos_price) - (ma_6_high - ma_6_low)
-    #         except InvalidOperation as e:
-    #             print(f"Error: Invalid operation when calculating short_target_price. short_pos_price={short_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
-    #             return None
-
-    #         try:
-    #             short_target_price = short_target_price.quantize(
-    #                 Decimal('1e-{}'.format(price_precision)),
-    #                 rounding=ROUND_HALF_UP
-    #             )
-    #         except InvalidOperation as e:
-    #             print(f"Error: Invalid operation when quantizing short_target_price. short_target_price={short_target_price}, price_precision={price_precision}")
-    #             return None
-
-    #         #print("Debug: Short Target Price:", short_target_price)
-
-    #         short_profit_price = short_target_price
-
-    #         return float(short_profit_price)
-    #     return None
-
-    # def calculate_long_take_profit_binance(self, long_pos_price, symbol):
-    #     if long_pos_price is None:
-    #         return None
-
-    #     five_min_data = self.manager.get_5m_moving_averages(symbol)
-    #     price_precision = int(self.exchange.get_price_precision(symbol))
-
-    #     #print("Debug: Price Precision for Symbol (", symbol, "):", price_precision)
-
-    #     if five_min_data is not None:
-    #         ma_6_high = Decimal(five_min_data["MA_6_H"])
-    #         ma_6_low = Decimal(five_min_data["MA_6_L"])
-
-    #         try:
-    #             long_target_price = Decimal(long_pos_price) + (ma_6_high - ma_6_low)
-    #         except InvalidOperation as e:
-    #             print(f"Error: Invalid operation when calculating long_target_price. long_pos_price={long_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
-    #             return None
-
-    #         try:
-    #             long_target_price = long_target_price.quantize(
-    #                 Decimal('1e-{}'.format(price_precision)),
-    #                 rounding=ROUND_HALF_UP
-    #             )
-    #         except InvalidOperation as e:
-    #             print(f"Error: Invalid operation when quantizing long_target_price. long_target_price={long_target_price}, price_precision={price_precision}")
-    #             return None
-
-    #         #print("Debug: Long Target Price:", long_target_price)
-
-    #         long_profit_price = long_target_price
-
-    #         return float(long_profit_price)
-    #     return None
         
     def check_short_long_conditions(self, best_bid_price, ma_3_high):
         should_short = best_bid_price > ma_3_high
@@ -932,21 +846,6 @@ class Strategy:
                     print(f"Error occurred while fetching OHLCV data: {e}. No more retries left.")
                     raise  # Re-raise the last exception
 
-    # MFIRSI without retry
-    # def initialize_MFIRSI(self, symbol):
-    #     df = self.exchange.fetch_ohlcv(symbol, timeframe='5m')
-
-    #     print(df.head())
-    #     df['mfi'] = ta.volume.money_flow_index(df['high'], df['low'], df['close'], df['volume'], window=14)
-    #     df['rsi'] = ta.momentum.rsi(df['close'], window=14)
-    #     df['ma'] = ta.trend.sma_indicator(df['close'], window=14)
-    #     df['open_less_close'] = (df['open'] < df['close']).astype(int)
-
-    #     df['buy_condition'] = ((df['mfi'] < 20) & (df['rsi'] < 35) & (df['open_less_close'] == 1)).astype(int)
-    #     df['sell_condition'] = ((df['mfi'] > 80) & (df['rsi'] > 65) & (df['open_less_close'] == 0)).astype(int)
-
-    #     return df
-
     def should_long_MFI(self, symbol):
         df = self.initialize_MFIRSI(symbol)
         condition = df.iloc[-1]['buy_condition'] == 1
@@ -973,7 +872,6 @@ class Strategy:
         parsed_symbol = symbol.split(':')[0]  # Remove ':USDT'
         parsed_symbol = parsed_symbol.replace('/', '-')  # Replace '/' with '-'
         return parsed_symbol
-
 
     def extract_symbols_from_positions_bybit(self, positions):
         symbols = [position['symbol'].split(':')[0] for position in positions]
@@ -1105,7 +1003,198 @@ class Strategy:
                 time.sleep(0.05)
             except Exception as e:
                 logging.info(f"Error in placing {order_side} TP: {e}")
-            
+
+    def long_entry_maker(self, symbol: str, trend: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, long_pos_qty: float, long_pos_price: float, should_long: bool, should_add_to_long: bool):
+        best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+        
+        if trend is not None and isinstance(trend, str) and trend.lower() == "long":
+            if one_minute_volume > min_vol and five_minute_distance > min_dist:
+                if should_long and long_pos_qty == 0:
+                    logging.info(f"Placing initial long entry for {symbol}")
+                    self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                elif should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price:
+                    logging.info(f"Placing additional long entry for {symbol}")
+                    self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+
+    def short_entry_maker(self, symbol: str, trend: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, short_dynamic_amount: float, short_pos_qty: float, short_pos_price: float, should_short: bool, should_add_to_short: bool):
+        best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+        
+        if trend is not None and isinstance(trend, str) and trend.lower() == "short":
+            if one_minute_volume > min_vol and five_minute_distance > min_dist:
+                if should_short and short_pos_qty == 0:
+                    logging.info(f"Placing initial short entry for {symbol}")
+                    self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                elif should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price:
+                    logging.info(f"Placing additional short entry for {symbol}")
+                    self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+
+    def graceful_stop_checker_bybit_full(self):
+        quote_currency = "USDT"
+        max_retries = 5
+        retry_delay = 5
+        while True:
+            # Get current rotator symbols
+            rotator_symbols = self.manager.get_auto_rotate_symbols()
+            open_positions = self.exchange.get_all_open_positions_bybit()
+
+            # Remove '/' from open symbols
+            open_symbols = [symbol.replace('/', '') for symbol in self.extract_symbols_from_positions_bybit(open_positions)]
+
+            for symbol in open_symbols:
+                if symbol not in rotator_symbols:
+                    logging.info(f"Symbol {symbol} is no longer in rotation. Managing orders.")
+                    market_data = self.get_market_data_with_retry(symbol, max_retries = 5, retry_delay = 5)
+                    best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+                    best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+
+                    position_data = self.exchange.get_positions_bybit(symbol)
+                    max_leverage = self.exchange.get_max_leverage_bybit(symbol)
+
+                    data = self.manager.get_data()
+                    one_minute_volume = self.manager.get_asset_value(symbol, data, "1mVol")
+                    five_minute_distance = self.manager.get_asset_value(symbol, data, "5mSpread")
+                    trend = self.manager.get_asset_value(symbol, data, "Trend")
+                    min_dist = self.config.min_distance
+                    min_vol = self.config.min_volume
+
+                    m_moving_averages = self.manager.get_1m_moving_averages(symbol)
+                    m5_moving_averages = self.manager.get_5m_moving_averages(symbol)
+                    ma_6_high = m_moving_averages["MA_6_H"]
+                    ma_6_low = m_moving_averages["MA_6_L"]
+                    ma_3_low = m_moving_averages["MA_3_L"]
+                    ma_3_high = m_moving_averages["MA_3_H"]
+                    ma_1m_3_high = self.manager.get_1m_moving_averages(symbol)["MA_3_H"]
+                    ma_5m_3_high = self.manager.get_5m_moving_averages(symbol)["MA_3_H"]
+
+                    should_short = self.short_trade_condition(best_ask_price, ma_3_high)
+                    should_long = self.long_trade_condition(best_bid_price, ma_3_low)
+
+                    short_pos_qty = position_data["short"]["qty"]
+                    logging.info(f"GS Short pos qty: {short_pos_qty}")
+                    long_pos_qty = position_data["long"]["qty"]
+                    logging.info(f"GS Long pos qty: {long_pos_qty}")
+
+                    short_pos_price = position_data["short"]["price"] if short_pos_qty > 0 else None
+                    long_pos_price = position_data["long"]["price"] if long_pos_qty > 0 else None
+
+                    if short_pos_price is not None:
+                        should_add_to_short = short_pos_price < ma_6_low and self.short_trade_condition(best_ask_price, ma_6_high)
+
+                    if long_pos_price is not None:
+                        should_add_to_long = long_pos_price > ma_6_high and self.long_trade_condition(best_bid_price, ma_6_low)
+                 
+                    quote_currency = "USDT"
+
+                    for i in range(max_retries):
+                        try:
+                            total_equity = self.exchange.get_balance_bybit(quote_currency)
+                            break
+                        except Exception as e:
+                            if i < max_retries - 1:
+                                logging.info(f"Error occurred while fetching balance: {e}. Retrying in {retry_delay} seconds...")
+                                time.sleep(retry_delay)
+                            else:
+                                raise e   
+                            
+                    if self.max_long_trade_qty is None or self.max_short_trade_qty is None:
+                        self.max_long_trade_qty = self.max_short_trade_qty = self.calc_max_trade_qty(total_equity,
+                                                                                                    best_ask_price,
+                                                                                                    max_leverage)
+
+                        # Set initial quantities if they're None
+                        if self.initial_max_long_trade_qty is None:
+                            self.initial_max_long_trade_qty = self.max_long_trade_qty
+                            logging.info(f"Initial max trade qty set to {self.initial_max_long_trade_qty}")
+                        if self.initial_max_short_trade_qty is None:
+                            self.initial_max_short_trade_qty = self.max_short_trade_qty  
+                            logging.info(f"Initial trade qty set to {self.initial_max_short_trade_qty}")                                                            
+                                
+                    # Calculate the dynamic amount
+                    long_dynamic_amount = 0.001 * self.initial_max_long_trade_qty
+                    short_dynamic_amount = 0.001 * self.initial_max_short_trade_qty
+
+                    min_qty = float(market_data["min_qty"])
+                    min_qty_str = str(min_qty)
+
+                    # Get the precision level of the minimum quantity
+                    if ".0" in min_qty_str:
+                        # The minimum quantity does not have a fractional part, precision is 0
+                        precision_level = 0
+                    else:
+                        # The minimum quantity has a fractional part, get its precision level
+                        precision_level = len(min_qty_str.split(".")[1])
+
+                    long_dynamic_amount = round(long_dynamic_amount, precision_level)
+                    short_dynamic_amount = round(short_dynamic_amount, precision_level)
+
+                    logging.info(f"Long dynamic amount: {long_dynamic_amount} for {symbol}")
+                    logging.info(f"Short dynamic amount: {short_dynamic_amount} for {symbol}")
+
+                    # # Loop over long and short sides
+                    # for side in ['long', 'short']:
+                    #     pos_qty = position_data[side]['qty']
+                    #     logging.info(f"Pos qty: {pos_qty} for {side}")
+                    #     pos_price = position_data[side]['price']
+                    #     logging.info(f"Pos price: {pos_price}")
+                        
+                    #     if pos_qty > 0:  # If there's an open position
+                    #         if side == 'long':
+                    #             self.long_entry_maker(symbol, trend, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, pos_qty, pos_price, should_long, should_add_to_long)
+                    #             take_profit_price = self.calculate_long_take_profit_spread_bybit(pos_price, symbol, five_minute_distance)
+                    #             self.postonly_limit_order_bybit(symbol, "sell", pos_qty, take_profit_price, positionIdx=1, reduceOnly=True)
+                    #         else:
+                    #             self.short_entry_maker(symbol, trend, one_minute_volume, five_minute_distance, min_vol, min_dist, short_dynamic_amount, pos_qty, pos_price, should_short, should_add_to_short)
+                    #             take_profit_price = self.calculate_short_take_profit_spread_bybit(pos_price, symbol, five_minute_distance)
+                    #             self.postonly_limit_order_bybit(symbol, "buy", pos_qty, take_profit_price, positionIdx=2, reduceOnly=True)
+
+                    # Assuming you have fetched all the open orders for the symbol at the beginning of your main logic
+                    open_orders = self.exchange.get_open_orders(symbol)
+
+                    # Loop over long and short sides
+                    for side in ['long', 'short']:
+                        pos_qty = position_data[side]['qty']
+                        logging.info(f"Pos qty: {pos_qty} for {side}")
+                        pos_price = position_data[side]['price']
+                        logging.info(f"Pos price: {pos_price}")
+                        
+                        if pos_qty > 0:  # If there's an open position
+                            # Determine the take profit details based on the position side
+                            if side == 'long':
+                                order_side = "sell"
+                                positionIdx = 1
+                                self.long_entry_maker(symbol, trend, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, pos_qty, pos_price, should_long, should_add_to_long)
+                                take_profit_price = self.calculate_long_take_profit_spread_bybit(pos_price, symbol, five_minute_distance)
+                            else:
+                                order_side = "buy"
+                                positionIdx = 2
+                                self.short_entry_maker(symbol, trend, one_minute_volume, five_minute_distance, min_vol, min_dist, short_dynamic_amount, pos_qty, pos_price, should_short, should_add_to_short)
+                                take_profit_price = self.calculate_short_take_profit_spread_bybit(pos_price, symbol, five_minute_distance)
+                            
+                            # Check for existing take profit orders
+                            existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
+                            total_existing_tp_qty = sum(qty for qty, _ in existing_tps)
+                            logging.info(f"Existing {order_side} TPs: {existing_tps}")
+                            
+                            # Cancel existing TP orders if their quantities do not match the current position quantity
+                            for qty, existing_tp_id in existing_tps:
+                                if not math.isclose(qty, pos_qty):
+                                    try:
+                                        self.exchange.cancel_order_by_id(existing_tp_id, symbol)
+                                        logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
+                                    except Exception as e:
+                                        logging.info(f"Error in cancelling {order_side} TP orders: {e}")
+                            
+                            # Place a new TP order if none exist
+                            if len(existing_tps) < 1:
+                                try:
+                                    self.postonly_limit_order_bybit(symbol, order_side, pos_qty, take_profit_price, positionIdx, reduce_only=True)
+                                    logging.info(f"{order_side.capitalize()} take profit set at {take_profit_price}")
+                                except Exception as e:
+                                    logging.info(f"Error in placing {order_side} TP: {e}")
+
+            time.sleep(300)
+
+
     def graceful_stop_checker_bybit(self):
         while True:
             # Get current rotator symbols
