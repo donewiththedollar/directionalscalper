@@ -1187,7 +1187,7 @@ class Strategy:
                             # Place a new TP order if none exist
                             if len(existing_tps) < 1:
                                 try:
-                                    self.postonly_limit_order_bybit(symbol, order_side, pos_qty, take_profit_price, positionIdx, reduce_only=True)
+                                    self.postonly_limit_order_bybit(symbol, order_side, pos_qty, take_profit_price, positionIdx, reduceOnly=True)
                                     logging.info(f"{order_side.capitalize()} take profit set at {take_profit_price}")
                                 except Exception as e:
                                     logging.info(f"Error in placing {order_side} TP: {e}")
