@@ -20,6 +20,9 @@ from directionalscalper.core.strategies.strategy import Strategy
 from directionalscalper.core.strategies.bybit.bybit_auto_rotator import BybitAutoRotator
 from directionalscalper.core.strategies.bybit.bybit_auto_rotator_mfirsi import BybitAutoRotatorMFIRSI
 from directionalscalper.core.strategies.bybit.bybit_auto_hedge_maker_mfirsi_rotator import BybitAutoHedgeStrategyMakerMFIRSIRotator
+### ILAY ###
+from live_table_manager import LiveTableManager, shared_symbols_data
+### ILAY ###
 
 class DirectionalMarketMaker:
     def __init__(self, config: Config, exchange_name: str):
@@ -120,6 +123,13 @@ if __name__ == '__main__':
     
     whitelist = config.bot.whitelist
     blacklist = config.bot.blacklist
+  
+    ### ILAY ###
+    table_manager = LiveTableManager()
+    display_thread = threading.Thread(target=table_manager.display_table)
+    display_thread.daemon = True
+    display_thread.start()
+    ### ILAY ###
 
     symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist)
 
