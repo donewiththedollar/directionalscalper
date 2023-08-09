@@ -81,7 +81,7 @@ class Manager:
         return self.data
 
 
-    def get_auto_rotate_symbols(self, min_qty_threshold: float = None, whitelist: list = None, blacklist: list = None, max_symbols: int = 10):
+    def get_auto_rotate_symbols(self, min_qty_threshold: float = None, whitelist: list = None, blacklist: list = None, max_symbols: int = 12):
         symbols = []
         try:
             url = "http://api.tradesimple.xyz/data/rotatorsymbols.json"
