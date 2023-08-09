@@ -216,7 +216,7 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
 
             open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
 
-            print(f"Open symbols: {open_symbols}")
+            #print(f"Open symbols: {open_symbols}")
 
 
             short_pos_qty = position_data["short"]["qty"]
