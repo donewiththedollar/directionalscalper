@@ -76,7 +76,8 @@ class Strategy:
     def get_open_take_profit_order_quantities(self, orders, side):
         take_profit_orders = []
         for order in orders:
-            if order.get('side') and order['side'].lower() == side.lower() and order['reduce_only']:
+            order_side = order.get('side')
+            if order_side and isinstance(order_side, str) and order_side.lower() == side.lower() and order['reduce_only']:
                 take_profit_orders.append((order['qty'], order['id']))
         return take_profit_orders
 
