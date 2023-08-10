@@ -1149,14 +1149,14 @@ class Strategy:
                     open_orders = self.exchange.get_open_orders(symbol)
 
                     for side in ['long', 'short']:
-                        if side == 'long':
+                        if side == 'long' and long_pos_qty > 0:
                             current_pos_price = long_pos_price
                             current_pos_qty = long_pos_qty
                             order_side = "sell"
                             positionIdx = 1
                             self.long_entry_maker(symbol, trend, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, current_pos_qty, current_pos_price, should_long, should_add_to_long)
                             take_profit_price = self.calculate_long_take_profit_spread_bybit(current_pos_price, symbol, five_minute_distance)
-                        else:
+                        elif side == 'short' and short_pos_qty > 0:
                             current_pos_price = short_pos_price
                             current_pos_qty = short_pos_qty
                             order_side = "buy"
