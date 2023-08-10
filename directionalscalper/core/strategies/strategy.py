@@ -1173,28 +1173,31 @@ class Strategy:
                             positionIdx = 2
                             self.short_entry_maker(symbol, trend, one_minute_volume, five_minute_distance, min_vol, min_dist, short_dynamic_amount, current_pos_qty, current_pos_price, should_short, should_add_to_short)
                             take_profit_price = self.calculate_short_take_profit_spread_bybit(current_pos_price, symbol, five_minute_distance)
+                        else:
+                            continue
 
-                        # Check for existing take profit orders
-                        existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
-                        total_existing_tp_qty = sum(qty for qty, _ in existing_tps)
-                        logging.info(f"Existing {order_side} TPs: {existing_tps}")
+                        if take_profit_price and current_pos_qty is not None:
+                            # Check for existing take profit orders
+                            existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
+                            total_existing_tp_qty = sum(qty for qty, _ in existing_tps)
+                            logging.info(f"Existing {order_side} TPs: {existing_tps}")
 
-                        # Cancel existing TP orders if their quantities do not match the current position quantity
-                        for qty, existing_tp_id in existing_tps:
-                            if not math.isclose(qty, current_pos_qty):
+                            # Cancel existing TP orders if their quantities do not match the current position quantity
+                            for qty, existing_tp_id in existing_tps:
+                                if not math.isclose(qty, current_pos_qty):
+                                    try:
+                                        self.exchange.cancel_order_by_id(existing_tp_id, symbol)
+                                        logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
+                                    except Exception as e:
+                                        logging.info(f"Error in cancelling {order_side} TP orders: {e}")
+
+                            # Place a new TP order if none exist
+                            if len(existing_tps) < 1:
                                 try:
-                                    self.exchange.cancel_order_by_id(existing_tp_id, symbol)
-                                    logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
+                                    self.postonly_limit_order_bybit(symbol, order_side, current_pos_qty, take_profit_price, positionIdx, reduceOnly=True)
+                                    logging.info(f"{order_side.capitalize()} take profit set at {take_profit_price}")
                                 except Exception as e:
-                                    logging.info(f"Error in cancelling {order_side} TP orders: {e}")
-
-                        # Place a new TP order if none exist
-                        if len(existing_tps) < 1:
-                            try:
-                                self.postonly_limit_order_bybit(symbol, order_side, current_pos_qty, take_profit_price, positionIdx, reduceOnly=True)
-                                logging.info(f"{order_side.capitalize()} take profit set at {take_profit_price}")
-                            except Exception as e:
-                                logging.info(f"Error in placing {order_side} TP: {e}")
+                                    logging.info(f"Error in placing {order_side} TP: {e}")
 
             time.sleep(300)
 
