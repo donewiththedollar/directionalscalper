@@ -1011,6 +1011,7 @@ class Strategy:
             if one_minute_volume > min_vol and five_minute_distance > min_dist:
                 if should_long and long_pos_qty == 0:
                     logging.info(f"Placing initial long entry for {symbol}")
+                    #postonly_limit_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly
                     self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
                 elif should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price:
                     logging.info(f"Placing additional long entry for {symbol}")
@@ -1032,6 +1033,7 @@ class Strategy:
         quote_currency = "USDT"
         max_retries = 5
         retry_delay = 5
+
         while True:
             # Get current rotator symbols
             rotator_symbols = self.manager.get_auto_rotate_symbols()
@@ -1043,7 +1045,8 @@ class Strategy:
             for symbol in open_symbols:
                 if symbol not in rotator_symbols:
                     logging.info(f"Symbol {symbol} is no longer in rotation. Managing orders.")
-                    market_data = self.get_market_data_with_retry(symbol, max_retries = 5, retry_delay = 5)
+                    market_data = self.get_market_data_with_retry(symbol, max_retries=5, retry_delay=5)
+                    
                     best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
                     best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
@@ -1117,18 +1120,31 @@ class Strategy:
                     min_qty_str = str(min_qty)
 
                     # Get the precision level of the minimum quantity
-                    if ".0" in min_qty_str:
-                        # The minimum quantity does not have a fractional part, precision is 0
-                        precision_level = 0
-                    else:
+                    if "." in min_qty_str:
                         # The minimum quantity has a fractional part, get its precision level
                         precision_level = len(min_qty_str.split(".")[1])
+                    else:
+                        # The minimum quantity does not have a fractional part, precision is 0
+                        precision_level = 0
 
                     long_dynamic_amount = round(long_dynamic_amount, precision_level)
                     short_dynamic_amount = round(short_dynamic_amount, precision_level)
 
                     logging.info(f"Long dynamic amount: {long_dynamic_amount} for {symbol}")
                     logging.info(f"Short dynamic amount: {short_dynamic_amount} for {symbol}")
+
+
+                    # Check if the amount is less than the minimum quantity allowed by the exchange
+                    if long_dynamic_amount < min_qty:
+                        logging.info(f"Dynamic amount too small for 0.001x, using min_qty")
+                        long_dynamic_amount = min_qty
+                    
+                    if short_dynamic_amount < min_qty:
+                        logging.info(f"Dynamic amount too small for 0.001x, using min_qty")
+                        short_dynamic_amount = min_qty
+
+                    logging.info(f"Long dynamic amount using min qty: {long_dynamic_amount} for {symbol}")
+                    logging.info(f"Short dynamic amount using min qty: {short_dynamic_amount} for {symbol}")
 
                     # # Loop over long and short sides
                     # for side in ['long', 'short']:
@@ -1150,49 +1166,211 @@ class Strategy:
                     # Assuming you have fetched all the open orders for the symbol at the beginning of your main logic
                     open_orders = self.exchange.get_open_orders(symbol)
 
-                    # Loop over long and short sides
                     for side in ['long', 'short']:
-                        pos_qty = position_data[side]['qty']
-                        logging.info(f"Pos qty: {pos_qty} for {side}")
-                        pos_price = position_data[side]['price']
-                        logging.info(f"Pos price: {pos_price}")
-                        
-                        if pos_qty > 0:  # If there's an open position
-                            # Determine the take profit details based on the position side
-                            if side == 'long':
-                                order_side = "sell"
-                                positionIdx = 1
-                                self.long_entry_maker(symbol, trend, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, pos_qty, pos_price, should_long, should_add_to_long)
-                                take_profit_price = self.calculate_long_take_profit_spread_bybit(pos_price, symbol, five_minute_distance)
-                            else:
-                                order_side = "buy"
-                                positionIdx = 2
-                                self.short_entry_maker(symbol, trend, one_minute_volume, five_minute_distance, min_vol, min_dist, short_dynamic_amount, pos_qty, pos_price, should_short, should_add_to_short)
-                                take_profit_price = self.calculate_short_take_profit_spread_bybit(pos_price, symbol, five_minute_distance)
-                            
-                            # Check for existing take profit orders
-                            existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
-                            total_existing_tp_qty = sum(qty for qty, _ in existing_tps)
-                            logging.info(f"Existing {order_side} TPs: {existing_tps}")
-                            
-                            # Cancel existing TP orders if their quantities do not match the current position quantity
-                            for qty, existing_tp_id in existing_tps:
-                                if not math.isclose(qty, pos_qty):
-                                    try:
-                                        self.exchange.cancel_order_by_id(existing_tp_id, symbol)
-                                        logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
-                                    except Exception as e:
-                                        logging.info(f"Error in cancelling {order_side} TP orders: {e}")
-                            
-                            # Place a new TP order if none exist
-                            if len(existing_tps) < 1:
+                        if side == 'long':
+                            current_pos_price = long_pos_price
+                            current_pos_qty = long_pos_qty
+                            order_side = "sell"
+                            positionIdx = 1
+                            self.long_entry_maker(symbol, trend, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, current_pos_qty, current_pos_price, should_long, should_add_to_long)
+                            take_profit_price = self.calculate_long_take_profit_spread_bybit(current_pos_price, symbol, five_minute_distance)
+                        else:
+                            current_pos_price = short_pos_price
+                            current_pos_qty = short_pos_qty
+                            order_side = "buy"
+                            positionIdx = 2
+                            self.short_entry_maker(symbol, trend, one_minute_volume, five_minute_distance, min_vol, min_dist, short_dynamic_amount, current_pos_qty, current_pos_price, should_short, should_add_to_short)
+                            take_profit_price = self.calculate_short_take_profit_spread_bybit(current_pos_price, symbol, five_minute_distance)
+
+                        # Check for existing take profit orders
+                        existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
+                        total_existing_tp_qty = sum(qty for qty, _ in existing_tps)
+                        logging.info(f"Existing {order_side} TPs: {existing_tps}")
+
+                        # Cancel existing TP orders if their quantities do not match the current position quantity
+                        for qty, existing_tp_id in existing_tps:
+                            if not math.isclose(qty, current_pos_qty):
                                 try:
-                                    self.postonly_limit_order_bybit(symbol, order_side, pos_qty, take_profit_price, positionIdx, reduceOnly=True)
-                                    logging.info(f"{order_side.capitalize()} take profit set at {take_profit_price}")
+                                    self.exchange.cancel_order_by_id(existing_tp_id, symbol)
+                                    logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
                                 except Exception as e:
-                                    logging.info(f"Error in placing {order_side} TP: {e}")
+                                    logging.info(f"Error in cancelling {order_side} TP orders: {e}")
+
+                        # Place a new TP order if none exist
+                        if len(existing_tps) < 1:
+                            try:
+                                self.postonly_limit_order_bybit(symbol, order_side, current_pos_qty, take_profit_price, positionIdx, reduceOnly=True)
+                                logging.info(f"{order_side.capitalize()} take profit set at {take_profit_price}")
+                            except Exception as e:
+                                logging.info(f"Error in placing {order_side} TP: {e}")
 
             time.sleep(300)
+
+    # def graceful_stop_checker_bybit_full(self):
+    #     quote_currency = "USDT"
+    #     max_retries = 5
+    #     retry_delay = 5
+    #     while True:
+    #         # Get current rotator symbols
+    #         rotator_symbols = self.manager.get_auto_rotate_symbols()
+    #         open_positions = self.exchange.get_all_open_positions_bybit()
+
+    #         # Remove '/' from open symbols
+    #         open_symbols = [symbol.replace('/', '') for symbol in self.extract_symbols_from_positions_bybit(open_positions)]
+
+    #         for symbol in open_symbols:
+    #             if symbol not in rotator_symbols:
+    #                 logging.info(f"Symbol {symbol} is no longer in rotation. Managing orders.")
+    #                 market_data = self.get_market_data_with_retry(symbol, max_retries = 5, retry_delay = 5)
+    #                 best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+    #                 best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+
+    #                 position_data = self.exchange.get_positions_bybit(symbol)
+    #                 max_leverage = self.exchange.get_max_leverage_bybit(symbol)
+
+    #                 data = self.manager.get_data()
+    #                 one_minute_volume = self.manager.get_asset_value(symbol, data, "1mVol")
+    #                 five_minute_distance = self.manager.get_asset_value(symbol, data, "5mSpread")
+    #                 trend = self.manager.get_asset_value(symbol, data, "Trend")
+    #                 min_dist = self.config.min_distance
+    #                 min_vol = self.config.min_volume
+
+    #                 m_moving_averages = self.manager.get_1m_moving_averages(symbol)
+    #                 m5_moving_averages = self.manager.get_5m_moving_averages(symbol)
+    #                 ma_6_high = m_moving_averages["MA_6_H"]
+    #                 ma_6_low = m_moving_averages["MA_6_L"]
+    #                 ma_3_low = m_moving_averages["MA_3_L"]
+    #                 ma_3_high = m_moving_averages["MA_3_H"]
+    #                 ma_1m_3_high = self.manager.get_1m_moving_averages(symbol)["MA_3_H"]
+    #                 ma_5m_3_high = self.manager.get_5m_moving_averages(symbol)["MA_3_H"]
+
+    #                 should_short = self.short_trade_condition(best_ask_price, ma_3_high)
+    #                 should_long = self.long_trade_condition(best_bid_price, ma_3_low)
+
+    #                 short_pos_qty = position_data["short"]["qty"]
+    #                 logging.info(f"GS Short pos qty: {short_pos_qty}")
+    #                 long_pos_qty = position_data["long"]["qty"]
+    #                 logging.info(f"GS Long pos qty: {long_pos_qty}")
+
+    #                 short_pos_price = position_data["short"]["price"] if short_pos_qty > 0 else None
+    #                 long_pos_price = position_data["long"]["price"] if long_pos_qty > 0 else None
+
+    #                 if short_pos_price is not None:
+    #                     should_add_to_short = short_pos_price < ma_6_low and self.short_trade_condition(best_ask_price, ma_6_high)
+
+    #                 if long_pos_price is not None:
+    #                     should_add_to_long = long_pos_price > ma_6_high and self.long_trade_condition(best_bid_price, ma_6_low)
+                 
+    #                 quote_currency = "USDT"
+
+    #                 for i in range(max_retries):
+    #                     try:
+    #                         total_equity = self.exchange.get_balance_bybit(quote_currency)
+    #                         break
+    #                     except Exception as e:
+    #                         if i < max_retries - 1:
+    #                             logging.info(f"Error occurred while fetching balance: {e}. Retrying in {retry_delay} seconds...")
+    #                             time.sleep(retry_delay)
+    #                         else:
+    #                             raise e   
+                            
+    #                 if self.max_long_trade_qty is None or self.max_short_trade_qty is None:
+    #                     self.max_long_trade_qty = self.max_short_trade_qty = self.calc_max_trade_qty(total_equity,
+    #                                                                                                 best_ask_price,
+    #                                                                                                 max_leverage)
+
+    #                     # Set initial quantities if they're None
+    #                     if self.initial_max_long_trade_qty is None:
+    #                         self.initial_max_long_trade_qty = self.max_long_trade_qty
+    #                         logging.info(f"Initial max trade qty set to {self.initial_max_long_trade_qty}")
+    #                     if self.initial_max_short_trade_qty is None:
+    #                         self.initial_max_short_trade_qty = self.max_short_trade_qty  
+    #                         logging.info(f"Initial trade qty set to {self.initial_max_short_trade_qty}")                                                            
+                                
+    #                 # Calculate the dynamic amount
+    #                 long_dynamic_amount = 0.001 * self.initial_max_long_trade_qty
+    #                 short_dynamic_amount = 0.001 * self.initial_max_short_trade_qty
+
+    #                 min_qty = float(market_data["min_qty"])
+    #                 min_qty_str = str(min_qty)
+
+    #                 # Get the precision level of the minimum quantity
+    #                 if ".0" in min_qty_str:
+    #                     # The minimum quantity does not have a fractional part, precision is 0
+    #                     precision_level = 0
+    #                 else:
+    #                     # The minimum quantity has a fractional part, get its precision level
+    #                     precision_level = len(min_qty_str.split(".")[1])
+
+    #                 long_dynamic_amount = round(long_dynamic_amount, precision_level)
+    #                 short_dynamic_amount = round(short_dynamic_amount, precision_level)
+
+    #                 logging.info(f"Long dynamic amount: {long_dynamic_amount} for {symbol}")
+    #                 logging.info(f"Short dynamic amount: {short_dynamic_amount} for {symbol}")
+
+    #                 # # Loop over long and short sides
+    #                 # for side in ['long', 'short']:
+    #                 #     pos_qty = position_data[side]['qty']
+    #                 #     logging.info(f"Pos qty: {pos_qty} for {side}")
+    #                 #     pos_price = position_data[side]['price']
+    #                 #     logging.info(f"Pos price: {pos_price}")
+                        
+    #                 #     if pos_qty > 0:  # If there's an open position
+    #                 #         if side == 'long':
+    #                 #             self.long_entry_maker(symbol, trend, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, pos_qty, pos_price, should_long, should_add_to_long)
+    #                 #             take_profit_price = self.calculate_long_take_profit_spread_bybit(pos_price, symbol, five_minute_distance)
+    #                 #             self.postonly_limit_order_bybit(symbol, "sell", pos_qty, take_profit_price, positionIdx=1, reduceOnly=True)
+    #                 #         else:
+    #                 #             self.short_entry_maker(symbol, trend, one_minute_volume, five_minute_distance, min_vol, min_dist, short_dynamic_amount, pos_qty, pos_price, should_short, should_add_to_short)
+    #                 #             take_profit_price = self.calculate_short_take_profit_spread_bybit(pos_price, symbol, five_minute_distance)
+    #                 #             self.postonly_limit_order_bybit(symbol, "buy", pos_qty, take_profit_price, positionIdx=2, reduceOnly=True)
+
+    #                 # Assuming you have fetched all the open orders for the symbol at the beginning of your main logic
+    #                 open_orders = self.exchange.get_open_orders(symbol)
+
+    #                 # Loop over long and short sides
+    #                 for side in ['long', 'short']:
+    #                     pos_qty = position_data[side]['qty']
+    #                     logging.info(f"Pos qty: {pos_qty} for {side}")
+    #                     pos_price = position_data[side]['price']
+    #                     logging.info(f"Pos price: {pos_price}")
+                        
+    #                     if pos_qty > 0:  # If there's an open position
+    #                         # Determine the take profit details based on the position side
+    #                         if side == 'long':
+    #                             order_side = "sell"
+    #                             positionIdx = 1
+    #                             self.long_entry_maker(symbol, trend, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, pos_qty, pos_price, should_long, should_add_to_long)
+    #                             take_profit_price = self.calculate_long_take_profit_spread_bybit(pos_price, symbol, five_minute_distance)
+    #                         else:
+    #                             order_side = "buy"
+    #                             positionIdx = 2
+    #                             self.short_entry_maker(symbol, trend, one_minute_volume, five_minute_distance, min_vol, min_dist, short_dynamic_amount, pos_qty, pos_price, should_short, should_add_to_short)
+    #                             take_profit_price = self.calculate_short_take_profit_spread_bybit(pos_price, symbol, five_minute_distance)
+                            
+    #                         # Check for existing take profit orders
+    #                         existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
+    #                         total_existing_tp_qty = sum(qty for qty, _ in existing_tps)
+    #                         logging.info(f"Existing {order_side} TPs: {existing_tps}")
+                            
+    #                         # Cancel existing TP orders if their quantities do not match the current position quantity
+    #                         for qty, existing_tp_id in existing_tps:
+    #                             if not math.isclose(qty, pos_qty):
+    #                                 try:
+    #                                     self.exchange.cancel_order_by_id(existing_tp_id, symbol)
+    #                                     logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
+    #                                 except Exception as e:
+    #                                     logging.info(f"Error in cancelling {order_side} TP orders: {e}")
+                            
+    #                         # Place a new TP order if none exist
+    #                         if len(existing_tps) < 1:
+    #                             try:
+    #                                 self.postonly_limit_order_bybit(symbol, order_side, pos_qty, take_profit_price, positionIdx, reduceOnly=True)
+    #                                 logging.info(f"{order_side.capitalize()} take profit set at {take_profit_price}")
+    #                             except Exception as e:
+    #                                 logging.info(f"Error in placing {order_side} TP: {e}")
+
+    #         time.sleep(300)
 
 
     def graceful_stop_checker_bybit(self):
