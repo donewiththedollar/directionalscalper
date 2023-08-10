@@ -76,9 +76,16 @@ class Strategy:
     def get_open_take_profit_order_quantities(self, orders, side):
         take_profit_orders = []
         for order in orders:
-            if order['side'].lower() == side.lower() and order['reduce_only']:
+            if order.get('side') and order['side'].lower() == side.lower() and order['reduce_only']:
                 take_profit_orders.append((order['qty'], order['id']))
         return take_profit_orders
+
+    # def get_open_take_profit_order_quantities(self, orders, side):
+    #     take_profit_orders = []
+    #     for order in orders:
+    #         if order['side'].lower() == side.lower() and order['reduce_only']:
+    #             take_profit_orders.append((order['qty'], order['id']))
+    #     return take_profit_orders
 
     def cancel_take_profit_orders(self, symbol, side):
         self.exchange.cancel_close_bybit(symbol, side)
@@ -1147,6 +1154,8 @@ class Strategy:
                     logging.info(f"Short dynamic amount using min qty: {short_dynamic_amount} for {symbol}")
 
                     open_orders = self.exchange.get_open_orders(symbol)
+
+                    order_side = None 
 
                     for side in ['long', 'short']:
                         if side == 'long' and long_pos_qty > 0:
