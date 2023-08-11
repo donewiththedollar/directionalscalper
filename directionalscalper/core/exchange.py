@@ -850,7 +850,7 @@ class Exchange:
 
 
     # Bybit 
-    def get_positions_bybit(self, symbol, max_retries=3, retry_delay=5) -> dict:
+    def get_positions_bybit(self, symbol, max_retries=10, retry_delay=5) -> dict:
         values = {
             "long": {
                 "qty": 0.0,
