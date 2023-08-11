@@ -20,6 +20,8 @@ class Strategy:
         self.printed_trade_quantities = False
         self.last_mfirsi_signal = None
         self.taker_fee_rate = 0.055 / 100
+        self.max_long_trade_qty = None
+        self.max_short_trade_qty = None
         self.initial_max_long_trade_qty = None
         self.initial_max_short_trade_qty = None
 
@@ -1118,7 +1120,7 @@ class Strategy:
                             logging.info(f"Initial max trade qty set to {self.initial_max_long_trade_qty}")
                         if self.initial_max_short_trade_qty is None:
                             self.initial_max_short_trade_qty = self.max_short_trade_qty  
-                            logging.info(f"Initial trade qty set to {self.initial_max_short_trade_qty}")                                                            
+                            logging.info(f"Initial max trade qty set to {self.initial_max_short_trade_qty}")                                                            
                                 
                     # Calculate the dynamic amount
                     long_dynamic_amount = 0.001 * self.initial_max_long_trade_qty
@@ -1138,21 +1140,24 @@ class Strategy:
                     long_dynamic_amount = round(long_dynamic_amount, precision_level)
                     short_dynamic_amount = round(short_dynamic_amount, precision_level)
 
-                    logging.info(f"Long dynamic amount: {long_dynamic_amount} for {symbol}")
-                    logging.info(f"Short dynamic amount: {short_dynamic_amount} for {symbol}")
+                    # self.bybit_reset_position_leverage_long(long_pos_qty, total_equity, best_ask_price, max_leverage)
+                    # self.bybit_reset_position_leverage_short(short_pos_qty, total_equity, best_ask_price, max_leverage)
+
+                    logging.info(f"[GS mode] Long dynamic amount: {long_dynamic_amount} for {symbol}")
+                    logging.info(f"[GS mode] Short dynamic amount: {short_dynamic_amount} for {symbol}")
 
 
                     # Check if the amount is less than the minimum quantity allowed by the exchange
                     if long_dynamic_amount < min_qty:
-                        logging.info(f"Dynamic amount too small for 0.001x, using min_qty")
+                        logging.info(f"[GS mode] Dynamic amount too small for 0.001x, using min_qty")
                         long_dynamic_amount = min_qty
                     
                     if short_dynamic_amount < min_qty:
-                        logging.info(f"Dynamic amount too small for 0.001x, using min_qty")
+                        logging.info(f"[GS mode] Dynamic amount too small for 0.001x, using min_qty")
                         short_dynamic_amount = min_qty
 
-                    logging.info(f"Long dynamic amount using min qty: {long_dynamic_amount} for {symbol}")
-                    logging.info(f"Short dynamic amount using min qty: {short_dynamic_amount} for {symbol}")
+                    logging.info(f"[GS mode] Long dynamic amount using min qty: {long_dynamic_amount} for {symbol}")
+                    logging.info(f"[GS mode] Short dynamic amount using min qty: {short_dynamic_amount} for {symbol}")
 
                     open_orders = self.exchange.get_open_orders(symbol)
 
