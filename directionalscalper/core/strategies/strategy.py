@@ -1142,7 +1142,7 @@ class Strategy:
                             current_pos_qty = long_pos_qty
                             order_side = "sell"
                             positionIdx = 1
-                            self.long_entry_maker_gs(symbol, trend, one_minute_volume, five_minute_distance, min_vol, min_qty, current_pos_qty, current_pos_price, should_add_to_long)
+                            self.long_entry_maker_gs(symbol, trend, one_minute_volume, five_minute_distance, min_vol, min_dist, min_qty, current_pos_qty, current_pos_price, should_add_to_long)
                             #self.long_entry_maker(symbol, trend, one_minute_volume, five_minute_distance, min_vol, min_dist, min_qty, current_pos_qty, current_pos_price, should_long, should_add_to_long)
                             take_profit_price = self.calculate_long_take_profit_spread_bybit(current_pos_price, symbol, five_minute_distance)
                         elif side == 'short' and short_pos_qty > 0:
