@@ -1008,7 +1008,7 @@ class Strategy:
         if len(existing_tps) < 1:
             try:
                 # Use postonly_limit_order_bybit function to place take profit order
-                self.postonly_limit_order_bybit(symbol, order_side, pos_qty, take_profit_price, positionIdx, reduce_only=True)
+                self.postonly_limit_order_bybit(symbol, order_side, pos_qty, take_profit_price, positionIdx, reduceOnly=True)
                 logging.info(f"{order_side.capitalize()} take profit set at {take_profit_price}")
                 time.sleep(0.05)
             except Exception as e:
@@ -1059,6 +1059,22 @@ class Strategy:
                     logging.info(f"Placing additional short entry for {symbol} in GS mode")
                     self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
+    def long_entry_maker_gs_mfi(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, long_pos_qty: float, long_pos_price: float, should_add_to_long: bool):
+        best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+        
+        if one_minute_volume > min_vol and five_minute_distance > min_dist:
+            if (trend.lower() == "long" or mfi.lower() == "long") and should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price:
+                logging.info(f"Placing additional long entry for {symbol} in GS mode using MFI signals")
+                self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+
+    def short_entry_maker_gs_mfi(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, short_dynamic_amount: float, short_pos_qty: float, short_pos_price: float, should_add_to_short: bool):
+        best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+        
+        if one_minute_volume > min_vol and five_minute_distance > min_dist:
+            if (trend.lower() == "short" or mfi.lower() == "short") and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price:
+                logging.info(f"Placing additional short entry for {symbol} in GS mode using MFI signals")
+                self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+
     def graceful_stop_checker_bybit_full(self):
         quote_currency = "USDT"
         max_retries = 5
@@ -1089,6 +1105,7 @@ class Strategy:
                     trend = self.manager.get_asset_value(symbol, data, "Trend")
                     min_dist = self.config.min_distance
                     min_vol = self.config.min_volume
+                    mfi = self.manager.get_asset_value(symbol, data, "MFI")
 
                     m_moving_averages = self.manager.get_1m_moving_averages(symbol)
                     m5_moving_averages = self.manager.get_5m_moving_averages(symbol)
