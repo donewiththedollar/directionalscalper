@@ -20,8 +20,6 @@ from directionalscalper.core.strategies.strategy import Strategy
 from directionalscalper.core.strategies.bybit.bybit_auto_rotator import BybitAutoRotator
 from directionalscalper.core.strategies.bybit.bybit_auto_rotator_mfirsi import BybitAutoRotatorMFIRSI
 from directionalscalper.core.strategies.bybit.bybit_auto_hedge_maker_mfirsi_rotator import BybitAutoHedgeStrategyMakerMFIRSIRotator
-from directionalscalper.core.strategies.bybit.bybit_auto_hedge_maker_mfirsi_rotator_new import BybitAutoHedgeStrategyMakerMFIRSIRotatorNew
-
 ### ILAY ###
 from live_table_manager import LiveTableManager, shared_symbols_data
 ### ILAY ###
@@ -55,9 +53,6 @@ class DirectionalMarketMaker:
             strategy.run(symbol)
         elif strategy_name.lower() == 'bybit_auto_hedge_mfi_rotator':
             strategy = BybitAutoHedgeStrategyMakerMFIRSIRotator(self.exchange, self.manager, config.bot)
-            strategy.run(symbol)
-        elif strategy_name.lower() == 'bybit_rotator':
-            strategy = BybitAutoHedgeStrategyMakerMFIRSIRotatorNew(self.exchange, self.manager, config.bot)
             strategy.run(symbol)
 
     def get_balance(self, quote, market_type=None, sub_type=None):
