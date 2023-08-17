@@ -35,8 +35,7 @@ class Bot(BaseModel):
     wallet_exposure: float = 1.00
     whitelist: List[str] = []
     blacklist: List[str] = []
-    # whitelist: List[str]
-    # blacklist: List[str]
+    symbols_allowed: int = 12
 
     @validator("min_volume")
     def minimum_min_volume(cls, v):
