@@ -1108,7 +1108,7 @@ class Strategy:
         if trend is not None and isinstance(trend, str) and trend.lower() == "long":
             if one_minute_volume > min_vol and five_minute_distance > min_dist:
                 # Only placing additional long entries in GS mode
-                if should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price:
+                if should_add_to_long and long_pos_qty < self.max_long_trade_qty and long_pos_price is not None and best_bid_price < long_pos_price:
                     logging.info(f"Placing additional long entry for {symbol} in GS mode")
                     self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
 
@@ -1118,7 +1118,7 @@ class Strategy:
         if trend is not None and isinstance(trend, str) and trend.lower() == "short":
             if one_minute_volume > min_vol and five_minute_distance > min_dist:
                 # Only placing additional short entries in GS mode
-                if should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price:
+                if should_add_to_short and short_pos_qty < self.max_short_trade_qty and short_pos_price is not None and best_ask_price > short_pos_price:
                     logging.info(f"Placing additional short entry for {symbol} in GS mode")
                     self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
