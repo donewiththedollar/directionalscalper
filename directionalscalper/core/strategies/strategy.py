@@ -24,7 +24,6 @@ class Strategy:
         self.max_short_trade_qty = None
         self.initial_max_long_trade_qty = None
         self.initial_max_short_trade_qty = None
-        self.order_book_analyzer = self.OrderBookAnalyzer(exchange, config.symbol)
 
     class OrderBookAnalyzer:
         def __init__(self, exchange, symbol):
@@ -937,6 +936,7 @@ class Strategy:
                             self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
     def bybit_hedge_entry_maker_v4(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
+        self.order_book_analyzer = self.OrderBookAnalyzer(self.exchange, symbol)
         order_book = self.order_book_analyzer.get_order_book()
         best_ask_price = order_book['asks'][0][0]
         best_bid_price = order_book['bids'][0][0]
