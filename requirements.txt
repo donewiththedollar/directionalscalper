@@ -7,3 +7,4 @@ requests
 rich
 ta
 streamlit
+plotly

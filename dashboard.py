@@ -50,7 +50,7 @@ data = get_latest_data()
 
 # Overview Section
 st.header("Overview")
-total_balance = data["Balance"].sum()
+total_balance = data["Balance"].iloc[0]
 st.metric("Total Balance", f"${total_balance:,.2f}")
 total_long_upnl = data["Long uPNL"].sum()
 st.metric("Total Long uPNL", f"${total_long_upnl:,.2f}")
