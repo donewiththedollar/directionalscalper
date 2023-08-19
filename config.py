@@ -6,7 +6,7 @@ import json
 from enum import Enum
 from typing import Union
 
-from pydantic import BaseModel, HttpUrl, ValidationError, validator
+from pydantic import BaseModel, HttpUrl, ValidationError, validator, DirectoryPath
 
 
 class Exchanges(Enum):
@@ -36,6 +36,8 @@ class Bot(BaseModel):
     whitelist: List[str] = []
     blacklist: List[str] = []
     symbols_allowed: int = 12
+    dashboard_enabled: bool = False
+    shared_data_path: DirectoryPath
 
     @validator("min_volume")
     def minimum_min_volume(cls, v):

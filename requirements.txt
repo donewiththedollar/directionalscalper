@@ -6,3 +6,4 @@ python-pidfile
 requests
 rich
 ta
+streamlit

@@ -1,5 +1,7 @@
 import time
+import json
 import math
+import os
 from threading import Thread, Lock
 from ..strategy import Strategy
 from datetime import datetime, timedelta
@@ -76,6 +78,11 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
         max_leverage = self.exchange.get_max_leverage_bybit(symbol)
 
         symbols_allowed = self.config.symbols_allowed
+
+        #dashboard_path = self.config.shared_data_path
+
+        if self.config.dashboard_enabled:
+            dashboard_path = os.path.join(self.config.shared_data_path, "shared_data.json")
 
         logging.info("Setting up exchange")
         self.exchange.setup_exchange_bybit(symbol)
@@ -299,6 +306,11 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
             #live.update(self.generate_main_table(symbol_data))
             shared_symbols_data[symbol] = symbol_data
             ### ILAY ###
+
+            # SERIALIZE
+            if self.config.dashboard_enabled:
+                with open(dashboard_path, "w") as f:
+                    json.dump(shared_symbols_data, f)
 
             open_orders = self.exchange.get_open_orders(symbol)
 
