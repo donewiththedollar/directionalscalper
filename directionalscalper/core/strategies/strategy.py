@@ -935,6 +935,103 @@ class Strategy:
                             logging.info(f"Placed additional short entry")
                             self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
+    def bybit_turbocharged_entry_maker_walls(self, symbol, trend, mfi, take_profit_long, take_profit_short, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price):
+        self.order_book_analyzer = self.OrderBookAnalyzer(self.exchange, symbol)
+        order_book = self.order_book_analyzer.get_order_book()
+
+        best_ask_price = order_book['asks'][0][0]
+        best_bid_price = order_book['bids'][0][0]
+
+        market_data = self.get_market_data_with_retry(symbol, max_retries=5, retry_delay=5)
+        min_qty = float(market_data["min_qty"])
+
+        largest_bid = max(order_book['bids'], key=lambda x: x[1])
+        largest_ask = min(order_book['asks'], key=lambda x: x[1])
+
+        spread = best_ask_price - best_bid_price
+
+        # Adjusting the multiplier based on the size of the wall
+        bid_wall_size_multiplier = 0.05 + (0.02 if largest_bid[1] > 10 * min_qty else 0)
+        ask_wall_size_multiplier = 0.05 + (0.02 if largest_ask[1] > 10 * min_qty else 0)
+
+        front_run_bid_price = round(largest_bid[0] + (spread * bid_wall_size_multiplier), 4)
+        front_run_ask_price = round(largest_ask[0] - (spread * ask_wall_size_multiplier), 4)
+
+        # Check for long position and ensure take_profit_long is not None
+        if long_pos_qty > 0 and take_profit_long:
+            distance_to_tp_long = take_profit_long - best_bid_price
+            dynamic_long_amount = distance_to_tp_long * 10
+            if trend.lower() == "long" and mfi.lower() == "long" and best_bid_price < long_pos_price:
+                self.postonly_limit_order_bybit(symbol, "buy", dynamic_long_amount, front_run_bid_price, positionIdx=1, reduceOnly=False)
+                logging.info(f"Turbocharged Additional Long Entry Placed at {front_run_bid_price} with {dynamic_long_amount} amount!")
+
+        # Check for short position and ensure take_profit_short is not None
+        if short_pos_qty > 0 and take_profit_short:
+            distance_to_tp_short = best_ask_price - take_profit_short
+            dynamic_short_amount = distance_to_tp_short * 10
+            if trend.lower() == "short" and mfi.lower() == "short" and best_ask_price > short_pos_price:
+                self.postonly_limit_order_bybit(symbol, "sell", dynamic_short_amount, front_run_ask_price, positionIdx=2, reduceOnly=False)
+                logging.info(f"Turbocharged Additional Short Entry Placed at {front_run_ask_price} with {dynamic_short_amount} amount!")
+
+        # Entries for when there's no position yet
+        if long_pos_qty == 0:
+            if trend.lower() == "long" or mfi.lower() == "long":
+                self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, front_run_bid_price, positionIdx=1, reduceOnly=False)
+                logging.info(f"Turbocharged Long Entry Placed at {front_run_bid_price} with {long_dynamic_amount} amount!")
+
+        if short_pos_qty == 0:
+            if trend.lower() == "short" or mfi.lower() == "short":
+                self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, front_run_ask_price, positionIdx=2, reduceOnly=False)
+                logging.info(f"Turbocharged Short Entry Placed at {front_run_ask_price} with {short_dynamic_amount} amount!")
+
+    def bybit_turbocharged_entry_maker(self, symbol, trend, mfi, take_profit_long, take_profit_short, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price):
+        self.order_book_analyzer = self.OrderBookAnalyzer(self.exchange, symbol)
+        order_book = self.order_book_analyzer.get_order_book()
+
+        best_ask_price = order_book['asks'][0][0]
+        best_bid_price = order_book['bids'][0][0]
+
+        market_data = self.get_market_data_with_retry(symbol, max_retries=5, retry_delay=5)
+        min_qty = float(market_data["min_qty"])
+
+        # Adjusted Front-running strategy with a tighter spread
+        largest_bid = max(order_book['bids'], key=lambda x: x[1])
+        largest_ask = min(order_book['asks'], key=lambda x: x[1])
+        # front_run_bid_price = round(largest_bid[0] + (min_qty / 2), 4)  # round to 4 decimal places
+        # front_run_ask_price = round(largest_ask[0] - (min_qty / 2), 4)  # round to 4 decimal places
+
+        spread = best_ask_price - best_bid_price
+        front_run_bid_price = round(largest_bid[0] + (spread * 0.05), 4)  # front-run by 5% of the spread
+        front_run_ask_price = round(largest_ask[0] - (spread * 0.05), 4)  # front-run by 5% of the spread
+
+
+        # Check for long position and ensure take_profit_long is not None
+        if long_pos_qty > 0 and take_profit_long:
+            distance_to_tp_long = take_profit_long - best_bid_price
+            dynamic_long_amount = distance_to_tp_long * 10
+            if trend.lower() == "long" and mfi.lower() == "long" and best_bid_price < long_pos_price:
+                self.postonly_limit_order_bybit(symbol, "buy", dynamic_long_amount, front_run_bid_price, positionIdx=1, reduceOnly=False)
+                logging.info(f"Turbocharged Additional Long Entry Placed at {front_run_bid_price} with {dynamic_long_amount} amount!")
+
+        # Check for short position and ensure take_profit_short is not None
+        if short_pos_qty > 0 and take_profit_short:
+            distance_to_tp_short = best_ask_price - take_profit_short
+            dynamic_short_amount = distance_to_tp_short * 10
+            if trend.lower() == "short" and mfi.lower() == "short" and best_ask_price > short_pos_price:
+                self.postonly_limit_order_bybit(symbol, "sell", dynamic_short_amount, front_run_ask_price, positionIdx=2, reduceOnly=False)
+                logging.info(f"Turbocharged Additional Short Entry Placed at {front_run_ask_price} with {dynamic_short_amount} amount!")
+
+        # Entries for when there's no position yet
+        if long_pos_qty == 0:
+            if trend.lower() == "long" or mfi.lower() == "long":
+                self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, front_run_bid_price, positionIdx=1, reduceOnly=False)
+                logging.info(f"Turbocharged Long Entry Placed at {front_run_bid_price} with {long_dynamic_amount} amount!")
+
+        if short_pos_qty == 0:
+            if trend.lower() == "short" or mfi.lower() == "short":
+                self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, front_run_ask_price, positionIdx=2, reduceOnly=False)
+                logging.info(f"Turbocharged Short Entry Placed at {front_run_ask_price} with {short_dynamic_amount} amount!")
+
     def bybit_hedge_entry_maker_v4(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
         self.order_book_analyzer = self.OrderBookAnalyzer(self.exchange, symbol)
         order_book = self.order_book_analyzer.get_order_book()

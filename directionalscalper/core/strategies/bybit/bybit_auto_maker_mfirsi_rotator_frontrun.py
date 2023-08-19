@@ -241,13 +241,21 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotatorFrontRun(Strategy):
             short_take_profit = None
             long_take_profit = None
 
+            # if five_minute_distance != previous_five_minute_distance:
+            #     short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, five_minute_distance)
+            #     long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
+            # else:
+            #     if short_take_profit is None or long_take_profit is None:
+            #         short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, five_minute_distance)
+            #         long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
+                    
             if five_minute_distance != previous_five_minute_distance:
-                short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, five_minute_distance)
-                long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
+                short_take_profit = self.calculate_short_take_profit_spread_bybit_fees(short_pos_price, short_pos_qty, symbol, five_minute_distance)
+                long_take_profit = self.calculate_long_take_profit_spread_bybit_fees(long_pos_price, long_pos_qty, symbol, five_minute_distance)
             else:
                 if short_take_profit is None or long_take_profit is None:
-                    short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, five_minute_distance)
-                    long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
+                    short_take_profit = self.calculate_short_take_profit_spread_bybit_fees(short_pos_price, short_pos_qty, symbol, five_minute_distance)
+                    long_take_profit = self.calculate_long_take_profit_spread_bybit_fees(long_pos_price, short_pos_qty, symbol, five_minute_distance)
                     
             previous_five_minute_distance = five_minute_distance
 
@@ -302,9 +310,7 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotatorFrontRun(Strategy):
             open_orders = self.exchange.get_open_orders(symbol)
 
             # Entry logic
-            # Long and short entry placement
-            self.bybit_hedge_entry_maker_v4(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
-            # Take profit placement 
+            self.bybit_turbocharged_entry_maker(symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
 
             # Call the function to update long take profit spread
             if long_pos_qty > 0 and long_take_profit is not None:

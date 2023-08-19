@@ -55,7 +55,7 @@ class DirectionalMarketMaker:
         elif strategy_name.lower() == 'bybit_auto_hedge_mfi_rotator':
             strategy = BybitAutoHedgeStrategyMakerMFIRSIRotator(self.exchange, self.manager, config.bot)
             strategy.run(symbol)
-        elif strategy_name.lower() == 'bybit_auto_hedge_mfi_rotator_frontrun':
+        elif strategy_name.lower() == 'bybit_rotator_frontrun':
             strategy = BybitAutoHedgeStrategyMakerMFIRSIRotatorFrontRun(self.exchange, self.manager, config.bot)
             strategy.run(symbol)
 
@@ -137,7 +137,7 @@ if __name__ == '__main__':
     ### ILAY ###
 
     # Check if the specific strategy is chosen, and if so, adjust symbols_allowed
-    if args.strategy.lower() == 'bybit_auto_hedge_mfi_rotator_frontrun':
+    if args.strategy.lower() == 'bybit_rotator_frontrun':
         symbols_allowed = 2
 
     symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist, max_symbols=symbols_allowed)
