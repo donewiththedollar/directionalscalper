@@ -997,9 +997,7 @@ class Strategy:
         # Adjusted Front-running strategy with a tighter spread
         largest_bid = max(order_book['bids'], key=lambda x: x[1])
         largest_ask = min(order_book['asks'], key=lambda x: x[1])
-        # front_run_bid_price = round(largest_bid[0] + (min_qty / 2), 4)  # round to 4 decimal places
-        # front_run_ask_price = round(largest_ask[0] - (min_qty / 2), 4)  # round to 4 decimal places
-
+        
         spread = best_ask_price - best_bid_price
         front_run_bid_price = round(largest_bid[0] + (spread * 0.05), 4)  # front-run by 5% of the spread
         front_run_ask_price = round(largest_ask[0] - (spread * 0.05), 4)  # front-run by 5% of the spread
@@ -1205,9 +1203,10 @@ class Strategy:
         if trend is not None and isinstance(trend, str) and trend.lower() == "long":
             if one_minute_volume > min_vol and five_minute_distance > min_dist:
                 # Only placing additional long entries in GS mode
-                if should_add_to_long and long_pos_qty < self.max_long_trade_qty and long_pos_price is not None and best_bid_price < long_pos_price:
-                    logging.info(f"Placing additional long entry for {symbol} in GS mode")
-                    self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                if should_add_to_long and long_pos_qty < self.max_long_trade_qty and long_pos_price is not None:
+                    if best_bid_price < long_pos_price:
+                        logging.info(f"Placing additional long entry for {symbol} in GS mode")
+                        self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
 
     def short_entry_maker_gs(self, symbol: str, trend: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, short_dynamic_amount: float, short_pos_qty: float, short_pos_price: float, should_add_to_short: bool):
         best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
@@ -1215,9 +1214,30 @@ class Strategy:
         if trend is not None and isinstance(trend, str) and trend.lower() == "short":
             if one_minute_volume > min_vol and five_minute_distance > min_dist:
                 # Only placing additional short entries in GS mode
-                if should_add_to_short and short_pos_qty < self.max_short_trade_qty and short_pos_price is not None and best_ask_price > short_pos_price:
-                    logging.info(f"Placing additional short entry for {symbol} in GS mode")
-                    self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                if should_add_to_short and short_pos_qty < self.max_short_trade_qty and short_pos_price is not None:
+                    if best_ask_price > short_pos_price:
+                        logging.info(f"Placing additional short entry for {symbol} in GS mode")
+                        self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+
+    # def long_entry_maker_gs(self, symbol: str, trend: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, long_pos_qty: float, long_pos_price: float, should_add_to_long: bool):
+    #     best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+        
+    #     if trend is not None and isinstance(trend, str) and trend.lower() == "long":
+    #         if one_minute_volume > min_vol and five_minute_distance > min_dist:
+    #             # Only placing additional long entries in GS mode
+    #             if should_add_to_long and long_pos_qty < self.max_long_trade_qty and long_pos_price is not None and best_bid_price < long_pos_price:
+    #                 logging.info(f"Placing additional long entry for {symbol} in GS mode")
+    #                 self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+
+    # def short_entry_maker_gs(self, symbol: str, trend: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, short_dynamic_amount: float, short_pos_qty: float, short_pos_price: float, should_add_to_short: bool):
+    #     best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+        
+    #     if trend is not None and isinstance(trend, str) and trend.lower() == "short":
+    #         if one_minute_volume > min_vol and five_minute_distance > min_dist:
+    #             # Only placing additional short entries in GS mode
+    #             if should_add_to_short and short_pos_qty < self.max_short_trade_qty and short_pos_price is not None and best_ask_price > short_pos_price:
+    #                 logging.info(f"Placing additional short entry for {symbol} in GS mode")
+    #                 self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
     def long_entry_maker_gs_mfi(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, long_pos_qty: float, long_pos_price: float, should_add_to_long: bool):
         best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
