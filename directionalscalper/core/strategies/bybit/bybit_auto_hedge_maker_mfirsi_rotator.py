@@ -75,6 +75,8 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
         current_leverage = self.exchange.get_current_leverage_bybit(symbol)
         max_leverage = self.exchange.get_max_leverage_bybit(symbol)
 
+        symbols_allowed = self.config.symbols_allowed
+
         logging.info("Setting up exchange")
         self.exchange.setup_exchange_bybit(symbol)
 
@@ -214,10 +216,9 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
 
             #print(f"Open positions: {open_position_data}")
 
-            open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
+            open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)  
 
-            #print(f"Open symbols: {open_symbols}")
-
+            can_open_new_position = self.can_trade_new_symbol(open_symbols, symbols_allowed)
 
             short_pos_qty = position_data["short"]["qty"]
             long_pos_qty = position_data["long"]["qty"]
@@ -301,21 +302,9 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
 
             open_orders = self.exchange.get_open_orders(symbol)
 
-            # print(f"{open_orders}")
-
-            # long_entry_order_exist = self.entry_order_exists(open_orders, "buy")
-            # short_entry_order_exist = self.entry_order_exists(open_orders, "sell")
-
-            # print(f"Long entry order exists {long_entry_order_exist}")
-            # print(f"Short entry order exists {short_entry_order_exist}")
-
-            # Entry logic
-            # Long and short entry placement
-
-
-            self.bybit_hedge_entry_maker_v2(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
-            #self.bybit_hedge_entry_maker_v4(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
-            #self.bybit_hedge_entry_maker(symbol, trend, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
+            # Check if we can open new position based on config
+            if can_open_new_position:
+                self.bybit_hedge_entry_maker_v2(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
 
             # Take profit placement 
 

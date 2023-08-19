@@ -75,6 +75,8 @@ class BybitRotatorAggressive(Strategy):
         current_leverage = self.exchange.get_current_leverage_bybit(symbol)
         max_leverage = self.exchange.get_max_leverage_bybit(symbol)
 
+        symbols_allowed = self.config.symbols_allowed
+
         logging.info("Setting up exchange")
         self.exchange.setup_exchange_bybit(symbol)
 
@@ -216,6 +218,10 @@ class BybitRotatorAggressive(Strategy):
 
             open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
 
+            symbols_allowed = 5
+
+            can_open_new_position = self.can_trade_new_symbol(open_symbols, symbols_allowed)
+
             #print(f"Open symbols: {open_symbols}")
 
 
@@ -302,7 +308,8 @@ class BybitRotatorAggressive(Strategy):
             open_orders = self.exchange.get_open_orders(symbol)
 
             # Entry logic
-            self.bybit_turbocharged_entry_maker(symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
+            if can_open_new_position:
+                self.bybit_turbocharged_entry_maker(symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
 
             # Call the function to update long take profit spread
             if long_pos_qty > 0 and long_take_profit is not None:
