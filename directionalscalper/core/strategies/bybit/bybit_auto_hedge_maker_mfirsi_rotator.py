@@ -301,11 +301,20 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
 
             open_orders = self.exchange.get_open_orders(symbol)
 
+            # print(f"{open_orders}")
+
+            # long_entry_order_exist = self.entry_order_exists(open_orders, "buy")
+            # short_entry_order_exist = self.entry_order_exists(open_orders, "sell")
+
+            # print(f"Long entry order exists {long_entry_order_exist}")
+            # print(f"Short entry order exists {short_entry_order_exist}")
+
             # Entry logic
             # Long and short entry placement
 
 
             self.bybit_hedge_entry_maker_v2(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
+            #self.bybit_hedge_entry_maker_v4(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
             #self.bybit_hedge_entry_maker(symbol, trend, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
 
             # Take profit placement 

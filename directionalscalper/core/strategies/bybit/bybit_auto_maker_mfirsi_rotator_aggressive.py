@@ -17,9 +17,9 @@ from ..logger import Logger
 from live_table_manager import shared_symbols_data
 ####
 
-logging = Logger(logger_name="BybitAutoRotatorMFIRSIRotatorFR", filename="BybitAutoRotatorMFIRSIRotatorFR.log", stream=True)
+logging = Logger(logger_name="BybitRotatorAggressive", filename="BybitRotatorAggressive.log", stream=True)
 
-class BybitAutoHedgeStrategyMakerMFIRSIRotatorFrontRun(Strategy):
+class BybitRotatorAggressive(Strategy):
     def __init__(self, exchange, manager, config):
         super().__init__(exchange, config, manager)
         self.manager = manager
@@ -241,21 +241,13 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotatorFrontRun(Strategy):
             short_take_profit = None
             long_take_profit = None
 
-            # if five_minute_distance != previous_five_minute_distance:
-            #     short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, five_minute_distance)
-            #     long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
-            # else:
-            #     if short_take_profit is None or long_take_profit is None:
-            #         short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, five_minute_distance)
-            #         long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
-                    
             if five_minute_distance != previous_five_minute_distance:
-                short_take_profit = self.calculate_short_take_profit_spread_bybit_fees(short_pos_price, short_pos_qty, symbol, five_minute_distance)
-                long_take_profit = self.calculate_long_take_profit_spread_bybit_fees(long_pos_price, long_pos_qty, symbol, five_minute_distance)
+                short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, five_minute_distance)
+                long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
             else:
                 if short_take_profit is None or long_take_profit is None:
-                    short_take_profit = self.calculate_short_take_profit_spread_bybit_fees(short_pos_price, short_pos_qty, symbol, five_minute_distance)
-                    long_take_profit = self.calculate_long_take_profit_spread_bybit_fees(long_pos_price, short_pos_qty, symbol, five_minute_distance)
+                    short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, five_minute_distance)
+                    long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
                     
             previous_five_minute_distance = five_minute_distance
 
