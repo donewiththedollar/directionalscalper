@@ -8,7 +8,7 @@ import os
 import tempfile
 
 # Setting the Streamlit page configuration
-st.set_page_config(layout="wide", page_title="DirectionalSca;per")
+st.set_page_config(layout="wide", page_title="DirectionalScalper")
 st.title("DirectionalScalper Dashboard 🤖")
 
 def write_to_json(data: dict, filename: str):
@@ -52,18 +52,6 @@ def get_symbol_data(retries=5, delay=0.5) -> pd.DataFrame:
     st.warning("Trouble fetching the data. Please refresh or try again later.")
     return pd.DataFrame()  # Return empty DataFrame
 
-# def get_symbol_data() -> pd.DataFrame:
-#     with open("shared_data.json", "r") as f:
-#         content = f.read()
-#         if not content.strip():  # Check if file is empty
-#             return pd.DataFrame()  # Return empty DataFrame
-
-#         try:
-#             data = json.loads(content)
-#             return pd.DataFrame(list(data.values()))
-#         except json.JSONDecodeError:
-#             return pd.DataFrame()  # Return empty DataFrame if there's a decode error
-
 def get_open_positions_data() -> pd.DataFrame:
     with open("open_positions_data.json", "r") as f:
         content = f.read()
@@ -87,7 +75,7 @@ symbol_data = get_symbol_data()
 open_positions_data = get_open_positions_data()
 
 # Create tabs for the dashboard
-tabs = ["Overview", "Symbol Analysis", "Symbol Performance", "Open Positions"]
+tabs = ["Overview", "Symbol Analysis", "Symbol Performance", "Open Positions", "Bot Control"]
 selected_tab = st.sidebar.radio("Choose a Tab", tabs)
 
 # Overview tab
@@ -135,6 +123,24 @@ elif selected_tab == "Open Positions":
     st.header("Open Positions")
     st.write(open_positions_data)
 
+# Bot Control tab
+elif selected_tab == "Bot Control":
+    st.header("Bot Control Panel 🎮")
+    run_bot = st.button("Start Bot")
+    stop_bot = st.button("Stop Bot")
+    
+    if run_bot:
+        # Call function to start the bot
+        st.success("Bot Started!")
+    
+    if stop_bot:
+        # Call function to stop the bot
+        st.warning("Bot Stopped!")
+    
+    strategy_param = st.slider("Set Strategy Parameter", 0, 100)
+    st.write(f"You set the strategy parameter to {strategy_param}")
+    # Use this strategy_param value in your bot
+
 # Displaying the detailed symbol data table
 st.header("Rotator Symbol Data")
 st.write(symbol_data)
@@ -143,4 +149,3 @@ st.write(symbol_data)
 if auto_refresh:
     time.sleep(refresh_rate)
     st.experimental_rerun()
-
