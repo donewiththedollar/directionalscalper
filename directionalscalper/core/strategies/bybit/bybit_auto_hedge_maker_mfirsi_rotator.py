@@ -115,7 +115,7 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
             #rotator_symbols = self.manager.get_auto_rotate_symbols(self.config.min_qty_threshold)
             rotator_symbols = self.manager.get_auto_rotate_symbols()
 
-            print(f"{rotator_symbols}")
+            # print(f"Rotator symbols from manager: {rotator_symbols}")
 
             quote_currency = "USDT"
 
@@ -221,7 +221,6 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
 
             open_position_data = self.exchange.get_all_open_positions_bybit()
 
-            #print(f"Open positions: {open_position_data}")
 
             open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)  
 
@@ -303,42 +302,16 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
                 # ... continue adding all parameters ...
             }
 
-            # Update the shared data with both the current symbol's data and the open positions
+            ### ILAY ###
+            #live.update(self.generate_main_table(symbol_data))
+            shared_symbols_data[symbol] = symbol_data
+            ### ILAY ###
+
+            # SERIALIZE
             if self.config.dashboard_enabled:
+                with open(dashboard_path, "w") as f:
+                    json.dump(shared_symbols_data, f)
                 self.update_shared_data(symbol_data, open_position_data)
-
-            # symbol_data = {
-            #     'symbol': symbol,
-            #     'min_qty': min_qty,
-            #     'current_price': current_price,
-            #     'balance': total_equity,
-            #     'available_bal': available_equity,
-            #     'volume': one_minute_volume,
-            #     'spread': five_minute_distance,
-            #     'trend': trend,
-            #     'long_pos_qty': long_pos_qty,
-            #     'short_pos_qty': short_pos_qty,
-            #     'long_upnl': long_upnl,
-            #     'short_upnl': short_upnl,
-            #     'long_cum_pnl': cum_realised_pnl_long,
-            #     'short_cum_pnl': cum_realised_pnl_short,
-            #     'long_pos_price': long_pos_price,
-            #     'short_pos_price': short_pos_price
-            #     # ... continue adding all parameters ...
-            # }
-
-            # ### ILAY ###
-            # #live.update(self.generate_main_table(symbol_data))
-            # shared_symbols_data[symbol] = symbol_data
-            # ### ILAY ###
-
-            # # SERIALIZE
-            # if self.config.dashboard_enabled:
-            #     with open(dashboard_path, "w") as f:
-            #         json.dump(shared_symbols_data, f)
-
-
-            #self.update_shared_data(symbol_data, open_position_data)
 
             open_orders = self.exchange.get_open_orders(symbol)
 

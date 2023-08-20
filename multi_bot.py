@@ -25,6 +25,9 @@ from directionalscalper.core.strategies.bybit.bybit_auto_maker_mfirsi_rotator_ag
 from live_table_manager import LiveTableManager, shared_symbols_data
 ### ILAY ###
 
+def standardize_symbol(symbol):
+    return symbol.replace('/', '').split(':')[0]
+
 class DirectionalMarketMaker:
     def __init__(self, config: Config, exchange_name: str):
         self.config = config
@@ -44,10 +47,12 @@ class DirectionalMarketMaker:
         passphrase = exchange_config.passphrase
         self.exchange = Exchange(self.exchange_name, api_key, secret_key, passphrase)
 
-    def run_strategy(self, symbol, strategy_name, config):
+    # def run_strategy(self, symbol, strategy_name, config):
+    def run_strategy(self, symbol, strategy_name, config, symbols_to_trade=None):
+        if symbols_to_trade:
+            print(f"Calling run method with symbols: {symbols_to_trade}")
         if strategy_name.lower() == 'bybit_hedge_rotator':
             strategy = BybitAutoRotator(self.exchange, self.manager, config.bot)
-            print(f"Calling run method with symbols: {symbols}")
             strategy.run(symbol)
         elif strategy_name.lower() == 'bybit_hedge_rotator_mfirsi':
             strategy = BybitAutoRotatorMFIRSI(self.exchange, self.manager, config.bot)
@@ -81,7 +86,8 @@ class DirectionalMarketMaker:
     def get_symbols(self):
         return self.exchange.symbols
 
-def run_bot(symbol, args, manager):
+# def run_bot(symbol, args, manager):
+def run_bot(symbol, args, manager, rotator_symbols=None):
     config_file_path = Path('configs/' + args.config)
     print("Loading config from:", config_file_path)
     config = load_config(config_file_path)
@@ -107,8 +113,9 @@ def run_bot(symbol, args, manager):
         balance = market_maker.get_balance(quote)
         print(f"Futures balance: {balance}")
 
-    market_maker.run_strategy(symbol, strategy_name, config)  # Calling the run_strategy method
-
+    #market_maker.run_strategy(symbol, strategy_name, config)  # Calling the run_strategy method
+    #market_maker.run_strategy(symbol, strategy_name, config, symbols_to_trade)
+    market_maker.run_strategy(symbol, strategy_name, config, rotator_symbols)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='DirectionalScalper')
@@ -140,9 +147,30 @@ if __name__ == '__main__':
     if args.strategy.lower() == 'bybit_rotator_aggressive':
         symbols_allowed = 5
 
-    symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist, max_symbols=symbols_allowed)
+    # Fetch all symbols that meet your criteria
+    all_symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist)
 
-    threads = [threading.Thread(target=run_bot, args=(symbol, args, manager)) for symbol in symbols]
+    # Get symbols with open positions
+    open_position_data = market_maker.exchange.get_all_open_positions_bybit()
+    open_positions_symbols = [position['symbol'] for position in open_position_data]
+    
+    print(f"Open positions symbols {open_positions_symbols}")
+
+    # Determine new symbols to trade on
+    potential_new_symbols = [symbol for symbol in all_symbols if symbol not in open_positions_symbols]
+    new_symbols = potential_new_symbols[:symbols_allowed]
+
+    # Combine open positions symbols and new symbols
+    symbols_to_trade = open_positions_symbols + new_symbols
+
+    # Standardize the symbols before starting the threads
+    symbols_to_trade = [standardize_symbol(symbol) for symbol in symbols_to_trade]
+
+    # Fetch the rotator symbols once before starting the threads
+    rotator_symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist)
+
+    # Start bots for each symbol in symbols_to_trade and pass the rotator_symbols as an argument
+    threads = [threading.Thread(target=run_bot, args=(symbol, args, manager, rotator_symbols)) for symbol in symbols_to_trade]
 
     for thread in threads:
         thread.start()

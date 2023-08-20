@@ -918,6 +918,23 @@ class Strategy:
     #     """
     #     return len(open_symbols) < symbols_allowed
     
+    # def can_trade_new_symbol(self, open_symbols: list, symbols_allowed: int, current_symbol: str) -> bool:
+    #     """
+    #     Checks if the bot can trade a given symbol.
+        
+    #     Parameters:
+    #     - open_symbols: List of symbols currently being traded.
+    #     - symbols_allowed: Maximum number of symbols that can be traded simultaneously.
+    #     - current_symbol: The symbol the bot is considering trading.
+
+    #     Returns:
+    #     - True if the bot can trade the symbol. False otherwise.
+    #     """
+    #     if current_symbol in open_symbols:
+    #         return True
+    #     else:
+    #         return len(open_symbols) < symbols_allowed
+
     def can_trade_new_symbol(self, open_symbols: list, symbols_allowed: int, current_symbol: str) -> bool:
         """
         Checks if the bot can trade a given symbol.
@@ -931,9 +948,9 @@ class Strategy:
         - True if the bot can trade the symbol. False otherwise.
         """
         if current_symbol in open_symbols:
-            return True
+            return True  # This allows new positions on already traded symbols
         else:
-            return len(open_symbols) < symbols_allowed
+            return len(set(open_symbols)) < symbols_allowed  # This checks if we can trade a new symbol
 
     def update_shared_data(self, symbol_data: dict, open_position_data: dict):
         # Update and serialize symbol data
