@@ -220,8 +220,9 @@ class BybitRotatorAggressive(Strategy):
 
             symbols_allowed = 5
 
-            can_open_new_position = self.can_trade_new_symbol(open_symbols, symbols_allowed)
+            #can_open_new_position = self.can_trade_new_symbol(open_symbols, symbols_allowed)
 
+            can_open_new_position = self.can_trade_new_symbol(open_symbols, symbols_allowed, symbol)
             #print(f"Open symbols: {open_symbols}")
 
 
