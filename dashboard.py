@@ -8,8 +8,8 @@ import os
 import tempfile
 
 # Setting the Streamlit page configuration
-st.set_page_config(layout="wide", page_title="Trade Simple")
-st.title("Bot Dashboard 🤖")
+st.set_page_config(layout="wide", page_title="DirectionalSca;per")
+st.title("DirectionalScalper Dashboard 🤖")
 
 def write_to_json(data: dict, filename: str):
     with tempfile.NamedTemporaryFile('w', delete=False) as tmp:
