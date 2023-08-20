@@ -142,7 +142,7 @@ elif selected_tab == "Bot Control":
     # Use this strategy_param value in your bot
 
 # Displaying the detailed symbol data table
-st.header("Rotator Symbol Data")
+st.header("Live Symbol Data")
 st.write(symbol_data)
 
 # Logic for auto-refreshing the dashboard at the selected interval

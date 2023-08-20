@@ -9,6 +9,7 @@ import urllib.parse
 from typing import Optional, Tuple, List
 from ccxt.base.errors import RateLimitExceeded
 from .strategies.logger import Logger
+from requests.exceptions import HTTPError
 
 logging = Logger(logger_name="Exchange", filename="Exchange.log", stream=True)
 
@@ -421,23 +422,51 @@ class Exchange:
     #     else:
     #         return None
 
-    def fetch_max_leverage_huobi(self, symbol):
+    # def fetch_max_leverage_huobi(self, symbol):
+    #     """
+    #     Retrieve the maximum leverage for a given symbol
+    #     :param str symbol: unified market symbol
+    #     :returns int: maximum leverage for the symbol
+    #     """
+    #     leverage_tiers = self.exchange.fetch_leverage_tiers([symbol])
+    #     if symbol in leverage_tiers:
+    #         symbol_tiers = leverage_tiers[symbol]
+    #         #print(symbol_tiers)  # print the content of symbol_tiers
+    #         #max_leverage = max([tier['lever_rate'] for tier in symbol_tiers])
+    #         max_leverage = max([tier['maxLeverage'] for tier in symbol_tiers])
+    #         return max_leverage
+    #     else:
+    #         return None
+
+    def fetch_max_leverage_huobi(self, symbol, max_retries=3, delay_between_retries=5):
         """
         Retrieve the maximum leverage for a given symbol
         :param str symbol: unified market symbol
+        :param int max_retries: Number of times to retry fetching
+        :param int delay_between_retries: Delay in seconds between retries
         :returns int: maximum leverage for the symbol
         """
-        leverage_tiers = self.exchange.fetch_leverage_tiers([symbol])
-        if symbol in leverage_tiers:
-            symbol_tiers = leverage_tiers[symbol]
-            #print(symbol_tiers)  # print the content of symbol_tiers
-            #max_leverage = max([tier['lever_rate'] for tier in symbol_tiers])
-            max_leverage = max([tier['maxLeverage'] for tier in symbol_tiers])
-            return max_leverage
-        else:
-            return None
+        retries = 0
+        while retries < max_retries:
+            try:
+                leverage_tiers = self.exchange.fetch_leverage_tiers([symbol])
+                if symbol in leverage_tiers:
+                    symbol_tiers = leverage_tiers[symbol]
+                    max_leverage = max([tier['maxLeverage'] for tier in symbol_tiers])
+                    return max_leverage
+                else:
+                    return None
+            except ccxt.NetworkError:
+                retries += 1
+                if retries < max_retries:
+                    time.sleep(delay_between_retries)
+                else:
+                    raise  # if max_retries is reached, raise the exception to be handled by the caller
 
-        
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
+                return None
+            
     # Huobi
     def get_market_data_huobi(self, symbol: str) -> dict:
         values = {"precision": 0.0, "min_qty": 0.0, "leverage": 0.0}
@@ -756,11 +785,11 @@ class Exchange:
         except ccxt.BaseError as e:
             print(f'Failed to fetch OHLCV data: {e}')
             return pd.DataFrame()
-        
+
     def get_orderbook(self, symbol, max_retries=3, retry_delay=5) -> dict:
         values = {"bids": [], "asks": []}
-        
-        for i in range(max_retries):
+
+        for attempt in range(max_retries):
             try:
                 data = self.exchange.fetch_order_book(symbol)
                 if "bids" in data and "asks" in data:
@@ -769,15 +798,51 @@ class Exchange:
                             values["bids"] = data["bids"]
                             values["asks"] = data["asks"]
                 break  # if the fetch was successful, break out of the loop
+
+            except HTTPError as http_err:
+                print(f"HTTP error occurred: {http_err} - {http_err.response.text}")
+
+                if "Too many visits" in str(http_err) or (http_err.response.status_code == 429):
+                    if attempt < max_retries - 1:
+                        delay = retry_delay * (attempt + 1)  # Variable delay
+                        logging.info(f"Rate limit error in get_orderbook(). Retrying in {delay} seconds...")
+                        time.sleep(delay)
+                        continue
+                else:
+                    logging.error(f"HTTP error in get_orderbook(): {http_err.response.text}")
+                    raise http_err
+
             except Exception as e:
-                if i < max_retries - 1:  # if not the last attempt
+                if attempt < max_retries - 1:  # if not the last attempt
                     logging.info(f"An unknown error occurred in get_orderbook(): {e}. Retrying in {retry_delay} seconds...")
                     time.sleep(retry_delay)
                 else:
-                    logging.info(f"Failed to fetch order book after {max_retries} attempts: {e}")
+                    logging.error(f"Failed to fetch order book after {max_retries} attempts: {e}")
                     raise e  # If it's still failing after max_retries, re-raise the exception.
-        
+
         return values
+    
+    # def get_orderbook(self, symbol, max_retries=3, retry_delay=5) -> dict:
+    #     values = {"bids": [], "asks": []}
+        
+    #     for i in range(max_retries):
+    #         try:
+    #             data = self.exchange.fetch_order_book(symbol)
+    #             if "bids" in data and "asks" in data:
+    #                 if len(data["bids"]) > 0 and len(data["asks"]) > 0:
+    #                     if len(data["bids"][0]) > 0 and len(data["asks"][0]) > 0:
+    #                         values["bids"] = data["bids"]
+    #                         values["asks"] = data["asks"]
+    #             break  # if the fetch was successful, break out of the loop
+    #         except Exception as e:
+    #             if i < max_retries - 1:  # if not the last attempt
+    #                 logging.info(f"An unknown error occurred in get_orderbook(): {e}. Retrying in {retry_delay} seconds...")
+    #                 time.sleep(retry_delay)
+    #             else:
+    #                 logging.info(f"Failed to fetch order book after {max_retries} attempts: {e}")
+    #                 raise e  # If it's still failing after max_retries, re-raise the exception.
+        
+    #     return values
 
     # def get_orderbook(self, symbol) -> dict:
     #     values = {"bids": [], "asks": []}
@@ -899,22 +964,44 @@ class Exchange:
 
         return values
 
-    def get_all_open_positions_bybit(self) -> List[dict]:
+    def get_all_open_positions_bybit(self, retries=10, delay_factor=10) -> List[dict]:
         """
         Get all open positions across all symbols available in the account.
         
         Returns:
             List[dict]: A list of dictionaries, each representing a position.
         """
-        try:
-            # No symbol is passed to fetch_positions to get positions for all symbols.
-            all_positions = self.exchange.fetch_positions() 
-            open_positions = [position for position in all_positions if float(position.get('contracts', 0)) != 0] 
-            return open_positions
-        except Exception as e:
-            # Handle or log the exception as you see fit.
-            print(f"Error fetching open positions: {e}")
-            return []
+        for attempt in range(retries):
+            try:
+                # No symbol is passed to fetch_positions to get positions for all symbols.
+                all_positions = self.exchange.fetch_positions() 
+                open_positions = [position for position in all_positions if float(position.get('contracts', 0)) != 0] 
+                return open_positions
+            except Exception as e:
+                # If the error is related to rate limiting, wait for some time and retry
+                if "Too many visits" in str(e) and attempt < retries - 1:
+                    time.sleep(delay_factor * (attempt + 1))  # Delay increases with every attempt
+                    continue
+                else:
+                    print(f"Error fetching open positions: {e}")
+                    return []
+
+    # def get_all_open_positions_bybit(self) -> List[dict]:
+    #     """
+    #     Get all open positions across all symbols available in the account.
+        
+    #     Returns:
+    #         List[dict]: A list of dictionaries, each representing a position.
+    #     """
+    #     try:
+    #         # No symbol is passed to fetch_positions to get positions for all symbols.
+    #         all_positions = self.exchange.fetch_positions() 
+    #         open_positions = [position for position in all_positions if float(position.get('contracts', 0)) != 0] 
+    #         return open_positions
+    #     except Exception as e:
+    #         # Handle or log the exception as you see fit.
+    #         print(f"Error fetching open positions: {e}")
+    #         return []
 
     def print_positions_structure_binance(self):
         try:

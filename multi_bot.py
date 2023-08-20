@@ -49,6 +49,7 @@ class DirectionalMarketMaker:
 
     # def run_strategy(self, symbol, strategy_name, config):
     def run_strategy(self, symbol, strategy_name, config, symbols_to_trade=None):
+        # ... (rest of your code)
         if symbols_to_trade:
             print(f"Calling run method with symbols: {symbols_to_trade}")
         if strategy_name.lower() == 'bybit_hedge_rotator':
@@ -63,7 +64,7 @@ class DirectionalMarketMaker:
         elif strategy_name.lower() == 'bybit_rotator_aggressive':
             strategy = BybitRotatorAggressive(self.exchange, self.manager, config.bot)
             strategy.run(symbol)
-
+            
     def get_balance(self, quote, market_type=None, sub_type=None):
         if self.exchange_name == 'bitget':
             return self.exchange.get_balance_bitget(quote)

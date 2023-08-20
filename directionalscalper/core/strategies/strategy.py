@@ -905,6 +905,24 @@ class Strategy:
         symbols = [position['symbol'].split(':')[0] for position in positions]
         return list(set(symbols))
 
+    def retry_api_call(self, function, *args, max_retries=5, delay=5, **kwargs):
+        for i in range(max_retries):
+            try:
+                return function(*args, **kwargs)
+            except Exception as e:
+                logging.info(f"Error occurred during API call: {e}. Retrying in {delay} seconds...")
+                time.sleep(delay)
+        raise Exception(f"Failed to execute the API function after {max_retries} retries.")
+
+    # def retry_api_call(self, function, max_retries=5, delay=5, *args, **kwargs):
+    #     for i in range(max_retries):
+    #         try:
+    #             return function(*args, **kwargs)
+    #         except Exception as e:
+    #             logging.info(f"Error occurred during API call: {e}. Retrying in {delay} seconds...")
+    #             time.sleep(delay)
+    #     raise Exception(f"Failed to execute {function.__name__} after {max_retries} retries.")
+
     # def can_trade_new_symbol(self, open_symbols: list, symbols_allowed: int) -> bool:
     #     """
     #     Checks if the bot can trade a new symbol given the current number of symbols being traded.
@@ -1324,7 +1342,7 @@ class Strategy:
             # Get current rotator symbols
             rotator_symbols = self.manager.get_auto_rotate_symbols()
             open_positions = self.exchange.get_all_open_positions_bybit()
-
+            #open_positions = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
             # Remove '/' from open symbols
             open_symbols = [symbol.replace('/', '') for symbol in self.extract_symbols_from_positions_bybit(open_positions)]
 
@@ -1438,7 +1456,7 @@ class Strategy:
         while True:
             # Get current rotator symbols
             rotator_symbols = self.manager.get_auto_rotate_symbols()
-            open_positions = self.exchange.get_all_open_positions_bybit()
+            open_positions = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
 
             # Remove '/' from open symbols
             open_symbols = [symbol.replace('/', '') for symbol in self.extract_symbols_from_positions_bybit(open_positions)]

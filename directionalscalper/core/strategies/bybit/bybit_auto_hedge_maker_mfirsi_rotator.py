@@ -2,6 +2,7 @@ import time
 import json
 import math
 import os
+import copy
 from threading import Thread, Lock
 from ..strategy import Strategy
 from datetime import datetime, timedelta
@@ -222,8 +223,9 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
             open_position_data = self.exchange.get_all_open_positions_bybit()
 
 
-            open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)  
+            open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
 
+            #open_symbols = self.retry_api_call(self.extract_symbols_from_positions_bybit, open_position_data)
             #can_open_new_position = self.can_trade_new_symbol(open_symbols, symbols_allowed)
             can_open_new_position = self.can_trade_new_symbol(open_symbols, symbols_allowed, symbol)
 
@@ -308,12 +310,20 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
             ### ILAY ###
 
             # SERIALIZE
-            if self.config.dashboard_enabled:
-                with open(dashboard_path, "w") as f:
-                    json.dump(shared_symbols_data, f)
-                self.update_shared_data(symbol_data, open_position_data)
+            # if self.config.dashboard_enabled:
+            #     with open(dashboard_path, "w") as f:
+            #         json.dump(shared_symbols_data, f)
+            #     self.update_shared_data(symbol_data, open_position_data)
 
-            open_orders = self.exchange.get_open_orders(symbol)
+            # SERIALIZE and DEEPCOPY
+            if self.config.dashboard_enabled:
+                data_to_save = copy.deepcopy(shared_symbols_data)
+                with open(dashboard_path, "w") as f:
+                    json.dump(data_to_save, f)
+                self.update_shared_data(symbol_data, open_position_data)
+                
+            #open_orders = self.exchange.get_open_orders(symbol)
+            open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
             # Check if we can open new position based on config
             if can_open_new_position:
