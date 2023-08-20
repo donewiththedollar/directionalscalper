@@ -904,19 +904,36 @@ class Strategy:
         symbols = [position['symbol'].split(':')[0] for position in positions]
         return list(set(symbols))
 
-    def can_trade_new_symbol(self, open_symbols: list, symbols_allowed: int) -> bool:
+    # def can_trade_new_symbol(self, open_symbols: list, symbols_allowed: int) -> bool:
+    #     """
+    #     Checks if the bot can trade a new symbol given the current number of symbols being traded.
+        
+    #     Parameters:
+    #     - open_symbols: List of symbols currently being traded.
+    #     - symbols_allowed: Maximum number of symbols that can be traded simultaneously.
+
+    #     Returns:
+    #     - True if the bot can trade a new symbol. False otherwise.
+    #     """
+    #     return len(open_symbols) < symbols_allowed
+    
+    def can_trade_new_symbol(self, open_symbols: list, symbols_allowed: int, current_symbol: str) -> bool:
         """
-        Checks if the bot can trade a new symbol given the current number of symbols being traded.
+        Checks if the bot can trade a given symbol.
         
         Parameters:
         - open_symbols: List of symbols currently being traded.
         - symbols_allowed: Maximum number of symbols that can be traded simultaneously.
+        - current_symbol: The symbol the bot is considering trading.
 
         Returns:
-        - True if the bot can trade a new symbol. False otherwise.
+        - True if the bot can trade the symbol. False otherwise.
         """
-        return len(open_symbols) < symbols_allowed
-    
+        if current_symbol in open_symbols:
+            return True
+        else:
+            return len(open_symbols) < symbols_allowed
+
     # Bybit regular auto hedge logic
     # Bybit entry logic
     def bybit_hedge_entry_maker(self, symbol: str, trend: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
