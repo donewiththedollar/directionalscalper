@@ -6,6 +6,7 @@ import ta as ta
 import os
 import uuid
 import logging
+import json
 from .logger import Logger
 from datetime import datetime, timedelta
 
@@ -933,6 +934,15 @@ class Strategy:
             return True
         else:
             return len(open_symbols) < symbols_allowed
+
+    def update_shared_data(self, symbol_data: dict, open_position_data: dict):
+        # Update and serialize symbol data
+        with open("symbol_data.json", "w") as f:
+            json.dump(symbol_data, f)
+
+        # Update and serialize open position data
+        with open("open_positions_data.json", "w") as f:
+            json.dump(open_position_data, f)
 
     # Bybit regular auto hedge logic
     # Bybit entry logic
