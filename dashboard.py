@@ -66,6 +66,18 @@ def get_open_positions_data() -> pd.DataFrame:
         except json.JSONDecodeError:
             return pd.DataFrame()  # Return empty DataFrame if there's a decode error
 
+def get_open_symbols_count() -> int:
+    with open("open_symbols_count.json", "r") as f:
+        content = f.read()
+        if not content.strip():  # Check if file is empty
+            return 0  # Return 0 if file is empty
+
+        try:
+            data = json.loads(content)
+            return data["count"]
+        except json.JSONDecodeError:
+            return 0  # Return 0 if there's a decode error
+
 # Sidebar components to set the refresh rate and auto-refresh toggle
 refresh_rate = st.sidebar.slider("Refresh Rate (seconds)", 5, 60, 10)
 auto_refresh = st.sidebar.checkbox("Auto-Refresh", True)
@@ -81,6 +93,11 @@ selected_tab = st.sidebar.radio("Choose a Tab", tabs)
 # Overview tab
 if selected_tab == "Overview":
     st.header("Overview")
+
+    # Display the count of open symbols
+    open_symbols_count = get_open_symbols_count()
+    st.metric("Open Symbols Count", f"{open_symbols_count}")
+    
     total_balance = symbol_data["balance"].iloc[0]
     st.metric("Total Balance", f"${total_balance:,.2f}")
     total_long_upnl = symbol_data["long_upnl"].sum()

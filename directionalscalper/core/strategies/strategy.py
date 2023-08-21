@@ -25,6 +25,7 @@ class Strategy:
         self.max_short_trade_qty = None
         self.initial_max_long_trade_qty = None
         self.initial_max_short_trade_qty = None
+        self.open_symbols_count = 0
 
     class OrderBookAnalyzer:
         def __init__(self, exchange, symbol):
@@ -914,63 +915,29 @@ class Strategy:
                 time.sleep(delay)
         raise Exception(f"Failed to execute the API function after {max_retries} retries.")
 
-    # def retry_api_call(self, function, max_retries=5, delay=5, *args, **kwargs):
-    #     for i in range(max_retries):
-    #         try:
-    #             return function(*args, **kwargs)
-    #         except Exception as e:
-    #             logging.info(f"Error occurred during API call: {e}. Retrying in {delay} seconds...")
-    #             time.sleep(delay)
-    #     raise Exception(f"Failed to execute {function.__name__} after {max_retries} retries.")
-
-    # def can_trade_new_symbol(self, open_symbols: list, symbols_allowed: int) -> bool:
-    #     """
-    #     Checks if the bot can trade a new symbol given the current number of symbols being traded.
-        
-    #     Parameters:
-    #     - open_symbols: List of symbols currently being traded.
-    #     - symbols_allowed: Maximum number of symbols that can be traded simultaneously.
-
-    #     Returns:
-    #     - True if the bot can trade a new symbol. False otherwise.
-    #     """
-    #     return len(open_symbols) < symbols_allowed
-    
-    # def can_trade_new_symbol(self, open_symbols: list, symbols_allowed: int, current_symbol: str) -> bool:
-    #     """
-    #     Checks if the bot can trade a given symbol.
-        
-    #     Parameters:
-    #     - open_symbols: List of symbols currently being traded.
-    #     - symbols_allowed: Maximum number of symbols that can be traded simultaneously.
-    #     - current_symbol: The symbol the bot is considering trading.
-
-    #     Returns:
-    #     - True if the bot can trade the symbol. False otherwise.
-    #     """
-    #     if current_symbol in open_symbols:
-    #         return True
-    #     else:
-    #         return len(open_symbols) < symbols_allowed
-
     def can_trade_new_symbol(self, open_symbols: list, symbols_allowed: int, current_symbol: str) -> bool:
         """
         Checks if the bot can trade a given symbol.
-        
-        Parameters:
-        - open_symbols: List of symbols currently being traded.
-        - symbols_allowed: Maximum number of symbols that can be traded simultaneously.
-        - current_symbol: The symbol the bot is considering trading.
-
-        Returns:
-        - True if the bot can trade the symbol. False otherwise.
         """
+        
+        self.open_symbols_count = len(open_symbols)  # Update the attribute with the current count
+        
         if current_symbol in open_symbols:
             return True  # This allows new positions on already traded symbols
         else:
-            return len(set(open_symbols)) < symbols_allowed  # This checks if we can trade a new symbol
+            return self.open_symbols_count < symbols_allowed  # This checks if we can trade a new symbol
 
-    def update_shared_data(self, symbol_data: dict, open_position_data: dict):
+
+    # def update_shared_data(self, symbol_data: dict, open_position_data: dict):
+    #     # Update and serialize symbol data
+    #     with open("symbol_data.json", "w") as f:
+    #         json.dump(symbol_data, f)
+
+    #     # Update and serialize open position data
+    #     with open("open_positions_data.json", "w") as f:
+    #         json.dump(open_position_data, f)
+
+    def update_shared_data(self, symbol_data: dict, open_position_data: dict, open_symbols_count: int):
         # Update and serialize symbol data
         with open("symbol_data.json", "w") as f:
             json.dump(symbol_data, f)
@@ -978,6 +945,10 @@ class Strategy:
         # Update and serialize open position data
         with open("open_positions_data.json", "w") as f:
             json.dump(open_position_data, f)
+        
+        # Update and serialize count of open symbols
+        with open("open_symbols_count.json", "w") as f:
+            json.dump({"count": open_symbols_count}, f)
 
     # Bybit regular auto hedge logic
     # Bybit entry logic
@@ -1147,6 +1118,32 @@ class Strategy:
                         logging.info(f"Placing aggressive additional short entry using front-running strategy")
                         self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, front_run_ask_price, positionIdx=2, reduceOnly=False)
 
+    def bybit_hedge_entry_maker_v2_initial_entry(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, best_bid_price: float, best_ask_price: float, should_long: bool, should_short: bool):
+        open_orders = self.exchange.get_open_orders(symbol)
+
+        if one_minute_volume > min_vol and five_minute_distance > min_dist:
+            if (trend.lower() == "long" or mfi.lower() == "long") and should_long and long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
+                logging.info(f"Placing initial long entry")
+                self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                logging.info(f"Placed initial long entry")
+
+            if (trend.lower() == "short" or mfi.lower() == "short") and should_short and short_pos_qty == 0 and not self.entry_order_exists(open_orders, "sell"):
+                logging.info(f"Placing initial short entry")
+                self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                logging.info("Placed initial short entry")
+
+    def bybit_hedge_entry_maker_v2_additional_entry(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, best_bid_price: float, best_ask_price: float, should_add_to_long: bool, should_add_to_short: bool):
+        open_orders = self.exchange.get_open_orders(symbol)
+
+        if one_minute_volume > min_vol and five_minute_distance > min_dist:
+            if (trend.lower() == "long" or mfi.lower() == "long") and should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
+                logging.info(f"Placing additional long entry")
+                self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+
+            if (trend.lower() == "short" or mfi.lower() == "short") and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
+                logging.info(f"Placing additional short entry")
+                self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                
     # Revised consistent maker strategy using MA Trend OR MFI as well while maintaining same original MA logic
     def bybit_hedge_entry_maker_v2(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
         best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
@@ -1449,6 +1446,7 @@ class Strategy:
             time.sleep(300)
 
     def graceful_stop_checker_bybit_full(self):
+    #def graceful_stop_checker_bybit_full(self, open_positions):
         quote_currency = "USDT"
         max_retries = 5
         retry_delay = 5

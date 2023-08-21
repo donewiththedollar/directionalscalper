@@ -54,6 +54,7 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
         threads = [
             Thread(target=self.run_single_symbol, args=(symbol,)),
             Thread(target=self.graceful_stop_checker_bybit_full)
+            #Thread(target=self.graceful_stop_checker_bybit_full(open_position_data))
         ]
 
         for thread in threads:
@@ -225,6 +226,9 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
 
             open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
 
+            open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
+            print(f"Open symbols: {open_symbols}")
+
             #open_symbols = self.retry_api_call(self.extract_symbols_from_positions_bybit, open_position_data)
             #can_open_new_position = self.can_trade_new_symbol(open_symbols, symbols_allowed)
             can_open_new_position = self.can_trade_new_symbol(open_symbols, symbols_allowed, symbol)
@@ -316,18 +320,32 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
             #     self.update_shared_data(symbol_data, open_position_data)
 
             # SERIALIZE and DEEPCOPY
+            # if self.config.dashboard_enabled:
+            #     data_to_save = copy.deepcopy(shared_symbols_data)
+            #     with open(dashboard_path, "w") as f:
+            #         json.dump(data_to_save, f)
+            #     self.update_shared_data(symbol_data, open_position_data)
+                
             if self.config.dashboard_enabled:
                 data_to_save = copy.deepcopy(shared_symbols_data)
                 with open(dashboard_path, "w") as f:
                     json.dump(data_to_save, f)
-                self.update_shared_data(symbol_data, open_position_data)
-                
+                self.update_shared_data(symbol_data, open_position_data, len(open_symbols))
+
+
             #open_orders = self.exchange.get_open_orders(symbol)
             open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
-            # Check if we can open new position based on config
-            if can_open_new_position:
-                self.bybit_hedge_entry_maker_v2(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
+            # # Check if we can open new position based on config
+            # if can_open_new_position:
+            #     self.bybit_hedge_entry_maker_v2(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
+
+            # Check if the symbol is already being traded
+            if symbol in open_symbols:
+                self.bybit_hedge_entry_maker_v2_additional_entry(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, best_bid_price, best_ask_price, should_add_to_long, should_add_to_short)
+                
+            elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
+                self.bybit_hedge_entry_maker_v2_initial_entry(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, best_bid_price, best_ask_price, should_long, should_short)
 
             # Take profit placement 
 
