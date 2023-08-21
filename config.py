@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List
+from typing import List, Optional
 
 
 import json
@@ -37,8 +37,8 @@ class Bot(BaseModel):
     blacklist: List[str] = []
     symbols_allowed: int = 12
     dashboard_enabled: bool = False
-    shared_data_path: DirectoryPath
-
+    shared_data_path: Optional[DirectoryPath] = None
+    
     @validator("min_volume")
     def minimum_min_volume(cls, v):
         if v < 0.0:
