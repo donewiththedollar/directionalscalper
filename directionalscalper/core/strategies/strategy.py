@@ -1347,6 +1347,11 @@ class Strategy:
         retry_delay = 5
 
         while True:
+            if self.max_long_trade_qty is None or self.max_short_trade_qty is None:
+                logging.info("Waiting for max trade quantities to be initialized...")
+                time.sleep(10)  # Wait for 10 seconds before checking again
+                continue
+
             # Get current rotator symbols
             rotator_symbols = self.manager.get_auto_rotate_symbols()
             open_positions = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
