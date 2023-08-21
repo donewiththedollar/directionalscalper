@@ -25,6 +25,9 @@ from directionalscalper.core.strategies.bybit.bybit_auto_maker_mfirsi_rotator_ag
 from live_table_manager import LiveTableManager, shared_symbols_data
 ### ILAY ###
 
+# def standardize_symbol(symbol):
+#     return symbol.replace('/', '').split(':')[0]
+
 def standardize_symbol(symbol):
     return symbol.replace('/', '').split(':')[0]
 
@@ -64,7 +67,7 @@ class DirectionalMarketMaker:
         elif strategy_name.lower() == 'bybit_rotator_aggressive':
             strategy = BybitRotatorAggressive(self.exchange, self.manager, config.bot)
             strategy.run(symbol)
-            
+
     def get_balance(self, quote, market_type=None, sub_type=None):
         if self.exchange_name == 'bitget':
             return self.exchange.get_balance_bitget(quote)
@@ -148,30 +151,29 @@ if __name__ == '__main__':
     if args.strategy.lower() == 'bybit_rotator_aggressive':
         symbols_allowed = 5
 
-    # Fetch all symbols that meet your criteria
-    all_symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist)
+    # Fetch all symbols that meet your criteria and standardize them
+    all_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist)]
 
-    # Get symbols with open positions
+    # Get symbols with open positions and standardize them
     open_position_data = market_maker.exchange.get_all_open_positions_bybit()
-    open_positions_symbols = [position['symbol'] for position in open_position_data]
+    open_positions_symbols = [standardize_symbol(position['symbol']) for position in open_position_data]
     
     print(f"Open positions symbols {open_positions_symbols}")
 
     # Determine new symbols to trade on
-    potential_new_symbols = [symbol for symbol in all_symbols if symbol not in open_positions_symbols]
+    potential_new_symbols = [symbol for symbol in all_symbols_standardized if symbol not in open_positions_symbols]
     new_symbols = potential_new_symbols[:symbols_allowed]
 
     # Combine open positions symbols and new symbols
     symbols_to_trade = open_positions_symbols + new_symbols
 
-    # Standardize the symbols before starting the threads
-    symbols_to_trade = [standardize_symbol(symbol) for symbol in symbols_to_trade]
+    print(f"Symbols to trade: {symbols_to_trade}")
 
-    # Fetch the rotator symbols once before starting the threads
-    rotator_symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist)
+    # Fetch the rotator symbols once before starting the threads and standardize them as well
+    rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist)]
 
     # Start bots for each symbol in symbols_to_trade and pass the rotator_symbols as an argument
-    threads = [threading.Thread(target=run_bot, args=(symbol, args, manager, rotator_symbols)) for symbol in symbols_to_trade]
+    threads = [threading.Thread(target=run_bot, args=(symbol, args, manager, rotator_symbols_standardized)) for symbol in symbols_to_trade]
 
     for thread in threads:
         thread.start()
