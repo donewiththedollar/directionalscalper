@@ -1853,14 +1853,14 @@ class Exchange:
 
             except Exception as e:
                 # Check if it's a rate limit exception, otherwise raise the original exception
-                if isinstance(e, ccxt.base.errors.RateLimitExceeded):
+                if isinstance(e, RateLimitExceeded):
                     if retry < max_retries - 1:  # Don't wait if it's the last retry
                         sleep_time = backoff_factor * (2 ** retry)  # Exponential backoff
                         time.sleep(sleep_time)
                 else:
                     raise e
         raise Exception(f"Failed to get max leverage for {symbol} after {max_retries} retries.")
-        
+
     # Bitget 
     def get_max_leverage_bitget(self, symbol):
         try:
