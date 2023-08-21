@@ -54,7 +54,6 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
         threads = [
             Thread(target=self.run_single_symbol, args=(symbol,)),
             Thread(target=self.graceful_stop_checker_bybit_full)
-            #Thread(target=self.graceful_stop_checker_bybit_full(open_position_data))
         ]
 
         for thread in threads:
@@ -80,8 +79,6 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
         max_leverage = self.exchange.get_max_leverage_bybit(symbol)
 
         symbols_allowed = self.config.symbols_allowed
-
-        #dashboard_path = self.config.shared_data_path
 
         if self.config.dashboard_enabled:
             dashboard_path = os.path.join(self.config.shared_data_path, "shared_data.json")
@@ -336,14 +333,10 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
             #open_orders = self.exchange.get_open_orders(symbol)
             open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
-            # # Check if we can open new position based on config
-            # if can_open_new_position:
-            #     self.bybit_hedge_entry_maker_v2(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
-
             # Check if the symbol is already being traded
             if symbol in open_symbols:
                 self.bybit_hedge_entry_maker_v2(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
-                
+
             elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
                 self.bybit_hedge_entry_maker_v2_initial_entry(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, best_bid_price, best_ask_price, should_long, should_short)
 

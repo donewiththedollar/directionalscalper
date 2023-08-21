@@ -1154,7 +1154,7 @@ class Strategy:
                 if (trend.lower() == "short" or mfi.lower() == "short") and best_ask_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
                     logging.info(f"Initiating new short position")
                     self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
-                    
+
     # Revised consistent maker strategy using MA Trend OR MFI as well while maintaining same original MA logic
     def bybit_hedge_entry_maker_v2(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
         best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
@@ -1341,123 +1341,7 @@ class Strategy:
                 logging.info(f"Placing additional short entry for {symbol} in GS mode using MFI signals")
                 self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
-    def graceful_stop_checker_bybit_full_new(self):
-        quote_currency = "USDT"
-        max_retries = 5
-        retry_delay = 5
-
-        while True:
-            # Get current rotator symbols
-            rotator_symbols = self.manager.get_auto_rotate_symbols()
-            open_positions = self.exchange.get_all_open_positions_bybit()
-            #open_positions = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
-            # Remove '/' from open symbols
-            open_symbols = [symbol.replace('/', '') for symbol in self.extract_symbols_from_positions_bybit(open_positions)]
-
-            for symbol in open_symbols:
-                take_profit_price = None
-                if symbol not in rotator_symbols:
-                    logging.info(f"Symbol {symbol} is no longer in rotation. Managing orders.")
-                    market_data = self.get_market_data_with_retry(symbol, max_retries=5, retry_delay=5)
-                    
-                    best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
-                    best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
-
-                    position_data = self.exchange.get_positions_bybit(symbol)
-                    max_leverage = self.exchange.get_max_leverage_bybit(symbol)
-
-                    # Recalculate max_trade_qty for the current symbol
-                    total_equity = self.exchange.get_balance_bybit(quote_currency)
-                    max_trade_qty = self.calc_max_trade_qty(total_equity, best_ask_price, max_leverage)
-                    self.max_long_trade_qty = self.max_short_trade_qty = max_trade_qty
-
-                    data = self.manager.get_data()
-                    one_minute_volume = self.manager.get_asset_value(symbol, data, "1mVol")
-                    five_minute_distance = self.manager.get_asset_value(symbol, data, "5mSpread")
-                    trend = self.manager.get_asset_value(symbol, data, "Trend")
-                    min_dist = self.config.min_distance
-                    min_vol = self.config.min_volume
-                    mfi = self.manager.get_asset_value(symbol, data, "MFI")
-
-                    logging.info(f"Fetching MA data")
-                    m_moving_averages = self.manager.get_1m_moving_averages(symbol)
-                    m5_moving_averages = self.manager.get_5m_moving_averages(symbol)
-                    ma_6_high = m_moving_averages["MA_6_H"]
-                    ma_6_low = m_moving_averages["MA_6_L"]
-
-                    # ... Rest of your code ...
-
-                    short_pos_qty = position_data["short"]["qty"]
-                    logging.info(f"GS Short pos qty: {short_pos_qty}")
-                    long_pos_qty = position_data["long"]["qty"]
-                    logging.info(f"GS Long pos qty: {long_pos_qty}")
-
-                    short_pos_price = position_data["short"]["price"] if short_pos_qty > 0 else None
-                    long_pos_price = position_data["long"]["price"] if long_pos_qty > 0 else None
-
-                    if short_pos_price is not None:
-                        should_add_to_short = short_pos_price < ma_6_low and self.short_trade_condition(best_ask_price, ma_6_high)
-
-                    if long_pos_price is not None:
-                        should_add_to_long = long_pos_price > ma_6_high and self.long_trade_condition(best_bid_price, ma_6_low)
-                 
-                    min_qty = float(market_data["min_qty"])
-                    min_qty_str = str(min_qty)
-
-                    open_orders = self.exchange.get_open_orders(symbol)
-
-                    for side in ['long', 'short']:
-                        if side == 'long' and long_pos_qty > 0:
-                            current_pos_price = long_pos_price
-                            current_pos_qty = long_pos_qty
-                            order_side = "sell"
-                            positionIdx = 1
-
-                            # Validate long position before executing further logic
-                            if self.max_long_trade_qty is not None and long_pos_qty < self.max_long_trade_qty:
-                                self.long_entry_maker_gs(symbol, trend, one_minute_volume, five_minute_distance, min_vol, min_dist, min_qty, current_pos_qty, current_pos_price, should_add_to_long)
-
-                                take_profit_price = self.calculate_long_take_profit_spread_bybit(current_pos_price, symbol, five_minute_distance)
-
-                        elif side == 'short' and short_pos_qty > 0:
-                            current_pos_price = short_pos_price
-                            current_pos_qty = short_pos_qty
-                            order_side = "buy"
-                            positionIdx = 2
-
-                            # Validate short position before executing further logic
-                            if self.max_short_trade_qty is not None and short_pos_qty < self.max_short_trade_qty:
-                                self.short_entry_maker_gs(symbol, trend, one_minute_volume, five_minute_distance, min_vol, min_dist, min_qty, current_pos_qty, current_pos_price, should_add_to_short)
-
-                                take_profit_price = self.calculate_short_take_profit_spread_bybit(current_pos_price, symbol, five_minute_distance)
-
-                        if take_profit_price and current_pos_qty is not None:
-                            # Check for existing take profit orders
-                            existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
-                            total_existing_tp_qty = sum(qty for qty, _ in existing_tps)
-                            logging.info(f"Existing {order_side} TPs: {existing_tps}")
-
-                            # Cancel existing TP orders if their quantities do not match the current position quantity
-                            for qty, existing_tp_id in existing_tps:
-                                if not math.isclose(qty, current_pos_qty):
-                                    try:
-                                        self.exchange.cancel_order_by_id(existing_tp_id, symbol)
-                                        logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
-                                    except Exception as e:
-                                        logging.info(f"Error in cancelling {order_side} TP orders: {e}")
-
-                            # Place a new TP order if none exist
-                            if len(existing_tps) < 1:
-                                try:
-                                    self.postonly_limit_order_bybit(symbol, order_side, current_pos_qty, take_profit_price, positionIdx, reduceOnly=True)
-                                    logging.info(f"{order_side.capitalize()} take profit set at {take_profit_price}")
-                                except Exception as e:
-                                    logging.info(f"Error in placing {order_side} TP: {e}")
-
-            time.sleep(300)
-
     def graceful_stop_checker_bybit_full(self):
-    #def graceful_stop_checker_bybit_full(self, open_positions):
         quote_currency = "USDT"
         max_retries = 5
         retry_delay = 5
