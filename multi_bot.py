@@ -21,6 +21,7 @@ from directionalscalper.core.strategies.bybit.bybit_auto_rotator import BybitAut
 from directionalscalper.core.strategies.bybit.bybit_auto_rotator_mfirsi import BybitAutoRotatorMFIRSI
 from directionalscalper.core.strategies.bybit.bybit_auto_hedge_maker_mfirsi_rotator import BybitAutoHedgeStrategyMakerMFIRSIRotator
 from directionalscalper.core.strategies.bybit.bybit_auto_maker_mfirsi_rotator_aggressive import BybitRotatorAggressive
+from directionalscalper.core.strategies.bybit.bybit_mfirsi_trend_rotator import BybitMFIRSITrendRotator
 ### ILAY ###
 from live_table_manager import LiveTableManager, shared_symbols_data
 ### ILAY ###
@@ -63,6 +64,9 @@ class DirectionalMarketMaker:
             strategy.run(symbol)
         elif strategy_name.lower() == 'bybit_auto_hedge_mfi_rotator':
             strategy = BybitAutoHedgeStrategyMakerMFIRSIRotator(self.exchange, self.manager, config.bot)
+            strategy.run(symbol)
+        elif strategy_name.lower() == 'bybit_mfirsi_trend_rotator':
+            strategy = BybitMFIRSITrendRotator(self.exchange, self.manager, config.bot)
             strategy.run(symbol)
         elif strategy_name.lower() == 'bybit_rotator_aggressive':
             strategy = BybitRotatorAggressive(self.exchange, self.manager, config.bot)
@@ -147,9 +151,9 @@ if __name__ == '__main__':
     display_thread.start()
     ### ILAY ###
 
-    # Check if the specific strategy is chosen, and if so, adjust symbols_allowed
-    if args.strategy.lower() == 'bybit_rotator_aggressive':
-        symbols_allowed = 5
+    #Check if the specific strategy is chosen, and if so, adjust symbols_allowed
+    # if args.strategy.lower() == 'bybit_rotator_aggressive':
+    #     symbols_allowed = 5
 
     # Fetch all symbols that meet your criteria and standardize them
     all_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist)]
