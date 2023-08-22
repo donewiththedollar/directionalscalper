@@ -10,6 +10,7 @@ from typing import Optional, Tuple, List
 from ccxt.base.errors import RateLimitExceeded
 from .strategies.logger import Logger
 from requests.exceptions import HTTPError
+from datetime import datetime, timedelta
 
 logging = Logger(logger_name="Exchange", filename="Exchange.log", stream=True)
 
@@ -23,6 +24,8 @@ class Exchange:
         self.initialise()
         self.symbols = self._get_symbols()
         self.market_precisions = {}
+        self.open_positions_cache = None
+        self.last_open_positions_time = None
 
     def initialise(self):
         exchange_class = getattr(ccxt, self.exchange_id)
@@ -965,17 +968,22 @@ class Exchange:
         return values
 
     def get_all_open_positions_bybit(self, retries=10, delay_factor=10) -> List[dict]:
-        """
-        Get all open positions across all symbols available in the account.
-        
-        Returns:
-            List[dict]: A list of dictionaries, each representing a position.
-        """
+        now = datetime.now()
+
+        # Check if the cache is still valid
+        if self.open_positions_cache and self.last_open_positions_time and now - self.last_open_positions_time < timedelta(seconds=15):
+            return self.open_positions_cache
+
         for attempt in range(retries):
             try:
                 # No symbol is passed to fetch_positions to get positions for all symbols.
                 all_positions = self.exchange.fetch_positions() 
                 open_positions = [position for position in all_positions if float(position.get('contracts', 0)) != 0] 
+
+                # Update the cache with the new data
+                self.open_positions_cache = open_positions
+                self.last_open_positions_time = now
+
                 return open_positions
             except Exception as e:
                 # If the error is related to rate limiting, wait for some time and retry
@@ -985,6 +993,28 @@ class Exchange:
                 else:
                     print(f"Error fetching open positions: {e}")
                     return []
+
+    # def get_all_open_positions_bybit(self, retries=10, delay_factor=10) -> List[dict]:
+    #     """
+    #     Get all open positions across all symbols available in the account.
+        
+    #     Returns:
+    #         List[dict]: A list of dictionaries, each representing a position.
+    #     """
+    #     for attempt in range(retries):
+    #         try:
+    #             # No symbol is passed to fetch_positions to get positions for all symbols.
+    #             all_positions = self.exchange.fetch_positions() 
+    #             open_positions = [position for position in all_positions if float(position.get('contracts', 0)) != 0] 
+    #             return open_positions
+    #         except Exception as e:
+    #             # If the error is related to rate limiting, wait for some time and retry
+    #             if "Too many visits" in str(e) and attempt < retries - 1:
+    #                 time.sleep(delay_factor * (attempt + 1))  # Delay increases with every attempt
+    #                 continue
+    #             else:
+    #                 print(f"Error fetching open positions: {e}")
+    #                 return []
 
     # def get_all_open_positions_bybit(self) -> List[dict]:
     #     """
