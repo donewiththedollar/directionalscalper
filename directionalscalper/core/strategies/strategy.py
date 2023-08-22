@@ -1037,30 +1037,35 @@ class Strategy:
         market_data = self.get_market_data_with_retry(symbol, max_retries=5, retry_delay=5)
         min_qty = float(market_data["min_qty"])
 
-        # Adjusted Front-running strategy with a tighter spread
         largest_bid = max(order_book['bids'], key=lambda x: x[1])
         largest_ask = min(order_book['asks'], key=lambda x: x[1])
         
         spread = best_ask_price - best_bid_price
-        front_run_bid_price = round(largest_bid[0] + (spread * 0.05), 4)  # front-run by 5% of the spread
-        front_run_ask_price = round(largest_ask[0] - (spread * 0.05), 4)  # front-run by 5% of the spread
+        front_run_bid_price = round(largest_bid[0] + (spread * 0.05), 4)
+        front_run_ask_price = round(largest_ask[0] - (spread * 0.05), 4)
 
+        distance_to_tp_long = take_profit_long - best_bid_price
+        distance_to_tp_short = best_ask_price - take_profit_short
+
+        # Adjust the dynamic amounts based on the distance to the take profit
+        long_dynamic_amount += distance_to_tp_long * 10
+        short_dynamic_amount += distance_to_tp_short * 10
+
+        # Ensure the calculated amounts are not below the minimum order quantity
+        long_dynamic_amount = max(long_dynamic_amount, min_qty)
+        short_dynamic_amount = max(short_dynamic_amount, min_qty)
 
         # Check for long position and ensure take_profit_long is not None
         if long_pos_qty > 0 and take_profit_long:
-            distance_to_tp_long = take_profit_long - best_bid_price
-            dynamic_long_amount = distance_to_tp_long * 10
             if trend.lower() == "long" and mfi.lower() == "long" and best_bid_price < long_pos_price:
-                self.postonly_limit_order_bybit(symbol, "buy", dynamic_long_amount, front_run_bid_price, positionIdx=1, reduceOnly=False)
-                logging.info(f"Turbocharged Additional Long Entry Placed at {front_run_bid_price} with {dynamic_long_amount} amount!")
+                self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, front_run_bid_price, positionIdx=1, reduceOnly=False)
+                logging.info(f"Turbocharged Additional Long Entry Placed at {front_run_bid_price} with {long_dynamic_amount} amount!")
 
         # Check for short position and ensure take_profit_short is not None
         if short_pos_qty > 0 and take_profit_short:
-            distance_to_tp_short = best_ask_price - take_profit_short
-            dynamic_short_amount = distance_to_tp_short * 10
             if trend.lower() == "short" and mfi.lower() == "short" and best_ask_price > short_pos_price:
-                self.postonly_limit_order_bybit(symbol, "sell", dynamic_short_amount, front_run_ask_price, positionIdx=2, reduceOnly=False)
-                logging.info(f"Turbocharged Additional Short Entry Placed at {front_run_ask_price} with {dynamic_short_amount} amount!")
+                self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, front_run_ask_price, positionIdx=2, reduceOnly=False)
+                logging.info(f"Turbocharged Additional Short Entry Placed at {front_run_ask_price} with {short_dynamic_amount} amount!")
 
         # Entries for when there's no position yet
         if long_pos_qty == 0:
@@ -1083,7 +1088,6 @@ class Strategy:
         market_data = self.get_market_data_with_retry(symbol, max_retries=5, retry_delay=5)
         min_qty = float(market_data["min_qty"])
 
-        # Adjusted Front-running strategy with a tighter spread
         largest_bid = max(order_book['bids'], key=lambda x: x[1])
         largest_ask = min(order_book['asks'], key=lambda x: x[1])
         
@@ -1094,6 +1098,10 @@ class Strategy:
         position_data = self.exchange.get_positions_bybit(symbol)
         long_pos_qty = position_data["long"]["qty"]
         short_pos_qty = position_data["short"]["qty"]
+
+        # Ensure the calculated amounts are not below the minimum order quantity
+        long_dynamic_amount = max(long_dynamic_amount, min_qty)
+        short_dynamic_amount = max(short_dynamic_amount, min_qty)
 
         # Entries for when there's no position yet
         if long_pos_qty == 0:
