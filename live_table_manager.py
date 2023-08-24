@@ -13,7 +13,8 @@ class LiveTableManager:
         self.lock = threading.Lock()
 
     def generate_table(self) -> Table:
-        table = Table(show_header=True, header_style="bold blue")
+        #table = Table(show_header=True, header_style="bold blue")
+        table = Table(show_header=True, header_style="bold blue", title="DirectionalScalper")
         table.add_column("Symbol")
         table.add_column("Min. Qty")
         table.add_column("Price")
@@ -56,7 +57,7 @@ class LiveTableManager:
         
     def display_table(self):
         console = Console()
-        with Live(self.table, refresh_per_second=4) as live:
+        with Live(self.table, refresh_per_second=10) as live:
             while True:
                 time.sleep(1)
                 with self.lock:
