@@ -5,7 +5,7 @@ import os
 import copy
 import logging
 from threading import Thread, Lock
-from ...strategy import Strategy
+from directionalscalper.core.strategies.strategy import Strategy
 from ...logger import Logger
 from datetime import datetime, timedelta
 from typing import Tuple

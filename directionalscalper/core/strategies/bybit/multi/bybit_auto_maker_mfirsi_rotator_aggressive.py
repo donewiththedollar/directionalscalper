@@ -2,7 +2,7 @@ import time
 import math
 import logging
 from threading import Thread, Lock
-from ...strategy import Strategy
+from directionalscalper.core.strategies.strategy import Strategy
 from datetime import datetime, timedelta
 from typing import Tuple
 import pandas as pd

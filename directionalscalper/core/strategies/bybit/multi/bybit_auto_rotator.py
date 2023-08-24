@@ -2,7 +2,7 @@ import time
 import math
 import logging
 from threading import Thread
-from ...strategy import Strategy
+from directionalscalper.core.strategies.strategy import Strategy
 from datetime import datetime, timedelta
 from typing import Tuple
 from rich.console import Console
