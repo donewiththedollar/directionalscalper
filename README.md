@@ -17,9 +17,9 @@ A hedge scalping strategy based on directional analysis using a quantitative app
 * Dashboard: https://tradesimple.xyz
 * APIv2: http://api.tradesimple.xyz/data/quantdatav2.json
 
-Directional Scalper        |  API Scraper
-:-------------------------:|:-------------------------:
-![](https://github.com/donewiththedollar/directional-scalper/blob/main/directional-scalper.gif)  |  ![](https://github.com/donewiththedollar/directional-scalper/blob/main/scraper.gif)
+Directional Scalper        |  API Scraper               |  Dashboard                | Directional Scalper Multi
+:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:
+![](https://github.com/donewiththedollar/directional-scalper/blob/main/directional-scalper.gif)  |  ![](https://github.com/donewiththedollar/directional-scalper/blob/main/scraper.gif)  |  ![](https://github.com/donewiththedollar/directional-scalper/blob/main/dashboardimg.gif)  |  ![](https://github.com/donewiththedollar/directionalscalper/blob/main/directionalscalpermulti.gif)
 
 ## Quickstart
 - Clone the repo `git clone https://github.com/donewiththedollar/directionalscalper.git`
