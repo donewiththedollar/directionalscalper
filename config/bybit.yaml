@@ -1,0 +1,41 @@
+session_name: bybit
+windows:
+- window_name: ds1
+  layout: tiled
+  shell_command_before:
+    - cd /opt/directionalscalper
+  panes:
+    - shell_command:
+      - python3.11 bot.py --exchange bybit --symbol DOGEUSDT --strategy bybit_auto_hedge --config config.json
+    - shell_command:
+      - python3.11 bot.py --exchange bybit --symbol MATICUSDT --strategy bybit_auto_hedge --config config.json
+    - shell_command:
+      - python3.11 bot.py --exchange bybit --symbol SOLUSDT --strategy bybit_auto_hedge --config config.json
+    - shell_command:
+      - python3.11 bot.py --exchange bybit --symbol 1000PEPEUSDT --strategy bybit_auto_hedge --config config.json
+- window_name: ds2
+  layout: tiled
+  shell_command_before:
+    - cd /opt/directionalscalper
+  panes:
+    - shell_command:
+      - python3.11 bot.py --exchange bybit --symbol WAVESUSDT --strategy bybit_auto_hedge --config config.json
+    - shell_command:
+      - python3.11 bot.py --exchange bybit --symbol INJUSDT --strategy bybit_auto_hedge --config config.json
+    - shell_command:
+      - python3.11 bot.py --exchange bybit --symbol GRTUSDT --strategy bybit_auto_hedge --config config.json
+    - shell_command:
+      - python3.11 bot.py --exchange bybit --symbol SHIB1000USDT --strategy bybit_auto_hedge --config config.json
+- window_name: ds3
+  layout: tiled
+  shell_command_before:
+    - cd /opt/directionalscalper
+  panes:
+    - shell_command:
+      - python3.11 bot.py --exchange bybit --symbol OPUSDT --strategy bybit_auto_hedge --config config.json
+    - shell_command:
+      - python3.11 bot.py --exchange bybit --symbol XRPUSDT --strategy bybit_auto_hedge --config config.json
+    - shell_command:
+      - python3.11 bot.py --exchange bybit --symbol GALAUSDT --strategy bybit_auto_hedge --config config.json
+    - shell_command:
+      - python3.11 bot.py --exchange bybit --symbol CFXUSDT --strategy bybit_auto_hedge --config config.json

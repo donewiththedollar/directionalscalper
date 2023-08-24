@@ -1,0 +1,9 @@
+services:
+  directional-scalper:
+    build: .
+    restart: unless-stopped
+    volumes:
+      - ./configs:/code/configs
+    working_dir: /code
+    command: python3 bot.py --mode hedge --symbol GALAUSDT --iqty 1 --tg off
+    
