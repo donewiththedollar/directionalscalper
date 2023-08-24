@@ -17,11 +17,12 @@ from api.manager import Manager
 from directionalscalper.core.exchange import Exchange
 from directionalscalper.core.strategies.strategy import Strategy
 # Bybit rotator
-from directionalscalper.core.strategies.bybit.bybit_auto_rotator import BybitAutoRotator
-from directionalscalper.core.strategies.bybit.bybit_auto_rotator_mfirsi import BybitAutoRotatorMFIRSI
-from directionalscalper.core.strategies.bybit.bybit_auto_hedge_maker_mfirsi_rotator import BybitAutoHedgeStrategyMakerMFIRSIRotator
-from directionalscalper.core.strategies.bybit.bybit_auto_maker_mfirsi_rotator_aggressive import BybitRotatorAggressive
-from directionalscalper.core.strategies.bybit.bybit_mfirsi_trend_rotator import BybitMFIRSITrendRotator
+from directionalscalper.core.strategies.bybit.multi.bybit_auto_rotator import BybitAutoRotator
+from directionalscalper.core.strategies.bybit.multi.bybit_auto_rotator_mfirsi import BybitAutoRotatorMFIRSI
+from directionalscalper.core.strategies.bybit.multi.bybit_auto_hedge_maker_mfirsi_rotator import BybitAutoHedgeStrategyMakerMFIRSIRotator
+from directionalscalper.core.strategies.bybit.multi.bybit_auto_maker_mfirsi_rotator_aggressive import BybitRotatorAggressive
+from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator import BybitMFIRSITrendRotator
+from directionalscalper.core.strategies.bybit.multi.bybit_spoof_rotator import BybitSpoofRotator
 ### ILAY ###
 from live_table_manager import LiveTableManager, shared_symbols_data
 ### ILAY ###
@@ -70,6 +71,9 @@ class DirectionalMarketMaker:
             strategy.run(symbol)
         elif strategy_name.lower() == 'bybit_rotator_aggressive':
             strategy = BybitRotatorAggressive(self.exchange, self.manager, config.bot)
+            strategy.run(symbol)
+        elif strategy_name.lower() == 'bybit_rotator_spoof':
+            strategy = BybitRotatorSpoof(self.exchange, self.manager, config.bot)
             strategy.run(symbol)
 
     def get_balance(self, quote, market_type=None, sub_type=None):

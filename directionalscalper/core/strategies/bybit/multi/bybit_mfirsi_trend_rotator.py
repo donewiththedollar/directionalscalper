@@ -3,26 +3,20 @@ import json
 import math
 import os
 import copy
+import logging
 from threading import Thread, Lock
-from ..strategy import Strategy
+from ...strategy import Strategy
+from ...logger import Logger
 from datetime import datetime, timedelta
 from typing import Tuple
-# from rich.console import Console
-# from rich.table import Table
-# from rich.live import Live
-# from rich.text import Text
-# from rich import box
 import pandas as pd
-import ta
-import logging
-from ..logger import Logger
 ### ILAY ###
 from live_table_manager import shared_symbols_data
 ####
 
-logging = Logger(logger_name="BybitAutoRotatorMFIRSIRotator", filename="BybitAutoRotatorMFIRSIRotator.log", stream=True)
+logging = Logger(logger_name="BybitMFIRSITrendRotator", filename="BybitMFIRSITrendRotator.log", stream=True)
 
-class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
+class BybitMFIRSITrendRotator(Strategy):
     def __init__(self, exchange, manager, config):
         super().__init__(exchange, config, manager)
         self.manager = manager
@@ -205,17 +199,19 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
             self.print_trade_quantities_once_bybit(self.max_long_trade_qty)
             self.print_trade_quantities_once_bybit(self.max_short_trade_qty)
 
-            # Get the 1-minute moving averages
+            # Get moving averages
             logging.info(f"Fetching MA data")
-            m_moving_averages = self.manager.get_1m_moving_averages(symbol)
-            m5_moving_averages = self.manager.get_5m_moving_averages(symbol)
-            ma_6_high = m_moving_averages["MA_6_H"]
-            ma_6_low = m_moving_averages["MA_6_L"]
-            ma_3_low = m_moving_averages["MA_3_L"]
-            ma_3_high = m_moving_averages["MA_3_H"]
-            ma_1m_3_high = self.manager.get_1m_moving_averages(symbol)["MA_3_H"]
-            ma_5m_3_high = self.manager.get_5m_moving_averages(symbol)["MA_3_H"]
 
+            moving_averages = self.get_all_moving_averages(symbol)
+
+            ma_6_high = moving_averages["ma_6_high"]
+            ma_6_low = moving_averages["ma_6_low"]
+            ma_3_low = moving_averages["ma_3_low"]
+            ma_3_high = moving_averages["ma_3_high"]
+            ma_1m_3_high = moving_averages["ma_1m_3_high"]
+            ma_5m_3_high = moving_averages["ma_5m_3_high"]
+
+            logging.info(f"Fetching position data")
             position_data = self.exchange.get_positions_bybit(symbol)
 
             open_position_data = self.exchange.get_all_open_positions_bybit()
@@ -335,12 +331,10 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
 
             # Check if the symbol is already being traded
             if symbol in open_symbols:
-                self.bybit_hedge_entry_maker_v2(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
+                self.bybit_hedge_entry_maker_v3(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
 
             elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
-                self.bybit_hedge_entry_maker_v2_initial_entry(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, best_bid_price, best_ask_price, should_long, should_short)
-
-            # Take profit placement 
+                self.bybit_hedge_entry_maker_v3_initial_entry(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
 
             # Call the function to update long take profit spread
             if long_pos_qty > 0 and long_take_profit is not None:

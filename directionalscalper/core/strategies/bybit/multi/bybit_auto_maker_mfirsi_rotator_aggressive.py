@@ -1,18 +1,12 @@
 import time
 import math
+import logging
 from threading import Thread, Lock
-from ..strategy import Strategy
+from ...strategy import Strategy
 from datetime import datetime, timedelta
 from typing import Tuple
-# from rich.console import Console
-# from rich.table import Table
-# from rich.live import Live
-# from rich.text import Text
-# from rich import box
 import pandas as pd
-import ta
-import logging
-from ..logger import Logger
+from ...logger import Logger
 ### ILAY ###
 from live_table_manager import shared_symbols_data
 ####
@@ -217,6 +211,7 @@ class BybitRotatorAggressive(Strategy):
             #print(f"Open positions: {open_position_data}")
 
             open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
+            open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
 
             symbols_allowed = 5
 
@@ -306,11 +301,19 @@ class BybitRotatorAggressive(Strategy):
             shared_symbols_data[symbol] = symbol_data
             ### ILAY ###
 
-            open_orders = self.exchange.get_open_orders(symbol)
+            open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
-            # Entry logic
-            if can_open_new_position:
+            # Check if the symbol is already being traded
+            if symbol in open_symbols:
                 self.bybit_turbocharged_entry_maker(symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
+
+            elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
+                self.bybit_turbocharged_entry_maker(symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
+                #self.bybit_turbocharged_new_entry_maker(symbol, trend, mfirsi_signal, long_dynamic_amount, short_dynamic_amount)
+
+            # # Entry logic
+            # if can_open_new_position:
+            #     self.bybit_turbocharged_entry_maker(symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
 
             # Call the function to update long take profit spread
             if long_pos_qty > 0 and long_take_profit is not None:

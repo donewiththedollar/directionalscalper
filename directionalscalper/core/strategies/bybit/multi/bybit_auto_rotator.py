@@ -1,7 +1,8 @@
 import time
 import math
+import logging
 from threading import Thread
-from ..strategy import Strategy
+from ...strategy import Strategy
 from datetime import datetime, timedelta
 from typing import Tuple
 from rich.console import Console
@@ -10,13 +11,11 @@ from rich.live import Live
 from rich.text import Text
 from rich import box
 import pandas as pd
-import ta
-import logging
-from ..logger import Logger
+from ...logger import Logger
 
-logging = Logger(logger_name="BybitAutoRotatorMFIRSI", filename="BybitAutoRotatorMFIRSI.log", stream=True)
+logging = Logger(logger_name="BybitAutoRotator", filename="BybitAutoRotator.log", stream=True)
 
-class BybitAutoRotatorMFIRSI(Strategy):
+class BybitAutoRotator(Strategy):
     def __init__(self, exchange, manager, config):
         super().__init__(exchange, config, manager)
         self.manager = manager
@@ -443,12 +442,73 @@ class BybitAutoRotatorMFIRSI(Strategy):
                 live.update(self.generate_main_table(symbol_data))
 
 
+                # symbol_data = {
+                #     'symbol': symbol,
+                #     'min_qty': min_qty,
+                #     'current_price': current_price,
+                #     'balance': total_equity,
+                #     'available_bal': available_equity,
+                #     'volume': one_minute_volume,
+                #     'spread': five_minute_distance,
+                #     'trend': trend,
+                #     'long_pos_qty': long_pos_qty,
+                #     'short_pos_qty': short_pos_qty,
+                #     'long_upnl': long_upnl,
+                #     'short_upnl': short_upnl,
+                #     'long_cum_pnl': cum_realised_pnl_long,
+                #     'short_cum_pnl': cum_realised_pnl_short,
+                #     'long_pos_price': long_pos_price,
+                #     'short_pos_price': short_pos_price
+                #     # ... continue adding all parameters ...
+                # }
+
+                # live.update(self.generate_main_table(symbol_data))
+
+                # live.update(self.generate_main_table(
+                #     symbol,
+                #     min_qty,
+                #     current_price,
+                #     total_equity,
+                #     available_equity,
+                #     one_minute_volume,
+                #     five_minute_distance,
+                #     trend,
+                #     long_pos_qty,
+                #     short_pos_qty,
+                #     long_upnl,
+                #     short_upnl,
+                #     cum_realised_pnl_long,
+                #     cum_realised_pnl_short,
+                #     long_pos_price,
+                #     short_pos_price,
+                #     long_dynamic_amount,
+                #     short_dynamic_amount,
+                #     long_take_profit,
+                #     short_take_profit,
+                #     self.long_pos_leverage,
+                #     self.short_pos_leverage,
+                #     self.max_long_trade_qty,
+                #     self.max_short_trade_qty,
+                #     self.long_expected_profit_usdt,
+                #     self.short_expected_profit_usdt,
+                #     long_liq_price,
+                #     short_liq_price,
+                #     should_long,
+                #     should_add_to_long,
+                #     should_short,
+                #     should_add_to_short,
+                #     mfirsi_signal,
+                #     eri_trend,
+                # ))
+
                 open_orders = self.exchange.get_open_orders(symbol)
 
                 # Entry logic
-                self.bybit_hedge_entry_maker_mfirsi(symbol, data, min_vol, min_dist, one_minute_volume, five_minute_distance, 
-                                                    long_pos_qty, self.max_long_trade_qty, best_bid_price, long_pos_price, long_dynamic_amount,
-                                                    short_pos_qty, self.max_short_trade_qty, best_ask_price, short_pos_price, short_dynamic_amount)
+                self.bybit_hedge_entry_maker_mfirsitrend(symbol, data, min_vol, min_dist, one_minute_volume, five_minute_distance, 
+                                                        eri_trend, open_orders, long_pos_qty, should_add_to_long, 
+                                                        self.max_long_trade_qty, best_bid_price, long_pos_price, long_dynamic_amount,
+                                                        short_pos_qty, should_add_to_short, self.max_short_trade_qty, 
+                                                        best_ask_price, short_pos_price, short_dynamic_amount)
 
                 # Take profit placement 
 
