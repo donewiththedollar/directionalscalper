@@ -61,6 +61,13 @@ class BybitMFIRSITrendRotator(Strategy):
         # console = Console()
         # live = Live(console=console, refresh_per_second=10)
 
+        while True:
+            rotator_symbols = self.manager.get_auto_rotate_symbols()
+            if symbol not in rotator_symbols:
+                logging.info(f"Symbol {symbol} no longer in rotator symbols. Stopping operations for this symbol.")
+                break  # Exit the current loop and stop operations for this symbol
+            
+
         quote_currency = "USDT"
         max_retries = 5
         retry_delay = 5
@@ -106,7 +113,7 @@ class BybitMFIRSITrendRotator(Strategy):
             eri_trend = self.manager.get_asset_value(symbol, data, "ERI Trend")
             rotatorsymbols = self.manager.get_symbols()
             #rotator_symbols = self.manager.get_auto_rotate_symbols(self.config.min_qty_threshold)
-            rotator_symbols = self.manager.get_auto_rotate_symbols()
+            # rotator_symbols = self.manager.get_auto_rotate_symbols()
 
             # print(f"Rotator symbols from manager: {rotator_symbols}")
 
