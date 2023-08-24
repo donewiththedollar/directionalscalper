@@ -164,6 +164,13 @@ class BybitAutoRotatorMFIRSI(Strategy):
             
     def run_single_symbol(self, symbol):
         print(f"Running for symbol (inside run_single_symbol method): {symbol}")
+
+        while True:
+            rotator_symbols = self.manager.get_auto_rotate_symbols()
+            if symbol not in rotator_symbols:
+                logging.info(f"Symbol {symbol} no longer in rotator symbols. Stopping operations for this symbol.")
+                break  # Exit the current loop and stop operations for this symbol
+            
         console = Console()
         live = Live(console=console, refresh_per_second=10)
 

@@ -61,6 +61,12 @@ class BybitSpoofRotator(Strategy):
         # console = Console()
         # live = Live(console=console, refresh_per_second=10)
 
+        while True:
+            rotator_symbols = self.manager.get_auto_rotate_symbols()
+            if symbol not in rotator_symbols:
+                logging.info(f"Symbol {symbol} no longer in rotator symbols. Stopping operations for this symbol.")
+                break  # Exit the current loop and stop operations for this symbol
+            
         quote_currency = "USDT"
         max_retries = 5
         retry_delay = 5
