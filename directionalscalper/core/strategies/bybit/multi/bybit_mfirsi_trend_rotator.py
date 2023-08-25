@@ -61,13 +61,28 @@ class BybitMFIRSITrendRotator(Strategy):
         # console = Console()
         # live = Live(console=console, refresh_per_second=10)
 
+        # while True:
+        #     rotator_symbols = self.manager.get_auto_rotate_symbols()
+        #     if symbol not in rotator_symbols:
+        #         logging.info(f"Symbol {symbol} no longer in rotator symbols. Stopping operations for this symbol.")
+        #         break  # Exit the current loop and stop operations for this symbol
+
         while True:
+            # Check if the symbol is still in rotator_symbols
             rotator_symbols = self.manager.get_auto_rotate_symbols()
             if symbol not in rotator_symbols:
                 logging.info(f"Symbol {symbol} no longer in rotator symbols. Stopping operations for this symbol.")
-                break  # Exit the current loop and stop operations for this symbol
-            
+                break
 
+            # Re-fetch whitelist and blacklist from config
+            whitelist = self.config.bot.whitelist
+            blacklist = self.config.bot.blacklist
+
+            # Check if the symbol is still in whitelist and not in blacklist
+            if symbol not in whitelist or symbol in blacklist:
+                logging.info(f"Symbol {symbol} is no longer allowed based on whitelist/blacklist. Stopping operations for this symbol.")
+                break
+            
         quote_currency = "USDT"
         max_retries = 5
         retry_delay = 5
