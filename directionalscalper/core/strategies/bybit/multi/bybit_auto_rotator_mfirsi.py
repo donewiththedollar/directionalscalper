@@ -179,8 +179,8 @@ class BybitAutoRotatorMFIRSI(Strategy):
                 break
 
             # Re-fetch whitelist and blacklist from config
-            whitelist = self.config.bot.whitelist
-            blacklist = self.config.bot.blacklist
+            whitelist = self.config.whitelist
+            blacklist = self.config.blacklist
 
             # Check if the symbol is still in whitelist and not in blacklist
             if symbol not in whitelist or symbol in blacklist:
