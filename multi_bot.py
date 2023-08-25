@@ -68,10 +68,12 @@ class DirectionalMarketMaker:
             strategy.run(symbol)
         elif strategy_name.lower() == 'bybit_mfirsi_trend_rotator':
             strategy = BybitMFIRSITrendRotator(self.exchange, self.manager, config.bot)
-            strategy.run(symbol)
+            #strategy.run(symbol)
+            strategy.run()
         elif strategy_name.lower() == 'bybit_rotator_aggressive':
             strategy = BybitRotatorAggressive(self.exchange, self.manager, config.bot)
-            strategy.run(symbol)
+            #strategy.run(symbol)
+            strategy.run()
         elif strategy_name.lower() == 'bybit_rotator_spoof':
             strategy = BybitRotatorSpoof(self.exchange, self.manager, config.bot)
             strategy.run(symbol)
