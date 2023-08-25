@@ -41,9 +41,21 @@ class BybitRotatorAggressive(Strategy):
         self.version = "2.0.6"
         self.rows = {}
 
-    def run(self, symbol):
+    # def run(self, symbol):
+    #     threads = [
+    #         Thread(target=self.run_single_symbol, args=(symbol,)),
+    #         Thread(target=self.graceful_stop_checker_bybit_full)
+    #     ]
+
+    #     for thread in threads:
+    #         thread.start()
+
+    #     for thread in threads:
+    #         thread.join()
+
+    def run(self):
         threads = [
-            Thread(target=self.run_single_symbol, args=(symbol,)),
+            Thread(target=self.manage_symbols),
             Thread(target=self.graceful_stop_checker_bybit_full)
         ]
 
@@ -52,6 +64,27 @@ class BybitRotatorAggressive(Strategy):
 
         for thread in threads:
             thread.join()
+
+    def manage_symbols(self):
+        running_symbols = {}  # To keep track of the symbols currently being traded
+
+        while True:
+            rotator_symbols = self.manager.get_auto_rotate_symbols()
+
+            # Starting trading operations for new symbols
+            for symbol in rotator_symbols:
+                if symbol not in running_symbols:
+                    running_symbols[symbol] = Thread(target=self.run_single_symbol, args=(symbol,))
+                    running_symbols[symbol].start()
+
+            # Stopping trading operations for removed symbols
+            for symbol in list(running_symbols.keys()):  # Iterate over a copy of keys to avoid runtime errors
+                if symbol not in rotator_symbols:
+                    # Here, you can signal the thread to stop in some way, e.g., using an event or another mechanism
+                    # For now, I'm just removing the symbol from the dictionary
+                    del running_symbols[symbol]
+
+            time.sleep(60)  # Check every 60 seconds, adjust as needed
             
     def run_single_symbol(self, symbol):
         print(f"Running for symbol (inside run_single_symbol method): {symbol}")
@@ -239,6 +272,8 @@ class BybitRotatorAggressive(Strategy):
 
             #can_open_new_position = self.can_trade_new_symbol(open_symbols, symbols_allowed)
 
+            print(f"Open symbols: {open_symbols}")
+
             can_open_new_position = self.can_trade_new_symbol(open_symbols, symbols_allowed, symbol)
             #print(f"Open symbols: {open_symbols}")
 
@@ -330,8 +365,8 @@ class BybitRotatorAggressive(Strategy):
                 self.bybit_turbocharged_entry_maker(symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
 
             elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
-                self.bybit_turbocharged_entry_maker(symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
-                #self.bybit_turbocharged_new_entry_maker(symbol, trend, mfirsi_signal, long_dynamic_amount, short_dynamic_amount)
+                #self.bybit_turbocharged_entry_maker(symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
+                self.bybit_turbocharged_new_entry_maker(symbol, trend, mfirsi_signal, long_dynamic_amount, short_dynamic_amount)
 
             # # Entry logic
             # if can_open_new_position:
