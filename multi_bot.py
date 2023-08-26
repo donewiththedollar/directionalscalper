@@ -20,6 +20,7 @@ from directionalscalper.core.strategies.strategy import Strategy
 from directionalscalper.core.strategies.bybit.multi.bybit_auto_rotator import BybitAutoRotator
 from directionalscalper.core.strategies.bybit.multi.bybit_auto_rotator_mfirsi import BybitAutoRotatorMFIRSI
 from directionalscalper.core.strategies.bybit.multi.bybit_auto_hedge_maker_mfirsi_rotator import BybitAutoHedgeStrategyMakerMFIRSIRotator
+from directionalscalper.core.strategies.bybit.multi.bybit_auto_hedge_maker_mfirsi_rotatorv2 import BybitAutoHedgeStrategyMakerMFIRSIRotatorv2
 from directionalscalper.core.strategies.bybit.multi.bybit_auto_maker_mfirsi_rotator_aggressive import BybitRotatorAggressive
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator import BybitMFIRSITrendRotator
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator_v2 import BybitMFIRSITrendRotatorv2
@@ -66,6 +67,9 @@ class DirectionalMarketMaker:
             strategy.run(symbol)
         elif strategy_name.lower() == 'bybit_auto_hedge_mfi_rotator':
             strategy = BybitAutoHedgeStrategyMakerMFIRSIRotator(self.exchange, self.manager, config.bot)
+            strategy.run(symbol)
+        elif strategy_name.lower() == 'bybit_auto_hedge_mfi_rotator_v2':
+            strategy = BybitAutoHedgeStrategyMakerMFIRSIRotatorv2(self.exchange, self.manager, config.bot)
             strategy.run(symbol)
         elif strategy_name.lower() == 'bybit_mfirsi_trend_rotator':
             strategy = BybitMFIRSITrendRotator(self.exchange, self.manager, config.bot)
