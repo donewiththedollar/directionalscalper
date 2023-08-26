@@ -147,6 +147,8 @@ class BybitRotatorAggressive(Strategy):
             best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
             best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
+
+            # Calculate dynamic amounts and min_qty for each symbol
             long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount(
                 symbol, market_data, total_equity, best_ask_price, max_leverage
             )
@@ -156,14 +158,14 @@ class BybitRotatorAggressive(Strategy):
 
             # Get the 1-minute moving averages
             logging.info(f"Fetching MA data")
-            m_moving_averages = self.manager.get_1m_moving_averages(symbol)
-            m5_moving_averages = self.manager.get_5m_moving_averages(symbol)
-            ma_6_high = m_moving_averages["MA_6_H"]
-            ma_6_low = m_moving_averages["MA_6_L"]
-            ma_3_low = m_moving_averages["MA_3_L"]
-            ma_3_high = m_moving_averages["MA_3_H"]
-            ma_1m_3_high = self.manager.get_1m_moving_averages(symbol)["MA_3_H"]
-            ma_5m_3_high = self.manager.get_5m_moving_averages(symbol)["MA_3_H"]
+            moving_averages = self.get_all_moving_averages(symbol)
+
+            ma_6_high = moving_averages["ma_6_high"]
+            ma_6_low = moving_averages["ma_6_low"]
+            ma_3_low = moving_averages["ma_3_low"]
+            ma_3_high = moving_averages["ma_3_high"]
+            ma_1m_3_high = moving_averages["ma_1m_3_high"]
+            ma_5m_3_high = moving_averages["ma_5m_3_high"]
 
             position_data = self.exchange.get_positions_bybit(symbol)
 

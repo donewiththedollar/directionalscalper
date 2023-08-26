@@ -15,13 +15,11 @@ from live_table_manager import shared_symbols_data
 ####
 from concurrent.futures import ThreadPoolExecutor
 
-logging = Logger(logger_name="BybitMFIRSITrendRotate", filename="BybitMFIRSITrendRotate.log", stream=True)
+logging = Logger(logger_name="BybitMFIRSITrendRotateNew", filename="BybitMFIRSITrendRotateNew.log", stream=True)
 
 class BybitMFIRSITrendRotator(Strategy):
-    #def __init__(self, exchange, manager, config):
-    def __init__(self, exchange, manager, config, max_threads=100):
+    def __init__(self, exchange, manager, config):
         super().__init__(exchange, config, manager)
-        self.executor = ThreadPoolExecutor(max_threads)
         self.manager = manager
         self.all_symbol_data = {}
         self.last_long_tp_update = datetime.now()
@@ -98,7 +96,7 @@ class BybitMFIRSITrendRotator(Strategy):
             rotator_symbols = self.manager.get_auto_rotate_symbols()
             #print(f"Current rotator symbols: {rotator_symbols}")
             if symbol not in rotator_symbols:
-                logging.info(f"Symbol {symbol} no longer in rotator symbols. Stopping operations for this symbol.")
+                #logging.info(f"Symbol {symbol} no longer in rotator symbols. Stopping operations for this symbol.")
                 should_continue = True  # Set the flag to True
 
             # Re-fetch whitelist and blacklist from config
@@ -107,7 +105,7 @@ class BybitMFIRSITrendRotator(Strategy):
 
             # Check if the symbol is still in whitelist and not in blacklist
             if symbol not in whitelist or symbol in blacklist:
-                logging.info(f"Symbol {symbol} is no longer allowed based on whitelist/blacklist. Stopping operations for this symbol.")
+                #logging.info(f"Symbol {symbol} is no longer allowed based on whitelist/blacklist. Stopping operations for this symbol.")
                 should_continue = True  # Set the flag to True
 
             if should_continue:  # Check the flag
