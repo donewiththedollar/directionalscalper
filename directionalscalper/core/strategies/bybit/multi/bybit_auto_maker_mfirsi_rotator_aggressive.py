@@ -88,7 +88,7 @@ class BybitRotatorAggressive(Strategy):
             should_continue = False  # Flag to decide if you should continue to the next iteration of the loop
 
             rotator_symbols = self.manager.get_auto_rotate_symbols()
-            print(f"Current rotator symbols: {rotator_symbols}")
+            #print(f"Current rotator symbols: {rotator_symbols}")
             if symbol not in rotator_symbols:
                 logging.info(f"Symbol {symbol} no longer in rotator symbols. Stopping operations for this symbol.")
                 should_continue = True  # Set the flag to True
@@ -176,7 +176,7 @@ class BybitRotatorAggressive(Strategy):
 
             #can_open_new_position = self.can_trade_new_symbol(open_symbols, symbols_allowed)
 
-            print(f"Open symbols: {open_symbols}")
+            #print(f"Open symbols: {open_symbols}")
 
             can_open_new_position = self.can_trade_new_symbol(open_symbols, symbols_allowed, symbol)
             #print(f"Open symbols: {open_symbols}")
@@ -269,7 +269,7 @@ class BybitRotatorAggressive(Strategy):
                 self.bybit_turbocharged_entry_maker(symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
             elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
                 self.bybit_turbocharged_entry_maker(symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
-                
+
             # Call the function to update long take profit spread
             if long_pos_qty > 0 and long_take_profit is not None:
                 self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)

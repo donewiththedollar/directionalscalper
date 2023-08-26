@@ -15,7 +15,7 @@ from live_table_manager import shared_symbols_data
 ####
 from concurrent.futures import ThreadPoolExecutor
 
-logging = Logger(logger_name="BybitMFIRSITrendRotator", filename="BybitMFIRSITrendRotator.log", stream=True)
+logging = Logger(logger_name="BybitMFIRSITrendRotate", filename="BybitMFIRSITrendRotate.log", stream=True)
 
 class BybitMFIRSITrendRotator(Strategy):
     #def __init__(self, exchange, manager, config):
