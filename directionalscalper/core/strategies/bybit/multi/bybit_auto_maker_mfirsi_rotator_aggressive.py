@@ -97,6 +97,9 @@ class BybitRotatorAggressive(Strategy):
             whitelist = self.config.whitelist
             blacklist = self.config.blacklist
 
+            # print(f"Whitelist: {whitelist}")
+            # print(f"Blacklist: {blacklist}")
+
             # Check if the symbol is still in whitelist and not in blacklist
             if symbol not in whitelist or symbol in blacklist:
                 logging.info(f"Symbol {symbol} is no longer allowed based on whitelist/blacklist. Stopping operations for this symbol.")
@@ -181,6 +184,7 @@ class BybitRotatorAggressive(Strategy):
             #print(f"Open symbols: {open_symbols}")
 
             can_open_new_position = self.can_trade_new_symbol(open_symbols, symbols_allowed, symbol)
+            logging.info(f"Can open new position: {can_open_new_position}")
             #print(f"Open symbols: {open_symbols}")
 
 

@@ -11,6 +11,7 @@ from ccxt.base.errors import RateLimitExceeded
 from .strategies.logger import Logger
 from requests.exceptions import HTTPError
 from datetime import datetime, timedelta
+from ccxt.base.errors import NetworkError
 
 logging = Logger(logger_name="Exchange", filename="Exchange.log", stream=True)
 
@@ -1871,7 +1872,27 @@ class Exchange:
     #             return float(info.get('maxLeverage'))
     #     return None
 
-    def get_max_leverage_bybit(self, symbol, max_retries=5, backoff_factor=0.5):
+    # def get_max_leverage_bybit(self, symbol, max_retries=5, backoff_factor=0.5):
+    #     for retry in range(max_retries):
+    #         try:
+    #             tiers = self.exchange.fetch_derivatives_market_leverage_tiers(symbol)
+    #             for tier in tiers:
+    #                 info = tier.get('info', {})
+    #                 if info.get('symbol') == symbol:
+    #                     return float(info.get('maxLeverage'))
+    #             return None  # If symbol not found in tiers
+
+    #         except Exception as e:
+    #             # Check if it's a rate limit exception, otherwise raise the original exception
+    #             if isinstance(e, RateLimitExceeded):
+    #                 if retry < max_retries - 1:  # Don't wait if it's the last retry
+    #                     sleep_time = backoff_factor * (2 ** retry)  # Exponential backoff
+    #                     time.sleep(sleep_time)
+    #             else:
+    #                 raise e
+    #     raise Exception(f"Failed to get max leverage for {symbol} after {max_retries} retries.")
+
+    def get_max_leverage_bybit(self, symbol, max_retries=10, backoff_factor=0.5):
         for retry in range(max_retries):
             try:
                 tiers = self.exchange.fetch_derivatives_market_leverage_tiers(symbol)
@@ -1881,16 +1902,22 @@ class Exchange:
                         return float(info.get('maxLeverage'))
                 return None  # If symbol not found in tiers
 
-            except Exception as e:
-                # Check if it's a rate limit exception, otherwise raise the original exception
-                if isinstance(e, RateLimitExceeded):
-                    if retry < max_retries - 1:  # Don't wait if it's the last retry
-                        sleep_time = backoff_factor * (2 ** retry)  # Exponential backoff
-                        time.sleep(sleep_time)
-                else:
-                    raise e
-        raise Exception(f"Failed to get max leverage for {symbol} after {max_retries} retries.")
+            except (RateLimitExceeded, NetworkError) as e:  # Include NetworkError
+                # Log the exception
+                logging.error(f"An error occurred while fetching max leverage: {str(e)}")
 
+                # Wait and retry if not the last attempt
+                if retry < max_retries - 1:  
+                    sleep_time = backoff_factor * (2 ** retry)  # Exponential backoff
+                    time.sleep(sleep_time)
+
+            except Exception as e:
+                # For any other types of exceptions, log and re-raise.
+                logging.error(f"An unknown error occurred: {str(e)}")
+                raise e
+
+        raise Exception(f"Failed to get max leverage for {symbol} after {max_retries} retries.")
+        
     # Bitget 
     def get_max_leverage_bitget(self, symbol):
         try:

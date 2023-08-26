@@ -246,6 +246,8 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
             #can_open_new_position = self.can_trade_new_symbol(open_symbols, symbols_allowed)
             can_open_new_position = self.can_trade_new_symbol(open_symbols, symbols_allowed, symbol)
 
+            logging.info(f"Can open new position: {can_open_new_position}")
+
             short_pos_qty = position_data["short"]["qty"]
             long_pos_qty = position_data["long"]["qty"]
 

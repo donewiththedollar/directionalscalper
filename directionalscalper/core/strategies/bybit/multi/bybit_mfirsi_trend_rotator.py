@@ -194,7 +194,7 @@ class BybitMFIRSITrendRotator(Strategy):
             #can_open_new_position = self.can_trade_new_symbol(open_symbols, symbols_allowed)
 
             can_open_new_position = self.can_trade_new_symbol(open_symbols, symbols_allowed, symbol)
-            #print(f"Can open new position for {symbol}: {can_open_new_position}")
+            logging.info(f"Can open new position: {can_open_new_position}")
 
             short_pos_qty = position_data["short"]["qty"]
             long_pos_qty = position_data["long"]["qty"]
