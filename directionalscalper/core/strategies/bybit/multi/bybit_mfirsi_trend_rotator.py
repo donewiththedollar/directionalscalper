@@ -13,12 +13,15 @@ import pandas as pd
 ### ILAY ###
 from live_table_manager import shared_symbols_data
 ####
+from concurrent.futures import ThreadPoolExecutor
 
 logging = Logger(logger_name="BybitMFIRSITrendRotator", filename="BybitMFIRSITrendRotator.log", stream=True)
 
 class BybitMFIRSITrendRotator(Strategy):
-    def __init__(self, exchange, manager, config):
+    #def __init__(self, exchange, manager, config):
+    def __init__(self, exchange, manager, config, max_threads=100):
         super().__init__(exchange, config, manager)
+        self.executor = ThreadPoolExecutor(max_threads)
         self.manager = manager
         self.all_symbol_data = {}
         self.last_long_tp_update = datetime.now()
@@ -55,67 +58,9 @@ class BybitMFIRSITrendRotator(Strategy):
 
         for thread in threads:
             thread.join()
-
-    # def run(self):
-    #     threads = [
-    #         Thread(target=self.manage_symbols),
-    #         Thread(target=self.graceful_stop_checker_bybit_full)
-    #     ]
-
-    #     for thread in threads:
-    #         thread.start()
-
-    #     for thread in threads:
-    #         thread.join()
-
-    # def manage_symbols(self):
-    #     running_symbols = {}  # To keep track of the symbols currently being traded
-
-    #     while True:
-    #         rotator_symbols = self.manager.get_auto_rotate_symbols()
-
-    #         # Starting trading operations for new symbols
-    #         for symbol in rotator_symbols:
-    #             if symbol not in running_symbols:
-    #                 running_symbols[symbol] = Thread(target=self.run_single_symbol, args=(symbol,))
-    #                 running_symbols[symbol].start()
-
-    #         # Stopping trading operations for removed symbols
-    #         for symbol in list(running_symbols.keys()):  # Iterate over a copy of keys to avoid runtime errors
-    #             if symbol not in rotator_symbols:
-    #                 # Here, you can signal the thread to stop in some way, e.g., using an event or another mechanism
-    #                 # For now, I'm just removing the symbol from the dictionary
-    #                 del running_symbols[symbol]
-
-    #         time.sleep(60)  # Check every 60 seconds, adjust as needed
-            
             
     def run_single_symbol(self, symbol):
         print(f"Running for symbol (inside run_single_symbol method): {symbol}")
-        # console = Console()
-        # live = Live(console=console, refresh_per_second=10)
-
-        # while True:
-        #     rotator_symbols = self.manager.get_auto_rotate_symbols()
-        #     if symbol not in rotator_symbols:
-        #         logging.info(f"Symbol {symbol} no longer in rotator symbols. Stopping operations for this symbol.")
-        #         break  # Exit the current loop and stop operations for this symbol
-
-        while True:
-            # Check if the symbol is still in rotator_symbols
-            rotator_symbols = self.manager.get_auto_rotate_symbols()
-            if symbol not in rotator_symbols:
-                logging.info(f"Symbol {symbol} no longer in rotator symbols. Stopping operations for this symbol.")
-                break
-
-            # Re-fetch whitelist and blacklist from config
-            whitelist = self.config.whitelist
-            blacklist = self.config.blacklist
-
-            # Check if the symbol is still in whitelist and not in blacklist
-            if symbol not in whitelist or symbol in blacklist:
-                logging.info(f"Symbol {symbol} is no longer allowed based on whitelist/blacklist. Stopping operations for this symbol.")
-                break
 
         quote_currency = "USDT"
         max_retries = 5
@@ -146,21 +91,38 @@ class BybitMFIRSITrendRotator(Strategy):
         previous_one_hour_distance = None
         previous_four_hour_distance = None
 
-        # with live:
         while True:
+            # Check if the symbol is still in rotator_symbols
+            should_continue = False  # Flag to decide if you should continue to the next iteration of the loop
+
+            rotator_symbols = self.manager.get_auto_rotate_symbols()
+            #print(f"Current rotator symbols: {rotator_symbols}")
+            if symbol not in rotator_symbols:
+                logging.info(f"Symbol {symbol} no longer in rotator symbols. Stopping operations for this symbol.")
+                should_continue = True  # Set the flag to True
+
+            # Re-fetch whitelist and blacklist from config
+            whitelist = self.config.whitelist
+            blacklist = self.config.blacklist
+
+            # Check if the symbol is still in whitelist and not in blacklist
+            if symbol not in whitelist or symbol in blacklist:
+                logging.info(f"Symbol {symbol} is no longer allowed based on whitelist/blacklist. Stopping operations for this symbol.")
+                should_continue = True  # Set the flag to True
+
+            if should_continue:  # Check the flag
+                continue  # If flag is True, continue to the next iteration
+
+
             # Get API data
-            data = self.manager.get_data()
-            one_minute_volume = self.manager.get_asset_value(symbol, data, "1mVol")
-            one_hour_volume = self.manager.get_asset_value(symbol, data, "1hVol")
-            one_minute_distance = self.manager.get_asset_value(symbol, data, "1mSpread")
-            five_minute_distance = self.manager.get_asset_value(symbol, data, "5mSpread")
-            thirty_minute_distance = self.manager.get_asset_value(symbol, data, "30mSpread")
-            one_hour_distance = self.manager.get_asset_value(symbol, data, "1hSpread")
-            four_hour_distance = self.manager.get_asset_value(symbol, data, "4hSpread")
-            trend = self.manager.get_asset_value(symbol, data, "Trend")
-            mfirsi_signal = self.manager.get_asset_value(symbol, data, "MFI")
-            eri_trend = self.manager.get_asset_value(symbol, data, "ERI Trend")
-            rotatorsymbols = self.manager.get_symbols()
+            api_data = self.manager.get_api_data(symbol)
+            one_minute_volume = api_data['1mVol']
+            five_minute_distance = api_data['5mSpread']
+            trend = api_data['Trend']
+            mfirsi_signal = api_data['MFI']
+            eri_trend = api_data['ERI Trend']
+            #rotator_symbols = api_data['Symbols']
+
             #rotator_symbols = self.manager.get_auto_rotate_symbols(self.config.min_qty_threshold)
             # rotator_symbols = self.manager.get_auto_rotate_symbols()
 
@@ -200,57 +162,9 @@ class BybitMFIRSITrendRotator(Strategy):
             best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
             best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
-            if self.max_long_trade_qty is None or self.max_short_trade_qty is None:
-                self.max_long_trade_qty = self.max_short_trade_qty = self.calc_max_trade_qty(total_equity,
-                                                                                            best_ask_price,
-                                                                                            max_leverage)
-
-                # Set initial quantities if they're None
-                if self.initial_max_long_trade_qty is None:
-                    self.initial_max_long_trade_qty = self.max_long_trade_qty
-                    logging.info(f"Initial max trade qty set to {self.initial_max_long_trade_qty}")
-                if self.initial_max_short_trade_qty is None:
-                    self.initial_max_short_trade_qty = self.max_short_trade_qty  
-                    logging.info(f"Initial trade qty set to {self.initial_max_short_trade_qty}")                                                            
-                        
-            # Calculate the dynamic amount
-            long_dynamic_amount = 0.001 * self.initial_max_long_trade_qty
-            short_dynamic_amount = 0.001 * self.initial_max_short_trade_qty
-
-            min_qty = float(market_data["min_qty"])
-            min_qty_str = str(min_qty)
-
-            # Get the precision level of the minimum quantity
-            if ".0" in min_qty_str:
-                # The minimum quantity does not have a fractional part, precision is 0
-                precision_level = 0
-            else:
-                # The minimum quantity has a fractional part, get its precision level
-                precision_level = len(min_qty_str.split(".")[1])
-
-            # # Get the precision level of the minimum quantity
-            # if ".0" in min_qty_str:
-            #     # The minimum quantity has a fractional part, get its precision level
-            #     precision_level = len(min_qty_str.split(".")[1])
-            # else:
-            #     # The minimum quantity does not have a fractional part, precision is 0
-            #     precision_level = 0
-
-            # Round the amount to the precision level of the minimum quantity
-            long_dynamic_amount = round(long_dynamic_amount, precision_level)
-            short_dynamic_amount = round(short_dynamic_amount, precision_level)
-
-            self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
-            self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
-
-            # Check if the amount is less than the minimum quantity allowed by the exchange
-            if long_dynamic_amount < min_qty:
-                logging.info(f"Dynamic amount too small for 0.001x, using min_qty")
-                long_dynamic_amount = min_qty
-            
-            if short_dynamic_amount < min_qty:
-                logging.info(f"Dynamic amount too small for 0.001x, using min_qty")
-                short_dynamic_amount = min_qty
+            long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount(
+                symbol, market_data, total_equity, best_ask_price, max_leverage
+            )
 
             self.print_trade_quantities_once_bybit(self.max_long_trade_qty)
             self.print_trade_quantities_once_bybit(self.max_short_trade_qty)
@@ -280,7 +194,9 @@ class BybitMFIRSITrendRotator(Strategy):
 
             #open_symbols = self.retry_api_call(self.extract_symbols_from_positions_bybit, open_position_data)
             #can_open_new_position = self.can_trade_new_symbol(open_symbols, symbols_allowed)
+
             can_open_new_position = self.can_trade_new_symbol(open_symbols, symbols_allowed, symbol)
+            #print(f"Can open new position for {symbol}: {can_open_new_position}")
 
             short_pos_qty = position_data["short"]["qty"]
             long_pos_qty = position_data["long"]["qty"]
@@ -362,25 +278,11 @@ class BybitMFIRSITrendRotator(Strategy):
             shared_symbols_data[symbol] = symbol_data
             ### ILAY ###
 
-            # SERIALIZE
-            # if self.config.dashboard_enabled:
-            #     with open(dashboard_path, "w") as f:
-            #         json.dump(shared_symbols_data, f)
-            #     self.update_shared_data(symbol_data, open_position_data)
-
-            # SERIALIZE and DEEPCOPY
-            # if self.config.dashboard_enabled:
-            #     data_to_save = copy.deepcopy(shared_symbols_data)
-            #     with open(dashboard_path, "w") as f:
-            #         json.dump(data_to_save, f)
-            #     self.update_shared_data(symbol_data, open_position_data)
-                
             if self.config.dashboard_enabled:
                 data_to_save = copy.deepcopy(shared_symbols_data)
                 with open(dashboard_path, "w") as f:
                     json.dump(data_to_save, f)
                 self.update_shared_data(symbol_data, open_position_data, len(open_symbols))
-
 
             #open_orders = self.exchange.get_open_orders(symbol)
             open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)

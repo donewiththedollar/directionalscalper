@@ -46,6 +46,57 @@ class Strategy:
         def selling_pressure(self):
             return not self.buying_pressure()
 
+    def calculate_dynamic_amount(self, symbol, market_data, total_equity, best_ask_price, max_leverage):
+        
+        if self.max_long_trade_qty is None or self.max_short_trade_qty is None:
+            self.max_long_trade_qty = self.max_short_trade_qty = self.calc_max_trade_qty(total_equity,
+                                                                                        best_ask_price,
+                                                                                        max_leverage)
+
+            # Set initial quantities if they're None
+            if self.initial_max_long_trade_qty is None:
+                self.initial_max_long_trade_qty = self.max_long_trade_qty
+                logging.info(f"Initial max trade qty set to {self.initial_max_long_trade_qty}")
+
+            if self.initial_max_short_trade_qty is None:
+                self.initial_max_short_trade_qty = self.max_short_trade_qty  
+                logging.info(f"Initial trade qty set to {self.initial_max_short_trade_qty}") 
+
+        long_dynamic_amount = 0.001 * self.initial_max_long_trade_qty
+        short_dynamic_amount = 0.001 * self.initial_max_short_trade_qty
+
+        min_qty = float(market_data["min_qty"])
+        min_qty_str = str(min_qty)
+
+        # # Get the precision level of the minimum quantity
+        # if ".0" in min_qty_str:
+        #     # The minimum quantity has a fractional part, get its precision level
+        #     precision_level = len(min_qty_str.split(".")[1])
+        # else:
+        #     # The minimum quantity does not have a fractional part, precision is 0
+        #     precision_level = 0
+
+        if ".0" in min_qty_str:
+            precision_level = 0
+        else:
+            precision_level = len(min_qty_str.split(".")[1])
+
+        long_dynamic_amount = round(long_dynamic_amount, precision_level)
+        short_dynamic_amount = round(short_dynamic_amount, precision_level)
+
+        self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
+        self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
+
+        if long_dynamic_amount < min_qty:
+            logging.info(f"Dynamic amount too small for 0.001x, using min_qty")
+            long_dynamic_amount = min_qty
+
+        if short_dynamic_amount < min_qty:
+            logging.info(f"Dynamic amount too small for 0.001x, using min_qty")
+            short_dynamic_amount = min_qty
+
+        return long_dynamic_amount, short_dynamic_amount, min_qty
+
     def get_all_moving_averages(self, symbol, max_retries=3, delay=5):
         for _ in range(max_retries):
             m_moving_averages = self.manager.get_1m_moving_averages(symbol)
@@ -1410,6 +1461,20 @@ class Strategy:
                     logging.info(f"Placing initial short entry")
                     self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
                     logging.info("Placed initial short entry")
+
+    def bybit_hedge_additional_entry_maker_v3(self, symbol: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_add_to_long: bool, should_add_to_short: bool):
+        
+        best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+        best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+        open_orders = self.exchange.get_open_orders(symbol)
+
+        if should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
+            logging.info(f"Managing non-rotating symbol: Placing additional long entry for {symbol}")
+            self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+
+        if should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
+            logging.info(f"Managing non-rotating symbol: Placing additional short entry for {symbol}")
+            self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
     def bybit_hedge_entry_maker_v3(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
 
