@@ -267,15 +267,9 @@ class BybitRotatorAggressive(Strategy):
             # Check if the symbol is already being traded
             if symbol in open_symbols:
                 self.bybit_turbocharged_entry_maker(symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
-
             elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
-                #self.bybit_turbocharged_entry_maker(symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
-                self.bybit_turbocharged_new_entry_maker(symbol, trend, mfirsi_signal, long_dynamic_amount, short_dynamic_amount)
-
-            # # Entry logic
-            # if can_open_new_position:
-            #     self.bybit_turbocharged_entry_maker(symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
-
+                self.bybit_turbocharged_entry_maker(symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
+                
             # Call the function to update long take profit spread
             if long_pos_qty > 0 and long_take_profit is not None:
                 self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
