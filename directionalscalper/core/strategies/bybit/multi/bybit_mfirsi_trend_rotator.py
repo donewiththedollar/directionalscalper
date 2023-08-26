@@ -44,21 +44,9 @@ class BybitMFIRSITrendRotator(Strategy):
         self.version = "2.0.6"
         self.rows = {}
 
-    # def run(self, symbol):
-    #     threads = [
-    #         Thread(target=self.run_single_symbol, args=(symbol,)),
-    #         Thread(target=self.graceful_stop_checker_bybit_full)
-    #     ]
-
-    #     for thread in threads:
-    #         thread.start()
-
-    #     for thread in threads:
-    #         thread.join()
-
-    def run(self):
+    def run(self, symbol):
         threads = [
-            Thread(target=self.manage_symbols),
+            Thread(target=self.run_single_symbol, args=(symbol,)),
             Thread(target=self.graceful_stop_checker_bybit_full)
         ]
 
@@ -68,26 +56,38 @@ class BybitMFIRSITrendRotator(Strategy):
         for thread in threads:
             thread.join()
 
-    def manage_symbols(self):
-        running_symbols = {}  # To keep track of the symbols currently being traded
+    # def run(self):
+    #     threads = [
+    #         Thread(target=self.manage_symbols),
+    #         Thread(target=self.graceful_stop_checker_bybit_full)
+    #     ]
 
-        while True:
-            rotator_symbols = self.manager.get_auto_rotate_symbols()
+    #     for thread in threads:
+    #         thread.start()
 
-            # Starting trading operations for new symbols
-            for symbol in rotator_symbols:
-                if symbol not in running_symbols:
-                    running_symbols[symbol] = Thread(target=self.run_single_symbol, args=(symbol,))
-                    running_symbols[symbol].start()
+    #     for thread in threads:
+    #         thread.join()
 
-            # Stopping trading operations for removed symbols
-            for symbol in list(running_symbols.keys()):  # Iterate over a copy of keys to avoid runtime errors
-                if symbol not in rotator_symbols:
-                    # Here, you can signal the thread to stop in some way, e.g., using an event or another mechanism
-                    # For now, I'm just removing the symbol from the dictionary
-                    del running_symbols[symbol]
+    # def manage_symbols(self):
+    #     running_symbols = {}  # To keep track of the symbols currently being traded
 
-            time.sleep(60)  # Check every 60 seconds, adjust as needed
+    #     while True:
+    #         rotator_symbols = self.manager.get_auto_rotate_symbols()
+
+    #         # Starting trading operations for new symbols
+    #         for symbol in rotator_symbols:
+    #             if symbol not in running_symbols:
+    #                 running_symbols[symbol] = Thread(target=self.run_single_symbol, args=(symbol,))
+    #                 running_symbols[symbol].start()
+
+    #         # Stopping trading operations for removed symbols
+    #         for symbol in list(running_symbols.keys()):  # Iterate over a copy of keys to avoid runtime errors
+    #             if symbol not in rotator_symbols:
+    #                 # Here, you can signal the thread to stop in some way, e.g., using an event or another mechanism
+    #                 # For now, I'm just removing the symbol from the dictionary
+    #                 del running_symbols[symbol]
+
+    #         time.sleep(60)  # Check every 60 seconds, adjust as needed
             
             
     def run_single_symbol(self, symbol):
