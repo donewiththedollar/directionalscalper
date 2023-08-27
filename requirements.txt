@@ -8,3 +8,4 @@ rich
 ta
 streamlit
 plotly
+inquirer

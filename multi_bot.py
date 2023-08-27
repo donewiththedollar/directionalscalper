@@ -8,6 +8,7 @@ project_dir = str(Path(__file__).resolve().parent)
 print("Project directory:", project_dir)
 sys.path.insert(0, project_dir)
 
+import inquirer
 from rich.live import Live
 import argparse
 from pathlib import Path
@@ -33,6 +34,23 @@ from live_table_manager import LiveTableManager, shared_symbols_data
 
 def standardize_symbol(symbol):
     return symbol.replace('/', '').split(':')[0]
+
+def choose_strategy():
+    questions = [
+        inquirer.List('strategy',
+                      message='Which strategy would you like to run?',
+                      choices=[
+                          'bybit_hedge_rotator',
+                          'bybit_hedge_rotator_mfirsi',
+                          'bybit_auto_hedge_mfi_rotator',
+                          'bybit_mfirsi_trend_rotator',
+                          'bybit_rotator_aggressive',
+                          'bybit_rotator_spoof',
+                      ]
+                     )
+    ]
+    answers = inquirer.prompt(questions)
+    return answers['strategy']
 
 class DirectionalMarketMaker:
     def __init__(self, config: Config, exchange_name: str):
@@ -105,9 +123,8 @@ def run_bot(symbol, args, manager, rotator_symbols=None):
     print("Loading config from:", config_file_path)
     config = load_config(config_file_path)
 
-    exchange_name = args.exchange
+    exchange_name = args.exchange  # These are now guaranteed to be non-None
     strategy_name = args.strategy
-    amount = args.amount
 
     print(f"Symbol: {symbol}")
     print(f"Exchange name: {exchange_name}")
@@ -126,9 +143,8 @@ def run_bot(symbol, args, manager, rotator_symbols=None):
         balance = market_maker.get_balance(quote)
         print(f"Futures balance: {balance}")
 
-    #market_maker.run_strategy(symbol, strategy_name, config)  # Calling the run_strategy method
-    #market_maker.run_strategy(symbol, strategy_name, config, symbols_to_trade)
     market_maker.run_strategy(symbol, strategy_name, config, rotator_symbols)
+
 
 def start_threads_for_symbols(symbols, args, manager):
     threads = [threading.Thread(target=run_bot, args=(symbol, args, manager, symbols)) for symbol in symbols]
@@ -137,6 +153,25 @@ def start_threads_for_symbols(symbols, args, manager):
     return threads
 
 if __name__ == '__main__':
+    # ASCII Art and Text
+    sword = "====||====>"
+
+    print("\n" + "=" * 50)
+    print("DirectionalScalper".center(50))
+    print("=" * 50 + "\n")
+
+    print("Initializing", end="")
+    # Loading animation
+    for i in range(3):
+        time.sleep(0.5)
+        print(".", end="", flush=True)
+    print("\n")
+
+    # Display the ASCII art
+    print("Battle-Ready Algorithm".center(50))
+    print(sword.center(50) + "\n")
+
+    # argparse code and other initializations
     parser = argparse.ArgumentParser(description='DirectionalScalper')
     parser.add_argument('--config', type=str, default='configs/config.json', help='Path to the configuration file')
     parser.add_argument('--exchange', type=str, help='The name of the exchange to use')
@@ -144,10 +179,51 @@ if __name__ == '__main__':
     parser.add_argument('--symbol', type=str, help='The trading symbol to use')
     parser.add_argument('--amount', type=str, help='The size to use')
     args = parser.parse_args()
+
+    # Ask for exchange and strategy if they're not provided
+    if not args.exchange and not args.strategy:
+        questions = [
+            inquirer.List('exchange',
+                        message="Which exchange do you want to use?",
+                        choices=['bybit', 'bitget', 'mexc', 'huobi', 'okx', 'binance', 'phemex']),
+            inquirer.List('strategy',
+                        message="Which strategy do you want to use?",
+                        choices=['bybit_hedge_rotator', 'bybit_hedge_rotator_mfirsi', 'bybit_auto_hedge_mfi_rotator',
+                                'bybit_mfirsi_trend_rotator', 'bybit_rotator_aggressive', 'bybit_rotator_spoof']),
+        ]
+        answers = inquirer.prompt(questions)
+        args.exchange = answers['exchange']
+        args.strategy = answers['strategy']
+
+    print("DirectionalScalper Initialized Successfully!".center(50))
+    print("=" * 50 + "\n")
+    # parser = argparse.ArgumentParser(description='DirectionalScalper')
+    # parser.add_argument('--config', type=str, default='configs/config.json', help='Path to the configuration file')
+    # parser.add_argument('--exchange', type=str, help='The name of the exchange to use')
+    # parser.add_argument('--strategy', type=str, help='The name of the strategy to use')
+    # parser.add_argument('--symbol', type=str, help='The trading symbol to use')
+    # parser.add_argument('--amount', type=str, help='The size to use')
+    # args = parser.parse_args()
+
+    # # Ask for exchange and strategy if they're not provided
+    # if not args.exchange and not args.strategy:
+    #     questions = [
+    #         inquirer.List('exchange',
+    #                       message="Which exchange do you want to use?",
+    #                       choices=['bybit', 'bitget', 'mexc', 'huobi', 'okx', 'binance', 'phemex']),
+    #         inquirer.List('strategy',
+    #                       message="Which strategy do you want to use?",
+    #                       choices=['bybit_hedge_rotator', 'bybit_hedge_rotator_mfirsi', 'bybit_auto_hedge_mfi_rotator',
+    #                                'bybit_mfirsi_trend_rotator', 'bybit_rotator_aggressive', 'bybit_rotator_spoof']),
+    #     ]
+    #     answers = inquirer.prompt(questions)
+    #     args.exchange = answers['exchange']
+    #     args.strategy = answers['strategy']
+
     config_file_path = Path('configs/' + args.config)
     config = load_config(config_file_path)
 
-    exchange_name = args.exchange
+    exchange_name = args.exchange  # Now it will have a value
     market_maker = DirectionalMarketMaker(config, exchange_name)
     manager = Manager(market_maker.exchange, api=config.api.mode, path=Path("data", config.api.filename), url=f"{config.api.url}{config.api.filename}")
     
