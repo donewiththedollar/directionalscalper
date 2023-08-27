@@ -48,7 +48,7 @@ class BybitMFIRSITrendRotator(Strategy):
     def run(self, symbol):
         threads = [
             Thread(target=self.run_single_symbol, args=(symbol,)),
-            Thread(target=self.graceful_stop_checker_bybit_full)
+            Thread(target=self.manage_gs_positions)
         ]
 
         for thread in threads:
@@ -56,7 +56,7 @@ class BybitMFIRSITrendRotator(Strategy):
 
         for thread in threads:
             thread.join()
-            
+
     def run_single_symbol(self, symbol):
         print(f"Running for symbol (inside run_single_symbol method): {symbol}")
 
@@ -88,7 +88,7 @@ class BybitMFIRSITrendRotator(Strategy):
         previous_thirty_minute_distance = None
         previous_one_hour_distance = None
         previous_four_hour_distance = None
-        
+
         while True:
             should_exit = False  # Flag to decide if you should exit the current iteration of the loop
             

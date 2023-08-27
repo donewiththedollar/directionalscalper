@@ -44,7 +44,7 @@ class BybitRotatorAggressive(Strategy):
     def run(self, symbol):
         threads = [
             Thread(target=self.run_single_symbol, args=(symbol,)),
-            Thread(target=self.graceful_stop_checker_bybit_full)
+            Thread(target=self.manage_gs_positions)
         ]
 
         for thread in threads:
