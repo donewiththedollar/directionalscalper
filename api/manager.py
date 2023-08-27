@@ -83,7 +83,7 @@ class Manager:
         self.update_last_checked()
         return self.data
 
-    def get_auto_rotate_symbols(self, min_qty_threshold: float = None, whitelist: list = None, blacklist: list = None, max_symbols: int = 12, max_retries: int = 3, delay_between_retries: int = 5):
+    def get_auto_rotate_symbols(self, min_qty_threshold: float = None, whitelist: list = None, blacklist: list = None, max_symbols: int = 12, max_retries: int = 10, delay_between_retries: int = 30):
         symbols = []
         url = "http://api.tradesimple.xyz/data/rotatorsymbols.json"
 
