@@ -1071,6 +1071,27 @@ class Strategy:
     #     else:
     #         print("Not enough levels in the order book to place spoof orders.")
 
+    def manage_liquidation_risk(self, long_pos_price, short_pos_price, long_liq_price, short_liq_price, symbol, amount):
+        # Create some thresholds for when to act
+        long_threshold = self.config.long_liq_pct
+        short_threshold = self.config.short_liq_pct
+
+        # Check if the long position is close to being liquidated
+        if long_pos_price is not None and long_liq_price is not None:
+            long_diff = abs(long_pos_price - long_liq_price) / long_pos_price
+            if long_diff < long_threshold:
+                # Place a stop-loss order or open a position in the opposite direction to offset risk
+                #self.place_stop_loss(symbol, "sell", amount, long_liq_price)  # Placeholder function, replace with your actual function
+                logging.info(f"Placed a stop-loss order for long position on {symbol} at {long_liq_price}")
+
+        # Check if the short position is close to being liquidated
+        if short_pos_price is not None and short_liq_price is not None:
+            short_diff = abs(short_pos_price - short_liq_price) / short_pos_price
+            if short_diff < short_threshold:
+                # Place a stop-loss order or open a position in the opposite direction to offset risk
+                #self.place_stop_loss(symbol, "buy", amount, short_liq_price)  # Placeholder function, replace with your actual function
+                logging.info(f"Placed a stop-loss order for short position on {symbol} at {short_liq_price}")
+
     def spoof_order(self, symbol, side, max_amount, max_price, price_step=3.0, num_orders=5):
         total_amount = 0.0  # Initialize the total amount to zero
 

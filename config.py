@@ -32,6 +32,8 @@ class Bot(BaseModel):
     min_qty_threshold: float = 0
     symbol: str
     violent_multiplier: float = 2.00
+    long_liq_pct: float = 0.05
+    short_liq_pct: float = 0.05
     wallet_exposure: float = 1.00
     whitelist: List[str] = []
     blacklist: List[str] = []
@@ -51,11 +53,17 @@ class Bot(BaseModel):
             raise ValueError("min_distance must be greater than 0")
         return v
 
-    # @validator("min_distance_btc")
-    # def minimum_min_distance(cls, v):
-    #     if v < 0.0:
-    #         raise ValueError("min_distance must be greater than 0")
-    #     return v
+    @validator("long_liq_pct")
+    def minimum_long_liq_pct(cls, v):
+        if v < 0.0:
+            raise ValueError("long_liq_pct must be greater than 0")
+        return v
+
+    @validator("short_liq_pct")
+    def minimum_short_liq_pct(cls, v):
+        if v < 0.0:
+            raise ValueError("short_liq_pct must be greater than 0")
+        return v
 
 class Exchange(BaseModel):
     name: str
@@ -147,7 +155,25 @@ def load_config(path):
         try:
             return Config(**data)
         except ValidationError as e:
-            raise ValueError(f"{e}")
+            # Enhancing the error output for better clarity
+            error_details = "\n".join([f"{err['loc']} - {err['msg']}" for err in e.errors()])
+            raise ValueError(f"Configuration Error(s):\n{error_details}")
+
+# def load_config(path):
+#     if not path.is_file():
+#         raise ValueError(f"{path} does not exist")
+#     else:
+#         f = open(path)
+#         try:
+#             data = json.load(f)
+#         except json.JSONDecodeError as exc:
+#             raise ValueError(
+#                 f"ERROR: Invalid JSON: {exc.msg}, line {exc.lineno}, column {exc.colno}"
+#             )
+#         try:
+#             return Config(**data)
+#         except ValidationError as e:
+#             raise ValueError(f"{e}")
 
 
 def get_exchange_name(cli_exchange_name):
