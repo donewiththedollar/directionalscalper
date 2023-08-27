@@ -104,7 +104,6 @@ class BybitRotatorAggressive(Strategy):
             if should_exit:
                 break
 
-
             # Get API data
             api_data = self.manager.get_api_data(symbol)
             one_minute_volume = api_data['1mVol']
