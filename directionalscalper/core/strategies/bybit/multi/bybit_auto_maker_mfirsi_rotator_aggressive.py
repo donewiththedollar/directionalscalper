@@ -10,7 +10,6 @@ from ...logger import Logger
 ### ILAY ###
 from live_table_manager import shared_symbols_data
 ####
-from concurrent.futures import ThreadPoolExecutor
 
 logging = Logger(logger_name="BybitRotatorAggressive", filename="BybitRotatorAggressive.log", stream=True)
 
@@ -272,9 +271,9 @@ class BybitRotatorAggressive(Strategy):
 
             # Check if the symbol is already being traded
             if symbol in open_symbols:
-                self.bybit_turbocharged_entry_maker(symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
+                self.bybit_turbocharged_entry_maker(symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_add_to_long, should_short, should_add_to_short)
             elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
-                self.bybit_turbocharged_entry_maker(symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
+                self.bybit_turbocharged_entry_maker(symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_add_to_long, should_short, should_add_to_short)
 
             # Call the function to update long take profit spread
             if long_pos_qty > 0 and long_take_profit is not None:
