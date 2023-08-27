@@ -72,6 +72,10 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotatorv2(Strategy):
 
         symbols_allowed = self.config.symbols_allowed
 
+        if self.config.dashboard_enabled:
+            dashboard_path = os.path.join(self.config.shared_data_path, "shared_data.json")
+
+
         logging.info("Setting up exchange")
         self.exchange.setup_exchange_bybit(symbol)
 
