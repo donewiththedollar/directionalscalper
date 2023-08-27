@@ -47,7 +47,7 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
     def run(self, symbol):
         threads = [
             Thread(target=self.run_single_symbol, args=(symbol,)),
-            Thread(target=self.graceful_stop_checker_bybit_full)
+            Thread(target=self.manage_gs_positions)
         ]
 
         for thread in threads:
@@ -58,30 +58,6 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
             
     def run_single_symbol(self, symbol):
         print(f"Running for symbol (inside run_single_symbol method): {symbol}")
-        # console = Console()
-        # live = Live(console=console, refresh_per_second=10)
-
-        # while True:
-        #     rotator_symbols = self.manager.get_auto_rotate_symbols()
-        #     if symbol not in rotator_symbols:
-        #         logging.info(f"Symbol {symbol} no longer in rotator symbols. Stopping operations for this symbol.")
-        #         break  # Exit the current loop and stop operations for this symbol
-
-        while True:
-            # Check if the symbol is still in rotator_symbols
-            rotator_symbols = self.manager.get_auto_rotate_symbols()
-            if symbol not in rotator_symbols:
-                logging.info(f"Symbol {symbol} no longer in rotator symbols. Stopping operations for this symbol.")
-                break
-
-            # Re-fetch whitelist and blacklist from config
-            whitelist = self.config.whitelist
-            blacklist = self.config.blacklist
-
-            # Check if the symbol is still in whitelist and not in blacklist
-            if symbol not in whitelist or symbol in blacklist:
-                logging.info(f"Symbol {symbol} is no longer allowed based on whitelist/blacklist. Stopping operations for this symbol.")
-                break
 
         quote_currency = "USDT"
         max_retries = 5
@@ -96,9 +72,6 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
 
         symbols_allowed = self.config.symbols_allowed
 
-        if self.config.dashboard_enabled:
-            dashboard_path = os.path.join(self.config.shared_data_path, "shared_data.json")
-
         logging.info("Setting up exchange")
         self.exchange.setup_exchange_bybit(symbol)
 
@@ -112,25 +85,39 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
         previous_one_hour_distance = None
         previous_four_hour_distance = None
 
-        # with live:
         while True:
-            # Get API data
-            data = self.manager.get_data()
-            one_minute_volume = self.manager.get_asset_value(symbol, data, "1mVol")
-            one_hour_volume = self.manager.get_asset_value(symbol, data, "1hVol")
-            one_minute_distance = self.manager.get_asset_value(symbol, data, "1mSpread")
-            five_minute_distance = self.manager.get_asset_value(symbol, data, "5mSpread")
-            thirty_minute_distance = self.manager.get_asset_value(symbol, data, "30mSpread")
-            one_hour_distance = self.manager.get_asset_value(symbol, data, "1hSpread")
-            four_hour_distance = self.manager.get_asset_value(symbol, data, "4hSpread")
-            trend = self.manager.get_asset_value(symbol, data, "Trend")
-            mfirsi_signal = self.manager.get_asset_value(symbol, data, "MFI")
-            eri_trend = self.manager.get_asset_value(symbol, data, "ERI Trend")
-            rotatorsymbols = self.manager.get_symbols()
-            #rotator_symbols = self.manager.get_auto_rotate_symbols(self.config.min_qty_threshold)
+            should_exit = False  # Flag to decide if you should exit the current iteration of the loop
+            
+            # Check if the symbol is still in rotator_symbols
             rotator_symbols = self.manager.get_auto_rotate_symbols()
+            if symbol not in rotator_symbols:
+                logging.info(f"Symbol {symbol} no longer in rotator symbols. Stopping operations for this symbol.")
+                should_exit = True  # Set the flag to True
 
-            # print(f"Rotator symbols from manager: {rotator_symbols}")
+            # Re-fetch whitelist and blacklist from config
+            whitelist = self.config.whitelist
+            blacklist = self.config.blacklist
+
+            # Check if the symbol is still in whitelist and not in blacklist
+            if symbol not in whitelist or symbol in blacklist:
+                logging.info(f"Symbol {symbol} is no longer allowed based on whitelist/blacklist. Stopping operations for this symbol.")
+                should_exit = True  # Set the flag to True
+
+            # If the flag is set, exit the loop
+            if should_exit:
+                break
+
+            quote_currency = "USDT"
+            max_retries = 5
+            retry_delay = 5
+
+            # Get API data
+            api_data = self.manager.get_api_data(symbol)
+            one_minute_volume = api_data['1mVol']
+            five_minute_distance = api_data['5mSpread']
+            trend = api_data['Trend']
+            mfirsi_signal = api_data['MFI']
+            eri_trend = api_data['ERI Trend']
 
             quote_currency = "USDT"
 
@@ -166,45 +153,10 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
             best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
             best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
-            if self.max_long_trade_qty is None or self.max_short_trade_qty is None:
-                self.max_long_trade_qty = self.max_short_trade_qty = self.calc_max_trade_qty(total_equity,
-                                                                                            best_ask_price,
-                                                                                            max_leverage)
-
-                # Set initial quantities if they're None
-                if self.initial_max_long_trade_qty is None:
-                    self.initial_max_long_trade_qty = self.max_long_trade_qty
-                    logging.info(f"Initial max trade qty set to {self.initial_max_long_trade_qty}")
-                if self.initial_max_short_trade_qty is None:
-                    self.initial_max_short_trade_qty = self.max_short_trade_qty  
-                    logging.info(f"Initial trade qty set to {self.initial_max_short_trade_qty}")                                                            
-                        
-            # Calculate the dynamic amount
-            long_dynamic_amount = 0.001 * self.initial_max_long_trade_qty
-            short_dynamic_amount = 0.001 * self.initial_max_short_trade_qty
-
-            min_qty = float(market_data["min_qty"])
-            min_qty_str = str(min_qty)
-
-            # Get the precision level of the minimum quantity
-            if ".0" in min_qty_str:
-                # The minimum quantity does not have a fractional part, precision is 0
-                precision_level = 0
-            else:
-                # The minimum quantity has a fractional part, get its precision level
-                precision_level = len(min_qty_str.split(".")[1])
-
-            # # Get the precision level of the minimum quantity
-            # if ".0" in min_qty_str:
-            #     # The minimum quantity has a fractional part, get its precision level
-            #     precision_level = len(min_qty_str.split(".")[1])
-            # else:
-            #     # The minimum quantity does not have a fractional part, precision is 0
-            #     precision_level = 0
-
-            # Round the amount to the precision level of the minimum quantity
-            long_dynamic_amount = round(long_dynamic_amount, precision_level)
-            short_dynamic_amount = round(short_dynamic_amount, precision_level)
+            # Calculate dynamic amounts and min_qty for each symbol
+            long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount(
+                symbol, market_data, total_equity, best_ask_price, max_leverage
+            )
 
             self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
             self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
@@ -223,14 +175,14 @@ class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
 
             # Get the 1-minute moving averages
             logging.info(f"Fetching MA data")
-            m_moving_averages = self.manager.get_1m_moving_averages(symbol)
-            m5_moving_averages = self.manager.get_5m_moving_averages(symbol)
-            ma_6_high = m_moving_averages["MA_6_H"]
-            ma_6_low = m_moving_averages["MA_6_L"]
-            ma_3_low = m_moving_averages["MA_3_L"]
-            ma_3_high = m_moving_averages["MA_3_H"]
-            ma_1m_3_high = self.manager.get_1m_moving_averages(symbol)["MA_3_H"]
-            ma_5m_3_high = self.manager.get_5m_moving_averages(symbol)["MA_3_H"]
+            moving_averages = self.get_all_moving_averages(symbol)
+
+            ma_6_high = moving_averages["ma_6_high"]
+            ma_6_low = moving_averages["ma_6_low"]
+            ma_3_low = moving_averages["ma_3_low"]
+            ma_3_high = moving_averages["ma_3_high"]
+            ma_1m_3_high = moving_averages["ma_1m_3_high"]
+            ma_5m_3_high = moving_averages["ma_5m_3_high"]
 
             position_data = self.exchange.get_positions_bybit(symbol)
 
