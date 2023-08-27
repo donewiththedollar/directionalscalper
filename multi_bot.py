@@ -1,4 +1,5 @@
 import sys
+import time
 import traceback
 import threading
 from pathlib import Path
@@ -137,6 +138,12 @@ def run_bot(symbol, args, manager, rotator_symbols=None):
     #market_maker.run_strategy(symbol, strategy_name, config, symbols_to_trade)
     market_maker.run_strategy(symbol, strategy_name, config, rotator_symbols)
 
+def start_threads_for_symbols(symbols, args, manager):
+    threads = [threading.Thread(target=run_bot, args=(symbol, args, manager, symbols)) for symbol in symbols]
+    for thread in threads:
+        thread.start()
+    return threads
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='DirectionalScalper')
     parser.add_argument('--config', type=str, default='configs/config.json', help='Path to the configuration file')
@@ -185,14 +192,28 @@ if __name__ == '__main__':
 
     print(f"Symbols to trade: {symbols_to_trade}")
 
+    print(f"Symbols to trade: {symbols_to_trade}")
+
     # Fetch the rotator symbols once before starting the threads and standardize them as well
     rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist)]
 
-    # Start bots for each symbol in symbols_to_trade and pass the rotator_symbols as an argument
-    threads = [threading.Thread(target=run_bot, args=(symbol, args, manager, rotator_symbols_standardized)) for symbol in symbols_to_trade]
+    # Start threads for initial set of symbols
+    active_threads = start_threads_for_symbols(symbols_to_trade, args, manager)
 
-    for thread in threads:
-        thread.start()
+    # New section for continuous checking of rotator symbols
+    while True:
+        # Remove finished threads from active_threads list
+        active_threads = [t for t in active_threads if t.is_alive()]
 
-    for thread in threads:
-        thread.join()
+        # Refresh the list of rotator symbols
+        rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist)]
+
+        # Find new symbols that are not yet being traded
+        new_symbols = [s for s in rotator_symbols_standardized if s not in [t._args[0] for t in active_threads]]
+
+        # Start new threads for new symbols
+        new_threads = start_threads_for_symbols(new_symbols, args, manager)
+        active_threads.extend(new_threads)
+
+        # Sleep for a while before the next iteration
+        time.sleep(60)

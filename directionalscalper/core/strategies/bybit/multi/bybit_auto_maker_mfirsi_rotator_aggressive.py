@@ -83,29 +83,27 @@ class BybitRotatorAggressive(Strategy):
         previous_four_hour_distance = None
 
         while True:
+            should_exit = False  # Flag to decide if you should exit the current iteration of the loop
+            
             # Check if the symbol is still in rotator_symbols
-            should_continue = False  # Flag to decide if you should continue to the next iteration of the loop
-
             rotator_symbols = self.manager.get_auto_rotate_symbols()
-            #print(f"Current rotator symbols: {rotator_symbols}")
             if symbol not in rotator_symbols:
                 logging.info(f"Symbol {symbol} no longer in rotator symbols. Stopping operations for this symbol.")
-                should_continue = True  # Set the flag to True
+                should_exit = True  # Set the flag to True
 
             # Re-fetch whitelist and blacklist from config
             whitelist = self.config.whitelist
             blacklist = self.config.blacklist
 
-            # print(f"Whitelist: {whitelist}")
-            # print(f"Blacklist: {blacklist}")
-
             # Check if the symbol is still in whitelist and not in blacklist
             if symbol not in whitelist or symbol in blacklist:
                 logging.info(f"Symbol {symbol} is no longer allowed based on whitelist/blacklist. Stopping operations for this symbol.")
-                should_continue = True  # Set the flag to True
+                should_exit = True  # Set the flag to True
 
-            if should_continue:  # Check the flag
-                continue  # If flag is True, continue to the next iteration
+            # If the flag is set, exit the loop
+            if should_exit:
+                break
+
 
             # Get API data
             api_data = self.manager.get_api_data(symbol)
