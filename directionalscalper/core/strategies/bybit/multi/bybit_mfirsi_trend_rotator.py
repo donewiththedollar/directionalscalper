@@ -18,8 +18,9 @@ from concurrent.futures import ThreadPoolExecutor
 logging = Logger(logger_name="BybitMFIRSITrendRotateNew", filename="BybitMFIRSITrendRotateNew.log", stream=True)
 
 class BybitMFIRSITrendRotator(Strategy):
-    def __init__(self, exchange, manager, config):
+    def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager)
+        self.symbols_allowed = symbols_allowed
         self.manager = manager
         self.all_symbol_data = {}
         self.last_long_tp_update = datetime.now()
@@ -70,7 +71,9 @@ class BybitMFIRSITrendRotator(Strategy):
         current_leverage = self.exchange.get_current_leverage_bybit(symbol)
         max_leverage = self.exchange.get_max_leverage_bybit(symbol)
 
-        symbols_allowed = self.config.symbols_allowed
+        # symbols_allowed = self.config.symbols_allowed
+
+        #symbols_allowed = self.get_symbols_allowed("bybit")
 
         if self.config.dashboard_enabled:
             dashboard_path = os.path.join(self.config.shared_data_path, "shared_data.json")
@@ -211,7 +214,7 @@ class BybitMFIRSITrendRotator(Strategy):
                 #open_symbols = self.retry_api_call(self.extract_symbols_from_positions_bybit, open_position_data)
                 #can_open_new_position = self.can_trade_new_symbol(open_symbols, symbols_allowed)
 
-                can_open_new_position = self.can_trade_new_symbol(open_symbols, symbols_allowed, symbol)
+                can_open_new_position = self.can_trade_new_symbol(open_symbols, self.symbols_allowed, symbol)
                 logging.info(f"Can open new position: {can_open_new_position}")
 
                 short_pos_qty = position_data["short"]["qty"]

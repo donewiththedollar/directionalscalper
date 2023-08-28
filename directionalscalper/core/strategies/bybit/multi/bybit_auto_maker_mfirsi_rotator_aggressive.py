@@ -17,8 +17,9 @@ from live_table_manager import shared_symbols_data
 logging = Logger(logger_name="BybitRotatorAggressive", filename="BybitRotatorAggressive.log", stream=True)
 
 class BybitRotatorAggressive(Strategy):
-    def __init__(self, exchange, manager, config):
+    def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager)
+        self.symbols_allowed = symbols_allowed
         self.manager = manager
         self.all_symbol_data = {}
         self.last_long_tp_update = datetime.now()
@@ -42,7 +43,7 @@ class BybitRotatorAggressive(Strategy):
         self.long_leverage_increased = False
         self.short_leverage_increased = False
         self.version = "2.0.6"
-        self.rows = {}
+        self.rows = {} 
 
     def run(self, symbol):
         threads = [
@@ -69,9 +70,11 @@ class BybitRotatorAggressive(Strategy):
         current_leverage = self.exchange.get_current_leverage_bybit(symbol)
         max_leverage = self.exchange.get_max_leverage_bybit(symbol)
 
-        symbols_allowed = self.config.symbols_allowed
+        # symbols_allowed = self.config.symbols_allowed
 
-        symbols_allowed = 6
+        # symbols_allowed = 6
+
+        # symbols_allowed = self.get_symbols_allowed("bybit")
 
         if self.config.dashboard_enabled:
             dashboard_path = os.path.join(self.config.shared_data_path, "shared_data.json")
@@ -198,11 +201,10 @@ class BybitRotatorAggressive(Strategy):
                     print(f"Managing symbol: {s}")  # Debugging line
                     self.manage_open_positions_aggressive([s], total_equity)  # Notice the square brackets around 's'
 
-                #can_open_new_position = self.can_trade_new_symbol(open_symbols, symbols_allowed)
 
                 #print(f"Open symbols: {open_symbols}")
 
-                can_open_new_position = self.can_trade_new_symbol(open_symbols, symbols_allowed, symbol)
+                can_open_new_position = self.can_trade_new_symbol(open_symbols, self.symbols_allowed, symbol)
                 logging.info(f"Can open new position: {can_open_new_position}")
                 #print(f"Open symbols: {open_symbols}")
 

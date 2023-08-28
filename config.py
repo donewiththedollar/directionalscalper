@@ -38,7 +38,7 @@ class Bot(BaseModel):
     wallet_exposure: float = 1.00
     whitelist: List[str] = []
     blacklist: List[str] = []
-    symbols_allowed: int = 12
+    # symbols_allowed: int = 12
     dashboard_enabled: bool = False
     shared_data_path: Optional[DirectoryPath] = None
     
@@ -72,17 +72,7 @@ class Exchange(BaseModel):
     api_key: str
     api_secret: str
     passphrase: str = None
-
-# class Exchange(BaseModel):
-#     name: str
-#     api_key: str
-#     api_secret: str
-#     passphrase: str = None
-
-# class Exchange(BaseModel):
-#     name: str = Exchanges.BYBIT.value  # type: ignore
-#     api_key: str = ""
-#     api_secret: str = ""
+    symbols_allowed: int = 12
 
 class Logger(BaseModel):
     level: str = "info"
@@ -115,28 +105,12 @@ class Telegram(BaseModel):
     bot_token: str
     chat_id: str
 
-
 class Config(BaseModel):
     api: API
     bot: Bot
     exchanges: List[Exchange]  # <-- Changed from List[Exchange]
     logger: Logger
     messengers: dict[str, Union[Discord, Telegram]]
-
-# class Config(BaseModel):
-#     api: API
-#     bot: Bot
-#     exchanges: List[Exchange]
-#     logger: Logger
-#     messengers: dict[str, Union[Discord, Telegram]]
-
-# class Config(BaseModel):
-#     api: API
-#     bot: Bot
-#     exchange: Exchange
-#     logger: Logger
-#     messengers: dict[str, Union[Discord, Telegram]]
-
 
 def load_config(path):
     if not path.is_file():
@@ -175,41 +149,8 @@ def get_exchange_credentials(exchange_name, account_name):
         if exchange_data:
             api_key = exchange_data['api_key']
             secret_key = exchange_data['api_secret']
-            passphrase = exchange_data.get('passphrase')  # Not all exchanges require a passphrase
-            return api_key, secret_key, passphrase
+            passphrase = exchange_data.get('passphrase')
+            symbols_allowed = exchange_data.get('symbols_allowed', 12)  # Default to 12 if not specified
+            return api_key, secret_key, passphrase, symbols_allowed
         else:
             raise ValueError(f"Account {account_name} for exchange {exchange_name} not found in the config file.")
-        
-# def get_exchange_credentials(exchange_name):
-#     with open('config.json') as file:
-#         data = json.load(file)
-#         exchange_data = None
-#         for exchange in data['exchanges']:
-#             if exchange['name'] == exchange_name:
-#                 exchange_data = exchange
-#                 break
-#         if exchange_data:
-#             api_key = exchange_data['api_key']
-#             secret_key = exchange_data['api_secret']
-#             passphrase = exchange_data.get('passphrase')  # Not all exchanges require a passphrase
-#             return api_key, secret_key, passphrase
-#         else:
-#             raise ValueError(f"Exchange {exchange_name} not found in the config file.")
-
-
-# def get_exchange_name(cli_exchange_name):
-#     if cli_exchange_name:
-#         return cli_exchange_name
-#     else:
-#         with open('config.json') as file:
-#             data = json.load(file)
-#             return data['exchange']
-
-# def get_exchange_credentials(exchange_name):
-#     with open('config.json') as file:
-#         data = json.load(file)
-#         exchange_data = data['exchanges'][exchange_name]
-#         api_key = exchange_data['api_key']
-#         secret_key = exchange_data['secret_key']
-#         passphrase = exchange_data.get('passphrase')  # Not all exchanges require a passphrase
-#         return api_key, secret_key, passphrase

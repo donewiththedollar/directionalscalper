@@ -46,6 +46,13 @@ class Strategy:
         def selling_pressure(self):
             return not self.buying_pressure()
 
+    def get_symbols_allowed(self, account_name):
+        for exchange in self.config["exchanges"]:
+            if exchange["account_name"] == account_name:
+                return exchange.get("symbols_allowed", None)
+        return None
+
+    
     def calculate_dynamic_amount(self, symbol, market_data, total_equity, best_ask_price, max_leverage):
         
         if self.max_long_trade_qty is None or self.max_short_trade_qty is None:
@@ -1032,12 +1039,30 @@ class Strategy:
 
         logging.info(f"Open symbols count: {self.open_symbols_count}")
         
-        if self.open_symbols_count >= symbols_allowed:
+        if symbols_allowed is None:
+            symbols_allowed = 10  # Use a default value if symbols_allowed is not specified
+        elif self.open_symbols_count >= symbols_allowed:
             return False  # This restricts opening new positions if we have reached the symbols_allowed limit
         elif current_symbol in open_symbols:
             return True  # This allows new positions on already traded symbols
         else:
             return self.open_symbols_count < symbols_allowed  # This checks if we can trade a new symbol
+
+    # def can_trade_new_symbol(self, open_symbols: list, symbols_allowed: int, current_symbol: str) -> bool:
+    #     """
+    #     Checks if the bot can trade a given symbol.
+    #     """
+        
+    #     self.open_symbols_count = len(open_symbols)  # Update the attribute with the current count
+
+    #     logging.info(f"Open symbols count: {self.open_symbols_count}")
+        
+    #     if self.open_symbols_count >= symbols_allowed:
+    #         return False  # This restricts opening new positions if we have reached the symbols_allowed limit
+    #     elif current_symbol in open_symbols:
+    #         return True  # This allows new positions on already traded symbols
+    #     else:
+    #         return self.open_symbols_count < symbols_allowed  # This checks if we can trade a new symbol
 
     # def can_trade_new_symbol(self, open_symbols: list, symbols_allowed: int, current_symbol: str) -> bool:
     #     """
@@ -1790,7 +1815,7 @@ class Strategy:
             #logging.info(f"Type of open_symbols: {type(open_symbols)}")
             # Check if the open symbol is NOT in the current rotator symbols
             is_rotator_symbol = open_symbol in rotator_symbols
-            
+
             if open_symbol not in rotator_symbols:
                 logging.info(f"Symbol {open_symbol} is not in current rotator symbols. Managing it.")
                 
