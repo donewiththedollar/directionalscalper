@@ -52,19 +52,19 @@ def choose_strategy():
     return answers['strategy']
 
 class DirectionalMarketMaker:
-    def __init__(self, config: Config, exchange_name: str):
+    def __init__(self, config: Config, exchange_name: str, account_name: str):
         self.config = config
         self.exchange_name = exchange_name
+        self.account_name = account_name
         exchange_config = None
 
         for exch in config.exchanges:
-            if exch.name == exchange_name:
+            if exch.name == exchange_name and exch.account_name == account_name:  # Check both fields
                 exchange_config = exch
                 break
 
         if not exchange_config:
-            raise ValueError(f"Exchange {exchange_name} not found in the configuration file.")
-
+            raise ValueError(f"Exchange {exchange_name} with account {account_name} not found in the configuration file.")
         api_key = exchange_config.api_key
         secret_key = exchange_config.api_secret
         passphrase = exchange_config.passphrase
@@ -116,7 +116,6 @@ class DirectionalMarketMaker:
     def get_symbols(self):
         return self.exchange.symbols
 
-# def run_bot(symbol, args, manager):
 def run_bot(symbol, args, manager, rotator_symbols=None):
     config_file_path = Path('configs/' + args.config)
     print("Loading config from:", config_file_path)
@@ -124,12 +123,15 @@ def run_bot(symbol, args, manager, rotator_symbols=None):
 
     exchange_name = args.exchange  # These are now guaranteed to be non-None
     strategy_name = args.strategy
+    account_name = args.account_name  # Get the account_name from args
 
     print(f"Symbol: {symbol}")
     print(f"Exchange name: {exchange_name}")
     print(f"Strategy name: {strategy_name}")
+    print(f"Account name: {account_name}")  # Print the account_name
 
-    market_maker = DirectionalMarketMaker(config, exchange_name)
+    # Pass account_name to DirectionalMarketMaker constructor
+    market_maker = DirectionalMarketMaker(config, exchange_name, account_name)
     market_maker.manager = manager  # Use the passed-in manager instance
 
     quote = "USDT"
@@ -143,7 +145,6 @@ def run_bot(symbol, args, manager, rotator_symbols=None):
         print(f"Futures balance: {balance}")
 
     market_maker.run_strategy(symbol, strategy_name, config, rotator_symbols)
-
 
 def start_threads_for_symbols(symbols, args, manager):
     threads = [threading.Thread(target=run_bot, args=(symbol, args, manager, symbols)) for symbol in symbols]
@@ -170,29 +171,38 @@ if __name__ == '__main__':
     print("Battle-Ready Algorithm".center(50))
     print(sword.center(50) + "\n")
 
-    # argparse code and other initializations
     parser = argparse.ArgumentParser(description='DirectionalScalper')
     parser.add_argument('--config', type=str, default='configs/config.json', help='Path to the configuration file')
+    parser.add_argument('--account_name', type=str, help='The name of the account to use')
     parser.add_argument('--exchange', type=str, help='The name of the exchange to use')
     parser.add_argument('--strategy', type=str, help='The name of the strategy to use')
     parser.add_argument('--symbol', type=str, help='The trading symbol to use')
     parser.add_argument('--amount', type=str, help='The size to use')
+
     args = parser.parse_args()
 
-    # Ask for exchange and strategy if they're not provided
-    if not args.exchange and not args.strategy:
+    # Ask for exchange, strategy, and account_name if they're not provided
+    if not args.exchange or not args.strategy or not args.account_name:
         questions = [
             inquirer.List('exchange',
                         message="Which exchange do you want to use?",
-                        choices=['bybit', 'bitget', 'mexc', 'huobi', 'okx', 'binance', 'phemex']),
+                        choices=['bybit', 'bitget', 'mexc', 'huobi', 'okx', 'binance', 'phemex']) if not args.exchange else None,
             inquirer.List('strategy',
                         message="Which strategy do you want to use?",
                         choices=['bybit_hedge_rotator', 'bybit_hedge_rotator_mfirsi', 'bybit_auto_hedge_mfi_rotator',
-                                'bybit_mfirsi_trend_rotator', 'bybit_rotator_aggressive', 'bybit_rotator_spoof']),
+                                'bybit_mfirsi_trend_rotator', 'bybit_rotator_aggressive', 'bybit_rotator_spoof']) if not args.strategy else None,
+            inquirer.Text('account_name',
+                        message="Please enter the name of the account:") if not args.account_name else None
         ]
+        questions = [q for q in questions if q is not None]  # Remove None values
         answers = inquirer.prompt(questions)
-        args.exchange = answers['exchange']
-        args.strategy = answers['strategy']
+        
+        if not args.exchange:
+            args.exchange = answers['exchange']
+        if not args.strategy:
+            args.strategy = answers['strategy']
+        if not args.account_name:
+            args.account_name = answers['account_name']
 
     print(f"DirectionalScalper {VERSION} Initialized Successfully!".center(50))
     print("=" * 50 + "\n")
@@ -201,7 +211,8 @@ if __name__ == '__main__':
     config = load_config(config_file_path)
 
     exchange_name = args.exchange  # Now it will have a value
-    market_maker = DirectionalMarketMaker(config, exchange_name)
+    #market_maker = DirectionalMarketMaker(config, exchange_name)
+    market_maker = DirectionalMarketMaker(config, exchange_name, args.account_name)
     manager = Manager(market_maker.exchange, api=config.api.mode, path=Path("data", config.api.filename), url=f"{config.api.url}{config.api.filename}")
     
     whitelist = config.bot.whitelist

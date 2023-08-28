@@ -68,9 +68,16 @@ class Bot(BaseModel):
 
 class Exchange(BaseModel):
     name: str
+    account_name: str
     api_key: str
     api_secret: str
     passphrase: str = None
+
+# class Exchange(BaseModel):
+#     name: str
+#     api_key: str
+#     api_secret: str
+#     passphrase: str = None
 
 # class Exchange(BaseModel):
 #     name: str = Exchanges.BYBIT.value  # type: ignore
@@ -112,9 +119,16 @@ class Telegram(BaseModel):
 class Config(BaseModel):
     api: API
     bot: Bot
-    exchanges: List[Exchange]
+    exchanges: List[Exchange]  # <-- Changed from List[Exchange]
     logger: Logger
     messengers: dict[str, Union[Discord, Telegram]]
+
+# class Config(BaseModel):
+#     api: API
+#     bot: Bot
+#     exchanges: List[Exchange]
+#     logger: Logger
+#     messengers: dict[str, Union[Discord, Telegram]]
 
 # class Config(BaseModel):
 #     api: API
@@ -150,12 +164,12 @@ def get_exchange_name(cli_exchange_name):
             data = json.load(file)
             return data['exchanges'][0]['name']
 
-def get_exchange_credentials(exchange_name):
+def get_exchange_credentials(exchange_name, account_name):
     with open('config.json') as file:
         data = json.load(file)
         exchange_data = None
         for exchange in data['exchanges']:
-            if exchange['name'] == exchange_name:
+            if exchange['name'] == exchange_name and exchange['account_name'] == account_name:
                 exchange_data = exchange
                 break
         if exchange_data:
@@ -164,7 +178,23 @@ def get_exchange_credentials(exchange_name):
             passphrase = exchange_data.get('passphrase')  # Not all exchanges require a passphrase
             return api_key, secret_key, passphrase
         else:
-            raise ValueError(f"Exchange {exchange_name} not found in the config file.")
+            raise ValueError(f"Account {account_name} for exchange {exchange_name} not found in the config file.")
+        
+# def get_exchange_credentials(exchange_name):
+#     with open('config.json') as file:
+#         data = json.load(file)
+#         exchange_data = None
+#         for exchange in data['exchanges']:
+#             if exchange['name'] == exchange_name:
+#                 exchange_data = exchange
+#                 break
+#         if exchange_data:
+#             api_key = exchange_data['api_key']
+#             secret_key = exchange_data['api_secret']
+#             passphrase = exchange_data.get('passphrase')  # Not all exchanges require a passphrase
+#             return api_key, secret_key, passphrase
+#         else:
+#             raise ValueError(f"Exchange {exchange_name} not found in the config file.")
 
 
 # def get_exchange_name(cli_exchange_name):
