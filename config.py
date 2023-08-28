@@ -8,6 +8,7 @@ from typing import Union
 
 from pydantic import BaseModel, HttpUrl, ValidationError, validator, DirectoryPath
 
+VERSION = "v2.1.5"
 
 class Exchanges(Enum):
     BYBIT = "bybit"
@@ -71,12 +72,10 @@ class Exchange(BaseModel):
     api_secret: str
     passphrase: str = None
 
-
 # class Exchange(BaseModel):
 #     name: str = Exchanges.BYBIT.value  # type: ignore
 #     api_key: str = ""
 #     api_secret: str = ""
-
 
 class Logger(BaseModel):
     level: str = "info"
@@ -101,22 +100,6 @@ class Discord(BaseModel):
                 "Discord webhook begins: https://discord.com/api/webhooks/"
             )
         return v
-
-# class Discord(BaseModel):
-#     active: bool = False
-#     embedded_messages: bool = True
-#     messenger_type: str = Messengers.DISCORD.value  # type: ignore
-#     webhook_url: HttpUrl
-
-#     @validator("webhook_url")
-#     def minimum_divider(cls, v):
-#         if not v.startswith("https://discord.com/api/webhooks/"):
-#             raise ValueError(
-#                 "Discord webhook begins: https://discord.com/api/webhooks/"
-#             )
-#         return v
-
-
 
 class Telegram(BaseModel):
     active: bool = False
@@ -158,23 +141,6 @@ def load_config(path):
             # Enhancing the error output for better clarity
             error_details = "\n".join([f"{err['loc']} - {err['msg']}" for err in e.errors()])
             raise ValueError(f"Configuration Error(s):\n{error_details}")
-
-# def load_config(path):
-#     if not path.is_file():
-#         raise ValueError(f"{path} does not exist")
-#     else:
-#         f = open(path)
-#         try:
-#             data = json.load(f)
-#         except json.JSONDecodeError as exc:
-#             raise ValueError(
-#                 f"ERROR: Invalid JSON: {exc.msg}, line {exc.lineno}, column {exc.colno}"
-#             )
-#         try:
-#             return Config(**data)
-#         except ValidationError as e:
-#             raise ValueError(f"{e}")
-
 
 def get_exchange_name(cli_exchange_name):
     if cli_exchange_name:

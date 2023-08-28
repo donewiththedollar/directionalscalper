@@ -1,6 +1,5 @@
 import sys
 import time
-import traceback
 import threading
 from pathlib import Path
 
@@ -14,7 +13,7 @@ import argparse
 from pathlib import Path
 import config
 from config import load_config, Config
-import ccxt
+from config import VERSION
 from api.manager import Manager
 from directionalscalper.core.exchange import Exchange
 from directionalscalper.core.strategies.strategy import Strategy
@@ -157,7 +156,7 @@ if __name__ == '__main__':
     sword = "====||====>"
 
     print("\n" + "=" * 50)
-    print("DirectionalScalper".center(50))
+    print(f"DirectionalScalper {VERSION}".center(50))
     print("=" * 50 + "\n")
 
     print("Initializing", end="")
@@ -195,30 +194,8 @@ if __name__ == '__main__':
         args.exchange = answers['exchange']
         args.strategy = answers['strategy']
 
-    print("DirectionalScalper Initialized Successfully!".center(50))
+    print(f"DirectionalScalper {VERSION} Initialized Successfully!".center(50))
     print("=" * 50 + "\n")
-    # parser = argparse.ArgumentParser(description='DirectionalScalper')
-    # parser.add_argument('--config', type=str, default='configs/config.json', help='Path to the configuration file')
-    # parser.add_argument('--exchange', type=str, help='The name of the exchange to use')
-    # parser.add_argument('--strategy', type=str, help='The name of the strategy to use')
-    # parser.add_argument('--symbol', type=str, help='The trading symbol to use')
-    # parser.add_argument('--amount', type=str, help='The size to use')
-    # args = parser.parse_args()
-
-    # # Ask for exchange and strategy if they're not provided
-    # if not args.exchange and not args.strategy:
-    #     questions = [
-    #         inquirer.List('exchange',
-    #                       message="Which exchange do you want to use?",
-    #                       choices=['bybit', 'bitget', 'mexc', 'huobi', 'okx', 'binance', 'phemex']),
-    #         inquirer.List('strategy',
-    #                       message="Which strategy do you want to use?",
-    #                       choices=['bybit_hedge_rotator', 'bybit_hedge_rotator_mfirsi', 'bybit_auto_hedge_mfi_rotator',
-    #                                'bybit_mfirsi_trend_rotator', 'bybit_rotator_aggressive', 'bybit_rotator_spoof']),
-    #     ]
-    #     answers = inquirer.prompt(questions)
-    #     args.exchange = answers['exchange']
-    #     args.strategy = answers['strategy']
 
     config_file_path = Path('configs/' + args.config)
     config = load_config(config_file_path)
