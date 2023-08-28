@@ -293,6 +293,7 @@ class BybitMFIRSITrendRotator(Strategy):
                     self.bybit_hedge_entry_maker_v3_initial_entry(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
 
 
+# This should also check symbols_allowed for number of symbols to be traded
                 # Loop through all open symbols to set/update take profits and cancel entries
                 for open_symbol in open_symbols:
                     # Fetch position data for the open symbol
