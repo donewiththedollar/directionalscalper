@@ -1320,6 +1320,43 @@ class Strategy:
                 self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, front_run_ask_price, positionIdx=2, reduceOnly=False)
                 logging.info(f"Turbocharged Short Entry Placed at {front_run_ask_price} with {short_dynamic_amount} amount!")
 
+    def bybit_turbocharged_additional_entry_maker(self, symbol, trend, mfi, take_profit_long, take_profit_short, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_add_to_long, should_add_to_short):
+        self.order_book_analyzer = self.OrderBookAnalyzer(self.exchange, symbol)
+        order_book = self.order_book_analyzer.get_order_book()
+
+        best_ask_price = order_book['asks'][0][0]
+        best_bid_price = order_book['bids'][0][0]
+
+        market_data = self.get_market_data_with_retry(symbol, max_retries=5, retry_delay=5)
+        min_qty = float(market_data["min_qty"])
+
+        largest_bid = max(order_book['bids'], key=lambda x: x[1])
+        largest_ask = min(order_book['asks'], key=lambda x: x[1])
+
+        spread = best_ask_price - best_bid_price
+        front_run_bid_price = round(largest_bid[0] + (spread * 0.05), 4)
+        front_run_ask_price = round(largest_ask[0] - (spread * 0.05), 4)
+
+        if take_profit_long is not None:
+            distance_to_tp_long = take_profit_long - best_bid_price
+            long_dynamic_amount += distance_to_tp_long * 10
+            long_dynamic_amount = max(long_dynamic_amount, min_qty)
+
+        if take_profit_short is not None:
+            distance_to_tp_short = best_ask_price - take_profit_short
+            short_dynamic_amount += distance_to_tp_short * 10
+            short_dynamic_amount = max(short_dynamic_amount, min_qty)
+
+        if long_pos_qty > 0 and take_profit_long:
+            if trend.lower() == "long" and mfi.lower() == "long" and (long_pos_price is not None and best_bid_price < long_pos_price) and should_add_to_long:
+                self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, front_run_bid_price, positionIdx=1, reduceOnly=False)
+                logging.info(f"Turbocharged Additional Long Entry Placed at {front_run_bid_price} with {long_dynamic_amount} amount!")
+
+        if short_pos_qty > 0 and take_profit_short:
+            if trend.lower() == "short" and mfi.lower() == "short" and (short_pos_price is not None and best_ask_price > short_pos_price) and should_add_to_short:
+                self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, front_run_ask_price, positionIdx=2, reduceOnly=False)
+                logging.info(f"Turbocharged Additional Short Entry Placed at {front_run_ask_price} with {short_dynamic_amount} amount!")
+
     def bybit_turbocharged_entry_maker(self, symbol, trend, mfi, take_profit_long, take_profit_short, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_add_to_long, should_short, should_add_to_short):
         self.order_book_analyzer = self.OrderBookAnalyzer(self.exchange, symbol)
         order_book = self.order_book_analyzer.get_order_book()
@@ -1752,6 +1789,8 @@ class Strategy:
         for open_symbol in open_symbols:
             #logging.info(f"Type of open_symbols: {type(open_symbols)}")
             # Check if the open symbol is NOT in the current rotator symbols
+            is_rotator_symbol = open_symbol in rotator_symbols
+            
             if open_symbol not in rotator_symbols:
                 logging.info(f"Symbol {open_symbol} is not in current rotator symbols. Managing it.")
                 
@@ -1812,8 +1851,8 @@ class Strategy:
             should_add_to_long_open_symbol = (long_pos_price_open_symbol > ma_6_high_open_symbol) and should_long_open_symbol if long_pos_price_open_symbol is not None and ma_6_high_open_symbol is not None else False
             should_add_to_short_open_symbol = (short_pos_price_open_symbol < ma_6_low_open_symbol) and should_short_open_symbol if short_pos_price_open_symbol is not None and ma_6_low_open_symbol is not None else False
 
-            print(f"Calculating dynamic amount for {open_symbol} with market_data: {market_data}, total_equity: {total_equity}, best_ask_price_open_symbol: {best_ask_price_open_symbol}, max_leverage: {max_leverage}")
-            logging.info(f"Calculating dynamic amount for {open_symbol} with market_data: {market_data}, total_equity: {total_equity}, best_ask_price_open_symbol: {best_ask_price_open_symbol}, max_leverage: {max_leverage}")
+            # print(f"Calculating dynamic amount for {open_symbol} with market_data: {market_data}, total_equity: {total_equity}, best_ask_price_open_symbol: {best_ask_price_open_symbol}, max_leverage: {max_leverage}")
+            # logging.info(f"Calculating dynamic amount for {open_symbol} with market_data: {market_data}, total_equity: {total_equity}, best_ask_price_open_symbol: {best_ask_price_open_symbol}, max_leverage: {max_leverage}")
 
             long_dynamic_amount_open_symbol, short_dynamic_amount_open_symbol, _ = self.calculate_dynamic_amount(
                 open_symbol, market_data, total_equity, best_ask_price_open_symbol, max_leverage
@@ -1865,24 +1904,61 @@ class Strategy:
                     open_symbol, short_pos_qty_open_symbol, short_take_profit_open_symbol, positionIdx=2, order_side="buy", open_orders=open_orders_open_symbol, next_tp_update=self.next_short_tp_update
                 )
 
+            # if open_symbol in open_symbols:
+            #     # Note: When calling the `bybit_hedge_entry_maker_v3` function, make sure to use these updated, context-specific variables.
+            #     self.bybit_turbocharged_entry_maker(
+            #         open_symbol,
+            #         trend,
+            #         mfirsi_signal,
+            #         long_take_profit_open_symbol,
+            #         short_take_profit_open_symbol,
+            #         long_dynamic_amount_open_symbol,
+            #         short_dynamic_amount_open_symbol,
+            #         long_pos_qty_open_symbol,
+            #         short_pos_qty_open_symbol,
+            #         long_pos_price_open_symbol, 
+            #         short_pos_price_open_symbol, 
+            #         should_long_open_symbol, 
+            #         should_add_to_long_open_symbol, 
+            #         should_short_open_symbol, 
+            #         should_add_to_short_open_symbol)
+
             if open_symbol in open_symbols:
-                # Note: When calling the `bybit_hedge_entry_maker_v3` function, make sure to use these updated, context-specific variables.
-                self.bybit_turbocharged_entry_maker(
-                    open_symbol,
-                    trend,
-                    mfirsi_signal,
-                    long_take_profit_open_symbol,
-                    short_take_profit_open_symbol,
-                    long_dynamic_amount_open_symbol,
-                    short_dynamic_amount_open_symbol,
-                    long_pos_qty_open_symbol,
-                    short_pos_qty_open_symbol,
-                    long_pos_price_open_symbol, 
-                    short_pos_price_open_symbol, 
-                    should_long_open_symbol, 
-                    should_add_to_long_open_symbol, 
-                    should_short_open_symbol, 
-                    should_add_to_short_open_symbol)
+                # Note: When calling the `bybit_turbocharged_entry_maker` function, make sure to use these updated, context-specific variables.
+                if is_rotator_symbol:  # Replace this with your own condition for switching between the two functions
+                    self.bybit_turbocharged_entry_maker(
+                        open_symbol,
+                        trend,
+                        mfirsi_signal,
+                        long_take_profit_open_symbol,
+                        short_take_profit_open_symbol,
+                        long_dynamic_amount_open_symbol,
+                        short_dynamic_amount_open_symbol,
+                        long_pos_qty_open_symbol,
+                        short_pos_qty_open_symbol,
+                        long_pos_price_open_symbol,
+                        short_pos_price_open_symbol,
+                        should_long_open_symbol,
+                        should_add_to_long_open_symbol,
+                        should_short_open_symbol,
+                        should_add_to_short_open_symbol
+                    )
+                else:
+                    self.bybit_turbocharged_additional_entry_maker(
+                        open_symbol,
+                        trend,
+                        mfirsi_signal,
+                        long_take_profit_open_symbol,
+                        short_take_profit_open_symbol,
+                        long_dynamic_amount_open_symbol,
+                        short_dynamic_amount_open_symbol,
+                        long_pos_qty_open_symbol,
+                        short_pos_qty_open_symbol,
+                        long_pos_price_open_symbol,
+                        short_pos_price_open_symbol,
+                        should_add_to_long_open_symbol,
+                        should_add_to_short_open_symbol
+                    )
 
 
             # Cancel entries (Note: Replace this with the actual conditions for your open_symbol)
@@ -1958,8 +2034,8 @@ class Strategy:
             should_add_to_long_open_symbol = (long_pos_price_open_symbol > ma_6_high_open_symbol) and should_long_open_symbol if long_pos_price_open_symbol is not None and ma_6_high_open_symbol is not None else False
             should_add_to_short_open_symbol = (short_pos_price_open_symbol < ma_6_low_open_symbol) and should_short_open_symbol if short_pos_price_open_symbol is not None and ma_6_low_open_symbol is not None else False
 
-            print(f"Calculating dynamic amount for {open_symbol} with market_data: {market_data}, total_equity: {total_equity}, best_ask_price_open_symbol: {best_ask_price_open_symbol}, max_leverage: {max_leverage}")
-            logging.info(f"Calculating dynamic amount for {open_symbol} with market_data: {market_data}, total_equity: {total_equity}, best_ask_price_open_symbol: {best_ask_price_open_symbol}, max_leverage: {max_leverage}")
+            # print(f"Calculating dynamic amount for {open_symbol} with market_data: {market_data}, total_equity: {total_equity}, best_ask_price_open_symbol: {best_ask_price_open_symbol}, max_leverage: {max_leverage}")
+            # logging.info(f"Calculating dynamic amount for {open_symbol} with market_data: {market_data}, total_equity: {total_equity}, best_ask_price_open_symbol: {best_ask_price_open_symbol}, max_leverage: {max_leverage}")
 
             long_dynamic_amount_open_symbol, short_dynamic_amount_open_symbol, _ = self.calculate_dynamic_amount(
                 open_symbol, market_data, total_equity, best_ask_price_open_symbol, max_leverage
