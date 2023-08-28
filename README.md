@@ -8,32 +8,34 @@ A hedge scalping strategy based on directional analysis using a quantitative app
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
 </p>
 
->  Working exchanges: Bybit, Binance, Bitget, Huobi
- 
->  Exchanges that are WIP: MEXC, Phemex
-
-
 ### Links
 * Dashboard: https://tradesimple.xyz
 * APIv2: http://api.tradesimple.xyz/data/quantdatav2.json
 
-Directional Scalper        |  API Scraper               |  Dashboard                | Directional Scalper Multi
-:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:
-![](https://github.com/donewiththedollar/directional-scalper/blob/main/directional-scalper.gif)  |  ![](https://github.com/donewiththedollar/directional-scalper/blob/main/scraper.gif)  |  ![](https://github.com/donewiththedollar/directional-scalper/blob/main/dashboardimg.gif)  |  ![](https://github.com/donewiththedollar/directionalscalper/blob/main/directionalscalpermulti.gif)
+Directional Scalper        |  API Scraper               |  Dashboard                | Directional Scalper Multi | Menu GUI
+:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:
+![](https://github.com/donewiththedollar/directional-scalper/blob/main/directional-scalper.gif)  |  ![](https://github.com/donewiththedollar/directional-scalper/blob/main/scraper.gif)  |  ![](https://github.com/donewiththedollar/directional-scalper/blob/main/dashboardimg.gif)  |  ![](https://github.com/donewiththedollar/directionalscalper/blob/main/directionalscalpermulti.gif)  |  ![](https://github.com/donewiththedollar/directional-scalper/blob/main/menugui.gif)
 
 ## Quickstart
 - Clone the repo `git clone https://github.com/donewiththedollar/directionalscalper.git`
 - Install requirements `pip3.11 install -r requirements.txt`
 - Add API key(s) to config.json in /configs folder
-- Run the bot `python3.11 bot.py --exchange bybit --symbol DOGEUSDT --strategy bybit_auto_hedge_maker_v2 --config config.json`
+- Run the bot `python3.11 multi_bot.py --config config.json` to display the menu
 - Multi bot auto symbol rotator strategy example: `python3.11 multi_bot.py --exchange bybit --strategy bybit_mfirsi_trend_rotator --config config.json`
+- Old single coin strategy example: `python3.11 bot.py --exchange bybit --symbol DOGEUSDT --strategy bybit_auto_hedge_maker_v2 --config config.json`
+
+## Working Exchanges
+>  Bybit, Binance, Bitget, Huobi
+ 
+>  Exchanges that are WIP: MEXC, Phemex
 
 ## Dashboard setup
-- Run multi_bot `python3.11 multi_bot.py --exchange bybit --strategy bybit_mfirsi_trend_rotator --config config.json`
+- Run multi_bot `python3.11 multi_bot.py` or with arguments `python3.11 multi_bot.py --exchange bybit --strategy bybit_mfirsi_trend_rotator --config config.json`
 - Start a tmux session `tmux new -s dash`
 - Inside the tmux session, ensure you are in project directory and `streamlit run dashboard.py`
 - If you are having issues, you may have not ran `pip3.11 install -r requirements.txt` again as requirements have changed in recent revisions.
- 
+
+
 ### Full installation instructions
 Steps to set up Directionalscalper v2
 
@@ -90,15 +92,16 @@ Make sure you are in the directory directionalscalper
  1. Create `config.json` from `config.example.json` in /configs directory
  2. Enter exchange_api_key and exchange_api_secret
  3. Check/fill all other options. For telegram/discord see below
-
- ### Setting up Telegram alerts
- 1. Get token from botfather after creating new bot, send a message to your new bot
- 2. Go to https://api.telegram.org/bot<bot_token>/getUpdates
- 3. Replacing <bot_token> with your token from the botfather after creating new bot
- 4. Look for chat id and copy the chat id into config.json
  
-### Starting the bot examples
-* Hedge strategy is recommended, but you can of course use the other strategies as well. Low entry size is recommended.
+### Starting the bot menu
+
+> python3.11 multi_bot.py --config config_name.json
+
+### Starting the bot using arguments
+
+> python3.11 multi_bot.py 
+> python3.11 multi_bot.py --exchange bybit --strategy bybit_mfirsi_trend_rotator --config config_name.json
+> python3.11 multi_bot.py --exchange bybit --strategy bybit_rotator_aggressive --config config_name.json
 
 > python3.11 bot.py --exchange bybit --symbol SUIUSDT --strategy bybit_hedge_mfirsi_maker --config config_bybit_sub1.json
 
@@ -110,8 +113,7 @@ Make sure you are in the directory directionalscalper
  
 > python3.11 bot.py --exchange bitget --symbol XRPUSDT_UMCBL --strategy bitget_hedge_dynamic --config config_main.json
 
- 
-# Current strategies
+### Current strategies
 ## Binance
 * binance_auto_hedge
   
@@ -159,6 +161,12 @@ $ export HTTP_PROXY="http://10.10.1.10:3128"  # these proxies won't work for you
 $ export HTTPS_PROXY="http://10.10.1.10:1080"
 ```
 
+### Setting up Telegram alerts
+1. Get token from botfather after creating new bot, send a message to your new bot
+2. Go to https://api.telegram.org/bot<bot_token>/getUpdates
+3. Replacing <bot_token> with your token from the botfather after creating new bot
+4. Look for chat id and copy the chat id into config.json
+
 ### Developer instructions
 - Install developer requirements from pipenv `pipenv install --dev` (to keep requirements in a virtual environment)
 - Install pre-commit hooks `pre-commit install` (if you intend to commit code to the repo)
@@ -166,8 +174,7 @@ $ export HTTPS_PROXY="http://10.10.1.10:1080"
 
 
 ### To do:
-* Pretty table
-* Instance manager
+* A lot of top secret cutting edge stuff
 * Binance, Phemex, MEXC base. (MEXC Futs API down until Q4)
 
 
