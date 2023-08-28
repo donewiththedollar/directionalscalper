@@ -1884,8 +1884,8 @@ class Strategy:
             )
 
             # Log the dynamic amounts
-            print(f"Long dynamic amount for {open_symbol}: {long_dynamic_amount_open_symbol}")
-            print(f"Short dynamic amount for {open_symbol}: {short_dynamic_amount_open_symbol}")
+            # print(f"Long dynamic amount for {open_symbol}: {long_dynamic_amount_open_symbol}")
+            # print(f"Short dynamic amount for {open_symbol}: {short_dynamic_amount_open_symbol}")
             logging.info(f"Long dynamic amount for {open_symbol}: {long_dynamic_amount_open_symbol}")
             logging.info(f"Short dynamic amount for {open_symbol}: {short_dynamic_amount_open_symbol}")
                                 
@@ -2067,8 +2067,8 @@ class Strategy:
             )
 
             # Log the dynamic amounts
-            print(f"Long dynamic amount for {open_symbol}: {long_dynamic_amount_open_symbol}")
-            print(f"Short dynamic amount for {open_symbol}: {short_dynamic_amount_open_symbol}")
+            #print(f"Long dynamic amount for {open_symbol}: {long_dynamic_amount_open_symbol}")
+            #print(f"Short dynamic amount for {open_symbol}: {short_dynamic_amount_open_symbol}")
             logging.info(f"Long dynamic amount for {open_symbol}: {long_dynamic_amount_open_symbol}")
             logging.info(f"Short dynamic amount for {open_symbol}: {short_dynamic_amount_open_symbol}")
                                 
