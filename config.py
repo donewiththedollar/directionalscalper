@@ -8,7 +8,7 @@ from typing import Union
 
 from pydantic import BaseModel, HttpUrl, ValidationError, validator, DirectoryPath
 
-VERSION = "v2.1.5"
+VERSION = "v2.2.0"
 
 class Exchanges(Enum):
     BYBIT = "bybit"
@@ -105,12 +105,28 @@ class Telegram(BaseModel):
     bot_token: str
     chat_id: str
 
+
 class Config(BaseModel):
     api: API
     bot: Bot
     exchanges: List[Exchange]  # <-- Changed from List[Exchange]
     logger: Logger
     messengers: dict[str, Union[Discord, Telegram]]
+
+# class Config(BaseModel):
+#     api: API
+#     bot: Bot
+#     exchanges: List[Exchange]
+#     logger: Logger
+#     messengers: dict[str, Union[Discord, Telegram]]
+
+# class Config(BaseModel):
+#     api: API
+#     bot: Bot
+#     exchange: Exchange
+#     logger: Logger
+#     messengers: dict[str, Union[Discord, Telegram]]
+
 
 def load_config(path):
     if not path.is_file():
@@ -154,3 +170,53 @@ def get_exchange_credentials(exchange_name, account_name):
             return api_key, secret_key, passphrase, symbols_allowed
         else:
             raise ValueError(f"Account {account_name} for exchange {exchange_name} not found in the config file.")
+
+# def get_exchange_credentials(exchange_name, account_name):
+#     with open('config.json') as file:
+#         data = json.load(file)
+#         exchange_data = None
+#         for exchange in data['exchanges']:
+#             if exchange['name'] == exchange_name and exchange['account_name'] == account_name:
+#                 exchange_data = exchange
+#                 break
+#         if exchange_data:
+#             api_key = exchange_data['api_key']
+#             secret_key = exchange_data['api_secret']
+#             passphrase = exchange_data.get('passphrase')  # Not all exchanges require a passphrase
+#             return api_key, secret_key, passphrase
+#         else:
+#             raise ValueError(f"Account {account_name} for exchange {exchange_name} not found in the config file.")
+        
+# def get_exchange_credentials(exchange_name):
+#     with open('config.json') as file:
+#         data = json.load(file)
+#         exchange_data = None
+#         for exchange in data['exchanges']:
+#             if exchange['name'] == exchange_name:
+#                 exchange_data = exchange
+#                 break
+#         if exchange_data:
+#             api_key = exchange_data['api_key']
+#             secret_key = exchange_data['api_secret']
+#             passphrase = exchange_data.get('passphrase')  # Not all exchanges require a passphrase
+#             return api_key, secret_key, passphrase
+#         else:
+#             raise ValueError(f"Exchange {exchange_name} not found in the config file.")
+
+
+# def get_exchange_name(cli_exchange_name):
+#     if cli_exchange_name:
+#         return cli_exchange_name
+#     else:
+#         with open('config.json') as file:
+#             data = json.load(file)
+#             return data['exchange']
+
+# def get_exchange_credentials(exchange_name):
+#     with open('config.json') as file:
+#         data = json.load(file)
+#         exchange_data = data['exchanges'][exchange_name]
+#         api_key = exchange_data['api_key']
+#         secret_key = exchange_data['secret_key']
+#         passphrase = exchange_data.get('passphrase')  # Not all exchanges require a passphrase
+#         return api_key, secret_key, passphrase
