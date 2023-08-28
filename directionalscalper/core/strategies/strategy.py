@@ -308,6 +308,35 @@ class Strategy:
 
         raise Exception("Failed to calculate maximum trade quantity after maximum retries.")
 
+    def calc_max_trade_qty_multi(self, total_equity, best_ask_price, max_leverage, max_retries=5, retry_delay=5):
+        wallet_exposure = self.config.wallet_exposure
+        for i in range(max_retries):
+            try:
+                market_data = self.exchange.get_market_data_bybit(self.symbol)
+                max_trade_qty = round(
+                    (float(total_equity) * wallet_exposure / float(best_ask_price))
+                    / (100 / max_leverage),
+                    int(float(market_data["min_qty"])),
+                )
+                
+                # Assuming the logic for max_long_trade_qty and max_short_trade_qty is the same
+                max_long_trade_qty = max_trade_qty
+                max_short_trade_qty = max_trade_qty
+                
+                return max_long_trade_qty, max_short_trade_qty
+                
+            except TypeError as e:
+                if total_equity is None:
+                    print(f"Error: total_equity is None. Retrying in {retry_delay} seconds...")
+                if best_ask_price is None:
+                    print(f"Error: best_ask_price is None. Retrying in {retry_delay} seconds...")
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}. Retrying in {retry_delay} seconds...")
+                
+            time.sleep(retry_delay)
+            
+        raise Exception("Failed to calculate maximum trade quantity after maximum retries.")
+
     def calc_max_trade_qty_binance(self, total_equity, best_ask_price, max_leverage, step_size, max_retries=5, retry_delay=5):
         wallet_exposure = self.config.wallet_exposure
         precision = int(-math.log10(float(step_size)))
@@ -1484,9 +1513,9 @@ class Strategy:
 
                 best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
                 best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
-
+                
                 open_orders = self.exchange.get_open_orders(symbol)
-
+                
                 if (trend.lower() == "long" and mfi.lower() == "long") and should_long and long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
                     logging.info(f"Placing initial long entry")
                     self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
@@ -1499,11 +1528,39 @@ class Strategy:
                 if (trend.lower() == "short" and mfi.lower() == "short") and should_short and short_pos_qty == 0 and not self.entry_order_exists(open_orders, "sell"):
                     logging.info(f"Placing initial short entry")
                     self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
-                    logging.info("Placed initial short entry")
+                    logging.info(f"Placed initial short entry")
 
                 elif (trend.lower() == "short" and mfi.lower() == "short") and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
                     logging.info(f"Placing additional short entry")
                     self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+
+    # def bybit_hedge_entry_maker_v3(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
+
+    #     if one_minute_volume is not None and five_minute_distance is not None:
+    #         if one_minute_volume > min_vol and five_minute_distance > min_dist:
+
+    #             best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+    #             best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+
+    #             open_orders = self.exchange.get_open_orders(symbol)
+
+    #             if (trend.lower() == "long" and mfi.lower() == "long") and should_long and long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
+    #                 logging.info(f"Placing initial long entry")
+    #                 self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+    #                 logging.info(f"Placed initial long entry")
+
+    #             elif (trend.lower() == "long" and mfi.lower() == "long") and should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
+    #                 logging.info(f"Placing additional long entry")
+    #                 self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+
+    #             if (trend.lower() == "short" and mfi.lower() == "short") and should_short and short_pos_qty == 0 and not self.entry_order_exists(open_orders, "sell"):
+    #                 logging.info(f"Placing initial short entry")
+    #                 self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+    #                 logging.info("Placed initial short entry")
+
+    #             elif (trend.lower() == "short" and mfi.lower() == "short") and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
+    #                 logging.info(f"Placing additional short entry")
+    #                 self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
 
     # Revised consistent maker strategy using MA Trend OR MFI as well while maintaining same original MA logic
@@ -1803,7 +1860,7 @@ class Strategy:
                                 except Exception as e:
                                     logging.info(f"Error in placing {order_side} TP: {e}")
 
-                        self.cancel_entries_bybit(symbol, best_ask_price, ma_1m_3_high, ma_5m_3_high)
+                    self.cancel_entries_bybit(symbol, best_ask_price, ma_1m_3_high, ma_5m_3_high)
                     
             time.sleep(300)
 
