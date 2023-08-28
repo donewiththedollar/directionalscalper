@@ -1732,15 +1732,20 @@ class Exchange:
         except Exception as e:
             logging.info(f"An unknown error occurred in _cancel_entry(): {e}")
 
+
     def cancel_all_entries_bybit(self, symbol: str) -> None:
         try:
             orders = self.exchange.fetch_open_orders(symbol)
+            logging.debug(f"Fetched orders: {orders}")  # Debugging line
+
             long_orders = 0
             short_orders = 0
 
             # Count the number of open long and short orders
             for order in orders:
                 order_info = order["info"]
+                logging.debug(f"Order info: {order_info}")  # Debugging line
+
                 order_status = order_info["orderStatus"]
                 order_side = order_info["side"]
                 reduce_only = order_info["reduceOnly"]
@@ -1751,6 +1756,8 @@ class Exchange:
                         long_orders += 1
                     elif position_idx == 2 and order_side == "Sell":
                         short_orders += 1
+
+            logging.info(f"Number of long orders: {long_orders}, Number of short orders: {short_orders}")  # Debugging line
 
             # Cancel extra long or short orders
             if long_orders > 0 or short_orders > 0:
@@ -1768,9 +1775,52 @@ class Exchange:
                         and not reduce_only
                     ):
                         self.exchange.cancel_order(symbol=symbol, id=order_id)
-                        logging.info(f"Cancelling order: {order_id}")
+                        logging.info(f"Cancelling order: {order_id}")  # Debugging line
+            else:
+                logging.info("No orders to cancel.")  # Debugging line
+
         except Exception as e:
-            logging.warning(f"An unknown error occurred in cancel_all_entries_bybit(): {e}")
+            logging.warning(f"An unknown error occurred in cancel_all_entries_bybit(): {e}")  # Debugging line
+
+    # def cancel_all_entries_bybit(self, symbol: str) -> None:
+    #     try:
+    #         orders = self.exchange.fetch_open_orders(symbol)
+    #         long_orders = 0
+    #         short_orders = 0
+
+    #         # Count the number of open long and short orders
+    #         for order in orders:
+    #             order_info = order["info"]
+    #             order_status = order_info["orderStatus"]
+    #             order_side = order_info["side"]
+    #             reduce_only = order_info["reduceOnly"]
+    #             position_idx = int(order_info["positionIdx"])
+
+    #             if order_status != "Filled" and order_status != "Cancelled" and not reduce_only:
+    #                 if position_idx == 1 and order_side == "Buy":
+    #                     long_orders += 1
+    #                 elif position_idx == 2 and order_side == "Sell":
+    #                     short_orders += 1
+
+    #         # Cancel extra long or short orders
+    #         if long_orders > 0 or short_orders > 0:
+    #             for order in orders:
+    #                 order_info = order["info"]
+    #                 order_id = order_info["orderId"]
+    #                 order_status = order_info["orderStatus"]
+    #                 order_side = order_info["side"]
+    #                 reduce_only = order_info["reduceOnly"]
+    #                 position_idx = int(order_info["positionIdx"])
+
+    #                 if (
+    #                     order_status != "Filled"
+    #                     and order_status != "Cancelled"
+    #                     and not reduce_only
+    #                 ):
+    #                     self.exchange.cancel_order(symbol=symbol, id=order_id)
+    #                     logging.info(f"Cancelling order: {order_id}")
+    #     except Exception as e:
+    #         logging.warning(f"An unknown error occurred in cancel_all_entries_bybit(): {e}")
 
     def cancel_all_entries_huobi(self, symbol: str) -> None:
         try:
@@ -1893,6 +1943,7 @@ class Exchange:
     #     raise Exception(f"Failed to get max leverage for {symbol} after {max_retries} retries.")
 
     def get_max_leverage_bybit(self, symbol, max_retries=10, backoff_factor=0.5):
+        #logging.info(f"Called get_max_leverage_bybit with symbol: {symbol}")
         for retry in range(max_retries):
             try:
                 tiers = self.exchange.fetch_derivatives_market_leverage_tiers(symbol)

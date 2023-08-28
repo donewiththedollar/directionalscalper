@@ -47,8 +47,7 @@ class BybitMFIRSITrendRotator(Strategy):
 
     def run(self, symbol):
         threads = [
-            Thread(target=self.run_single_symbol, args=(symbol,)),
-            Thread(target=self.manage_gs_positions)
+            Thread(target=self.run_single_symbol, args=(symbol,))
         ]
 
         for thread in threads:

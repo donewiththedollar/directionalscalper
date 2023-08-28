@@ -1032,10 +1032,26 @@ class Strategy:
 
         logging.info(f"Open symbols count: {self.open_symbols_count}")
         
-        if current_symbol in open_symbols:
+        if self.open_symbols_count >= symbols_allowed:
+            return False  # This restricts opening new positions if we have reached the symbols_allowed limit
+        elif current_symbol in open_symbols:
             return True  # This allows new positions on already traded symbols
         else:
             return self.open_symbols_count < symbols_allowed  # This checks if we can trade a new symbol
+
+    # def can_trade_new_symbol(self, open_symbols: list, symbols_allowed: int, current_symbol: str) -> bool:
+    #     """
+    #     Checks if the bot can trade a given symbol.
+    #     """
+        
+    #     self.open_symbols_count = len(open_symbols)  # Update the attribute with the current count
+
+    #     logging.info(f"Open symbols count: {self.open_symbols_count}")
+        
+    #     if current_symbol in open_symbols:
+    #         return True  # This allows new positions on already traded symbols
+    #     else:
+    #         return self.open_symbols_count < symbols_allowed  # This checks if we can trade a new symbol
 
 
     # def update_shared_data(self, symbol_data: dict, open_position_data: dict):
@@ -1734,7 +1750,7 @@ class Strategy:
         
         logging.info(f"open_symbols in manage_open_positions: {open_symbols}")
         for open_symbol in open_symbols:
-            logging.info(f"Type of open_symbols: {type(open_symbols)}")
+            #logging.info(f"Type of open_symbols: {type(open_symbols)}")
             # Check if the open symbol is NOT in the current rotator symbols
             if open_symbol not in rotator_symbols:
                 logging.info(f"Symbol {open_symbol} is not in current rotator symbols. Managing it.")
@@ -1878,7 +1894,9 @@ class Strategy:
         
         logging.info(f"open_symbols in manage_open_positions: {open_symbols}")
         for open_symbol in open_symbols:
-            logging.info(f"Type of open_symbols: {type(open_symbols)}")
+            #logging.info(f"Type of open_symbols: {type(open_symbols)}")
+
+            is_rotator_symbol = open_symbol in rotator_symbols
             # Check if the open symbol is NOT in the current rotator symbols
             if open_symbol not in rotator_symbols:
                 logging.info(f"Symbol {open_symbol} is not in current rotator symbols. Managing it.")
@@ -1995,25 +2013,40 @@ class Strategy:
 
             if open_symbol in open_symbols:
                 # Note: When calling the `bybit_hedge_entry_maker_v3` function, make sure to use these updated, context-specific variables.
-                self.bybit_hedge_entry_maker_v3(
-                    open_symbol, 
-                    trend,  # Note: You might want to fetch a context-specific trend for `open_symbol` if applicable
-                    mfirsi_signal,  # Note: You might want to fetch a context-specific mfirsi_signal for `open_symbol` if applicable
-                    one_minute_volume,  # Note: You might want to fetch a context-specific volume for `open_symbol` if applicable
-                    five_minute_distance,  # Note: You might want to fetch a context-specific distance for `open_symbol` if applicable
-                    min_vol, 
-                    min_dist, 
-                    long_dynamic_amount_open_symbol, 
-                    short_dynamic_amount_open_symbol, 
-                    long_pos_qty_open_symbol,
-                    short_pos_qty_open_symbol,
-                    long_pos_price_open_symbol,
-                    short_pos_price_open_symbol,
-                    should_long_open_symbol,
-                    should_short_open_symbol,
-                    should_add_to_long_open_symbol,
-                    should_add_to_short_open_symbol
-                )
+                # ...
+                # Conditional call to bybit_hedge_additional_entry_maker_v3 or bybit_hedge_entry_maker_v3
+                if is_rotator_symbol:
+                    self.bybit_hedge_entry_maker_v3(
+                        open_symbol,
+                        trend,
+                        mfirsi_signal,
+                        one_minute_volume,
+                        five_minute_distance,
+                        min_vol,
+                        min_dist,
+                        long_dynamic_amount_open_symbol,
+                        short_dynamic_amount_open_symbol,
+                        long_pos_qty_open_symbol,
+                        short_pos_qty_open_symbol,
+                        long_pos_price_open_symbol,
+                        short_pos_price_open_symbol,
+                        should_long_open_symbol,
+                        should_short_open_symbol,
+                        should_add_to_long_open_symbol,
+                        should_add_to_short_open_symbol
+                    )
+                else:
+                    self.bybit_hedge_additional_entry_maker_v3(
+                        open_symbol,
+                        long_dynamic_amount_open_symbol,
+                        short_dynamic_amount_open_symbol,
+                        long_pos_qty_open_symbol,
+                        short_pos_qty_open_symbol,
+                        long_pos_price_open_symbol,
+                        short_pos_price_open_symbol,
+                        should_add_to_long_open_symbol,
+                        should_add_to_short_open_symbol
+                    )
 
             # Cancel entries (Note: Replace this with the actual conditions for your open_symbol)
             self.cancel_entries_bybit(open_symbol, best_ask_price_open_symbol, ma_1m_3_high_open_symbol, ma_5m_3_high_open_symbol)
