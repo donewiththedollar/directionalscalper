@@ -296,13 +296,20 @@ class BybitMFIRSITrendRotator(Strategy):
                 # Loop through all open symbols to set/update take profits and cancel entries
                 for open_symbol in open_symbols:
                     # Fetch position data for the open symbol
+                    current_price = self.exchange.get_current_price(symbol)
+                    market_data = self.get_market_data_with_retry(symbol, max_retries = 5, retry_delay = 5)
+                    max_leverage = self.exchange.get_max_leverage_bybit(symbol)
                     position_data_open_symbol = self.exchange.get_positions_bybit(open_symbol)
                     long_pos_qty_open_symbol = position_data_open_symbol["long"]["qty"]
                     short_pos_qty_open_symbol = position_data_open_symbol["short"]["qty"]
-                    
+
                     # Fetch the best ask and bid prices for the open symbol
                     best_ask_price_open_symbol = self.exchange.get_orderbook(open_symbol)['asks'][0][0]
                     best_bid_price_open_symbol = self.exchange.get_orderbook(open_symbol)['bids'][0][0]
+                    
+                    # Calculate the max trade quantities dynamically for this specific symbol
+                    self.initial_max_long_trade_qty, self.initial_max_short_trade_qty = self.calc_max_trade_qty_multi(
+                        total_equity, best_ask_price_open_symbol, max_leverage)
                     
                     # Calculate moving averages for the open symbol
                     moving_averages_open_symbol = self.get_all_moving_averages(open_symbol)
@@ -333,9 +340,19 @@ class BybitMFIRSITrendRotator(Strategy):
                     should_add_to_long_open_symbol = (long_pos_price_open_symbol > ma_6_high_open_symbol) and should_long_open_symbol if long_pos_price_open_symbol is not None and ma_6_high_open_symbol is not None else False
                     should_add_to_short_open_symbol = (short_pos_price_open_symbol < ma_6_low_open_symbol) and should_short_open_symbol if short_pos_price_open_symbol is not None and ma_6_low_open_symbol is not None else False
 
+                    print(f"Calculating dynamic amount for {open_symbol} with market_data: {market_data}, total_equity: {total_equity}, best_ask_price_open_symbol: {best_ask_price_open_symbol}, max_leverage: {max_leverage}")
+                    logging.info(f"Calculating dynamic amount for {open_symbol} with market_data: {market_data}, total_equity: {total_equity}, best_ask_price_open_symbol: {best_ask_price_open_symbol}, max_leverage: {max_leverage}")
+
                     long_dynamic_amount_open_symbol, short_dynamic_amount_open_symbol, _ = self.calculate_dynamic_amount(
                         open_symbol, market_data, total_equity, best_ask_price_open_symbol, max_leverage
                     )
+
+                    # Log the dynamic amounts
+                    print(f"Long dynamic amount for {open_symbol}: {long_dynamic_amount_open_symbol}")
+                    print(f"Short dynamic amount for {open_symbol}: {short_dynamic_amount_open_symbol}")
+                    logging.info(f"Long dynamic amount for {open_symbol}: {long_dynamic_amount_open_symbol}")
+                    logging.info(f"Short dynamic amount for {open_symbol}: {short_dynamic_amount_open_symbol}")
+                                        
 
                     # Calculate moving averages for the open symbol
                     moving_averages_open_symbol = self.get_all_moving_averages(open_symbol)
