@@ -114,7 +114,51 @@ class Strategy:
         logging.info(f"Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 
         return long_dynamic_amount, short_dynamic_amount, min_qty 
-       
+
+    def calculate_dynamic_amount_multi(self, symbol, market_data, total_equity, best_ask_price, max_leverage):
+        logging.info(f"Calculating dynamic amounts for {symbol}...")
+        
+        if self.max_long_trade_qty is None or self.max_short_trade_qty is None:
+            self.max_long_trade_qty, self.max_short_trade_qty = self.calc_max_trade_qty_multi(total_equity, best_ask_price, max_leverage)
+            logging.info(f"Max long trade qty: {self.max_long_trade_qty}, Max short trade qty: {self.max_short_trade_qty}")
+
+            if self.initial_max_long_trade_qty is None:
+                self.initial_max_long_trade_qty = self.max_long_trade_qty
+                logging.info(f"Initial max long trade qty set to {self.initial_max_long_trade_qty}")
+
+            if self.initial_max_short_trade_qty is None:
+                self.initial_max_short_trade_qty = self.max_short_trade_qty  
+                logging.info(f"Initial max short trade qty set to {self.initial_max_short_trade_qty}") 
+
+        long_dynamic_amount = 0.001 * self.initial_max_long_trade_qty
+        short_dynamic_amount = 0.001 * self.initial_max_short_trade_qty
+
+        min_qty = float(market_data["min_qty"])
+        min_qty_str = str(min_qty)
+
+        if ".0" in min_qty_str:
+            precision_level = 0
+        else:
+            precision_level = len(min_qty_str.split(".")[1])
+
+        long_dynamic_amount = round(long_dynamic_amount, precision_level)
+        short_dynamic_amount = round(short_dynamic_amount, precision_level)
+
+        self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
+        self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
+
+        if long_dynamic_amount < min_qty:
+            logging.info(f"Dynamic amount too small for 0.001x, using min_qty")
+            long_dynamic_amount = min_qty
+
+        if short_dynamic_amount < min_qty:
+            logging.info(f"Dynamic amount too small for 0.001x, using min_qty")
+            short_dynamic_amount = min_qty
+
+        logging.info(f"Calculated dynamic amounts: Long = {long_dynamic_amount}, Short = {short_dynamic_amount}")
+
+        return long_dynamic_amount, short_dynamic_amount, min_qty
+
     # def calculate_dynamic_amount(self, symbol, market_data, total_equity, best_ask_price, max_leverage):
         
     #     if self.max_long_trade_qty is None or self.max_short_trade_qty is None:
@@ -1971,9 +2015,15 @@ class Strategy:
             #     open_symbol, market_data, total_equity, best_ask_price_open_symbol, max_leverage
             # )
 
-            long_dynamic_amount_open_symbol, short_dynamic_amount_open_symbol, min_qty = self.calculate_dynamic_amount(
+            # long_dynamic_amount_open_symbol, short_dynamic_amount_open_symbol, min_qty = self.calculate_dynamic_amount(
+            #     open_symbol, market_data, total_equity, best_ask_price_open_symbol, max_leverage
+            # )
+
+            # Replace the old function with the new function
+            long_dynamic_amount_open_symbol, short_dynamic_amount_open_symbol, min_qty = self.calculate_dynamic_amount_multi(
                 open_symbol, market_data, total_equity, best_ask_price_open_symbol, max_leverage
             )
+            
 
             self.bybit_reset_position_leverage_long(long_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
             self.bybit_reset_position_leverage_short(short_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
@@ -2135,10 +2185,15 @@ class Strategy:
             # self.initial_max_long_trade_qty, self.initial_max_short_trade_qty = self.calc_max_trade_qty_multi(
             #     total_equity, best_ask_price_open_symbol, max_leverage)
 
-            long_dynamic_amount_open_symbol, short_dynamic_amount_open_symbol, min_qty = self.calculate_dynamic_amount(
+            # long_dynamic_amount_open_symbol, short_dynamic_amount_open_symbol, min_qty = self.calculate_dynamic_amount(
+            #     open_symbol, market_data, total_equity, best_ask_price_open_symbol, max_leverage
+            # )
+
+            # Replace the old function with the new function
+            long_dynamic_amount_open_symbol, short_dynamic_amount_open_symbol, min_qty = self.calculate_dynamic_amount_multi(
                 open_symbol, market_data, total_equity, best_ask_price_open_symbol, max_leverage
             )
-            
+
             self.bybit_reset_position_leverage_long(long_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
             self.bybit_reset_position_leverage_short(short_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
             
