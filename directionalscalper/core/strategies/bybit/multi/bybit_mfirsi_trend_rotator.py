@@ -23,6 +23,10 @@ class BybitMFIRSITrendRotator(Strategy):
         self.symbols_allowed = symbols_allowed
         self.manager = manager
         self.all_symbol_data = {}
+        # Initialize the last health check time to zero or to the current time
+        self.last_health_check_time = time.time()  # or time.time()
+        # Initialize the health check interval (in seconds)
+        self.health_check_interval = 600  # for example, 10 minutes
         self.last_long_tp_update = datetime.now()
         self.last_short_tp_update = datetime.now()
         self.next_long_tp_update = self.calculate_next_update_time()
@@ -318,7 +322,7 @@ class BybitMFIRSITrendRotator(Strategy):
                     self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
 
                 # Call the function to update short take profit spread
-                if short_pos_qty > 0 and short_take_profit is not None:
+                if short_pos_qty > 0: #and short_take_profit is not None:
                     self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
 
                 # Take profit spread replacement
@@ -330,5 +334,7 @@ class BybitMFIRSITrendRotator(Strategy):
 
                 # Cancel entries
                 self.cancel_entries_bybit(symbol, best_ask_price, ma_1m_3_high, ma_5m_3_high)
+
+                self.cancel_stale_orders_bybit()
 
                 time.sleep(30)

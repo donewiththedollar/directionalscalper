@@ -22,6 +22,9 @@ class BybitRotatorAggressive(Strategy):
         self.symbols_allowed = symbols_allowed
         self.manager = manager
         self.all_symbol_data = {}
+        # Initialize the last health check time to zero or to the current time
+        self.last_health_check_time = 0 #time.time()  # Initialize to the current time
+        self.health_check_interval = 600  # 10 minutes
         self.last_long_tp_update = datetime.now()
         self.last_short_tp_update = datetime.now()
         self.next_long_tp_update = self.calculate_next_update_time()
@@ -101,6 +104,11 @@ class BybitRotatorAggressive(Strategy):
                 continue
 
             while True:  # Inner loop
+                # current_time = time.time()
+                # if current_time - self.last_health_check_time > self.health_check_interval:
+                #     self.exchange.health_check(interval_seconds=self.health_check_interval)
+                #     self.last_health_check_time = current_time
+
                 should_exit = False
                 rotator_symbols = self.manager.get_auto_rotate_symbols()
                 if symbol not in rotator_symbols:
@@ -320,5 +328,7 @@ class BybitRotatorAggressive(Strategy):
 
                 # Cancel entries
                 self.cancel_entries_bybit(symbol, best_ask_price, ma_1m_3_high, ma_5m_3_high)
+
+                self.cancel_stale_orders_bybit()
 
                 time.sleep(30)

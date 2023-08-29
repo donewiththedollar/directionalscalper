@@ -968,6 +968,19 @@ class Exchange:
 
         return values
 
+    def get_all_open_orders_bybit(self):
+        """
+        Fetch all open orders for all symbols from the Bybit API.
+        
+        :return: A list of open orders for all symbols.
+        """
+        try:
+            all_open_orders = self.exchange.fetch_open_orders()
+            return all_open_orders
+        except Exception as e:
+            print(f"An error occurred while fetching all open orders: {e}")
+            return []
+
     def get_all_open_positions_bybit(self, retries=10, delay_factor=10) -> List[dict]:
         now = datetime.now()
 
@@ -1732,7 +1745,39 @@ class Exchange:
         except Exception as e:
             logging.info(f"An unknown error occurred in _cancel_entry(): {e}")
 
+    def cancel_all_open_orders_bybit(self, derivatives: bool = False, params={}):
+        """
+        Cancel all open orders for all symbols.
+        
+        :param bool derivatives: Whether to cancel derivative orders.
+        :param dict params: Additional parameters for the API call.
+        :return: A list of canceled orders.
+        """
+        if derivatives:
+            return self.exchange.cancel_all_derivatives_orders(None, params)
+        else:
+            return self.exchange.cancel_all_orders(None, params)
 
+    def health_check(self, interval_seconds=300):
+        """
+        Periodically checks the health of the exchange and cancels all open orders.
+
+        :param interval_seconds: The time interval in seconds between each health check.
+        """
+        while True:
+            try:
+                logging.info("Performing health check...")  # Log start of health check
+                # You can add more health check logic here
+                
+                # Cancel all open orders
+                self.cancel_all_open_orders_bybit()
+                
+                logging.info("Health check complete.")  # Log end of health check
+            except Exception as e:
+                logging.error(f"An error occurred during the health check: {e}")  # Log any errors
+                
+            time.sleep(interval_seconds)
+            
     def cancel_all_entries_bybit(self, symbol: str) -> None:
         try:
             orders = self.exchange.fetch_open_orders(symbol)
