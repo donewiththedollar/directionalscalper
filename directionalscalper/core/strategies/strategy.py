@@ -17,6 +17,7 @@ class Strategy:
     LEVERAGE_STEP = 0.005  # The step at which to increase leverage
     MAX_LEVERAGE = 0.3  # The maximum allowable leverage
     QTY_INCREMENT = 0.05 # How much your position size increases
+    MAX_PCT_EQUIY = 1
     def __init__(self, exchange, config, manager):
         self.exchange = exchange
         self.config = config
@@ -98,6 +99,9 @@ class Strategy:
 
         logging.info(f"Initial long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 
+        # Cap the dynamic amount if it exceeds the maximum allowed
+        max_allowed_dynamic_amount = (self.MAX_PCT_EQUIY / 100) * total_equity
+
         min_qty = float(market_data["min_qty"])
         min_qty_str = str(min_qty)
 
@@ -114,6 +118,11 @@ class Strategy:
         short_dynamic_amount = round(short_dynamic_amount, precision_level)
 
         logging.info(f"Rounded long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+
+        long_dynamic_amount = min(long_dynamic_amount, max_allowed_dynamic_amount)
+        short_dynamic_amount = min(short_dynamic_amount, max_allowed_dynamic_amount)
+
+        logging.info(f"Forced min qty long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 
         self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
         self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
