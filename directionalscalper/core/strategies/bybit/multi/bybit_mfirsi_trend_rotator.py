@@ -214,7 +214,7 @@ class BybitMFIRSITrendRotator(Strategy):
                 # Manage these symbols
                 for s in symbols_to_manage:
                     print(f"Managing symbol: {s}")  # Debugging line
-                    self.manage_open_positions([s], total_equity)  # Notice the square brackets around 's'
+                    self.manage_open_positions_v2([s], total_equity)  # Notice the square brackets around 's'
 
                 #print(f"Open symbols: {open_symbols}")
 
