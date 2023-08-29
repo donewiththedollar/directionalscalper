@@ -224,8 +224,11 @@ class BybitRotatorAggressive(Strategy):
                 short_liq_price = position_data["short"]["liq_price"]
                 long_liq_price = position_data["long"]["liq_price"]
 
-                self.bybit_reset_position_leverage_long(long_pos_qty, total_equity, best_ask_price, max_leverage)
-                self.bybit_reset_position_leverage_short(short_pos_qty, total_equity, best_ask_price, max_leverage)
+                # self.bybit_reset_position_leverage_long(long_pos_qty, total_equity, best_ask_price, max_leverage)
+                # self.bybit_reset_position_leverage_short(short_pos_qty, total_equity, best_ask_price, max_leverage)
+
+                self.bybit_reset_position_leverage_long_v3(symbol, long_pos_qty, total_equity, best_ask_price, max_leverage)
+                self.bybit_reset_position_leverage_short_v3(symbol, short_pos_qty, total_equity, best_ask_price, max_leverage)
 
                 short_upnl = position_data["short"]["upnl"]
                 long_upnl = position_data["long"]["upnl"]
