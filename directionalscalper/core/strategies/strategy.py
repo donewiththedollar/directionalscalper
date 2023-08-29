@@ -2123,6 +2123,9 @@ class Strategy:
                     open_symbol, short_pos_qty_open_symbol, short_take_profit_open_symbol, positionIdx=2, order_side="buy", open_orders=open_orders_open_symbol, next_tp_update=self.next_short_tp_update
                 )
 
+            long_dynamic_amount_open_symbol = min_qty
+            short_dynamic_amount_open_symbol = min_qty
+            
             if open_symbol in open_symbols:
                 # Note: When calling the `bybit_turbocharged_entry_maker` function, make sure to use these updated, context-specific variables.
                 if is_rotator_symbol:  # Replace this with your own condition for switching between the two functions
