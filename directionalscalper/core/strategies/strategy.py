@@ -26,6 +26,8 @@ class Strategy:
         self.max_short_trade_qty = None
         self.initial_max_long_trade_qty = None
         self.initial_max_short_trade_qty = None
+        self.long_leverage_increased = False
+        self.short_leverage_increased = False
         self.open_symbols_count = 0
         self.last_stale_order_check_time = time.time()
         self.should_spoof = True
@@ -409,7 +411,8 @@ class Strategy:
                     / (100 / max_leverage),
                     int(float(market_data["min_qty"])),
                 )
-                return max_trade_qty
+                # Return the same max_trade_qty for both long and short
+                return max_trade_qty, max_trade_qty
             except TypeError as e:
                 if total_equity is None:
                     print(f"Error: total_equity is None. Retrying in {retry_delay} seconds...")
@@ -420,6 +423,28 @@ class Strategy:
             time.sleep(retry_delay)
 
         raise Exception("Failed to calculate maximum trade quantity after maximum retries.")
+
+    # def calc_max_trade_qty(self, total_equity, best_ask_price, max_leverage, max_retries=5, retry_delay=5):
+    #     wallet_exposure = self.config.wallet_exposure
+    #     for i in range(max_retries):
+    #         try:
+    #             market_data = self.exchange.get_market_data_bybit(self.symbol)
+    #             max_trade_qty = round(
+    #                 (float(total_equity) * wallet_exposure / float(best_ask_price))
+    #                 / (100 / max_leverage),
+    #                 int(float(market_data["min_qty"])),
+    #             )
+    #             return max_trade_qty
+    #         except TypeError as e:
+    #             if total_equity is None:
+    #                 print(f"Error: total_equity is None. Retrying in {retry_delay} seconds...")
+    #             if best_ask_price is None:
+    #                 print(f"Error: best_ask_price is None. Retrying in {retry_delay} seconds...")
+    #         except Exception as e:
+    #             print(f"An unexpected error occurred: {e}. Retrying in {retry_delay} seconds...")
+    #         time.sleep(retry_delay)
+
+    #     raise Exception("Failed to calculate maximum trade quantity after maximum retries.")
 
     def calc_max_trade_qty_multi(self, total_equity, best_ask_price, max_leverage, max_retries=5, retry_delay=5):
         wallet_exposure = self.config.wallet_exposure
@@ -2194,9 +2219,11 @@ class Strategy:
                 open_symbol, market_data, total_equity, best_ask_price_open_symbol, max_leverage
             )
 
-            self.bybit_reset_position_leverage_long(long_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
-            self.bybit_reset_position_leverage_short(short_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
+            # self.bybit_reset_position_leverage_long(long_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
+            # self.bybit_reset_position_leverage_short(short_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
             
+            self.bybit_reset_position_leverage_long_multi(long_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
+            self.bybit_reset_position_leverage_short_multi(short_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
             # Calculate moving averages for the open symbol
             moving_averages_open_symbol = self.get_all_moving_averages(open_symbol)
 
@@ -2297,6 +2324,9 @@ class Strategy:
                 self.next_short_tp_update = self.update_take_profit_spread_bybit(
                     open_symbol, short_pos_qty_open_symbol, short_take_profit_open_symbol, positionIdx=2, order_side="buy", open_orders=open_orders_open_symbol, next_tp_update=self.next_short_tp_update
                 )
+
+            long_dynamic_amount_open_symbol = min_qty
+            short_dynamic_amount_open_symbol = min_qty
 
             if open_symbol in open_symbols:
                 if is_rotator_symbol:
@@ -2663,7 +2693,7 @@ class Strategy:
             self.max_long_trade_qty = 2 * self.initial_max_long_trade_qty  # double the maximum long trade quantity
             self.long_leverage_increased = True
             self.long_pos_leverage = 2.0
-            logging.info(f"Long leverage temporarily increased to {self.long_pos_leverage}x")
+            logging.info(f"Long leverage for temporarily increased to {self.long_pos_leverage}x")
         elif long_pos_qty >= 2 * self.initial_max_long_trade_qty and self.long_pos_leverage <= 2.0:
             self.max_long_trade_qty = 3 * self.initial_max_long_trade_qty  # triple the maximum long trade quantity
             self.long_pos_leverage = 3.0
@@ -2694,6 +2724,45 @@ class Strategy:
             self.short_leverage_increased = False
             self.short_pos_leverage = 1.0
             logging.info(f"Short leverage returned to normal {self.short_pos_leverage}x")
+
+    def bybit_reset_position_leverage_long_multi(self, long_pos_qty, total_equity, best_ask_price, max_leverage):
+        # Leverage increase logic for long positions
+        if long_pos_qty >= self.initial_max_long_trade_qty and self.long_pos_leverage <= 1.0:
+            self.max_long_trade_qty = 2 * self.initial_max_long_trade_qty  # double the maximum long trade quantity
+            self.long_leverage_increased = True
+            self.long_pos_leverage = 2.0
+            logging.info(f"Long leverage for temporarily increased to {self.long_pos_leverage}x")
+        elif long_pos_qty >= 2 * self.initial_max_long_trade_qty and self.long_pos_leverage <= 2.0:
+            self.max_long_trade_qty = 3 * self.initial_max_long_trade_qty  # triple the maximum long trade quantity
+            self.long_pos_leverage = 3.0
+            logging.info(f"Long leverage temporarily increased to {self.long_pos_leverage}x")
+        elif long_pos_qty < (self.max_long_trade_qty / 2) and self.long_pos_leverage > 1.0:
+            self.max_long_trade_qty, _ = self.calc_max_trade_qty_multi(total_equity,
+                                                                    best_ask_price,
+                                                                    max_leverage)
+            self.long_leverage_increased = False
+            self.long_pos_leverage = 1.0
+            logging.info(f"Long leverage returned to normal {self.long_pos_leverage}x")
+
+    def bybit_reset_position_leverage_short_multi(self, short_pos_qty, total_equity, best_ask_price, max_leverage):
+        # Leverage increase logic for short positions
+        if short_pos_qty >= self.initial_max_short_trade_qty and self.short_pos_leverage <= 1.0:
+            self.max_short_trade_qty = 2 * self.initial_max_short_trade_qty  # double the maximum short trade quantity
+            self.short_leverage_increased = True
+            self.short_pos_leverage = 2.0
+            logging.info(f"Short leverage temporarily increased to {self.short_pos_leverage}x")
+        elif short_pos_qty >= 2 * self.initial_max_short_trade_qty and self.short_pos_leverage <= 2.0:
+            self.max_short_trade_qty = 3 * self.initial_max_short_trade_qty  # triple the maximum short trade quantity
+            self.short_pos_leverage = 3.0
+            logging.info(f"Short leverage temporarily increased to {self.short_pos_leverage}x")
+        elif short_pos_qty < (self.max_short_trade_qty / 2) and self.short_pos_leverage > 1.0:
+            _, self.max_short_trade_qty = self.calc_max_trade_qty_multi(total_equity,
+                                                                        best_ask_price,
+                                                                        max_leverage)
+            self.short_leverage_increased = False
+            self.short_pos_leverage = 1.0
+            logging.info(f"Short leverage returned to normal {self.short_pos_leverage}x")
+
 
     def binance_auto_hedge_entry(self, trend, one_minute_volume, five_minute_distance, min_vol, min_dist,
                                 should_long, long_pos_qty, long_dynamic_amount, best_bid_price, long_pos_price,
