@@ -28,6 +28,7 @@ class Strategy:
         self.initial_max_short_trade_qty = None
         self.open_symbols_count = 0
         self.last_stale_order_check_time = time.time()
+        self.should_spoof = True
 
     class OrderBookAnalyzer:
         def __init__(self, exchange, symbol):
@@ -46,6 +47,10 @@ class Strategy:
 
         def selling_pressure(self):
             return not self.buying_pressure()
+
+    def toggle_spoof(self):
+        # Legality issues
+        self.should_spoof = not self.should_spoof
 
     def get_symbols_allowed(self, account_name):
         for exchange in self.config["exchanges"]:
@@ -1102,46 +1107,6 @@ class Strategy:
         with open("open_symbols_count.json", "w") as f:
             json.dump({"count": open_symbols_count}, f)
 
-    # def spoof_order(self, symbol, side, max_amount, max_price):
-    #     num_orders = 5  # Number of spoof orders to place
-    #     total_amount = 0.0  # Initialize the total amount to zero
-
-    #     # Calculate the minimum order size based on your requirements
-    #     min_order_size = max_amount / num_orders
-
-    #     # Get the current order book
-    #     orderbook = self.exchange.get_orderbook(symbol)
-        
-    #     # Ensure there are enough levels in the order book
-    #     if len(orderbook['bids']) >= num_orders:
-    #         for i in range(num_orders):
-    #             # Calculate the remaining amount to distribute among the orders
-    #             remaining_amount = max_amount - total_amount
-
-    #             # Ensure that the order size is not larger than the remaining amount or the minimum size
-    #             order_size = min(min_order_size, remaining_amount)
-
-    #             # Calculate the price level based on the current top of the book and stay -3 levels below it
-    #             top_bid_price = orderbook['bids'][0][0]
-    #             price = top_bid_price - (i + 1) * 3.0  # Move -3 levels each time
-
-    #             # Ensure the price doesn't go below max_price
-    #             price = max(price, max_price)
-
-    #             order = self.limit_order(symbol, side, order_size, price, reduce_only=False)
-
-    #             if order is not None:
-    #                 total_amount += order_size  # Update the total amount with the order size
-    #                 print(f"Placed spoof order - Amount: {order_size:.4f} LTC, Price: {price:.2f}")
-
-    #             # Break the loop if the total amount reaches the maximum
-    #             if total_amount >= max_amount:
-    #                 break
-
-    #         print(f"Total spoof orders placed: {total_amount:.4f} LTC")
-    #     else:
-    #         print("Not enough levels in the order book to place spoof orders.")
-
     def manage_liquidation_risk(self, long_pos_price, short_pos_price, long_liq_price, short_liq_price, symbol, amount):
         # Create some thresholds for when to act
         long_threshold = self.config.long_liq_pct
@@ -1162,6 +1127,33 @@ class Strategy:
                 # Place a stop-loss order or open a position in the opposite direction to offset risk
                 #self.place_stop_loss(symbol, "buy", amount, short_liq_price)  # Placeholder function, replace with your actual function
                 logging.info(f"Placed a stop-loss order for short position on {symbol} at {short_liq_price}")
+
+    def spoofing_action(self, symbol):
+        if self.spoofing_active:
+            orderbook = self.exchange.get_orderbook(symbol)
+            best_bid_price = orderbook['bids'][0][0]
+            best_ask_price = orderbook['asks'][0][0]
+
+            spoofing_orders = []
+
+            for i in range(self.spoofing_wall_size):
+                spoof_price = best_bid_price - (i + 1) * 0.01  # Adjust the spoofing distance as needed
+                spoof_price = Decimal(spoof_price).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
+                spoof_amount = 0.1  # Adjust the spoofing order amount as needed
+                spoof_order = self.limit_order(symbol, 'sell', spoof_amount, spoof_price)
+                spoofing_orders.append(spoof_order)
+
+                spoof_price = best_ask_price + (i + 1) * 0.01  # Adjust the spoofing distance as needed
+                spoof_price = Decimal(spoof_price).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
+                spoof_order = self.limit_order(symbol, 'buy', spoof_amount, spoof_price)
+                spoofing_orders.append(spoof_order)
+
+            time.sleep(self.spoofing_duration)
+
+            for order in spoofing_orders:
+                self.exchange.cancel_order_by_id(order['id'], symbol)
+
+            self.spoofing_active = False
 
     def spoof_order(self, symbol, side, max_amount, max_price, price_step=3.0, num_orders=5):
         total_amount = 0.0  # Initialize the total amount to zero
@@ -1268,6 +1260,46 @@ class Strategy:
                 elif (trend.lower() == "short" and mfi.lower() == "short") and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price:
                     logging.info(f"Placing additional short entry")
                     self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+
+    def bybit_hedge_spoof_v1(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
+
+        if one_minute_volume is not None and five_minute_distance is not None:
+            if one_minute_volume > min_vol and five_minute_distance > min_dist:
+
+                best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+                best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+                
+                open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+
+                if self.should_spoof:
+                    self.spoofing_action(symbol)
+
+                if self.should_place_spoof_scalping_orders:
+                    self.spoof_scalping_strategy(
+                        symbol, trend, mfi, one_minute_volume, five_minute_distance,
+                        min_vol, min_dist, long_dynamic_amount, short_dynamic_amount,
+                        long_pos_qty, short_pos_qty, long_pos_price, short_pos_price,
+                        should_long, should_short, should_add_to_long, should_add_to_short
+                    )
+
+                if (trend.lower() == "long" and mfi.lower() == "long") and should_long and long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
+                    logging.info(f"Placing initial long entry")
+                    self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                    logging.info(f"Placed initial long entry")
+
+                elif (trend.lower() == "long" and mfi.lower() == "long") and should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
+                    logging.info(f"Placing additional long entry")
+                    self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+
+                if (trend.lower() == "short" and mfi.lower() == "short") and should_short and short_pos_qty == 0 and not self.entry_order_exists(open_orders, "sell"):
+                    logging.info(f"Placing initial short entry")
+                    self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                    logging.info(f"Placed initial short entry")
+
+                elif (trend.lower() == "short" and mfi.lower() == "short") and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
+                    logging.info(f"Placing additional short entry")
+                    self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+
 
     # Bybit regular auto hedge logic
     # Bybit entry logic
@@ -2138,9 +2170,6 @@ class Strategy:
                 )
 
             if open_symbol in open_symbols:
-                # Note: When calling the `bybit_hedge_entry_maker_v3` function, make sure to use these updated, context-specific variables.
-                # ...
-                # Conditional call to bybit_hedge_additional_entry_maker_v3 or bybit_hedge_entry_maker_v3
                 if is_rotator_symbol:
                     self.bybit_hedge_entry_maker_v3(
                         open_symbol,
