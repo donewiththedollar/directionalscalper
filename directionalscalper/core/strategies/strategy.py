@@ -2118,10 +2118,6 @@ class Strategy:
             # print(f"Calculating dynamic amount for {open_symbol} with market_data: {market_data}, total_equity: {total_equity}, best_ask_price_open_symbol: {best_ask_price_open_symbol}, max_leverage: {max_leverage}")
             # logging.info(f"Calculating dynamic amount for {open_symbol} with market_data: {market_data}, total_equity: {total_equity}, best_ask_price_open_symbol: {best_ask_price_open_symbol}, max_leverage: {max_leverage}")
 
-            long_dynamic_amount_open_symbol, short_dynamic_amount_open_symbol, min_qty = self.calculate_dynamic_amount(
-                open_symbol, market_data, total_equity, best_ask_price_open_symbol, max_leverage
-            )
-
             # Log the dynamic amounts
             #print(f"Long dynamic amount for {open_symbol}: {long_dynamic_amount_open_symbol}")
             #print(f"Short dynamic amount for {open_symbol}: {short_dynamic_amount_open_symbol}")
