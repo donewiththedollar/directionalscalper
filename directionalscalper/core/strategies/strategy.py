@@ -58,57 +58,113 @@ class Strategy:
                 return exchange.get("symbols_allowed", None)
         return None
 
-    
+
     def calculate_dynamic_amount(self, symbol, market_data, total_equity, best_ask_price, max_leverage):
         
+        logging.info(f"Calculating dynamic amount for symbol: {symbol}")
+
         if self.max_long_trade_qty is None or self.max_short_trade_qty is None:
-            self.max_long_trade_qty = self.max_short_trade_qty = self.calc_max_trade_qty(total_equity,
+            self.max_long_trade_qty, self.max_short_trade_qty = self.calc_max_trade_qty(total_equity,
                                                                                         best_ask_price,
                                                                                         max_leverage)
 
-            # Set initial quantities if they're None
+            logging.info(f"Calculated max_long_trade_qty: {self.max_long_trade_qty}, max_short_trade_qty: {self.max_short_trade_qty}")
+
             if self.initial_max_long_trade_qty is None:
                 self.initial_max_long_trade_qty = self.max_long_trade_qty
-                logging.info(f"Initial max trade qty set to {self.initial_max_long_trade_qty}")
+                logging.info(f"Initial max long trade qty set to {self.initial_max_long_trade_qty}")
 
             if self.initial_max_short_trade_qty is None:
                 self.initial_max_short_trade_qty = self.max_short_trade_qty  
-                logging.info(f"Initial trade qty set to {self.initial_max_short_trade_qty}") 
+                logging.info(f"Initial max short trade qty set to {self.initial_max_short_trade_qty}") 
 
         long_dynamic_amount = 0.001 * self.initial_max_long_trade_qty
         short_dynamic_amount = 0.001 * self.initial_max_short_trade_qty
 
+        logging.info(f"Initial long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+
         min_qty = float(market_data["min_qty"])
         min_qty_str = str(min_qty)
 
-        # # Get the precision level of the minimum quantity
-        # if ".0" in min_qty_str:
-        #     # The minimum quantity has a fractional part, get its precision level
-        #     precision_level = len(min_qty_str.split(".")[1])
-        # else:
-        #     # The minimum quantity does not have a fractional part, precision is 0
-        #     precision_level = 0
+        logging.info(f"min_qty: {min_qty}, min_qty_str: {min_qty_str}")
 
         if ".0" in min_qty_str:
             precision_level = 0
         else:
             precision_level = len(min_qty_str.split(".")[1])
 
+        logging.info(f"Calculated precision_level: {precision_level}")
+
         long_dynamic_amount = round(long_dynamic_amount, precision_level)
         short_dynamic_amount = round(short_dynamic_amount, precision_level)
+
+        logging.info(f"Rounded long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 
         self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
         self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
 
         if long_dynamic_amount < min_qty:
-            logging.info(f"Dynamic amount too small for 0.001x, using min_qty")
+            logging.info(f"Dynamic amount too small for 0.001x, using min_qty for long_dynamic_amount")
             long_dynamic_amount = min_qty
 
         if short_dynamic_amount < min_qty:
-            logging.info(f"Dynamic amount too small for 0.001x, using min_qty")
+            logging.info(f"Dynamic amount too small for 0.001x, using min_qty for short_dynamic_amount")
             short_dynamic_amount = min_qty
 
-        return long_dynamic_amount, short_dynamic_amount, min_qty
+        logging.info(f"Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+
+        return long_dynamic_amount, short_dynamic_amount, min_qty 
+       
+    # def calculate_dynamic_amount(self, symbol, market_data, total_equity, best_ask_price, max_leverage):
+        
+    #     if self.max_long_trade_qty is None or self.max_short_trade_qty is None:
+    #         self.max_long_trade_qty = self.max_short_trade_qty = self.calc_max_trade_qty(total_equity,
+    #                                                                                     best_ask_price,
+    #                                                                                     max_leverage)
+
+    #         # Set initial quantities if they're None
+    #         if self.initial_max_long_trade_qty is None:
+    #             self.initial_max_long_trade_qty = self.max_long_trade_qty
+    #             logging.info(f"Initial max trade qty set to {self.initial_max_long_trade_qty}")
+
+    #         if self.initial_max_short_trade_qty is None:
+    #             self.initial_max_short_trade_qty = self.max_short_trade_qty  
+    #             logging.info(f"Initial trade qty set to {self.initial_max_short_trade_qty}") 
+
+    #     long_dynamic_amount = 0.001 * self.initial_max_long_trade_qty
+    #     short_dynamic_amount = 0.001 * self.initial_max_short_trade_qty
+
+    #     min_qty = float(market_data["min_qty"])
+    #     min_qty_str = str(min_qty)
+
+    #     # # Get the precision level of the minimum quantity
+    #     # if ".0" in min_qty_str:
+    #     #     # The minimum quantity has a fractional part, get its precision level
+    #     #     precision_level = len(min_qty_str.split(".")[1])
+    #     # else:
+    #     #     # The minimum quantity does not have a fractional part, precision is 0
+    #     #     precision_level = 0
+
+    #     if ".0" in min_qty_str:
+    #         precision_level = 0
+    #     else:
+    #         precision_level = len(min_qty_str.split(".")[1])
+
+    #     long_dynamic_amount = round(long_dynamic_amount, precision_level)
+    #     short_dynamic_amount = round(short_dynamic_amount, precision_level)
+
+    #     self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
+    #     self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
+
+    #     if long_dynamic_amount < min_qty:
+    #         logging.info(f"Dynamic amount too small for 0.001x, using min_qty")
+    #         long_dynamic_amount = min_qty
+
+    #     if short_dynamic_amount < min_qty:
+    #         logging.info(f"Dynamic amount too small for 0.001x, using min_qty")
+    #         short_dynamic_amount = min_qty
+
+    #     return long_dynamic_amount, short_dynamic_amount, min_qty
 
     def get_all_moving_averages(self, symbol, max_retries=3, delay=5):
         for _ in range(max_retries):
