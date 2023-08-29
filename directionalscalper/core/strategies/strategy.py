@@ -3134,7 +3134,7 @@ class Strategy:
         if symbol not in self.initial_max_long_trade_qty_per_symbol:
             # Initialize for the symbol
             self.initial_max_long_trade_qty_per_symbol[symbol] = self.calc_max_trade_qty(total_equity, best_ask_price, max_leverage)
-            self.long_pos_leverage_per_symbol[symbol] = 1.0  # starting leverage
+            self.long_pos_leverage_per_symbol[symbol] = 0.001  # starting leverage
 
         if long_pos_qty >= self.initial_max_long_trade_qty_per_symbol[symbol] and self.long_pos_leverage_per_symbol[symbol] < self.MAX_LEVERAGE:
             self.max_long_trade_qty_per_symbol[symbol], self.long_pos_leverage_per_symbol[symbol] = self.adjust_leverage_and_qty(
@@ -3159,7 +3159,7 @@ class Strategy:
         # Initialize for the symbol if it's not already present
         if symbol not in self.initial_max_short_trade_qty_per_symbol:
             self.initial_max_short_trade_qty_per_symbol[symbol] = self.calc_max_trade_qty(total_equity, best_ask_price, max_leverage)
-            self.short_pos_leverage_per_symbol[symbol] = 1.0  # starting leverage
+            self.short_pos_leverage_per_symbol[symbol] = 0.001  # starting leverage
 
         # Check conditions to increase leverage
         if short_pos_qty >= self.initial_max_short_trade_qty_per_symbol[symbol] and self.short_pos_leverage_per_symbol[symbol] < self.MAX_LEVERAGE:
