@@ -1867,6 +1867,10 @@ class Strategy:
             long_pos_qty_open_symbol = position_data_open_symbol["long"]["qty"]
             short_pos_qty_open_symbol = position_data_open_symbol["short"]["qty"]
 
+            min_qty = float(market_data["min_qty"])
+            min_qty_str = str(min_qty)
+
+
             # Fetch the best ask and bid prices for the open symbol
             best_ask_price_open_symbol = self.exchange.get_orderbook(open_symbol)['asks'][0][0]
             best_bid_price_open_symbol = self.exchange.get_orderbook(open_symbol)['bids'][0][0]
@@ -1907,9 +1911,17 @@ class Strategy:
             # print(f"Calculating dynamic amount for {open_symbol} with market_data: {market_data}, total_equity: {total_equity}, best_ask_price_open_symbol: {best_ask_price_open_symbol}, max_leverage: {max_leverage}")
             # logging.info(f"Calculating dynamic amount for {open_symbol} with market_data: {market_data}, total_equity: {total_equity}, best_ask_price_open_symbol: {best_ask_price_open_symbol}, max_leverage: {max_leverage}")
 
-            long_dynamic_amount_open_symbol, short_dynamic_amount_open_symbol, _ = self.calculate_dynamic_amount(
+            # long_dynamic_amount_open_symbol, short_dynamic_amount_open_symbol, _ = self.calculate_dynamic_amount(
+            #     open_symbol, market_data, total_equity, best_ask_price_open_symbol, max_leverage
+            # )
+
+            long_dynamic_amount_open_symbol, short_dynamic_amount_open_symbol, min_qty = self.calculate_dynamic_amount(
                 open_symbol, market_data, total_equity, best_ask_price_open_symbol, max_leverage
             )
+
+
+            self.bybit_reset_position_leverage_long(long_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
+            self.bybit_reset_position_leverage_short(short_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
 
             # Log the dynamic amounts
             # print(f"Long dynamic amount for {open_symbol}: {long_dynamic_amount_open_symbol}")
@@ -2056,13 +2068,23 @@ class Strategy:
             long_pos_qty_open_symbol = position_data_open_symbol["long"]["qty"]
             short_pos_qty_open_symbol = position_data_open_symbol["short"]["qty"]
 
+            min_qty = float(market_data["min_qty"])
+            min_qty_str = str(min_qty)
+
             # Fetch the best ask and bid prices for the open symbol
             best_ask_price_open_symbol = self.exchange.get_orderbook(open_symbol)['asks'][0][0]
             best_bid_price_open_symbol = self.exchange.get_orderbook(open_symbol)['bids'][0][0]
             
-            # Calculate the max trade quantities dynamically for this specific symbol
-            self.initial_max_long_trade_qty, self.initial_max_short_trade_qty = self.calc_max_trade_qty_multi(
-                total_equity, best_ask_price_open_symbol, max_leverage)
+            # # Calculate the max trade quantities dynamically for this specific symbol
+            # self.initial_max_long_trade_qty, self.initial_max_short_trade_qty = self.calc_max_trade_qty_multi(
+            #     total_equity, best_ask_price_open_symbol, max_leverage)
+
+            long_dynamic_amount_open_symbol, short_dynamic_amount_open_symbol, min_qty = self.calculate_dynamic_amount(
+                open_symbol, market_data, total_equity, best_ask_price_open_symbol, max_leverage
+            )
+            
+            self.bybit_reset_position_leverage_long(long_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
+            self.bybit_reset_position_leverage_short(short_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
             
             # Calculate moving averages for the open symbol
             moving_averages_open_symbol = self.get_all_moving_averages(open_symbol)
@@ -2103,8 +2125,8 @@ class Strategy:
             # Log the dynamic amounts
             #print(f"Long dynamic amount for {open_symbol}: {long_dynamic_amount_open_symbol}")
             #print(f"Short dynamic amount for {open_symbol}: {short_dynamic_amount_open_symbol}")
-            logging.info(f"Long dynamic amount for {open_symbol}: {long_dynamic_amount_open_symbol}")
-            logging.info(f"Short dynamic amount for {open_symbol}: {short_dynamic_amount_open_symbol}")
+            logging.info(f"Long dynamic amount from manager for {open_symbol}: {long_dynamic_amount_open_symbol}")
+            logging.info(f"Short dynamic amount from manager for {open_symbol}: {short_dynamic_amount_open_symbol}")
                                 
 
             # Calculate moving averages for the open symbol

@@ -170,6 +170,9 @@ class BybitMFIRSITrendRotator(Strategy):
                     symbol, market_data, total_equity, best_ask_price, max_leverage
                 )
 
+                logging.info(f"Long dynamic amount from strategy: {long_dynamic_amount} for {symbol}")
+                logging.info(f"Short dynamic amount from strategy: {short_dynamic_amount} for {symbol}")
+
                 self.print_trade_quantities_once_bybit(self.max_long_trade_qty)
                 self.print_trade_quantities_once_bybit(self.max_short_trade_qty)
 
@@ -230,6 +233,10 @@ class BybitMFIRSITrendRotator(Strategy):
 
                 self.bybit_reset_position_leverage_long(long_pos_qty, total_equity, best_ask_price, max_leverage)
                 self.bybit_reset_position_leverage_short(short_pos_qty, total_equity, best_ask_price, max_leverage)
+
+
+                logging.info(f"Long dynamic amount from strategy: {long_dynamic_amount} for {symbol}")
+                logging.info(f"Short dynamic amount from strategy: {short_dynamic_amount} for {symbol}")
 
                 short_upnl = position_data["short"]["upnl"]
                 long_upnl = position_data["long"]["upnl"]
