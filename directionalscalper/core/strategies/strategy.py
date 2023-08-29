@@ -15,7 +15,7 @@ logging = Logger(logger_name="Strategy", filename="Strategy.log", stream=True)
 
 class Strategy:
     LEVERAGE_STEP = 0.01  # The step at which to increase leverage
-    MAX_LEVERAGE = 1.0  # The maximum allowable leverage
+    MAX_LEVERAGE = 0.5  # The maximum allowable leverage
     QTY_INCREMENT = 0.1 # How much your position size increases
     def __init__(self, exchange, config, manager):
         self.exchange = exchange
