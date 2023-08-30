@@ -73,15 +73,8 @@ class BybitRotatorAggressive(Strategy):
         current_leverage = self.exchange.get_current_leverage_bybit(symbol)
         max_leverage = self.exchange.get_max_leverage_bybit(symbol)
 
-        # symbols_allowed = self.config.symbols_allowed
-
-        # symbols_allowed = 6
-
-        # symbols_allowed = self.get_symbols_allowed("bybit")
-
         if self.config.dashboard_enabled:
             dashboard_path = os.path.join(self.config.shared_data_path, "shared_data.json")
-
 
         logging.info("Setting up exchange")
         self.exchange.setup_exchange_bybit(symbol)
@@ -166,7 +159,6 @@ class BybitRotatorAggressive(Strategy):
                 best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
                 best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
-
                 # Calculate dynamic amounts and min_qty for each symbol
                 long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount(
                     symbol, market_data, total_equity, best_ask_price, max_leverage
@@ -190,32 +182,21 @@ class BybitRotatorAggressive(Strategy):
 
                 open_position_data = self.exchange.get_all_open_positions_bybit()
 
-                #print(f"Open positions: {open_position_data}")
-
                 open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
                 open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
 
                 rotator_symbols = self.manager.get_auto_rotate_symbols()
 
-                # print(f"Rotator symbols: {rotator_symbols}")
-
                 # Find symbols that are open but not in rotator
                 symbols_to_manage = [s for s in open_symbols if s not in rotator_symbols]
-
-                # print(f"Symbols to manage {symbols_to_manage}")
 
                 # Manage these symbols
                 for s in symbols_to_manage:
                     print(f"Managing symbol: {s}")  # Debugging line
                     self.manage_open_positions_aggressive([s], total_equity)  # Notice the square brackets around 's'
 
-
-                #print(f"Open symbols: {open_symbols}")
-
                 can_open_new_position = self.can_trade_new_symbol(open_symbols, self.symbols_allowed, symbol)
                 logging.info(f"Can open new position: {can_open_new_position}")
-                #print(f"Open symbols: {open_symbols}")
-
 
                 short_pos_qty = position_data["short"]["qty"]
                 long_pos_qty = position_data["long"]["qty"]
@@ -223,9 +204,6 @@ class BybitRotatorAggressive(Strategy):
                 # get liquidation prices
                 short_liq_price = position_data["short"]["liq_price"]
                 long_liq_price = position_data["long"]["liq_price"]
-
-                # self.bybit_reset_position_leverage_long(long_pos_qty, total_equity, best_ask_price, max_leverage)
-                # self.bybit_reset_position_leverage_short(short_pos_qty, total_equity, best_ask_price, max_leverage)
 
                 self.bybit_reset_position_leverage_long_v3(symbol, long_pos_qty, total_equity, best_ask_price, max_leverage)
                 self.bybit_reset_position_leverage_short_v3(symbol, short_pos_qty, total_equity, best_ask_price, max_leverage)
@@ -312,7 +290,8 @@ class BybitRotatorAggressive(Strategy):
                 if symbol in open_symbols:
                     self.bybit_turbocharged_entry_maker(symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_add_to_long, should_short, should_add_to_short)
                 elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
-                    self.bybit_turbocharged_entry_maker(symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_add_to_long, should_short, should_add_to_short)
+                    self.bybit_turbocharged_new_entry_maker(symbol, trend, mfirsi_signal, long_dynamic_amount, short_dynamic_amount)
+                    #self.bybit_turbocharged_entry_maker(symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_add_to_long, should_short, should_add_to_short)
 
                 # Call the function to update long take profit spread
                 if long_pos_qty > 0 and long_take_profit is not None:
