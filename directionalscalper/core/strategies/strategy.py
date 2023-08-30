@@ -499,6 +499,35 @@ class Strategy:
 
     #     raise Exception("Failed to calculate maximum trade quantity after maximum retries.")
 
+    def calc_max_trade_qty_multiv2(self, symbol, total_equity, best_ask_price, max_leverage, long_pos_qty_open_symbol, short_pos_qty_open_symbol, max_retries=5, retry_delay=5):
+        wallet_exposure = self.config.wallet_exposure
+        for i in range(max_retries):
+            try:
+                market_data = self.exchange.get_market_data_bybit(symbol)
+                base_max_trade_qty = round(
+                    (float(total_equity) * wallet_exposure / float(best_ask_price))
+                    / (100 / max_leverage),
+                    int(float(market_data["min_qty"])),
+                )
+                
+                # Apply your logic to differentiate between long and short here
+                max_long_trade_qty = base_max_trade_qty  # Modify based on long_pos_qty_open_symbol
+                max_short_trade_qty = base_max_trade_qty  # Modify based on short_pos_qty_open_symbol
+                
+                return max_long_trade_qty, max_short_trade_qty
+                    
+            except TypeError as e:
+                if total_equity is None:
+                    print(f"Error: total_equity is None. Retrying in {retry_delay} seconds...")
+                if best_ask_price is None:
+                    print(f"Error: best_ask_price is None. Retrying in {retry_delay} seconds...")
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}. Retrying in {retry_delay} seconds...")
+                
+            time.sleep(retry_delay)
+            
+        raise Exception("Failed to calculate maximum trade quantity after maximum retries.")
+
     def calc_max_trade_qty_multi(self, total_equity, best_ask_price, max_leverage, max_retries=5, retry_delay=5):
         wallet_exposure = self.config.wallet_exposure
         for i in range(max_retries):
@@ -2128,9 +2157,13 @@ class Strategy:
             best_bid_price_open_symbol = self.exchange.get_orderbook(open_symbol)['bids'][0][0]
             
             # Calculate the max trade quantities dynamically for this specific symbol
-            self.initial_max_long_trade_qty, self.initial_max_short_trade_qty = self.calc_max_trade_qty_multi(
-                total_equity, best_ask_price_open_symbol, max_leverage)
-            
+            # self.initial_max_long_trade_qty, self.initial_max_short_trade_qty = self.calc_max_trade_qty_multi(
+            #     total_equity, best_ask_price_open_symbol, max_leverage)
+
+            max_trade_qty_value = self.calc_max_trade_qty(position_data_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
+            self.initial_max_long_trade_qty = max_trade_qty_value
+            self.initial_max_short_trade_qty = max_trade_qty_value
+
             # Calculate moving averages for the open symbol
             moving_averages_open_symbol = self.get_all_moving_averages(open_symbol)
 
@@ -2481,15 +2514,20 @@ class Strategy:
             best_ask_price_open_symbol = self.exchange.get_orderbook(open_symbol)['asks'][0][0]
             best_bid_price_open_symbol = self.exchange.get_orderbook(open_symbol)['bids'][0][0]
             
+            # Fetch position data for the open symbol
+            position_data_open_symbol = self.exchange.get_positions_bybit(open_symbol)
+            long_pos_qty_open_symbol = position_data_open_symbol["long"]["qty"]
+            short_pos_qty_open_symbol = position_data_open_symbol["short"]["qty"]
+
+            max_trade_qty_value = self.calc_max_trade_qty(position_data_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
+            self.initial_max_long_trade_qty = max_trade_qty_value
+            self.initial_max_short_trade_qty = max_trade_qty_value
+
             # Calculate dynamic amounts
             long_dynamic_amount_open_symbol, short_dynamic_amount_open_symbol, min_qty = self.calculate_dynamic_amount(
                 open_symbol, market_data, total_equity, best_ask_price_open_symbol, max_leverage
             )
 
-            # Fetch position data for the open symbol
-            position_data_open_symbol = self.exchange.get_positions_bybit(open_symbol)
-            long_pos_qty_open_symbol = position_data_open_symbol["long"]["qty"]
-            short_pos_qty_open_symbol = position_data_open_symbol["short"]["qty"]
 
             # Adjust leverage based on the current position quantities
             if long_pos_qty_open_symbol > 0:
@@ -3330,7 +3368,7 @@ class Strategy:
     #         self.short_pos_leverage = 1.0
     #         logging.info(f"Short leverage returned to normal {self.short_pos_leverage}x")
 
-    def bybit_reset_position_leverage_long_multi(self, long_pos_qty, total_equity, best_ask_price, max_leverage):
+    def bybit_reset_position_leverage_long_multi(self, symbol, long_pos_qty, total_equity, best_ask_price, max_leverage):
         # Leverage increase logic for long positions
         if long_pos_qty >= self.initial_max_long_trade_qty and self.long_pos_leverage <= 1.0:
             self.max_long_trade_qty = 2 * self.initial_max_long_trade_qty  # double the maximum long trade quantity
@@ -3349,7 +3387,7 @@ class Strategy:
             self.long_pos_leverage = 1.0
             logging.info(f"Long leverage returned to normal {self.long_pos_leverage}x")
 
-    def bybit_reset_position_leverage_short_multi(self, short_pos_qty, total_equity, best_ask_price, max_leverage):
+    def bybit_reset_position_leverage_short_multi(self, symbol, short_pos_qty, total_equity, best_ask_price, max_leverage):
         # Leverage increase logic for short positions
         if short_pos_qty >= self.initial_max_short_trade_qty and self.short_pos_leverage <= 1.0:
             self.max_short_trade_qty = 2 * self.initial_max_short_trade_qty  # double the maximum short trade quantity
