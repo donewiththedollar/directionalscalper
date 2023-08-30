@@ -81,7 +81,7 @@ class Strategy:
         #                                                                                 max_leverage)
 
         if self.max_long_trade_qty is None or self.max_short_trade_qty is None:
-            max_trade_qty = self.calc_max_trade_qty(total_equity, best_ask_price, max_leverage)
+            max_trade_qty = self.calc_max_trade_qty(symbol, total_equity, best_ask_price, max_leverage)
             self.max_long_trade_qty = max_trade_qty
             self.max_short_trade_qty = max_trade_qty
             logging.info(f"Calculated max_long_trade_qty: {self.max_long_trade_qty}, max_short_trade_qty: {self.max_short_trade_qty}")
@@ -101,6 +101,8 @@ class Strategy:
 
         # Cap the dynamic amount if it exceeds the maximum allowed
         max_allowed_dynamic_amount = (self.MAX_PCT_EQUIY / 100) * total_equity
+
+        logging.info(f"Max allowed dynamic amount {max_allowed_dynamic_amount}")
 
         min_qty = float(market_data["min_qty"])
         min_qty_str = str(min_qty)
@@ -423,18 +425,21 @@ class Strategy:
                 else:
                     raise e
 
-    def calc_max_trade_qty(self, total_equity, best_ask_price, max_leverage, max_retries=5, retry_delay=5):
+    def calc_max_trade_qty(self, symbol, total_equity, best_ask_price, max_leverage, max_retries=5, retry_delay=5):
         wallet_exposure = self.config.wallet_exposure
         for i in range(max_retries):
             try:
-                market_data = self.exchange.get_market_data_bybit(self.symbol)
+                market_data = self.get_market_data_with_retry(symbol, max_retries = 5, retry_delay = 5)
                 max_trade_qty = round(
                     (float(total_equity) * wallet_exposure / float(best_ask_price))
                     / (100 / max_leverage),
                     int(float(market_data["min_qty"])),
                 )
-                # Return the same max_trade_qty for both long and short
-                #return max_trade_qty, max_trade_qty
+
+                # Cap the max_trade_qty as a percentage of total_equity
+                max_allowed_trade_qty = (self.MAX_PCT_EQUIY / 100) * total_equity
+                max_trade_qty = min(max_trade_qty, max_allowed_trade_qty)
+                
                 return max_trade_qty
             except TypeError as e:
                 if total_equity is None:
@@ -446,6 +451,31 @@ class Strategy:
             time.sleep(retry_delay)
 
         raise Exception("Failed to calculate maximum trade quantity after maximum retries.")
+
+
+    # def calc_max_trade_qty(self, total_equity, best_ask_price, max_leverage, max_retries=5, retry_delay=5):
+    #     wallet_exposure = self.config.wallet_exposure
+    #     for i in range(max_retries):
+    #         try:
+    #             market_data = self.exchange.get_market_data_bybit(self.symbol)
+    #             max_trade_qty = round(
+    #                 (float(total_equity) * wallet_exposure / float(best_ask_price))
+    #                 / (100 / max_leverage),
+    #                 int(float(market_data["min_qty"])),
+    #             )
+    #             # Return the same max_trade_qty for both long and short
+    #             #return max_trade_qty, max_trade_qty
+    #             return max_trade_qty
+    #         except TypeError as e:
+    #             if total_equity is None:
+    #                 print(f"Error: total_equity is None. Retrying in {retry_delay} seconds...")
+    #             if best_ask_price is None:
+    #                 print(f"Error: best_ask_price is None. Retrying in {retry_delay} seconds...")
+    #         except Exception as e:
+    #             print(f"An unexpected error occurred: {e}. Retrying in {retry_delay} seconds...")
+    #         time.sleep(retry_delay)
+
+    #     raise Exception("Failed to calculate maximum trade quantity after maximum retries.")
 
     # def calc_max_trade_qty(self, total_equity, best_ask_price, max_leverage, max_retries=5, retry_delay=5):
     #     wallet_exposure = self.config.wallet_exposure
@@ -2652,9 +2682,9 @@ class Strategy:
             best_ask_price_open_symbol = self.exchange.get_orderbook(open_symbol)['asks'][0][0]
             best_bid_price_open_symbol = self.exchange.get_orderbook(open_symbol)['bids'][0][0]
             
-            # Calculate the max trade quantities dynamically for this specific symbol
-            self.initial_max_long_trade_qty, self.initial_max_short_trade_qty = self.calc_max_trade_qty_multi(
-                total_equity, best_ask_price_open_symbol, max_leverage)
+            # # Calculate the max trade quantities dynamically for this specific symbol
+            # self.initial_max_long_trade_qty, self.initial_max_short_trade_qty = self.calc_max_trade_qty_multi(
+            #     total_equity, best_ask_price_open_symbol, max_leverage)
 
             long_dynamic_amount_open_symbol, short_dynamic_amount_open_symbol, min_qty = self.calculate_dynamic_amount(
                 open_symbol, market_data, total_equity, best_ask_price_open_symbol, max_leverage
@@ -3142,7 +3172,7 @@ class Strategy:
     def bybit_reset_position_leverage_long_v3(self, symbol, long_pos_qty, total_equity, best_ask_price, max_leverage):
         if symbol not in self.initial_max_long_trade_qty_per_symbol:
             # Initialize for the symbol
-            self.initial_max_long_trade_qty_per_symbol[symbol] = self.calc_max_trade_qty(total_equity, best_ask_price, max_leverage)
+            self.initial_max_long_trade_qty_per_symbol[symbol] = self.calc_max_trade_qty(symbol, total_equity, best_ask_price, max_leverage)
             self.long_pos_leverage_per_symbol[symbol] = 0.001  # starting leverage
 
         if long_pos_qty >= self.initial_max_long_trade_qty_per_symbol[symbol] and self.long_pos_leverage_per_symbol[symbol] < self.MAX_LEVERAGE:
@@ -3167,7 +3197,7 @@ class Strategy:
     def bybit_reset_position_leverage_short_v3(self, symbol, short_pos_qty, total_equity, best_ask_price, max_leverage):
         # Initialize for the symbol if it's not already present
         if symbol not in self.initial_max_short_trade_qty_per_symbol:
-            self.initial_max_short_trade_qty_per_symbol[symbol] = self.calc_max_trade_qty(total_equity, best_ask_price, max_leverage)
+            self.initial_max_short_trade_qty_per_symbol[symbol] = self.calc_max_trade_qty(symbol, total_equity, best_ask_price, max_leverage)
             self.short_pos_leverage_per_symbol[symbol] = 0.001  # starting leverage
 
         # Check conditions to increase leverage
@@ -3220,7 +3250,7 @@ class Strategy:
 
 # Bybit position leverage management
 
-    def bybit_reset_position_leverage_long(self, long_pos_qty, total_equity, best_ask_price, max_leverage):
+    def bybit_reset_position_leverage_long(self, symbol, long_pos_qty, total_equity, best_ask_price, max_leverage):
         # Leverage increase logic for long positions
         if long_pos_qty >= self.initial_max_long_trade_qty and self.long_pos_leverage <= 1.0:
             self.max_long_trade_qty = 2 * self.initial_max_long_trade_qty  # double the maximum long trade quantity
@@ -3232,7 +3262,7 @@ class Strategy:
             self.long_pos_leverage = 3.0
             logging.info(f"Long leverage temporarily increased to {self.long_pos_leverage}x")
         elif long_pos_qty < (self.max_long_trade_qty / 2) and self.long_pos_leverage > 1.0:
-            max_trade_qty = self.calc_max_trade_qty(total_equity, best_ask_price, max_leverage)
+            max_trade_qty = self.calc_max_trade_qty(symbol, total_equity, best_ask_price, max_leverage)
             if isinstance(max_trade_qty, float):
                 self.max_long_trade_qty = max_trade_qty
             else:
@@ -3241,7 +3271,7 @@ class Strategy:
             self.long_pos_leverage = 1.0
             logging.info(f"Long leverage returned to normal {self.long_pos_leverage}x")
 
-    def bybit_reset_position_leverage_short(self, short_pos_qty, total_equity, best_ask_price, max_leverage):
+    def bybit_reset_position_leverage_short(self, symbol, short_pos_qty, total_equity, best_ask_price, max_leverage):
         # Leverage increase logic for short positions
         if short_pos_qty >= self.initial_max_short_trade_qty and self.short_pos_leverage <= 1.0:
             self.max_short_trade_qty = 2 * self.initial_max_short_trade_qty  # double the maximum short trade quantity
@@ -3253,7 +3283,7 @@ class Strategy:
             self.short_pos_leverage = 3.0
             logging.info(f"Short leverage temporarily increased to {self.short_pos_leverage}x")
         elif short_pos_qty < (self.max_short_trade_qty / 2) and self.short_pos_leverage > 1.0:
-            max_trade_qty = self.calc_max_trade_qty(total_equity, best_ask_price, max_leverage)
+            max_trade_qty = self.calc_max_trade_qty(symbol, total_equity, best_ask_price, max_leverage)
             if isinstance(max_trade_qty, float):
                 self.max_short_trade_qty = max_trade_qty
             else:
