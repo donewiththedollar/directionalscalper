@@ -1584,7 +1584,7 @@ class Strategy:
                 self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, front_run_ask_price, positionIdx=2, reduceOnly=False)
                 logging.info(f"Turbocharged Short Entry Placed at {front_run_ask_price} with {short_dynamic_amount} amount!")
 
-    def bybit_turbocharged_additional_entry_maker(self, symbol, trend, mfi, take_profit_long, take_profit_short, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_add_to_long, should_add_to_short):
+    def bybit_turbocharged_additional_entry_maker(self, open_orders, symbol, trend, mfi, take_profit_long, take_profit_short, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_add_to_long, should_add_to_short):
         self.order_book_analyzer = self.OrderBookAnalyzer(self.exchange, symbol)
         order_book = self.order_book_analyzer.get_order_book()
 
@@ -1612,16 +1612,16 @@ class Strategy:
             short_dynamic_amount = max(short_dynamic_amount, min_qty)
 
         if long_pos_qty > 0 and take_profit_long:
-            if trend.lower() == "long" and mfi.lower() == "long" and (long_pos_price is not None and best_bid_price < long_pos_price) and should_add_to_long:
+            if trend.lower() == "long" and mfi.lower() == "long" and (long_pos_price is not None and best_bid_price < long_pos_price) and should_add_to_long and not self.entry_order_exists(open_orders, "buy"):
                 self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, front_run_bid_price, positionIdx=1, reduceOnly=False)
                 logging.info(f"Turbocharged Additional Long Entry Placed at {front_run_bid_price} with {long_dynamic_amount} amount!")
 
         if short_pos_qty > 0 and take_profit_short:
-            if trend.lower() == "short" and mfi.lower() == "short" and (short_pos_price is not None and best_ask_price > short_pos_price) and should_add_to_short:
+            if trend.lower() == "short" and mfi.lower() == "short" and (short_pos_price is not None and best_ask_price > short_pos_price) and should_add_to_short and not self.entry_order_exists(open_orders, "sell"):
                 self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, front_run_ask_price, positionIdx=2, reduceOnly=False)
                 logging.info(f"Turbocharged Additional Short Entry Placed at {front_run_ask_price} with {short_dynamic_amount} amount!")
 
-    def bybit_turbocharged_entry_maker(self, symbol, trend, mfi, take_profit_long, take_profit_short, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_add_to_long, should_short, should_add_to_short):
+    def bybit_turbocharged_entry_maker(self, open_orders, symbol, trend, mfi, take_profit_long, take_profit_short, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_add_to_long, should_short, should_add_to_short):
         self.order_book_analyzer = self.OrderBookAnalyzer(self.exchange, symbol)
         order_book = self.order_book_analyzer.get_order_book()
 
@@ -1679,7 +1679,6 @@ class Strategy:
                 self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, front_run_ask_price, positionIdx=2, reduceOnly=False)
                 logging.info(f"Turbocharged Short Entry Placed at {front_run_ask_price} with {short_dynamic_amount} amount!")
 
-        self.cancel_entries_bybit(symbol, best_ask_price, ma_1m_3_high, ma_5m_3_high)
 
         # if long_pos_qty > 0 and take_profit_long:
         #     if trend.lower() == "long" and mfi.lower() == "long" and (long_pos_price is not None and best_bid_price < long_pos_price) and should_add_to_long:
@@ -2309,6 +2308,7 @@ class Strategy:
                 # Note: When calling the `bybit_turbocharged_entry_maker` function, make sure to use these updated, context-specific variables.
                 if is_rotator_symbol:  # Replace this with your own condition for switching between the two functions
                     self.bybit_turbocharged_entry_maker(
+                        open_orders_open_symbol,
                         open_symbol,
                         trend,
                         mfirsi_signal,
@@ -2327,6 +2327,7 @@ class Strategy:
                     )
                 else:
                     self.bybit_turbocharged_additional_entry_maker(
+                        open_orders_open_symbol,
                         open_symbol,
                         trend,
                         mfirsi_signal,
