@@ -8,7 +8,7 @@ from typing import Union
 
 from pydantic import BaseModel, HttpUrl, ValidationError, validator, DirectoryPath
 
-VERSION = "v2.2.0"
+VERSION = "v2.2.1"
 
 class Exchanges(Enum):
     BYBIT = "bybit"
@@ -35,10 +35,10 @@ class Bot(BaseModel):
     violent_multiplier: float = 2.00
     long_liq_pct: float = 0.05
     short_liq_pct: float = 0.05
+    MaxAbsFundingRate: float = 0.0002
     wallet_exposure: float = 1.00
     whitelist: List[str] = []
     blacklist: List[str] = []
-    # symbols_allowed: int = 12
     dashboard_enabled: bool = False
     shared_data_path: Optional[DirectoryPath] = None
     

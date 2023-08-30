@@ -257,6 +257,7 @@ class Manager:
             'Trend': self.get_asset_value(symbol, data, "Trend"),
             'MFI': self.get_asset_value(symbol, data, "MFI"),
             'ERI Trend': self.get_asset_value(symbol, data, "ERI Trend"),
+            'Funding': self.get_asset_value(symbol, data, "Funding"),
             'Symbols': self.get_symbols()
         }
         return api_data
