@@ -231,10 +231,13 @@ class BybitMFIRSITrendRotator(Strategy):
                 short_liq_price = position_data["short"]["liq_price"]
                 long_liq_price = position_data["long"]["liq_price"]
 
-                self.bybit_reset_position_leverage_long(long_pos_qty, total_equity, best_ask_price, max_leverage)
-                self.bybit_reset_position_leverage_short(short_pos_qty, total_equity, best_ask_price, max_leverage)
+                # self.bybit_reset_position_leverage_long(long_pos_qty, total_equity, best_ask_price, max_leverage)
+                # self.bybit_reset_position_leverage_short(short_pos_qty, total_equity, best_ask_price, max_leverage)
 
-
+                # modify leverage per symbol
+                self.bybit_reset_position_leverage_long_v3(symbol, long_pos_qty, total_equity, best_ask_price, max_leverage)
+                self.bybit_reset_position_leverage_short_v3(symbol, short_pos_qty, total_equity, best_ask_price, max_leverage)
+                         
                 logging.info(f"Long dynamic amount from strategy: {long_dynamic_amount} for {symbol}")
                 logging.info(f"Short dynamic amount from strategy: {short_dynamic_amount} for {symbol}")
 
