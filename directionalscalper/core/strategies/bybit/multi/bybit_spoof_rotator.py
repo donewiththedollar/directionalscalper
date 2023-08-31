@@ -48,8 +48,9 @@ class BybitSpoofRotator(Strategy):
         self.short_leverage_increased = False
         self.rows = {}
         self.spoofing_wall_size = 5  
-        self.spoofing_duration = 2  # Value in seconds
         self.spoofing_active = False  # Initialize spoofing state
+        self.spoofing_duration = 60  # Spoofing duration in seconds
+        self.spoofing_interval = 3  # Time interval between spoofing actions
 
 
     def run(self, symbol):
@@ -213,7 +214,7 @@ class BybitSpoofRotator(Strategy):
                 # Manage these symbols
                 for s in symbols_to_manage:
                     print(f"Managing symbol: {s}")  # Debugging line
-                    self.manage_open_positions([s], total_equity)  # Notice the square brackets around 's'
+                    self.manage_open_positions_aggressive([s], total_equity)  # Notice the square brackets around 's'
 
                 #print(f"Open symbols: {open_symbols}")
 
@@ -230,8 +231,8 @@ class BybitSpoofRotator(Strategy):
                 short_liq_price = position_data["short"]["liq_price"]
                 long_liq_price = position_data["long"]["liq_price"]
 
-                self.bybit_reset_position_leverage_long(long_pos_qty, total_equity, best_ask_price, max_leverage)
-                self.bybit_reset_position_leverage_short(short_pos_qty, total_equity, best_ask_price, max_leverage)
+                self.bybit_reset_position_leverage_long_v3(symbol, long_pos_qty, total_equity, best_ask_price, max_leverage)
+                self.bybit_reset_position_leverage_short_v3(symbol, short_pos_qty, total_equity, best_ask_price, max_leverage)
 
                 short_upnl = position_data["short"]["upnl"]
                 long_upnl = position_data["long"]["upnl"]
@@ -314,10 +315,9 @@ class BybitSpoofRotator(Strategy):
 
                 # Check if the symbol is already being traded
                 if symbol in open_symbols:
-                    self.bybit_hedge_entry_maker_v3(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
-
+                    self.bybit_turbocharged_entry_maker(open_orders, symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_add_to_long, should_short, should_add_to_short)
                 elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
-                    self.bybit_hedge_entry_maker_v3_initial_entry(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
+                    self.bybit_turbocharged_new_entry_maker(open_orders, symbol, trend, mfirsi_signal, long_dynamic_amount, short_dynamic_amount)
 
                 # Call the function to update long take profit spread
                 if long_pos_qty > 0 and long_take_profit is not None:
@@ -333,6 +333,13 @@ class BybitSpoofRotator(Strategy):
 
                 if short_pos_qty > 0 and short_take_profit is not None:
                     self.next_short_tp_update = self.update_take_profit_spread_bybit(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders, next_tp_update=self.next_short_tp_update)
+
+                current_time = time.time()
+
+                # Check if it's time to perform spoofing
+                if current_time - self.last_cancel_time >= self.spoofing_interval:
+                    self.spoofing_active = True
+                    self.spoofing_action(symbol, long_dynamic_amount, short_dynamic_amount)
 
                 # Cancel entries
                 self.cancel_entries_bybit(symbol, best_ask_price, ma_1m_3_high, ma_5m_3_high)
