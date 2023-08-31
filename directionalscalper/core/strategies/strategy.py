@@ -1335,32 +1335,71 @@ class Strategy:
                 logging.info(f"Placed a stop-loss order for short position on {symbol} at {short_liq_price}")
 
     def spoofing_action(self, symbol, short_dynamic_amount, long_dynamic_amount):
+        # Check if poofing is active
         if self.spoofing_active:
+            # Fetch the current order book and position data
             orderbook = self.exchange.get_orderbook(symbol)
             best_bid_price = orderbook['bids'][0][0]
             best_ask_price = orderbook['asks'][0][0]
+            
+            position_data = self.exchange.get_positions_bybit(symbol)
+            short_pos_price = position_data["short"]["price"] if "short" in position_data and "price" in position_data["short"] else None
+            long_pos_price = position_data["long"]["price"] if "long" in position_data and "price" in position_data["long"] else None
+
+            # Log warning and return if unable to fetch position prices
+            if short_pos_price is None or long_pos_price is None:
+                logging.warning(f"Could not fetch position prices for {symbol}. Skipping poofing.")
+                return
 
             spoofing_orders = []
 
+            # Determine the position (long or short) with the larger open quantity
+            larger_position = "long" if long_dynamic_amount > short_dynamic_amount else "short"
+
+            # Iterate to place multiple orders
             for i in range(self.spoofing_wall_size):
-                spoof_price = best_bid_price - (i + 1) * 0.01  # Adjust the spoofing distance as needed
-                spoof_price = Decimal(spoof_price).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
-                spoof_amount_short = short_dynamic_amount
-                #self.limit_order(symbol, 'sell', spoof_amount, spoof_price)
-                spoof_order = self.limit_order_bybit(symbol, "sell", spoof_amount_short, spoof_price, positionIdx=2, reduceOnly=False)
-                spoofing_orders.append(spoof_order)
+                # Dynamically adjust base multipliers based on market conditions or other factors
+                base_gap_multiplier = 0.2
+                base_spoil_multiplier = 0.008
 
-                spoof_price = best_ask_price + (i + 1) * 0.01  # Adjust the spoofing distance as needed
-                spoof_price = Decimal(spoof_price).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
-                spoof_amount_long = long_dynamic_amount
-                spoof_order = self.limit_order_bybit(symbol, "buy", spoof_amount_long, spoof_price, positionIdx=1, reduceOnly=False)
-                spoofing_orders.append(spoof_order)
+                gap_multiplier = base_gap_multiplier
+                spoil_multiplier = base_spoil_multiplier
 
+                # Increment multipliers based on the position with the larger open quantity
+                gap_multiplier += i * 0.02
+                spoil_multiplier += i * 0.004
+
+                # Calculate the long poof price based on the larger position and place the order
+                long_spoof_gap = gap_multiplier * best_bid_price
+                long_spoil_factor = -spoil_multiplier
+                spoof_price_long = long_pos_price - (long_spoil_factor * long_spoof_gap)
+                spoof_price_long = max(spoof_price_long, best_bid_price)
+                spoof_price_long = Decimal(spoof_price_long).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
+                spoof_order_long = self.limit_order_bybit(symbol, "sell", long_dynamic_amount, spoof_price_long, positionIdx=2, reduceOnly=False)
+                spoofing_orders.append(spoof_order_long)
+
+                # Calculate the short poof price based on the larger position and place the order
+                short_spoof_gap = gap_multiplier * best_ask_price
+                short_spoil_factor = spoil_multiplier
+                spoof_price_short = short_pos_price + (short_spoil_factor * short_spoof_gap)
+                spoof_price_short = min(spoof_price_short, best_ask_price)
+                spoof_price_short = Decimal(spoof_price_short).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
+                spoof_order_short = self.limit_order_bybit(symbol, "buy", short_dynamic_amount, spoof_price_short, positionIdx=1, reduceOnly=False)
+                spoofing_orders.append(spoof_order_short)
+
+            # Sleep for the poofing duration and then cancel all placed orders
             time.sleep(self.spoofing_duration)
 
+            # Cancel orders and handle errors
             for order in spoofing_orders:
-                self.exchange.cancel_order_by_id(order['id'], symbol)
+                if 'id' in order:
+                    print(f"Poofing order: {order}")
+                    logging.info(f"Poofing order: {order}")
+                    self.exchange.cancel_order_by_id(order['id'], symbol)
+                else:
+                    logging.warning(f"Could not place poofing order: {order.get('error', 'Unknown error')}")
 
+            # Deactivate poofing for the next cycle
             self.spoofing_active = False
 
     def spoof_order(self, symbol, side, max_amount, max_price, price_step=3.0, num_orders=5):
@@ -1562,7 +1601,7 @@ class Strategy:
         # Check for long position and ensure take_profit_long is not None
         if long_pos_qty > 0 and take_profit_long:
             distance_to_tp_long = take_profit_long - best_bid_price
-            dynamic_long_amount = distance_to_tp_long * 10
+            dynamic_long_amount = distance_to_tp_long * 5
             if trend.lower() == "long" and mfi.lower() == "long" and best_bid_price < long_pos_price:
                 self.postonly_limit_order_bybit(symbol, "buy", dynamic_long_amount, front_run_bid_price, positionIdx=1, reduceOnly=False)
                 logging.info(f"Turbocharged Additional Long Entry Placed at {front_run_bid_price} with {dynamic_long_amount} amount!")
@@ -1570,7 +1609,7 @@ class Strategy:
         # Check for short position and ensure take_profit_short is not None
         if short_pos_qty > 0 and take_profit_short:
             distance_to_tp_short = best_ask_price - take_profit_short
-            dynamic_short_amount = distance_to_tp_short * 10
+            dynamic_short_amount = distance_to_tp_short * 5
             if trend.lower() == "short" and mfi.lower() == "short" and best_ask_price > short_pos_price:
                 self.postonly_limit_order_bybit(symbol, "sell", dynamic_short_amount, front_run_ask_price, positionIdx=2, reduceOnly=False)
                 logging.info(f"Turbocharged Additional Short Entry Placed at {front_run_ask_price} with {dynamic_short_amount} amount!")
@@ -1605,12 +1644,12 @@ class Strategy:
 
         if take_profit_long is not None:
             distance_to_tp_long = take_profit_long - best_bid_price
-            long_dynamic_amount += distance_to_tp_long * 10
+            long_dynamic_amount += distance_to_tp_long * 2
             long_dynamic_amount = max(long_dynamic_amount, min_qty)
 
         if take_profit_short is not None:
             distance_to_tp_short = best_ask_price - take_profit_short
-            short_dynamic_amount += distance_to_tp_short * 10
+            short_dynamic_amount += distance_to_tp_short * 2
             short_dynamic_amount = max(short_dynamic_amount, min_qty)
 
         if long_pos_qty > 0 and take_profit_long:
@@ -1651,12 +1690,12 @@ class Strategy:
 
         if take_profit_long is not None:
             distance_to_tp_long = take_profit_long - best_bid_price
-            long_dynamic_amount += distance_to_tp_long * 10
+            long_dynamic_amount += distance_to_tp_long * 2
             long_dynamic_amount = max(long_dynamic_amount, min_qty)
 
         if take_profit_short is not None:
             distance_to_tp_short = best_ask_price - take_profit_short
-            short_dynamic_amount += distance_to_tp_short * 10
+            short_dynamic_amount += distance_to_tp_short * 2
             short_dynamic_amount = max(short_dynamic_amount, min_qty)
 
         open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
@@ -1680,27 +1719,6 @@ class Strategy:
             if trend.lower() == "short" and mfi.lower() == "short" and should_short and not self.entry_order_exists(open_orders, "sell"):
                 self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, front_run_ask_price, positionIdx=2, reduceOnly=False)
                 logging.info(f"Turbocharged Short Entry Placed at {front_run_ask_price} with {short_dynamic_amount} amount!")
-
-
-        # if long_pos_qty > 0 and take_profit_long:
-        #     if trend.lower() == "long" and mfi.lower() == "long" and (long_pos_price is not None and best_bid_price < long_pos_price) and should_add_to_long:
-        #         self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, front_run_bid_price, positionIdx=1, reduceOnly=False)
-        #         logging.info(f"Turbocharged Additional Long Entry Placed at {front_run_bid_price} with {long_dynamic_amount} amount!")
-
-        # if short_pos_qty > 0 and take_profit_short:
-        #     if trend.lower() == "short" and mfi.lower() == "short" and (short_pos_price is not None and best_ask_price > short_pos_price) and should_add_to_short:
-        #         self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, front_run_ask_price, positionIdx=2, reduceOnly=False)
-        #         logging.info(f"Turbocharged Additional Short Entry Placed at {front_run_ask_price} with {short_dynamic_amount} amount!")
-
-        # if long_pos_qty == 0:
-        #     if trend.lower() == "long" and mfi.lower() == "long" and should_long:
-        #         self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, front_run_bid_price, positionIdx=1, reduceOnly=False)
-        #         logging.info(f"Turbocharged Long Entry Placed at {front_run_bid_price} with {long_dynamic_amount} amount!")
-
-        # if short_pos_qty == 0:
-        #     if trend.lower() == "short" and mfi.lower() == "short" and should_short:
-        #         self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, front_run_ask_price, positionIdx=2, reduceOnly=False)
-        #         logging.info(f"Turbocharged Short Entry Placed at {front_run_ask_price} with {short_dynamic_amount} amount!")
 
     def bybit_turbocharged_new_entry_maker(self, open_orders, symbol, trend, mfi, long_dynamic_amount, short_dynamic_amount):
         self.order_book_analyzer = self.OrderBookAnalyzer(self.exchange, symbol)
@@ -2016,8 +2034,39 @@ class Strategy:
                         logging.info(f"Placing additional short entry")
                         self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
-# Bybit update take profit based on time and spread
+    # Aggressive TP spread update
+    def update_aggressive_take_profit_bybit(self, symbol, pos_qty, current_price, positionIdx, order_side, open_orders, next_tp_update, entry_time):
+        existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
+        total_existing_tp_qty = sum(qty for qty, _ in existing_tps)
+        logging.info(f"Existing {order_side} TPs: {existing_tps}")
 
+        now = datetime.now()
+        time_since_entry = now - entry_time
+
+        # Aggressively set the take-profit price close to the current market price
+        aggressive_take_profit_price = current_price * 1.01 if order_side == 'buy' else current_price * 0.99
+
+        if now >= next_tp_update or not math.isclose(total_existing_tp_qty, pos_qty) or time_since_entry > timedelta(minutes=5):  # 5-minute check
+            try:
+                for qty, existing_tp_id in existing_tps:
+                    self.exchange.cancel_order_by_id(existing_tp_id, symbol)
+                    logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
+                    time.sleep(0.05)
+                
+                # Create multiple take-profit orders at different levels
+                for i in range(1, 4):  # Creating 3 take-profit levels
+                    partial_qty = pos_qty // 3
+                    partial_tp_price = aggressive_take_profit_price * (1 + 0.005 * i) if order_side == 'buy' else aggressive_take_profit_price * (1 - 0.005 * i)
+                    self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, partial_qty, partial_tp_price, positionIdx=positionIdx, reduce_only=True)
+                    logging.info(f"{order_side.capitalize()} take profit set at {partial_tp_price} with qty {partial_qty}")
+
+                next_tp_update = self.calculate_next_update_time()  # Calculate the next update time after placing the order
+            except Exception as e:
+                logging.info(f"Error in updating {order_side} TP: {e}")
+                
+        return next_tp_update
+
+    # Bybit update take profit based on time and spread
     def update_take_profit_spread_bybit(self, symbol, pos_qty, take_profit_price, positionIdx, order_side, open_orders, next_tp_update):
         existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
         total_existing_tp_qty = sum(qty for qty, _ in existing_tps)
