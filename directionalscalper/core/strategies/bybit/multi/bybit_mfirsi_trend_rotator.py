@@ -15,7 +15,7 @@ from live_table_manager import shared_symbols_data
 ####
 from concurrent.futures import ThreadPoolExecutor
 
-logging = Logger(logger_name="BybitMFIRSITrendRotateNew", filename="BybitMFIRSITrendRotateNew.log", stream=True)
+logging = Logger(logger_name="BybitMFIRSITrendRotator", filename="BybitMFIRSITrendRotator.log", stream=True)
 
 class BybitMFIRSITrendRotator(Strategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
@@ -125,6 +125,10 @@ class BybitMFIRSITrendRotator(Strategy):
                 trend = api_data['Trend']
                 mfirsi_signal = api_data['MFI']
                 eri_trend = api_data['ERI Trend']
+                funding_rate = api_data['Funding']
+
+                #logging.info(f"Funding rate for {symbol} : {funding_rate}")
+                
                 #rotator_symbols = api_data['Symbols']
 
                 #rotator_symbols = self.manager.get_auto_rotate_symbols(self.config.min_qty_threshold)
@@ -173,6 +177,7 @@ class BybitMFIRSITrendRotator(Strategy):
                 logging.info(f"Long dynamic amount from strategy: {long_dynamic_amount} for {symbol}")
                 logging.info(f"Short dynamic amount from strategy: {short_dynamic_amount} for {symbol}")
 
+                logging.info(f"Variables in main loop for {symbol}: market_data={market_data}, total_equity={total_equity}, best_ask_price={best_ask_price}, max_leverage={max_leverage}")
                 self.print_trade_quantities_once_bybit(self.max_long_trade_qty)
                 self.print_trade_quantities_once_bybit(self.max_short_trade_qty)
 
@@ -231,13 +236,10 @@ class BybitMFIRSITrendRotator(Strategy):
                 short_liq_price = position_data["short"]["liq_price"]
                 long_liq_price = position_data["long"]["liq_price"]
 
-                # self.bybit_reset_position_leverage_long(long_pos_qty, total_equity, best_ask_price, max_leverage)
-                # self.bybit_reset_position_leverage_short(short_pos_qty, total_equity, best_ask_price, max_leverage)
-
                 # modify leverage per symbol
                 self.bybit_reset_position_leverage_long_v3(symbol, long_pos_qty, total_equity, best_ask_price, max_leverage)
                 self.bybit_reset_position_leverage_short_v3(symbol, short_pos_qty, total_equity, best_ask_price, max_leverage)
-                         
+
                 logging.info(f"Long dynamic amount from strategy: {long_dynamic_amount} for {symbol}")
                 logging.info(f"Short dynamic amount from strategy: {short_dynamic_amount} for {symbol}")
 

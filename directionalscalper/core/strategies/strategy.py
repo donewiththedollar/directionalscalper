@@ -1334,7 +1334,7 @@ class Strategy:
                 #self.place_stop_loss(symbol, "buy", amount, short_liq_price)  # Placeholder function, replace with your actual function
                 logging.info(f"Placed a stop-loss order for short position on {symbol} at {short_liq_price}")
 
-    def spoofing_action(self, symbol):
+    def spoofing_action(self, symbol, short_dynamic_amount, long_dynamic_amount):
         if self.spoofing_active:
             orderbook = self.exchange.get_orderbook(symbol)
             best_bid_price = orderbook['bids'][0][0]
@@ -1345,13 +1345,15 @@ class Strategy:
             for i in range(self.spoofing_wall_size):
                 spoof_price = best_bid_price - (i + 1) * 0.01  # Adjust the spoofing distance as needed
                 spoof_price = Decimal(spoof_price).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
-                spoof_amount = 0.1  # Adjust the spoofing order amount as needed
-                spoof_order = self.limit_order(symbol, 'sell', spoof_amount, spoof_price)
+                spoof_amount_short = short_dynamic_amount
+                #self.limit_order(symbol, 'sell', spoof_amount, spoof_price)
+                spoof_order = self.limit_order_bybit(symbol, "sell", spoof_amount_short, spoof_price, positionIdx=2, reduceOnly=False)
                 spoofing_orders.append(spoof_order)
 
                 spoof_price = best_ask_price + (i + 1) * 0.01  # Adjust the spoofing distance as needed
                 spoof_price = Decimal(spoof_price).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
-                spoof_order = self.limit_order(symbol, 'buy', spoof_amount, spoof_price)
+                spoof_amount_long = long_dynamic_amount
+                spoof_order = self.limit_order_bybit(symbol, "buy", spoof_amount_long, spoof_price, positionIdx=1, reduceOnly=False)
                 spoofing_orders.append(spoof_order)
 
             time.sleep(self.spoofing_duration)
@@ -1478,7 +1480,7 @@ class Strategy:
                 open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
                 if self.should_spoof:
-                    self.spoofing_action(symbol)
+                    self.spoofing_action(symbol, long_dynamic_amount, short_dynamic_amount)
 
                 if self.should_place_spoof_scalping_orders:
                     self.spoof_scalping_strategy(

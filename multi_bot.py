@@ -23,7 +23,6 @@ from directionalscalper.core.strategies.bybit.multi.bybit_auto_rotator_mfirsi im
 from directionalscalper.core.strategies.bybit.multi.bybit_auto_hedge_maker_mfirsi_rotator import BybitAutoHedgeStrategyMakerMFIRSIRotator
 from directionalscalper.core.strategies.bybit.multi.bybit_auto_maker_mfirsi_rotator_aggressive import BybitRotatorAggressive
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator import BybitMFIRSITrendRotator
-from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator_v2 import BybitMFIRSITrendRotatorv2
 from directionalscalper.core.strategies.bybit.multi.bybit_spoof_rotator import BybitSpoofRotator
 ### ILAY ###
 from live_table_manager import LiveTableManager, shared_symbols_data
@@ -90,14 +89,11 @@ class DirectionalMarketMaker:
         elif strategy_name.lower() == 'bybit_hedge_rotator_mfirsi':
             strategy = BybitAutoRotatorMFIRSI(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol)
-        elif strategy_name.lower() == 'bybit_auto_hedge_mfi_rotator':
+        elif strategy_name.lower() == 'bybit_hedge_mfi_rotator':
             strategy = BybitAutoHedgeStrategyMakerMFIRSIRotator(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol)
         elif strategy_name.lower() == 'bybit_mfirsi_trend_rotator':
             strategy = BybitMFIRSITrendRotator(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol)
-        elif strategy_name.lower() == 'bybit_mfirsi_trend_rotator_v2':
-            strategy = BybitMFIRSITrendRotatorv2(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol)
         elif strategy_name.lower() == 'bybit_rotator_aggressive':
             strategy = BybitRotatorAggressive(self.exchange, self.manager, config.bot, symbols_allowed)
@@ -204,7 +200,7 @@ if __name__ == '__main__':
             inquirer.List('strategy',
                         message="Which strategy do you want to use?",
                         choices=['bybit_hedge_rotator', 'bybit_hedge_rotator_mfirsi', 'bybit_auto_hedge_mfi_rotator',
-                                'bybit_mfirsi_trend_rotator', 'bybit_rotator_aggressive', 'bybit_rotator_spoof']) if not args.strategy else None,
+                                'bybit_mfirsi_trend_rotator', 'bybit_rotator_aggressive']) if not args.strategy else None,
             inquirer.Text('account_name',
                         message="Please enter the name of the account:") if not args.account_name else None
         ]
