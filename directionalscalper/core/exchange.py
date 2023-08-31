@@ -12,6 +12,7 @@ from .strategies.logger import Logger
 from requests.exceptions import HTTPError
 from datetime import datetime, timedelta
 from ccxt.base.errors import NetworkError
+import traceback
 
 logging = Logger(logger_name="Exchange", filename="Exchange.log", stream=True)
 
@@ -369,6 +370,9 @@ class Exchange:
                 if position['symbol'] == symbol:
                     values["leverage"] = float(position['leverage'])
 
+        # except Exception as e:
+        #     logging.info(f"An unknown error occurred in get_market_data_bybit(): {e}")
+        #     logging.info(f"Call Stack: {traceback.format_exc()}")
         except Exception as e:
             logging.info(f"An unknown error occurred in get_market_data_bybit(): {e}")
         return values
