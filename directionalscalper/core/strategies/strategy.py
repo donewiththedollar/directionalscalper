@@ -1918,7 +1918,7 @@ class Strategy:
                     logging.info(f"Initiating new short position")
                     self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
-    def bybit_hedge_entry_maker_v3_initial_entry(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
+    def bybit_hedge_entry_maker_v3_initial_entry(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool, long_max_trade_qty: float, short_max_trade_qty: float):
 
         if one_minute_volume is not None and five_minute_distance is not None:
             if one_minute_volume > min_vol and five_minute_distance > min_dist:
@@ -1929,14 +1929,40 @@ class Strategy:
                 open_orders = self.exchange.get_open_orders(symbol)
 
                 if (trend.lower() == "long" and mfi.lower() == "long") and should_long and long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
-                    logging.info(f"Placing initial long entry")
-                    self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-                    logging.info(f"Placed initial long entry")
+                    if long_dynamic_amount <= self.long_max_trade_qty:  # Check against max trade qty
+                        logging.info(f"Placing initial long entry")
+                        self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                        logging.info(f"Placed initial long entry")
+                    else:
+                        logging.warning(f"Long dynamic amount exceeds maximum trade quantity for long positions. No trade placed.")
 
                 if (trend.lower() == "short" and mfi.lower() == "short") and should_short and short_pos_qty == 0 and not self.entry_order_exists(open_orders, "sell"):
-                    logging.info(f"Placing initial short entry")
-                    self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
-                    logging.info("Placed initial short entry")
+                    if short_dynamic_amount <= self.short_max_trade_qty:  # Check against max trade qty
+                        logging.info(f"Placing initial short entry")
+                        self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                        logging.info(f"Placed initial short entry")
+                    else:
+                        logging.warning(f"Short dynamic amount exceeds maximum trade quantity for short positions. No trade placed.")
+                        
+    # def bybit_hedge_entry_maker_v3_initial_entry(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
+
+    #     if one_minute_volume is not None and five_minute_distance is not None:
+    #         if one_minute_volume > min_vol and five_minute_distance > min_dist:
+
+    #             best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+    #             best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+
+    #             open_orders = self.exchange.get_open_orders(symbol)
+
+    #             if (trend.lower() == "long" and mfi.lower() == "long") and should_long and long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
+    #                 logging.info(f"Placing initial long entry")
+    #                 self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+    #                 logging.info(f"Placed initial long entry")
+
+    #             if (trend.lower() == "short" and mfi.lower() == "short") and should_short and short_pos_qty == 0 and not self.entry_order_exists(open_orders, "sell"):
+    #                 logging.info(f"Placing initial short entry")
+    #                 self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+    #                 logging.info("Placed initial short entry")
 
     # def bybit_hedge_additional_entry_maker_v3_multi(self, symbol: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_add_to_long: bool, should_add_to_short: bool):
 
@@ -2504,9 +2530,6 @@ class Strategy:
             best_bid_price_open_symbol = self.exchange.get_orderbook(open_symbol)['bids'][0][0]
             
             # Calculate the max trade quantities dynamically for this specific symbol
-            # self.initial_max_long_trade_qty, self.initial_max_short_trade_qty = self.calc_max_trade_qty_multi(
-            #     total_equity, best_ask_price_open_symbol, max_leverage)
-
             max_trade_qty_value = self.calc_max_trade_qty(open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
             self.initial_max_long_trade_qty = max_trade_qty_value
             self.initial_max_short_trade_qty = max_trade_qty_value
@@ -2629,26 +2652,43 @@ class Strategy:
                 self.bybit_reset_position_leverage_short_v3(open_symbol, short_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
 
             if open_symbol in open_symbols:
-                # Note: When calling the `bybit_turbocharged_entry_maker` function, make sure to use these updated, context-specific variables.
-                if is_rotator_symbol:  # Replace this with your own condition for switching between the two functions
-                    self.bybit_turbocharged_entry_maker(
-                        open_orders_open_symbol,
-                        open_symbol,
-                        trend,
-                        mfirsi_signal,
-                        long_take_profit_open_symbol,
-                        short_take_profit_open_symbol,
-                        long_dynamic_amount_open_symbol,
-                        short_dynamic_amount_open_symbol,
-                        long_pos_qty_open_symbol,
-                        short_pos_qty_open_symbol,
-                        long_pos_price_open_symbol,
-                        short_pos_price_open_symbol,
-                        should_long_open_symbol,
-                        should_add_to_long_open_symbol,
-                        should_short_open_symbol,
-                        should_add_to_short_open_symbol
-                    )
+
+                print(f"Symbols allowed from strategy file {self.symbols_allowed}")
+
+                can_trade = self.can_trade_new_symbol(open_symbols, self.symbols_allowed, open_symbol)
+
+                logging.info(f"Config symbols allowed from strategy class: {can_trade}")
+                
+                # Check if the symbol is a rotator symbol
+                if is_rotator_symbol:  
+
+                    logging.info(f"Config symbols allowed from strategy class: {can_trade}")
+                    
+                    # Add the following line before the initial entry trading logic to check symbol limits
+                    if not self.can_trade_new_symbol(open_symbols, self.symbols_allowed, open_symbol):
+                        logging.info(f"Config symbols allowed from strategy class: {can_trade}")
+                        logging.info(f"Reached the symbol limit or already trading {open_symbol}. Skipping initial entry.")
+                        
+                    else:  # If we can trade, then proceed with initial entry
+                        self.bybit_turbocharged_entry_maker(
+                            open_orders_open_symbol,
+                            open_symbol,
+                            trend,
+                            mfirsi_signal,
+                            long_take_profit_open_symbol,
+                            short_take_profit_open_symbol,
+                            long_dynamic_amount_open_symbol,
+                            short_dynamic_amount_open_symbol,
+                            long_pos_qty_open_symbol,
+                            short_pos_qty_open_symbol,
+                            long_pos_price_open_symbol,
+                            short_pos_price_open_symbol,
+                            should_long_open_symbol,
+                            should_add_to_long_open_symbol,
+                            should_short_open_symbol,
+                            should_add_to_short_open_symbol
+                        )
+                
                 else:
                     self.bybit_turbocharged_additional_entry_maker(
                         open_orders_open_symbol,
@@ -2816,25 +2856,32 @@ class Strategy:
             if open_symbol in open_symbols:
                 is_rotator_symbol = open_symbol in rotator_symbols
                 if is_rotator_symbol:
-                    self.bybit_hedge_entry_maker_v3(
-                        open_symbol,
-                        trend,
-                        mfirsi_signal,
-                        one_minute_volume,
-                        five_minute_distance,
-                        min_vol,
-                        min_dist,
-                        long_dynamic_amount_open_symbol,
-                        short_dynamic_amount_open_symbol,
-                        long_pos_qty_open_symbol,
-                        short_pos_qty_open_symbol,
-                        long_pos_price_open_symbol,
-                        short_pos_price_open_symbol,
-                        should_long_open_symbol,
-                        should_short_open_symbol,
-                        should_add_to_long_open_symbol,
-                        should_add_to_short_open_symbol
-                    )
+
+                    # Add the following line before the initial entry trading logic to check symbol limits
+                    if not self.can_trade_new_symbol(open_symbols, self.symbols_allowed, open_symbol):
+                        logging.info(f"Reached the symbol limit or already trading {open_symbol}. Skipping initial entry.")
+                    
+                    else:  # If we can trade, then proceed with initial entry
+                        self.bybit_hedge_entry_maker_v3(
+                            open_symbol,
+                            trend,
+                            mfirsi_signal,
+                            one_minute_volume,
+                            five_minute_distance,
+                            min_vol,
+                            min_dist,
+                            long_dynamic_amount_open_symbol,
+                            short_dynamic_amount_open_symbol,
+                            long_pos_qty_open_symbol,
+                            short_pos_qty_open_symbol,
+                            long_pos_price_open_symbol,
+                            short_pos_price_open_symbol,
+                            should_long_open_symbol,
+                            should_short_open_symbol,
+                            should_add_to_long_open_symbol,
+                            should_add_to_short_open_symbol
+                        )
+                
                 else:
                     self.bybit_hedge_additional_entry_maker_v3(
                         open_symbol,
@@ -2847,6 +2894,41 @@ class Strategy:
                         should_add_to_long_open_symbol,
                         should_add_to_short_open_symbol
                     )
+
+            # if open_symbol in open_symbols:
+            #     is_rotator_symbol = open_symbol in rotator_symbols
+            #     if is_rotator_symbol:
+            #         self.bybit_hedge_entry_maker_v3(
+            #             open_symbol,
+            #             trend,
+            #             mfirsi_signal,
+            #             one_minute_volume,
+            #             five_minute_distance,
+            #             min_vol,
+            #             min_dist,
+            #             long_dynamic_amount_open_symbol,
+            #             short_dynamic_amount_open_symbol,
+            #             long_pos_qty_open_symbol,
+            #             short_pos_qty_open_symbol,
+            #             long_pos_price_open_symbol,
+            #             short_pos_price_open_symbol,
+            #             should_long_open_symbol,
+            #             should_short_open_symbol,
+            #             should_add_to_long_open_symbol,
+            #             should_add_to_short_open_symbol
+            #         )
+            #     else:
+            #         self.bybit_hedge_additional_entry_maker_v3(
+            #             open_symbol,
+            #             long_dynamic_amount_open_symbol,
+            #             short_dynamic_amount_open_symbol,
+            #             long_pos_qty_open_symbol,
+            #             short_pos_qty_open_symbol,
+            #             long_pos_price_open_symbol,
+            #             short_pos_price_open_symbol,
+            #             should_add_to_long_open_symbol,
+            #             should_add_to_short_open_symbol
+            #         )
 
                 self.cancel_entries_bybit(open_symbol, best_ask_price_open_symbol, ma_1m_3_high_open_symbol, ma_5m_3_high_open_symbol)
 
