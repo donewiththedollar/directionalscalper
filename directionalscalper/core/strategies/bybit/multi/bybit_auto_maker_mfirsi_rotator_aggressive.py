@@ -290,8 +290,9 @@ class BybitRotatorAggressive(Strategy):
                 if symbol in open_symbols:
                     self.bybit_turbocharged_entry_maker(open_orders, symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_add_to_long, should_short, should_add_to_short)
                 elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
+                    self.bybit_turbocharged_new_entry_maker(open_orders, symbol, trend, mfirsi_signal, long_dynamic_amount, short_dynamic_amount)
                     #self.bybit_turbocharged_additional_entry_maker(open_orders, symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_add_to_long, should_add_to_short)
-                    self.bybit_turbocharged_entry_maker(open_orders, symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_add_to_long, should_short, should_add_to_short)
+                    #self.bybit_turbocharged_entry_maker(open_orders, symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_add_to_long, should_short, should_add_to_short)
 
                 # Call the function to update long take profit spread
                 if long_pos_qty > 0 and long_take_profit is not None:
