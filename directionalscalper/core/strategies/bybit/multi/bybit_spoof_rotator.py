@@ -49,7 +49,7 @@ class BybitSpoofRotator(Strategy):
         self.rows = {}
         self.spoofing_wall_size = 5  
         self.spoofing_active = False  # Initialize spoofing state
-        self.spoofing_duration = 60  # Spoofing duration in seconds
+        self.spoofing_duration = 30  # Spoofing duration in seconds
         self.spoofing_interval = 3  # Time interval between spoofing actions
 
 
@@ -93,6 +93,7 @@ class BybitSpoofRotator(Strategy):
             logging.info(f"Current leverage is not at maximum. Setting leverage to maximum. Maximum is {max_leverage}")
             self.exchange.set_leverage_bybit(max_leverage, symbol)
 
+        previous_one_minute_distance = None
         previous_five_minute_distance = None
         previous_thirty_minute_distance = None
         previous_one_hour_distance = None
@@ -124,6 +125,7 @@ class BybitSpoofRotator(Strategy):
                 # Get API data
                 api_data = self.manager.get_api_data(symbol)
                 one_minute_volume = api_data['1mVol']
+                one_minute_distance = api_data['1mSpread']
                 five_minute_distance = api_data['5mSpread']
                 trend = api_data['Trend']
                 mfirsi_signal = api_data['MFI']
@@ -214,7 +216,7 @@ class BybitSpoofRotator(Strategy):
                 # Manage these symbols
                 for s in symbols_to_manage:
                     print(f"Managing symbol: {s}")  # Debugging line
-                    self.manage_open_positions_aggressive([s], total_equity)  # Notice the square brackets around 's'
+                    self.gnifoops([s], total_equity)  # Notice the square brackets around 's'
 
                 #print(f"Open symbols: {open_symbols}")
 
@@ -253,6 +255,16 @@ class BybitSpoofRotator(Strategy):
                     if short_take_profit is None or long_take_profit is None:
                         short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, five_minute_distance)
                         long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
+                        
+                # if one_minute_distance != previous_one_minute_distance:
+                #     short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, one_minute_distance)
+                #     long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, one_minute_distance)
+                # else:
+                #     if short_take_profit is None or long_take_profit is None:
+                #         short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, one_minute_distance)
+                #         long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, one_minute_distance)
+
+                # previous_one_minute_distance = one_minute_distance  
                         
                 previous_five_minute_distance = five_minute_distance
 
@@ -316,8 +328,22 @@ class BybitSpoofRotator(Strategy):
                 # Check if the symbol is already being traded
                 if symbol in open_symbols:
                     self.bybit_turbocharged_entry_maker(open_orders, symbol, trend, mfirsi_signal, long_take_profit, short_take_profit, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_add_to_long, should_short, should_add_to_short)
+
+                    current_time = time.time()
+                    # Check if it's time to perform spoofing
+                    if current_time - self.last_cancel_time >= self.spoofing_interval:
+                        self.spoofing_active = True
+                        self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
+
                 elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
+                    current_time = time.time()
+
                     self.bybit_turbocharged_new_entry_maker(open_orders, symbol, trend, mfirsi_signal, long_dynamic_amount, short_dynamic_amount)
+
+                    # Check if it's time to perform spoofing
+                    if current_time - self.last_cancel_time >= self.spoofing_interval:
+                        self.spoofing_active = True
+                        self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
 
                 # Call the function to update long take profit spread
                 if long_pos_qty > 0 and long_take_profit is not None:
@@ -333,13 +359,6 @@ class BybitSpoofRotator(Strategy):
 
                 if short_pos_qty > 0 and short_take_profit is not None:
                     self.next_short_tp_update = self.update_take_profit_spread_bybit(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders, next_tp_update=self.next_short_tp_update)
-
-                current_time = time.time()
-
-                # Check if it's time to perform spoofing
-                if current_time - self.last_cancel_time >= self.spoofing_interval:
-                    self.spoofing_active = True
-                    self.spoofing_action(symbol, long_dynamic_amount, short_dynamic_amount)
 
                 # Cancel entries
                 self.cancel_entries_bybit(symbol, best_ask_price, ma_1m_3_high, ma_5m_3_high)

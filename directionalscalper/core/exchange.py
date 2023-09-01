@@ -2763,12 +2763,34 @@ class Exchange:
                 else:
                     raise ValueError(f"Invalid side: {side}")
             elif order_type == 'market':
-                #... handle market orders if necessary
-                order = self.create_market_order(symbol, side, amount, params)
+                # Special handling for market orders
+                order = self.exchange.create_order(symbol, 'market', side, amount, None, params=params)
             else:
                 raise ValueError("Invalid order type. Use 'limit' or 'market'.")
 
         return order
+
+    # def create_order(self, symbol, order_type, side, amount, price=None, reduce_only=False, **params):
+    #     if reduce_only:
+    #         params.update({'reduceOnly': 'true'})
+
+    #     if self.exchange_id == 'bybit':
+    #         order = self.exchange.create_order(symbol, order_type, side, amount, price, params=params)
+    #     else:
+    #         if order_type == 'limit':
+    #             if side == "buy":
+    #                 order = self.create_limit_buy_order(symbol, amount, price, **params)
+    #             elif side == "sell":
+    #                 order = self.create_limit_sell_order(symbol, amount, price, **params)
+    #             else:
+    #                 raise ValueError(f"Invalid side: {side}")
+    #         elif order_type == 'market':
+    #             #... handle market orders if necessary
+    #             order = self.create_market_order(symbol, side, amount, params)
+    #         else:
+    #             raise ValueError("Invalid order type. Use 'limit' or 'market'.")
+
+    #     return order
 
     def create_market_order_bybit(self, symbol: str, side: str, qty: float, positionIdx=0, params={}):
         try:
