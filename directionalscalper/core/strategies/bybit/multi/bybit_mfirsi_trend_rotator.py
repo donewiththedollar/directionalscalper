@@ -128,14 +128,9 @@ class BybitMFIRSITrendRotator(Strategy):
                 funding_rate = api_data['Funding']
 
                 #logging.info(f"Funding rate for {symbol} : {funding_rate}")
+
+                logging.info(f"Rotator symbols: {rotator_symbols}")
                 
-                #rotator_symbols = api_data['Symbols']
-
-                #rotator_symbols = self.manager.get_auto_rotate_symbols(self.config.min_qty_threshold)
-                # rotator_symbols = self.manager.get_auto_rotate_symbols()
-
-                # print(f"Rotator symbols from manager: {rotator_symbols}")
-
                 quote_currency = "USDT"
 
                 for i in range(max_retries):
@@ -223,11 +218,9 @@ class BybitMFIRSITrendRotator(Strategy):
 
                 #print(f"Open symbols: {open_symbols}")
 
-                #open_symbols = self.retry_api_call(self.extract_symbols_from_positions_bybit, open_position_data)
-                #can_open_new_position = self.can_trade_new_symbol(open_symbols, symbols_allowed)
-
                 can_open_new_position = self.can_trade_new_symbol(open_symbols, self.symbols_allowed, symbol)
                 logging.info(f"Can open new position: {can_open_new_position}")
+                # print(f"Can open new position: {can_open_new_position}")
 
                 short_pos_qty = position_data["short"]["qty"]
                 long_pos_qty = position_data["long"]["qty"]
@@ -348,5 +341,6 @@ class BybitMFIRSITrendRotator(Strategy):
                 self.cancel_entries_bybit(symbol, best_ask_price, ma_1m_3_high, ma_5m_3_high)
 
                 self.cancel_stale_orders_bybit()
+
 
                 time.sleep(30)

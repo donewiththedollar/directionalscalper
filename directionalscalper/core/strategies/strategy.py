@@ -41,6 +41,7 @@ class Strategy:
         self.initial_max_short_trade_qty_per_symbol = {}
         self.long_pos_leverage_per_symbol = {}
         self.short_pos_leverage_per_symbol = {}
+        self.last_cancel_time = 0
         self.spoofing_wall_size = 5 
         #self.spoofing_duration = 5  # Spoofing duration in seconds
         self.spoofing_interval = 1  # Time interval between spoofing actions
@@ -517,53 +518,6 @@ class Strategy:
             time.sleep(retry_delay)
 
         raise Exception("Failed to calculate maximum trade quantity after maximum retries.")
-
-
-    # def calc_max_trade_qty(self, total_equity, best_ask_price, max_leverage, max_retries=5, retry_delay=5):
-    #     wallet_exposure = self.config.wallet_exposure
-    #     for i in range(max_retries):
-    #         try:
-    #             market_data = self.exchange.get_market_data_bybit(self.symbol)
-    #             max_trade_qty = round(
-    #                 (float(total_equity) * wallet_exposure / float(best_ask_price))
-    #                 / (100 / max_leverage),
-    #                 int(float(market_data["min_qty"])),
-    #             )
-    #             # Return the same max_trade_qty for both long and short
-    #             #return max_trade_qty, max_trade_qty
-    #             return max_trade_qty
-    #         except TypeError as e:
-    #             if total_equity is None:
-    #                 print(f"Error: total_equity is None. Retrying in {retry_delay} seconds...")
-    #             if best_ask_price is None:
-    #                 print(f"Error: best_ask_price is None. Retrying in {retry_delay} seconds...")
-    #         except Exception as e:
-    #             print(f"An unexpected error occurred: {e}. Retrying in {retry_delay} seconds...")
-    #         time.sleep(retry_delay)
-
-    #     raise Exception("Failed to calculate maximum trade quantity after maximum retries.")
-
-    # def calc_max_trade_qty(self, total_equity, best_ask_price, max_leverage, max_retries=5, retry_delay=5):
-    #     wallet_exposure = self.config.wallet_exposure
-    #     for i in range(max_retries):
-    #         try:
-    #             market_data = self.exchange.get_market_data_bybit(self.symbol)
-    #             max_trade_qty = round(
-    #                 (float(total_equity) * wallet_exposure / float(best_ask_price))
-    #                 / (100 / max_leverage),
-    #                 int(float(market_data["min_qty"])),
-    #             )
-    #             return max_trade_qty
-    #         except TypeError as e:
-    #             if total_equity is None:
-    #                 print(f"Error: total_equity is None. Retrying in {retry_delay} seconds...")
-    #             if best_ask_price is None:
-    #                 print(f"Error: best_ask_price is None. Retrying in {retry_delay} seconds...")
-    #         except Exception as e:
-    #             print(f"An unexpected error occurred: {e}. Retrying in {retry_delay} seconds...")
-    #         time.sleep(retry_delay)
-
-    #     raise Exception("Failed to calculate maximum trade quantity after maximum retries.")
 
     def calc_max_trade_qty_multiv2(self, symbol, total_equity, best_ask_price, max_leverage, long_pos_qty_open_symbol, short_pos_qty_open_symbol, max_retries=5, retry_delay=5):
         wallet_exposure = self.config.wallet_exposure
@@ -1411,10 +1365,17 @@ class Strategy:
             best_ask_price = orderbook['asks'][0][0]
             
             position_data = self.exchange.get_positions_bybit(symbol)
-            short_pos_price = position_data.get("short", {}).get("price", None)
-            long_pos_price = position_data.get("long", {}).get("price", None)
 
-            # Log warning if unable to fetch position prices for both long and short
+            short_pos_qty = position_data["short"]["qty"]
+            long_pos_qty = position_data["long"]["qty"]
+            
+            short_pos_price = position_data["short"]["price"] if "short" in position_data and "price" in position_data["short"] else None
+            long_pos_price = position_data["long"]["price"] if "long" in position_data and "price" in position_data["long"] else None
+
+            logging.info(f'Spoofing long price: {long_pos_price}')
+            logging.info(f'Spoofing short price: {short_pos_price}')
+
+            # Log warning and return if unable to fetch position prices
             if short_pos_price is None and long_pos_price is None:
                 logging.warning(f"Could not fetch position prices for {symbol}. Skipping spoofing.")
                 return
@@ -1422,50 +1383,48 @@ class Strategy:
             spoofing_orders = []
 
             # Determine the position (long or short) with the larger open quantity
-            if long_dynamic_amount is None:
-                larger_position = "short"
-            elif short_dynamic_amount is None:
-                larger_position = "long"
-            else:
-                larger_position = "long" if long_dynamic_amount > short_dynamic_amount else "short"
+            larger_position = "long" if long_pos_qty > short_pos_qty else "short"
+
+            logging.info(f"Larger position: {larger_position}")
 
             # Iterate to place multiple orders
             for i in range(self.spoofing_wall_size):
-                # Base multipliers
-                base_gap_multiplier = 0.05 #0.1 #0.3
-                base_spoil_multiplier = 0.005 #0.008
+                # Dynamically adjust base multipliers based on market conditions or other factors
+                base_gap_multiplier = 0.5  # Increase this value for larger gaps
+                base_spoil_multiplier = 0.008
 
-                # Increment multipliers
-                #gap_multiplier = base_gap_multiplier + i * 0.1
-                gap_multiplier = base_gap_multiplier + i * 0.3
-                spoil_multiplier = base_spoil_multiplier + i * 0.004
+                gap_multiplier = base_gap_multiplier
+                spoil_multiplier = base_spoil_multiplier
 
-                if larger_position == "long" and long_pos_price is not None:
-                    # Place spoof long orders
-                    spoof_gap = gap_multiplier * best_bid_price
-                    spoil_factor = spoil_multiplier
-                    spoof_price_long = long_pos_price + (spoil_factor * spoof_gap)
-                    spoof_price_long = max(spoof_price_long, best_bid_price)
-                    spoof_price_long = Decimal(spoof_price_long).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
-                    spoof_order_long = self.limit_order_bybit(symbol, "sell", long_dynamic_amount, spoof_price_long, positionIdx=2, reduceOnly=False)
-                    spoofing_orders.append(spoof_order_long)
-                    
-                if larger_position == "short" and short_pos_price is not None:
-                    # Place spoof short orders
-                    spoof_gap = gap_multiplier * best_ask_price
-                    spoil_factor = -spoil_multiplier
-                    spoof_price_short = short_pos_price + (spoil_factor * spoof_gap)
-                    spoof_price_short = min(spoof_price_short, best_ask_price)
-                    spoof_price_short = Decimal(spoof_price_short).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
-                    spoof_order_short = self.limit_order_bybit(symbol, "buy", short_dynamic_amount, spoof_price_short, positionIdx=1, reduceOnly=False)
-                    spoofing_orders.append(spoof_order_short)
+                # Increment multipliers based on the position with the larger open quantity
+                gap_multiplier += i * 0.1  # Increase this value for larger gaps
+                spoil_multiplier += i * 0.004
 
-            # Sleep for the spoofing duration
+                # Calculate the long spoof price based on the larger position and place the order
+                long_spoof_gap = gap_multiplier * best_bid_price
+                long_spoil_factor = -spoil_multiplier
+                spoof_price_long = long_pos_price - (long_spoil_factor * long_spoof_gap)
+                spoof_price_long = max(spoof_price_long, best_bid_price)
+                spoof_price_long = Decimal(spoof_price_long).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
+                spoof_order_long = self.limit_order_bybit(symbol, "sell", long_dynamic_amount, spoof_price_long, positionIdx=2, reduceOnly=False)
+                spoofing_orders.append(spoof_order_long)
+
+                # Calculate the short spoof price based on the larger position and place the order
+                short_spoof_gap = gap_multiplier * best_ask_price
+                short_spoil_factor = spoil_multiplier
+                spoof_price_short = short_pos_price + (short_spoil_factor * short_spoof_gap)
+                spoof_price_short = min(spoof_price_short, best_ask_price)
+                spoof_price_short = Decimal(spoof_price_short).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
+                spoof_order_short = self.limit_order_bybit(symbol, "buy", short_dynamic_amount, spoof_price_short, positionIdx=1, reduceOnly=False)
+                spoofing_orders.append(spoof_order_short)
+
+            # Sleep for the spoofing duration and then cancel all placed orders
             time.sleep(self.spoofing_duration)
 
-            # Cancel orders and log
+            # Cancel orders and handle errors
             for order in spoofing_orders:
                 if 'id' in order:
+                    print(f"Spoofing order: {order}")
                     logging.info(f"Spoofing order: {order}")
                     self.exchange.cancel_order_by_id(order['id'], symbol)
                 else:
@@ -1473,75 +1432,6 @@ class Strategy:
 
             # Deactivate spoofing for the next cycle
             self.spoofing_active = False
-
-
-    # def spoofing_action(self, symbol, short_dynamic_amount, long_dynamic_amount):
-    #     # Check if spoofing is active
-    #     if self.spoofing_active:
-    #         # Fetch the current order book and position data
-    #         orderbook = self.exchange.get_orderbook(symbol)
-    #         best_bid_price = orderbook['bids'][0][0]
-    #         best_ask_price = orderbook['asks'][0][0]
-            
-    #         position_data = self.exchange.get_positions_bybit(symbol)
-    #         short_pos_price = position_data["short"]["price"] if "short" in position_data and "price" in position_data["short"] else None
-    #         long_pos_price = position_data["long"]["price"] if "long" in position_data and "price" in position_data["long"] else None
-
-    #         # Log warning and return if unable to fetch position prices
-    #         if short_pos_price is None or long_pos_price is None:
-    #             logging.warning(f"Could not fetch position prices for {symbol}. Skipping spoofing.")
-    #             return
-
-    #         spoofing_orders = []
-
-    #         # Determine the position (long or short) with the larger open quantity
-    #         larger_position = "long" if long_dynamic_amount > short_dynamic_amount else "short"
-
-    #         # Iterate to place multiple orders
-    #         for i in range(self.spoofing_wall_size):
-    #             # Dynamically adjust base multipliers based on market conditions or other factors
-    #             base_gap_multiplier = 0.5  # Increase this value for larger gaps
-    #             base_spoil_multiplier = 0.008
-
-    #             gap_multiplier = base_gap_multiplier
-    #             spoil_multiplier = base_spoil_multiplier
-
-    #             # Increment multipliers based on the position with the larger open quantity
-    #             gap_multiplier += i * 0.1  # Increase this value for larger gaps
-    #             spoil_multiplier += i * 0.004
-
-    #             # Calculate the long spoof price based on the larger position and place the order
-    #             long_spoof_gap = gap_multiplier * best_bid_price
-    #             long_spoil_factor = -spoil_multiplier
-    #             spoof_price_long = long_pos_price - (long_spoil_factor * long_spoof_gap)
-    #             spoof_price_long = max(spoof_price_long, best_bid_price)
-    #             spoof_price_long = Decimal(spoof_price_long).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
-    #             spoof_order_long = self.limit_order_bybit(symbol, "sell", long_dynamic_amount, spoof_price_long, positionIdx=2, reduceOnly=False)
-    #             spoofing_orders.append(spoof_order_long)
-
-    #             # Calculate the short spoof price based on the larger position and place the order
-    #             short_spoof_gap = gap_multiplier * best_ask_price
-    #             short_spoil_factor = spoil_multiplier
-    #             spoof_price_short = short_pos_price + (short_spoil_factor * short_spoof_gap)
-    #             spoof_price_short = min(spoof_price_short, best_ask_price)
-    #             spoof_price_short = Decimal(spoof_price_short).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
-    #             spoof_order_short = self.limit_order_bybit(symbol, "buy", short_dynamic_amount, spoof_price_short, positionIdx=1, reduceOnly=False)
-    #             spoofing_orders.append(spoof_order_short)
-
-    #         # Sleep for the spoofing duration and then cancel all placed orders
-    #         time.sleep(self.spoofing_duration)
-
-    #         # Cancel orders and handle errors
-    #         for order in spoofing_orders:
-    #             if 'id' in order:
-    #                 print(f"Spoofing order: {order}")
-    #                 logging.info(f"Spoofing order: {order}")
-    #                 self.exchange.cancel_order_by_id(order['id'], symbol)
-    #             else:
-    #                 logging.warning(f"Could not place spoofing order: {order.get('error', 'Unknown error')}")
-
-    #         # Deactivate spoofing for the next cycle
-    #         self.spoofing_active = False
 
     def spoof_order(self, symbol, side, max_amount, max_price, price_step=3.0, num_orders=5):
         total_amount = 0.0  # Initialize the total amount to zero
@@ -1841,26 +1731,28 @@ class Strategy:
 
         open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
-        if long_pos_qty > 0 and take_profit_long:
-            if trend.lower() == "long" and mfi.lower() == "long" and (long_pos_price is not None and best_bid_price < long_pos_price) and should_add_to_long and not self.entry_order_exists(open_orders, "buy"):
-                self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, front_run_bid_price, positionIdx=1, reduceOnly=False)
-                logging.info(f"Turbocharged Additional Long Entry Placed at {front_run_bid_price} with {long_dynamic_amount} amount!")
+        if long_pos_qty < self.max_long_trade_qty:  # Added this check
+            if long_pos_qty > 0 and take_profit_long:
+                if trend.lower() == "long" and mfi.lower() == "long" and (long_pos_price is not None and best_bid_price < long_pos_price) and should_add_to_long and not self.entry_order_exists(open_orders, "buy"):
+                    self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, front_run_bid_price, positionIdx=1, reduceOnly=False)
+                    logging.info(f"Turbocharged Additional Long Entry Placed at {front_run_bid_price} with {long_dynamic_amount} amount!")
 
-        if short_pos_qty > 0 and take_profit_short:
-            if trend.lower() == "short" and mfi.lower() == "short" and (short_pos_price is not None and best_ask_price > short_pos_price) and should_add_to_short and not self.entry_order_exists(open_orders, "sell"):
-                self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, front_run_ask_price, positionIdx=2, reduceOnly=False)
-                logging.info(f"Turbocharged Additional Short Entry Placed at {front_run_ask_price} with {short_dynamic_amount} amount!")
+            if long_pos_qty == 0:
+                if trend.lower() == "long" and mfi.lower() == "long" and should_long and not self.entry_order_exists(open_orders, "buy"):
+                    self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, front_run_bid_price, positionIdx=1, reduceOnly=False)
+                    logging.info(f"Turbocharged Long Entry Placed at {front_run_bid_price} with {long_dynamic_amount} amount!")
 
-        if long_pos_qty == 0:
-            if trend.lower() == "long" and mfi.lower() == "long" and should_long and not self.entry_order_exists(open_orders, "buy"):
-                self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, front_run_bid_price, positionIdx=1, reduceOnly=False)
-                logging.info(f"Turbocharged Long Entry Placed at {front_run_bid_price} with {long_dynamic_amount} amount!")
+        if short_pos_qty < self.max_short_trade_qty:  # Added this check
+            if short_pos_qty > 0 and take_profit_short:
+                if trend.lower() == "short" and mfi.lower() == "short" and (short_pos_price is not None and best_ask_price > short_pos_price) and should_add_to_short and not self.entry_order_exists(open_orders, "sell"):
+                    self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, front_run_ask_price, positionIdx=2, reduceOnly=False)
+                    logging.info(f"Turbocharged Additional Short Entry Placed at {front_run_ask_price} with {short_dynamic_amount} amount!")
 
-        if short_pos_qty == 0:
-            if trend.lower() == "short" and mfi.lower() == "short" and should_short and not self.entry_order_exists(open_orders, "sell"):
-                self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, front_run_ask_price, positionIdx=2, reduceOnly=False)
-                logging.info(f"Turbocharged Short Entry Placed at {front_run_ask_price} with {short_dynamic_amount} amount!")
-
+            if short_pos_qty == 0:
+                if trend.lower() == "short" and mfi.lower() == "short" and should_short and not self.entry_order_exists(open_orders, "sell"):
+                    self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, front_run_ask_price, positionIdx=2, reduceOnly=False)
+                    logging.info(f"Turbocharged Short Entry Placed at {front_run_ask_price} with {short_dynamic_amount} amount!")
+                    
     def bybit_turbocharged_new_entry_maker(self, open_orders, symbol, trend, mfi, long_dynamic_amount, short_dynamic_amount):
         self.order_book_analyzer = self.OrderBookAnalyzer(self.exchange, symbol)
         order_book = self.order_book_analyzer.get_order_book()
@@ -2091,35 +1983,35 @@ class Strategy:
                     self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
     def bybit_hedge_entry_maker_v3(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
-
+        
         if one_minute_volume is not None and five_minute_distance is not None:
             if one_minute_volume > min_vol and five_minute_distance > min_dist:
-
+                
                 best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
                 best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
                 
                 open_orders = self.exchange.get_open_orders(symbol)
-
+                
                 # self.cancel_all_orders_for_symbol_bybit(symbol)
                 
-                if (trend.lower() == "long" and mfi.lower() == "long") and should_long and long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
+                if (trend.lower() == "long" and mfi.lower() == "long") and should_long and long_pos_qty == 0 and long_pos_qty < self.max_long_trade_qty and not self.entry_order_exists(open_orders, "buy"):
                     logging.info(f"Placing initial long entry")
                     self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
                     logging.info(f"Placed initial long entry")
-
+                    
                 elif (trend.lower() == "long" and mfi.lower() == "long") and should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
                     logging.info(f"Placing additional long entry")
                     self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-
-                if (trend.lower() == "short" and mfi.lower() == "short") and should_short and short_pos_qty == 0 and not self.entry_order_exists(open_orders, "sell"):
+                    
+                if (trend.lower() == "short" and mfi.lower() == "short") and should_short and short_pos_qty == 0 and short_pos_qty < self.max_short_trade_qty and not self.entry_order_exists(open_orders, "sell"):
                     logging.info(f"Placing initial short entry")
                     self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
                     logging.info(f"Placed initial short entry")
-
+                    
                 elif (trend.lower() == "short" and mfi.lower() == "short") and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
                     logging.info(f"Placing additional short entry")
                     self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
-
+                    
     # Revised consistent maker strategy using MA Trend OR MFI as well while maintaining same original MA logic
     def bybit_hedge_entry_maker_v2(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
 

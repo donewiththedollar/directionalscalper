@@ -45,7 +45,6 @@ class BybitRotatorAggressive(Strategy):
         self.initial_max_short_trade_qty = None
         self.long_leverage_increased = False
         self.short_leverage_increased = False
-        self.version = "2.0.6"
         self.rows = {} 
 
     def run(self, symbol):
