@@ -41,6 +41,11 @@ class Strategy:
         self.initial_max_short_trade_qty_per_symbol = {}
         self.long_pos_leverage_per_symbol = {}
         self.short_pos_leverage_per_symbol = {}
+        self.spoofing_wall_size = 5 
+        #self.spoofing_duration = 5  # Spoofing duration in seconds
+        self.spoofing_interval = 1  # Time interval between spoofing actions
+        self.spoofing_duration = 30  # Spoofing duration in seconds
+        # self.spoofing_interval = 3  # Time interval between spoofing actions
 
     class OrderBookAnalyzer:
         def __init__(self, exchange, symbol):
