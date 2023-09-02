@@ -1656,12 +1656,12 @@ class Strategy:
 
         if take_profit_long is not None:
             distance_to_tp_long = take_profit_long - best_bid_price
-            long_dynamic_amount += distance_to_tp_long * 2
+            long_dynamic_amount += distance_to_tp_long * 1
             long_dynamic_amount = max(long_dynamic_amount, min_qty)
 
         if take_profit_short is not None:
             distance_to_tp_short = best_ask_price - take_profit_short
-            short_dynamic_amount += distance_to_tp_short * 2
+            short_dynamic_amount += distance_to_tp_short * 1
             short_dynamic_amount = max(short_dynamic_amount, min_qty)
 
         if long_pos_qty > 0 and take_profit_long:
@@ -1702,12 +1702,12 @@ class Strategy:
 
         if take_profit_long is not None:
             distance_to_tp_long = take_profit_long - best_bid_price
-            long_dynamic_amount += distance_to_tp_long * 2
+            long_dynamic_amount += distance_to_tp_long * 1
             long_dynamic_amount = max(long_dynamic_amount, min_qty)
 
         if take_profit_short is not None:
             distance_to_tp_short = best_ask_price - take_profit_short
-            short_dynamic_amount += distance_to_tp_short * 2
+            short_dynamic_amount += distance_to_tp_short * 1
             short_dynamic_amount = max(short_dynamic_amount, min_qty)
 
         open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
