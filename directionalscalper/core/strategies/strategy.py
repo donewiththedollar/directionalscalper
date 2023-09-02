@@ -1355,7 +1355,6 @@ class Strategy:
                 self.postonly_limit_order_bybit(symbol, "sell", amount, best_ask_price, positionIdx=2, reduceOnly=False)
                 logging.info(f"Placed a post-only limit order to offset short position risk on {symbol} at {best_ask_price}")
 
-
     def spoofing_action(self, symbol, short_dynamic_amount, long_dynamic_amount):
         if self.spoofing_active:
             # Fetch orderbook and positions
@@ -1414,67 +1413,6 @@ class Strategy:
 
             # Deactivate spoofing for the next cycle
             self.spoofing_active = False
-
-    # def spoofing_action(self, symbol, short_dynamic_amount, long_dynamic_amount):
-    #     if self.spoofing_active:
-    #         orderbook = self.exchange.get_orderbook(symbol)
-    #         best_bid_price = orderbook['bids'][0][0]
-    #         best_ask_price = orderbook['asks'][0][0]
-            
-    #         position_data = self.exchange.get_positions_bybit(symbol)
-    #         short_pos_qty = position_data["short"]["qty"]
-    #         long_pos_qty = position_data["long"]["qty"]
-            
-    #         short_pos_price = position_data["short"]["price"] if "short" in position_data and "price" in position_data["short"] else None
-    #         long_pos_price = position_data["long"]["price"] if "long" in position_data and "price" in position_data["long"] else None
-
-    #         if short_pos_price is None and long_pos_price is None:
-    #             logging.warning(f"Could not fetch position prices for {symbol}. Skipping spoofing.")
-    #             return
-
-    #         spoofing_orders = []
-    #         larger_position = "long" if long_pos_qty > short_pos_qty else "short"
-            
-    #         for i in range(self.spoofing_wall_size):
-    #             base_gap_multiplier = 0.5
-    #             base_spoil_multiplier = 0.008
-                
-    #             gap_multiplier = base_gap_multiplier + i * 1.0
-    #             spoil_multiplier = base_spoil_multiplier + i * 0.004
-                
-    #             # Fix for the long side
-    #             long_spoof_gap = gap_multiplier * best_bid_price
-    #             long_spoil_factor = spoil_multiplier  # Now it's positive
-                
-    #             spoof_price_long = long_pos_price - (long_spoil_factor * long_spoof_gap)
-    #             spoof_price_long = max(spoof_price_long, best_bid_price)
-    #             spoof_price_long = Decimal(spoof_price_long).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
-                
-    #             spoof_order_long = self.limit_order_bybit(symbol, "sell", long_dynamic_amount, spoof_price_long, positionIdx=2, reduceOnly=False)
-    #             spoofing_orders.append(spoof_order_long)
-                
-    #             # Calculate the short spoof price based on the larger position and place the order
-    #             short_spoof_gap = gap_multiplier * best_ask_price
-    #             short_spoil_factor = spoil_multiplier
-    #             spoof_price_short = short_pos_price + (short_spoil_factor * short_spoof_gap)
-    #             spoof_price_short = min(spoof_price_short, best_ask_price)
-    #             spoof_price_short = Decimal(spoof_price_short).quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
-    #             spoof_order_short = self.limit_order_bybit(symbol, "buy", short_dynamic_amount, spoof_price_short, positionIdx=1, reduceOnly=False)
-    #             spoofing_orders.append(spoof_order_short)
-                
-    #         # Sleep for the spoofing duration and then cancel all placed orders
-    #         time.sleep(self.spoofing_duration)
-
-    #         # Cancel orders and handle errors
-    #         for order in spoofing_orders:
-    #             if 'id' in order:
-    #                 logging.info(f"Spoofing order: {order}")
-    #                 self.exchange.cancel_order_by_id(order['id'], symbol)
-    #             else:
-    #                 logging.warning(f"Could not place spoofing order: {order.get('error', 'Unknown error')}")
-
-    #         # Deactivate spoofing for the next cycle
-    #         self.spoofing_active = False
 
     def spoof_order(self, symbol, side, max_amount, max_price, price_step=3.0, num_orders=5):
         total_amount = 0.0  # Initialize the total amount to zero
@@ -2494,7 +2432,7 @@ class Strategy:
 
             if open_symbol in open_symbols:
                 # Note: When calling the `bybit_turbocharged_entry_maker` function, make sure to use these updated, context-specific variables.
-                if is_rotator_symbol:  # Replace this with your own condition for switching between the two functions
+                if is_rotator_symbol: 
                     self.bybit_turbocharged_entry_maker(
                         open_orders_open_symbol,
                         open_symbol,
@@ -2542,8 +2480,6 @@ class Strategy:
         
         logging.info(f"open_symbols in manage_open_positions: {open_symbols}")
         for open_symbol in open_symbols:
-            #logging.info(f"Type of open_symbols: {type(open_symbols)}")
-            # Check if the open symbol is NOT in the current rotator symbols
             is_rotator_symbol = open_symbol in rotator_symbols
 
             if open_symbol not in rotator_symbols:
@@ -2745,6 +2681,229 @@ class Strategy:
                         mfirsi_signal,
                         long_take_profit_open_symbol,
                         short_take_profit_open_symbol,
+                        long_dynamic_amount_open_symbol,
+                        short_dynamic_amount_open_symbol,
+                        long_pos_qty_open_symbol,
+                        short_pos_qty_open_symbol,
+                        long_pos_price_open_symbol,
+                        short_pos_price_open_symbol,
+                        should_add_to_long_open_symbol,
+                        should_add_to_short_open_symbol
+                    )
+
+                self.cancel_entries_bybit(open_symbol, best_ask_price_open_symbol, ma_1m_3_high_open_symbol, ma_5m_3_high_open_symbol)
+
+                #self.update_take_profit_if_profitable_for_one_minute(open_symbol)
+
+                current_time = time.time()
+                # Check if it's time to perform spoofing
+                if current_time - self.last_cancel_time >= self.spoofing_interval:
+                    self.spoofing_active = True
+                    self.spoofing_action(open_symbol, short_dynamic_amount_open_symbol, long_dynamic_amount_open_symbol)
+
+    def safu(self, open_symbols, total_equity):
+        # Get current rotator symbols
+        rotator_symbols = self.manager.get_auto_rotate_symbols()
+        
+        logging.info(f"open_symbols in manage_open_positions: {open_symbols}")
+        for open_symbol in open_symbols:
+            is_rotator_symbol = open_symbol in rotator_symbols
+
+            if open_symbol not in rotator_symbols:
+                logging.info(f"Symbol {open_symbol} is not in current rotator symbols. Managing it.")
+                
+            min_dist = self.config.min_distance
+            min_vol = self.config.min_volume
+
+            # Get API data
+            api_data = self.manager.get_api_data(open_symbol)
+            one_minute_volume = api_data['1mVol']
+            one_minute_distance = api_data['1mSpread']
+            five_minute_distance = api_data['5mSpread']
+            trend = api_data['Trend']
+            mfirsi_signal = api_data['MFI']
+            eri_trend = api_data['ERI Trend']
+
+            # Your existing code for each open_symbol
+            # Fetch position data for the open symbol
+            market_data = self.get_market_data_with_retry(open_symbol, max_retries=5, retry_delay=5)
+            max_leverage = self.exchange.get_max_leverage_bybit(open_symbol)
+            position_data_open_symbol = self.exchange.get_positions_bybit(open_symbol)
+            long_pos_qty_open_symbol = position_data_open_symbol["long"]["qty"]
+            short_pos_qty_open_symbol = position_data_open_symbol["short"]["qty"]
+
+            min_qty = float(market_data["min_qty"])
+            min_qty_str = str(min_qty)
+
+
+            # Fetch the best ask and bid prices for the open symbol
+            best_ask_price_open_symbol = self.exchange.get_orderbook(open_symbol)['asks'][0][0]
+            best_bid_price_open_symbol = self.exchange.get_orderbook(open_symbol)['bids'][0][0]
+            
+            # Calculate the max trade quantities dynamically for this specific symbol
+            max_trade_qty_value = self.calc_max_trade_qty(open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
+            self.initial_max_long_trade_qty = max_trade_qty_value
+            self.initial_max_short_trade_qty = max_trade_qty_value
+
+            # Calculate moving averages for the open symbol
+            moving_averages_open_symbol = self.get_all_moving_averages(open_symbol)
+
+            ma_6_high_open_symbol = moving_averages_open_symbol["ma_6_high"]
+            ma_6_low_open_symbol = moving_averages_open_symbol["ma_6_low"]
+            ma_3_low_open_symbol = moving_averages_open_symbol["ma_3_low"]
+            ma_3_high_open_symbol = moving_averages_open_symbol["ma_3_high"]
+            ma_1m_3_high_open_symbol = moving_averages_open_symbol["ma_1m_3_high"]
+            ma_5m_3_high_open_symbol = moving_averages_open_symbol["ma_5m_3_high"]
+
+            # Calculate your take profit levels for each open symbol.
+            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
+                position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
+            )
+            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
+                position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
+            )
+
+            # # Calculate your take profit levels for each open symbol.
+            # short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
+            #     position_data_open_symbol["short"]["price"], open_symbol, one_minute_distance
+            # )
+            # long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
+            #     position_data_open_symbol["long"]["price"], open_symbol, one_minute_distance
+            # )
+
+            # Additional context-specific variables
+            long_pos_price_open_symbol = position_data_open_symbol["long"]["price"] if long_pos_qty_open_symbol > 0 else None
+            short_pos_price_open_symbol = position_data_open_symbol["short"]["price"] if short_pos_qty_open_symbol > 0 else None
+
+            # Additional context-specific variables
+            should_long_open_symbol = self.long_trade_condition(best_bid_price_open_symbol, ma_3_low_open_symbol) if ma_3_low_open_symbol is not None else False
+            should_short_open_symbol = self.short_trade_condition(best_ask_price_open_symbol, ma_6_high_open_symbol) if ma_3_high_open_symbol is not None else False
+
+            should_add_to_long_open_symbol = (long_pos_price_open_symbol > ma_6_high_open_symbol) and should_long_open_symbol if long_pos_price_open_symbol is not None and ma_6_high_open_symbol is not None else False
+            should_add_to_short_open_symbol = (short_pos_price_open_symbol < ma_6_low_open_symbol) and should_short_open_symbol if short_pos_price_open_symbol is not None and ma_6_low_open_symbol is not None else False
+
+            # print(f"Calculating dynamic amount for {open_symbol} with market_data: {market_data}, total_equity: {total_equity}, best_ask_price_open_symbol: {best_ask_price_open_symbol}, max_leverage: {max_leverage}")
+            # logging.info(f"Calculating dynamic amount for {open_symbol} with market_data: {market_data}, total_equity: {total_equity}, best_ask_price_open_symbol: {best_ask_price_open_symbol}, max_leverage: {max_leverage}")
+
+            # Calculate dynamic amounts
+            long_dynamic_amount_open_symbol, short_dynamic_amount_open_symbol, min_qty = self.calculate_dynamic_amount(
+                open_symbol, market_data, total_equity, best_ask_price_open_symbol, max_leverage
+            )
+
+            logging.info(f"Long dynamic amount for {open_symbol}: {long_dynamic_amount_open_symbol}")
+            logging.info(f"Short dynamic amount for {open_symbol}: {short_dynamic_amount_open_symbol}")
+                                
+            # Calculate moving averages for the open symbol
+            moving_averages_open_symbol = self.get_all_moving_averages(open_symbol)
+            ma_1m_3_high_open_symbol = moving_averages_open_symbol["ma_1m_3_high"]
+            ma_5m_3_high_open_symbol = moving_averages_open_symbol["ma_5m_3_high"]
+            
+            # Calculate your take profit levels for each open symbol.
+            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
+                position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
+            )
+            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
+                position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
+            )
+
+            # Fetch open orders for the open symbol
+            open_orders_open_symbol = self.retry_api_call(self.exchange.get_open_orders, open_symbol)
+
+            all_open_orders = self.exchange.get_all_open_orders_bybit()
+
+            logging.info(f"Variables in manage_open_positions for {open_symbol}: market_data={market_data}, total_equity={total_equity}, best_ask_price_open_symbol={best_ask_price_open_symbol}, max_leverage={max_leverage}")
+            #print(f"All open orders {all_open_orders}")
+
+            #print(f"Open orders open symbol {open_orders_open_symbol}")
+
+            # Check for existing take profit orders before placing new ones
+            # Existing long take profit orders
+            existing_long_tp_orders = [
+                order for order in all_open_orders 
+                if order['info'].get('orderType') == 'Take Profit' 
+                and order['symbol'] == open_symbol 
+                and order['side'] == 'sell'
+            ]
+
+            # Existing short take profit orders
+            existing_short_tp_orders = [
+                order for order in all_open_orders 
+                if order['info'].get('orderType') == 'Take Profit' 
+                and order['symbol'] == open_symbol 
+                and order['side'] == 'buy'
+            ]
+
+            # Call the function to update long take profit spread only if no existing take profit order
+            if long_pos_qty_open_symbol > 0 and long_take_profit_open_symbol is not None and not existing_long_tp_orders:
+                self.bybit_hedge_placetp_maker(
+                    open_symbol, long_pos_qty_open_symbol, long_take_profit_open_symbol, positionIdx=1, order_side="sell", open_orders=open_orders_open_symbol
+                )
+
+            # Call the function to update short take profit spread only if no existing take profit order
+            if short_pos_qty_open_symbol > 0 and short_take_profit_open_symbol is not None and not existing_short_tp_orders:
+                self.bybit_hedge_placetp_maker(
+                    open_symbol, short_pos_qty_open_symbol, short_take_profit_open_symbol, positionIdx=2, order_side="buy", open_orders=open_orders_open_symbol
+                )
+
+            # Take profit spread replacement
+            if long_pos_qty_open_symbol > 0 and long_take_profit_open_symbol is not None:
+                self.next_long_tp_update = self.update_take_profit_spread_bybit(
+                    open_symbol, long_pos_qty_open_symbol, long_take_profit_open_symbol, positionIdx=1, order_side="sell", open_orders=open_orders_open_symbol, next_tp_update=self.next_long_tp_update
+                )
+
+            if short_pos_qty_open_symbol > 0 and short_take_profit_open_symbol is not None:
+                self.next_short_tp_update = self.update_take_profit_spread_bybit(
+                    open_symbol, short_pos_qty_open_symbol, short_take_profit_open_symbol, positionIdx=2, order_side="buy", open_orders=open_orders_open_symbol, next_tp_update=self.next_short_tp_update
+                )
+
+            if long_pos_qty_open_symbol > 0:
+                self.bybit_reset_position_leverage_long_v3(open_symbol, long_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
+
+            if short_pos_qty_open_symbol > 0:
+                self.bybit_reset_position_leverage_short_v3(open_symbol, short_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
+
+            if open_symbol in open_symbols:
+
+                print(f"Symbols allowed from strategy file {self.symbols_allowed}")
+
+                can_trade = self.can_trade_new_symbol(open_symbols, self.symbols_allowed, open_symbol)
+
+                logging.info(f"Config symbols allowed from strategy class: {can_trade}")
+                
+                # Check if the symbol is a rotator symbol
+                if is_rotator_symbol:  
+
+                    logging.info(f"Config symbols allowed from strategy class: {can_trade}")
+                    
+                    # Add the following line before the initial entry trading logic to check symbol limits
+                    if not self.can_trade_new_symbol(open_symbols, self.symbols_allowed, open_symbol):
+                        logging.info(f"Config symbols allowed from strategy class: {can_trade}")
+                        logging.info(f"Reached the symbol limit or already trading {open_symbol}. Skipping initial entry.")
+                        
+                    else:  # If we can trade, then proceed with initial entry
+                        self.bybit_hedge_entry_maker_v3(
+                            open_symbol,
+                            trend,
+                            mfirsi_signal,
+                            one_minute_volume,
+                            five_minute_distance,
+                            min_vol,
+                            min_dist,
+                            long_dynamic_amount_open_symbol,
+                            short_dynamic_amount_open_symbol,
+                            long_pos_qty_open_symbol,
+                            short_pos_qty_open_symbol,
+                            long_pos_price_open_symbol,
+                            short_pos_price_open_symbol,
+                            should_long_open_symbol,
+                            should_short_open_symbol,
+                            should_add_to_long_open_symbol,
+                            should_add_to_short_open_symbol
+                        )
+                
+                else:
+                    self.bybit_hedge_additional_entry_maker_v3(
+                        open_symbol,
                         long_dynamic_amount_open_symbol,
                         short_dynamic_amount_open_symbol,
                         long_pos_qty_open_symbol,

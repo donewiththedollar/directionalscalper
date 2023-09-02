@@ -24,6 +24,7 @@ from directionalscalper.core.strategies.bybit.multi.bybit_auto_hedge_maker_mfirs
 from directionalscalper.core.strategies.bybit.multi.bybit_auto_maker_mfirsi_rotator_aggressive import BybitRotatorAggressive
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator import BybitMFIRSITrendRotator
 from directionalscalper.core.strategies.bybit.multi.bybit_spoof_rotator import BybitSpoofRotator
+from directionalscalper.core.strategies.bybit.multi.bybit_debug import BybitDebuggingStrategy
 ### ILAY ###
 from live_table_manager import LiveTableManager, shared_symbols_data
 ### ILAY ###
@@ -100,6 +101,9 @@ class DirectionalMarketMaker:
             strategy.run(symbol)
         elif strategy_name.lower() == 'bybit_rotator_spoof':
             strategy = BybitSpoofRotator(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy.run(symbol)
+        elif strategy_name.lower() == 'gnifoops':
+            strategy = BybitDebuggingStrategy(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol)
 
     def get_balance(self, quote, market_type=None, sub_type=None):
