@@ -1928,7 +1928,7 @@ class Strategy:
                 open_orders = self.exchange.get_open_orders(symbol)
 
                 if (trend.lower() == "long" and mfi.lower() == "long") and should_long and long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
-                    if long_pos_qty <= self.long_max_trade_qty:  # Check against max trade qty
+                    if long_pos_qty <= self.max_long_trade_qty:  # Check against max trade qty
                         logging.info(f"Placing initial long entry")
                         self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
                         logging.info(f"Placed initial long entry")
@@ -1936,7 +1936,7 @@ class Strategy:
                         logging.warning(f"Long position quantity exceeds maximum trade quantity for long positions. No trade placed.")
 
                 if (trend.lower() == "short" and mfi.lower() == "short") and should_short and short_pos_qty == 0 and not self.entry_order_exists(open_orders, "sell"):
-                    if short_pos_qty <= self.short_max_trade_qty:  # Check against max trade qty
+                    if short_pos_qty <= self.max_short_trade_qty:  # Check against max trade qty
                         logging.info(f"Placing initial short entry")
                         self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
                         logging.info(f"Placed initial short entry")
