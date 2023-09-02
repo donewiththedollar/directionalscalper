@@ -2137,6 +2137,55 @@ class Strategy:
                         logging.info(f"Placing additional short entry")
                         self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
+    def update_take_profit_if_profitable_for_one_minute(self, symbol):
+        try:
+            # Fetch position data and open position data
+            position_data = self.exchange.get_positions_bybit(symbol)
+            open_position_data = self.exchange.get_all_open_positions_bybit()
+            current_time = datetime.utcnow()
+            
+            # Fetch current order book prices
+            best_ask_price = float(self.exchange.get_orderbook(symbol)['asks'][0][0])
+            best_bid_price = float(self.exchange.get_orderbook(symbol)['bids'][0][0])
+
+            # Initialize next_tp_update using your calculate_next_update_time function
+            next_tp_update = self.calculate_next_update_time()
+            
+            # Loop through all open positions to find the one for the given symbol
+            for position in open_position_data:
+                if position['symbol'].split(':')[0] == symbol:
+                    timestamp = datetime.utcfromtimestamp(position['timestamp'] / 1000.0)  # Convert to seconds from milliseconds
+                    time_in_position = current_time - timestamp
+                    
+                    # Check if the position has been open for more than a minute
+                    if time_in_position > timedelta(minutes=1):
+                        side = position['side']
+                        pos_qty = position['contracts']
+                        entry_price = position['entryPrice']
+                        
+                        # Check if the position is profitable
+                        is_profitable = (best_ask_price > entry_price) if side == 'long' else (best_bid_price < entry_price)
+                        
+                        if is_profitable:
+                            # Calculate take profit price based on the current price
+                            take_profit_price = best_ask_price if side == 'long' else best_bid_price
+                            
+                            # Fetch open orders for the symbol
+                            open_orders = self.exchange.get_open_orders(symbol)
+                            
+                            # Update the take profit
+                            positionIdx = 1 if side == 'long' else 2
+                            order_side = 'Buy' if side == 'short' else 'Sell'
+                            
+                            next_tp_update = self.update_take_profit_spread_bybit(
+                                symbol, pos_qty, take_profit_price, positionIdx, order_side, 
+                                open_orders, next_tp_update
+                            )
+                            logging.info(f"Updated take profit for {side} position on {symbol} to {take_profit_price}")
+
+        except Exception as e:
+            logging.error(f"Error in updating take profit: {e}")
+
     # Aggressive TP spread update
     def update_aggressive_take_profit_bybit(self, symbol, pos_qty, current_price, positionIdx, order_side, open_orders, next_tp_update, entry_time):
         existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
@@ -2709,6 +2758,8 @@ class Strategy:
 
                 self.cancel_entries_bybit(open_symbol, best_ask_price_open_symbol, ma_1m_3_high_open_symbol, ma_5m_3_high_open_symbol)
 
+                #self.update_take_profit_if_profitable_for_one_minute(open_symbol)
+
                 current_time = time.time()
                 # Check if it's time to perform spoofing
                 if current_time - self.last_cancel_time >= self.spoofing_interval:
@@ -2932,6 +2983,8 @@ class Strategy:
 
                 self.cancel_entries_bybit(open_symbol, best_ask_price_open_symbol, ma_1m_3_high_open_symbol, ma_5m_3_high_open_symbol)
 
+                #self.update_take_profit_if_profitable_for_one_minute(open_symbol)
+                
             # Log the dynamic amounts
             logging.info(f"Long dynamic amount for {open_symbol}: {long_dynamic_amount_open_symbol}")
             logging.info(f"Short dynamic amount for {open_symbol}: {short_dynamic_amount_open_symbol}")
