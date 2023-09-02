@@ -1917,8 +1917,8 @@ class Strategy:
                     logging.info(f"Initiating new short position")
                     self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
-    def bybit_hedge_entry_maker_v3_initial_entry(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool, long_max_trade_qty: float, short_max_trade_qty: float):
-
+    def bybit_hedge_entry_maker_v3_initial_entry(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, should_long: bool, should_short: bool):
+        
         if one_minute_volume is not None and five_minute_distance is not None:
             if one_minute_volume > min_vol and five_minute_distance > min_dist:
 
@@ -1928,21 +1928,21 @@ class Strategy:
                 open_orders = self.exchange.get_open_orders(symbol)
 
                 if (trend.lower() == "long" and mfi.lower() == "long") and should_long and long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
-                    if long_dynamic_amount <= self.long_max_trade_qty:  # Check against max trade qty
+                    if long_pos_qty <= self.long_max_trade_qty:  # Check against max trade qty
                         logging.info(f"Placing initial long entry")
                         self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
                         logging.info(f"Placed initial long entry")
                     else:
-                        logging.warning(f"Long dynamic amount exceeds maximum trade quantity for long positions. No trade placed.")
+                        logging.warning(f"Long position quantity exceeds maximum trade quantity for long positions. No trade placed.")
 
                 if (trend.lower() == "short" and mfi.lower() == "short") and should_short and short_pos_qty == 0 and not self.entry_order_exists(open_orders, "sell"):
-                    if short_dynamic_amount <= self.short_max_trade_qty:  # Check against max trade qty
+                    if short_pos_qty <= self.short_max_trade_qty:  # Check against max trade qty
                         logging.info(f"Placing initial short entry")
                         self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
                         logging.info(f"Placed initial short entry")
                     else:
-                        logging.warning(f"Short dynamic amount exceeds maximum trade quantity for short positions. No trade placed.")
-                        
+                        logging.warning(f"Short position quantity exceeds maximum trade quantity for short positions. No trade placed.")
+
     # def bybit_hedge_entry_maker_v3_initial_entry(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
 
     #     if one_minute_volume is not None and five_minute_distance is not None:

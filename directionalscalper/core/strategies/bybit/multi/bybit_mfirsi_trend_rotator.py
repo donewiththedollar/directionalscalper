@@ -191,8 +191,11 @@ class BybitMFIRSITrendRotator(Strategy):
                 logging.info(f"Fetching position data")
                 position_data = self.exchange.get_positions_bybit(symbol)
 
+                #print(f"Position data: {position_data}")
+
                 open_position_data = self.exchange.get_all_open_positions_bybit()
 
+                #print(f"Open position data: {open_position_data}")
 
                 open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
 
@@ -320,7 +323,8 @@ class BybitMFIRSITrendRotator(Strategy):
                     self.bybit_hedge_entry_maker_v3(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
 
                 elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
-                    self.bybit_hedge_entry_maker_v3_initial_entry(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
+                    self.bybit_hedge_entry_maker_v3_initial_entry(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
+                    #self.bybit_hedge_entry_maker_v3_initial_entry(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
 
                 # Call the function to update long take profit spread
                 if long_pos_qty > 0 and long_take_profit is not None:
