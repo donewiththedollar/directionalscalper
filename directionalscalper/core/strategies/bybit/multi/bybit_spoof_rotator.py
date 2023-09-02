@@ -47,10 +47,10 @@ class BybitSpoofRotator(Strategy):
         self.long_leverage_increased = False
         self.short_leverage_increased = False
         self.rows = {}
+        #self.spoofing_active = False  # Initialize spoofing state
         self.spoofing_wall_size = 5
         self.spoofing_duration = 5  # Spoofing duration in seconds
         self.spoofing_interval = 1  # Time interval between spoofing actions
-
 
     def run(self, symbol):
         threads = [
@@ -335,9 +335,10 @@ class BybitSpoofRotator(Strategy):
                         self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
 
                 elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
+                    current_time = time.time()
+
                     self.bybit_turbocharged_new_entry_maker(open_orders, symbol, trend, mfirsi_signal, long_dynamic_amount, short_dynamic_amount)
 
-                    current_time = time.time()
                     # Check if it's time to perform spoofing
                     if current_time - self.last_cancel_time >= self.spoofing_interval:
                         self.spoofing_active = True

@@ -46,7 +46,6 @@ class Strategy:
         #self.spoofing_duration = 5  # Spoofing duration in seconds
         self.spoofing_interval = 1  # Time interval between spoofing actions
         self.spoofing_duration = 30  # Spoofing duration in seconds
-        # self.spoofing_interval = 3  # Time interval between spoofing actions
 
     class OrderBookAnalyzer:
         def __init__(self, exchange, symbol):
