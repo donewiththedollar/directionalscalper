@@ -223,7 +223,7 @@ class BybitSpoofRotator(Strategy):
 
                 # Manage these symbols
                 for s in symbols_to_manage:
-                    print(f"Managing symbol: {s}\tPosition Long:{long_pos_qty}\tShort:{short_pos_qty}")  # Debugging line
+                    print(f"Managing symbol: {s}\tPos Long: {long_pos_qty}\tShort: {short_pos_qty}")  # Debugging line
                     self.gnifoops([s], total_equity)  # Notice the square brackets around 's'
 
                 # get liquidation prices
