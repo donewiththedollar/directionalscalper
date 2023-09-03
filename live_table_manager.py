@@ -37,7 +37,7 @@ class LiveTableManager:
         if first_symbol_data:
             balance = str(first_symbol_data.get('balance', 0))
             available_bal = str(first_symbol_data.get('available_bal', 0))
-            table.add_row(f"Balance:", {balance}, "Available Balance:", {available_bal}", "", "", "", "", "", "", "", "", "", "")  # Spanning across 14 columns
+            table.add_row(f"Balance:", {balance}, "Available Balance:", {available_bal}", "", "", "", "", "", "", "", "", "", """)  # Spanning across 14 columns
 
         # Sorting symbols based on the criteria
         sorted_symbols = sorted(shared_symbols_data.values(), key=lambda x: (
