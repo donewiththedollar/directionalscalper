@@ -365,7 +365,12 @@ class Strategy:
                 return True
         logging.info(f"No entry order found for side {side}.")
         return False
-
+    
+    # def entry_order_exists(self, open_orders: list, side: str) -> bool:
+    #     for order in open_orders:
+    #         if order["side"].lower() == side and order["reduce_only"] == False:
+    #             return True
+    #     return False
     
     def get_open_take_profit_order_quantity(self, orders, side):
         for order in orders:
@@ -3099,41 +3104,6 @@ class Strategy:
                         should_add_to_short_open_symbol
                     )
 
-            # if open_symbol in open_symbols:
-            #     is_rotator_symbol = open_symbol in rotator_symbols
-            #     if is_rotator_symbol:
-            #         self.bybit_hedge_entry_maker_v3(
-            #             open_symbol,
-            #             trend,
-            #             mfirsi_signal,
-            #             one_minute_volume,
-            #             five_minute_distance,
-            #             min_vol,
-            #             min_dist,
-            #             long_dynamic_amount_open_symbol,
-            #             short_dynamic_amount_open_symbol,
-            #             long_pos_qty_open_symbol,
-            #             short_pos_qty_open_symbol,
-            #             long_pos_price_open_symbol,
-            #             short_pos_price_open_symbol,
-            #             should_long_open_symbol,
-            #             should_short_open_symbol,
-            #             should_add_to_long_open_symbol,
-            #             should_add_to_short_open_symbol
-            #         )
-            #     else:
-            #         self.bybit_hedge_additional_entry_maker_v3(
-            #             open_symbol,
-            #             long_dynamic_amount_open_symbol,
-            #             short_dynamic_amount_open_symbol,
-            #             long_pos_qty_open_symbol,
-            #             short_pos_qty_open_symbol,
-            #             long_pos_price_open_symbol,
-            #             short_pos_price_open_symbol,
-            #             should_add_to_long_open_symbol,
-            #             should_add_to_short_open_symbol
-            #         )
-
                 self.cancel_entries_bybit(open_symbol, best_ask_price_open_symbol, ma_1m_3_high_open_symbol, ma_5m_3_high_open_symbol)
 
                 #self.update_take_profit_if_profitable_for_one_minute(open_symbol)
@@ -3720,32 +3690,6 @@ class Strategy:
             )
             logging.info(f"Short leverage for {symbol} returned to normal {self.short_pos_leverage_per_symbol[symbol]}x")
 
-
-    def bybit_reset_position_leverage_long_v2(self, long_pos_qty, total_equity, best_ask_price, max_leverage):
-        if long_pos_qty >= self.initial_max_long_trade_qty and self.long_pos_leverage < self.MAX_LEVERAGE:
-            self.max_long_trade_qty, self.long_pos_leverage = self.adjust_leverage_and_qty(
-                self.max_long_trade_qty, self.initial_max_long_trade_qty, self.long_pos_leverage, max_leverage, increase=True
-            )
-            logging.info(f"Long leverage temporarily increased to {self.long_pos_leverage}x")
-        elif long_pos_qty < (self.max_long_trade_qty / 2) and self.long_pos_leverage > 1.0:
-            self.max_long_trade_qty, self.long_pos_leverage = self.adjust_leverage_and_qty(
-                self.max_long_trade_qty, self.initial_max_long_trade_qty, self.long_pos_leverage, max_leverage, increase=False
-            )
-            logging.info(f"Long leverage returned to normal {self.long_pos_leverage}x")
-
-    def bybit_reset_position_leverage_short_v2(self, short_pos_qty, total_equity, best_ask_price, max_leverage):
-        if short_pos_qty >= self.initial_max_short_trade_qty and self.short_pos_leverage < self.MAX_LEVERAGE:
-            self.max_short_trade_qty, self.short_pos_leverage = self.adjust_leverage_and_qty(
-                self.max_short_trade_qty, self.initial_max_short_trade_qty, self.short_pos_leverage, max_leverage, increase=True
-            )
-            logging.info(f"Short leverage temporarily increased to {self.short_pos_leverage}x")
-        elif short_pos_qty < (self.max_short_trade_qty / 2) and self.short_pos_leverage > 1.0:
-            self.max_short_trade_qty, self.short_pos_leverage = self.adjust_leverage_and_qty(
-                self.max_short_trade_qty, self.initial_max_short_trade_qty, self.short_pos_leverage, max_leverage, increase=False
-            )
-            logging.info(f"Short leverage returned to normal {self.short_pos_leverage}x")
-
-
 # Bybit position leverage management
 
     def bybit_reset_position_leverage_long(self, symbol, long_pos_qty, total_equity, best_ask_price, max_leverage):
@@ -3789,83 +3733,6 @@ class Strategy:
             self.short_leverage_increased = False
             self.short_pos_leverage = 1.0
             logging.info(f"Short leverage returned to normal {self.short_pos_leverage}x")
-
-    # def bybit_reset_position_leverage_long(self, long_pos_qty, total_equity, best_ask_price, max_leverage):
-    #     # Leverage increase logic for long positions
-    #     if long_pos_qty >= self.initial_max_long_trade_qty and self.long_pos_leverage <= 1.0:
-    #         self.max_long_trade_qty = 2 * self.initial_max_long_trade_qty  # double the maximum long trade quantity
-    #         self.long_leverage_increased = True
-    #         self.long_pos_leverage = 2.0
-    #         logging.info(f"Long leverage for temporarily increased to {self.long_pos_leverage}x")
-    #     elif long_pos_qty >= 2 * self.initial_max_long_trade_qty and self.long_pos_leverage <= 2.0:
-    #         self.max_long_trade_qty = 3 * self.initial_max_long_trade_qty  # triple the maximum long trade quantity
-    #         self.long_pos_leverage = 3.0
-    #         logging.info(f"Long leverage temporarily increased to {self.long_pos_leverage}x")
-    #     elif long_pos_qty < (self.max_long_trade_qty / 2) and self.long_pos_leverage > 1.0:
-    #         self.max_long_trade_qty = self.calc_max_trade_qty(total_equity,
-    #                                                         best_ask_price,
-    #                                                         max_leverage)
-    #         self.long_leverage_increased = False
-    #         self.long_pos_leverage = 1.0
-    #         logging.info(f"Long leverage returned to normal {self.long_pos_leverage}x")
-
-    # def bybit_reset_position_leverage_short(self, short_pos_qty, total_equity, best_ask_price, max_leverage):
-    #     # Leverage increase logic for short positions
-    #     if short_pos_qty >= self.initial_max_short_trade_qty and self.short_pos_leverage <= 1.0:
-    #         self.max_short_trade_qty = 2 * self.initial_max_short_trade_qty  # double the maximum short trade quantity
-    #         self.short_leverage_increased = True
-    #         self.short_pos_leverage = 2.0
-    #         logging.info(f"Short leverage temporarily increased to {self.short_pos_leverage}x")
-    #     elif short_pos_qty >= 2 * self.initial_max_short_trade_qty and self.short_pos_leverage <= 2.0:
-    #         self.max_short_trade_qty = 3 * self.initial_max_short_trade_qty  # triple the maximum short trade quantity
-    #         self.short_pos_leverage = 3.0
-    #         logging.info(f"Short leverage temporarily increased to {self.short_pos_leverage}x")
-    #     elif short_pos_qty < (self.max_short_trade_qty / 2) and self.short_pos_leverage > 1.0:
-    #         self.max_short_trade_qty = self.calc_max_trade_qty(total_equity,
-    #                                                         best_ask_price,
-    #                                                         max_leverage)
-    #         self.short_leverage_increased = False
-    #         self.short_pos_leverage = 1.0
-    #         logging.info(f"Short leverage returned to normal {self.short_pos_leverage}x")
-
-    def bybit_reset_position_leverage_long_multi(self, symbol, long_pos_qty, total_equity, best_ask_price, max_leverage):
-        # Leverage increase logic for long positions
-        if long_pos_qty >= self.initial_max_long_trade_qty and self.long_pos_leverage <= 1.0:
-            self.max_long_trade_qty = 2 * self.initial_max_long_trade_qty  # double the maximum long trade quantity
-            self.long_leverage_increased = True
-            self.long_pos_leverage = 2.0
-            logging.info(f"Long leverage for temporarily increased to {self.long_pos_leverage}x")
-        elif long_pos_qty >= 2 * self.initial_max_long_trade_qty and self.long_pos_leverage <= 2.0:
-            self.max_long_trade_qty = 3 * self.initial_max_long_trade_qty  # triple the maximum long trade quantity
-            self.long_pos_leverage = 3.0
-            logging.info(f"Long leverage temporarily increased to {self.long_pos_leverage}x")
-        elif long_pos_qty < (self.max_long_trade_qty / 2) and self.long_pos_leverage > 1.0:
-            self.max_long_trade_qty, _ = self.calc_max_trade_qty_multi(total_equity,
-                                                                    best_ask_price,
-                                                                    max_leverage)
-            self.long_leverage_increased = False
-            self.long_pos_leverage = 1.0
-            logging.info(f"Long leverage returned to normal {self.long_pos_leverage}x")
-
-    def bybit_reset_position_leverage_short_multi(self, symbol, short_pos_qty, total_equity, best_ask_price, max_leverage):
-        # Leverage increase logic for short positions
-        if short_pos_qty >= self.initial_max_short_trade_qty and self.short_pos_leverage <= 1.0:
-            self.max_short_trade_qty = 2 * self.initial_max_short_trade_qty  # double the maximum short trade quantity
-            self.short_leverage_increased = True
-            self.short_pos_leverage = 2.0
-            logging.info(f"Short leverage temporarily increased to {self.short_pos_leverage}x")
-        elif short_pos_qty >= 2 * self.initial_max_short_trade_qty and self.short_pos_leverage <= 2.0:
-            self.max_short_trade_qty = 3 * self.initial_max_short_trade_qty  # triple the maximum short trade quantity
-            self.short_pos_leverage = 3.0
-            logging.info(f"Short leverage temporarily increased to {self.short_pos_leverage}x")
-        elif short_pos_qty < (self.max_short_trade_qty / 2) and self.short_pos_leverage > 1.0:
-            _, self.max_short_trade_qty = self.calc_max_trade_qty_multi(total_equity,
-                                                                        best_ask_price,
-                                                                        max_leverage)
-            self.short_leverage_increased = False
-            self.short_pos_leverage = 1.0
-            logging.info(f"Short leverage returned to normal {self.short_pos_leverage}x")
-
 
     def binance_auto_hedge_entry(self, trend, one_minute_volume, five_minute_distance, min_vol, min_dist,
                                 should_long, long_pos_qty, long_dynamic_amount, best_bid_price, long_pos_price,
