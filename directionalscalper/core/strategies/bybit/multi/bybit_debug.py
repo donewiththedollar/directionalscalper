@@ -49,7 +49,7 @@ class BybitDebuggingStrategy(Strategy):
         self.short_leverage_increased = False
         self.version = "2.0.6"
         self.rows = {}
-        #self.spoofing_active = False  # Initialize spoofing state
+        self.spoofing_active = False  # Initialize spoofing state
         self.spoofing_wall_size = 5
         self.spoofing_duration = 5  # Spoofing duration in seconds
         self.spoofing_interval = 1  # Time interval between spoofing actions
@@ -360,6 +360,12 @@ class BybitDebuggingStrategy(Strategy):
                 self.cancel_entries_bybit(symbol, best_ask_price, ma_1m_3_high, ma_5m_3_high)
 
                 self.cancel_stale_orders_bybit()
+
+                current_time = time.time()
+                # Check if it's time to perform spoofing
+                if current_time - self.last_cancel_time >= self.spoofing_interval:
+                    self.spoofing_active = True
+                    self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
 
 
                 time.sleep(30)
