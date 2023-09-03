@@ -210,11 +210,6 @@ class BybitSpoofRotator(Strategy):
 
                 # print(f"Symbols to manage {symbols_to_manage}")
 
-                # Manage these symbols
-                for s in symbols_to_manage:
-                    print(f"Managing symbol: {s}")  # Debugging line
-                    self.gnifoops([s], total_equity)  # Notice the square brackets around 's'
-
                 #print(f"Open symbols: {open_symbols}")
 
                 #open_symbols = self.retry_api_call(self.extract_symbols_from_positions_bybit, open_position_data)
@@ -225,6 +220,11 @@ class BybitSpoofRotator(Strategy):
 
                 short_pos_qty = position_data["short"]["qty"]
                 long_pos_qty = position_data["long"]["qty"]
+
+                # Manage these symbols
+                for s in symbols_to_manage:
+                    print(f"Managing symbol: {s}\tPosition Long:{long_pos_qty}\tShort:{short_pos_qty}")  # Debugging line
+                    self.gnifoops([s], total_equity)  # Notice the square brackets around 's'
 
                 # get liquidation prices
                 short_liq_price = position_data["short"]["liq_price"]

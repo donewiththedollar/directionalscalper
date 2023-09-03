@@ -35,7 +35,9 @@ class LiveTableManager:
         if first_symbol_data:
             balance = str(first_symbol_data.get('balance', 0))
             available_bal = str(first_symbol_data.get('available_bal', 0))
-            table.add_row(f"Balance: {balance} | Available Balance: {available_bal}", span=14)  # Spanning across 14 columns
+            table.add_column(header=f"Balance: {balance} | Available Balance: {available_bal}", style="bold")
+            table.add_row("", "", "", "", "", "", "", "", "", "", "", "", "", "", "")
+            table.remove_column(-1)  # Remove the added column after adding the balance row
 
         # Sorting symbols based on the criteria
         sorted_symbols = sorted(shared_symbols_data.values(), key=lambda x: (
@@ -62,6 +64,7 @@ class LiveTableManager:
             ]
             table.add_row(*row)
         return table
+
 
     def display_table(self):
         console = Console()
