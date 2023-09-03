@@ -14,14 +14,13 @@ class LiveTableManager:
 
     def generate_table(self) -> Table:
         table = Table(show_header=True, header_style="bold blue", title="DirectionalScalper")
-        
-        # Add columns
-        table.add_column("Symbol")
+       
+        table.add_column("Symbol", style="cyan", min_width=12)
         table.add_column("Min. Qty")
         table.add_column("Price")
         table.add_column("1m Vol")
         table.add_column("5m Spread")
-        table.add_column("Trend")
+        table.add_column("Trend",style="magenta")
         table.add_column("Long Pos. Qty")
         table.add_column("Short Pos. Qty")
         table.add_column("Long uPNL")
@@ -32,14 +31,14 @@ class LiveTableManager:
         table.add_column("Short Pos. Price")
 
         # Assuming all symbols have the same balance and available balance
-        # So, we just pick the first symbol to get these values
-        first_symbol_data = next(iter(shared_symbols_data.values()), None)
-        if first_symbol_data:
-            balance = str(first_symbol_data.get('balance', 0))
-            available_bal = str(first_symbol_data.get('available_bal', 0))
-            table.add_row(f"Balance:", "{balance}", "Available Balance:", "{available_bal}", "", "", "", "", "", "", "", "", "", "")  # Spanning across 14 columns
-    
-        # Sorting symbols based on the criteria
+        # So, we just pick the last symbol to get these values
+        last_symbol_data = list(shared_symbols_data.values())[-1] if shared_symbols_data else None
+        if last_symbol_data:
+            balance = str(last_symbol_data.get('balance', 0))
+            available_bal = str(last_symbol_data.get('available_bal', 0))
+            table.caption = f"Balance: {balance}, Available Balance: {available_bal}"
+
+        # Sorting symbols
         sorted_symbols = sorted(shared_symbols_data.values(), key=lambda x: (
             -(x.get('long_pos_qty', 0) > 0 or x.get('short_pos_qty', 0) > 0),  # Prioritize symbols with quantities > 0
             x['symbol']  # Then sort by symbol name
@@ -57,8 +56,8 @@ class LiveTableManager:
                 str(symbol_data.get('short_pos_qty', 0)),
                 str(symbol_data.get('long_upnl', 0)),
                 str(symbol_data.get('short_upnl', 0)),
-                str(symbol_data.get('long_cum_pnl', 0)),
-                str(symbol_data.get('short_cum_pnl', 0)),
+                "[b]"+str(symbol_data.get('long_cum_pnl', 0))+"[/]",
+                "[b]"+str(symbol_data.get('short_cum_pnl', 0))+"[/]",
                 str(symbol_data.get('long_pos_price', 0)),
                 str(symbol_data.get('short_pos_price', 0))
             ]
