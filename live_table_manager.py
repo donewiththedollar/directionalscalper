@@ -14,7 +14,17 @@ class LiveTableManager:
 
     def generate_table(self) -> Table:
         table = Table(show_header=True, header_style="bold blue", title="DirectionalScalper")
-        table.add_column("Symbol")
+        
+        # Assuming all symbols have the same balance and available balance
+        # So, we just pick the first symbol to get these values
+        first_symbol_data = next(iter(shared_symbols_data.values()), None)
+        if first_symbol_data:
+            balance = str(first_symbol_data.get('balance', 0))
+            available_bal = str(first_symbol_data.get('available_bal', 0))
+            table.add_column(header=f"Balance: {balance} | Available Balance: {available_bal}", style="bold")
+            table.add_row("", "", "", "", "", "", "", "", "", "", "", "", "", "")
+            table.columns[0].header = "Symbol        "  # Reset the header for the first column
+
         table.add_column("Min. Qty")
         table.add_column("Price")
         table.add_column("1m Vol")
@@ -28,16 +38,6 @@ class LiveTableManager:
         table.add_column("Short cum. uPNL")
         table.add_column("Long Pos. Price")
         table.add_column("Short Pos. Price")
-
-        # Assuming all symbols have the same balance and available balance
-        # So, we just pick the first symbol to get these values
-        first_symbol_data = next(iter(shared_symbols_data.values()), None)
-        if first_symbol_data:
-            balance = str(first_symbol_data.get('balance', 0))
-            available_bal = str(first_symbol_data.get('available_bal', 0))
-            table.add_column(header=f"Balance: {balance} | Available Balance: {available_bal}", style="bold")
-            table.add_row("", "", "", "", "", "", "", "", "", "", "", "", "", "", "")
-            table.remove_column(-1)  # Remove the added column after adding the balance row
 
         # Sorting symbols based on the criteria
         sorted_symbols = sorted(shared_symbols_data.values(), key=lambda x: (
@@ -64,6 +64,7 @@ class LiveTableManager:
             ]
             table.add_row(*row)
         return table
+
 
 
     def display_table(self):
