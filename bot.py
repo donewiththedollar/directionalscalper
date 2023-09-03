@@ -44,7 +44,6 @@ from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trend_maker imp
 from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trigger_postonly import BybitHedgeMFIRSITriggerPostOnly
 from directionalscalper.core.strategies.bybit.bybit_hedge_mfirsi_trigger_postonly_avoidfees import BybitHedgeMFIRSITriggerPostOnlyAvoidFees
 # HUOBI
-from directionalscalper.core.strategies.huobi.huobi_hedge import HuobiHedgeStrategy
 from directionalscalper.core.strategies.huobi.huobi_auto_hedge import HuobiAutoHedgeStrategy
 # BINANCE
 from directionalscalper.core.strategies.binance.binance_auto_hedge import BinanceAutoHedgeStrategy
@@ -243,10 +242,6 @@ if __name__ == '__main__':
             strategy.run(symbol)
 
         # Huobi strategies
-        elif strategy_name.lower() == 'huobi_hedge':
-            strategy = HuobiHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
-            strategy.run(symbol, amount)
-        
         elif strategy_name.lower() == 'huobi_auto_hedge':
             strategy = HuobiAutoHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot, config, symbol)
             strategy.run(symbol, amount)
