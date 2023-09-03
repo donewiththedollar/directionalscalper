@@ -43,25 +43,42 @@ class LiveTableManager:
             -(x.get('long_pos_qty', 0) > 0 or x.get('short_pos_qty', 0) > 0),  # Prioritize symbols with quantities > 0
             x['symbol']  # Then sort by symbol name
         ))
-
+        
         for symbol_data in sorted_symbols:
+            long_pos_qty = symbol_data.get('long_pos_qty', 0)
+            short_pos_qty = symbol_data.get('short_pos_qty', 0)
+            long_upnl = symbol_data.get('long_upnl', 0)
+            short_upnl = symbol_data.get('short_upnl', 0)
+
+            # Determine if the entire row should be bold
+            is_bold_row = long_pos_qty > 0 or short_pos_qty > 0
+
+            # Helper function to format the cell
+            def format_cell(value, is_bold=is_bold_row, is_highlight=False):
+                if is_bold:
+                    return f"[b]{value}[/b]"
+                elif is_highlight:
+                    return f"[b]{value}[/b]" if value > 0 else str(value)
+                return str(value)
+
             row = [
-                symbol_data['symbol'],
-                str(symbol_data.get('min_qty', 0)),
-                str(symbol_data.get('current_price', 0)),
-                str(symbol_data.get('volume', 0)),
-                str(symbol_data.get('spread', 0)),
-                str(symbol_data.get('trend', '')),
-                str(symbol_data.get('long_pos_qty', 0)),
-                str(symbol_data.get('short_pos_qty', 0)),
-                str(symbol_data.get('long_upnl', 0)),
-                str(symbol_data.get('short_upnl', 0)),
-                "[b]"+str(symbol_data.get('long_cum_pnl', 0))+"[/]",
-                "[b]"+str(symbol_data.get('short_cum_pnl', 0))+"[/]",
-                str(symbol_data.get('long_pos_price', 0)),
-                str(symbol_data.get('short_pos_price', 0))
+                format_cell(symbol_data['symbol']),
+                format_cell(symbol_data.get('min_qty', 0)),
+                format_cell(symbol_data.get('current_price', 0)),
+                format_cell(symbol_data.get('volume', 0)),
+                format_cell(symbol_data.get('spread', 0)),
+                format_cell(symbol_data.get('trend', '')),
+                format_cell(long_pos_qty),
+                format_cell(short_pos_qty),
+                format_cell(long_upnl, is_highlight=True),
+                format_cell(short_upnl, is_highlight=True),
+                format_cell(symbol_data.get('long_cum_pnl', 0)),
+                format_cell(symbol_data.get('short_cum_pnl', 0)),
+                format_cell(symbol_data.get('long_pos_price', 0)),
+                format_cell(symbol_data.get('short_pos_price', 0))
             ]
             table.add_row(*row)
+
         return table
 
     def display_table(self):
