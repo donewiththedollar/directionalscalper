@@ -79,6 +79,8 @@ class BybitMFIRSITrendRotator(Strategy):
 
         #symbols_allowed = self.get_symbols_allowed("bybit")
 
+        print(f"Symbols allowed in strategy: {self.symbols_allowed}")
+
         if self.config.dashboard_enabled:
             dashboard_path = os.path.join(self.config.shared_data_path, "shared_data.json")
 
@@ -319,12 +321,27 @@ class BybitMFIRSITrendRotator(Strategy):
                 open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
                 # Check if the symbol is already being traded
-                if symbol in open_symbols:
-                    self.bybit_hedge_entry_maker_v3(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
+                # if symbol in open_symbols:
+                #     self.bybit_hedge_entry_maker_v3(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
 
+                if symbol in open_symbols:
+                    can_trade = self.can_trade_new_symbol(open_symbols, self.symbols_allowed, symbol)
+                    logging.info(f"Can trade {symbol}: {can_trade}")
+
+                    if not can_trade:
+                        logging.info(f"Reached the symbol limit or already trading {symbol}. Skipping trading logic.")
+                    else:
+                        self.bybit_hedge_entry_maker_v3(
+                            symbol, trend, mfirsi_signal, one_minute_volume,
+                            five_minute_distance, min_vol, min_dist,
+                            long_dynamic_amount, short_dynamic_amount,
+                            long_pos_qty, short_pos_qty, long_pos_price,
+                            short_pos_price, should_long, should_short,
+                            should_add_to_long, should_add_to_short
+                        )
+                        
                 elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
                     self.bybit_hedge_entry_maker_v3_initial_entry(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
-                    #self.bybit_hedge_entry_maker_v3_initial_entry(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
 
                 # Call the function to update long take profit spread
                 if long_pos_qty > 0 and long_take_profit is not None:

@@ -322,15 +322,37 @@ class BybitDebuggingStrategy(Strategy):
                 #open_orders = self.exchange.get_open_orders(symbol)
                 open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
-                # Check if the symbol is already being traded
-                if symbol in open_symbols:
-                    self.bybit_hedge_entry_maker_v3(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
-                    current_time = time.time()
-                    # Check if it's time to perform spoofing
-                    if current_time - self.last_cancel_time >= self.spoofing_interval:
-                        self.spoofing_active = True
-                        self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
+                # # Check if the symbol is already being traded
+                # if symbol in open_symbols:
+                #     self.bybit_hedge_entry_maker_v3(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
+                #     current_time = time.time()
+                #     # Check if it's time to perform spoofing
+                #     if current_time - self.last_cancel_time >= self.spoofing_interval:
+                #         self.spoofing_active = True
+                #         self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
 
+                if symbol in open_symbols:
+                    can_trade = self.can_trade_new_symbol(open_symbols, self.symbols_allowed, symbol)
+                    logging.info(f"Can trade {symbol}: {can_trade}")
+
+                    if not can_trade:
+                        logging.info(f"Reached the symbol limit or already trading {symbol}. Skipping trading logic.")
+                    else:
+                        self.bybit_hedge_entry_maker_v3(
+                            symbol, trend, mfirsi_signal, one_minute_volume,
+                            five_minute_distance, min_vol, min_dist,
+                            long_dynamic_amount, short_dynamic_amount,
+                            long_pos_qty, short_pos_qty, long_pos_price,
+                            short_pos_price, should_long, should_short,
+                            should_add_to_long, should_add_to_short
+                        )
+
+                        current_time = time.time()
+                        # Check if it's time to perform spoofing
+                        if current_time - self.last_cancel_time >= self.spoofing_interval:
+                            self.spoofing_active = True
+                            self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
+             
                 elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
                     self.bybit_hedge_entry_maker_v3_initial_entry(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
                     current_time = time.time()

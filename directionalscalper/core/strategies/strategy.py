@@ -45,7 +45,7 @@ class Strategy:
         self.spoofing_wall_size = 5 
         #self.spoofing_duration = 5  # Spoofing duration in seconds
         self.spoofing_interval = 1  # Time interval between spoofing actions
-        self.spoofing_duration = 30  # Spoofing duration in seconds
+        self.spoofing_duration = 5  # Spoofing duration in seconds
 
     class OrderBookAnalyzer:
         def __init__(self, exchange, symbol):
@@ -365,12 +365,7 @@ class Strategy:
                 return True
         logging.info(f"No entry order found for side {side}.")
         return False
-    
-    # def entry_order_exists(self, open_orders: list, side: str) -> bool:
-    #     for order in open_orders:
-    #         if order["side"].lower() == side and order["reduce_only"] == False:
-    #             return True
-    #     return False
+
     
     def get_open_take_profit_order_quantity(self, orders, side):
         for order in orders:
