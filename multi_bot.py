@@ -25,9 +25,7 @@ from directionalscalper.core.strategies.bybit.multi.bybit_auto_maker_mfirsi_rota
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator import BybitMFIRSITrendRotator
 from directionalscalper.core.strategies.bybit.multi.bybit_spoof_rotator import BybitSpoofRotator
 from directionalscalper.core.strategies.bybit.multi.bybit_debug import BybitDebuggingStrategy
-### ILAY ###
 from live_table_manager import LiveTableManager, shared_symbols_data
-### ILAY ###
 
 # def standardize_symbol(symbol):
 #     return symbol.replace('/', '').split(':')[0]

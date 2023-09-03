@@ -10,9 +10,7 @@ from typing import Tuple
 import pandas as pd
 import logging
 from ...logger import Logger
-### ILAY ###
 from live_table_manager import shared_symbols_data
-####
 
 logging = Logger(logger_name="BybitSpoofRotator", filename="BybitSpoofRotator.log", stream=True)
 
@@ -212,11 +210,6 @@ class BybitSpoofRotator(Strategy):
 
                 # print(f"Symbols to manage {symbols_to_manage}")
 
-                # Manage these symbols
-                for s in symbols_to_manage:
-                    print(f"Managing symbol: {s}")  # Debugging line
-                    self.gnifoops([s], total_equity)  # Notice the square brackets around 's'
-
                 #print(f"Open symbols: {open_symbols}")
 
                 #open_symbols = self.retry_api_call(self.extract_symbols_from_positions_bybit, open_position_data)
@@ -227,6 +220,11 @@ class BybitSpoofRotator(Strategy):
 
                 short_pos_qty = position_data["short"]["qty"]
                 long_pos_qty = position_data["long"]["qty"]
+
+                # Manage these symbols
+                for s in symbols_to_manage:
+                    print(f"Managing symbol: {s}\tPos Long: {long_pos_qty}\tShort: {short_pos_qty}")  # Debugging line
+                    self.gnifoops([s], total_equity)  # Notice the square brackets around 's'
 
                 # get liquidation prices
                 short_liq_price = position_data["short"]["liq_price"]
@@ -307,13 +305,9 @@ class BybitSpoofRotator(Strategy):
                     'short_cum_pnl': cum_realised_pnl_short,
                     'long_pos_price': long_pos_price,
                     'short_pos_price': short_pos_price
-                    # ... continue adding all parameters ...
                 }
 
-                ### ILAY ###
-                #live.update(self.generate_main_table(symbol_data))
                 shared_symbols_data[symbol] = symbol_data
-                ### ILAY ###
 
                 if self.config.dashboard_enabled:
                     data_to_save = copy.deepcopy(shared_symbols_data)
