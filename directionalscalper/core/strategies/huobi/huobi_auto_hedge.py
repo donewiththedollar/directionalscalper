@@ -12,8 +12,9 @@ from ..logger import Logger
 logging = Logger(logger_name="HuobiAutoHedge", filename="HuobiAutoHedge.log", stream=True)
 
 class HuobiAutoHedgeStrategy(Strategy):
-    def __init__(self, exchange, manager, config):
-        super().__init__(exchange, config, manager)
+    def __init__(self, exchange, manager, bot_config, config, symbol):
+        super().__init__(exchange, bot_config, manager)
+        self.symbol = symbol
         self.manager = manager
         self.last_cancel_time = 0
         self.long_entry_order_ids = set()
@@ -180,7 +181,8 @@ class HuobiAutoHedgeStrategy(Strategy):
                 price_precision = market_data["precision"]
 
                 if self.max_long_trade_qty is None or self.max_short_trade_qty is None:
-                    self.max_long_trade_qty = self.max_short_trade_qty = self.calc_max_trade_qty(total_equity,
+                    self.max_long_trade_qty = self.max_short_trade_qty = self.calc_max_trade_qty(parsed_symbol_swap,
+                                                                                                 total_equity,
                                                                                                 best_ask_price,
                                                                                                 max_leverage)
 

@@ -55,18 +55,19 @@ from directionalscalper.core.strategies.phemex.phemex_hedge import PhemexHedgeSt
 from directionalscalper.core.strategies.mexc.mexc_hedge import MEXCHedgeStrategy
 
 class DirectionalMarketMaker:
-    def __init__(self, config: Config, exchange_name: str): 
+    def __init__(self, config: Config, exchange_name: str, account_name: str):
         self.config = config
         self.exchange_name = exchange_name
+        self.account_name = account_name
         exchange_config = None
 
         for exch in config.exchanges:
-            if exch.name == exchange_name:
+            if exch.name == exchange_name and exch.account_name == account_name:
                 exchange_config = exch
                 break
 
         if not exchange_config:
-            raise ValueError(f"Exchange {exchange_name} not found in the configuration file.")
+            raise ValueError(f"Exchange {exchange_name} with account {account_name} not found in the configuration file.")
 
         api_key = exchange_config.api_key
         secret_key = exchange_config.api_secret
@@ -101,40 +102,46 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='DirectionalScalper')
     parser.add_argument('--config', type=str, default='configs/config.json', help='Path to the configuration file')
     parser.add_argument('--exchange', type=str, help='The name of the exchange to use')
+    parser.add_argument('--account_name', type=str, help='The name of the account to use')
     parser.add_argument('--strategy', type=str, help='The name of the strategy to use')
     parser.add_argument('--symbol', type=str, help='The trading symbol to use')
     parser.add_argument('--amount', type=str, help='The size to use')
     args = parser.parse_args()
 
-    #config_file_path = Path(args.config)
     config_file_path = Path('configs/' + args.config)
     config = load_config(config_file_path)
 
     exchange_name = args.exchange
+    account_name = args.account_name
     strategy_name = args.strategy
     symbol = args.symbol
     amount = args.amount
+
     print(f"Exchange name: {exchange_name}")
+    print(f"Account name: {account_name}")
     print(f"Strategy name: {strategy_name}")
     print(f"Symbol: {symbol}")
 
-
-    market_maker = DirectionalMarketMaker(config, exchange_name)
+    market_maker = DirectionalMarketMaker(config, exchange_name, account_name)
 
     manager = Manager(market_maker.exchange, api=config.api.mode, path=Path("data", config.api.filename), url=f"{config.api.url}{config.api.filename}")
     market_maker.manager = manager 
 
     quote = "USDT"
-    if exchange_name.lower() == 'huobi':
-        #balance = market_maker.get_balance(quote, 'swap', 'linear')
-        #print(f"Futures balance: {balance}")
-        print(f"Loading huobi strategy..")
-    elif exchange_name.lower() == 'mexc':
-        balance = market_maker.get_balance(quote, type='swap')
-        print(f"Futures balance: {balance}")
-    else:
-        balance = market_maker.get_balance(quote)
-        print(f"Futures balance: {balance}")
+    balance = market_maker.get_balance(quote)
+    print(f"Futures balance: {balance}")
+
+    # quote = "USDT"
+    # if exchange_name.lower() == 'huobi':
+    #     #balance = market_maker.get_balance(quote, 'swap', 'linear')
+    #     #print(f"Futures balance: {balance}")
+    #     print(f"Loading huobi strategy..")
+    # elif exchange_name.lower() == 'mexc':
+    #     balance = market_maker.get_balance(quote, type='swap')
+    #     print(f"Futures balance: {balance}")
+    # else:
+    #     balance = market_maker.get_balance(quote)
+    #     print(f"Futures balance: {balance}")
 
     try:
         # Bitget strategies
@@ -241,7 +248,7 @@ if __name__ == '__main__':
             strategy.run(symbol, amount)
         
         elif strategy_name.lower() == 'huobi_auto_hedge':
-            strategy = HuobiAutoHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot)
+            strategy = HuobiAutoHedgeStrategy(market_maker.exchange, market_maker.manager, config.bot, config, symbol)
             strategy.run(symbol, amount)
 
         # Mexc Strategies
