@@ -19,6 +19,7 @@ logging = Logger(logger_name="BybitAutoRotatorMFIRSIRotator", filename="BybitAut
 class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
+        self.symbols_allowed = symbols_allowed
         self.manager = manager
         self.all_symbol_data = {}
         self.last_long_tp_update = datetime.now()
