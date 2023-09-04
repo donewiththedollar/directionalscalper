@@ -714,48 +714,6 @@ class Strategy:
             now += timedelta(hours=1)
         return now.replace(minute=next_update_minute, second=0, microsecond=0)
 
-    def calculate_short_take_profit_spread_bybit_fees(self, short_pos_price, quantity, symbol, decrease_percentage=0):
-        if short_pos_price is None:
-            return None
-
-        five_min_data = self.manager.get_5m_moving_averages(symbol)
-        price_precision = int(self.exchange.get_price_precision(symbol))
-
-        if five_min_data is not None:
-            ma_6_high = Decimal(five_min_data["MA_6_H"])
-            ma_6_low = Decimal(five_min_data["MA_6_L"])
-
-            try:
-                short_target_price = Decimal(short_pos_price) - (ma_6_high - ma_6_low)
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when calculating short_target_price. short_pos_price={short_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
-                return None
-
-            if decrease_percentage is None:
-                decrease_percentage = 0
-
-            # Calculate the order value
-            order_value = Decimal(quantity) / short_target_price
-            # Calculate the trading fee for this order
-            trading_fee = order_value * Decimal(self.taker_fee_rate)
-            # Subtract the trading fee from the take profit target price
-            short_target_price = short_target_price - trading_fee
-
-            try:
-                short_target_price = short_target_price.quantize(
-                    Decimal('1e-{}'.format(price_precision)),
-                    rounding=ROUND_HALF_UP
-                )
-            except InvalidOperation as e:
-                print(f"Error: Invalid operation when quantizing short_target_price. short_target_price={short_target_price}, price_precision={price_precision}")
-                return None
-
-            short_target_price -= short_target_price * Decimal(decrease_percentage) / 100
-            short_profit_price = short_target_price
-
-            return float(short_profit_price)
-
-        return None
 
     def calculate_long_take_profit_spread_bybit_fees(self, long_pos_price, quantity, symbol, increase_percentage=0):
         if long_pos_price is None:
@@ -774,30 +732,55 @@ class Strategy:
                 print(f"Error: Invalid operation when calculating long_target_price. long_pos_price={long_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
                 return None
 
-            if increase_percentage is None:
-                increase_percentage = 0
-
-            # Calculate the order value
-            order_value = Decimal(quantity) / long_target_price
-            # Calculate the trading fee for this order
-            trading_fee = order_value * Decimal(self.taker_fee_rate)
-            # Add the trading fee to the take profit target price
-            long_target_price = long_target_price + trading_fee
+            # Adjust for increase percentage before fees
+            long_target_price *= (1 + Decimal(increase_percentage)/100)
+            
+            # Calculate the fee adjustment
+            trading_fee = Decimal(quantity) * Decimal(self.taker_fee_rate)
+            adjusted_fee = trading_fee * long_target_price
+            long_target_price += adjusted_fee
 
             try:
-                long_target_price = long_target_price.quantize(
-                    Decimal('1e-{}'.format(price_precision)),
-                    rounding=ROUND_HALF_UP
-                )
+                long_target_price = long_target_price.quantize(Decimal('1e-{}'.format(price_precision)), rounding=ROUND_HALF_UP)
             except InvalidOperation as e:
                 print(f"Error: Invalid operation when quantizing long_target_price. long_target_price={long_target_price}, price_precision={price_precision}")
                 return None
 
-            long_target_price += long_target_price * Decimal(increase_percentage) / 100
-            long_profit_price = long_target_price
+            return float(long_target_price)
+        return None
 
-            return float(long_profit_price)
+    def calculate_short_take_profit_spread_bybit_fees(self, short_pos_price, quantity, symbol, increase_percentage=0):
+        if short_pos_price is None:
+            return None
 
+        five_min_data = self.manager.get_5m_moving_averages(symbol)
+        price_precision = int(self.exchange.get_price_precision(symbol))
+
+        if five_min_data is not None:
+            ma_6_high = Decimal(five_min_data["MA_6_H"])
+            ma_6_low = Decimal(five_min_data["MA_6_L"])
+
+            try:
+                short_target_price = Decimal(short_pos_price) - (ma_6_high - ma_6_low)
+            except InvalidOperation as e:
+                print(f"Error: Invalid operation when calculating short_target_price. short_pos_price={short_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
+                return None
+
+            # Adjust for increase percentage before fees (for shorts this would effectively decrease the target price)
+            short_target_price *= (1 - Decimal(increase_percentage)/100)
+            
+            # Calculate the fee adjustment
+            trading_fee = Decimal(quantity) * Decimal(self.taker_fee_rate)
+            adjusted_fee = trading_fee * short_target_price
+            short_target_price -= adjusted_fee
+
+            try:
+                short_target_price = short_target_price.quantize(Decimal('1e-{}'.format(price_precision)), rounding=ROUND_HALF_UP)
+            except InvalidOperation as e:
+                print(f"Error: Invalid operation when quantizing short_target_price. short_target_price={short_target_price}, price_precision={price_precision}")
+                return None
+
+            return float(short_target_price)
         return None
 
     def calculate_short_take_profit_spread_bybit(self, short_pos_price, symbol, increase_percentage=0):
@@ -2326,21 +2309,21 @@ class Strategy:
             ma_1m_3_high_open_symbol = moving_averages_open_symbol["ma_1m_3_high"]
             ma_5m_3_high_open_symbol = moving_averages_open_symbol["ma_5m_3_high"]
 
-            # Calculate your take profit levels for each open symbol - with avoiding fees
-            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit_fees(
-                position_data_open_symbol["short"]["price"], short_pos_qty_open_symbol, open_symbol, five_minute_distance
-            )
-            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit_fees(
-                position_data_open_symbol["long"]["price"], long_pos_qty_open_symbol, open_symbol, five_minute_distance
-            )
+            # # Calculate your take profit levels for each open symbol - with avoiding fees
+            # short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit_fees(
+            #     position_data_open_symbol["short"]["price"], short_pos_qty_open_symbol, open_symbol, five_minute_distance
+            # )
+            # long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit_fees(
+            #     position_data_open_symbol["long"]["price"], long_pos_qty_open_symbol, open_symbol, five_minute_distance
+            # )
 
-            # # Calculate your take profit levels for each open symbol.
-            # short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
-            #     position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
-            # )
-            # long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
-            #     position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
-            # )
+            # Calculate your take profit levels for each open symbol.
+            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
+                position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
+            )
+            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
+                position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
+            )
 
             # # Calculate your take profit levels for each open symbol.
             # short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
@@ -2539,12 +2522,20 @@ class Strategy:
             ma_1m_3_high_open_symbol = moving_averages_open_symbol["ma_1m_3_high"]
             ma_5m_3_high_open_symbol = moving_averages_open_symbol["ma_5m_3_high"]
 
-            # Calculate your take profit levels for each open symbol - with avoiding fees
-            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit_fees(
-                position_data_open_symbol["short"]["price"], short_pos_qty_open_symbol, open_symbol, five_minute_distance
+            # # Calculate your take profit levels for each open symbol - with avoiding fees
+            # short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit_fees(
+            #     position_data_open_symbol["short"]["price"], short_pos_qty_open_symbol, open_symbol, five_minute_distance
+            # )
+            # long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit_fees(
+            #     position_data_open_symbol["long"]["price"], long_pos_qty_open_symbol, open_symbol, five_minute_distance
+            # )
+
+            # Calculate your take profit levels for each open symbol.
+            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
+                position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
             )
-            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit_fees(
-                position_data_open_symbol["long"]["price"], long_pos_qty_open_symbol, open_symbol, five_minute_distance
+            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
+                position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
             )
 
             # Additional context-specific variables
@@ -2758,21 +2749,21 @@ class Strategy:
             ma_1m_3_high_open_symbol = moving_averages_open_symbol["ma_1m_3_high"]
             ma_5m_3_high_open_symbol = moving_averages_open_symbol["ma_5m_3_high"]
 
-            # Calculate your take profit levels for each open symbol - with avoiding fees
-            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit_fees(
-                position_data_open_symbol["short"]["price"], short_pos_qty_open_symbol, open_symbol, five_minute_distance
-            )
-            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit_fees(
-                position_data_open_symbol["long"]["price"], long_pos_qty_open_symbol, open_symbol, five_minute_distance
-            )
+            # # Calculate your take profit levels for each open symbol - with avoiding fees
+            # short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit_fees(
+            #     position_data_open_symbol["short"]["price"], short_pos_qty_open_symbol, open_symbol, five_minute_distance
+            # )
+            # long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit_fees(
+            #     position_data_open_symbol["long"]["price"], long_pos_qty_open_symbol, open_symbol, five_minute_distance
+            # )
 
-            # # Calculate your take profit levels for each open symbol.
-            # short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
-            #     position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
-            # )
-            # long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
-            #     position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
-            # )
+            # Calculate your take profit levels for each open symbol.
+            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
+                position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
+            )
+            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
+                position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
+            )
 
             # Additional context-specific variables
             long_pos_price_open_symbol = position_data_open_symbol["long"]["price"] if long_pos_qty_open_symbol > 0 else None
@@ -3009,21 +3000,21 @@ class Strategy:
             logging.info(f"Variables in manage_open_positions for {open_symbol}: market_data={market_data}, total_equity={total_equity}, best_ask_price_open_symbol={best_ask_price_open_symbol}, max_leverage={max_leverage}")
 
             
-            # Calculate your take profit levels for each open symbol - with avoiding fees
-            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit_fees(
-                position_data_open_symbol["short"]["price"], short_pos_qty_open_symbol, open_symbol, five_minute_distance
-            )
-            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit_fees(
-                position_data_open_symbol["long"]["price"], long_pos_qty_open_symbol, open_symbol, five_minute_distance
-            )
+            # # Calculate your take profit levels for each open symbol - with avoiding fees
+            # short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit_fees(
+            #     position_data_open_symbol["short"]["price"], short_pos_qty_open_symbol, open_symbol, five_minute_distance
+            # )
+            # long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit_fees(
+            #     position_data_open_symbol["long"]["price"], long_pos_qty_open_symbol, open_symbol, five_minute_distance
+            # )
             
-            # # Calculate your take profit levels for each open symbol.
-            # short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
-            #     position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
-            # )
-            # long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
-            #     position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
-            # )
+            # Calculate your take profit levels for each open symbol.
+            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
+                position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
+            )
+            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
+                position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
+            )
 
             # Fetch open orders for the open symbol
             open_orders_open_symbol = self.retry_api_call(self.exchange.get_open_orders, open_symbol)
@@ -3187,21 +3178,21 @@ class Strategy:
             ma_1m_3_high_open_symbol = moving_averages_open_symbol["ma_1m_3_high"]
             ma_5m_3_high_open_symbol = moving_averages_open_symbol["ma_5m_3_high"]
 
-            # Calculate your take profit levels for each open symbol - with avoiding fees
-            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit_fees(
-                position_data_open_symbol["short"]["price"], short_pos_qty_open_symbol, open_symbol, five_minute_distance
-            )
-            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit_fees(
-                position_data_open_symbol["long"]["price"], long_pos_qty_open_symbol, open_symbol, five_minute_distance
-            )
+            # # Calculate your take profit levels for each open symbol - with avoiding fees
+            # short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit_fees(
+            #     position_data_open_symbol["short"]["price"], short_pos_qty_open_symbol, open_symbol, five_minute_distance
+            # )
+            # long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit_fees(
+            #     position_data_open_symbol["long"]["price"], long_pos_qty_open_symbol, open_symbol, five_minute_distance
+            # )
 
-            # # Calculate your take profit levels for each open symbol.
-            # short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
-            #     position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
-            # )
-            # long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
-            #     position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
-            # )
+            # Calculate your take profit levels for each open symbol.
+            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
+                position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
+            )
+            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
+                position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
+            )
 
             # Additional context-specific variables
             long_pos_price_open_symbol = position_data_open_symbol["long"]["price"] if long_pos_qty_open_symbol > 0 else None
