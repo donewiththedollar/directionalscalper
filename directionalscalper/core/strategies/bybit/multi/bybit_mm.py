@@ -17,7 +17,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 logging = Logger(logger_name="BybitDebug", filename="BybitDebug.log", stream=True)
 
-class BybitDebuggingStrategy(Strategy):
+class BybitMM(Strategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
         self.symbols_allowed = symbols_allowed
@@ -221,7 +221,7 @@ class BybitDebuggingStrategy(Strategy):
                 # Manage these symbols
                 for s in symbols_to_manage:
                     print(f"Managing symbol: {s}")  # Debugging line
-                    self.safu([s], total_equity)  # Notice the square brackets around 's'
+                    self.manage_mm([s], total_equity)  # Notice the square brackets around 's'
 
                 #print(f"Open symbols: {open_symbols}")
 
