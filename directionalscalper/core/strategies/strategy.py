@@ -2324,13 +2324,21 @@ class Strategy:
             ma_1m_3_high_open_symbol = moving_averages_open_symbol["ma_1m_3_high"]
             ma_5m_3_high_open_symbol = moving_averages_open_symbol["ma_5m_3_high"]
 
-            # Calculate your take profit levels for each open symbol.
-            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
-                position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
+            # Calculate your take profit levels for each open symbol - with avoiding fees
+            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit_fees(
+                position_data_open_symbol["short"]["price"], short_pos_qty_open_symbol, open_symbol, five_minute_distance
             )
-            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
-                position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
+            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit_fees(
+                position_data_open_symbol["long"]["price"], long_pos_qty_open_symbol, open_symbol, five_minute_distance
             )
+
+            # # Calculate your take profit levels for each open symbol.
+            # short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
+            #     position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
+            # )
+            # long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
+            #     position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
+            # )
 
             # # Calculate your take profit levels for each open symbol.
             # short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
@@ -2367,13 +2375,13 @@ class Strategy:
             ma_1m_3_high_open_symbol = moving_averages_open_symbol["ma_1m_3_high"]
             ma_5m_3_high_open_symbol = moving_averages_open_symbol["ma_5m_3_high"]
             
-            # Calculate your take profit levels for each open symbol.
-            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
-                position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
-            )
-            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
-                position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
-            )
+            # # Calculate your take profit levels for each open symbol.
+            # short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
+            #     position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
+            # )
+            # long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
+            #     position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
+            # )
 
             # Fetch open orders for the open symbol
             open_orders_open_symbol = self.retry_api_call(self.exchange.get_open_orders, open_symbol)
@@ -2529,21 +2537,13 @@ class Strategy:
             ma_1m_3_high_open_symbol = moving_averages_open_symbol["ma_1m_3_high"]
             ma_5m_3_high_open_symbol = moving_averages_open_symbol["ma_5m_3_high"]
 
-            # Calculate your take profit levels for each open symbol.
-            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
-                position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
+            # Calculate your take profit levels for each open symbol - with avoiding fees
+            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit_fees(
+                position_data_open_symbol["short"]["price"], short_pos_qty_open_symbol, open_symbol, five_minute_distance
             )
-            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
-                position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
+            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit_fees(
+                position_data_open_symbol["long"]["price"], long_pos_qty_open_symbol, open_symbol, five_minute_distance
             )
-
-            # # Calculate your take profit levels for each open symbol.
-            # short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
-            #     position_data_open_symbol["short"]["price"], open_symbol, one_minute_distance
-            # )
-            # long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
-            #     position_data_open_symbol["long"]["price"], open_symbol, one_minute_distance
-            # )
 
             # Additional context-specific variables
             long_pos_price_open_symbol = position_data_open_symbol["long"]["price"] if long_pos_qty_open_symbol > 0 else None
@@ -2572,13 +2572,13 @@ class Strategy:
             ma_1m_3_high_open_symbol = moving_averages_open_symbol["ma_1m_3_high"]
             ma_5m_3_high_open_symbol = moving_averages_open_symbol["ma_5m_3_high"]
             
-            # Calculate your take profit levels for each open symbol.
-            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
-                position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
-            )
-            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
-                position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
-            )
+            # # Calculate your take profit levels for each open symbol.
+            # short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
+            #     position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
+            # )
+            # long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
+            #     position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
+            # )
 
             # Fetch open orders for the open symbol
             open_orders_open_symbol = self.retry_api_call(self.exchange.get_open_orders, open_symbol)
@@ -2756,20 +2756,20 @@ class Strategy:
             ma_1m_3_high_open_symbol = moving_averages_open_symbol["ma_1m_3_high"]
             ma_5m_3_high_open_symbol = moving_averages_open_symbol["ma_5m_3_high"]
 
-            # Calculate your take profit levels for each open symbol.
-            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
-                position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
+            # Calculate your take profit levels for each open symbol - with avoiding fees
+            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit_fees(
+                position_data_open_symbol["short"]["price"], short_pos_qty_open_symbol, open_symbol, five_minute_distance
             )
-            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
-                position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
+            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit_fees(
+                position_data_open_symbol["long"]["price"], long_pos_qty_open_symbol, open_symbol, five_minute_distance
             )
 
             # # Calculate your take profit levels for each open symbol.
             # short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
-            #     position_data_open_symbol["short"]["price"], open_symbol, one_minute_distance
+            #     position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
             # )
             # long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
-            #     position_data_open_symbol["long"]["price"], open_symbol, one_minute_distance
+            #     position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
             # )
 
             # Additional context-specific variables
@@ -2799,13 +2799,13 @@ class Strategy:
             ma_1m_3_high_open_symbol = moving_averages_open_symbol["ma_1m_3_high"]
             ma_5m_3_high_open_symbol = moving_averages_open_symbol["ma_5m_3_high"]
             
-            # Calculate your take profit levels for each open symbol.
-            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
-                position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
-            )
-            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
-                position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
-            )
+            # # Calculate your take profit levels for each open symbol.
+            # short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
+            #     position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
+            # )
+            # long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
+            #     position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
+            # )
 
             # Fetch open orders for the open symbol
             open_orders_open_symbol = self.retry_api_call(self.exchange.get_open_orders, open_symbol)
@@ -3006,13 +3006,21 @@ class Strategy:
             logging.info(f"Variables in manage_open_positions for {open_symbol}: market_data={market_data}, total_equity={total_equity}, best_ask_price_open_symbol={best_ask_price_open_symbol}, max_leverage={max_leverage}")
 
             
-            # Calculate your take profit levels for each open symbol.
-            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
-                position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
+            # Calculate your take profit levels for each open symbol - with avoiding fees
+            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit_fees(
+                position_data_open_symbol["short"]["price"], short_pos_qty_open_symbol, open_symbol, five_minute_distance
             )
-            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
-                position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
+            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit_fees(
+                position_data_open_symbol["long"]["price"], long_pos_qty_open_symbol, open_symbol, five_minute_distance
             )
+            
+            # # Calculate your take profit levels for each open symbol.
+            # short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
+            #     position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
+            # )
+            # long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
+            #     position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
+            # )
 
             # Fetch open orders for the open symbol
             open_orders_open_symbol = self.retry_api_call(self.exchange.get_open_orders, open_symbol)
@@ -3176,13 +3184,21 @@ class Strategy:
             ma_1m_3_high_open_symbol = moving_averages_open_symbol["ma_1m_3_high"]
             ma_5m_3_high_open_symbol = moving_averages_open_symbol["ma_5m_3_high"]
 
-            # Calculate your take profit levels for each open symbol.
-            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
-                position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
+            # Calculate your take profit levels for each open symbol - with avoiding fees
+            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit_fees(
+                position_data_open_symbol["short"]["price"], short_pos_qty_open_symbol, open_symbol, five_minute_distance
             )
-            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
-                position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
+            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit_fees(
+                position_data_open_symbol["long"]["price"], long_pos_qty_open_symbol, open_symbol, five_minute_distance
             )
+
+            # # Calculate your take profit levels for each open symbol.
+            # short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
+            #     position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
+            # )
+            # long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
+            #     position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
+            # )
 
             # Additional context-specific variables
             long_pos_price_open_symbol = position_data_open_symbol["long"]["price"] if long_pos_qty_open_symbol > 0 else None
@@ -3210,13 +3226,6 @@ class Strategy:
             ma_1m_3_high_open_symbol = moving_averages_open_symbol["ma_1m_3_high"]
             ma_5m_3_high_open_symbol = moving_averages_open_symbol["ma_5m_3_high"]
             
-            # Calculate your take profit levels for each open symbol.
-            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
-                position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
-            )
-            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
-                position_data_open_symbol["long"]["price"], open_symbol, five_minute_distance
-            )
 
             # Fetch open orders for the open symbol
             open_orders_open_symbol = self.retry_api_call(self.exchange.get_open_orders, open_symbol)
