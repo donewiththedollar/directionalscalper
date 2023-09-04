@@ -99,7 +99,7 @@ Make sure you are in the directory directionalscalper
 
 ### Starting the bot using arguments
 
-> python3.11 multi_bot.py 
+> python3.11 multi_bot.py (no params opens menu)
 > python3.11 multi_bot.py --exchange bybit --strategy bybit_mfirsi_trend_rotator --config config_name.json
 > python3.11 multi_bot.py --exchange bybit --strategy bybit_rotator_aggressive --config config_name.json
 
@@ -107,7 +107,7 @@ Make sure you are in the directory directionalscalper
 
 > python3.11 bot.py --exchange bitget --symbol XRPUSDT_UMCBL --amount 15 --strategy bitget_hedge --config config_main.json
  
-> python3.11 bot.py --exchange huobi --symbol XRPUSDT --amount 1 --strategy huobi_hedge --config config_whatever.json
+> python3.11 bot.py --exchange huobi --strategy huobi_auto_hedge --account_name account_4 --amount 1 --symbol DOGEUSDT --config config.json
  
 * Example of starting a different strategy. In this example amount is not needed, as it is dynamic based on minimum required by Bitget.
  
