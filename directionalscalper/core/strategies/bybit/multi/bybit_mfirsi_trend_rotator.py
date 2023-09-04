@@ -19,7 +19,7 @@ logging = Logger(logger_name="BybitMFIRSITrendRotator", filename="BybitMFIRSITre
 
 class BybitMFIRSITrendRotator(Strategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
-        super().__init__(exchange, config, manager)
+        super().__init__(exchange, config, manager, symbols_allowed)
         self.symbols_allowed = symbols_allowed
         self.manager = manager
         self.all_symbol_data = {}
@@ -74,6 +74,7 @@ class BybitMFIRSITrendRotator(Strategy):
         min_vol = self.config.min_volume
         current_leverage = self.exchange.get_current_leverage_bybit(symbol)
         max_leverage = self.exchange.get_max_leverage_bybit(symbol)
+
 
         # symbols_allowed = self.config.symbols_allowed
 

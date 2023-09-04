@@ -17,8 +17,8 @@ from live_table_manager import shared_symbols_data
 logging = Logger(logger_name="BybitAutoRotatorMFIRSIRotator", filename="BybitAutoRotatorMFIRSIRotator.log", stream=True)
 
 class BybitAutoHedgeStrategyMakerMFIRSIRotator(Strategy):
-    def __init__(self, exchange, manager, config):
-        super().__init__(exchange, config, manager)
+    def __init__(self, exchange, manager, config, symbols_allowed=None):
+        super().__init__(exchange, config, manager, symbols_allowed)
         self.manager = manager
         self.all_symbol_data = {}
         self.last_long_tp_update = datetime.now()

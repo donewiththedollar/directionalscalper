@@ -18,11 +18,13 @@ class Strategy:
     MAX_LEVERAGE = 0.3  # The maximum allowable leverage
     QTY_INCREMENT = 0.05 # How much your position size increases
     MAX_PCT_EQUIY = 1
-    def __init__(self, exchange, config, manager):
+    def __init__(self, exchange, config, manager, symbols_allowed=None):
+    # def __init__(self, exchange, config, manager):
         self.exchange = exchange
         self.config = config
         self.manager = manager
         self.symbol = config.symbol
+        self.symbols_allowed = symbols_allowed
         self.printed_trade_quantities = False
         self.last_mfirsi_signal = None
         self.taker_fee_rate = 0.055 / 100
@@ -2938,6 +2940,7 @@ class Strategy:
             if open_symbol not in rotator_symbols:
                 logging.info(f"Symbol {open_symbol} is not in current rotator symbols. Managing it.")
 
+            print(f"Symbols allowed: {self.symbols_allowed}")
             # Get API data
             api_data = self.manager.get_api_data(open_symbol)
             one_minute_volume = api_data['1mVol']

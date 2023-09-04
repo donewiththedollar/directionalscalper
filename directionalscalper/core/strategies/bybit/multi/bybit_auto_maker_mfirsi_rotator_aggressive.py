@@ -18,7 +18,7 @@ logging = Logger(logger_name="BybitRotatorAggressive", filename="BybitRotatorAgg
 
 class BybitRotatorAggressive(Strategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
-        super().__init__(exchange, config, manager)
+        super().__init__(exchange, config, manager, symbols_allowed)
         self.symbols_allowed = symbols_allowed
         self.manager = manager
         self.all_symbol_data = {}
