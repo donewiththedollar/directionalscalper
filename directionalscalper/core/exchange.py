@@ -1757,10 +1757,37 @@ class Exchange:
         :param dict params: Additional parameters for the API call.
         :return: A list of canceled orders.
         """
-        if derivatives:
-            return self.exchange.cancel_all_derivatives_orders(None, params)
-        else:
-            return self.exchange.cancel_all_orders(None, params)
+        max_retries = 10  # Maximum number of retries
+        retry_delay = 5  # Delay (in seconds) between retries
+
+        for retry in range(max_retries):
+            try:
+                if derivatives:
+                    return self.exchange.cancel_all_derivatives_orders(None, params)
+                else:
+                    return self.exchange.cancel_all_orders(None, params)
+            except ccxt.RateLimitExceeded as e:
+                # If rate limit error and not the last retry, then wait and try again
+                if retry < max_retries - 1:
+                    logging.warning(f"Rate limit exceeded. Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                    continue
+                else:  # If it's the last retry, raise the error
+                    logging.error(f"Rate limit exceeded after {max_retries} retries.")
+                    raise e
+
+    # def cancel_all_open_orders_bybit(self, derivatives: bool = False, params={}):
+    #     """
+    #     Cancel all open orders for all symbols.
+        
+    #     :param bool derivatives: Whether to cancel derivative orders.
+    #     :param dict params: Additional parameters for the API call.
+    #     :return: A list of canceled orders.
+    #     """
+    #     if derivatives:
+    #         return self.exchange.cancel_all_derivatives_orders(None, params)
+    #     else:
+    #         return self.exchange.cancel_all_orders(None, params)
 
     def health_check(self, interval_seconds=300):
         """
@@ -2216,35 +2243,79 @@ class Exchange:
     #     except Exception as e:
     #         print(f"An unknown error occurred in cancel_take_profit_orders: {e}")
 
-    def cancel_close_bybit(self, symbol: str, side: str) -> None:
+    def cancel_close_bybit(self, symbol: str, side: str, max_retries: int = 3) -> None:
         side = side.lower()
         side_map = {"long": "buy", "short": "sell"}
         side = side_map.get(side, side)
         
         position_idx_map = {"buy": 1, "sell": 2}
-        try:
-            orders = self.exchange.fetch_open_orders(symbol)
-            if len(orders) > 0:
-                for order in orders:
-                    if "info" in order:
-                        order_id = order["info"]["orderId"]
-                        order_status = order["info"]["orderStatus"]
-                        order_side = order["info"]["side"]
-                        reduce_only = order["info"]["reduceOnly"]
-                        position_idx = order["info"]["positionIdx"]
+        
+        retries = 0
+        while retries < max_retries:
+            try:
+                orders = self.exchange.fetch_open_orders(symbol)
+                if len(orders) > 0:
+                    for order in orders:
+                        if "info" in order:
+                            order_id = order["info"]["orderId"]
+                            order_status = order["info"]["orderStatus"]
+                            order_side = order["info"]["side"]
+                            reduce_only = order["info"]["reduceOnly"]
+                            position_idx = order["info"]["positionIdx"]
 
-                        if (
-                            order_status != "Filled"
-                            and order_side.lower() == side
-                            and order_status != "Cancelled"
-                            and reduce_only
-                            and position_idx == position_idx_map[side]
-                        ):
-                            # use the new cancel_derivatives_order function
-                            self.exchange.cancel_derivatives_order(order_id, symbol)
-                            logging.info(f"Cancelling order: {order_id}")
-        except Exception as e:
-            logging.warning(f"An unknown error occurred in cancel_close_bybit(): {e}")
+                            if (
+                                order_status != "Filled"
+                                and order_side.lower() == side
+                                and order_status != "Cancelled"
+                                and reduce_only
+                                and position_idx == position_idx_map[side]
+                            ):
+                                # use the new cancel_derivatives_order function
+                                self.exchange.cancel_derivatives_order(order_id, symbol)
+                                logging.info(f"Cancelling order: {order_id}")
+                # If the code reaches this point without an exception, break out of the loop
+                break
+
+            except (RateLimitExceeded, NetworkError) as e:
+                retries += 1
+                logging.warning(f"Encountered an error in cancel_close_bybit(). Retrying... {retries}/{max_retries}")
+                time.sleep(5)  # Pause before retrying, this can be adjusted
+
+            except Exception as e:
+                # For other exceptions, log and break out of the loop
+                logging.warning(f"An unknown error occurred in cancel_close_bybit(): {e}")
+                break
+
+
+    # def cancel_close_bybit(self, symbol: str, side: str) -> None:
+    #     side = side.lower()
+    #     side_map = {"long": "buy", "short": "sell"}
+    #     side = side_map.get(side, side)
+        
+    #     position_idx_map = {"buy": 1, "sell": 2}
+    #     try:
+    #         orders = self.exchange.fetch_open_orders(symbol)
+    #         if len(orders) > 0:
+    #             for order in orders:
+    #                 if "info" in order:
+    #                     order_id = order["info"]["orderId"]
+    #                     order_status = order["info"]["orderStatus"]
+    #                     order_side = order["info"]["side"]
+    #                     reduce_only = order["info"]["reduceOnly"]
+    #                     position_idx = order["info"]["positionIdx"]
+
+    #                     if (
+    #                         order_status != "Filled"
+    #                         and order_side.lower() == side
+    #                         and order_status != "Cancelled"
+    #                         and reduce_only
+    #                         and position_idx == position_idx_map[side]
+    #                     ):
+    #                         # use the new cancel_derivatives_order function
+    #                         self.exchange.cancel_derivatives_order(order_id, symbol)
+    #                         logging.info(f"Cancelling order: {order_id}")
+    #     except Exception as e:
+    #         logging.warning(f"An unknown error occurred in cancel_close_bybit(): {e}")
 
     def huobi_test_orders(self, symbol: str) -> None:
         try:

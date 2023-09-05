@@ -15,7 +15,7 @@ from live_table_manager import shared_symbols_data
 ####
 from concurrent.futures import ThreadPoolExecutor
 
-logging = Logger(logger_name="BybitDebug", filename="BybitDebug.log", stream=True)
+logging = Logger(logger_name="BybitMM", filename="BybitMM.log", stream=True)
 
 class BybitMM(Strategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
