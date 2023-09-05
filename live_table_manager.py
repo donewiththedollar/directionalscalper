@@ -32,6 +32,7 @@ class LiveTableManager:
         table.add_column("Short Pos. Price")
 
         # Assuming all symbols have **nearly** the same balance and available balance we pick the last symbol to get these values
+        current_time = datetime.datetime.now().strftime('%H:%M:%S %d-%m-%Y')
         last_symbol_data = list(shared_symbols_data.values())[-1] if shared_symbols_data else None
         if last_symbol_data:
             balance = "{:.4f}".format(float(last_symbol_data.get('balance', 0)))
@@ -42,9 +43,9 @@ class LiveTableManager:
             upnl_style = "[blink]" if upnl_value > 15 or upnl_value < -15 else "[bold]" if upnl_value > 5 or upnl_value < -5 else ""
             upnl_color = "[green]" if upnl_value > 1 else "[red]" if upnl_value < -1 else ""
             styled_upnl = f"{upnl_style}{upnl_color}{total_upnl}[/]"
-            #last updated
-            current_time = datetime.datetime.now().strftime('%H:%M:%S %d-%m-%Y')
             table.caption = f"Balance: {balance} | Available: {available_bal} | Total uPnL: {styled_upnl} | Updated: {current_time}"
+        else:
+            table.caption = f"Loading... {len(shared_symbols_data)} symbols loaded | Updated: {current_time}"
 
         # Sorting symbols
         sorted_symbols = sorted(shared_symbols_data.values(), key=lambda x: (
