@@ -40,8 +40,8 @@ class LiveTableManager:
             total_upnl = "{:.4f}".format(sum(symbol_data.get('long_upnl', 0) + symbol_data.get('short_upnl', 0) for symbol_data in shared_symbols_data.values()))
             #styling
             upnl_value = float(total_upnl)
-            upnl_style = "[blink]" if upnl_value > 15 or upnl_value < -15 else "[bold]" if upnl_value > 5 or upnl_value < -5 else ""
-            upnl_color = "[green]" if upnl_value > 1 else "[red]" if upnl_value < -1 else ""
+            upnl_style = "[italic]" if upnl_value > 9 or upnl_value < -9.5 else "[bold]" if upnl_value > 3.5 or upnl_value < -3.5 else ""
+            upnl_color = "[green]" if upnl_value > 1 else "[red]" if upnl_value < -1 else "[grey]"
             styled_upnl = f"{upnl_style}{upnl_color}{total_upnl}[/]"
             table.caption = f"Balance: {balance} | Available: {available_bal} | Total uPnL: {styled_upnl} | Updated: {current_time}"
         else:
