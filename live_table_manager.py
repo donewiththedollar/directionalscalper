@@ -1,4 +1,5 @@
 import threading
+import datetime
 import time
 from rich.console import Console
 from rich.live import Live
@@ -30,13 +31,21 @@ class LiveTableManager:
         table.add_column("Long Pos. Price")
         table.add_column("Short Pos. Price")
 
-        # Assuming all symbols have the same balance and available balance
-        # So, we just pick the last symbol to get these values
+        # Assuming all symbols have **nearly** the same balance and available balance we pick the last symbol to get these values
+        current_time = datetime.datetime.now().strftime('%H:%M:%S %d-%m-%Y')
         last_symbol_data = list(shared_symbols_data.values())[-1] if shared_symbols_data else None
         if last_symbol_data:
-            balance = str(last_symbol_data.get('balance', 0))
-            available_bal = str(last_symbol_data.get('available_bal', 0))
-            table.caption = f"Balance: {balance}, Available Balance: {available_bal}"
+            balance = "{:.4f}".format(float(last_symbol_data.get('balance', 0)))
+            available_bal = "{:.4f}".format(float(last_symbol_data.get('available_bal', 0)))
+            total_upnl = "{:.4f}".format(sum(symbol_data.get('long_upnl', 0) + symbol_data.get('short_upnl', 0) for symbol_data in shared_symbols_data.values()))
+            #styling
+            upnl_value = float(total_upnl)
+            upnl_style = "[italic]" if upnl_value > 9 or upnl_value < -9.5 else "[bold]" if upnl_value > 3.5 or upnl_value < -3.5 else ""
+            upnl_color = "[green]" if upnl_value > 1 else "[red]" if upnl_value < -1 else "[grey]"
+            styled_upnl = f"{upnl_style}{upnl_color}{total_upnl}[/]"
+            table.caption = f"Balance: {balance} | Available: {available_bal} | Total uPnL: {styled_upnl} | Updated: {current_time}"
+        else:
+            table.caption = f"Loading... {len(shared_symbols_data)} symbols loaded | Updated: {current_time}"
 
         # Sorting symbols
         sorted_symbols = sorted(shared_symbols_data.values(), key=lambda x: (
@@ -51,14 +60,14 @@ class LiveTableManager:
             short_upnl = symbol_data.get('short_upnl', 0)
 
             # Determine if the entire row should be bold
-            is_bold_row = long_pos_qty > 0 or short_pos_qty > 0
+            is_symbolrowalive = long_pos_qty > 0 or short_pos_qty > 0 
 
             # Helper function to format the cell
-            def format_cell(value, is_bold=is_bold_row, is_highlight=False):
+            def format_cell(value, is_bold=is_symbolrowalive, is_highlight=False):
                 if is_bold:
                     return f"[b]{value}[/b]"
                 elif is_highlight:
-                    return f"[b]{value}[/b]" if value > 0 else str(value)
+                    return f"[b]{value}[/b]" if value > 0 else str(value) #if for some reason there isn't a position and there's a Pnl (making sure there's no )
                 return str(value)
 
             row = [
@@ -77,7 +86,8 @@ class LiveTableManager:
                 format_cell(symbol_data.get('long_pos_price', 0)),
                 format_cell(symbol_data.get('short_pos_price', 0))
             ]
-            table.add_row(*row)
+            if is_symbolrowalive: #if it's a symbol with long or short position > 0
+                table.add_row(*row)
 
         return table
 
