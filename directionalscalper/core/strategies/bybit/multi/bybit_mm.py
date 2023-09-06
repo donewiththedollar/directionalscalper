@@ -49,6 +49,7 @@ class BybitMM(Strategy):
         self.short_leverage_increased = False
         self.version = "2.0.6"
         self.rows = {}
+        # MM
         self.spoofing_active = False  # Initialize spoofing state
         self.spoofing_wall_size = 5
         self.spoofing_duration = 5  # Spoofing duration in seconds
@@ -76,6 +77,7 @@ class BybitMM(Strategy):
         wallet_exposure = self.config.wallet_exposure
         min_dist = self.config.min_distance
         min_vol = self.config.min_volume
+        MaxAbsFundingRate = self.config.MaxAbsFundingRate
         current_leverage = self.exchange.get_current_leverage_bybit(symbol)
         max_leverage = self.exchange.get_max_leverage_bybit(symbol)
 
@@ -131,7 +133,9 @@ class BybitMM(Strategy):
                 eri_trend = api_data['ERI Trend']
                 funding_rate = api_data['Funding']
 
-                #logging.info(f"Funding rate for {symbol} : {funding_rate}")
+                funding_check = self.is_funding_rate_acceptable(symbol)
+
+                print(f"Funding check on {symbol} : {funding_check}")
 
                 logging.info(f"Rotator symbols: {rotator_symbols}")
                 
@@ -255,23 +259,11 @@ class BybitMM(Strategy):
                 short_take_profit = None
                 long_take_profit = None
 
-                # if five_minute_distance != previous_five_minute_distance:
-                #     short_take_profit = self.calculate_short_take_profit_spread_bybit_fees(short_pos_price, short_pos_qty, symbol, five_minute_distance)
-                #     long_take_profit = self.calculate_long_take_profit_spread_bybit_fees(long_pos_price, long_pos_qty, symbol, five_minute_distance)
-                # else:
-                #     if short_take_profit is None or long_take_profit is None:
-                #         short_take_profit = self.calculate_short_take_profit_spread_bybit_fees(short_pos_price, short_pos_qty, symbol, five_minute_distance)
-                #         long_take_profit = self.calculate_long_take_profit_spread_bybit_fees(long_pos_price, long_pos_qty, symbol, five_minute_distance)
-                        
+                short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
 
-                if five_minute_distance != previous_five_minute_distance:
-                    short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, five_minute_distance)
-                    long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
-                else:
-                    if short_take_profit is None or long_take_profit is None:
-                        short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, five_minute_distance)
-                        long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
-                        
+                # print(f"Short take profit for {symbol} : {short_take_profit}")
+                # print(f"Long take profit for {symbol} : {long_take_profit}")
+                                
                 previous_five_minute_distance = five_minute_distance
 
                 should_short = self.short_trade_condition(best_ask_price, ma_3_high)
