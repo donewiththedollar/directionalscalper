@@ -1866,7 +1866,7 @@ class Strategy:
                 best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
                 best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
-                open_orders = self.exchange.get_open_orders(symbol)
+                open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
                 if (trend.lower() == "long" and mfi.lower() == "long") and should_long and long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
                     if long_pos_qty <= self.max_long_trade_qty:  # Check against max trade qty
@@ -1884,42 +1884,6 @@ class Strategy:
                     else:
                         logging.warning(f"Short position quantity exceeds maximum trade quantity for short positions. No trade placed.")
 
-    # def bybit_hedge_entry_maker_v3_initial_entry(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
-
-    #     if one_minute_volume is not None and five_minute_distance is not None:
-    #         if one_minute_volume > min_vol and five_minute_distance > min_dist:
-
-    #             best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
-    #             best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
-
-    #             open_orders = self.exchange.get_open_orders(symbol)
-
-    #             if (trend.lower() == "long" and mfi.lower() == "long") and should_long and long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
-    #                 logging.info(f"Placing initial long entry")
-    #                 self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-    #                 logging.info(f"Placed initial long entry")
-
-    #             if (trend.lower() == "short" and mfi.lower() == "short") and should_short and short_pos_qty == 0 and not self.entry_order_exists(open_orders, "sell"):
-    #                 logging.info(f"Placing initial short entry")
-    #                 self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
-    #                 logging.info("Placed initial short entry")
-
-    # def bybit_hedge_additional_entry_maker_v3_multi(self, symbol: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_add_to_long: bool, should_add_to_short: bool):
-
-    #     max_long_qty, _ = self.max_long_trade_qty  # Unpacking tuple
-    #     max_short_qty, _ = self.max_short_trade_qty  # Unpacking tuple
-        
-    #     best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
-    #     best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
-    #     open_orders = self.exchange.get_open_orders(symbol)
-
-    #     if should_add_to_long and long_pos_qty < max_long_qty and best_bid_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
-    #         logging.info(f"Managing non-rotating symbol: Placing additional long entry for {symbol}")
-    #         self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-
-    #     if should_add_to_short and short_pos_qty < max_short_qty and best_ask_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
-    #         logging.info(f"Managing non-rotating symbol: Placing additional short entry for {symbol}")
-    #         self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
     def bybit_hedge_additional_entry_maker_v3_multi(self, symbol: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_add_to_long: bool, should_add_to_short: bool):
 
         if isinstance(self.max_long_trade_qty, tuple):
@@ -1949,7 +1913,7 @@ class Strategy:
         
         best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
         best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
-        open_orders = self.exchange.get_open_orders(symbol)
+        open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
         if should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
             logging.info(f"Managing non-rotating symbol: Placing additional long entry for {symbol}")
@@ -1970,7 +1934,7 @@ class Strategy:
                 best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
                 best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
                 
-                open_orders = self.exchange.get_open_orders(symbol)
+                open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
                 # self.cancel_all_orders_for_symbol_bybit(symbol)
                 
@@ -2000,7 +1964,7 @@ class Strategy:
                 best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
                 best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
                 
-                open_orders = self.exchange.get_open_orders(symbol)
+                open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
                 
                 # self.cancel_all_orders_for_symbol_bybit(symbol)
                 
@@ -2027,7 +1991,7 @@ class Strategy:
 
         if one_minute_volume is not None and five_minute_distance is not None:
             if one_minute_volume > min_vol and five_minute_distance > min_dist:
-                open_orders = self.exchange.get_open_orders(symbol)
+                open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
                 best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
                 best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
@@ -2111,7 +2075,7 @@ class Strategy:
                             take_profit_price = best_ask_price if side == 'long' else best_bid_price
                             
                             # Fetch open orders for the symbol
-                            open_orders = self.exchange.get_open_orders(symbol)
+                            open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
                             
                             # Update the take profit
                             positionIdx = 1 if side == 'long' else 2
@@ -2232,7 +2196,7 @@ class Strategy:
         
         if trend is not None and isinstance(trend, str) and trend.lower() == "long":
             if one_minute_volume > min_vol and five_minute_distance > min_dist:
-                open_orders = self.exchange.get_open_orders(symbol)
+                open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
                 # Only placing additional long entries in GS mode
                 if should_add_to_long and long_pos_qty < self.max_long_trade_qty and long_pos_price is not None:
                     if best_bid_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
@@ -2244,7 +2208,7 @@ class Strategy:
         
         if trend is not None and isinstance(trend, str) and trend.lower() == "short":
             if one_minute_volume > min_vol and five_minute_distance > min_dist:
-                open_orders = self.exchange.get_open_orders(symbol)
+                open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
                 # Only placing additional short entries in GS mode
                 if should_add_to_short and short_pos_qty < self.max_short_trade_qty and short_pos_price is not None:
                     if best_ask_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
@@ -3391,7 +3355,7 @@ class Strategy:
                     min_qty = float(market_data["min_qty"])
                     min_qty_str = str(min_qty)
 
-                    open_orders = self.exchange.get_open_orders(symbol)
+                    open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
                     order_side = None 
 
