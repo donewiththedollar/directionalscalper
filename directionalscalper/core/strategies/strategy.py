@@ -91,8 +91,13 @@ class Strategy:
         :return: True if the funding rate is within acceptable bounds, False otherwise.
         """
         MaxAbsFundingRate = self.config.MaxAbsFundingRate
+
+        logging.info(f"Max Abs Funding Rate: {self.config.MaxAbsFundingRate}")
+
         api_data = self.manager.get_api_data(symbol)
         funding_rate = api_data['Funding']
+
+        logging.info(f"Funding rate for {symbol} : {funding_rate}")
 
         # Check for longs and shorts combined
         return -MaxAbsFundingRate <= funding_rate <= MaxAbsFundingRate
@@ -1651,7 +1656,7 @@ class Strategy:
             short_dynamic_amount += distance_to_tp_short * 1
             short_dynamic_amount = max(short_dynamic_amount, min_qty)
 
-        open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+        # open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
         if long_pos_qty < self.max_long_trade_qty:  # Added this check
             if long_pos_qty > 0 and take_profit_long:
@@ -1796,7 +1801,7 @@ class Strategy:
                     logging.info(f"Initiating new short position")
                     self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
-    def bybit_hedge_entry_maker_v3_initial_entry(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, should_long: bool, should_short: bool):
+    def bybit_hedge_entry_maker_v3_initial_entry(self, open_orders: list, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, should_long: bool, should_short: bool):
         
         if one_minute_volume is not None and five_minute_distance is not None:
             if one_minute_volume > min_vol and five_minute_distance > min_dist:
@@ -1804,7 +1809,7 @@ class Strategy:
                 best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
                 best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
-                open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+                #open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
                 if (trend.lower() == "long" and mfi.lower() == "long") and should_long and long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
                     if long_pos_qty <= self.max_long_trade_qty:  # Check against max trade qty
@@ -1822,36 +1827,11 @@ class Strategy:
                     else:
                         logging.warning(f"Short position quantity exceeds maximum trade quantity for short positions. No trade placed.")
 
-    def bybit_hedge_additional_entry_maker_v3_multi(self, symbol: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_add_to_long: bool, should_add_to_short: bool):
-
-        if isinstance(self.max_long_trade_qty, tuple):
-            max_long_qty, _ = self.max_long_trade_qty  # Unpacking tuple
-        else:
-            max_long_qty = self.max_long_trade_qty  # Assuming it's a float
-
-        if isinstance(self.max_short_trade_qty, tuple):
-            max_short_qty, _ = self.max_short_trade_qty  # Unpacking tuple
-        else:
-            max_short_qty = self.max_short_trade_qty  # Assuming it's a float
-
-        best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
-        best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
-        open_orders = self.exchange.get_open_orders(symbol)
-
-        if should_add_to_long and long_pos_qty < max_long_qty and best_bid_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
-            logging.info(f"Managing non-rotating symbol: Placing additional long entry for {symbol}")
-            self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-
-        if should_add_to_short and short_pos_qty < max_short_qty and best_ask_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
-            logging.info(f"Managing non-rotating symbol: Placing additional short entry for {symbol}")
-            self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
-
-
-    def bybit_hedge_additional_entry_maker_v3(self, symbol: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_add_to_long: bool, should_add_to_short: bool):
+    def bybit_hedge_additional_entry_maker_v3(self, open_orders: list, symbol: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_add_to_long: bool, should_add_to_short: bool):
         
         best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
         best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
-        open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+        #open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
         if should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
             logging.info(f"Managing non-rotating symbol: Placing additional long entry for {symbol}")
@@ -1861,40 +1841,7 @@ class Strategy:
             logging.info(f"Managing non-rotating symbol: Placing additional short entry for {symbol}")
             self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
-    def bybit_hedge_entry_maker_v3_multi(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
-
-        max_long_qty, _ = self.max_long_trade_qty  # Unpacking tuple
-        max_short_qty, _ = self.max_short_trade_qty  # Unpacking tuple
-
-        if one_minute_volume is not None and five_minute_distance is not None:
-            if one_minute_volume > min_vol and five_minute_distance > min_dist:
-
-                best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
-                best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
-                
-                open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
-
-                # self.cancel_all_orders_for_symbol_bybit(symbol)
-                
-                if (trend.lower() == "long" and mfi.lower() == "long") and should_long and long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
-                    logging.info(f"Placing initial long entry")
-                    self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-                    logging.info(f"Placed initial long entry")
-
-                elif (trend.lower() == "long" and mfi.lower() == "long") and should_add_to_long and long_pos_qty < max_long_qty and best_bid_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
-                    logging.info(f"Placing additional long entry")
-                    self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-
-                if (trend.lower() == "short" and mfi.lower() == "short") and should_short and short_pos_qty == 0 and not self.entry_order_exists(open_orders, "sell"):
-                    logging.info(f"Placing initial short entry")
-                    self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
-                    logging.info(f"Placed initial short entry")
-
-                elif (trend.lower() == "short" and mfi.lower() == "short") and should_add_to_short and short_pos_qty < max_short_qty and best_ask_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
-                    logging.info(f"Placing additional short entry")
-                    self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
-
-    def bybit_hedge_entry_maker_v3(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
+    def bybit_hedge_entry_maker_v3(self, open_orders: list, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
         
         if one_minute_volume is not None and five_minute_distance is not None:
             if one_minute_volume > min_vol and five_minute_distance > min_dist:
@@ -1902,7 +1849,7 @@ class Strategy:
                 best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
                 best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
                 
-                open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+                #open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
                 
                 # self.cancel_all_orders_for_symbol_bybit(symbol)
                 
@@ -1923,6 +1870,37 @@ class Strategy:
                 elif (trend.lower() == "short" and mfi.lower() == "short") and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
                     logging.info(f"Placing additional short entry")
                     self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                    
+
+    # def bybit_hedge_entry_maker_v3(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
+        
+    #     if one_minute_volume is not None and five_minute_distance is not None:
+    #         if one_minute_volume > min_vol and five_minute_distance > min_dist:
+                
+    #             best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+    #             best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+                
+    #             open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+                
+    #             # self.cancel_all_orders_for_symbol_bybit(symbol)
+                
+    #             if (trend.lower() == "long" and mfi.lower() == "long") and should_long and long_pos_qty == 0 and long_pos_qty < self.max_long_trade_qty and not self.entry_order_exists(open_orders, "buy"):
+    #                 logging.info(f"Placing initial long entry")
+    #                 self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+    #                 logging.info(f"Placed initial long entry")
+                    
+    #             elif (trend.lower() == "long" and mfi.lower() == "long") and should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
+    #                 logging.info(f"Placing additional long entry")
+    #                 self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                    
+    #             if (trend.lower() == "short" and mfi.lower() == "short") and should_short and short_pos_qty == 0 and short_pos_qty < self.max_short_trade_qty and not self.entry_order_exists(open_orders, "sell"):
+    #                 logging.info(f"Placing initial short entry")
+    #                 self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+    #                 logging.info(f"Placed initial short entry")
+                    
+    #             elif (trend.lower() == "short" and mfi.lower() == "short") and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
+    #                 logging.info(f"Placing additional short entry")
+    #                 self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
                     
     # Revised consistent maker strategy using MA Trend OR MFI as well while maintaining same original MA logic
     def bybit_hedge_entry_maker_v2(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
@@ -2652,14 +2630,6 @@ class Strategy:
             ma_1m_3_high_open_symbol = moving_averages_open_symbol["ma_1m_3_high"]
             ma_5m_3_high_open_symbol = moving_averages_open_symbol["ma_5m_3_high"]
 
-            # # Calculate your take profit levels for each open symbol - with avoiding fees
-            # short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit_fees(
-            #     position_data_open_symbol["short"]["price"], short_pos_qty_open_symbol, open_symbol, five_minute_distance
-            # )
-            # long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit_fees(
-            #     position_data_open_symbol["long"]["price"], long_pos_qty_open_symbol, open_symbol, five_minute_distance
-            # )
-
             # Calculate your take profit levels for each open symbol.
             short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
                 position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
@@ -2771,6 +2741,7 @@ class Strategy:
                         
                     else:  # If we can trade, then proceed with initial entry
                         self.bybit_hedge_entry_maker_v3(
+                            open_orders_open_symbol,
                             open_symbol,
                             trend,
                             mfirsi_signal,
@@ -2792,6 +2763,7 @@ class Strategy:
                 
                 else:
                     self.bybit_hedge_additional_entry_maker_v3(
+                        open_orders_open_symbol,
                         open_symbol,
                         long_dynamic_amount_open_symbol,
                         short_dynamic_amount_open_symbol,
@@ -2807,11 +2779,11 @@ class Strategy:
 
                 #self.update_take_profit_if_profitable_for_one_minute(open_symbol)
 
-                current_time = time.time()
-                # Check if it's time to perform spoofing
-                if current_time - self.last_cancel_time >= self.spoofing_interval:
-                    self.spoofing_active = True
-                    self.spoofing_action(open_symbol, short_dynamic_amount_open_symbol, long_dynamic_amount_open_symbol)
+            current_time = time.time()
+            # Check if it's time to perform spoofing
+            if current_time - self.last_cancel_time >= self.spoofing_interval:
+                self.spoofing_active = True
+                self.spoofing_action(open_symbol, short_dynamic_amount_open_symbol, long_dynamic_amount_open_symbol)
 
 
     def manage_open_positions_v2(self, open_symbols, total_equity):
@@ -2970,6 +2942,7 @@ class Strategy:
                     
                     else:  # If we can trade, then proceed with initial entry
                         self.bybit_hedge_entry_maker_v3(
+                            open_orders_open_symbol,
                             open_symbol,
                             trend,
                             mfirsi_signal,
@@ -2991,6 +2964,7 @@ class Strategy:
                 
                 else:
                     self.bybit_hedge_additional_entry_maker_v3(
+                        open_orders_open_symbol,
                         open_symbol,
                         long_dynamic_amount_open_symbol,
                         short_dynamic_amount_open_symbol,
@@ -3171,6 +3145,7 @@ class Strategy:
             if open_symbol in open_symbols:
                 if is_rotator_symbol:
                     self.bybit_hedge_entry_maker_v3(
+                        open_orders_open_symbol,
                         open_symbol,
                         trend,
                         mfirsi_signal,
@@ -3191,6 +3166,7 @@ class Strategy:
                     )
                 else:
                     self.bybit_hedge_additional_entry_maker_v3(
+                        open_orders_open_symbol,
                         open_symbol,
                         long_dynamic_amount_open_symbol,
                         short_dynamic_amount_open_symbol,
@@ -3348,7 +3324,7 @@ class Strategy:
     def cancel_entries_bybit(self, symbol, best_ask_price, ma_1m_3_high, ma_5m_3_high):
         # Cancel entries
         current_time = time.time()
-        if current_time - self.last_cancel_time >= 60:  # Execute this block every 1 minute
+        if current_time - self.last_cancel_time >= 300: #60 # Execute this block every 1 minute
             try:
                 if best_ask_price < ma_1m_3_high or best_ask_price < ma_5m_3_high:
                     self.exchange.cancel_all_entries_bybit(symbol)

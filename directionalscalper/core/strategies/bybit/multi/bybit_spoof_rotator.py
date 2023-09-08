@@ -337,14 +337,7 @@ class BybitSpoofRotator(Strategy):
                         self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
 
                 elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
-                    current_time = time.time()
-
                     self.bybit_turbocharged_new_entry_maker(open_orders, symbol, trend, mfirsi_signal, long_dynamic_amount, short_dynamic_amount)
-
-                    # Check if it's time to perform spoofing
-                    if current_time - self.last_cancel_time >= self.spoofing_interval:
-                        self.spoofing_active = True
-                        self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
 
                 # Call the function to update long take profit spread
                 if long_pos_qty > 0 and long_take_profit is not None:
@@ -365,5 +358,11 @@ class BybitSpoofRotator(Strategy):
                 self.cancel_entries_bybit(symbol, best_ask_price, ma_1m_3_high, ma_5m_3_high)
 
                 self.cancel_stale_orders_bybit()
+
+                current_time = time.time()
+                # Check if it's time to perform spoofing
+                if current_time - self.last_cancel_time >= self.spoofing_interval:
+                    self.spoofing_active = True
+                    self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
 
                 time.sleep(30)

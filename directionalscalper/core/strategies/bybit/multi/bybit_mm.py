@@ -135,7 +135,7 @@ class BybitMM(Strategy):
 
                 funding_check = self.is_funding_rate_acceptable(symbol)
 
-                print(f"Funding check on {symbol} : {funding_check}")
+                logging.info(f"Funding check on {symbol} : {funding_check}")
 
                 logging.info(f"Rotator symbols: {rotator_symbols}")
                 
@@ -323,24 +323,23 @@ class BybitMM(Strategy):
                 #open_orders = self.exchange.get_open_orders(symbol)
                 open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
-                # Check if the symbol is already being traded
-                if symbol in open_symbols:
-                    self.bybit_hedge_entry_maker_v3(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
-                    current_time = time.time()
-                    # Check if it's time to perform spoofing
-                    if current_time - self.last_cancel_time >= self.spoofing_interval:
-                        self.spoofing_active = True
-                        self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
-                        #self.spoofing_action(symbol, "up", long_dynamic_amount, short_dynamic_amount)
+                logging.info(f"Trend: {trend} for symbol: {symbol}")
 
-                elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
-                    self.bybit_hedge_entry_maker_v3_initial_entry(symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
-                    current_time = time.time()
-                    # Check if it's time to perform spoofing
-                    if current_time - self.last_cancel_time >= self.spoofing_interval:
-                        self.spoofing_active = True
-                        self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
-                        #self.spoofing_action(symbol, "up", long_dynamic_amount, short_dynamic_amount)
+                if trend is not None:
+                    # Check if the symbol is already being traded
+                    if symbol in open_symbols:
+                        self.bybit_hedge_entry_maker_v3(open_orders, symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
+                        current_time = time.time()
+                        # Check if it's time to perform spoofing
+                        if current_time - self.last_cancel_time >= self.spoofing_interval:
+                            self.spoofing_active = True
+                            self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
+                            #self.spoofing_action(symbol, "up", long_dynamic_amount, short_dynamic_amount)
+                    elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
+                        self.bybit_hedge_entry_maker_v3_initial_entry(open_orders, symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
+
+                else:
+                    logging.warning(f"Received invalid trend data for symbol {symbol}. Not placing any trades for this symbol.")
 
                 # Call the function to update long take profit spread
                 if long_pos_qty > 0 and long_take_profit is not None:
@@ -369,4 +368,4 @@ class BybitMM(Strategy):
                     self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
 
 
-                time.sleep(30)
+                time.sleep(15)
