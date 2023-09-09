@@ -1808,7 +1808,8 @@ class Exchange:
                 logging.error(f"An error occurred during the health check: {e}")  # Log any errors
                 
             time.sleep(interval_seconds)
-            
+
+    #def cancel_all_entries_bybit(selfl, symbol: str, open_orders: list) -> None:        
     def cancel_all_entries_bybit(self, symbol: str) -> None:
         try:
             orders = self.exchange.fetch_open_orders(symbol)
