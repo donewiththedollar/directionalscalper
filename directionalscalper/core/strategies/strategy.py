@@ -69,10 +69,6 @@ class Strategy:
         def selling_pressure(self):
             return not self.buying_pressure()
 
-    def toggle_spoof(self):
-        # Legality issues
-        self.should_spoof = not self.should_spoof
-
     def get_symbols_allowed(self, account_name):
         for exchange in self.config["exchanges"]:
             if exchange["account_name"] == account_name:
