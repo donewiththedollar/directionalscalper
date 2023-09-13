@@ -227,7 +227,7 @@ class BybitMMhma(Strategy):
                 # Manage these symbols
                 for s in symbols_to_manage:
                     print(f"Managing symbol: {s}")  # Debugging line
-                    self.manage_mm([s], total_equity)  # Notice the square brackets around 's'
+                    self.manage_mm_hma([s], total_equity)  # Notice the square brackets around 's'
 
                 #print(f"Open symbols: {open_symbols}")
 
