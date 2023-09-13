@@ -18,6 +18,7 @@ class Strategy:
     MAX_LEVERAGE = 0.3  # The maximum allowable leverage
     QTY_INCREMENT = 0.05 # How much your position size increases
     MAX_PCT_EQUIY = 1
+    ORDER_BOOK_DEPTH = 10
     def __init__(self, exchange, config, manager, symbols_allowed=None):
     # def __init__(self, exchange, config, manager):
         self.exchange = exchange
@@ -52,22 +53,42 @@ class Strategy:
         self.spoofing_duration = 5  # Spoofing duration in seconds
 
     class OrderBookAnalyzer:
-        def __init__(self, exchange, symbol):
+        def __init__(self, exchange, symbol, depth=10):
             self.exchange = exchange
             self.symbol = symbol
+            self.depth = depth
 
         def get_order_book(self):
             return self.exchange.get_orderbook(self.symbol)
 
         def buying_pressure(self):
             order_book = self.get_order_book()
-            total_bids = sum([bid[1] for bid in order_book['bids']])
-            total_asks = sum([ask[1] for ask in order_book['asks']])
+            top_bids = order_book['bids'][:self.depth]
+            top_asks = order_book['asks'][:self.depth]
+            
+            total_bids = sum([bid[1] for bid in top_bids])
+            total_asks = sum([ask[1] for ask in top_asks])
             
             return total_bids > total_asks
 
         def selling_pressure(self):
             return not self.buying_pressure()
+
+        def order_book_imbalance(self):
+            if self.buying_pressure():
+                return "buy_wall"
+            elif self.selling_pressure():
+                return "sell_wall"
+            else:
+                return "neutral"
+
+    def get_order_book_imbalance(self, symbol):
+        analyzer = self.OrderBookAnalyzer(self.exchange, symbol, self.ORDER_BOOK_DEPTH)
+        return analyzer.order_book_imbalance()
+        
+    def print_order_book_imbalance(self, symbol):
+        imbalance = self.get_order_book_imbalance(symbol)
+        print(f"Order Book Imbalance for {symbol}: {imbalance}")
 
     def get_symbols_allowed(self, account_name):
         for exchange in self.config["exchanges"]:
@@ -1895,6 +1916,43 @@ class Strategy:
                     logging.info(f"Placing additional short entry")
                     self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
+    # def bybit_hedge_entry_maker_hma(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
+
+    #     # Fetch the order book imbalance
+    #     imbalance = self.get_order_book_imbalance(symbol)
+
+    #     if trend is None or mfi is None or hma_trend is None:
+    #         logging.warning(f"Either 'trend', 'mfi', or 'hma_trend' is None for symbol {symbol}. Skipping current execution...")
+    #         return
+
+    #     if one_minute_volume is not None and five_minute_distance is not None:
+    #         if one_minute_volume > min_vol and five_minute_distance > min_dist:
+
+    #             best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+    #             best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+
+    #             # Check for long entry conditions
+    #             if ((trend.lower() == "long" or hma_trend.lower() == "long" or imbalance == "buy_wall") and mfi.lower() == "long") and should_long and long_pos_qty == 0 and long_pos_qty < self.max_long_trade_qty and not self.entry_order_exists(open_orders, "buy"):
+    #                 logging.info(f"Placing initial long entry based on trend, hma_trend, and order book imbalance")
+    #                 self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+    #                 logging.info(f"Placed initial long entry")
+
+    #             # Check for additional long entry conditions
+    #             elif ((trend.lower() == "long" or hma_trend.lower() == "long" or imbalance == "buy_wall") and mfi.lower() == "long") and should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
+    #                 logging.info(f"Placing additional long entry based on trend, hma_trend, and order book imbalance")
+    #                 self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+
+    #             # Check for short entry conditions
+    #             if ((trend.lower() == "short" or hma_trend.lower() == "short" or imbalance == "sell_wall") and mfi.lower() == "short") and should_short and short_pos_qty == 0 and short_pos_qty < self.max_short_trade_qty and not self.entry_order_exists(open_orders, "sell"):
+    #                 logging.info(f"Placing initial short entry based on trend, hma_trend, and order book imbalance")
+    #                 self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+    #                 logging.info(f"Placed initial short entry")
+
+    #             # Check for additional short entry conditions
+    #             elif ((trend.lower() == "short" or hma_trend.lower() == "short" or imbalance == "sell_wall") and mfi.lower() == "short") and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
+    #                 logging.info(f"Placing additional short entry based on trend, hma_trend, and order book imbalance")
+    #                 self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+
     def bybit_hedge_entry_maker_hma(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
 
         if trend is None or mfi is None or hma_trend is None:
@@ -2250,11 +2308,11 @@ class Strategy:
         existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
         total_existing_tp_qty = sum(qty for qty, _ in existing_tps)
         logging.info(f"Existing {order_side} TPs: {existing_tps}")
-        print(f"Next TP update for {symbol} : {next_tp_update}")
+        #logging.info(f"Next TP update for {symbol} : {next_tp_update}")
         now = datetime.now()
         if now >= next_tp_update or not math.isclose(total_existing_tp_qty, pos_qty):
             try:
-                print(f"Next TP updating for {symbol} : {next_tp_update}")
+                logging.info(f"Next TP updating for {symbol} : {next_tp_update}")
                 # Cancel the existing TP orders only when the time condition is met
                 for qty, existing_tp_id in existing_tps:
                     self.exchange.cancel_order_by_id(existing_tp_id, symbol)
@@ -2267,26 +2325,6 @@ class Strategy:
             except Exception as e:
                 logging.info(f"Error in updating {order_side} TP: {e}")
         return next_tp_update
-
-
-    # # Bybit update take profit based on time and spread
-    # def update_take_profit_spread_bybit(self, symbol, pos_qty, take_profit_price, positionIdx, order_side, open_orders, next_tp_update):
-    #     existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
-    #     total_existing_tp_qty = sum(qty for qty, _ in existing_tps)
-    #     logging.info(f"Existing {order_side} TPs: {existing_tps}")
-    #     now = datetime.now()
-    #     if now >= next_tp_update or not math.isclose(total_existing_tp_qty, pos_qty):
-    #         try:
-    #             for qty, existing_tp_id in existing_tps:
-    #                 self.exchange.cancel_order_by_id(existing_tp_id, symbol)
-    #                 logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
-    #                 time.sleep(0.05)
-    #             self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, take_profit_price, positionIdx=positionIdx, reduce_only=True)
-    #             logging.info(f"{order_side.capitalize()} take profit set at {take_profit_price}")
-    #             next_tp_update = self.calculate_next_update_time()  # Calculate the next update time after placing the order
-    #         except Exception as e:
-    #             logging.info(f"Error in updating {order_side} TP: {e}")
-    #     return next_tp_update
 
 # Bybit take profit placement based on 5 minute spread
 
