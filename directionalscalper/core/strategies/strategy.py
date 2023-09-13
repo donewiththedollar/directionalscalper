@@ -2170,11 +2170,11 @@ class Strategy:
         existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
         total_existing_tp_qty = sum(qty for qty, _ in existing_tps)
         logging.info(f"Existing {order_side} TPs: {existing_tps}")
-        print(f"Next tp update: {next_tp_update}")
+        print(f"Next TP update for {symbol} : {next_tp_update}")
         now = datetime.now()
         if now >= next_tp_update or not math.isclose(total_existing_tp_qty, pos_qty):
-            print(f"Next tp update {next_tp_update}")
             try:
+                print(f"Next TP updating for {symbol} : {next_tp_update}")
                 # Cancel the existing TP orders only when the time condition is met
                 for qty, existing_tp_id in existing_tps:
                     self.exchange.cancel_order_by_id(existing_tp_id, symbol)
