@@ -294,6 +294,8 @@ class Manager:
                     return asset_data["ERI Bear Power"]
                 if value == "ERI Trend" in asset_data:
                     return asset_data["ERI Trend"]
+                if value == "HMA Trend" in asset_data:
+                    return asset_data["HMA Trend"]
         except Exception as e:
             log.warning(f"{e}")
         return None
@@ -309,6 +311,7 @@ class Manager:
             '1hSpread': self.get_asset_value(symbol, data, "1hSpread"),
             '4hSpread': self.get_asset_value(symbol, data, "4hSpread"),
             'Trend': self.get_asset_value(symbol, data, "Trend"),
+            'HMA Trend': self.get_asset_value(symbol, data, "HMA Trend"),
             'MFI': self.get_asset_value(symbol, data, "MFI"),
             'ERI Trend': self.get_asset_value(symbol, data, "ERI Trend"),
             'Funding': self.get_asset_value(symbol, data, "Funding"),
