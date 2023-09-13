@@ -3710,8 +3710,8 @@ class Strategy:
 
     def cancel_stale_orders_bybit(self):
         current_time = time.time()
-        if current_time - self.last_stale_order_check_time < 1800:  # 300 seconds = 5 minutes
-            return  # Skip the rest of the function if it's been less than 5 minutes
+        if current_time - self.last_stale_order_check_time < 3720:  # 3720 seconds = 1 hour 12 minutes
+            return  # Skip the rest of the function if it's been less than 1 hour 12 minutes
 
         all_open_orders = self.exchange.get_all_open_orders_bybit()
         open_position_data = self.exchange.get_all_open_positions_bybit()
