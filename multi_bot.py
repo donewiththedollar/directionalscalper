@@ -26,6 +26,7 @@ from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator i
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator_ratio import BybitMFIRSITrendRatio
 from directionalscalper.core.strategies.bybit.multi.bybit_spoof_rotator import BybitSpoofRotator
 from directionalscalper.core.strategies.bybit.multi.bybit_mm import BybitMM
+from directionalscalper.core.strategies.bybit.multi.bybit_mm_hma import BybitMMhma
 from live_table_manager import LiveTableManager, shared_symbols_data
 
 # def standardize_symbol(symbol):
@@ -106,6 +107,9 @@ class DirectionalMarketMaker:
             strategy.run(symbol)
         elif strategy_name.lower() == 'bybit_mm':
             strategy = BybitMM(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy.run(symbol)
+        elif strategy_name.lower() == 'bybit_mm_hma':
+            strategy = BybitMMhma(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol)
 
     def get_balance(self, quote, market_type=None, sub_type=None):
