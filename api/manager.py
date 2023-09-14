@@ -83,7 +83,7 @@ class Manager:
         self.update_last_checked()
         return self.data
 
-    def get_auto_rotate_symbols(self, min_qty_threshold: float = None, whitelist: list = None, blacklist: list = None, max_retries: int = 10, delay_between_retries: int = 30):
+    def get_auto_rotate_symbols(self, min_qty_threshold: float = None, whitelist: list = None, blacklist: list = None, max_usd_value: float = None, max_retries: int = 10, delay_between_retries: int = 30):
         symbols = []
         url = "http://api.tradesimple.xyz/data/rotatorsymbols.json"
 
@@ -98,7 +98,9 @@ class Manager:
                     for asset in raw_json:
                         symbol = asset.get("Asset", "")
                         min_qty = asset.get("Min qty", 0)
-                        log.debug(f"Processing symbol {symbol} with min_qty {min_qty}")
+                        usd_price = asset.get("Price", float('inf')) 
+                        
+                        log.debug(f"Processing symbol {symbol} with min_qty {min_qty} and USD price {usd_price}")
 
                         # Only consider the whitelist if it's not empty or None
                         if whitelist and symbol not in whitelist and len(whitelist) > 0:
@@ -108,6 +110,11 @@ class Manager:
                         # Consider the blacklist regardless of whether it's empty or not
                         if blacklist and symbol in blacklist:
                             log.debug(f"Skipping {symbol} as it's in blacklist")
+                            continue
+
+                        # Check against the max_usd_value, if provided
+                        if max_usd_value is not None and usd_price > max_usd_value:
+                            log.debug(f"Skipping {symbol} as its USD price {usd_price} is greater than the max allowed {max_usd_value}")
                             continue
 
                         if min_qty_threshold is None or min_qty <= min_qty_threshold:
@@ -137,7 +144,7 @@ class Manager:
         # Return empty list if all retries fail
         return []
 
-    # def get_auto_rotate_symbols(self, min_qty_threshold: float = None, whitelist: list = None, blacklist: list = None, max_symbols: int = 12, max_retries: int = 10, delay_between_retries: int = 30):
+    # def get_auto_rotate_symbols(self, min_qty_threshold: float = None, whitelist: list = None, blacklist: list = None, max_retries: int = 10, delay_between_retries: int = 30):
     #     symbols = []
     #     url = "http://api.tradesimple.xyz/data/rotatorsymbols.json"
 
@@ -166,10 +173,6 @@ class Manager:
 
     #                     if min_qty_threshold is None or min_qty <= min_qty_threshold:
     #                         symbols.append(symbol)
-
-    #                     # Break the loop if we've reached the maximum number of allowed symbols
-    #                     if len(symbols) >= max_symbols:
-    #                         break
 
     #                 log.debug(f"Returning {len(symbols)} symbols")
     #                 return symbols

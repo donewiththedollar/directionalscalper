@@ -37,6 +37,7 @@ class Bot(BaseModel):
     short_liq_pct: float = 0.05
     MaxAbsFundingRate: float = 0.0002
     wallet_exposure: float = 1.00
+    max_usd_value: Optional[float] = None
     whitelist: List[str] = []
     blacklist: List[str] = []
     dashboard_enabled: bool = False

@@ -11,6 +11,7 @@
     "min_distance_largecap": 0.085,
     "min_volume": 15000,
     "wallet_exposure": 1.00,
+    "max_usd_value": 100,
     "min_qty_threshold": 0,
     "long_liq_pct": 0.05,
     "short_liq_pct": 0.05,
