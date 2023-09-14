@@ -295,8 +295,8 @@ class Strategy:
 
         logging.info(f"Current timestamps for {symbol}: {last_two_orders}")  # Log the current timestamps for debugging
 
-        if len(last_two_orders) >= 2 and (now - last_two_orders[0]) <= 60:  # If two orders were placed in the last minute
-            logging.warning(f"Cannot place more than 2 orders per minute for {symbol}. Skipping order placement...")
+        if len(last_two_orders) >= 2 and (now - last_two_orders[0]) <= 300:  # If two orders were placed in the last 5 minutes
+            logging.warning(f"Cannot place more than 2 orders per 5 minutes for {symbol}. Skipping order placement...")
             return None
 
         params = {"reduceOnly": reduceOnly, "postOnly": True}
