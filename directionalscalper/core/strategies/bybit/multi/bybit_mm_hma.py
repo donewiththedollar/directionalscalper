@@ -363,6 +363,8 @@ class BybitMMhma(Strategy):
 
                 self.cancel_stale_orders_bybit()
 
+                #self.print_order_book_imbalance(symbol)
+
                 current_time = time.time()
                 # Check if it's time to perform spoofing
                 if current_time - self.last_cancel_time >= self.spoofing_interval:
