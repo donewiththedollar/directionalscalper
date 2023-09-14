@@ -1513,7 +1513,7 @@ class Strategy:
                 spoof_price_long = spoof_price_long.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
                 if larger_position == "long":
                     spoof_price_long = spoof_price_long + current_price * Decimal('0.01')
-                
+
                 # Tiered spoofing for long orders
                 spoof_order_size_long = Decimal(str(long_dynamic_amount)) * Decimal(str(order_multiplier))
                 spoof_order_long = self.limit_order_bybit(symbol, "sell", spoof_order_size_long, spoof_price_long, positionIdx=2, reduceOnly=False)
@@ -1524,7 +1524,7 @@ class Strategy:
                 spoof_price_short = spoof_price_short.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
                 if larger_position == "short":
                     spoof_price_short = spoof_price_short - current_price * Decimal('0.01')
-                
+
                 # Tiered spoofing for short orders
                 spoof_order_size_short = Decimal(str(short_dynamic_amount)) * Decimal(str(order_multiplier))
                 spoof_order_short = self.limit_order_bybit(symbol, "buy", spoof_order_size_short, spoof_price_short, positionIdx=1, reduceOnly=False)
@@ -1532,8 +1532,7 @@ class Strategy:
 
                 order_multiplier = max(order_multiplier - 0.1, 1.0)  # Reduce the order size by 10% for each subsequent order but ensure it doesn't go below the original size
 
-            spoof_duration = random.uniform(0.8, 1.2) * self.spoofing_duration
-            time.sleep(spoof_duration)
+            time.sleep(self.spoofing_duration)  # Consistent spoofing duration
 
             for order in spoofing_orders:
                 if 'id' in order:
@@ -1543,6 +1542,7 @@ class Strategy:
                     logging.warning(f"Could not place spoofing order: {order.get('error', 'Unknown error')}")
 
             self.spoofing_active = False
+
 
     # Really good
     # def spoofing_action(self, symbol, short_dynamic_amount, long_dynamic_amount):
