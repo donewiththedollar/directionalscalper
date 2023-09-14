@@ -233,14 +233,28 @@ class Strategy:
 
         return result
 
+    def calculate_spoofing_amount(self, symbol, total_equity, best_ask_price, max_leverage):
+        if self.max_long_trade_qty is None or self.max_short_trade_qty is None:
+            max_trade_qty = self.calc_max_trade_qty(symbol, total_equity, best_ask_price, max_leverage)
+            self.max_long_trade_qty = max_trade_qty
+            self.max_short_trade_qty = max_trade_qty
+
+        # For demonstration, I'm using a much larger base.
+        long_spoofing_amount = 0.1 * self.initial_max_long_trade_qty
+        short_spoofing_amount = 0.1 * self.initial_max_short_trade_qty
+
+        market_data = self.get_market_data_with_retry(symbol, max_retries = 5, retry_delay = 5)
+        min_qty = float(market_data["min_qty"])
+
+        # Respect the min_qty requirement.
+        long_spoofing_amount = max(long_spoofing_amount, min_qty)
+        short_spoofing_amount = max(short_spoofing_amount, min_qty)
+
+        return long_spoofing_amount, short_spoofing_amount
+
     def calculate_dynamic_amount(self, symbol, market_data, total_equity, best_ask_price, max_leverage):
         
         logging.info(f"Calculating dynamic amount for symbol: {symbol}")
-
-        # if self.max_long_trade_qty is None or self.max_short_trade_qty is None:
-        #     self.max_long_trade_qty, self.max_short_trade_qty = self.calc_max_trade_qty(total_equity,
-        #                                                                                 best_ask_price,
-        #                                                                                 max_leverage)
 
         if self.max_long_trade_qty is None or self.max_short_trade_qty is None:
             max_trade_qty = self.calc_max_trade_qty(symbol, total_equity, best_ask_price, max_leverage)
@@ -3520,6 +3534,10 @@ class Strategy:
                 open_symbol, market_data, total_equity, best_ask_price_open_symbol, max_leverage
             )
 
+            long_spoofing_amount_open_symbol, short_spoofing_amount_open_symbol, = self.calculate_spoofing_amount(
+                open_symbol, total_equity, best_ask_price_open_symbol, max_leverage
+            )
+
             logging.info(f"Long dynamic amount for {open_symbol}: {long_dynamic_amount_open_symbol}")
             logging.info(f"Short dynamic amount for {open_symbol}: {short_dynamic_amount_open_symbol}")
                                 
@@ -3654,7 +3672,8 @@ class Strategy:
             # Check if it's time to perform spoofing
             if current_time - self.last_cancel_time >= self.spoofing_interval:
                 self.spoofing_active = True
-                self.spoofing_action(open_symbol, short_dynamic_amount_open_symbol, long_dynamic_amount_open_symbol)
+                self.spoofing_action(open_symbol, short_spoofing_amount_open_symbol, long_spoofing_amount_open_symbol)
+                # self.spoofing_action(open_symbol, short_dynamic_amount_open_symbol, long_dynamic_amount_open_symbol)
 
     def manage_mm_ratio(self, open_symbols, total_equity):
         # Get current rotator symbols

@@ -101,6 +101,7 @@ class BybitMMhma(Strategy):
         previous_one_hour_distance = None
         previous_four_hour_distance = None
 
+
         while True:  # Outer loop
             rotator_symbols = self.manager.get_auto_rotate_symbols()
             if symbol not in rotator_symbols:
@@ -325,6 +326,10 @@ class BybitMMhma(Strategy):
                 #open_orders = self.exchange.get_open_orders(symbol)
                 open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
+                long_spoofing_amount, short_spoofing_amount, = self.calculate_spoofing_amount(
+                    symbol, total_equity, best_ask_price, max_leverage
+                )
+
                 logging.info(f"Trend: {trend} for symbol: {symbol}")
 
                 if trend and hma_trend is not None:
@@ -335,7 +340,8 @@ class BybitMMhma(Strategy):
                         # Check if it's time to perform spoofing
                         if current_time - self.last_cancel_time >= self.spoofing_interval:
                             self.spoofing_active = True
-                            self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
+                            self.spoofing_action(symbol, short_spoofing_amount, long_spoofing_amount)
+                            #self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
                             #self.spoofing_action(symbol, "up", long_dynamic_amount, short_dynamic_amount)
                     elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
                         self.bybit_hedge_initial_entry_maker_hma(open_orders, symbol, trend, hma_trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
@@ -343,6 +349,8 @@ class BybitMMhma(Strategy):
                 else:
                     logging.warning(f"Received invalid trend data for symbol {symbol}. Not placing any trades for this symbol.")
 
+                #print(f"Order timestamps for {symbol} {self.order_timestamps}")
+                
                 # Call the function to update long take profit spread
                 if long_pos_qty > 0 and long_take_profit is not None:
                     self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
@@ -369,7 +377,8 @@ class BybitMMhma(Strategy):
                 # Check if it's time to perform spoofing
                 if current_time - self.last_cancel_time >= self.spoofing_interval:
                     self.spoofing_active = True
-                    self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
+                    #self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
+                    self.spoofing_action(symbol, short_spoofing_amount, long_spoofing_amount)
 
 
                 time.sleep(15)
