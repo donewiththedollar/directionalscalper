@@ -52,6 +52,9 @@ class Strategy:
         #self.spoofing_duration = 5  # Spoofing duration in seconds
         self.spoofing_interval = 1  # Time interval between spoofing actions
         self.spoofing_duration = 5  # Spoofing duration in seconds
+        self.whitelist = self.config.whitelist
+        self.blacklist = self.config.blacklist
+        self.max_usd_value = self.config.max_usd_value
 
     class OrderBookAnalyzer:
         def __init__(self, exchange, symbol, depth=10):
@@ -2521,7 +2524,7 @@ class Strategy:
 
     def manage_open_positions_aggressive(self, open_symbols, total_equity):
         # Get current rotator symbols
-        rotator_symbols = self.manager.get_auto_rotate_symbols()
+        self.manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=self.whitelist, blacklist=self.blacklist, max_usd_value=self.max_usd_value)
         
         logging.info(f"open_symbols in manage_open_positions: {open_symbols}")
         for open_symbol in open_symbols:
@@ -2731,6 +2734,7 @@ class Strategy:
 
     def gnifoops(self, open_symbols, total_equity):
         # Get current rotator symbols
+
         max_usd_value = self.config.max_usd_value
         whitelist = self.config.whitelist
         blacklist = self.config.blacklist
@@ -2961,11 +2965,7 @@ class Strategy:
                     self.spoofing_action(open_symbol, short_dynamic_amount_open_symbol, long_dynamic_amount_open_symbol)
 
     def manage_mm(self, open_symbols, total_equity):
-        max_usd_value = self.config.max_usd_value
-        whitelist = self.config.whitelist
-        blacklist = self.config.blacklist
-
-        rotator_symbols = self.manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist, max_usd_value=max_usd_value)
+        rotator_symbols = self.manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=self.whitelist, blacklist=self.blacklist, max_usd_value=self.max_usd_value)
 
         logging.info(f"open_symbols in manage_open_positions: {open_symbols}")
         for open_symbol in open_symbols:
@@ -3174,6 +3174,7 @@ class Strategy:
 
     def manage_mm_hma(self, open_symbols, total_equity):
         # Get current rotator symbols
+
         max_usd_value = self.config.max_usd_value
         whitelist = self.config.whitelist
         blacklist = self.config.blacklist
@@ -3398,7 +3399,7 @@ class Strategy:
 
     def manage_mm_ratio(self, open_symbols, total_equity):
         # Get current rotator symbols
-        rotator_symbols = self.manager.get_auto_rotate_symbols()
+        rotator_symbols = self.manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=self.whitelist, blacklist=self.blacklist, max_usd_value=self.max_usd_value)
         
         logging.info(f"open_symbols in manage_open_positions: {open_symbols}")
         for open_symbol in open_symbols:
@@ -3613,7 +3614,7 @@ class Strategy:
 
     def manage_open_positions_v2(self, open_symbols, total_equity):
         # Get current rotator symbols
-        rotator_symbols = self.manager.get_auto_rotate_symbols()
+        rotator_symbols = self.manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=self.whitelist, blacklist=self.blacklist, max_usd_value=self.max_usd_value)
         
         min_dist = self.config.min_distance
         min_vol = self.config.min_volume
@@ -3811,7 +3812,7 @@ class Strategy:
 
     def manage_open_positions(self, open_symbols, total_equity):
         # Get current rotator symbols
-        rotator_symbols = self.manager.get_auto_rotate_symbols()
+        rotator_symbols = self.manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=self.whitelist, blacklist=self.blacklist, max_usd_value=self.max_usd_value)
         
         logging.info(f"open_symbols in manage_open_positions: {open_symbols}")
         for open_symbol in open_symbols:
@@ -4021,7 +4022,7 @@ class Strategy:
                 continue
 
             # Get current rotator symbols and whitelist from config
-            rotator_symbols = self.manager.get_auto_rotate_symbols()
+            self.manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=self.whitelist, blacklist=self.blacklist, max_usd_value=self.max_usd_value)
             all_symbols = self.config.whitelist  # Adding this line to fetch the whitelist from config
 
             # Get all open positions
@@ -4160,6 +4161,7 @@ class Strategy:
 
             self.last_cancel_time = current_time
 
+
     def cancel_stale_orders_bybit(self):
         current_time = time.time()
         if current_time - self.last_stale_order_check_time < 3720:  # 3720 seconds = 1 hour 12 minutes
@@ -4169,9 +4171,12 @@ class Strategy:
         open_position_data = self.exchange.get_all_open_positions_bybit()
         open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
         open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
-        rotator_symbols = self.manager.get_auto_rotate_symbols()
+        #rotator_symbols = self.manager.get_auto_rotate_symbols()
+        rotator_symbols = self.manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=self.whitelist, blacklist=self.blacklist, max_usd_value=self.max_usd_value)
         all_open_order_symbols = [order['symbol'] for order in all_open_orders]
         orders_to_cancel = [order for order in all_open_order_symbols if order not in open_symbols and order not in rotator_symbols]
+
+        print(f"Stale orders debug: {rotator_symbols}")
 
         for symbol in orders_to_cancel:
             self.exchange.cancel_all_open_orders_bybit(symbol)
