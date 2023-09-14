@@ -659,7 +659,7 @@ class Strategy:
     def calculate_next_update_time(self):
         # 6 min 19 seconds interval calc
         now = datetime.now()
-        next_update_time = now + timedelta(minutes=6, seconds=19)
+        next_update_time = now + timedelta(minutes=1, seconds=19)
         return next_update_time.replace(microsecond=0)
 
     def calculate_short_take_profit_bybit(self, short_pos_price, symbol):
@@ -2301,11 +2301,10 @@ class Strategy:
                 
         return next_tp_update
 
-    def update_take_profit_spread_bybit(self, symbol, pos_qty, take_profit_price, positionIdx, order_side, open_orders, next_tp_update):
+    def update_take_profit_spread_bybit(self, symbol, pos_qty, take_profit_price, positionIdx, order_side, open_orders, next_tp_update, max_retries=10):
         existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
         total_existing_tp_qty = sum(qty for qty, _ in existing_tps)
         logging.info(f"Existing {order_side} TPs: {existing_tps}")
-        #logging.info(f"Next TP update for {symbol} : {next_tp_update}")
         now = datetime.now()
         if now >= next_tp_update or not math.isclose(total_existing_tp_qty, pos_qty):
             try:
@@ -2316,12 +2315,44 @@ class Strategy:
                     logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
                     time.sleep(0.05)
                 
-                self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, take_profit_price, positionIdx=positionIdx, reduce_only=True)
-                logging.info(f"{order_side.capitalize()} take profit set at {take_profit_price}")
+                retries = 0
+                success = False
+                while retries < max_retries and not success:
+                    try:
+                        self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, take_profit_price, positionIdx=positionIdx, reduce_only=True)
+                        logging.info(f"{order_side.capitalize()} take profit set at {take_profit_price}")
+                        success = True
+                    except Exception as e:
+                        logging.error(f"Failed to set {order_side} TP. Retry {retries + 1}/{max_retries}. Error: {e}")
+                        retries += 1
+                        time.sleep(1)  # Wait for a moment before retrying
+                
                 next_tp_update = self.calculate_next_update_time()  # Calculate the next update time after placing the order
             except Exception as e:
                 logging.info(f"Error in updating {order_side} TP: {e}")
         return next_tp_update
+
+    # def update_take_profit_spread_bybit(self, symbol, pos_qty, take_profit_price, positionIdx, order_side, open_orders, next_tp_update):
+    #     existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
+    #     total_existing_tp_qty = sum(qty for qty, _ in existing_tps)
+    #     logging.info(f"Existing {order_side} TPs: {existing_tps}")
+    #     #logging.info(f"Next TP update for {symbol} : {next_tp_update}")
+    #     now = datetime.now()
+    #     if now >= next_tp_update or not math.isclose(total_existing_tp_qty, pos_qty):
+    #         try:
+    #             logging.info(f"Next TP updating for {symbol} : {next_tp_update}")
+    #             # Cancel the existing TP orders only when the time condition is met
+    #             for qty, existing_tp_id in existing_tps:
+    #                 self.exchange.cancel_order_by_id(existing_tp_id, symbol)
+    #                 logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
+    #                 time.sleep(0.05)
+                
+    #             self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, take_profit_price, positionIdx=positionIdx, reduce_only=True)
+    #             logging.info(f"{order_side.capitalize()} take profit set at {take_profit_price}")
+    #             next_tp_update = self.calculate_next_update_time()  # Calculate the next update time after placing the order
+    #         except Exception as e:
+    #             logging.info(f"Error in updating {order_side} TP: {e}")
+    #     return next_tp_update
 
 # Bybit take profit placement based on 5 minute spread
 
