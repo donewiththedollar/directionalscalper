@@ -2731,8 +2731,12 @@ class Strategy:
 
     def gnifoops(self, open_symbols, total_equity):
         # Get current rotator symbols
-        rotator_symbols = self.manager.get_auto_rotate_symbols()
-        
+        max_usd_value = self.config.max_usd_value
+        whitelist = self.config.whitelist
+        blacklist = self.config.blacklist
+
+        rotator_symbols = self.manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist, max_usd_value=max_usd_value)
+
         logging.info(f"open_symbols in manage_open_positions: {open_symbols}")
         for open_symbol in open_symbols:
             is_rotator_symbol = open_symbol in rotator_symbols
@@ -2957,9 +2961,12 @@ class Strategy:
                     self.spoofing_action(open_symbol, short_dynamic_amount_open_symbol, long_dynamic_amount_open_symbol)
 
     def manage_mm(self, open_symbols, total_equity):
-        # Get current rotator symbols
-        rotator_symbols = self.manager.get_auto_rotate_symbols()
-        
+        max_usd_value = self.config.max_usd_value
+        whitelist = self.config.whitelist
+        blacklist = self.config.blacklist
+
+        rotator_symbols = self.manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist, max_usd_value=max_usd_value)
+
         logging.info(f"open_symbols in manage_open_positions: {open_symbols}")
         for open_symbol in open_symbols:
             is_rotator_symbol = open_symbol in rotator_symbols
@@ -3167,7 +3174,13 @@ class Strategy:
 
     def manage_mm_hma(self, open_symbols, total_equity):
         # Get current rotator symbols
-        rotator_symbols = self.manager.get_auto_rotate_symbols()
+        max_usd_value = self.config.max_usd_value
+        whitelist = self.config.whitelist
+        blacklist = self.config.blacklist
+
+        rotator_symbols = self.manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist, max_usd_value=max_usd_value)
+
+        logging.info(f"Rotator symbols from strategy: {rotator_symbols}")
         
         logging.info(f"open_symbols in manage_open_positions: {open_symbols}")
         for open_symbol in open_symbols:
