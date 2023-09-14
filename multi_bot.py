@@ -237,6 +237,8 @@ if __name__ == '__main__':
     
     whitelist = config.bot.whitelist
     blacklist = config.bot.blacklist
+    max_usd_value = config.bot.max_usd_value
+
     # symbols_allowed = config.bot.symbols_allowed
   
     # Loop through the exchanges to find the correct exchange and account name
@@ -260,7 +262,7 @@ if __name__ == '__main__':
     #     symbols_allowed = 5
 
     # Fetch all symbols that meet your criteria and standardize them
-    all_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist)]
+    all_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist, max_usd_value=max_usd_value)]
 
     # Get symbols with open positions and standardize them
     open_position_data = market_maker.exchange.get_all_open_positions_bybit()
@@ -278,7 +280,7 @@ if __name__ == '__main__':
     print(f"Symbols to trade: {symbols_to_trade}")
 
     # Fetch the rotator symbols once before starting the threads and standardize them as well
-    rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist)]
+    rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist, max_usd_value=max_usd_value)]
 
     # Start threads for initial set of symbols
     # active_threads = start_threads_for_symbols(symbols_to_trade, args, manager)
@@ -290,7 +292,7 @@ if __name__ == '__main__':
         active_threads = [t for t in active_threads if t.is_alive()]
 
         # Refresh the list of rotator symbols
-        rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist)]
+        rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist, max_usd_value=max_usd_value)]
 
         # Find new symbols that are not yet being traded
         new_symbols = [s for s in rotator_symbols_standardized if s not in [t._args[0] for t in active_threads]]
