@@ -26,6 +26,7 @@ class Strategy:
         self.manager = manager
         self.symbol = config.symbol
         self.symbols_allowed = symbols_allowed
+        self.order_timestamps = {}
         self.printed_trade_quantities = False
         self.last_mfirsi_signal = None
         self.TAKER_FEE_RATE = Decimal("0.00055")  # 0.055%
@@ -285,6 +286,35 @@ class Strategy:
         return order
 
     def postonly_limit_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
+        # Check if we can place an order for the given symbol
+        now = time.time()  # Current timestamp
+        last_two_orders = self.order_timestamps.get(symbol, [])
+
+        if len(last_two_orders) >= 2 and (now - last_two_orders[0]) <= 60:  # If two orders were placed in the last minute
+            logging.warning(f"Cannot place more than 2 orders per minute for {symbol}. Skipping order placement...")
+            return None
+
+        params = {"reduceOnly": reduceOnly, "postOnly": True}
+        logging.info(f"Placing {side} limit order for {symbol} at {price} with qty {amount} and params {params}...")
+        try:
+            order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
+            logging.info(f"Order result: {order}")
+            
+            # If order placement is successful, update the order timestamps
+            if order:
+                last_two_orders.append(now)  # Add the current timestamp
+                if len(last_two_orders) > 2:  # Keep only the last two timestamps
+                    last_two_orders.pop(0)
+                self.order_timestamps[symbol] = last_two_orders
+
+            if order is None:
+                logging.warning(f"Order result is None for {side} limit order on {symbol}")
+            return order
+        except Exception as e:
+            logging.error(f"Error placing order: {str(e)}")
+            logging.exception("Stack trace for error in placing order:")  # This will log the full stack trace
+
+    def postonly_limit_order_bybit_s(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
         params = {"reduceOnly": reduceOnly, "postOnly": True}
         logging.info(f"Placing {side} limit order for {symbol} at {price} with qty {amount} and params {params}...")
         try:
@@ -1464,7 +1494,7 @@ class Strategy:
                     # Check for an opportunity to scalp a long based on the suppressed price
                     best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
                     if should_long:
-                        self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                        self.postonly_limit_order_bybit_s(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
 
                     # Now, cancel the spoofed order
                     self.cancel_all_orders(symbol)
