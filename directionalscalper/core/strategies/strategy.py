@@ -290,6 +290,8 @@ class Strategy:
         now = time.time()  # Current timestamp
         last_two_orders = self.order_timestamps.get(symbol, [])
 
+        logging.info(f"Current timestamps for {symbol}: {last_two_orders}")  # Log the current timestamps for debugging
+
         if len(last_two_orders) >= 2 and (now - last_two_orders[0]) <= 60:  # If two orders were placed in the last minute
             logging.warning(f"Cannot place more than 2 orders per minute for {symbol}. Skipping order placement...")
             return None
@@ -306,7 +308,50 @@ class Strategy:
                 if len(last_two_orders) > 2:  # Keep only the last two timestamps
                     last_two_orders.pop(0)
                 self.order_timestamps[symbol] = last_two_orders
+                logging.info(f"Updated timestamps for {symbol}: {last_two_orders}")  # Log the updated timestamps for debugging
 
+            if order is None:
+                logging.warning(f"Order result is None for {side} limit order on {symbol}")
+            return order
+        except Exception as e:
+            logging.error(f"Error placing order: {str(e)}")
+            logging.exception("Stack trace for error in placing order:")  # This will log the full stack trace
+
+    # def postonly_limit_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
+    #     # Check if we can place an order for the given symbol
+    #     now = time.time()  # Current timestamp
+    #     last_two_orders = self.order_timestamps.get(symbol, [])
+
+    #     if len(last_two_orders) >= 2 and (now - last_two_orders[0]) <= 60:  # If two orders were placed in the last minute
+    #         logging.warning(f"Cannot place more than 2 orders per minute for {symbol}. Skipping order placement...")
+    #         return None
+
+    #     params = {"reduceOnly": reduceOnly, "postOnly": True}
+    #     logging.info(f"Placing {side} limit order for {symbol} at {price} with qty {amount} and params {params}...")
+    #     try:
+    #         order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
+    #         logging.info(f"Order result: {order}")
+            
+    #         # If order placement is successful, update the order timestamps
+    #         if order:
+    #             last_two_orders.append(now)  # Add the current timestamp
+    #             if len(last_two_orders) > 2:  # Keep only the last two timestamps
+    #                 last_two_orders.pop(0)
+    #             self.order_timestamps[symbol] = last_two_orders
+
+    #         if order is None:
+    #             logging.warning(f"Order result is None for {side} limit order on {symbol}")
+    #         return order
+    #     except Exception as e:
+    #         logging.error(f"Error placing order: {str(e)}")
+    #         logging.exception("Stack trace for error in placing order:")  # This will log the full stack trace
+
+    def postonly_limit_order_bybit_nolimit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
+        params = {"reduceOnly": reduceOnly, "postOnly": True}
+        logging.info(f"Placing {side} limit order for {symbol} at {price} with qty {amount} and params {params}...")
+        try:
+            order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
+            logging.info(f"Order result: {order}")
             if order is None:
                 logging.warning(f"Order result is None for {side} limit order on {symbol}")
             return order
@@ -1384,7 +1429,7 @@ class Strategy:
                 spoof_price_long = spoof_price_long.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
                 
                 if larger_position == "long":
-                    spoof_price_long = spoof_price_long + current_price * Decimal('0.005')  # Adjust price in the direction of larger position
+                    spoof_price_long = spoof_price_long + current_price * Decimal('0.01')#('0.005')  # Adjust price in the direction of larger position
                 
                 spoof_order_long = self.limit_order_bybit(symbol, "sell", long_dynamic_amount, spoof_price_long, positionIdx=2, reduceOnly=False)
                 spoofing_orders.append(spoof_order_long)
@@ -1394,7 +1439,7 @@ class Strategy:
                 spoof_price_short = spoof_price_short.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
                 
                 if larger_position == "short":
-                    spoof_price_short = spoof_price_short - current_price * Decimal('0.005')  # Adjust price in the direction of larger position
+                    spoof_price_short = spoof_price_short - current_price * Decimal('0.01')#('0.005')  # Adjust price in the direction of larger position
                 
                 spoof_order_short = self.limit_order_bybit(symbol, "buy", short_dynamic_amount, spoof_price_short, positionIdx=1, reduceOnly=False)
                 spoofing_orders.append(spoof_order_short)
@@ -1494,7 +1539,7 @@ class Strategy:
                     # Check for an opportunity to scalp a long based on the suppressed price
                     best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
                     if should_long:
-                        self.postonly_limit_order_bybit_s(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                        self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
 
                     # Now, cancel the spoofed order
                     self.cancel_all_orders(symbol)
@@ -2403,7 +2448,7 @@ class Strategy:
         if len(existing_tps) < 1:
             try:
                 # Use postonly_limit_order_bybit function to place take profit order
-                self.postonly_limit_order_bybit(symbol, order_side, pos_qty, take_profit_price, positionIdx, reduceOnly=True)
+                self.postonly_limit_order_bybit_nolimit(symbol, order_side, pos_qty, take_profit_price, positionIdx, reduceOnly=True)
                 logging.info(f"{order_side.capitalize()} take profit set at {take_profit_price}")
                 time.sleep(0.05)
             except Exception as e:
