@@ -1,18 +1,19 @@
 import time
+import json
 import math
-from threading import Thread
+import os
+import copy
+import logging
+from threading import Thread, Lock
 from ...strategy import Strategy
+from ...logger import Logger
 from datetime import datetime, timedelta
 from typing import Tuple
-from rich.console import Console
-from rich.table import Table
-from rich.live import Live
-from rich.text import Text
-from rich import box
 import pandas as pd
-import ta
-import logging
-from ...logger import Logger
+### ILAY ###
+from live_table_manager import shared_symbols_data
+####
+from concurrent.futures import ThreadPoolExecutor
 
 logging = Logger(logger_name="BybitAutoRotatorMFIRSI", filename="BybitAutoRotatorMFIRSI.log", stream=True)
 
@@ -21,6 +22,11 @@ class BybitAutoRotatorMFIRSI(Strategy):
         super().__init__(exchange, config, manager, symbols_allowed)
         self.symbols_allowed = symbols_allowed
         self.manager = manager
+        self.all_symbol_data = {}
+        # Initialize the last health check time to zero or to the current time
+        self.last_health_check_time = time.time()  # or time.time()
+        # Initialize the health check interval (in seconds)
+        self.health_check_interval = 600  # for example, 10 minutes
         self.last_long_tp_update = datetime.now()
         self.last_short_tp_update = datetime.now()
         self.next_long_tp_update = self.calculate_next_update_time()
@@ -44,152 +50,19 @@ class BybitAutoRotatorMFIRSI(Strategy):
         self.version = "2.0.6"
         self.rows = {}
 
-    # def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev, long_max_trade_qty, short_max_trade_qty, long_expected_profit, short_expected_profit, long_liq_price, short_liq_price, should_long, should_add_to_long, should_short, should_add_to_short,  mfirsi_signal, eri_trend):
-    #     try:
-    #         table = Table(show_header=False, header_style="bold magenta", title=f"Directional Scalper MFIRSI {self.version}")
-    #         table.add_column("Key")
-    #         table.add_column("Value")
-    #         #min_vol_dist_data = self.manager.get_min_vol_dist_data(self.symbol)
-    #         #mode = self.find_mode()
-    #         #trend = self.find_trend()
-    #         #market_data = self.get_market_data()
-
-    #         table_data = {
-    #             "Symbol": symbol,
-    #             "Price": current_price,
-    #             "Balance": balance,
-    #             "Available bal.": available_bal,
-    #             "Long MAX QTY": long_max_trade_qty,
-    #             "Short MAX QTY": short_max_trade_qty,
-    #             "Long entry QTY": long_dynamic_amount,
-    #             "Short entry QTY": short_dynamic_amount,
-    #             "Long pos. QTY": long_pos_qty,
-    #             "Short pos. QTY": short_pos_qty,
-    #             "Long uPNL": long_upnl,
-    #             "Short uPNL": short_upnl,
-    #             "Long cum. uPNL": long_cum_pnl,
-    #             "Short cum. uPNL": short_cum_pnl,
-    #             "Long pos. price": long_pos_price,
-    #             "Long take profit": long_take_profit,
-    #             "Long expected profit": "{:.2f} USDT".format(long_expected_profit),
-    #             "Short pos. price": short_pos_price,
-    #             "Short take profit": short_take_profit,
-    #             "Short expected profit": "{:.2f} USDT".format(short_expected_profit),
-    #             "Long pos. lev.": long_pos_lev,
-    #             "Short pos. lev.": short_pos_lev,
-    #             "Long liq price": long_liq_price,
-    #             "Short liq price": short_liq_price,
-    #             "1m Vol": volume,
-    #             "5m Spread:": spread,
-    #             "Trend": trend,
-    #             "ERI Trend": eri_trend,
-    #             "MFIRSI Signal": mfirsi_signal,
-    #             "Long condition": should_long,
-    #             "Add long cond.": should_add_to_long,
-    #             "Short condition": should_short,
-    #             "Add short cond.": should_add_to_short, 
-    #             "Min. volume": self.config.min_volume,
-    #             "Min. spread": self.config.min_distance,
-    #             "Min. qty": min_qty,
-    #         }
-
-    #         for key, value in table_data.items():
-    #             table.add_row(key, str(value))
-            
-    #         return table
-
-    #     except Exception as e:
-    #         logging.info(f"Exception caught {e}")
-    #         return Table()
-
-    def generate_main_table(self, symbol_data):
-        try:
-            symbol = symbol_data['symbol']
-
-            # Update the rows dictionary
-            self.rows[symbol] = [
-                symbol,
-                str(symbol_data['min_qty']),
-                str(symbol_data['current_price']),
-                str(symbol_data['balance']),
-                str(symbol_data['available_bal']),
-                str(symbol_data['volume']),
-                str(symbol_data['spread']),
-                str(symbol_data['trend']),
-                str(symbol_data['long_pos_qty']),
-                str(symbol_data['short_pos_qty']),
-                str(symbol_data['long_upnl']),
-                str(symbol_data['short_upnl']),
-                str(symbol_data['long_cum_pnl']),
-                str(symbol_data['short_cum_pnl']),
-                str(symbol_data['long_pos_price']),
-                str(symbol_data['short_pos_price'])
-            ]
-
-            # Recreate the table
-            self.table = Table(header_style="bold magenta", title=f"Directional Scalper MFIRSI {self.version}")
-            self.table.add_column("Symbol")
-            self.table.add_column("Min. Qty")
-            self.table.add_column("Price")
-            self.table.add_column("Balance")
-            self.table.add_column("Available Bal.")
-            self.table.add_column("1m Vol")
-            self.table.add_column("5m Spread")
-            self.table.add_column("Trend")
-            self.table.add_column("Long Pos. Qty")
-            self.table.add_column("Short Pos. Qty")
-            self.table.add_column("Long uPNL")
-            self.table.add_column("Short uPNL")
-            self.table.add_column("Long cum. uPNL")
-            self.table.add_column("Short cum. uPNL")
-            self.table.add_column("Long Pos. Price")
-            self.table.add_column("Short Pos. Price")
-
-            # Add all the rows from the dictionary
-            for row_data in self.rows.values():
-                self.table.add_row(*row_data)
-
-            return self.table
-        except Exception as e:
-            logging.info(f"Exception caught {e}")
-            return Table()
-        
     def run(self, symbol):
-        threads = [Thread(target=self.run_single_symbol, args=(symbol,))]
+        threads = [
+            Thread(target=self.run_single_symbol, args=(symbol,))
+        ]
 
         for thread in threads:
             thread.start()
 
         for thread in threads:
             thread.join()
-            
+
     def run_single_symbol(self, symbol):
         print(f"Running for symbol (inside run_single_symbol method): {symbol}")
-
-        # while True:
-        #     rotator_symbols = self.manager.get_auto_rotate_symbols()
-        #     if symbol not in rotator_symbols:
-        #         logging.info(f"Symbol {symbol} no longer in rotator symbols. Stopping operations for this symbol.")
-        #         break  # Exit the current loop and stop operations for this symbol
-
-        while True:
-            # Check if the symbol is still in rotator_symbols
-            rotator_symbols = self.manager.get_auto_rotate_symbols()
-            if symbol not in rotator_symbols:
-                logging.info(f"Symbol {symbol} no longer in rotator symbols. Stopping operations for this symbol.")
-                break
-
-            # Re-fetch whitelist and blacklist from config
-            whitelist = self.config.whitelist
-            blacklist = self.config.blacklist
-
-            # Check if the symbol is still in whitelist and not in blacklist
-            if symbol not in whitelist or symbol in blacklist:
-                logging.info(f"Symbol {symbol} is no longer allowed based on whitelist/blacklist. Stopping operations for this symbol.")
-                break
-
-        console = Console()
-        live = Live(console=console, refresh_per_second=10)
 
         quote_currency = "USDT"
         max_retries = 5
@@ -201,6 +74,14 @@ class BybitAutoRotatorMFIRSI(Strategy):
         min_vol = self.config.min_volume
         current_leverage = self.exchange.get_current_leverage_bybit(symbol)
         max_leverage = self.exchange.get_max_leverage_bybit(symbol)
+
+
+        # symbols_allowed = self.config.symbols_allowed
+
+        #symbols_allowed = self.get_symbols_allowed("bybit")
+
+        if self.config.dashboard_enabled:
+            dashboard_path = os.path.join(self.config.shared_data_path, "shared_data.json")
 
         logging.info("Setting up exchange")
         self.exchange.setup_exchange_bybit(symbol)
@@ -215,26 +96,42 @@ class BybitAutoRotatorMFIRSI(Strategy):
         previous_one_hour_distance = None
         previous_four_hour_distance = None
 
-        with live:
-            while True:
-                # Get API data
-                data = self.manager.get_data()
-                one_minute_volume = self.manager.get_asset_value(symbol, data, "1mVol")
-                one_hour_volume = self.manager.get_asset_value(symbol, data, "1hVol")
-                one_minute_distance = self.manager.get_asset_value(symbol, data, "1mSpread")
-                five_minute_distance = self.manager.get_asset_value(symbol, data, "5mSpread")
-                thirty_minute_distance = self.manager.get_asset_value(symbol, data, "30mSpread")
-                one_hour_distance = self.manager.get_asset_value(symbol, data, "1hSpread")
-                four_hour_distance = self.manager.get_asset_value(symbol, data, "4hSpread")
-                trend = self.manager.get_asset_value(symbol, data, "Trend")
-                mfirsi_signal = self.manager.get_asset_value(symbol, data, "MFI")
-                eri_trend = self.manager.get_asset_value(symbol, data, "ERI Trend")
-                rotatorsymbols = self.manager.get_symbols()
-                #rotator_symbols = self.manager.get_auto_rotate_symbols(self.config.min_qty_threshold)
+        while True:  # Outer loop
+            rotator_symbols = self.manager.get_auto_rotate_symbols()
+            if symbol not in rotator_symbols:
+                logging.info(f"Symbol {symbol} not in rotator symbols. Waiting for it to reappear.")
+                time.sleep(60)
+                continue
+
+            while True:  # Inner loop
+                should_exit = False
                 rotator_symbols = self.manager.get_auto_rotate_symbols()
+                if symbol not in rotator_symbols:
+                    logging.info(f"Symbol {symbol} no longer in rotator symbols. Stopping operations for this symbol.")
+                    should_exit = True
 
-                print(f"{rotator_symbols}")
+                whitelist = self.config.whitelist
+                blacklist = self.config.blacklist
+                if symbol not in whitelist or symbol in blacklist:
+                    logging.info(f"Symbol {symbol} is no longer allowed based on whitelist/blacklist. Stopping operations for this symbol.")
+                    should_exit = True
 
+                if should_exit:
+                    break
+
+                # Get API data
+                api_data = self.manager.get_api_data(symbol)
+                one_minute_volume = api_data['1mVol']
+                five_minute_distance = api_data['5mSpread']
+                trend = api_data['Trend']
+                mfirsi_signal = api_data['MFI']
+                eri_trend = api_data['ERI Trend']
+                funding_rate = api_data['Funding']
+
+                #logging.info(f"Funding rate for {symbol} : {funding_rate}")
+
+                logging.info(f"Rotator symbols: {rotator_symbols}")
+                
                 quote_currency = "USDT"
 
                 for i in range(max_retries):
@@ -269,73 +166,65 @@ class BybitAutoRotatorMFIRSI(Strategy):
                 best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
                 best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
-                if self.max_long_trade_qty is None or self.max_short_trade_qty is None:
-                    self.max_long_trade_qty = self.max_short_trade_qty = self.calc_max_trade_qty(total_equity,
-                                                                                                best_ask_price,
-                                                                                                max_leverage)
+                long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount(
+                    symbol, market_data, total_equity, best_ask_price, max_leverage
+                )
 
-                    # Set initial quantities if they're None
-                    if self.initial_max_long_trade_qty is None:
-                        self.initial_max_long_trade_qty = self.max_long_trade_qty
-                        logging.info(f"Initial max trade qty set to {self.initial_max_long_trade_qty}")
-                    if self.initial_max_short_trade_qty is None:
-                        self.initial_max_short_trade_qty = self.max_short_trade_qty  
-                        logging.info(f"Initial trade qty set to {self.initial_max_short_trade_qty}")                                                            
-                            
-                # Calculate the dynamic amount
-                long_dynamic_amount = 0.001 * self.initial_max_long_trade_qty
-                short_dynamic_amount = 0.001 * self.initial_max_short_trade_qty
+                logging.info(f"Long dynamic amount from strategy: {long_dynamic_amount} for {symbol}")
+                logging.info(f"Short dynamic amount from strategy: {short_dynamic_amount} for {symbol}")
 
-                min_qty = float(market_data["min_qty"])
-                min_qty_str = str(min_qty)
-
-                # Get the precision level of the minimum quantity
-                if ".0" in min_qty_str:
-                    # The minimum quantity does not have a fractional part, precision is 0
-                    precision_level = 0
-                else:
-                    # The minimum quantity has a fractional part, get its precision level
-                    precision_level = len(min_qty_str.split(".")[1])
-
-                # # Get the precision level of the minimum quantity
-                # if ".0" in min_qty_str:
-                #     # The minimum quantity has a fractional part, get its precision level
-                #     precision_level = len(min_qty_str.split(".")[1])
-                # else:
-                #     # The minimum quantity does not have a fractional part, precision is 0
-                #     precision_level = 0
-
-                # Round the amount to the precision level of the minimum quantity
-                long_dynamic_amount = round(long_dynamic_amount, precision_level)
-                short_dynamic_amount = round(short_dynamic_amount, precision_level)
-
-                self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
-                self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
-
-                # Check if the amount is less than the minimum quantity allowed by the exchange
-                if long_dynamic_amount < min_qty:
-                    logging.info(f"Dynamic amount too small for 0.001x, using min_qty")
-                    long_dynamic_amount = min_qty
-                
-                if short_dynamic_amount < min_qty:
-                    logging.info(f"Dynamic amount too small for 0.001x, using min_qty")
-                    short_dynamic_amount = min_qty
-
+                logging.info(f"Variables in main loop for {symbol}: market_data={market_data}, total_equity={total_equity}, best_ask_price={best_ask_price}, max_leverage={max_leverage}")
                 self.print_trade_quantities_once_bybit(self.max_long_trade_qty)
                 self.print_trade_quantities_once_bybit(self.max_short_trade_qty)
 
-                # Get the 1-minute moving averages
+                # Get moving averages
                 logging.info(f"Fetching MA data")
-                m_moving_averages = self.manager.get_1m_moving_averages(symbol)
-                m5_moving_averages = self.manager.get_5m_moving_averages(symbol)
-                ma_6_high = m_moving_averages["MA_6_H"]
-                ma_6_low = m_moving_averages["MA_6_L"]
-                ma_3_low = m_moving_averages["MA_3_L"]
-                ma_3_high = m_moving_averages["MA_3_H"]
-                ma_1m_3_high = self.manager.get_1m_moving_averages(symbol)["MA_3_H"]
-                ma_5m_3_high = self.manager.get_5m_moving_averages(symbol)["MA_3_H"]
 
+                moving_averages = self.get_all_moving_averages(symbol)
+
+                ma_6_high = moving_averages["ma_6_high"]
+                ma_6_low = moving_averages["ma_6_low"]
+                ma_3_low = moving_averages["ma_3_low"]
+                ma_3_high = moving_averages["ma_3_high"]
+                ma_1m_3_high = moving_averages["ma_1m_3_high"]
+                ma_5m_3_high = moving_averages["ma_5m_3_high"]
+
+                logging.info(f"Fetching position data")
                 position_data = self.exchange.get_positions_bybit(symbol)
+
+                #print(f"Position data: {position_data}")
+
+                open_position_data = self.exchange.get_all_open_positions_bybit()
+
+                #print(f"Open position data: {open_position_data}")
+
+                open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
+
+                open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
+
+                # print(f"Type of open_symbols in strategy: {type(open_symbols)}")
+
+                # print(f"Open symbols: {open_symbols}")
+
+                rotator_symbols = self.manager.get_auto_rotate_symbols()
+
+                # print(f"Rotator symbols: {rotator_symbols}")
+
+                # Find symbols that are open but not in rotator
+                symbols_to_manage = [s for s in open_symbols if s not in rotator_symbols]
+
+                # print(f"Symbols to manage {symbols_to_manage}")
+
+                # Manage these symbols
+                for s in symbols_to_manage:
+                    print(f"Managing symbol: {s}")  # Debugging line
+                    self.manage_open_positions_v2([s], total_equity)  # Notice the square brackets around 's'
+
+                #print(f"Open symbols: {open_symbols}")
+
+                can_open_new_position = self.can_trade_new_symbol(open_symbols, self.symbols_allowed, symbol)
+                logging.info(f"Can open new position: {can_open_new_position}")
+                # print(f"Can open new position: {can_open_new_position}")
 
                 short_pos_qty = position_data["short"]["qty"]
                 long_pos_qty = position_data["long"]["qty"]
@@ -344,8 +233,12 @@ class BybitAutoRotatorMFIRSI(Strategy):
                 short_liq_price = position_data["short"]["liq_price"]
                 long_liq_price = position_data["long"]["liq_price"]
 
-                self.bybit_reset_position_leverage_long(long_pos_qty, total_equity, best_ask_price, max_leverage)
-                self.bybit_reset_position_leverage_short(short_pos_qty, total_equity, best_ask_price, max_leverage)
+                # modify leverage per symbol
+                self.bybit_reset_position_leverage_long_v3(symbol, long_pos_qty, total_equity, best_ask_price, max_leverage)
+                self.bybit_reset_position_leverage_short_v3(symbol, short_pos_qty, total_equity, best_ask_price, max_leverage)
+
+                logging.info(f"Long dynamic amount from strategy: {long_dynamic_amount} for {symbol}")
+                logging.info(f"Short dynamic amount from strategy: {short_dynamic_amount} for {symbol}")
 
                 short_upnl = position_data["short"]["upnl"]
                 long_upnl = position_data["long"]["upnl"]
@@ -359,6 +252,14 @@ class BybitAutoRotatorMFIRSI(Strategy):
                 short_take_profit = None
                 long_take_profit = None
 
+                # if five_minute_distance != previous_five_minute_distance:
+                #     short_take_profit = self.calculate_short_take_profit_spread_bybit_fees(short_pos_price, short_pos_qty, symbol, five_minute_distance)
+                #     long_take_profit = self.calculate_long_take_profit_spread_bybit_fees(long_pos_price, long_pos_qty, symbol, five_minute_distance)
+                # else:
+                #     if short_take_profit is None or long_take_profit is None:
+                #         short_take_profit = self.calculate_short_take_profit_spread_bybit_fees(short_pos_price, short_pos_qty, symbol, five_minute_distance)
+                #         long_take_profit = self.calculate_long_take_profit_spread_bybit_fees(long_pos_price, long_pos_qty, symbol, five_minute_distance)
+                        
                 if five_minute_distance != previous_five_minute_distance:
                     short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, five_minute_distance)
                     long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
@@ -412,24 +313,36 @@ class BybitAutoRotatorMFIRSI(Strategy):
                     # ... continue adding all parameters ...
                 }
 
-                live.update(self.generate_main_table(symbol_data))
+                ### ILAY ###
+                #live.update(self.generate_main_table(symbol_data))
+                shared_symbols_data[symbol] = symbol_data
+                ### ILAY ###
+
+                if self.config.dashboard_enabled:
+                    data_to_save = copy.deepcopy(shared_symbols_data)
+                    with open(dashboard_path, "w") as f:
+                        json.dump(data_to_save, f)
+                    self.update_shared_data(symbol_data, open_position_data, len(open_symbols))
+
+                #open_orders = self.exchange.get_open_orders(symbol)
+                open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+
+                # Check if the symbol is already being traded
+                if symbol in open_symbols:
+                    self.bybit_hedge_entry_maker_mfirsi(symbol, api_data, min_vol, min_dist, one_minute_volume, five_minute_distance, 
+                                    long_pos_qty, self.max_long_trade_qty, best_bid_price, long_pos_price, long_dynamic_amount,
+                                    short_pos_qty, self.max_short_trade_qty, best_ask_price, short_pos_price, short_dynamic_amount)
 
 
-                open_orders = self.exchange.get_open_orders(symbol)
-
-                # Entry logic
-                self.bybit_hedge_entry_maker_mfirsi(symbol, data, min_vol, min_dist, one_minute_volume, five_minute_distance, 
-                                                    long_pos_qty, self.max_long_trade_qty, best_bid_price, long_pos_price, long_dynamic_amount,
-                                                    short_pos_qty, self.max_short_trade_qty, best_ask_price, short_pos_price, short_dynamic_amount)
-
-                # Take profit placement 
+                elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
+                    self.bybit_hedge_entry_maker_v3_initial_entry(open_orders, symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
 
                 # Call the function to update long take profit spread
                 if long_pos_qty > 0 and long_take_profit is not None:
                     self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
 
                 # Call the function to update short take profit spread
-                if short_pos_qty > 0 and short_take_profit is not None:
+                if short_pos_qty > 0: #and short_take_profit is not None:
                     self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
 
                 # Take profit spread replacement
@@ -441,5 +354,8 @@ class BybitAutoRotatorMFIRSI(Strategy):
 
                 # Cancel entries
                 self.cancel_entries_bybit(symbol, best_ask_price, ma_1m_3_high, ma_5m_3_high)
+
+                self.cancel_stale_orders_bybit()
+
 
                 time.sleep(30)
