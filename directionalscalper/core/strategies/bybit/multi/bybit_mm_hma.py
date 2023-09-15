@@ -340,8 +340,8 @@ class BybitMMhma(Strategy):
                         # Check if it's time to perform spoofing
                         if current_time - self.last_cancel_time >= self.spoofing_interval:
                             self.spoofing_active = True
-                            self.spoofing_action(symbol, short_spoofing_amount, long_spoofing_amount)
-                            #self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
+                            #self.spoofing_action(symbol, short_spoofing_amount, long_spoofing_amount)
+                            self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
                             #self.spoofing_action(symbol, "up", long_dynamic_amount, short_dynamic_amount)
                     elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
                         self.bybit_hedge_initial_entry_maker_hma(open_orders, symbol, trend, hma_trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
