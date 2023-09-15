@@ -3672,8 +3672,8 @@ class Strategy:
             # Check if it's time to perform spoofing
             if current_time - self.last_cancel_time >= self.spoofing_interval:
                 self.spoofing_active = True
-                self.spoofing_action(open_symbol, short_spoofing_amount_open_symbol, long_spoofing_amount_open_symbol)
-                # self.spoofing_action(open_symbol, short_dynamic_amount_open_symbol, long_dynamic_amount_open_symbol)
+                #self.spoofing_action(open_symbol, short_spoofing_amount_open_symbol, long_spoofing_amount_open_symbol)
+                self.spoofing_action(open_symbol, short_dynamic_amount_open_symbol, long_dynamic_amount_open_symbol)
 
     def manage_mm_ratio(self, open_symbols, total_equity):
         # Get current rotator symbols

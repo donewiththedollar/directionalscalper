@@ -377,8 +377,8 @@ class BybitMMhma(Strategy):
                 # Check if it's time to perform spoofing
                 if current_time - self.last_cancel_time >= self.spoofing_interval:
                     self.spoofing_active = True
-                    #self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
-                    self.spoofing_action(symbol, short_spoofing_amount, long_spoofing_amount)
+                    self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
+                    #self.spoofing_action(symbol, short_spoofing_amount, long_spoofing_amount)
 
 
                 time.sleep(15)
