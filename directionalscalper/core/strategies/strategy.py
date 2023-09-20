@@ -51,7 +51,6 @@ class Strategy:
         self.last_cancel_time = 0
         self.spoofing_active = False
         self.spoofing_wall_size = 5 
-        #self.spoofing_duration = 5  # Spoofing duration in seconds
         self.spoofing_interval = 1  # Time interval between spoofing actions
         self.spoofing_duration = 5  # Spoofing duration in seconds
         self.whitelist = self.config.whitelist
@@ -1699,7 +1698,7 @@ class Strategy:
             # Initialize variables
             spoofing_orders = []
             larger_position = "long" if long_pos_qty > short_pos_qty else "short"
-            safety_margin = Decimal('0.01')  # 1% safety margin
+            safety_margin = Decimal('0.05')  # 1% safety margin
             base_gap = Decimal('0.005')  # Base gap for spoofing orders
 
             for i in range(self.spoofing_wall_size):
@@ -2272,39 +2271,39 @@ class Strategy:
                     logging.info(f"Placing additional short entry")
                     self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
-    # def bybit_hedge_entry_maker_hma(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool, buy_wall: bool, sell_wall: bool):
+    def bybit_hedge_entry_maker_hma_walls(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, eri: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool, buy_wall: bool, sell_wall: bool):
 
-    #     if trend is None or mfi is None or hma_trend is None:
-    #         logging.warning(f"Either 'trend', 'mfi', or 'hma_trend' is None for symbol {symbol}. Skipping current execution...")
-    #         return
+        if trend is None or mfi is None or hma_trend is None:
+            logging.warning(f"Either 'trend', 'mfi', or 'hma_trend' is None for symbol {symbol}. Skipping current execution...")
+            return
 
-    #     if one_minute_volume is not None and five_minute_distance is not None:
-    #         if one_minute_volume > min_vol and five_minute_distance > min_dist:
+        if one_minute_volume is not None and five_minute_distance is not None:
+            if one_minute_volume > min_vol and five_minute_distance > min_dist:
 
-    #             best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
-    #             best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+                best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+                best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
-    #             # Check for long entry conditions
-    #             if (trend.lower() == "long" or hma_trend.lower() == "long" or buy_wall) and mfi.lower() == "long" and should_long and long_pos_qty == 0 and long_pos_qty < self.max_long_trade_qty and not self.entry_order_exists(open_orders, "buy"):
-    #                 logging.info(f"Placing initial long entry")
-    #                 self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-    #                 logging.info(f"Placed initial long entry")
+                # Check for long entry conditions
+                if (trend.lower() == "long" or hma_trend.lower() == "long") and (mfi.lower() == "long" or (buy_wall and eri == "bullish")) and should_long and long_pos_qty == 0 and long_pos_qty < self.max_long_trade_qty and not self.entry_order_exists(open_orders, "buy"):
+                    logging.info(f"Placing initial long entry")
+                    self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                    logging.info(f"Placed initial long entry")
 
-    #             # Check for additional long entry conditions
-    #             elif (trend.lower() == "long" or hma_trend.lower() == "long" or buy_wall) and mfi.lower() == "long" and should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
-    #                 logging.info(f"Placing additional long entry")
-    #                 self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                # Check for additional long entry conditions
+                elif (trend.lower() == "long" or hma_trend.lower() == "long") and (mfi.lower() == "long" or (buy_wall and eri == "bullish")) and should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
+                    logging.info(f"Placing additional long entry")
+                    self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
 
-    #             # Check for short entry conditions
-    #             if (trend.lower() == "short" or hma_trend.lower() == "short" or sell_wall) and mfi.lower() == "short" and should_short and short_pos_qty == 0 and short_pos_qty < self.max_short_trade_qty and not self.entry_order_exists(open_orders, "sell"):
-    #                 logging.info(f"Placing initial short entry")
-    #                 self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
-    #                 logging.info(f"Placed initial short entry")
+                # Check for short entry conditions
+                if (trend.lower() == "short" or hma_trend.lower() == "short") and (mfi.lower() == "short" or (sell_wall and eri == "bearish")) and should_short and short_pos_qty == 0 and short_pos_qty < self.max_short_trade_qty and not self.entry_order_exists(open_orders, "sell"):
+                    logging.info(f"Placing initial short entry")
+                    self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                    logging.info(f"Placed initial short entry")
 
-    #             # Check for additional short entry conditions
-    #             elif (trend.lower() == "short" or hma_trend.lower() == "short" or sell_wall) and mfi.lower() == "short" and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
-    #                 logging.info(f"Placing additional short entry")
-    #                 self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                # Check for additional short entry conditions
+                elif (trend.lower() == "short" or hma_trend.lower() == "short") and (mfi.lower() == "short" or (sell_wall and eri == "bearish")) and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
+                    logging.info(f"Placing additional short entry")
+                    self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
     def bybit_hedge_entry_maker_hma(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
 
