@@ -1698,7 +1698,7 @@ class Strategy:
             # Initialize variables
             spoofing_orders = []
             larger_position = "long" if long_pos_qty > short_pos_qty else "short"
-            safety_margin = Decimal('0.05')  # 1% safety margin
+            safety_margin = Decimal('0.02')  # 1% safety margin
             base_gap = Decimal('0.005')  # Base gap for spoofing orders
 
             for i in range(self.spoofing_wall_size):
@@ -1709,7 +1709,7 @@ class Strategy:
                 spoof_price_long = spoof_price_long.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
                 
                 if larger_position == "long":
-                    spoof_price_long = spoof_price_long + current_price * Decimal('0.01')#('0.005')  # Adjust price in the direction of larger position
+                    spoof_price_long = spoof_price_long + current_price * Decimal('0.005')#('0.005')  # Adjust price in the direction of larger position
                 
                 spoof_order_long = self.limit_order_bybit(symbol, "sell", long_dynamic_amount, spoof_price_long, positionIdx=2, reduceOnly=False)
                 spoofing_orders.append(spoof_order_long)
@@ -1719,7 +1719,7 @@ class Strategy:
                 spoof_price_short = spoof_price_short.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
                 
                 if larger_position == "short":
-                    spoof_price_short = spoof_price_short - current_price * Decimal('0.01')#('0.005')  # Adjust price in the direction of larger position
+                    spoof_price_short = spoof_price_short - current_price * Decimal('0.005')#('0.005')  # Adjust price in the direction of larger position
                 
                 spoof_order_short = self.limit_order_bybit(symbol, "buy", short_dynamic_amount, spoof_price_short, positionIdx=1, reduceOnly=False)
                 spoofing_orders.append(spoof_order_short)
