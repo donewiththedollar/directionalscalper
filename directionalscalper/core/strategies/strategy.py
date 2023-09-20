@@ -1698,7 +1698,7 @@ class Strategy:
             # Initialize variables
             spoofing_orders = []
             larger_position = "long" if long_pos_qty > short_pos_qty else "short"
-            safety_margin = Decimal('0.02')  # 1% safety margin
+            safety_margin = Decimal('0.05')  # 1% safety margin
             base_gap = Decimal('0.005')  # Base gap for spoofing orders
 
             for i in range(self.spoofing_wall_size):
