@@ -233,8 +233,21 @@ if __name__ == '__main__':
     exchange_name = args.exchange  # Now it will have a value
     #market_maker = DirectionalMarketMaker(config, exchange_name)
     market_maker = DirectionalMarketMaker(config, exchange_name, args.account_name)
-    manager = Manager(market_maker.exchange, api=config.api.mode, path=Path("data", config.api.filename), url=f"{config.api.url}{config.api.filename}")
-    
+    #manager = Manager(market_maker.exchange, api=config.api.mode, path=Path("data", config.api.filename), url=f"{config.api.url}{config.api.filename}")
+    #manager = Manager(market_maker.exchange, exchange_name=exchange_name, api=config.api.mode, path=Path("data", config.api.filename), url=f"{config.api.url}{config.api.filename}")
+    #manager = Manager(market_maker.exchange, exchange_name=config.api.data_source_exchange, api=config.api.mode, path=Path("data", config.api.filename), url=f"{config.api.url}{config.api.filename}")
+
+    manager = Manager(
+        market_maker.exchange, 
+        exchange_name=config.api.data_source_exchange, 
+        data_source_exchange=config.api.data_source_exchange,
+        api=config.api.mode, 
+        path=Path("data", config.api.filename), 
+        url=f"{config.api.url}{config.api.filename}"
+    )
+
+    print(f"Using exchange {config.api.data_source_exchange} for API data")
+
     whitelist = config.bot.whitelist
     blacklist = config.bot.blacklist
     max_usd_value = config.bot.max_usd_value

@@ -26,12 +26,16 @@ class Manager:
     def __init__(
         self,
         exchange,
+        exchange_name: str = 'binance',  # Defaulting to 'binance'
+        data_source_exchange: str = 'binance',
         api: str = "remote",
         cache_life_seconds: int = 10,
         path: Path | None = None,
         url: str = "",
     ):
         self.exchange = exchange
+        self.exchange_name = exchange_name  # New attribute to store the exchange name
+        self.data_source_exchange = data_source_exchange
         log.info("Starting API Manager")
         self.api = api
         self.cache_life_seconds = cache_life_seconds
@@ -43,13 +47,15 @@ class Manager:
         if self.api == "remote":
             log.info("API manager mode: remote")
             if len(self.url) < 6:
-                self.url = "http://api.tradesimple.xyz/data/quantdatav2.json"
+                # Adjusting the default URL based on the exchange_name
+                self.url = f"http://api.tradesimple.xyz/data/quantdatav2_{self.exchange_name}.json"
             log.info(f"Remote API URL: {self.url}")
             self.data = self.get_remote_data()
 
         elif self.api == "local":
+            # You might also want to consider adjusting the local path based on the exchange_name in the future.
             if len(str(self.path)) < 6:
-                self.path = Path("data", "quantdatav2.json")
+                self.path = Path("data", f"quantdatav2_{self.exchange_name}.json")
             log.info(f"Local API directory: {self.path}")
             self.data = self.get_local_data()
 
@@ -85,7 +91,9 @@ class Manager:
 
     def get_auto_rotate_symbols(self, min_qty_threshold: float = None, whitelist: list = None, blacklist: list = None, max_usd_value: float = None, max_retries: int = 10, delay_between_retries: int = 30):
         symbols = []
-        url = "http://api.tradesimple.xyz/data/rotatorsymbols.json"
+        #url = "http://api.tradesimple.xyz/data/rotatorsymbols.json"
+        url = f"http://api.tradesimple.xyz/data/rotatorsymbols_{self.data_source_exchange}.json"
+
 
         for retry in range(max_retries):
             try:
@@ -143,60 +151,6 @@ class Manager:
         
         # Return empty list if all retries fail
         return []
-
-    # def get_auto_rotate_symbols(self, min_qty_threshold: float = None, whitelist: list = None, blacklist: list = None, max_retries: int = 10, delay_between_retries: int = 30):
-    #     symbols = []
-    #     url = "http://api.tradesimple.xyz/data/rotatorsymbols.json"
-
-    #     for retry in range(max_retries):
-    #         try:
-    #             log.debug(f"Sending request to {url} (Attempt: {retry + 1})")
-    #             header, raw_json = send_public_request(url=url)
-                
-    #             if isinstance(raw_json, list):
-    #                 log.debug(f"Received {len(raw_json)} assets from API")
-                    
-    #                 for asset in raw_json:
-    #                     symbol = asset.get("Asset", "")
-    #                     min_qty = asset.get("Min qty", 0)
-    #                     log.debug(f"Processing symbol {symbol} with min_qty {min_qty}")
-
-    #                     # Only consider the whitelist if it's not empty or None
-    #                     if whitelist and symbol not in whitelist and len(whitelist) > 0:
-    #                         log.debug(f"Skipping {symbol} as it's not in whitelist")
-    #                         continue
-
-    #                     # Consider the blacklist regardless of whether it's empty or not
-    #                     if blacklist and symbol in blacklist:
-    #                         log.debug(f"Skipping {symbol} as it's in blacklist")
-    #                         continue
-
-    #                     if min_qty_threshold is None or min_qty <= min_qty_threshold:
-    #                         symbols.append(symbol)
-
-    #                 log.debug(f"Returning {len(symbols)} symbols")
-    #                 return symbols
-
-    #             else:
-    #                 log.error("Unexpected data format. Expected a list of assets.")
-    #                 if retry < max_retries - 1:
-    #                     sleep(delay_between_retries)
-    #                 else:
-    #                     return []
-
-    #         except requests.exceptions.RequestException as e:
-    #             log.error(f"Request failed: {e}")
-    #         except json.decoder.JSONDecodeError as e:
-    #             log.error(f"Failed to parse JSON: {e}")
-    #         except Exception as e:
-    #             log.error(f"Unexpected error occurred: {e}")
-
-    #         # Wait before the next retry
-    #         if retry < max_retries - 1:
-    #             sleep(delay_between_retries)
-        
-    #     # Return empty list if all retries fail
-    #     return []
 
     def get_symbols(self):
         url = "http://api.tradesimple.xyz/data/rotatorsymbols.json"
