@@ -23,6 +23,7 @@ class API(BaseModel):
     filename: str = "quantdatav2.json"
     mode: str = "remote"
     url: str = "http://api.tradesimple.xyz/data/"
+    data_source_exchange: str = "bybit"
 
 
 class Bot(BaseModel):
