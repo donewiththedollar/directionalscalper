@@ -26,7 +26,7 @@ class Manager:
     def __init__(
         self,
         exchange,
-        exchange_name: str = 'binance',  # Defaulting to 'binance'
+        exchange_name: str = 'bybit',  # Defaulting to 'binance'
         data_source_exchange: str = 'binance',
         api: str = "remote",
         cache_life_seconds: int = 10,
@@ -67,6 +67,20 @@ class Manager:
 
     def update_last_checked(self):
         self.last_checked = datetime.now().timestamp()
+
+    def fetch_data_from_url(self, url):
+        try:
+            header, raw_json = send_public_request(url=url)
+            return raw_json
+        except requests.exceptions.RequestException as e:
+            log.error(f"Request failed: {e}")
+            return {}
+        except json.decoder.JSONDecodeError as e:
+            log.error(f"Failed to parse JSON: {e}")
+            return {}
+        except Exception as e:
+            log.error(f"Unexpected error occurred: {e}")
+            return {}
 
     def get_data(self):
         if self.api == "remote":
@@ -257,8 +271,11 @@ class Manager:
             log.warning(f"{e}")
         return None
 
+    # def get_api_data(self, symbol):
+    #     data = self.get_data()
     def get_api_data(self, symbol):
-        data = self.get_data()
+        api_data_url = f"http://api.tradesimple.xyz/data/quantdatav2_{self.data_source_exchange}.json"
+        data = self.fetch_data_from_url(api_data_url)
         api_data = {
             '1mVol': self.get_asset_value(symbol, data, "1mVol"),
             '1hVol': self.get_asset_value(symbol, data, "1hVol"),

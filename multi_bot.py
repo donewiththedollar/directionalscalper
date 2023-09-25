@@ -239,7 +239,7 @@ if __name__ == '__main__':
 
     manager = Manager(
         market_maker.exchange, 
-        exchange_name=config.api.data_source_exchange, 
+        exchange_name=args.exchange, 
         data_source_exchange=config.api.data_source_exchange,
         api=config.api.mode, 
         path=Path("data", config.api.filename), 
