@@ -140,7 +140,7 @@ class BybitMMhma(Strategy):
 
                 logging.info(f"Funding check on {symbol} : {funding_check}")
 
-                logging.info(f"Rotator symbols: {rotator_symbols}")
+                logging.info(f"Rotator symbols from strategy itself: {rotator_symbols}")
                 
                 quote_currency = "USDT"
 
@@ -218,10 +218,12 @@ class BybitMMhma(Strategy):
 
                 rotator_symbols = self.manager.get_auto_rotate_symbols()
 
-                # print(f"Rotator symbols: {rotator_symbols}")
+                logging.info(f"HMA Current rotator symbols: {rotator_symbols}")
 
                 # Find symbols that are open but not in rotator
                 symbols_to_manage = [s for s in open_symbols if s not in rotator_symbols]
+
+                logging.info(f"HMA symbols to manage {symbols_to_manage}")
 
                 # print(f"Symbols to manage {symbols_to_manage}")
 
@@ -287,10 +289,10 @@ class BybitMMhma(Strategy):
                     self.long_expected_profit_usdt = self.long_tp_distance_percent / 100 * long_pos_price * long_pos_qty
                     logging.info(f"Long TP price: {long_take_profit}, TP distance in percent: {self.long_tp_distance_percent:.2f}%, Expected profit: {self.long_expected_profit_usdt:.2f} USDT")
                     
-                logging.info(f"Short condition: {should_short}")
-                logging.info(f"Long condition: {should_long}")
-                logging.info(f"Add short condition: {should_add_to_short}")
-                logging.info(f"Add long condition: {should_add_to_long}")
+                logging.info(f"Short condition for {symbol} : {should_short}")
+                logging.info(f"Long condition for {symbol} : {should_long}")
+                logging.info(f"Add short condition for {symbol} : {should_add_to_short}")
+                logging.info(f"Add long condition for {symbol} : {should_add_to_long}")
 
                 symbol_data = {
                     'symbol': symbol,
@@ -326,11 +328,12 @@ class BybitMMhma(Strategy):
                 #open_orders = self.exchange.get_open_orders(symbol)
                 open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
-                long_spoofing_amount, short_spoofing_amount, = self.calculate_spoofing_amount(
-                    symbol, total_equity, best_ask_price, max_leverage
-                )
+                # long_spoofing_amount, short_spoofing_amount, = self.calculate_spoofing_amount(
+                #     symbol, total_equity, best_ask_price, max_leverage
+                # )
 
                 logging.info(f"Trend: {trend} for symbol: {symbol}")
+                logging.info(f"HMA Trend: {hma_trend} for symbol : {symbol}")
 
                 if trend and hma_trend is not None:
                     # Check if the symbol is already being traded
@@ -340,9 +343,7 @@ class BybitMMhma(Strategy):
                         # Check if it's time to perform spoofing
                         if current_time - self.last_cancel_time >= self.spoofing_interval:
                             self.spoofing_active = True
-                            #self.spoofing_action(symbol, short_spoofing_amount, long_spoofing_amount)
                             self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
-                            #self.spoofing_action(symbol, "up", long_dynamic_amount, short_dynamic_amount)
                     elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
                         self.bybit_hedge_initial_entry_maker_hma(open_orders, symbol, trend, hma_trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
 
@@ -372,13 +373,6 @@ class BybitMMhma(Strategy):
                 self.cancel_stale_orders_bybit()
 
                 #self.print_order_book_imbalance(symbol)
-
-                current_time = time.time()
-                # Check if it's time to perform spoofing
-                if current_time - self.last_cancel_time >= self.spoofing_interval:
-                    self.spoofing_active = True
-                    self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
-                    #self.spoofing_action(symbol, short_spoofing_amount, long_spoofing_amount)
 
 
                 time.sleep(15)
