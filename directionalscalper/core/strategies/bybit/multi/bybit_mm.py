@@ -132,6 +132,8 @@ class BybitMM(Strategy):
                 mfirsi_signal = api_data['MFI']
                 eri_trend = api_data['ERI Trend']
                 funding_rate = api_data['Funding']
+                hma_trend = api_data['HMA Trend']
+
 
                 funding_check = self.is_funding_rate_acceptable(symbol)
 
