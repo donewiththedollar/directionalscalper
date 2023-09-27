@@ -17,7 +17,7 @@ logging = Logger(logger_name="Strategy", filename="Strategy.log", stream=True)
 
 class Strategy:
     LEVERAGE_STEP = 0.005  # The step at which to increase leverage
-    MAX_LEVERAGE = 1.0 #0.3  # The maximum allowable leverage
+    MAX_LEVERAGE = 2.0 #0.3  # The maximum allowable leverage
     QTY_INCREMENT = 0.05 # How much your position size increases
     #MAX_PCT_EQUIY = 1
     MAX_PCT_EQUITY = 5
@@ -3346,6 +3346,8 @@ class Strategy:
     def manage_non_rotator_symbols(self, open_symbols, total_equity):
         for open_symbol in open_symbols:
 
+            previous_five_minute_distance = None
+
             min_dist = self.config.min_distance
             min_vol = self.config.min_volume
 
@@ -3394,6 +3396,7 @@ class Strategy:
             should_add_to_long_open_symbol = (long_pos_price_open_symbol > ma_6_high_open_symbol) and should_long_open_symbol if long_pos_price_open_symbol is not None and ma_6_high_open_symbol is not None else False
             should_add_to_short_open_symbol = (short_pos_price_open_symbol < ma_6_low_open_symbol) and should_short_open_symbol if short_pos_price_open_symbol is not None and ma_6_low_open_symbol is not None else False
 
+
             # Place additional entry orders
             if should_add_to_long_open_symbol or should_add_to_short_open_symbol:
                 open_orders_open_symbol = self.retry_api_call(self.exchange.get_open_orders, open_symbol)
@@ -3416,6 +3419,26 @@ class Strategy:
                     should_add_to_long_open_symbol,
                     should_add_to_short_open_symbol
                 )
+
+                short_take_profit = None
+                long_take_profit = None
+
+                short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price_open_symbol, long_pos_price_open_symbol, open_symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
+
+                # Call the function to update long take profit spread
+                if long_pos_qty_open_symbol > 0 and long_take_profit is not None:
+                    self.bybit_hedge_placetp_maker(open_symbol, long_pos_qty_open_symbol, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders_open_symbol)
+
+                # Call the function to update short take profit spread
+                if short_pos_qty_open_symbol > 0 and short_take_profit is not None:
+                    self.bybit_hedge_placetp_maker(open_symbol, short_pos_qty_open_symbol, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders_open_symbol)
+
+                # Take profit spread replacement
+                if long_pos_qty_open_symbol > 0 and long_take_profit is not None:
+                    self.next_long_tp_update = self.update_take_profit_spread_bybit(open_symbol, long_pos_qty_open_symbol, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders_open_symbol, next_tp_update=self.next_long_tp_update)
+
+                if short_pos_qty_open_symbol > 0 and short_take_profit is not None:
+                    self.next_short_tp_update = self.update_take_profit_spread_bybit(open_symbol, short_pos_qty_open_symbol, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders_open_symbol, next_tp_update=self.next_short_tp_update)
 
         current_time = time.time()
         # Check if it's time to perform spoofing
