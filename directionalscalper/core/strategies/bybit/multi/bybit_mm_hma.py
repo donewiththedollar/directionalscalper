@@ -26,6 +26,10 @@ class BybitMMhma(Strategy):
         # Initialize the last health check time to zero or to the current time
         self.last_health_check_time = time.time()  # or time.time()
         # Initialize the health check interval (in seconds)
+        self.max_long_trade_qty_per_symbol = {}
+        self.max_short_trade_qty_per_symbol = {}
+        self.initial_max_long_trade_qty_per_symbol = {}
+        self.initial_max_short_trade_qty_per_symbol = {}
         self.health_check_interval = 600  # for example, 10 minutes
         self.last_long_tp_update = datetime.now()
         self.last_short_tp_update = datetime.now()
@@ -135,6 +139,11 @@ class BybitMMhma(Strategy):
                 funding_rate = api_data['Funding']
                 hma_trend = api_data['HMA Trend']
 
+                logging.info(f"One minute volume for {symbol} : {one_minute_volume}")
+                logging.info(f"Five minute distance for {symbol} : {five_minute_distance}")
+                logging.info(f"Trend: {trend} for symbol: {symbol}")
+                logging.info(f"HMA Trend: {hma_trend} for symbol : {symbol}")
+
 
                 funding_check = self.is_funding_rate_acceptable(symbol)
 
@@ -176,16 +185,13 @@ class BybitMMhma(Strategy):
                 best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
                 best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
-                long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount(
-                    symbol, market_data, total_equity, best_ask_price, max_leverage
-                )
+                # long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount(
+                #     symbol, market_data, total_equity, best_ask_price, max_leverage
+                # )
 
-                logging.info(f"Long dynamic amount from strategy: {long_dynamic_amount} for {symbol}")
-                logging.info(f"Short dynamic amount from strategy: {short_dynamic_amount} for {symbol}")
 
                 logging.info(f"Variables in main loop for {symbol}: market_data={market_data}, total_equity={total_equity}, best_ask_price={best_ask_price}, max_leverage={max_leverage}")
-                self.print_trade_quantities_once_bybit(self.max_long_trade_qty)
-                self.print_trade_quantities_once_bybit(self.max_short_trade_qty)
+
 
                 # Get moving averages
                 logging.info(f"Fetching MA data")
@@ -223,14 +229,11 @@ class BybitMMhma(Strategy):
                 # Find symbols that are open but not in rotator
                 symbols_to_manage = [s for s in open_symbols if s not in rotator_symbols]
 
+
                 logging.info(f"HMA symbols to manage {symbols_to_manage}")
 
-                # print(f"Symbols to manage {symbols_to_manage}")
-
-                # Manage these symbols
-                for s in symbols_to_manage:
-                    print(f"Managing symbol: {s}")  # Debugging line
-                    self.manage_mm_hma([s], total_equity)  # Notice the square brackets around 's'
+                # Manage these symbols using the new function
+                self.manage_non_rotator_symbols(symbols_to_manage, total_equity)
 
                 #print(f"Open symbols: {open_symbols}")
 
@@ -248,6 +251,14 @@ class BybitMMhma(Strategy):
                 # modify leverage per symbol
                 self.bybit_reset_position_leverage_long_v3(symbol, long_pos_qty, total_equity, best_ask_price, max_leverage)
                 self.bybit_reset_position_leverage_short_v3(symbol, short_pos_qty, total_equity, best_ask_price, max_leverage)
+
+                long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount(
+                    symbol, market_data, total_equity, best_ask_price, max_leverage
+                )
+
+                self.print_trade_quantities_once_bybit(self.max_long_trade_qty)
+                self.print_trade_quantities_once_bybit(self.max_short_trade_qty)
+
 
                 logging.info(f"Long dynamic amount from strategy: {long_dynamic_amount} for {symbol}")
                 logging.info(f"Short dynamic amount from strategy: {short_dynamic_amount} for {symbol}")
@@ -328,22 +339,41 @@ class BybitMMhma(Strategy):
                 #open_orders = self.exchange.get_open_orders(symbol)
                 open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
-                # long_spoofing_amount, short_spoofing_amount, = self.calculate_spoofing_amount(
-                #     symbol, total_equity, best_ask_price, max_leverage
-                # )
 
-                logging.info(f"Trend: {trend} for symbol: {symbol}")
-                logging.info(f"HMA Trend: {hma_trend} for symbol : {symbol}")
+                logging.info(f"HMA trend for {symbol} is {hma_trend}")
+                logging.info(f"Trend for {symbol} is {trend}")
+                logging.info(f"Open symbols: {open_symbols}")
+                logging.info(f"Checking conditions for symbol {symbol}")
+
+                if long_pos_qty > 0 or short_pos_qty > 0:
+                    logging.info(f"Trying to place an order for {symbol}")
+                    self.bybit_hedge_additional_entry_maker_hma(
+                        open_orders,
+                        symbol,
+                        trend,
+                        hma_trend,
+                        mfirsi_signal,
+                        one_minute_volume,
+                        five_minute_distance,
+                        min_vol,
+                        min_dist,
+                        long_dynamic_amount,
+                        short_dynamic_amount,
+                        long_pos_qty,
+                        short_pos_qty,
+                        long_pos_price,
+                        short_pos_price,
+                        should_add_to_long,
+                        should_add_to_short
+                    )
 
                 if trend and hma_trend is not None:
+                    logging.info("Starting to check open symbols")
                     # Check if the symbol is already being traded
                     if symbol in open_symbols:
+                        logging.info(f"Placing bybit_hedge_entry_maker_hma func on {symbol}")
                         self.bybit_hedge_entry_maker_hma(open_orders, symbol, trend, hma_trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
-                        current_time = time.time()
-                        # Check if it's time to perform spoofing
-                        if current_time - self.last_cancel_time >= self.spoofing_interval:
-                            self.spoofing_active = True
-                            self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
+
                     elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
                         self.bybit_hedge_initial_entry_maker_hma(open_orders, symbol, trend, hma_trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
 
@@ -372,7 +402,12 @@ class BybitMMhma(Strategy):
 
                 self.cancel_stale_orders_bybit()
 
-                #self.print_order_book_imbalance(symbol)
+                current_time = time.time()
+                # Check if it's time to perform spoofing
+                if current_time - self.last_cancel_time >= self.spoofing_interval:
+                    self.spoofing_active = True
+                    self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
 
+                #self.print_order_book_imbalance(symbol)
 
                 time.sleep(15)
