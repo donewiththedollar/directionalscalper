@@ -17,11 +17,12 @@ import traceback
 logging = Logger(logger_name="Exchange", filename="Exchange.log", stream=True)
 
 class Exchange:
-    def __init__(self, exchange_id, api_key, secret_key, passphrase=None):
+    def __init__(self, exchange_id, api_key, secret_key, passphrase=None, market_type='swap'):
         self.exchange_id = exchange_id
         self.api_key = api_key
         self.secret_key = secret_key
         self.passphrase = passphrase
+        self.market_type = market_type  # Store the market type
         self.name = exchange_id
         self.initialise()
         self.symbols = self._get_symbols()
@@ -40,35 +41,72 @@ class Exchange:
                 'http': os.environ.get('HTTP_PROXY'),
                 'https': os.environ.get('HTTPS_PROXY'),
             }
-            
         if self.passphrase:
             exchange_params["password"] = self.passphrase
 
-        exchange_id_lower = self.exchange_id.lower()
-
-        if exchange_id_lower == 'huobi':
-            exchange_params['options'] = {
-                'defaultType': 'swap',
-                'defaultSubType': 'linear',
-            }
-        elif exchange_id_lower == 'bybit_spot':
-            exchange_params['options'] = {
-                'defaultType': 'spot',
-            }
-        elif exchange_id_lower == 'binance':
-            exchange_params['options'] = {
-                'defaultType': 'future',
-            }
-
-        # if self.exchange_id.lower() == 'bybit':
-        #     exchange_params['urls'] = {
-        #         'api': 'https://api-testnet.bybit.com',
-        #         'public': 'https://api-testnet.bybit.com',
-        #         'private': 'https://api-testnet.bybit.com',
-        #     }
-
+        # Set the defaultType based on the market_type parameter
+        exchange_params['options'] = {
+            'defaultType': self.market_type,
+        }
+        if self.exchange_id.lower() == 'huobi' and self.market_type == 'swap':
+            exchange_params['options']['defaultSubType'] = 'linear'
+        
         self.exchange = exchange_class(exchange_params)
-        #print(self.exchange.describe())  # Print the exchange properties
+
+
+# class Exchange:
+#     def __init__(self, exchange_id, api_key, secret_key, passphrase=None):
+#         self.exchange_id = exchange_id
+#         self.api_key = api_key
+#         self.secret_key = secret_key
+#         self.passphrase = passphrase
+#         self.name = exchange_id
+#         self.initialise()
+#         self.symbols = self._get_symbols()
+#         self.market_precisions = {}
+#         self.open_positions_cache = None
+#         self.last_open_positions_time = None
+
+#     def initialise(self):
+#         exchange_class = getattr(ccxt, self.exchange_id)
+#         exchange_params = {
+#             "apiKey": self.api_key,
+#             "secret": self.secret_key,
+#         }
+#         if os.environ.get('HTTP_PROXY') and os.environ.get('HTTPS_PROXY'):
+#             exchange_params["proxies"] = {
+#                 'http': os.environ.get('HTTP_PROXY'),
+#                 'https': os.environ.get('HTTPS_PROXY'),
+#             }
+            
+#         if self.passphrase:
+#             exchange_params["password"] = self.passphrase
+
+#         exchange_id_lower = self.exchange_id.lower()
+
+#         if exchange_id_lower == 'huobi':
+#             exchange_params['options'] = {
+#                 'defaultType': 'swap',
+#                 'defaultSubType': 'linear',
+#             }
+#         elif exchange_id_lower == 'bybit_spot':
+#             exchange_params['options'] = {
+#                 'defaultType': 'spot',
+#             }
+#         elif exchange_id_lower == 'binance':
+#             exchange_params['options'] = {
+#                 'defaultType': 'future',
+#             }
+
+#         # if self.exchange_id.lower() == 'bybit':
+#         #     exchange_params['urls'] = {
+#         #         'api': 'https://api-testnet.bybit.com',
+#         #         'public': 'https://api-testnet.bybit.com',
+#         #         'private': 'https://api-testnet.bybit.com',
+#         #     }
+
+#         self.exchange = exchange_class(exchange_params)
+#         #print(self.exchange.describe())  # Print the exchange properties
 
     def _get_symbols(self):
         while True:

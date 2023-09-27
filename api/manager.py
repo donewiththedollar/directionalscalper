@@ -27,7 +27,7 @@ class Manager:
         self,
         exchange,
         exchange_name: str = 'bybit',  # Defaulting to 'binance'
-        data_source_exchange: str = 'binance',
+        data_source_exchange: str = 'bybit',
         api: str = "remote",
         cache_life_seconds: int = 10,
         path: Path | None = None,
