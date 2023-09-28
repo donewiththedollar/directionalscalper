@@ -47,7 +47,7 @@ def choose_strategy():
                           'bybit_rotator_aggressive',
                           'bybit_mm',
                           'bybit_mm_hma',
-                          'bybit_mm_5m',
+                          'bybit_mm_fivemin',
                       ]
                      )
     ]
