@@ -15,9 +15,9 @@ from live_table_manager import shared_symbols_data
 ####
 from concurrent.futures import ThreadPoolExecutor
 
-logging = Logger(logger_name="BybitMMhma", filename="BybitMMhma.log", stream=True)
+logging = Logger(logger_name="BybitMM5m", filename="BybitMM5m.log", stream=True)
 
-class BybitMMhma(Strategy):
+class BybitMM5m(Strategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
         self.symbols_allowed = symbols_allowed
@@ -251,7 +251,7 @@ class BybitMMhma(Strategy):
                 logging.info(f"HMA symbols to manage {symbols_to_manage}")
 
                 # Manage these symbols using the new function
-                self.manage_non_rotator_symbols(symbols_to_manage, total_equity)
+                self.manage_non_rotator_symbols_5m(symbols_to_manage, total_equity)
 
                 #print(f"Open symbols: {open_symbols}")
 
@@ -340,7 +340,7 @@ class BybitMMhma(Strategy):
                     'current_price': current_price,
                     'balance': total_equity,
                     'available_bal': available_equity,
-                    'volume': one_minute_volume,
+                    'volume': five_minute_volume,
                     'spread': five_minute_distance,
                     'trend': trend,
                     'long_pos_qty': long_pos_qty,
@@ -374,37 +374,15 @@ class BybitMMhma(Strategy):
                 logging.info(f"Open symbols: {open_symbols}")
                 logging.info(f"Checking conditions for symbol {symbol}")
 
-                if long_pos_qty > 0 or short_pos_qty > 0:
-                    logging.info(f"Trying to place an order for {symbol}")
-                    self.bybit_hedge_additional_entry_maker_hma(
-                        open_orders,
-                        symbol,
-                        trend,
-                        hma_trend,
-                        mfirsi_signal,
-                        one_minute_volume,
-                        five_minute_distance,
-                        min_vol,
-                        min_dist,
-                        long_dynamic_amount,
-                        short_dynamic_amount,
-                        long_pos_qty,
-                        short_pos_qty,
-                        long_pos_price,
-                        short_pos_price,
-                        should_add_to_long,
-                        should_add_to_short
-                    )
-
                 if trend and hma_trend is not None:
                     logging.info("Starting to check open symbols")
                     # Check if the symbol is already being traded
                     if symbol in open_symbols:
                         logging.info(f"Placing bybit_hedge_entry_maker_hma func on {symbol}")
-                        self.bybit_hedge_entry_maker_hma(open_orders, symbol, trend, hma_trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
+                        self.bybit_entry_mm_5m(open_orders, symbol, trend, hma_trend, mfirsi_signal, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
 
                     elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
-                        self.bybit_hedge_initial_entry_maker_hma(open_orders, symbol, trend, hma_trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
+                        self.bybit_initial_entry_mm_5m(open_orders, symbol, trend, hma_trend, mfirsi_signal, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
 
                 else:
                     logging.warning(f"Received invalid trend data for symbol {symbol}. Not placing any trades for this symbol.")
@@ -439,4 +417,4 @@ class BybitMMhma(Strategy):
 
                 #self.print_order_book_imbalance(symbol)
 
-                time.sleep(15)
+                time.sleep(25)

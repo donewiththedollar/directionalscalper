@@ -53,6 +53,13 @@ class Exchange:
         
         self.exchange = exchange_class(exchange_params)
 
+        # if self.exchange_id.lower() == 'bybit':
+        #     exchange_params['urls'] = {
+        #         'api': 'https://api-testnet.bybit.com',
+        #         'public': 'https://api-testnet.bybit.com',
+        #         'private': 'https://api-testnet.bybit.com',
+        #     }
+
 
 # class Exchange:
 #     def __init__(self, exchange_id, api_key, secret_key, passphrase=None):
@@ -961,7 +968,7 @@ class Exchange:
 
 
     # Bybit 
-    def get_positions_bybit(self, symbol, max_retries=10, retry_delay=5) -> dict:
+    def get_positions_bybit(self, symbol, max_retries=100, retry_delay=5) -> dict:
         values = {
             "long": {
                 "qty": 0.0,
