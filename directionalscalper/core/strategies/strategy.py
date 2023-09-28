@@ -3560,12 +3560,12 @@ class Strategy:
                 if short_pos_qty_open_symbol > 0 and short_take_profit is not None:
                     self.next_short_tp_update = self.update_take_profit_spread_bybit(open_symbol, short_pos_qty_open_symbol, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders_open_symbol, next_tp_update=self.next_short_tp_update)
 
-        current_time = time.time()
-        # Check if it's time to perform spoofing
-        if current_time - self.last_cancel_time >= self.spoofing_interval:
-            self.spoofing_active = True
-            #self.spoofing_action(open_symbol, short_spoofing_amount_open_symbol, long_spoofing_amount_open_symbol)
-            self.spoofing_action(open_symbol, short_dynamic_amount_open_symbol, long_dynamic_amount_open_symbol)
+            current_time = time.time()
+            # Check if it's time to perform spoofing
+            if current_time - self.last_cancel_time >= self.spoofing_interval:
+                self.spoofing_active = True
+                #self.spoofing_action(open_symbol, short_spoofing_amount_open_symbol, long_spoofing_amount_open_symbol)
+                self.spoofing_action(open_symbol, short_dynamic_amount_open_symbol, long_dynamic_amount_open_symbol)
 
     def manage_non_rotator_symbols_5m(self, open_symbols, total_equity):
         for open_symbol in open_symbols:
@@ -3676,12 +3676,12 @@ class Strategy:
                 if short_pos_qty_open_symbol > 0 and short_take_profit is not None:
                     self.next_short_tp_update = self.update_take_profit_spread_bybit(open_symbol, short_pos_qty_open_symbol, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders_open_symbol, next_tp_update=self.next_short_tp_update)
 
-        current_time = time.time()
-        # Check if it's time to perform spoofing
-        if current_time - self.last_cancel_time >= self.spoofing_interval:
-            self.spoofing_active = True
-            #self.spoofing_action(open_symbol, short_spoofing_amount_open_symbol, long_spoofing_amount_open_symbol)
-            self.spoofing_action(open_symbol, short_dynamic_amount_open_symbol, long_dynamic_amount_open_symbol)
+            current_time = time.time()
+            # Check if it's time to perform spoofing
+            if current_time - self.last_cancel_time >= self.spoofing_interval:
+                self.spoofing_active = True
+                #self.spoofing_action(open_symbol, short_spoofing_amount_open_symbol, long_spoofing_amount_open_symbol)
+                self.spoofing_action(open_symbol, short_dynamic_amount_open_symbol, long_dynamic_amount_open_symbol)
 
 
     def manage_mm_hma(self, open_symbols, total_equity):
@@ -4814,19 +4814,23 @@ class Strategy:
             if one_minute_volume > min_vol and five_minute_distance > min_dist:
                 mfi = self.manager.get_asset_value(symbol, data, "MFI")
 
+                max_long_trade_qty_for_symbol = self.max_long_trade_qty_per_symbol.get(symbol, 0)  # Get value for symbol or default to 0
+                max_short_trade_qty_for_symbol = self.max_short_trade_qty_per_symbol.get(symbol, 0)  # Get value for symbol or default to 0
+
+
                 if mfi is not None and isinstance(mfi, str):
                     if mfi.lower() == "long" and long_pos_qty == 0:
                         logging.info(f"Placing initial long entry with post-only order")
                         self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1)
                         logging.info(f"Placed initial long entry with post-only order")
-                    elif mfi.lower() == "long" and long_pos_qty < max_long_trade_qty and best_bid_price < long_pos_price:
+                    elif mfi.lower() == "long" and long_pos_qty < max_long_trade_qty_for_symbol and best_bid_price < long_pos_price:
                         logging.info(f"Placing additional long entry with post-only order")
                         self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1)
                     elif mfi.lower() == "short" and short_pos_qty == 0:
                         logging.info(f"Placing initial short entry with post-only order")
                         self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2)
                         logging.info(f"Placed initial short entry with post-only order")
-                    elif mfi.lower() == "short" and short_pos_qty < max_short_trade_qty and best_ask_price > short_pos_price:
+                    elif mfi.lower() == "short" and short_pos_qty < max_short_trade_qty_for_symbol and best_ask_price > short_pos_price:
                         logging.info(f"Placing additional short entry with post-only order")
                         self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2)
 
