@@ -129,7 +129,7 @@ class TestStrategy(Strategy):
                 if should_exit:
                     break
 
-                # Get API data
+                # API Data
                 api_data = self.manager.get_api_data(symbol)
                 one_minute_volume = api_data['1mVol']
                 five_minute_volume = api_data['5mVol']
