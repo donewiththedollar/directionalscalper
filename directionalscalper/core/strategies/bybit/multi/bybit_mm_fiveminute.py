@@ -382,7 +382,7 @@ class BybitMMFiveMinute(Strategy):
                         trend,
                         hma_trend,
                         mfirsi_signal,
-                        one_minute_volume,
+                        five_minute_volume,
                         five_minute_distance,
                         min_vol,
                         min_dist,
