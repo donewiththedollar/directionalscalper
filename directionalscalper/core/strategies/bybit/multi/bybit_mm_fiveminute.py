@@ -17,7 +17,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 logging = Logger(logger_name="Bybitfivemin", filename="Bybitfivemin.log", stream=True)
 
-class TestStrategy(Strategy):
+class BybitMMFiveMinute(Strategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
         self.symbols_allowed = symbols_allowed

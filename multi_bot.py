@@ -23,7 +23,7 @@ from directionalscalper.core.strategies.bybit.multi.bybit_auto_rotator_mfirsi im
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator import BybitMFIRSITrendRotator
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator_ratio import BybitMFIRSITrendRatio
 from directionalscalper.core.strategies.bybit.multi.bybit_spoof_rotator import BybitSpoofRotator
-from directionalscalper.core.strategies.bybit.multi.test_strat import TestStrategy
+from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute import BybitMMFiveMinute
 from directionalscalper.core.strategies.bybit.multi.bybit_mm import BybitMM
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_hma import BybitMMhma
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_5m import BybitMM5m
@@ -101,8 +101,8 @@ class DirectionalMarketMaker:
         elif strategy_name.lower() == 'bybit_rotator_spoof':
             strategy = BybitSpoofRotator(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol)
-        elif strategy_name.lower() == 'test_strategy':
-            strategy = TestStrategy(self.exchange, self.manager, config.bot, symbols_allowed)
+        elif strategy_name.lower() == 'bybit_mm_fivemin':
+            strategy = BybitMMFiveMinute(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol)
         elif strategy_name.lower() == 'bybit_mm':
             strategy = BybitMM(self.exchange, self.manager, config.bot, symbols_allowed)
