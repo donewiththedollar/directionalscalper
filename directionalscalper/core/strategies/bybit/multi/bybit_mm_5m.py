@@ -417,4 +417,4 @@ class BybitMM5m(Strategy):
 
                 #self.print_order_book_imbalance(symbol)
 
-                time.sleep(25)
+                time.sleep(15)

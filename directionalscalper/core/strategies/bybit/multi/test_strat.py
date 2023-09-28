@@ -15,7 +15,7 @@ from live_table_manager import shared_symbols_data
 ####
 from concurrent.futures import ThreadPoolExecutor
 
-logging = Logger(logger_name="BybitMMhma", filename="BybitMMhma.log", stream=True)
+logging = Logger(logger_name="Bybitfivemin", filename="Bybitfivemin.log", stream=True)
 
 class TestStrategy(Strategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
@@ -401,10 +401,10 @@ class TestStrategy(Strategy):
                     # Check if the symbol is already being traded
                     if symbol in open_symbols:
                         logging.info(f"Placing bybit_hedge_entry_maker_hma func on {symbol}")
-                        self.bybit_hedge_entry_maker_hma(open_orders, symbol, trend, hma_trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
+                        self.bybit_entry_mm_5m(open_orders, symbol, trend, hma_trend, mfirsi_signal, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
 
                     elif can_open_new_position:  # If the symbol isn't being traded yet and we can open a new position
-                        self.bybit_hedge_initial_entry_maker_hma(open_orders, symbol, trend, hma_trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
+                        self.bybit_initial_entry_mm_5m(open_orders, symbol, trend, hma_trend, mfirsi_signal, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
 
                 else:
                     logging.warning(f"Received invalid trend data for symbol {symbol}. Not placing any trades for this symbol.")
