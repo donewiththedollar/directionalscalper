@@ -72,9 +72,9 @@ class BybitMFIRSITrendRotator(Strategy):
         wallet_exposure = self.config.wallet_exposure
         min_dist = self.config.min_distance
         min_vol = self.config.min_volume
+        MaxAbsFundingRate = self.config.MaxAbsFundingRate
         current_leverage = self.exchange.get_current_leverage_bybit(symbol)
         max_leverage = self.exchange.get_max_leverage_bybit(symbol)
-
 
         # symbols_allowed = self.config.symbols_allowed
 
@@ -95,6 +95,7 @@ class BybitMFIRSITrendRotator(Strategy):
         previous_thirty_minute_distance = None
         previous_one_hour_distance = None
         previous_four_hour_distance = None
+
 
         while True:  # Outer loop
             rotator_symbols = self.manager.get_auto_rotate_symbols()
@@ -122,15 +123,25 @@ class BybitMFIRSITrendRotator(Strategy):
                 # Get API data
                 api_data = self.manager.get_api_data(symbol)
                 one_minute_volume = api_data['1mVol']
+                five_minute_volume = api_data['5mVol']
                 five_minute_distance = api_data['5mSpread']
                 trend = api_data['Trend']
                 mfirsi_signal = api_data['MFI']
                 eri_trend = api_data['ERI Trend']
                 funding_rate = api_data['Funding']
+                hma_trend = api_data['HMA Trend']
 
-                #logging.info(f"Funding rate for {symbol} : {funding_rate}")
+                logging.info(f"One minute volume for {symbol} : {one_minute_volume}")
+                logging.info(f"Five minute distance for {symbol} : {five_minute_distance}")
+                logging.info(f"Trend: {trend} for symbol: {symbol}")
+                logging.info(f"HMA Trend: {hma_trend} for symbol : {symbol}")
 
-                logging.info(f"Rotator symbols: {rotator_symbols}")
+
+                funding_check = self.is_funding_rate_acceptable(symbol)
+
+                logging.info(f"Funding check on {symbol} : {funding_check}")
+
+                logging.info(f"Rotator symbols from strategy itself: {rotator_symbols}")
                 
                 quote_currency = "USDT"
 
@@ -166,16 +177,9 @@ class BybitMFIRSITrendRotator(Strategy):
                 best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
                 best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
-                long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount(
-                    symbol, market_data, total_equity, best_ask_price, max_leverage
-                )
-
-                logging.info(f"Long dynamic amount from strategy: {long_dynamic_amount} for {symbol}")
-                logging.info(f"Short dynamic amount from strategy: {short_dynamic_amount} for {symbol}")
 
                 logging.info(f"Variables in main loop for {symbol}: market_data={market_data}, total_equity={total_equity}, best_ask_price={best_ask_price}, max_leverage={max_leverage}")
-                self.print_trade_quantities_once_bybit(self.max_long_trade_qty)
-                self.print_trade_quantities_once_bybit(self.max_short_trade_qty)
+
 
                 # Get moving averages
                 logging.info(f"Fetching MA data")
@@ -190,12 +194,33 @@ class BybitMFIRSITrendRotator(Strategy):
                 ma_5m_3_high = moving_averages["ma_5m_3_high"]
 
                 logging.info(f"Fetching position data")
-                position_data = self.exchange.get_positions_bybit(symbol)
+
+                for i in range(max_retries):
+                    try:
+                        position_data = self.exchange.get_positions_bybit(symbol)
+                        break
+                    except Exception as e:
+                        if i < max_retries - 1:
+                            logging.info(f"Error occurred while fetching position data: {e}. Retrying in {retry_delay} seconds...")
+                            time.sleep(retry_delay)
+                        else:
+                            raise e
+                        
+                # position_data = self.exchange.get_positions_bybit(symbol)
 
                 #print(f"Position data: {position_data}")
 
-                open_position_data = self.exchange.get_all_open_positions_bybit()
-
+                for i in range(max_retries):
+                    try:
+                        open_position_data = self.exchange.get_all_open_positions_bybit()
+                        break
+                    except Exception as e:
+                        if i < max_retries - 1:
+                            logging.info(f"Error occurred while fetching open position data: {e}. Retrying in {retry_delay} seconds...")
+                            time.sleep(retry_delay)
+                        else:
+                            raise e
+                    
                 #print(f"Open position data: {open_position_data}")
 
                 open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
@@ -208,17 +233,16 @@ class BybitMFIRSITrendRotator(Strategy):
 
                 rotator_symbols = self.manager.get_auto_rotate_symbols()
 
-                # print(f"Rotator symbols: {rotator_symbols}")
+                logging.info(f"HMA Current rotator symbols: {rotator_symbols}")
 
                 # Find symbols that are open but not in rotator
                 symbols_to_manage = [s for s in open_symbols if s not in rotator_symbols]
 
-                # print(f"Symbols to manage {symbols_to_manage}")
 
-                # Manage these symbols
-                for s in symbols_to_manage:
-                    print(f"Managing symbol: {s}")  # Debugging line
-                    self.manage_open_positions_v2([s], total_equity)  # Notice the square brackets around 's'
+                logging.info(f"HMA symbols to manage {symbols_to_manage}")
+
+                # Manage these symbols using the new function
+                self.manage_non_rotator_symbols(symbols_to_manage, total_equity)
 
                 #print(f"Open symbols: {open_symbols}")
 
@@ -237,6 +261,25 @@ class BybitMFIRSITrendRotator(Strategy):
                 self.bybit_reset_position_leverage_long_v3(symbol, long_pos_qty, total_equity, best_ask_price, max_leverage)
                 self.bybit_reset_position_leverage_short_v3(symbol, short_pos_qty, total_equity, best_ask_price, max_leverage)
 
+                # Logging the leverages for a given symbol
+                if symbol in self.long_pos_leverage_per_symbol:
+                    logging.info(f"Current long leverage for {symbol}: {self.long_pos_leverage_per_symbol[symbol]}x")
+                else:
+                    logging.info(f"No long leverage set for {symbol}")
+
+                if symbol in self.short_pos_leverage_per_symbol:
+                    logging.info(f"Current short leverage for {symbol}: {self.short_pos_leverage_per_symbol[symbol]}x")
+                else:
+                    logging.info(f"No short leverage set for {symbol}")
+
+                long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount(
+                    symbol, market_data, total_equity, best_ask_price, max_leverage
+                )
+
+                self.print_trade_quantities_once_bybit(symbol, self.max_long_trade_qty)
+                self.print_trade_quantities_once_bybit(symbol, self.max_short_trade_qty)
+
+
                 logging.info(f"Long dynamic amount from strategy: {long_dynamic_amount} for {symbol}")
                 logging.info(f"Short dynamic amount from strategy: {short_dynamic_amount} for {symbol}")
 
@@ -252,22 +295,11 @@ class BybitMFIRSITrendRotator(Strategy):
                 short_take_profit = None
                 long_take_profit = None
 
-                # if five_minute_distance != previous_five_minute_distance:
-                #     short_take_profit = self.calculate_short_take_profit_spread_bybit_fees(short_pos_price, short_pos_qty, symbol, five_minute_distance)
-                #     long_take_profit = self.calculate_long_take_profit_spread_bybit_fees(long_pos_price, long_pos_qty, symbol, five_minute_distance)
-                # else:
-                #     if short_take_profit is None or long_take_profit is None:
-                #         short_take_profit = self.calculate_short_take_profit_spread_bybit_fees(short_pos_price, short_pos_qty, symbol, five_minute_distance)
-                #         long_take_profit = self.calculate_long_take_profit_spread_bybit_fees(long_pos_price, long_pos_qty, symbol, five_minute_distance)
-                        
-                if five_minute_distance != previous_five_minute_distance:
-                    short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, five_minute_distance)
-                    long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
-                else:
-                    if short_take_profit is None or long_take_profit is None:
-                        short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, five_minute_distance)
-                        long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
-                        
+                short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
+
+                # print(f"Short take profit for {symbol} : {short_take_profit}")
+                # print(f"Long take profit for {symbol} : {long_take_profit}")
+                                
                 previous_five_minute_distance = five_minute_distance
 
                 should_short = self.short_trade_condition(best_ask_price, ma_3_high)
@@ -288,10 +320,10 @@ class BybitMFIRSITrendRotator(Strategy):
                     self.long_expected_profit_usdt = self.long_tp_distance_percent / 100 * long_pos_price * long_pos_qty
                     logging.info(f"Long TP price: {long_take_profit}, TP distance in percent: {self.long_tp_distance_percent:.2f}%, Expected profit: {self.long_expected_profit_usdt:.2f} USDT")
                     
-                logging.info(f"Short condition: {should_short}")
-                logging.info(f"Long condition: {should_long}")
-                logging.info(f"Add short condition: {should_add_to_short}")
-                logging.info(f"Add long condition: {should_add_to_long}")
+                logging.info(f"Short condition for {symbol} : {should_short}")
+                logging.info(f"Long condition for {symbol} : {should_long}")
+                logging.info(f"Add short condition for {symbol} : {should_add_to_short}")
+                logging.info(f"Add long condition for {symbol} : {should_add_to_long}")
 
                 symbol_data = {
                     'symbol': symbol,
