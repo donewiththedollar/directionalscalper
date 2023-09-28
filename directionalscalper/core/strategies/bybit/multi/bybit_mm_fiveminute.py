@@ -374,28 +374,6 @@ class BybitMMFiveMinute(Strategy):
                 logging.info(f"Open symbols: {open_symbols}")
                 logging.info(f"Checking conditions for symbol {symbol}")
 
-                if long_pos_qty > 0 or short_pos_qty > 0:
-                    logging.info(f"Trying to place an order for {symbol}")
-                    self.bybit_hedge_additional_entry_maker_hma(
-                        open_orders,
-                        symbol,
-                        trend,
-                        hma_trend,
-                        mfirsi_signal,
-                        five_minute_volume,
-                        five_minute_distance,
-                        min_vol,
-                        min_dist,
-                        long_dynamic_amount,
-                        short_dynamic_amount,
-                        long_pos_qty,
-                        short_pos_qty,
-                        long_pos_price,
-                        short_pos_price,
-                        should_add_to_long,
-                        should_add_to_short
-                    )
-
                 if trend and hma_trend is not None:
                     logging.info("Starting to check open symbols")
                     # Check if the symbol is already being traded
