@@ -27,7 +27,7 @@ class Manager:
         self,
         exchange,
         exchange_name: str = 'bybit',  # Defaulting to 'binance'
-        data_source_exchange: str = 'bybit',
+        data_source_exchange: str = 'binance',
         api: str = "remote",
         cache_life_seconds: int = 10,
         path: Path | None = None,
@@ -278,6 +278,7 @@ class Manager:
         data = self.fetch_data_from_url(api_data_url)
         api_data = {
             '1mVol': self.get_asset_value(symbol, data, "1mVol"),
+            '5mVol': self.get_asset_value(symbol, data, "5mVol"),
             '1hVol': self.get_asset_value(symbol, data, "1hVol"),
             '1mSpread': self.get_asset_value(symbol, data, "1mSpread"),
             '5mSpread': self.get_asset_value(symbol, data, "5mSpread"),
