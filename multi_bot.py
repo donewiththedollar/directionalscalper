@@ -79,7 +79,7 @@ class DirectionalMarketMaker:
                 symbols_allowed = exch.symbols_allowed
                 break
 
-        print(f"symbols_allowed from config: {symbols_allowed}")
+        print(f"Multibot.py: symbols_allowed from config: {symbols_allowed}")
 
         if symbols_to_trade:
             print(f"Calling run method with symbols: {symbols_to_trade}")
