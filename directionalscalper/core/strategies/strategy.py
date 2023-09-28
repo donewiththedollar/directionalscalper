@@ -16,12 +16,6 @@ from datetime import datetime, timedelta
 logging = Logger(logger_name="Strategy", filename="Strategy.log", stream=True)
 
 class Strategy:
-    LEVERAGE_STEP = 0.005  # The step at which to increase leverage
-    MAX_LEVERAGE = 2.0 #0.3  # The maximum allowable leverage
-    QTY_INCREMENT = 0.05 # How much your position size increases
-    #MAX_PCT_EQUIY = 1
-    MAX_PCT_EQUITY = 5
-    ORDER_BOOK_DEPTH = 10
     def __init__(self, exchange, config, manager, symbols_allowed=None):
     # def __init__(self, exchange, config, manager):
         self.exchange = exchange
@@ -57,6 +51,12 @@ class Strategy:
         self.whitelist = self.config.whitelist
         self.blacklist = self.config.blacklist
         self.max_usd_value = self.config.max_usd_value
+        self.LEVERAGE_STEP = 0.005  # The step at which to increase leverage
+        self.MAX_LEVERAGE = 1.0 #0.3  # The maximum allowable leverage
+        self.QTY_INCREMENT = 0.05 # How much your position size increases
+        #MAX_PCT_EQUIY = 1
+        self.MAX_PCT_EQUITY = 5
+        self.ORDER_BOOK_DEPTH = 10
 
     class OrderBookAnalyzer:
         def __init__(self, exchange, symbol, depth=10):
