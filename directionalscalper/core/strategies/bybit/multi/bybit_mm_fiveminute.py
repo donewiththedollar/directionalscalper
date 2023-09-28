@@ -251,7 +251,7 @@ class BybitMMFiveMinute(Strategy):
                 logging.info(f"HMA symbols to manage {symbols_to_manage}")
 
                 # Manage these symbols using the new function
-                self.manage_non_rotator_symbols(symbols_to_manage, total_equity)
+                self.manage_non_rotator_symbols_5m(symbols_to_manage, total_equity)
 
                 #print(f"Open symbols: {open_symbols}")
 
