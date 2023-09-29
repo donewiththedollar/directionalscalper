@@ -9,3 +9,4 @@ ta
 streamlit
 plotly
 inquirer
+sqlite
