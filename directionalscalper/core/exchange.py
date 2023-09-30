@@ -35,6 +35,7 @@ class Exchange:
         exchange_params = {
             "apiKey": self.api_key,
             "secret": self.secret_key,
+            "enableRateLimit": True,
         }
         if os.environ.get('HTTP_PROXY') and os.environ.get('HTTPS_PROXY'):
             exchange_params["proxies"] = {
@@ -47,10 +48,15 @@ class Exchange:
         # Set the defaultType based on the market_type parameter
         exchange_params['options'] = {
             'defaultType': self.market_type,
+            'adjustForTimeDifference': True,
         }
         if self.exchange_id.lower() == 'huobi' and self.market_type == 'swap':
             exchange_params['options']['defaultSubType'] = 'linear'
         
+        # Add enableUnifiedMargin option for Bybit unified
+        if self.exchange_id.lower() == 'bybit_unified':
+            exchange_params['options']['enableUnifiedMargin'] = True
+
         self.exchange = exchange_class(exchange_params)
 
         # if self.exchange_id.lower() == 'bybit':
@@ -552,17 +558,37 @@ class Exchange:
 
         return None
 
-    # Bybit
+    # Bybit regular and unified
     def get_balance_bybit(self, quote):
         if self.exchange.has['fetchBalance']:
             # Fetch the balance
-            balance = self.exchange.fetch_balance()
+            balance_response = self.exchange.fetch_balance()
 
-            # Find the quote balance
-            for currency_balance in balance['info']['result']['list']:
-                if currency_balance['coin'] == quote:
-                    return float(currency_balance['equity'])
+            # Check if it's the unified structure
+            if 'result' in balance_response:
+                coin_list = balance_response.get('result', {}).get('coin', [])
+                for currency_balance in coin_list:
+                    if currency_balance['coin'] == quote:
+                        return float(currency_balance['equity'])
+            # If not unified, handle the old structure
+            elif 'info' in balance_response:
+                for currency_balance in balance_response['info']['result']['list']:
+                    if currency_balance['coin'] == quote:
+                        return float(currency_balance['equity'])
+
         return None
+
+    # Bybit
+    # def get_balance_bybit(self, quote):
+    #     if self.exchange.has['fetchBalance']:
+    #         # Fetch the balance
+    #         balance = self.exchange.fetch_balance()
+
+    #         # Find the quote balance
+    #         for currency_balance in balance['info']['result']['list']:
+    #             if currency_balance['coin'] == quote:
+    #                 return float(currency_balance['equity'])
+    #     return None
 
     # Bybit
     def get_available_balance_bybit(self, quote):
