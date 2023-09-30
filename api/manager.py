@@ -103,13 +103,14 @@ class Manager:
         self.update_last_checked()
         return self.data
 
-    def get_auto_rotate_symbols(self, min_qty_threshold: float = None, whitelist: list = None, blacklist: list = None, max_usd_value: float = None, max_retries: int = 10, delay_between_retries: int = 30):
+    def get_auto_rotate_symbols(self, min_qty_threshold: float = None, whitelist: list = None, blacklist: list = None, max_usd_value: float = None, max_retries: int = 100):
         symbols = []
-        #url = "http://api.tradesimple.xyz/data/rotatorsymbols.json"
         url = f"http://api.tradesimple.xyz/data/rotatorsymbols_{self.data_source_exchange}.json"
-
-
+        
         for retry in range(max_retries):
+            delay = 2**retry  # exponential backoff
+            delay = min(30, delay)  # cap the delay to 30 seconds
+            
             try:
                 log.debug(f"Sending request to {url} (Attempt: {retry + 1})")
                 header, raw_json = send_public_request(url=url)
@@ -147,25 +148,22 @@ class Manager:
 
                 else:
                     log.error("Unexpected data format. Expected a list of assets.")
-                    if retry < max_retries - 1:
-                        sleep(delay_between_retries)
-                    else:
-                        return []
-
+                    # No immediate retry here. The sleep at the end will handle the delay
+                    
             except requests.exceptions.RequestException as e:
                 log.error(f"Request failed: {e}")
             except json.decoder.JSONDecodeError as e:
-                log.error(f"Failed to parse JSON: {e}")
+                log.error(f"Failed to parse JSON: {e}. Response: {raw_json}")
             except Exception as e:
                 log.error(f"Unexpected error occurred: {e}")
 
             # Wait before the next retry
             if retry < max_retries - 1:
-                sleep(delay_between_retries)
+                sleep(delay)
         
         # Return empty list if all retries fail
         return []
-
+    
     def get_symbols(self):
         url = "http://api.tradesimple.xyz/data/rotatorsymbols.json"
         try:
