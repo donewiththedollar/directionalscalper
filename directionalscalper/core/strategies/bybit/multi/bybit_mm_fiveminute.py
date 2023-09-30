@@ -250,8 +250,10 @@ class BybitMMFiveMinute(Strategy):
 
                 logging.info(f"HMA symbols to manage {symbols_to_manage}")
 
+                open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+                
                 # Manage these symbols using the new function
-                self.manage_non_rotator_symbols_5m(symbols_to_manage, total_equity)
+                self.manage_non_rotator_symbols_5m(symbols_to_manage, total_equity, open_orders, market_data, position_data)
 
                 #print(f"Open symbols: {open_symbols}")
 
@@ -306,8 +308,8 @@ class BybitMMFiveMinute(Strategy):
 
                 short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
 
-                # print(f"Short take profit for {symbol} : {short_take_profit}")
-                # print(f"Long take profit for {symbol} : {long_take_profit}")
+                logging.info(f"Short take profit from strategy for {symbol} : {short_take_profit}")
+                logging.info(f"Long take profit from strategy for {symbol} : {long_take_profit}")
                                 
                 previous_five_minute_distance = five_minute_distance
 
@@ -366,7 +368,6 @@ class BybitMMFiveMinute(Strategy):
                     self.update_shared_data(symbol_data, open_position_data, len(open_symbols))
 
                 #open_orders = self.exchange.get_open_orders(symbol)
-                open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
 
                 logging.info(f"HMA trend for {symbol} is {hma_trend}")
