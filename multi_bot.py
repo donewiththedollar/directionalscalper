@@ -19,7 +19,7 @@ from directionalscalper.core.exchange import Exchange
 from directionalscalper.core.strategies.strategy import Strategy
 # Bybit rotator
 from directionalscalper.core.strategies.bybit.multi.bybit_auto_rotator import BybitAutoRotator
-from directionalscalper.core.strategies.bybit.multi.bybit_auto_rotator_mfirsi import BybitAutoRotatorMFIRSI
+from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi import BybitAutoRotatorMFIRSI
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator import BybitMFIRSITrendRotator
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator_ratio import BybitMFIRSITrendRatio
 from directionalscalper.core.strategies.bybit.multi.bybit_spoof_rotator import BybitSpoofRotator
@@ -41,7 +41,7 @@ def choose_strategy():
                       message='Which strategy would you like to run?',
                       choices=[
                           'bybit_hedge_rotator',
-                          'bybit_hedge_rotator_mfirsi',
+                          'bybit_hedge_mfirsi',
                           'bybit_auto_hedge_mfi_rotator',
                           'bybit_mfirsi_trend_rotator',
                           'bybit_rotator_aggressive',
@@ -89,7 +89,7 @@ class DirectionalMarketMaker:
         if strategy_name.lower() == 'bybit_hedge_rotator':
             strategy = BybitAutoRotator(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol)
-        elif strategy_name.lower() == 'bybit_hedge_rotator_mfirsi':
+        elif strategy_name.lower() == 'bybit_hedge_mfirsi':
             strategy = BybitAutoRotatorMFIRSI(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol)
         elif strategy_name.lower() == 'bybit_mfirsi_trend_rotator':
@@ -110,14 +110,13 @@ class DirectionalMarketMaker:
         elif strategy_name.lower() == 'bybit_mm_hma':
             strategy = BybitMMhma(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol)
-        elif strategy_name.lower() == 'bybit_mm_5m':
-            strategy = BybitMM5m(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol)
 
     def get_balance(self, quote, market_type=None, sub_type=None):
         if self.exchange_name == 'bitget':
             return self.exchange.get_balance_bitget(quote)
         elif self.exchange_name == 'bybit':
+            return self.exchange.get_balance_bybit(quote)
+        elif self.exchange_name == 'bybit_unified':
             return self.exchange.get_balance_bybit(quote)
         elif self.exchange_name == 'mexc':
             return self.exchange.get_balance_mexc(quote, market_type='swap')
