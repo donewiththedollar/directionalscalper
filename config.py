@@ -8,7 +8,7 @@ from typing import Union
 
 from pydantic import BaseModel, HttpUrl, ValidationError, validator, DirectoryPath
 
-VERSION = "v2.3.0"
+VERSION = "v2.3.1"
 
 class Exchanges(Enum):
     BYBIT = "bybit"
