@@ -71,6 +71,9 @@ class BotDatabase:
             return 0.0
 
     def compute_average_daily_gain(self):
+
+        quote_currency = "USDT"
+        
         # Retrieve stored values
         initial_values = self.get_initial_values()
         if initial_values:
