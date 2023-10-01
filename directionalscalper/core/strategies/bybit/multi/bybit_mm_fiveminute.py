@@ -155,6 +155,9 @@ class BybitMMFiveMinute(Strategy):
 
             open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
             open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
+
+            logging.info(f"Open symbols: {open_symbols}")
+            
             rotator_symbols = self.manager.get_auto_rotate_symbols()
             logging.info(f"HMA Current rotator symbols: {rotator_symbols}")
 
@@ -295,15 +298,18 @@ class BybitMMFiveMinute(Strategy):
                 self.cancel_stale_orders_bybit()
 
             elif can_open_new_position:
-                long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount(symbol, market_data, total_equity, best_ask_price, max_leverage)
+                open_symbols_count = len(open_symbols)
 
-                short_pos_qty = position_data["short"]["qty"]
-                long_pos_qty = position_data["long"]["qty"]
+                if open_symbols_count < self.symbols_allowed:
+                    long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount(symbol, market_data, total_equity, best_ask_price, max_leverage)
 
-                should_short = self.short_trade_condition(best_ask_price, moving_averages["ma_3_high"])
-                should_long = self.long_trade_condition(best_bid_price, moving_averages["ma_3_low"])
-                
-                self.bybit_initial_entry_mm_5m(open_orders, symbol, trend, hma_trend, mfirsi_signal, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
+                    short_pos_qty = position_data["short"]["qty"]
+                    long_pos_qty = position_data["long"]["qty"]
+
+                    should_short = self.short_trade_condition(best_ask_price, moving_averages["ma_3_high"])
+                    should_long = self.long_trade_condition(best_bid_price, moving_averages["ma_3_low"])
+                    
+                    self.bybit_initial_entry_mm_5m(open_orders, symbol, trend, hma_trend, mfirsi_signal, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
 
             symbol_data = {
                 'symbol': symbol,
