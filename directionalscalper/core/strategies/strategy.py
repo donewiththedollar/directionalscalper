@@ -1636,7 +1636,7 @@ class Strategy:
         return symbols
 
 
-    def retry_api_call(self, function, *args, max_retries=5, delay=5, **kwargs):
+    def retry_api_call(self, function, *args, max_retries=100, delay=5, **kwargs):
         for i in range(max_retries):
             try:
                 return function(*args, **kwargs)
