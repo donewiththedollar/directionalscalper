@@ -17,6 +17,112 @@ import traceback
 logging = Logger(logger_name="Exchange", filename="Exchange.log", stream=True)
 
 class Exchange:
+    class Bybit:
+        def __init__(self, parent):
+            self.parent = parent  # Refers to the outer Exchange instance
+            self.max_retries = 100  # Maximum retries for rate-limited requests
+            self.retry_wait = 5  # Seconds to wait between retries
+
+        def get_open_orders(self, symbol):
+            """Fetches open orders for the given symbol."""
+            for _ in range(self.max_retries):
+                try:
+                    open_orders = self.parent.fetch_open_orders(symbol)
+                    logging.info(f"Open orders {open_orders}")
+                    return open_orders
+                except ccxt.RateLimitExceeded:
+                    logging.warning(f"Rate limit exceeded when fetching open orders for {symbol}. Retrying in {self.retry_wait} seconds...")
+                    time.sleep(self.retry_wait)
+            logging.error(f"Failed to fetch open orders for {symbol} after {self.max_retries} retries.")
+            return []
+        
+        def get_open_tp_orders(self, symbol):
+            long_tp_orders = []
+            short_tp_orders = []
+            for _ in range(self.max_retries):
+                try:
+                    all_open_orders = self.parent.exchange.fetch_open_orders(symbol)
+                    logging.info(f"All open orders {all_open_orders}")
+                    
+                    for order in all_open_orders:
+                        logging.info(f"Order: {order['id']}, reduceOnly: {order['info'].get('reduceOnly')}, side: {order['side']}")
+                        
+                        if order['info'].get('reduceOnly', False):
+                            if order['side'] == 'sell':
+                                long_tp_orders.append(order)
+                            elif order['side'] == 'buy':
+                                short_tp_orders.append(order)
+                    
+                    return long_tp_orders, short_tp_orders
+                except ccxt.RateLimitExceeded:
+                    logging.warning(f"Rate limit exceeded when fetching TP orders for {symbol}. Retrying in {self.retry_wait} seconds...")
+                    time.sleep(self.retry_wait)
+            logging.error(f"Failed to fetch TP orders for {symbol} after {self.max_retries} retries.")
+            return long_tp_orders, short_tp_orders
+
+        def get_open_tp_order_count(self, symbol):
+            """
+            Fetches the count of open take profit (TP) orders for the given symbol.
+            
+            :param str symbol: The trading pair symbol.
+            :return: Dictionary with counts of long and short TP orders for the symbol.
+            """
+            long_tp_orders, short_tp_orders = self.get_open_tp_orders(symbol)
+            return {
+                'long_tp_count': len(long_tp_orders),
+                'short_tp_count': len(short_tp_orders)
+            }
+
+        # def get_open_tp_orders(self, symbol):
+        #     for _ in range(self.max_retries):
+        #         try:
+        #             all_open_orders = self.parent.exchange.fetch_open_orders(symbol)
+        #             logging.info(f"All open orders {all_open_orders}")
+                    
+        #             for order in all_open_orders:
+        #                 logging.info(f"Order: {order['id']}, reduceOnly: {order['info'].get('reduceOnly')}")
+                    
+        #             tp_orders = [order for order in all_open_orders if order['info'].get('reduceOnly', False)]
+        #             logging.info(f"TP orders : {tp_orders}")
+        #             return tp_orders
+        #         except ccxt.RateLimitExceeded:
+        #             logging.warning(f"Rate limit exceeded when fetching TP orders for {symbol}. Retrying in {self.retry_wait} seconds...")
+        #             time.sleep(self.retry_wait)
+        #     logging.error(f"Failed to fetch TP orders for {symbol} after {self.max_retries} retries.")
+        #     return []
+
+        # def get_open_tp_order_count(self, symbol):
+        #     """
+        #     Fetches the count of open take profit (TP) orders for the given symbol.
+            
+        #     :param str symbol: The trading pair symbol.
+        #     :return: Count of TP orders for the symbol.
+        #     """
+        #     tp_orders = self.get_open_tp_orders(symbol)
+        #     return len(tp_orders)
+
+        def get_open_take_profit_orders(self, symbol, side):
+            """
+            Fetches open take profit orders for the given symbol and side.
+            
+            :param str symbol: The trading pair symbol.
+            :param str side: The side ("buy" or "sell") of the TP orders to fetch.
+            :return: A list of take profit order structures.
+            """
+            # First, fetch the open orders
+            response = self.parent.exchange.get_open_orders(symbol)
+            
+            # Filter the orders for take profits (reduceOnly) and the specified side
+            tp_orders = [
+                order for order in response
+                if order.get('info', {}).get('reduceOnly', False) and order.get('side', '').lower() == side.lower()
+            ]
+            
+            # If necessary, you can further parse the orders here using self.parse_order or similar methods
+            
+            return tp_orders
+
+
     def __init__(self, exchange_id, api_key, secret_key, passphrase=None, market_type='swap'):
         self.exchange_id = exchange_id
         self.api_key = api_key
@@ -29,6 +135,8 @@ class Exchange:
         self.market_precisions = {}
         self.open_positions_cache = None
         self.last_open_positions_time = None
+
+        self.bybit = self.Bybit(self)
 
     def initialise(self):
         exchange_class = getattr(ccxt, self.exchange_id)
@@ -65,61 +173,6 @@ class Exchange:
         #         'public': 'https://api-testnet.bybit.com',
         #         'private': 'https://api-testnet.bybit.com',
         #     }
-
-
-# class Exchange:
-#     def __init__(self, exchange_id, api_key, secret_key, passphrase=None):
-#         self.exchange_id = exchange_id
-#         self.api_key = api_key
-#         self.secret_key = secret_key
-#         self.passphrase = passphrase
-#         self.name = exchange_id
-#         self.initialise()
-#         self.symbols = self._get_symbols()
-#         self.market_precisions = {}
-#         self.open_positions_cache = None
-#         self.last_open_positions_time = None
-
-#     def initialise(self):
-#         exchange_class = getattr(ccxt, self.exchange_id)
-#         exchange_params = {
-#             "apiKey": self.api_key,
-#             "secret": self.secret_key,
-#         }
-#         if os.environ.get('HTTP_PROXY') and os.environ.get('HTTPS_PROXY'):
-#             exchange_params["proxies"] = {
-#                 'http': os.environ.get('HTTP_PROXY'),
-#                 'https': os.environ.get('HTTPS_PROXY'),
-#             }
-            
-#         if self.passphrase:
-#             exchange_params["password"] = self.passphrase
-
-#         exchange_id_lower = self.exchange_id.lower()
-
-#         if exchange_id_lower == 'huobi':
-#             exchange_params['options'] = {
-#                 'defaultType': 'swap',
-#                 'defaultSubType': 'linear',
-#             }
-#         elif exchange_id_lower == 'bybit_spot':
-#             exchange_params['options'] = {
-#                 'defaultType': 'spot',
-#             }
-#         elif exchange_id_lower == 'binance':
-#             exchange_params['options'] = {
-#                 'defaultType': 'future',
-#             }
-
-#         # if self.exchange_id.lower() == 'bybit':
-#         #     exchange_params['urls'] = {
-#         #         'api': 'https://api-testnet.bybit.com',
-#         #         'public': 'https://api-testnet.bybit.com',
-#         #         'private': 'https://api-testnet.bybit.com',
-#         #     }
-
-#         self.exchange = exchange_class(exchange_params)
-#         #print(self.exchange.describe())  # Print the exchange properties
 
     def _get_symbols(self):
         while True:
@@ -466,37 +519,6 @@ class Exchange:
             logging.info(f"Error occurred in debug_binance_market_data: {e}")
 
     # Huobi
-    # def fetch_max_leverage_huobi(self, symbol):
-    #     """
-    #     Retrieve the maximum leverage for a given symbol
-    #     :param str symbol: unified market symbol
-    #     :returns int: maximum leverage for the symbol
-    #     """
-    #     leverage_tiers = self.exchange.fetch_leverage_tiers([symbol])
-    #     if symbol in leverage_tiers:
-    #         symbol_tiers = leverage_tiers[symbol]
-    #         print(symbol_tiers)  # print the content of symbol_tiers
-    #         max_leverage = max([tier['lever_rate'] for tier in symbol_tiers])
-    #         return max_leverage
-    #     else:
-    #         return None
-
-    # def fetch_max_leverage_huobi(self, symbol):
-    #     """
-    #     Retrieve the maximum leverage for a given symbol
-    #     :param str symbol: unified market symbol
-    #     :returns int: maximum leverage for the symbol
-    #     """
-    #     leverage_tiers = self.exchange.fetch_leverage_tiers([symbol])
-    #     if symbol in leverage_tiers:
-    #         symbol_tiers = leverage_tiers[symbol]
-    #         #print(symbol_tiers)  # print the content of symbol_tiers
-    #         #max_leverage = max([tier['lever_rate'] for tier in symbol_tiers])
-    #         max_leverage = max([tier['maxLeverage'] for tier in symbol_tiers])
-    #         return max_leverage
-    #     else:
-    #         return None
-
     def fetch_max_leverage_huobi(self, symbol, max_retries=3, delay_between_retries=5):
         """
         Retrieve the maximum leverage for a given symbol
@@ -579,32 +601,29 @@ class Exchange:
         return None
 
     # Bybit
-    # def get_balance_bybit(self, quote):
-    #     if self.exchange.has['fetchBalance']:
-    #         # Fetch the balance
-    #         balance = self.exchange.fetch_balance()
-
-    #         # Find the quote balance
-    #         for currency_balance in balance['info']['result']['list']:
-    #             if currency_balance['coin'] == quote:
-    #                 return float(currency_balance['equity'])
-    #     return None
-
-    # Bybit
     def get_available_balance_bybit(self, quote):
         if self.exchange.has['fetchBalance']:
             # Fetch the balance
-            balance = self.exchange.fetch_balance()
+            balance_response = self.exchange.fetch_balance()
 
-            # Find the quote balance
-            try:
-                for currency_balance in balance['info']['result']['list']:
+            # Check if it's the unified structure
+            if 'result' in balance_response:
+                coin_list = balance_response.get('result', {}).get('coin', [])
+                for currency_balance in coin_list:
                     if currency_balance['coin'] == quote:
-                        return float(currency_balance['availableBalance'])
-            except KeyError as e:
-                print(f"KeyError: {e}")
-                print(balance)  # Print the balance if there was a KeyError
+                        return float(currency_balance['availableToWithdraw'])
+            # If not unified, handle the old structure
+            elif 'info' in balance_response:
+                try:
+                    for currency_balance in balance_response['info']['result']['list']:
+                        if currency_balance['coin'] == quote:
+                            return float(currency_balance['availableBalance'])
+                except KeyError as e:
+                    print(f"KeyError: {e}")
+                    print(balance_response)  # Print the balance if there was a KeyError
+
         return None
+
 
     def get_available_balance_huobi(self, symbol):
         try:
@@ -991,6 +1010,90 @@ class Exchange:
             best_bid_price = None
 
         return best_bid_price, best_ask_price
+
+    # # Bybit regular and unified
+    # def get_positions_bybit(self, symbol, max_retries=100, retry_delay=5) -> dict:
+    #     values = {
+    #         "long": {
+    #             "qty": 0.0,
+    #             "price": 0.0,
+    #             "realised": 0,
+    #             "cum_realised": 0,
+    #             "upnl": 0,
+    #             "upnl_pct": 0,
+    #             "liq_price": 0,
+    #             "entry_price": 0,
+    #         },
+    #         "short": {
+    #             "qty": 0.0,
+    #             "price": 0.0,
+    #             "realised": 0,
+    #             "cum_realised": 0,
+    #             "upnl": 0,
+    #             "upnl_pct": 0,
+    #             "liq_price": 0,
+    #             "entry_price": 0,
+    #         },
+    #     }
+
+    #     for i in range(max_retries):
+    #         try:
+    #             data = self.exchange.fetch_positions(symbol)
+                
+    #             # Check for the unified structure
+    #             if data and isinstance(data, list) and 'contracts' in data[0]:
+    #                 for position in data:
+    #                     side = 'long' if float(position.get('contracts', 0)) > 0 else 'short'
+    #                     for key, dest_key in [
+    #                         ("contracts", "qty"),
+    #                         ("entryPrice", "price"),
+    #                         ("unrealisedPnl", "realised"),
+    #                         ("cumRealisedPnl", "cum_realised"),
+    #                         ("unrealisedPnl", "upnl"),
+    #                         ("percentage", "upnl_pct"),
+    #                         ("liquidationPrice", "liq_price"),
+    #                         ("entryPrice", "entry_price"),
+    #                     ]:
+    #                         try:
+    #                             value = position.get(key)
+    #                             if value is None:
+    #                                 value = 0
+    #                             if key == "contracts":
+    #                                 values[side][dest_key] = abs(float(value))
+    #                             else:
+    #                                 values[side][dest_key] = float(value)
+    #                         except Exception as e:
+    #                             print(f"Failed to convert key '{key}' with value '{value}' to float.")
+    #                             raise e
+
+    #             # Check for the regular structure
+    #             elif 'info' in data and 'result' in data['info'] and 'list' in data['info']['result']:
+    #                 for position in data['info']['result']['list']:
+    #                     if position['coin'] == symbol:
+    #                         side = 'long' if float(position['contracts']) > 0 else 'short'
+    #                         values[side]["qty"] = abs(float(position["contracts"]))
+    #                         values[side]["price"] = float(position["entryPrice"] or 0)
+    #                         values[side]["realised"] = round(float(position["info"]["unrealisedPnl"] or 0), 4)
+    #                         values[side]["cum_realised"] = round(float(position["info"]["cumRealisedPnl"] or 0), 4)
+    #                         values[side]["upnl"] = round(float(position["info"]["unrealisedPnl"] or 0), 4)
+    #                         values[side]["upnl_pct"] = round(float(position["percentage"] or 0), 4)
+    #                         values[side]["liq_price"] = float(position["liquidationPrice"] or 0)
+    #                         values[side]["entry_price"] = float(position["entryPrice"] or 0)
+
+    #             else:
+    #                 raise ValueError("Unexpected data format.")
+                
+    #             break
+
+    #         except Exception as e:
+    #             if i < max_retries - 1:  # If not the last attempt
+    #                 logging.info(f"An unknown error occurred in get_positions_bybit(): {e}. Retrying in {retry_delay} seconds...")
+    #                 time.sleep(retry_delay)
+    #             else:
+    #                 logging.info(f"Failed to fetch positions after {max_retries} attempts: {e}")
+    #                 raise e  # If it's still failing after max_retries, re-raise the exception.
+
+    #     return values
 
 
     # Bybit 
@@ -1596,30 +1699,6 @@ class Exchange:
         
         return values
 
-    # def get_moving_averages(
-    #     self, symbol: str, timeframe: str = "1m", num_bars: int = 20
-    # ) -> dict:
-    #     values = {"MA_3_H": 0.0, "MA_3_L": 0.0, "MA_6_H": 0.0, "MA_6_L": 0.0}
-    #     try:
-    #         bars = self.exchange.fetch_ohlcv(
-    #             symbol=symbol, timeframe=timeframe, limit=num_bars
-    #         )
-    #         df = pd.DataFrame(
-    #             bars, columns=["Time", "Open", "High", "Low", "Close", "Volume"]
-    #         )
-    #         df["Time"] = pd.to_datetime(df["Time"], unit="ms")
-    #         df["MA_3_High"] = df.High.rolling(3).mean()
-    #         df["MA_3_Low"] = df.Low.rolling(3).mean()
-    #         df["MA_6_High"] = df.High.rolling(6).mean()
-    #         df["MA_6_Low"] = df.Low.rolling(6).mean()
-    #         values["MA_3_H"] = df["MA_3_High"].iat[-1]
-    #         values["MA_3_L"] = df["MA_3_Low"].iat[-1]
-    #         values["MA_6_H"] = df["MA_6_High"].iat[-1]
-    #         values["MA_6_L"] = df["MA_6_Low"].iat[-1]
-    #     except Exception as e:
-    #         log.warning(f"An unknown error occurred in get_moving_averages(): {e}")
-    #     return values
-
     def get_open_orders(self, symbol: str) -> list:
         open_orders_list = []
         try:
@@ -1717,7 +1796,6 @@ class Exchange:
                     self.exchange.cancel_order(order['id'], symbol)
         except Exception as e:
             print(f"An error occurred while canceling entry orders: {e}")
-
 
     def get_open_orders_bybit_unified(self, symbol: str) -> list:
         open_orders_list = []
@@ -2244,6 +2322,30 @@ class Exchange:
             logging.warning(f"An unknown error occurred in cancel_entry(): {e}")
 
     # Bybit
+    def get_take_profit_order_quantity_bybit(self, symbol, side):
+        side = side.lower()
+        side_map = {"long": "buy", "short": "sell"}
+        side = side_map.get(side, side)
+        total_qty = 0
+        
+        try:
+            open_orders = self.exchange.fetch_open_orders(symbol)
+            position_idx_map = {"buy": 1, "sell": 2}
+
+            for order in open_orders:
+                if (
+                    order['side'].lower() == side
+                    and order['info'].get('reduceOnly')
+                    and order['info'].get('positionIdx') == position_idx_map[side]
+                ):
+                    total_qty += order.get('amount', 0)  # Assuming 'amount' contains the order quantity
+        except Exception as e:
+            logging.error(f"An unknown error occurred in get_take_profit_order_quantity_bybit: {e}")
+
+        return total_qty
+
+
+    # Bybit
     def cancel_take_profit_orders_bybit(self, symbol, side):
         side = side.lower()
         side_map = {"long": "buy", "short": "sell"}
@@ -2526,6 +2628,7 @@ class Exchange:
 
     # Bybit
     def create_take_profit_order_bybit(self, symbol, order_type, side, amount, price=None, positionIdx=1, reduce_only=True):
+        logging.info(f"Calling create_take_profit_order_bybit with symbol={symbol}, order_type={order_type}, side={side}, amount={amount}, price={price}")
         if order_type == 'limit':
             if price is None:
                 raise ValueError("A price must be specified for a limit order")
@@ -2654,7 +2757,7 @@ class Exchange:
                 logging.warning(f"side {side} does not exist")
                 return {"error": f"side {side} does not exist"}
         except Exception as e:
-            logging.warning(f"An unknown error occurred in create_limit_order(): {e}")
+            logging.warning(f"An unknown error occurred in create_limit_order() for {symbol}: {e}")
             return {"error": str(e)}
 
     # # Bybit

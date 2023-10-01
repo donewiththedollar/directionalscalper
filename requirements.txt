@@ -10,3 +10,4 @@ streamlit
 plotly
 inquirer
 sqlite
+pytz
