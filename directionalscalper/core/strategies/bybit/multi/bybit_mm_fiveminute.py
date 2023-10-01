@@ -31,6 +31,7 @@ class BybitMMFiveMinute(Strategy):
         self.spoofing_interval = 1
 
 
+
     def run(self, symbol):
         threads = [
             Thread(target=self.run_single_symbol, args=(symbol,))
@@ -63,6 +64,15 @@ class BybitMMFiveMinute(Strategy):
         long_pos_price = None
         short_pos_price = None
 
+        # Check leverages only at startup
+        self.current_leverage = self.exchange.get_current_leverage_bybit(symbol)
+        self.max_leverage = self.exchange.get_max_leverage_bybit(symbol)
+
+        # Set the leverage to max if it's not already
+        if self.current_leverage != self.max_leverage:
+            logging.info(f"Current leverage is not at maximum. Setting leverage to maximum. Maximum is {self.max_leverage}")
+            self.exchange.set_leverage_bybit(self.max_leverage, symbol)
+
         print(f"Running for symbol (inside run_single_symbol method): {symbol}")
 
         quote_currency = "USDT"
@@ -72,8 +82,8 @@ class BybitMMFiveMinute(Strategy):
         min_dist = self.config.min_distance
         min_vol = self.config.min_volume
         MaxAbsFundingRate = self.config.MaxAbsFundingRate
-        current_leverage = self.exchange.get_current_leverage_bybit(symbol)
-        max_leverage = self.exchange.get_max_leverage_bybit(symbol)
+        # current_leverage = self.exchange.get_current_leverage_bybit(symbol)
+        # max_leverage = self.exchange.get_max_leverage_bybit(symbol)
 
         if self.config.dashboard_enabled:
             dashboard_path = os.path.join(self.config.shared_data_path, "shared_data.json")
@@ -81,10 +91,10 @@ class BybitMMFiveMinute(Strategy):
         logging.info("Setting up exchange")
         self.exchange.setup_exchange_bybit(symbol)
 
-        logging.info("Setting leverage")
-        if current_leverage != max_leverage:
-            logging.info(f"Current leverage is not at maximum. Setting leverage to maximum. Maximum is {max_leverage}")
-            self.exchange.set_leverage_bybit(max_leverage, symbol)
+        # logging.info("Setting leverage")
+        # if current_leverage != max_leverage:
+        #     logging.info(f"Current leverage is not at maximum. Setting leverage to maximum. Maximum is {max_leverage}")
+        #     self.exchange.set_leverage_bybit(max_leverage, symbol)
 
         previous_five_minute_distance = None
 
@@ -133,7 +143,7 @@ class BybitMMFiveMinute(Strategy):
             best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
             best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
-            logging.info(f"Variables in main loop for {symbol}: market_data={market_data}, total_equity={total_equity}, best_ask_price={best_ask_price}, max_leverage={max_leverage}")
+            logging.info(f"Variables in main loop for {symbol}: market_data={market_data}, total_equity={total_equity}, best_ask_price={best_ask_price}, max_leverage={self.max_leverage}")
 
             moving_averages = self.get_all_moving_averages(symbol)
             position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
@@ -158,7 +168,7 @@ class BybitMMFiveMinute(Strategy):
 
             logging.info(f"Open orders: {open_orders}")
 
-            self.manage_non_rotator_symbols_5m(symbols_to_manage, total_equity, open_orders, market_data, position_data)
+            self.manage_non_rotator_symbols_5m(symbols_to_manage, total_equity, open_orders, position_data)
 
             can_open_new_position = self.can_trade_new_symbol(open_symbols, self.symbols_allowed, symbol)
 
@@ -182,10 +192,10 @@ class BybitMMFiveMinute(Strategy):
                 short_liq_price = position_data["short"]["liq_price"]
                 long_liq_price = position_data["long"]["liq_price"]
 
-                self.bybit_reset_position_leverage_long_v3(symbol, long_pos_qty, total_equity, best_ask_price, max_leverage)
-                self.bybit_reset_position_leverage_short_v3(symbol, short_pos_qty, total_equity, best_ask_price, max_leverage)
+                self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
+                self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
 
-                long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount(symbol, market_data, total_equity, best_ask_price, max_leverage)
+                long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount(symbol, total_equity, best_ask_price, self.max_leverage)
                 logging.info(f"Long dynamic amount: {long_dynamic_amount} for {symbol}")
                 logging.info(f"Short dynamic amount: {short_dynamic_amount} for {symbol}")
 
@@ -262,16 +272,6 @@ class BybitMMFiveMinute(Strategy):
                 if short_pos_qty > 0 and short_take_profit is not None and tp_order_counts['short_tp_count'] == 0:
                     self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
                     
-                # # Check if there's no existing take profit order before placing a new one
-                # if open_tp_order_count == 0:
-                #     if long_pos_qty > 0 and long_take_profit is not None:
-                #         self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
-
-                #     if short_pos_qty > 0 and short_take_profit is not None:
-                #         self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
-                # else:
-                #     logging.info(f"Skipping TP placement for {symbol} as it already exists.")
-
                 current_time = datetime.now()
                 
                 # Check for long positions
@@ -291,10 +291,10 @@ class BybitMMFiveMinute(Strategy):
 
                 if open_symbols_count < self.symbols_allowed:
 
-                    self.bybit_reset_position_leverage_long_v3(symbol, long_pos_qty, total_equity, best_ask_price, max_leverage)
-                    self.bybit_reset_position_leverage_short_v3(symbol, short_pos_qty, total_equity, best_ask_price, max_leverage)
-                    
-                    long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount(symbol, market_data, total_equity, best_ask_price, max_leverage)
+                    self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
+                    self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
+
+                    long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount(symbol, total_equity, best_ask_price, self.max_leverage)
 
                     short_pos_qty = position_data["short"]["qty"]
                     long_pos_qty = position_data["long"]["qty"]

@@ -282,7 +282,7 @@ class BybitMM5m(Strategy):
                     logging.info(f"No short leverage set for {symbol}")
 
                 long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount(
-                    symbol, market_data, total_equity, best_ask_price, max_leverage
+                    symbol, total_equity, best_ask_price, max_leverage
                 )
 
                 self.print_trade_quantities_once_bybit(symbol, self.max_long_trade_qty)
@@ -394,7 +394,7 @@ class BybitMM5m(Strategy):
                     self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
 
                 # Call the function to update short take profit spread
-                if short_pos_qty > 0: #and short_take_profit is not None:
+                if short_pos_qty > 0 and short_take_profit is not None:
                     self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
 
                 # Take profit spread replacement

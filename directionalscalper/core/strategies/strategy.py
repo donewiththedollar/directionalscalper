@@ -26,7 +26,6 @@ class Strategy:
         def __init__(self, parent):
             self.parent = parent
 
-
     def __init__(self, exchange, config, manager, symbols_allowed=None):
     # def __init__(self, exchange, config, manager):
         self.exchange = exchange
@@ -311,9 +310,11 @@ class Strategy:
             logging.info(f"Initial max short trade qty set for {symbol} to {self.initial_max_short_trade_qty_per_symbol[symbol]}")
 
 
-    def calculate_dynamic_amount(self, symbol, market_data, total_equity, best_ask_price, max_leverage):
+    def calculate_dynamic_amount(self, symbol, total_equity, best_ask_price, max_leverage):
 
         self.initialize_trade_quantities(symbol, total_equity, best_ask_price, max_leverage)
+
+        market_data = self.get_market_data_with_retry(symbol, max_retries = 100, retry_delay = 5)
 
         long_dynamic_amount = 0.001 * self.initial_max_long_trade_qty_per_symbol[symbol]
         short_dynamic_amount = 0.001 * self.initial_max_short_trade_qty_per_symbol[symbol]
@@ -325,6 +326,8 @@ class Strategy:
         logging.info(f"Max allowed dynamic amount for {symbol} : {max_allowed_dynamic_amount}")
 
         min_qty = float(market_data["min_qty"])
+
+        logging.info(f"Min qty for {symbol} : {min_qty}")
         
         # Determine precision level directly
         precision_level = len(str(min_qty).split('.')[-1]) if '.' in str(min_qty) else 0
@@ -3151,7 +3154,7 @@ class Strategy:
 
             # Calculate dynamic amounts
             long_dynamic_amount_open_symbol, short_dynamic_amount_open_symbol, min_qty = self.calculate_dynamic_amount(
-                open_symbol, market_data, total_equity, best_ask_price_open_symbol, max_leverage
+                open_symbol, total_equity, best_ask_price_open_symbol, max_leverage
             )
 
             logging.info(f"Long dynamic amount for {open_symbol}: {long_dynamic_amount_open_symbol}")
@@ -3372,7 +3375,7 @@ class Strategy:
 
             # Calculate dynamic amounts
             long_dynamic_amount_open_symbol, short_dynamic_amount_open_symbol, min_qty = self.calculate_dynamic_amount(
-                open_symbol, market_data, total_equity, best_ask_price_open_symbol, max_leverage
+                open_symbol, total_equity, best_ask_price_open_symbol, max_leverage
             )
 
             logging.info(f"Long dynamic amount for {open_symbol}: {long_dynamic_amount_open_symbol}")
@@ -3550,8 +3553,8 @@ class Strategy:
             ma_3_high_open_symbol = moving_averages_open_symbol["ma_3_high"]
 
             # modify leverage per symbol
-            self.bybit_reset_position_leverage_long_v3(open_symbol, long_pos_qty_open_symbol, total_equity, best_bid_price_open_symbol, max_leverage)
-            self.bybit_reset_position_leverage_short_v3(open_symbol, short_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
+            self.set_position_leverage_long_bybit(open_symbol, long_pos_qty_open_symbol, total_equity, best_bid_price_open_symbol, max_leverage)
+            self.set_position_leverage_short_bybit(open_symbol, short_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
 
             # Logging the leverages for a given symbol
             if open_symbol in self.long_pos_leverage_per_symbol:
@@ -3566,7 +3569,7 @@ class Strategy:
                 
             # Calculate dynamic amounts
             long_dynamic_amount_open_symbol, short_dynamic_amount_open_symbol, min_qty = self.calculate_dynamic_amount(
-                open_symbol, market_data, total_equity, best_ask_price_open_symbol, max_leverage
+                open_symbol, total_equity, best_ask_price_open_symbol, max_leverage
             )
 
             logging.info(f"Long dynamic amount from strategy.py: {long_dynamic_amount_open_symbol} for {open_symbol}")
@@ -3643,7 +3646,7 @@ class Strategy:
                 self.next_short_tp_update = self.update_take_profit_spread_bybit(open_symbol, short_pos_qty_open_symbol, short_take_profit_open_symbol, positionIdx=2, order_side="buy", next_tp_update=self.next_short_tp_update)
 
 
-    def manage_non_rotator_symbols_5m(self, open_symbols, total_equity, open_orders, market_data, position_data):
+    def manage_non_rotator_symbols_5m(self, open_symbols, total_equity, open_orders, position_data):
         max_retries = 5
         retry_delay = 5
         for open_symbol in open_symbols:
@@ -3666,7 +3669,7 @@ class Strategy:
             #market_data = self.get_market_data_with_retry(open_symbol, max_retries=5, retry_delay=5)
             moving_averages_open_symbol = self.get_all_moving_averages(open_symbol)
             max_leverage = self.exchange.get_max_leverage_bybit(open_symbol)
-            position_data = self.exchange.get_positions_bybit(open_symbol)
+            #position_data = self.exchange.get_positions_bybit(open_symbol)
             # position_data = self.exchange.get_positions_bybit([open_symbol])
             logging.info(f"Position data for {open_symbol} from strategy.py: {position_data}")
             best_ask_price_open_symbol = self.exchange.get_orderbook(open_symbol)['asks'][0][0]
@@ -3687,8 +3690,8 @@ class Strategy:
             ma_3_high_open_symbol = moving_averages_open_symbol["ma_3_high"]
 
             # modify leverage per symbol
-            self.bybit_reset_position_leverage_long_v3(open_symbol, long_pos_qty_open_symbol, total_equity, best_bid_price_open_symbol, max_leverage)
-            self.bybit_reset_position_leverage_short_v3(open_symbol, short_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
+            self.set_position_leverage_long_bybit(open_symbol, long_pos_qty_open_symbol, total_equity, best_bid_price_open_symbol, max_leverage)
+            self.set_position_leverage_short_bybit(open_symbol, short_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
 
             # Logging the leverages for a given symbol
             if open_symbol in self.long_pos_leverage_per_symbol:
@@ -3703,7 +3706,7 @@ class Strategy:
                 
             # Calculate dynamic amounts
             long_dynamic_amount_open_symbol, short_dynamic_amount_open_symbol, min_qty = self.calculate_dynamic_amount(
-                open_symbol, market_data, total_equity, best_ask_price_open_symbol, max_leverage
+                open_symbol, total_equity, best_ask_price_open_symbol, max_leverage
             )
 
             logging.info(f"Long dynamic amount from strategy.py: {long_dynamic_amount_open_symbol} for {open_symbol}")
@@ -3871,7 +3874,7 @@ class Strategy:
 
             # Calculate dynamic amounts
             long_dynamic_amount_open_symbol, short_dynamic_amount_open_symbol, min_qty = self.calculate_dynamic_amount(
-                open_symbol, market_data, total_equity, best_ask_price_open_symbol, max_leverage
+                open_symbol, total_equity, best_ask_price_open_symbol, max_leverage
             )
 
             long_spoofing_amount_open_symbol, short_spoofing_amount_open_symbol, = self.calculate_spoofing_amount(
@@ -3937,10 +3940,10 @@ class Strategy:
                 )
 
             if long_pos_qty_open_symbol > 0:
-                self.bybit_reset_position_leverage_long_v3(open_symbol, long_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
+                self.set_position_leverage_long_bybit(open_symbol, long_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
 
             if short_pos_qty_open_symbol > 0:
-                self.bybit_reset_position_leverage_short_v3(open_symbol, short_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
+                self.set_position_leverage_short_bybit(open_symbol, short_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
 
             if open_symbol in open_symbols:
 
@@ -4181,7 +4184,7 @@ class Strategy:
 
             # Calculate dynamic amounts
             long_dynamic_amount_open_symbol, short_dynamic_amount_open_symbol, min_qty = self.calculate_dynamic_amount(
-                open_symbol, market_data, total_equity, best_ask_price_open_symbol, max_leverage
+                open_symbol, total_equity, best_ask_price_open_symbol, max_leverage
             )
 
             logging.info(f"Long dynamic amount for {open_symbol}: {long_dynamic_amount_open_symbol}")
@@ -4243,10 +4246,10 @@ class Strategy:
                 )
 
             if long_pos_qty_open_symbol > 0:
-                self.bybit_reset_position_leverage_long_v3(open_symbol, long_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
+                self.set_position_leverage_long_bybit(open_symbol, long_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
 
             if short_pos_qty_open_symbol > 0:
-                self.bybit_reset_position_leverage_short_v3(open_symbol, short_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
+                self.set_position_leverage_short_bybit(open_symbol, short_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
 
             if open_symbol in open_symbols:
 
@@ -4945,7 +4948,8 @@ class Strategy:
 
         return new_qty, new_leverage
 
-    def bybit_reset_position_leverage_long_v3(self, symbol, long_pos_qty, total_equity, best_ask_price, max_leverage):
+
+    def set_position_leverage_long_bybit(self, symbol, long_pos_qty, total_equity, best_ask_price, max_leverage):
         if symbol not in self.initial_max_long_trade_qty_per_symbol:
             # Initialize for the symbol
             self.initial_max_long_trade_qty_per_symbol[symbol] = self.calc_max_trade_qty(symbol, total_equity, best_ask_price, max_leverage)
@@ -4972,7 +4976,7 @@ class Strategy:
             )
             logging.info(f"Long leverage for {symbol} returned to normal {self.long_pos_leverage_per_symbol[symbol]}x")
 
-    def bybit_reset_position_leverage_short_v3(self, symbol, short_pos_qty, total_equity, best_ask_price, max_leverage):
+    def set_position_leverage_short_bybit(self, symbol, short_pos_qty, total_equity, best_ask_price, max_leverage):
         # Initialize for the symbol if it's not already present
         if symbol not in self.initial_max_short_trade_qty_per_symbol:
             self.initial_max_short_trade_qty_per_symbol[symbol] = self.calc_max_trade_qty(symbol, total_equity, best_ask_price, max_leverage)
@@ -4990,7 +4994,8 @@ class Strategy:
             logging.info(f"Short leverage for {symbol} temporarily increased to {self.short_pos_leverage_per_symbol[symbol]}x")
         
         # Check conditions to reset leverage back to normal
-        elif short_pos_qty < (self.max_short_trade_qty_per_symbol.get(symbol, 0) / 2) and self.short_pos_leverage_per_symbol[symbol] > 1.0:
+        elif short_pos_qty < (self.max_short_trade_qty_per_symbol.get(symbol, 0) / 2) and self.short_pos_leverage_per_symbol.get(symbol, 0) > 1.0:
+        #elif short_pos_qty < (self.max_short_trade_qty_per_symbol.get(symbol, 0) / 2) and self.short_pos_leverage_per_symbol[symbol] > 1.0:
             self.max_short_trade_qty_per_symbol[symbol], self.short_pos_leverage_per_symbol[symbol] = self.adjust_leverage_and_qty(
                 self.max_short_trade_qty_per_symbol.get(symbol, 0), 
                 self.initial_max_short_trade_qty_per_symbol[symbol], 
