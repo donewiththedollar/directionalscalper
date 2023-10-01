@@ -139,11 +139,11 @@ class BybitMMFiveMinute(Strategy):
             total_equity = self.retry_api_call(self.exchange.get_balance_bybit, quote_currency)
             available_equity = self.retry_api_call(self.exchange.get_available_balance_bybit, quote_currency)
             current_price = self.exchange.get_current_price(symbol)
-            market_data = self.get_market_data_with_retry(symbol, max_retries=5, retry_delay=5)
+            #market_data = self.get_market_data_with_retry(symbol, max_retries=5, retry_delay=5)
             best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
             best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
-            logging.info(f"Variables in main loop for {symbol}: market_data={market_data}, total_equity={total_equity}, best_ask_price={best_ask_price}, max_leverage={self.max_leverage}")
+            #logging.info(f"Variables in main loop for {symbol}: market_data={market_data}, total_equity={total_equity}, best_ask_price={best_ask_price}, max_leverage={self.max_leverage}")
 
             moving_averages = self.get_all_moving_averages(symbol)
             position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
