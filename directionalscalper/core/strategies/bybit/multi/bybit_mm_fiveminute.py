@@ -15,6 +15,7 @@ logging = Logger(logger_name="Bybitfivemin", filename="Bybitfivemin.log", stream
 class BybitMMFiveMinute(Strategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
+        # Removed redundant initializations (they are already done in the parent class)
         self.last_health_check_time = time.time()
         self.health_check_interval = 600
         self.bot_db = BotDatabase(exchange=self.exchange)
@@ -289,6 +290,10 @@ class BybitMMFiveMinute(Strategy):
                 open_symbols_count = len(open_symbols)
 
                 if open_symbols_count < self.symbols_allowed:
+
+                    self.bybit_reset_position_leverage_long_v3(symbol, long_pos_qty, total_equity, best_ask_price, max_leverage)
+                    self.bybit_reset_position_leverage_short_v3(symbol, short_pos_qty, total_equity, best_ask_price, max_leverage)
+                    
                     long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount(symbol, market_data, total_equity, best_ask_price, max_leverage)
 
                     short_pos_qty = position_data["short"]["qty"]
