@@ -15,23 +15,10 @@ logging = Logger(logger_name="Bybitfivemin", filename="Bybitfivemin.log", stream
 class BybitMMFiveMinute(Strategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
-        self.symbols_allowed = symbols_allowed
-        self.manager = manager
         self.last_health_check_time = time.time()
         self.health_check_interval = 600
         self.bot_db = BotDatabase(exchange=self.exchange)
         self.bot_db.create_tables_if_not_exists()
-        self.max_long_trade_qty = None
-        self.max_short_trade_qty = None
-        self.initial_max_long_trade_qty = None
-        self.initial_max_short_trade_qty = None
-        self.long_leverage_increased = False
-        self.short_leverage_increased = False
-        self.last_stale_order_check_time = time.time()
-        self.initial_max_long_trade_qty_per_symbol = {}
-        self.initial_max_short_trade_qty_per_symbol = {}
-        self.long_pos_leverage_per_symbol = {}
-        self.short_pos_leverage_per_symbol = {}
         self.last_long_tp_update = datetime.now()
         self.last_short_tp_update = datetime.now()
         self.next_long_tp_update = self.calculate_next_update_time()
@@ -41,6 +28,7 @@ class BybitMMFiveMinute(Strategy):
         self.spoofing_wall_size = 5
         self.spoofing_duration = 5
         self.spoofing_interval = 1
+
 
     def run(self, symbol):
         threads = [
