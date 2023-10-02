@@ -216,6 +216,10 @@ class BybitMMFiveMinute(Strategy):
                 short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
                 previous_five_minute_distance = five_minute_distance
 
+
+                logging.info(f"Short take profit: {short_take_profit}")
+                logging.info(f"Long take profit: {long_take_profit}")
+
                 should_short = self.short_trade_condition(best_ask_price, moving_averages["ma_3_high"])
                 should_long = self.long_trade_condition(best_bid_price, moving_averages["ma_3_low"])
                 should_add_to_short = False

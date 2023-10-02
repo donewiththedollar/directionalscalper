@@ -1255,7 +1255,6 @@ class Strategy:
     def calculate_take_profits_based_on_spread(self, short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit):
         """
         Calculate long and short take profits based on the spread.
-
         :param short_pos_price: The short position price.
         :param long_pos_price: The long position price.
         :param symbol: The symbol for which the take profits are being calculated.
@@ -1265,9 +1264,16 @@ class Strategy:
         :param long_take_profit: Existing long take profit.
         :return: Calculated short_take_profit, long_take_profit.
         """
+        # Log the inputs
+        logging.info(f"Inputs to calculate_take_profits_based_on_spread: short_pos_price={short_pos_price}, long_pos_price={long_pos_price}, symbol={symbol}, five_minute_distance={five_minute_distance}, previous_five_minute_distance={previous_five_minute_distance}, short_take_profit={short_take_profit}, long_take_profit={long_take_profit}")
+
         if five_minute_distance != previous_five_minute_distance or short_take_profit is None or long_take_profit is None:
             short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, five_minute_distance)
             long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
+            
+            # Log the calculated values
+            logging.info(f"Newly calculated short_take_profit: {short_take_profit}")
+            logging.info(f"Newly calculated long_take_profit: {long_take_profit}")
         
         return short_take_profit, long_take_profit
 
@@ -3651,7 +3657,7 @@ class Strategy:
         retry_delay = 5
         for open_symbol in open_symbols:
         
-            #previous_five_minute_distance = None
+            previous_five_minute_distance = None
 
             min_dist = self.config.min_distance
             min_vol = self.config.min_volume
@@ -3723,6 +3729,7 @@ class Strategy:
 
             logging.info(f"Long pos price from strategy.py : {long_pos_price} for {open_symbol}")
             logging.info(f"Short pos price from strategy.py : {short_pos_price} for {open_symbol}")
+
             should_long_open_symbol = self.long_trade_condition(best_bid_price_open_symbol, ma_3_low_open_symbol) if ma_3_low_open_symbol is not None else False
             should_short_open_symbol = self.short_trade_condition(best_ask_price_open_symbol, ma_6_high_open_symbol) if ma_3_high_open_symbol is not None else False
             should_add_to_long_open_symbol = (long_pos_price > ma_6_high_open_symbol) and should_long_open_symbol if long_pos_price is not None and ma_6_high_open_symbol is not None else False
@@ -3753,16 +3760,23 @@ class Strategy:
 
             # short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price_open_symbol, long_pos_price_open_symbol, open_symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
 
-            # Calculate your take profit levels for each open symbol.
-            short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
-                short_pos_price, open_symbol, five_minute_distance
-            )
-            long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
-                long_pos_price, open_symbol, five_minute_distance
-            )
+            # # Calculate your take profit levels for each open symbol.
+            # short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
+            #     short_pos_price, open_symbol, five_minute_distance
+            # )
+            # long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit(
+            #     long_pos_price, open_symbol, five_minute_distance
+            # )
 
-            logging.info(f"Short TP for from strategy.py {open_symbol} : {short_take_profit_open_symbol}")
-            logging.info(f"Long TP for from strategy.py {open_symbol} : {long_take_profit_open_symbol}")
+            short_take_profit_open_symbol = None
+            long_take_profit_open_symbol = None
+
+            short_take_profit_open_symbol, long_take_profit_open_symbol = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, open_symbol, five_minute_distance, previous_five_minute_distance, short_take_profit_open_symbol, long_take_profit_open_symbol)
+
+            previous_five_minute_distance = five_minute_distance
+
+            logging.info(f"Short TP for {open_symbol} from strategy.py : {short_take_profit_open_symbol}")
+            logging.info(f"Long TP for {open_symbol} from strategy.py : {long_take_profit_open_symbol}")
 
             # short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price_open_symbol, long_pos_price_open_symbol, open_symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
 
