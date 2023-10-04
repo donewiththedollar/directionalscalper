@@ -1096,7 +1096,7 @@ class Strategy:
     def calculate_next_update_time(self):
         """Returns the time for the next TP update, which is 6 minutes from the current time."""
         now = datetime.now()
-        next_update_time = now + timedelta(minutes=6)
+        next_update_time = now + timedelta(minutes=1)
         return next_update_time.replace(microsecond=0)
 
     def calculate_short_take_profit_bybit(self, short_pos_price, symbol):
@@ -2998,41 +2998,59 @@ class Strategy:
         return next_tp_update
 
 
-    def update_take_profit_spread_bybit(self, symbol, pos_qty, take_profit_price, positionIdx, order_side, next_tp_update, max_retries=10):
-        # Fetch the current open TP order count for the symbol
-        tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
+    def update_take_profit_spread_bybit(self, symbol, pos_qty, positionIdx, order_side, next_tp_update, five_minute_distance, previous_five_minute_distance, max_retries=10):
+        # Fetch the current open TP orders for the symbol
+        long_tp_orders, short_tp_orders = self.exchange.bybit.get_open_tp_orders(symbol)
+        
+        # Calculate the TP values based on the spread
+        short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(None, None, symbol, five_minute_distance, previous_five_minute_distance, None, None)
 
-        # Fetch the relevant TP count based on the order side
-        relevant_tp_count = tp_order_counts['long_tp_count'] if order_side == "sell" else tp_order_counts['short_tp_count']
+        # Determine the take profit price based on the order side
+        take_profit_price = long_take_profit if order_side == "sell" else short_take_profit
+        
+        # Determine the relevant TP orders and quantities based on the order side
+        relevant_tp_orders = long_tp_orders if order_side == "sell" else short_tp_orders
 
-        # If there's already a TP order for the given side, just return the current next_tp_update without making any changes
-        if relevant_tp_count > 0:
-            logging.info(f"Take profit already exists for {symbol} {order_side}. Skipping update.")
-            return next_tp_update
+        # Check if there's an existing TP order with a mismatched quantity
+        mismatched_qty_orders = [order for order in relevant_tp_orders if order['qty'] != pos_qty]
 
-        now = datetime.now()
+        # If mismatched TP orders exist, cancel them
+        if mismatched_qty_orders:
+            for order in mismatched_qty_orders:
+                try:
+                    self.exchange.cancel_order_by_id(order['id'], symbol)
+                    logging.info(f"{order_side.capitalize()} take profit {order['id']} canceled due to mismatched quantity.")
+                    time.sleep(0.05)
+                except Exception as e:
+                    logging.error(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
 
-        if now >= next_tp_update:
-            try:
-                logging.info(f"Next TP updating for {symbol} : {next_tp_update}")
+        # If there's no TP order or there was a mismatched TP order, create a new TP order
+        if not relevant_tp_orders or mismatched_qty_orders:
+            now = datetime.now()
+            if now >= next_tp_update:
+                try:
+                    logging.info(f"Next TP updating for {symbol} : {next_tp_update}")
 
-                retries = 0
-                success = False
-                while retries < max_retries and not success:
-                    try:
-                        self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, take_profit_price, positionIdx=positionIdx, reduce_only=True)
-                        logging.info(f"{order_side.capitalize()} take profit set at {take_profit_price}")
-                        success = True
-                    except Exception as e:
-                        logging.error(f"Failed to set {order_side} TP. Retry {retries + 1}/{max_retries}. Error: {e}")
-                        retries += 1
-                        time.sleep(1)  # Wait for a moment before retrying
+                    retries = 0
+                    success = False
+                    while retries < max_retries and not success:
+                        try:
+                            self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, take_profit_price, positionIdx=positionIdx, reduce_only=True)
+                            logging.info(f"{order_side.capitalize()} take profit set at {take_profit_price}")
+                            success = True
+                        except Exception as e:
+                            logging.error(f"Failed to set {order_side} TP. Retry {retries + 1}/{max_retries}. Error: {e}")
+                            retries += 1
+                            time.sleep(1)  # Wait for a moment before retrying
 
-                next_tp_update = self.calculate_next_update_time()  # Calculate the next update time after placing the order
-            except Exception as e:
-                logging.info(f"Error in updating {order_side} TP: {e}")
+                    next_tp_update = self.calculate_next_update_time()  # Calculate the next update time after placing the order
+                except Exception as e:
+                    logging.error(f"Error in updating {order_side} TP: {e}")
+
+        else:
+            logging.info(f"Take profit already exists for {symbol} {order_side} with correct quantity. Skipping update.")
+
         return next_tp_update
-
 
     # def update_take_profit_spread_bybit(self, symbol, pos_qty, take_profit_price, positionIdx, order_side, next_tp_update, max_retries=10):
     #     # Fetch the current open TP order count for the symbol

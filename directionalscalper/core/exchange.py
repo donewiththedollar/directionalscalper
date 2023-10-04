@@ -36,22 +36,74 @@ class Exchange:
             logging.error(f"Failed to fetch open orders for {symbol} after {self.max_retries} retries.")
             return []
         
+        # def get_open_tp_orders(self, symbol):
+        #     long_tp_orders = []
+        #     short_tp_orders = []
+        #     for _ in range(self.max_retries):
+        #         try:
+        #             all_open_orders = self.parent.exchange.fetch_open_orders(symbol)
+        #             logging.info(f"All open orders {all_open_orders}")
+                    
+        #             for order in all_open_orders:
+        #                 logging.info(f"Order: {order['id']}, reduceOnly: {order['info'].get('reduceOnly')}, side: {order['side']}")
+                        
+        #                 if order['info'].get('reduceOnly', False):
+        #                     if order['side'] == 'sell':
+        #                         long_tp_orders.append(order)
+        #                     elif order['side'] == 'buy':
+        #                         short_tp_orders.append(order)
+                    
+        #             return long_tp_orders, short_tp_orders
+        #         except ccxt.RateLimitExceeded:
+        #             logging.warning(f"Rate limit exceeded when fetching TP orders for {symbol}. Retrying in {self.retry_wait} seconds...")
+        #             time.sleep(self.retry_wait)
+        #     logging.error(f"Failed to fetch TP orders for {symbol} after {self.max_retries} retries.")
+        #     return long_tp_orders, short_tp_orders
+
+        # def get_open_tp_orders(self, symbol):
+        #     long_tp_orders = []
+        #     short_tp_orders = []
+        #     for _ in range(self.max_retries):
+        #         try:
+        #             all_open_orders = self.parent.exchange.fetch_open_orders(symbol)
+        #             logging.info(f"All open orders for {symbol}: {all_open_orders}")
+                    
+        #             for order in all_open_orders:
+        #                 logging.info(f"Order: {order['id']}, reduceOnly: {order['info'].get('reduceOnly')}, side: {order['side']}")
+        #                 logging.info(f"Order 'info' details for {order['id']}: {order['info']}")  # Log the 'info' field of each order
+                        
+        #                 if order['info'].get('reduceOnly', False):
+        #                     if order['side'] == 'sell':
+        #                         long_tp_orders.append(order)
+        #                     elif order['side'] == 'buy':
+        #                         short_tp_orders.append(order)
+                    
+        #             return long_tp_orders, short_tp_orders
+        #         except ccxt.RateLimitExceeded:
+        #             logging.warning(f"Rate limit exceeded when fetching TP orders for {symbol}. Retrying in {self.retry_wait} seconds...")
+        #             time.sleep(self.retry_wait)
+        #     logging.error(f"Failed to fetch TP orders for {symbol} after {self.max_retries} retries.")
+        #     return long_tp_orders, short_tp_orders
+
         def get_open_tp_orders(self, symbol):
             long_tp_orders = []
             short_tp_orders = []
             for _ in range(self.max_retries):
                 try:
                     all_open_orders = self.parent.exchange.fetch_open_orders(symbol)
-                    logging.info(f"All open orders {all_open_orders}")
+                    logging.info(f"All open orders for {symbol}: {all_open_orders}")
                     
                     for order in all_open_orders:
-                        logging.info(f"Order: {order['id']}, reduceOnly: {order['info'].get('reduceOnly')}, side: {order['side']}")
+                        order_details = {
+                            'id': order['id'],
+                            'qty': float(order['info']['qty'])
+                        }
                         
                         if order['info'].get('reduceOnly', False):
                             if order['side'] == 'sell':
-                                long_tp_orders.append(order)
+                                long_tp_orders.append(order_details)
                             elif order['side'] == 'buy':
-                                short_tp_orders.append(order)
+                                short_tp_orders.append(order_details)
                     
                     return long_tp_orders, short_tp_orders
                 except ccxt.RateLimitExceeded:
@@ -59,6 +111,8 @@ class Exchange:
                     time.sleep(self.retry_wait)
             logging.error(f"Failed to fetch TP orders for {symbol} after {self.max_retries} retries.")
             return long_tp_orders, short_tp_orders
+
+
 
         def get_open_tp_order_count(self, symbol):
             """
@@ -1190,72 +1244,6 @@ class Exchange:
                 else:
                     print(f"Error fetching open positions: {e}")
                     return []
-
-    # def get_all_open_positions_bybit(self, retries=10, delay_factor=10) -> List[dict]:
-    #     now = datetime.now()
-
-    #     # Check if the cache is still valid
-    #     if self.open_positions_cache and self.last_open_positions_time and now - self.last_open_positions_time < timedelta(seconds=30):
-    #         return self.open_positions_cache
-
-    #     for attempt in range(retries):
-    #         try:
-    #             # No symbol is passed to fetch_positions to get positions for all symbols.
-    #             all_positions = self.exchange.fetch_positions() 
-    #             open_positions = [position for position in all_positions if float(position.get('contracts', 0)) != 0] 
-
-    #             # Update the cache with the new data
-    #             self.open_positions_cache = open_positions
-    #             self.last_open_positions_time = now
-
-    #             return open_positions
-    #         except Exception as e:
-    #             # If the error is related to rate limiting, wait for some time and retry
-    #             if "Too many visits" in str(e) and attempt < retries - 1:
-    #                 time.sleep(delay_factor * (attempt + 1))  # Delay increases with every attempt
-    #                 continue
-    #             else:
-    #                 print(f"Error fetching open positions: {e}")
-    #                 return []
-
-    # def get_all_open_positions_bybit(self, retries=10, delay_factor=10) -> List[dict]:
-    #     """
-    #     Get all open positions across all symbols available in the account.
-        
-    #     Returns:
-    #         List[dict]: A list of dictionaries, each representing a position.
-    #     """
-    #     for attempt in range(retries):
-    #         try:
-    #             # No symbol is passed to fetch_positions to get positions for all symbols.
-    #             all_positions = self.exchange.fetch_positions() 
-    #             open_positions = [position for position in all_positions if float(position.get('contracts', 0)) != 0] 
-    #             return open_positions
-    #         except Exception as e:
-    #             # If the error is related to rate limiting, wait for some time and retry
-    #             if "Too many visits" in str(e) and attempt < retries - 1:
-    #                 time.sleep(delay_factor * (attempt + 1))  # Delay increases with every attempt
-    #                 continue
-    #             else:
-    #                 print(f"Error fetching open positions: {e}")
-    #                 return []
-
-    # def get_all_open_positions_bybit(self) -> List[dict]:
-    #     """
-    #     Get all open positions across all symbols available in the account.
-        
-    #     Returns:
-    #         List[dict]: A list of dictionaries, each representing a position.
-    #     """
-    #     try:
-    #         # No symbol is passed to fetch_positions to get positions for all symbols.
-    #         all_positions = self.exchange.fetch_positions() 
-    #         open_positions = [position for position in all_positions if float(position.get('contracts', 0)) != 0] 
-    #         return open_positions
-    #     except Exception as e:
-    #         # Handle or log the exception as you see fit.
-    #         print(f"Error fetching open positions: {e}")
-    #         return []
 
     def print_positions_structure_binance(self):
         try:
