@@ -1159,11 +1159,12 @@ class Exchange:
             print(f"An error occurred while fetching all open orders: {e}")
             return []
 
-    def get_all_open_positions_bybit(self, retries=10, delay_factor=10) -> List[dict]:
+    def get_all_open_positions_bybit(self, retries=10, delay_factor=10, max_delay=60) -> List[dict]:
         now = datetime.now()
 
         # Check if the cache is still valid
-        if self.open_positions_cache and self.last_open_positions_time and now - self.last_open_positions_time < timedelta(seconds=15):
+        cache_duration = timedelta(seconds=30)  # Increased to 30 seconds
+        if self.open_positions_cache and self.last_open_positions_time and now - self.last_open_positions_time < cache_duration:
             return self.open_positions_cache
 
         for attempt in range(retries):
@@ -1178,13 +1179,44 @@ class Exchange:
 
                 return open_positions
             except Exception as e:
-                # If the error is related to rate limiting, wait for some time and retry
-                if "Too many visits" in str(e) and attempt < retries - 1:
-                    time.sleep(delay_factor * (attempt + 1))  # Delay increases with every attempt
+                # Check for rate limit by HTTP status code (if available) or by error message
+                is_rate_limit_error = "Too many visits" in str(e) or (hasattr(e, 'response') and e.response.status_code == 403)
+                
+                if is_rate_limit_error and attempt < retries - 1:
+                    delay = min(delay_factor * (attempt + 1), max_delay)  # Exponential delay with a cap
+                    logging.info(f"Rate limit on get_all_open_positions_bybit hit, waiting for {delay} seconds before retrying...")
+                    time.sleep(delay)
                     continue
                 else:
                     print(f"Error fetching open positions: {e}")
                     return []
+
+    # def get_all_open_positions_bybit(self, retries=10, delay_factor=10) -> List[dict]:
+    #     now = datetime.now()
+
+    #     # Check if the cache is still valid
+    #     if self.open_positions_cache and self.last_open_positions_time and now - self.last_open_positions_time < timedelta(seconds=30):
+    #         return self.open_positions_cache
+
+    #     for attempt in range(retries):
+    #         try:
+    #             # No symbol is passed to fetch_positions to get positions for all symbols.
+    #             all_positions = self.exchange.fetch_positions() 
+    #             open_positions = [position for position in all_positions if float(position.get('contracts', 0)) != 0] 
+
+    #             # Update the cache with the new data
+    #             self.open_positions_cache = open_positions
+    #             self.last_open_positions_time = now
+
+    #             return open_positions
+    #         except Exception as e:
+    #             # If the error is related to rate limiting, wait for some time and retry
+    #             if "Too many visits" in str(e) and attempt < retries - 1:
+    #                 time.sleep(delay_factor * (attempt + 1))  # Delay increases with every attempt
+    #                 continue
+    #             else:
+    #                 print(f"Error fetching open positions: {e}")
+    #                 return []
 
     # def get_all_open_positions_bybit(self, retries=10, delay_factor=10) -> List[dict]:
     #     """
@@ -2389,7 +2421,7 @@ class Exchange:
     def cancel_order_by_id(self, order_id, symbol):
         try:
             self.exchange.cancel_derivatives_order(order_id, symbol)
-            logging.info(f"Canceled take profit order - ID: {order_id}")
+            logging.info(f"Canceled order - ID: {order_id}")
         except Exception as e:
             logging.info(f"An unknown error occurred in cancel_take_profit_orders: {e}")
 

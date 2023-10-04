@@ -4,7 +4,7 @@ from threading import Thread, Lock
 import time
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 import pandas as pd
 
@@ -43,6 +43,17 @@ class Manager:
         self.url = url
         self.last_checked = 0.0
         self.data = {}
+
+        # Attributes for caching
+        self.rotator_symbols_cache = None
+        self.rotator_symbols_cache_expiry = datetime.now() - timedelta(seconds=1)  # Initialize to an old timestamp to force first fetch
+
+        # Attributes for caching API data
+        self.api_data_cache = None
+        self.api_data_cache_expiry = datetime.now() - timedelta(seconds=1)
+
+        self.asset_value_cache = {}
+        self.asset_value_cache_expiry = {}
 
         if self.api == "remote":
             log.info("API manager mode: remote")
@@ -103,14 +114,21 @@ class Manager:
         self.update_last_checked()
         return self.data
 
+    def is_cache_expired(self):
+        """Checks if the cache has expired based on cache_life_seconds."""
+        return datetime.now() > self.rotator_symbols_cache_expiry
+
     def get_auto_rotate_symbols(self, min_qty_threshold: float = None, whitelist: list = None, blacklist: list = None, max_usd_value: float = None, max_retries: int = 100):
+        if self.rotator_symbols_cache and not self.is_cache_expired():
+            return self.rotator_symbols_cache
+
         symbols = []
         url = f"http://api.tradesimple.xyz/data/rotatorsymbols_{self.data_source_exchange}.json"
         
         for retry in range(max_retries):
             delay = 2**retry  # exponential backoff
-            delay = min(30, delay)  # cap the delay to 30 seconds
-            
+            delay = min(58, delay)  # cap the delay to 30 seconds
+
             try:
                 log.debug(f"Sending request to {url} (Attempt: {retry + 1})")
                 header, raw_json = send_public_request(url=url)
@@ -144,6 +162,12 @@ class Manager:
                             symbols.append(symbol)
 
                     log.debug(f"Returning {len(symbols)} symbols")
+                    
+                    # If successfully fetched, update the cache and its expiry time
+                    if symbols:
+                        self.rotator_symbols_cache = symbols
+                        self.rotator_symbols_cache_expiry = datetime.now() + timedelta(seconds=self.cache_life_seconds)
+
                     return symbols
 
                 else:
@@ -163,6 +187,67 @@ class Manager:
         
         # Return empty list if all retries fail
         return []
+    
+    # def get_auto_rotate_symbols(self, min_qty_threshold: float = None, whitelist: list = None, blacklist: list = None, max_usd_value: float = None, max_retries: int = 100):
+    #     symbols = []
+    #     url = f"http://api.tradesimple.xyz/data/rotatorsymbols_{self.data_source_exchange}.json"
+        
+    #     for retry in range(max_retries):
+    #         delay = 2**retry  # exponential backoff
+    #         delay = min(58, delay)  # cap the delay to 30 seconds
+            
+    #         try:
+    #             log.debug(f"Sending request to {url} (Attempt: {retry + 1})")
+    #             header, raw_json = send_public_request(url=url)
+                
+    #             if isinstance(raw_json, list):
+    #                 log.debug(f"Received {len(raw_json)} assets from API")
+                    
+    #                 for asset in raw_json:
+    #                     symbol = asset.get("Asset", "")
+    #                     min_qty = asset.get("Min qty", 0)
+    #                     usd_price = asset.get("Price", float('inf')) 
+                        
+    #                     log.debug(f"Processing symbol {symbol} with min_qty {min_qty} and USD price {usd_price}")
+
+    #                     # Only consider the whitelist if it's not empty or None
+    #                     if whitelist and symbol not in whitelist and len(whitelist) > 0:
+    #                         log.debug(f"Skipping {symbol} as it's not in whitelist")
+    #                         continue
+
+    #                     # Consider the blacklist regardless of whether it's empty or not
+    #                     if blacklist and symbol in blacklist:
+    #                         log.debug(f"Skipping {symbol} as it's in blacklist")
+    #                         continue
+
+    #                     # Check against the max_usd_value, if provided
+    #                     if max_usd_value is not None and usd_price > max_usd_value:
+    #                         log.debug(f"Skipping {symbol} as its USD price {usd_price} is greater than the max allowed {max_usd_value}")
+    #                         continue
+
+    #                     if min_qty_threshold is None or min_qty <= min_qty_threshold:
+    #                         symbols.append(symbol)
+
+    #                 log.debug(f"Returning {len(symbols)} symbols")
+    #                 return symbols
+
+    #             else:
+    #                 log.error("Unexpected data format. Expected a list of assets.")
+    #                 # No immediate retry here. The sleep at the end will handle the delay
+                    
+    #         except requests.exceptions.RequestException as e:
+    #             log.error(f"Request failed: {e}")
+    #         except json.decoder.JSONDecodeError as e:
+    #             log.error(f"Failed to parse JSON: {e}. Response: {raw_json}")
+    #         except Exception as e:
+    #             log.error(f"Unexpected error occurred: {e}")
+
+    #         # Wait before the next retry
+    #         if retry < max_retries - 1:
+    #             sleep(delay)
+        
+    #     # Return empty list if all retries fail
+    #     return []
     
     def get_symbols(self):
         url = "http://api.tradesimple.xyz/data/rotatorsymbols.json"
@@ -228,52 +313,109 @@ class Manager:
         return self.exchange.get_moving_averages(symbol, "5m", num_bars)
 
     def get_asset_value(self, symbol: str, data, value: str):
+        current_time = datetime.now()
+        
+        # Check if value exists in cache and hasn't expired
+        if symbol in self.asset_value_cache and value in self.asset_value_cache[symbol]:
+            if current_time <= self.asset_value_cache_expiry.get(symbol, {}).get(value, current_time - timedelta(seconds=1)):
+                return self.asset_value_cache[symbol][value]
+
+        # If not in cache or expired, fetch value
         try:
             asset_data = self.get_asset_data(symbol, data)
             if asset_data is not None:
-                if value == "Price" and "Price" in asset_data:
-                    return asset_data["Price"]
-                if value == "1mVol" and "1m 1x Volume (USDT)" in asset_data:
-                    return asset_data["1m 1x Volume (USDT)"]
-                if value == "5mVol" and "5m 1x Volume (USDT)" in asset_data:
-                    return asset_data["5m 1x Volume (USDT)"]
-                if value == "1hVol" and "1m 1h Volume (USDT)" in asset_data:
-                    return asset_data["1h 1x Volume (USDT)"]
-                if value == "1mSpread" and "1m Spread" in asset_data:
-                    return asset_data["1m Spread"]
-                if value == "5mSpread" and "5m Spread" in asset_data:
-                    return asset_data["5m Spread"]
-                if value == "15mSpread" and "15m Spread" in asset_data:
-                    return asset_data["15m Spread"]
-                if value == "30mSpread" and "30m Spread" in asset_data:
-                    return asset_data["30m Spread"]
-                if value == "1hSpread" and "1h Spread" in asset_data:
-                    return asset_data["1h Spread"]
-                if value == "4hSpread" and "4h Spread" in asset_data:
-                    return asset_data["4h Spread"]
-                if value == "Trend" and "Trend" in asset_data:
-                    return asset_data["Trend"]
-                if value == "Funding" and "Funding" in asset_data:
-                    return asset_data["Funding"]
-                if value == "MFI" and "MFI" in asset_data:
-                    return asset_data["MFI"]
-                if value == "ERI Bull Power" in asset_data:
-                    return asset_data["ERI Bull Power"]
-                if value == "ERI Bear Power" in asset_data:
-                    return asset_data["ERI Bear Power"]
-                if value == "ERI Trend" in asset_data:
-                    return asset_data["ERI Trend"]
-                if value == "HMA Trend" in asset_data:
-                    return asset_data["HMA Trend"]
+                result = None
+                mapping = {
+                    "Price": "Price",
+                    "1mVol": "1m 1x Volume (USDT)",
+                    "5mVol": "5m 1x Volume (USDT)",
+                    "1hVol": "1m 1h Volume (USDT)",
+                    "1mSpread": "1m Spread",
+                    "5mSpread": "5m Spread",
+                    "15mSpread": "15m Spread",
+                    "30mSpread": "30m Spread",
+                    "1hSpread": "1h Spread",
+                    "4hSpread": "4h Spread",
+                    "Trend": "Trend",
+                    "Funding": "Funding",
+                    "MFI": "MFI",
+                    "ERI Bull Power": "ERI Bull Power",
+                    "ERI Bear Power": "ERI Bear Power",
+                    "ERI Trend": "ERI Trend",
+                    "HMA Trend": "HMA Trend"
+                    # add other mappings here if needed
+                }
+                if value in mapping and mapping[value] in asset_data:
+                    result = asset_data[mapping[value]]
+
+                # Update cache and expiry time
+                if result:
+                    if symbol not in self.asset_value_cache:
+                        self.asset_value_cache[symbol] = {}
+                    if symbol not in self.asset_value_cache_expiry:
+                        self.asset_value_cache_expiry[symbol] = {}
+                    self.asset_value_cache[symbol][value] = result
+                    self.asset_value_cache_expiry[symbol][value] = current_time + timedelta(seconds=self.cache_life_seconds)
+
+                return result
+
         except Exception as e:
             log.warning(f"{e}")
+        
         return None
 
-    # def get_api_data(self, symbol):
-    #     data = self.get_data()
+    # def get_asset_value(self, symbol: str, data, value: str):
+    #     try:
+    #         asset_data = self.get_asset_data(symbol, data)
+    #         if asset_data is not None:
+    #             if value == "Price" and "Price" in asset_data:
+    #                 return asset_data["Price"]
+    #             if value == "1mVol" and "1m 1x Volume (USDT)" in asset_data:
+    #                 return asset_data["1m 1x Volume (USDT)"]
+    #             if value == "5mVol" and "5m 1x Volume (USDT)" in asset_data:
+    #                 return asset_data["5m 1x Volume (USDT)"]
+    #             if value == "1hVol" and "1m 1h Volume (USDT)" in asset_data:
+    #                 return asset_data["1h 1x Volume (USDT)"]
+    #             if value == "1mSpread" and "1m Spread" in asset_data:
+    #                 return asset_data["1m Spread"]
+    #             if value == "5mSpread" and "5m Spread" in asset_data:
+    #                 return asset_data["5m Spread"]
+    #             if value == "15mSpread" and "15m Spread" in asset_data:
+    #                 return asset_data["15m Spread"]
+    #             if value == "30mSpread" and "30m Spread" in asset_data:
+    #                 return asset_data["30m Spread"]
+    #             if value == "1hSpread" and "1h Spread" in asset_data:
+    #                 return asset_data["1h Spread"]
+    #             if value == "4hSpread" and "4h Spread" in asset_data:
+    #                 return asset_data["4h Spread"]
+    #             if value == "Trend" and "Trend" in asset_data:
+    #                 return asset_data["Trend"]
+    #             if value == "Funding" and "Funding" in asset_data:
+    #                 return asset_data["Funding"]
+    #             if value == "MFI" and "MFI" in asset_data:
+    #                 return asset_data["MFI"]
+    #             if value == "ERI Bull Power" in asset_data:
+    #                 return asset_data["ERI Bull Power"]
+    #             if value == "ERI Bear Power" in asset_data:
+    #                 return asset_data["ERI Bear Power"]
+    #             if value == "ERI Trend" in asset_data:
+    #                 return asset_data["ERI Trend"]
+    #             if value == "HMA Trend" in asset_data:
+    #                 return asset_data["HMA Trend"]
+    #     except Exception as e:
+    #         log.warning(f"{e}")
+    #     return None
+
+    def is_api_data_cache_expired(self):
+        return datetime.now() > self.api_data_cache_expiry
+
     def get_api_data(self, symbol):
+        if self.api_data_cache and not self.is_api_data_cache_expired():
+            return self.api_data_cache
+
         api_data_url = f"http://api.tradesimple.xyz/data/quantdatav2_{self.data_source_exchange}.json"
         data = self.fetch_data_from_url(api_data_url)
+
         api_data = {
             '1mVol': self.get_asset_value(symbol, data, "1mVol"),
             '5mVol': self.get_asset_value(symbol, data, "5mVol"),
@@ -290,4 +432,30 @@ class Manager:
             'Funding': self.get_asset_value(symbol, data, "Funding"),
             'Symbols': self.get_symbols()
         }
+
+        # Update the cache and its expiry time
+        self.api_data_cache = api_data
+        self.api_data_cache_expiry = datetime.now() + timedelta(seconds=self.cache_life_seconds)
+
         return api_data
+
+    # def get_api_data(self, symbol):
+    #     api_data_url = f"http://api.tradesimple.xyz/data/quantdatav2_{self.data_source_exchange}.json"
+    #     data = self.fetch_data_from_url(api_data_url)
+    #     api_data = {
+    #         '1mVol': self.get_asset_value(symbol, data, "1mVol"),
+    #         '5mVol': self.get_asset_value(symbol, data, "5mVol"),
+    #         '1hVol': self.get_asset_value(symbol, data, "1hVol"),
+    #         '1mSpread': self.get_asset_value(symbol, data, "1mSpread"),
+    #         '5mSpread': self.get_asset_value(symbol, data, "5mSpread"),
+    #         '30mSpread': self.get_asset_value(symbol, data, "30mSpread"),
+    #         '1hSpread': self.get_asset_value(symbol, data, "1hSpread"),
+    #         '4hSpread': self.get_asset_value(symbol, data, "4hSpread"),
+    #         'Trend': self.get_asset_value(symbol, data, "Trend"),
+    #         'HMA Trend': self.get_asset_value(symbol, data, "HMA Trend"),
+    #         'MFI': self.get_asset_value(symbol, data, "MFI"),
+    #         'ERI Trend': self.get_asset_value(symbol, data, "ERI Trend"),
+    #         'Funding': self.get_asset_value(symbol, data, "Funding"),
+    #         'Symbols': self.get_symbols()
+    #     }
+    #     return api_data

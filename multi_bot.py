@@ -76,12 +76,13 @@ class DirectionalMarketMaker:
     def run_strategy(self, symbol, strategy_name, config, account_name, symbols_to_trade=None):
         symbols_allowed = None
         for exch in config.exchanges:
+            #print(f"Checking: {exch.name} vs {self.exchange_name} and {exch.account_name} vs {account_name}")
             if exch.name == self.exchange_name and exch.account_name == account_name:
                 symbols_allowed = exch.symbols_allowed
                 break
 
         print(f"Multibot.py: symbols_allowed from config: {symbols_allowed}")
-
+        
         if symbols_to_trade:
             print(f"Calling run method with symbols: {symbols_to_trade}")
 
@@ -165,7 +166,7 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         balance = market_maker.get_balance(quote)
         print(f"Futures balance: {balance}")
 
-    market_maker.run_strategy(symbol, strategy_name, config, rotator_symbols)
+#    market_maker.run_strategy(symbol, strategy_name, config, rotator_symbols)
 
 def start_threads_for_symbols(symbols, args, manager, account_name, symbols_allowed):
     threads = [threading.Thread(target=run_bot, args=(symbol, args, manager, account_name, symbols_allowed, symbols)) for symbol in symbols]
