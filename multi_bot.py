@@ -29,9 +29,6 @@ from directionalscalper.core.strategies.bybit.multi.bybit_mm_hma import BybitMMh
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_5m import BybitMM5m
 from live_table_manager import LiveTableManager, shared_symbols_data
 
-# def standardize_symbol(symbol):
-#     return symbol.replace('/', '').split(':')[0]
-
 def standardize_symbol(symbol):
     return symbol.replace('/', '').split(':')[0]
 
@@ -53,6 +50,8 @@ def choose_strategy():
     ]
     answers = inquirer.prompt(questions)
     return answers['strategy']
+
+thread_to_symbol = {}
 
 class DirectionalMarketMaker:
     def __init__(self, config: Config, exchange_name: str, account_name: str):
@@ -138,6 +137,8 @@ class DirectionalMarketMaker:
 
 
 def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbols=None):
+    current_thread = threading.current_thread()
+    thread_to_symbol[current_thread] = symbol
     config_file_path = Path('configs/' + args.config)
     print("Loading config from:", config_file_path)
     config = load_config(config_file_path)
@@ -165,8 +166,6 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
     else:
         balance = market_maker.get_balance(quote)
         print(f"Futures balance: {balance}")
-
-#    market_maker.run_strategy(symbol, strategy_name, config, rotator_symbols)
 
 def start_threads_for_symbols(symbols, args, manager, account_name, symbols_allowed):
     threads = [threading.Thread(target=run_bot, args=(symbol, args, manager, account_name, symbols_allowed, symbols)) for symbol in symbols]
@@ -233,11 +232,7 @@ if __name__ == '__main__':
     config = load_config(config_file_path)
 
     exchange_name = args.exchange  # Now it will have a value
-    #market_maker = DirectionalMarketMaker(config, exchange_name)
     market_maker = DirectionalMarketMaker(config, exchange_name, args.account_name)
-    #manager = Manager(market_maker.exchange, api=config.api.mode, path=Path("data", config.api.filename), url=f"{config.api.url}{config.api.filename}")
-    #manager = Manager(market_maker.exchange, exchange_name=exchange_name, api=config.api.mode, path=Path("data", config.api.filename), url=f"{config.api.url}{config.api.filename}")
-    #manager = Manager(market_maker.exchange, exchange_name=config.api.data_source_exchange, api=config.api.mode, path=Path("data", config.api.filename), url=f"{config.api.url}{config.api.filename}")
 
     manager = Manager(
         market_maker.exchange, 
@@ -271,10 +266,6 @@ if __name__ == '__main__':
     display_thread.daemon = True
     display_thread.start()
     ### ILAY ###
-
-    #Check if the specific strategy is chosen, and if so, adjust symbols_allowed
-    # if args.strategy.lower() == 'bybit_rotator_aggressive':
-    #     symbols_allowed = 5
 
     # Fetch all symbols that meet your criteria and standardize them
     all_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist, max_usd_value=max_usd_value)]
@@ -310,10 +301,10 @@ if __name__ == '__main__':
         rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist, max_usd_value=max_usd_value)]
 
         # Find new symbols that are not yet being traded
-        new_symbols = [s for s in rotator_symbols_standardized if s not in [t._args[0] for t in active_threads]]
+        new_symbols = [s for s in rotator_symbols_standardized if s not in thread_to_symbol.values()]  # Step 3: Modify the line causing the error
 
         # Start new threads for new symbols
-        new_threads = start_threads_for_symbols(new_symbols, args, manager, args.account_name, symbols_allowed)  # Added args.account_name and symbols_allowed here
+        new_threads = start_threads_for_symbols(new_symbols, args, manager, args.account_name, symbols_allowed)
         active_threads.extend(new_threads)
 
         # Sleep for a while before the next iteration
