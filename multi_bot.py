@@ -26,7 +26,6 @@ from directionalscalper.core.strategies.bybit.multi.bybit_spoof_rotator import B
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute import BybitMMFiveMinute
 from directionalscalper.core.strategies.bybit.multi.bybit_mm import BybitMM
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_hma import BybitMMhma
-from directionalscalper.core.strategies.bybit.multi.bybit_mm_5m import BybitMM5m
 from live_table_manager import LiveTableManager, shared_symbols_data
 
 def standardize_symbol(symbol):
@@ -211,7 +210,7 @@ if __name__ == '__main__':
             inquirer.List('strategy',
                         message="Which strategy do you want to use?",
                         choices=['bybit_hedge_rotator', 'bybit_hedge_rotator_mfirsi', 'bybit_auto_hedge_mfi_rotator',
-                                'bybit_mfirsi_trend_rotator', 'bybit_rotator_aggressive']) if not args.strategy else None,
+                                'bybit_mfirsi_trend_rotator', 'bybit_rotator_aggressive', 'bybit_mm_fivemin']) if not args.strategy else None,
             inquirer.Text('account_name',
                         message="Please enter the name of the account:") if not args.account_name else None
         ]
