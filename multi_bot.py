@@ -28,6 +28,10 @@ from directionalscalper.core.strategies.bybit.multi.bybit_mm import BybitMM
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_hma import BybitMMhma
 from live_table_manager import LiveTableManager, shared_symbols_data
 
+from directionalscalper.core.strategies.logger import Logger
+
+logging = Logger(logger_name="MultiBot", filename="MultiBot.log", stream=True)
+
 def standardize_symbol(symbol):
     return symbol.replace('/', '').split(':')[0]
 
@@ -77,6 +81,7 @@ class DirectionalMarketMaker:
             #print(f"Checking: {exch.name} vs {self.exchange_name} and {exch.account_name} vs {account_name}")
             if exch.name == self.exchange_name and exch.account_name == account_name:
                 symbols_allowed = exch.symbols_allowed
+                print(f"Matched exchange: {exchange_name}, account: {args.account_name}. Symbols allowed: {symbols_allowed}")
                 break
 
         print(f"Multibot.py: symbols_allowed from config: {symbols_allowed}")
@@ -88,27 +93,27 @@ class DirectionalMarketMaker:
         if strategy_name.lower() == 'bybit_hedge_rotator':
             strategy = BybitAutoRotator(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol)
-        elif strategy_name.lower() == 'bybit_hedge_mfirsi':
-            strategy = BybitAutoRotatorMFIRSI(self.exchange, self.manager, config.bot, symbols_allowed)
+        elif strategy_name.lower() == 'bybit_mm_fivemin':
+            strategy = BybitMMFiveMinute(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol)
         elif strategy_name.lower() == 'bybit_mfirsi_trend_rotator':
             strategy = BybitMFIRSITrendRotator(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol)
-        elif strategy_name.lower() == 'bybit_mm_ratio':
-            strategy = BybitMFIRSITrendRatio(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol)
-        elif strategy_name.lower() == 'bybit_rotator_spoof':
-            strategy = BybitSpoofRotator(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol)
-        elif strategy_name.lower() == 'bybit_mm_fivemin':
-            strategy = BybitMMFiveMinute(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol)
-        elif strategy_name.lower() == 'bybit_mm':
-            strategy = BybitMM(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol)
-        elif strategy_name.lower() == 'bybit_mm_hma':
-            strategy = BybitMMhma(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol)
+        # elif strategy_name.lower() == 'bybit_hedge_mfirsi':
+        #     strategy = BybitAutoRotatorMFIRSI(self.exchange, self.manager, config.bot, symbols_allowed)
+        #     strategy.run(symbol)
+        # elif strategy_name.lower() == 'bybit_mm_ratio':
+        #     strategy = BybitMFIRSITrendRatio(self.exchange, self.manager, config.bot, symbols_allowed)
+        #     strategy.run(symbol)
+        # elif strategy_name.lower() == 'bybit_rotator_spoof':
+        #     strategy = BybitSpoofRotator(self.exchange, self.manager, config.bot, symbols_allowed)
+        #     strategy.run(symbol)
+        # elif strategy_name.lower() == 'bybit_mm':
+        #     strategy = BybitMM(self.exchange, self.manager, config.bot, symbols_allowed)
+        #     strategy.run(symbol)
+        # elif strategy_name.lower() == 'bybit_mm_hma':
+        #     strategy = BybitMMhma(self.exchange, self.manager, config.bot, symbols_allowed)
+        #     strategy.run(symbol)
 
     def get_balance(self, quote, market_type=None, sub_type=None):
         if self.exchange_name == 'bitget':
@@ -253,10 +258,12 @@ if __name__ == '__main__':
     # Loop through the exchanges to find the correct exchange and account name
     for exch in config.exchanges:
         if exch.name == exchange_name and exch.account_name == args.account_name:
+            logging.info(f"Symbols allowed changed to symbols_allowed from config")
             symbols_allowed = exch.symbols_allowed
             break
     else:
         # Default to a reasonable value if symbols_allowed is None
+        logging.info(f"Symbols allowed defaulted to 10")
         symbols_allowed = 10  # You can choose an appropriate default value
 
     ### ILAY ###

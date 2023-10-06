@@ -8,6 +8,9 @@ from typing import Union
 
 from pydantic import BaseModel, HttpUrl, ValidationError, validator, DirectoryPath
 
+from directionalscalper.core.strategies.logger import Logger
+logging = Logger(logger_name="Configuration", filename="Configuration.log", stream=True)
+
 VERSION = "v2.3.1"
 
 class Exchanges(Enum):
@@ -169,9 +172,33 @@ def get_exchange_credentials(exchange_name, account_name):
             secret_key = exchange_data['api_secret']
             passphrase = exchange_data.get('passphrase')
             symbols_allowed = exchange_data.get('symbols_allowed', 12)  # Default to 12 if not specified
+
+            # Logging the symbols_allowed value
+            if 'symbols_allowed' in exchange_data:
+                logging.info(f"Retrieved symbols_allowed for {exchange_name}: {symbols_allowed}")
+            else:
+                logging.warning(f"symbols_allowed not found for {exchange_name}. Defaulting to 12.")
+            
             return api_key, secret_key, passphrase, symbols_allowed
         else:
             raise ValueError(f"Account {account_name} for exchange {exchange_name} not found in the config file.")
+        
+# def get_exchange_credentials(exchange_name, account_name):
+#     with open('config.json') as file:
+#         data = json.load(file)
+#         exchange_data = None
+#         for exchange in data['exchanges']:
+#             if exchange['name'] == exchange_name and exchange['account_name'] == account_name:
+#                 exchange_data = exchange
+#                 break
+#         if exchange_data:
+#             api_key = exchange_data['api_key']
+#             secret_key = exchange_data['api_secret']
+#             passphrase = exchange_data.get('passphrase')
+#             symbols_allowed = exchange_data.get('symbols_allowed', 12)  # Default to 12 if not specified
+#             return api_key, secret_key, passphrase, symbols_allowed
+#         else:
+#             raise ValueError(f"Account {account_name} for exchange {exchange_name} not found in the config file.")
 
 # def get_exchange_credentials(exchange_name, account_name):
 #     with open('config.json') as file:

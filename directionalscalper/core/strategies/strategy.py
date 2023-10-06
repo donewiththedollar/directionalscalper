@@ -1722,24 +1722,27 @@ class Strategy:
                 time.sleep(delay)
         raise Exception(f"Failed to execute the API function after {max_retries} retries.")
 
-
     def can_trade_new_symbol(self, open_symbols: list, symbols_allowed: int, current_symbol: str) -> bool:
         """
         Checks if the bot can trade a given symbol.
         """
-        
         self.open_symbols_count = len(open_symbols)  # Update the attribute with the current count
 
         logging.info(f"Open symbols count: {self.open_symbols_count}")
-        
+
         if symbols_allowed is None:
             symbols_allowed = 10  # Use a default value if symbols_allowed is not specified
-        if self.open_symbols_count >= symbols_allowed:
-            return False  # This restricts opening new positions if we have reached the symbols_allowed limit
-        elif current_symbol in open_symbols:
-            return True  # This allows new positions on already traded symbols
-        else:
-            return self.open_symbols_count < symbols_allowed  # This checks if we can trade a new symbol
+
+        # If the current symbol is already being traded, allow it
+        if current_symbol in open_symbols:
+            return True
+
+        # If we haven't reached the symbol limit, allow a new symbol to be traded
+        if self.open_symbols_count < symbols_allowed:
+            return True
+
+        # If none of the above conditions are met, don't allow the new trade
+        return False
 
     def update_shared_data(self, symbol_data: dict, open_position_data: dict, open_symbols_count: int):
         # Update and serialize symbol data
@@ -4634,15 +4637,6 @@ class Strategy:
                                 
             logging.info(f"Variables in manage_open_positions for {open_symbol}: market_data={market_data}, total_equity={total_equity}, best_ask_price_open_symbol={best_ask_price_open_symbol}, max_leverage={max_leverage}")
 
-            
-            # # Calculate your take profit levels for each open symbol - with avoiding fees
-            # short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit_fees(
-            #     position_data_open_symbol["short"]["price"], short_pos_qty_open_symbol, open_symbol, five_minute_distance
-            # )
-            # long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit_fees(
-            #     position_data_open_symbol["long"]["price"], long_pos_qty_open_symbol, open_symbol, five_minute_distance
-            # )
-            
             # Calculate your take profit levels for each open symbol.
             short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(
                 position_data_open_symbol["short"]["price"], open_symbol, five_minute_distance
@@ -4790,17 +4784,9 @@ class Strategy:
             best_ask_price_open_symbol = self.exchange.get_orderbook(open_symbol)['asks'][0][0]
             best_bid_price_open_symbol = self.exchange.get_orderbook(open_symbol)['bids'][0][0]
             
-            # # Calculate the max trade quantities dynamically for this specific symbol
-            # self.initial_max_long_trade_qty, self.initial_max_short_trade_qty = self.calc_max_trade_qty_multi(
-            #     total_equity, best_ask_price_open_symbol, max_leverage)
-
             long_dynamic_amount_open_symbol, short_dynamic_amount_open_symbol, min_qty = self.calculate_dynamic_amount(
                 open_symbol, market_data, total_equity, best_ask_price_open_symbol, max_leverage
             )
-
-            # long_dynamic_amount_open_symbol, short_dynamic_amount_open_symbol, min_qty = self.calculate_dynamic_amount_multi(
-            #     open_symbol, market_data, total_equity, best_ask_price_open_symbol, max_leverage
-            # )
 
             self.bybit_reset_position_leverage_long(long_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
             self.bybit_reset_position_leverage_short(short_pos_qty_open_symbol, total_equity, best_ask_price_open_symbol, max_leverage)
@@ -4814,14 +4800,6 @@ class Strategy:
             ma_3_high_open_symbol = moving_averages_open_symbol["ma_3_high"]
             ma_1m_3_high_open_symbol = moving_averages_open_symbol["ma_1m_3_high"]
             ma_5m_3_high_open_symbol = moving_averages_open_symbol["ma_5m_3_high"]
-
-            # # Calculate your take profit levels for each open symbol - with avoiding fees
-            # short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit_fees(
-            #     position_data_open_symbol["short"]["price"], short_pos_qty_open_symbol, open_symbol, five_minute_distance
-            # )
-            # long_take_profit_open_symbol = self.calculate_long_take_profit_spread_bybit_fees(
-            #     position_data_open_symbol["long"]["price"], long_pos_qty_open_symbol, open_symbol, five_minute_distance
-            # )
 
             # Calculate your take profit levels for each open symbol.
             short_take_profit_open_symbol = self.calculate_short_take_profit_spread_bybit(

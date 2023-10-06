@@ -53,6 +53,7 @@ class BybitMMFiveMinute(Strategy):
         total_equity = None
         available_equity = None
         one_minute_volume = None
+        five_minute_volume = None
         five_minute_distance = None
         trend = None
         long_pos_qty = 0
@@ -124,6 +125,7 @@ class BybitMMFiveMinute(Strategy):
             hma_trend = api_data['HMA Trend']
 
             logging.info(f"One minute volume for {symbol} : {one_minute_volume}")
+            logging.info(f"Five minute volume for {symbol} : {five_minute_volume}")
             logging.info(f"Five minute distance for {symbol} : {five_minute_distance}")
 
             funding_check = self.is_funding_rate_acceptable(symbol)
@@ -143,13 +145,16 @@ class BybitMMFiveMinute(Strategy):
             
             logging.info(f"Open orders: {open_orders}")
 
-            can_open_new_position = self.can_trade_new_symbol(open_symbols, self.symbols_allowed, symbol)
-            logging.info(f"Can open new position: {can_open_new_position}")
+            logging.info(f"Symbols allowed: {self.symbols_allowed}")
+
+            trading_allowed = self.can_trade_new_symbol(open_symbols, self.symbols_allowed, symbol)
+            logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
 
             short_pos_qty = position_data["short"]["qty"]
             long_pos_qty = position_data["long"]["qty"]
 
-            if symbol in rotator_symbols and symbol in open_symbols:
+            #if symbol in rotator_symbols and symbol in open_symbols:
+            if symbol in rotator_symbols and (symbol in open_symbols or trading_allowed):
 
                 logging.info(f"Rotator symbols: {rotator_symbols}")
                 logging.info(f"Open symbols: {open_symbols}")
@@ -331,28 +336,25 @@ class BybitMMFiveMinute(Strategy):
 
                 logging.info(f"Managing new rotator symbol {symbol} not in open symbols")
 
-                if can_open_new_position:
-                    logging.info(f"NEW POSITIONS ALLOWED")
-                    open_symbols_count = len(open_symbols)
+                if trading_allowed:
+                    logging.info(f"New position allowed {symbol}")
+                    self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
+                    self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
 
-                    if open_symbols_count < self.symbols_allowed:
-                        logging.info(f"Open symbols count < symbols allowed")
-                        self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
-                        self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
+                    long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount(symbol, total_equity, best_ask_price, self.max_leverage)
 
-                        long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount(symbol, total_equity, best_ask_price, self.max_leverage)
+                    short_pos_qty = position_data["short"]["qty"]
+                    long_pos_qty = position_data["long"]["qty"]
 
-                        short_pos_qty = position_data["short"]["qty"]
-                        long_pos_qty = position_data["long"]["qty"]
+                    should_short = self.short_trade_condition(best_ask_price, moving_averages["ma_3_high"])
+                    should_long = self.long_trade_condition(best_bid_price, moving_averages["ma_3_low"])
+                            
+                    self.bybit_initial_entry_mm_5m(open_orders, symbol, trend, hma_trend, mfirsi_signal, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
 
-                        should_short = self.short_trade_condition(best_ask_price, moving_averages["ma_3_high"])
-                        should_long = self.long_trade_condition(best_bid_price, moving_averages["ma_3_low"])
-                        
-                        self.bybit_initial_entry_mm_5m(open_orders, symbol, trend, hma_trend, mfirsi_signal, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
-
-                        # time.sleep(15)
+                    # time.sleep(15)
                 else:
                     logging.warning(f"Potential trade for {symbol} skipped as max symbol limit reached.")
+
 
             symbol_data = {
                 'symbol': symbol,
@@ -360,7 +362,7 @@ class BybitMMFiveMinute(Strategy):
                 'current_price': current_price,
                 'balance': total_equity,
                 'available_bal': available_equity,
-                'volume': one_minute_volume,
+                'volume': five_minute_volume,
                 'spread': five_minute_distance,
                 'trend': trend,
                 'long_pos_qty': long_pos_qty,
