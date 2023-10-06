@@ -151,6 +151,9 @@ class BybitMMFiveMinute(Strategy):
 
             if symbol in rotator_symbols and symbol in open_symbols:
 
+                logging.info(f"Rotator symbols: {rotator_symbols}")
+                logging.info(f"Open symbols: {open_symbols}")
+
                 logging.info(f"Long pos qty {long_pos_qty} for {symbol}")
                 logging.info(f"Short pos qty {short_pos_qty} for {symbol}")
 

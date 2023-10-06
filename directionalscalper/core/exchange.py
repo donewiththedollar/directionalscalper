@@ -6,17 +6,22 @@ import pandas as pd
 import json
 import requests, hmac, hashlib
 import urllib.parse
+import threading
+import traceback
 from typing import Optional, Tuple, List
 from ccxt.base.errors import RateLimitExceeded
 from .strategies.logger import Logger
 from requests.exceptions import HTTPError
 from datetime import datetime, timedelta
 from ccxt.base.errors import NetworkError
-import traceback
 
 logging = Logger(logger_name="Exchange", filename="Exchange.log", stream=True)
 
 class Exchange:
+    # Shared class-level cache variables
+    open_positions_shared_cache = None
+    last_open_positions_time_shared = None
+    open_positions_semaphore = threading.Semaphore()
     class Bybit:
         def __init__(self, parent):
             self.parent = parent  # Refers to the outer Exchange instance
@@ -36,55 +41,6 @@ class Exchange:
             logging.error(f"Failed to fetch open orders for {symbol} after {self.max_retries} retries.")
             return []
         
-        # def get_open_tp_orders(self, symbol):
-        #     long_tp_orders = []
-        #     short_tp_orders = []
-        #     for _ in range(self.max_retries):
-        #         try:
-        #             all_open_orders = self.parent.exchange.fetch_open_orders(symbol)
-        #             logging.info(f"All open orders {all_open_orders}")
-                    
-        #             for order in all_open_orders:
-        #                 logging.info(f"Order: {order['id']}, reduceOnly: {order['info'].get('reduceOnly')}, side: {order['side']}")
-                        
-        #                 if order['info'].get('reduceOnly', False):
-        #                     if order['side'] == 'sell':
-        #                         long_tp_orders.append(order)
-        #                     elif order['side'] == 'buy':
-        #                         short_tp_orders.append(order)
-                    
-        #             return long_tp_orders, short_tp_orders
-        #         except ccxt.RateLimitExceeded:
-        #             logging.warning(f"Rate limit exceeded when fetching TP orders for {symbol}. Retrying in {self.retry_wait} seconds...")
-        #             time.sleep(self.retry_wait)
-        #     logging.error(f"Failed to fetch TP orders for {symbol} after {self.max_retries} retries.")
-        #     return long_tp_orders, short_tp_orders
-
-        # def get_open_tp_orders(self, symbol):
-        #     long_tp_orders = []
-        #     short_tp_orders = []
-        #     for _ in range(self.max_retries):
-        #         try:
-        #             all_open_orders = self.parent.exchange.fetch_open_orders(symbol)
-        #             logging.info(f"All open orders for {symbol}: {all_open_orders}")
-                    
-        #             for order in all_open_orders:
-        #                 logging.info(f"Order: {order['id']}, reduceOnly: {order['info'].get('reduceOnly')}, side: {order['side']}")
-        #                 logging.info(f"Order 'info' details for {order['id']}: {order['info']}")  # Log the 'info' field of each order
-                        
-        #                 if order['info'].get('reduceOnly', False):
-        #                     if order['side'] == 'sell':
-        #                         long_tp_orders.append(order)
-        #                     elif order['side'] == 'buy':
-        #                         short_tp_orders.append(order)
-                    
-        #             return long_tp_orders, short_tp_orders
-        #         except ccxt.RateLimitExceeded:
-        #             logging.warning(f"Rate limit exceeded when fetching TP orders for {symbol}. Retrying in {self.retry_wait} seconds...")
-        #             time.sleep(self.retry_wait)
-        #     logging.error(f"Failed to fetch TP orders for {symbol} after {self.max_retries} retries.")
-        #     return long_tp_orders, short_tp_orders
-
         def get_open_tp_orders(self, symbol):
             long_tp_orders = []
             short_tp_orders = []
@@ -112,8 +68,6 @@ class Exchange:
             logging.error(f"Failed to fetch TP orders for {symbol} after {self.max_retries} retries.")
             return long_tp_orders, short_tp_orders
 
-
-
         def get_open_tp_order_count(self, symbol):
             """
             Fetches the count of open take profit (TP) orders for the given symbol.
@@ -126,34 +80,6 @@ class Exchange:
                 'long_tp_count': len(long_tp_orders),
                 'short_tp_count': len(short_tp_orders)
             }
-
-        # def get_open_tp_orders(self, symbol):
-        #     for _ in range(self.max_retries):
-        #         try:
-        #             all_open_orders = self.parent.exchange.fetch_open_orders(symbol)
-        #             logging.info(f"All open orders {all_open_orders}")
-                    
-        #             for order in all_open_orders:
-        #                 logging.info(f"Order: {order['id']}, reduceOnly: {order['info'].get('reduceOnly')}")
-                    
-        #             tp_orders = [order for order in all_open_orders if order['info'].get('reduceOnly', False)]
-        #             logging.info(f"TP orders : {tp_orders}")
-        #             return tp_orders
-        #         except ccxt.RateLimitExceeded:
-        #             logging.warning(f"Rate limit exceeded when fetching TP orders for {symbol}. Retrying in {self.retry_wait} seconds...")
-        #             time.sleep(self.retry_wait)
-        #     logging.error(f"Failed to fetch TP orders for {symbol} after {self.max_retries} retries.")
-        #     return []
-
-        # def get_open_tp_order_count(self, symbol):
-        #     """
-        #     Fetches the count of open take profit (TP) orders for the given symbol.
-            
-        #     :param str symbol: The trading pair symbol.
-        #     :return: Count of TP orders for the symbol.
-        #     """
-        #     tp_orders = self.get_open_tp_orders(symbol)
-        #     return len(tp_orders)
 
         def get_open_take_profit_orders(self, symbol, side):
             """
@@ -1216,34 +1142,70 @@ class Exchange:
     def get_all_open_positions_bybit(self, retries=10, delay_factor=10, max_delay=60) -> List[dict]:
         now = datetime.now()
 
-        # Check if the cache is still valid
-        cache_duration = timedelta(seconds=30)  # Increased to 30 seconds
-        if self.open_positions_cache and self.last_open_positions_time and now - self.last_open_positions_time < cache_duration:
-            return self.open_positions_cache
+        # Check if the shared cache is still valid
+        cache_duration = timedelta(seconds=30)  # Cache duration is 30 seconds
+        if self.open_positions_shared_cache and self.last_open_positions_time_shared and now - self.last_open_positions_time_shared < cache_duration:
+            return self.open_positions_shared_cache
 
-        for attempt in range(retries):
-            try:
-                # No symbol is passed to fetch_positions to get positions for all symbols.
-                all_positions = self.exchange.fetch_positions() 
-                open_positions = [position for position in all_positions if float(position.get('contracts', 0)) != 0] 
+        # Using a semaphore to limit concurrent API requests
+        with self.open_positions_semaphore:
+            # Double-checking the cache inside the semaphore to ensure no other thread has refreshed it in the meantime
+            if self.open_positions_shared_cache and self.last_open_positions_time_shared and now - self.last_open_positions_time_shared < cache_duration:
+                return self.open_positions_shared_cache
 
-                # Update the cache with the new data
-                self.open_positions_cache = open_positions
-                self.last_open_positions_time = now
+            for attempt in range(retries):
+                try:
+                    all_positions = self.exchange.fetch_positions() 
+                    open_positions = [position for position in all_positions if float(position.get('contracts', 0)) != 0] 
 
-                return open_positions
-            except Exception as e:
-                # Check for rate limit by HTTP status code (if available) or by error message
-                is_rate_limit_error = "Too many visits" in str(e) or (hasattr(e, 'response') and e.response.status_code == 403)
+                    # Update the shared cache with the new data
+                    self.open_positions_shared_cache = open_positions
+                    self.last_open_positions_time_shared = now
+
+                    return open_positions
+                except Exception as e:
+                    is_rate_limit_error = "Too many visits" in str(e) or (hasattr(e, 'response') and e.response.status_code == 403)
+                    
+                    if is_rate_limit_error and attempt < retries - 1:
+                        delay = min(delay_factor * (attempt + 1), max_delay)  # Exponential delay with a cap
+                        logging.info(f"Rate limit on get_all_open_positions_bybit hit, waiting for {delay} seconds before retrying...")
+                        time.sleep(delay)
+                        continue
+                    else:
+                        logging.error(f"Error fetching open positions: {e}")
+                        return []
+
+    # def get_all_open_positions_bybit(self, retries=10, delay_factor=10, max_delay=60) -> List[dict]:
+    #     now = datetime.now()
+
+    #     # Check if the cache is still valid
+    #     cache_duration = timedelta(seconds=30)  # Increased to 30 seconds
+    #     if self.open_positions_cache and self.last_open_positions_time and now - self.last_open_positions_time < cache_duration:
+    #         return self.open_positions_cache
+
+    #     for attempt in range(retries):
+    #         try:
+    #             # No symbol is passed to fetch_positions to get positions for all symbols.
+    #             all_positions = self.exchange.fetch_positions() 
+    #             open_positions = [position for position in all_positions if float(position.get('contracts', 0)) != 0] 
+
+    #             # Update the cache with the new data
+    #             self.open_positions_cache = open_positions
+    #             self.last_open_positions_time = now
+
+    #             return open_positions
+    #         except Exception as e:
+    #             # Check for rate limit by HTTP status code (if available) or by error message
+    #             is_rate_limit_error = "Too many visits" in str(e) or (hasattr(e, 'response') and e.response.status_code == 403)
                 
-                if is_rate_limit_error and attempt < retries - 1:
-                    delay = min(delay_factor * (attempt + 1), max_delay)  # Exponential delay with a cap
-                    logging.info(f"Rate limit on get_all_open_positions_bybit hit, waiting for {delay} seconds before retrying...")
-                    time.sleep(delay)
-                    continue
-                else:
-                    print(f"Error fetching open positions: {e}")
-                    return []
+    #             if is_rate_limit_error and attempt < retries - 1:
+    #                 delay = min(delay_factor * (attempt + 1), max_delay)  # Exponential delay with a cap
+    #                 logging.info(f"Rate limit on get_all_open_positions_bybit hit, waiting for {delay} seconds before retrying...")
+    #                 time.sleep(delay)
+    #                 continue
+    #             else:
+    #                 print(f"Error fetching open positions: {e}")
+    #                 return []
 
     def print_positions_structure_binance(self):
         try:
