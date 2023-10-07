@@ -29,7 +29,7 @@ class Manager:
         exchange_name: str = 'bybit',  # Defaulting to 'binance'
         data_source_exchange: str = 'binance',
         api: str = "remote",
-        cache_life_seconds: int = 45,
+        cache_life_seconds: int = 20,
         path: Path | None = None,
         url: str = "",
     ):
