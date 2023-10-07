@@ -19,11 +19,12 @@ from directionalscalper.core.exchange import Exchange
 from directionalscalper.core.strategies.strategy import Strategy
 # Bybit rotator
 from directionalscalper.core.strategies.bybit.multi.bybit_auto_rotator import BybitAutoRotator
-from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi import BybitAutoRotatorMFIRSI
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator import BybitMFIRSITrendRotator
+from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute import BybitMMFiveMinute
+from directionalscalper.core.strategies.bybit.multi.bybit_obstrength import BybitOBStrength
+from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi import BybitAutoRotatorMFIRSI
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator_ratio import BybitMFIRSITrendRatio
 from directionalscalper.core.strategies.bybit.multi.bybit_spoof_rotator import BybitSpoofRotator
-from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute import BybitMMFiveMinute
 from directionalscalper.core.strategies.bybit.multi.bybit_mm import BybitMM
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_hma import BybitMMhma
 from live_table_manager import LiveTableManager, shared_symbols_data
@@ -98,6 +99,9 @@ class DirectionalMarketMaker:
             strategy.run(symbol)
         elif strategy_name.lower() == 'bybit_mfirsi_trend':
             strategy = BybitMFIRSITrendRotator(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy.run(symbol)
+        elif strategy_name.lower() == 'bybit_obstrength':
+            strategy = BybitOBStrength(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol)
         # elif strategy_name.lower() == 'bybit_hedge_mfirsi':
         #     strategy = BybitAutoRotatorMFIRSI(self.exchange, self.manager, config.bot, symbols_allowed)
