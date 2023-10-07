@@ -168,6 +168,34 @@ class Exchange:
                 logging.info(f"An error occurred while fetching symbols: {e}, retrying in 10 seconds...")
                 time.sleep(10)
 
+    def get_ohlc_data(self, symbol, timeframe='1H', since=None, limit=None):
+        """
+        Fetches historical OHLC data for the given symbol and timeframe using ccxt's fetch_ohlcv method.
+        
+        :param str symbol: Symbol of the market to fetch OHLCV data for.
+        :param str timeframe: The length of time each candle represents.
+        :param int since: Timestamp in ms of the earliest candle to fetch.
+        :param int limit: The maximum amount of candles to fetch.
+        
+        :return: List of OHLCV data.
+        """
+        ohlc_data = self.fetch_ohlcv(symbol, timeframe, since, limit)
+        
+        # Parsing the data to a more friendly format (optional)
+        parsed_data = []
+        for entry in ohlc_data:
+            timestamp, open_price, high, low, close_price, volume = entry
+            parsed_data.append({
+                'timestamp': timestamp,
+                'open': open_price,
+                'high': high,
+                'low': low,
+                'close': close_price,
+                'volume': volume
+            })
+
+        return parsed_data
+    
     def check_account_type_huobi(self):
         if self.exchange_id.lower() != 'huobi':
             logging.info("This operation is only available for Huobi.")
@@ -561,6 +589,35 @@ class Exchange:
         return None
 
     # Bybit regular and unified
+    # def get_balance_bybit(self, quote):
+    #     if self.exchange.has['fetchBalance']:
+    #         # Fetch the balance
+    #         balance_response = self.exchange.fetch_balance()
+
+    #         # Check if it's the unified structure
+    #         if 'result' in balance_response:
+    #             coin_list = balance_response.get('result', {}).get('coin', [])
+    #             for currency_balance in coin_list:
+    #                 if currency_balance['coin'] == quote:
+    #                     return float(currency_balance['equity'])
+    #         # If not unified, handle the old structure
+    #         elif 'info' in balance_response:
+    #             for currency_balance in balance_response['info']['result']['list']:
+    #                 if currency_balance['coin'] == quote:
+    #                     return float(currency_balance['equity'])
+
+    #     return None
+
+    def retry_api_call(self, function, *args, max_retries=100, delay=5, **kwargs):
+        for i in range(max_retries):
+            try:
+                return function(*args, **kwargs)
+            except Exception as e:
+                logging.info(f"Error occurred during API call: {e}. Retrying in {delay} seconds...")
+                time.sleep(delay)
+        raise Exception(f"Failed to execute the API function after {max_retries} retries.")
+
+    # Bybit
     def get_balance_bybit(self, quote):
         if self.exchange.has['fetchBalance']:
             # Fetch the balance
@@ -577,10 +634,11 @@ class Exchange:
                 for currency_balance in balance_response['info']['result']['list']:
                     if currency_balance['coin'] == quote:
                         return float(currency_balance['equity'])
+            else:
+                raise Exception("Unable to fetch balance due to unexpected response structure.")
+        else:
+            raise Exception("fetchBalance not supported by the exchange.")
 
-        return None
-
-    # Bybit
     def get_available_balance_bybit(self, quote):
         if self.exchange.has['fetchBalance']:
             # Fetch the balance

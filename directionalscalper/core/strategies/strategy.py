@@ -5217,6 +5217,25 @@ class Strategy:
             )
             logging.info(f"Short leverage for {symbol} returned to normal {self.short_pos_leverage_per_symbol[symbol]}x")
 
+    def calculate_atr(self, symbol, period=14):
+        # Fetch historical OHLC data for the symbol and timeframe
+        ohlc_data = self.exchange.get_ohlc_data(symbol, timeframe="1H", limit=period+1)  # Assuming hourly data for example, adjust as needed
+        
+        tr_values = []
+        
+        for i in range(1, len(ohlc_data)):
+            high = ohlc_data[i]['high']
+            low = ohlc_data[i]['low']
+            prev_close = ohlc_data[i-1]['close']
+            
+            tr = max(high - low, abs(high - prev_close), abs(low - prev_close))
+            tr_values.append(tr)
+        
+        # Calculate the average TR over the specified period
+        atr = sum(tr_values) / period
+        
+        return atr
+
 # Bybit position leverage management
 
     def bybit_reset_position_leverage_long(self, symbol, long_pos_qty, total_equity, best_ask_price, max_leverage):

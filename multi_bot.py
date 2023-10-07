@@ -119,9 +119,10 @@ class DirectionalMarketMaker:
         if self.exchange_name == 'bitget':
             return self.exchange.get_balance_bitget(quote)
         elif self.exchange_name == 'bybit':
-            return self.exchange.get_balance_bybit(quote)
+            return self.exchange.retry_api_call(self.exchange.get_balance_bybit(quote))
+            #return self.exchange.get_balance_bybit(quote)
         elif self.exchange_name == 'bybit_unified':
-            return self.exchange.get_balance_bybit(quote)
+            return self.exchange.retry_api_call(self.exchange.get_balance_bybit(quote))
         elif self.exchange_name == 'mexc':
             return self.exchange.get_balance_mexc(quote, market_type='swap')
         elif self.exchange_name == 'huobi':
