@@ -149,10 +149,12 @@ class BybitMMFiveMinute(Strategy):
 
             trading_allowed = self.can_trade_new_symbol(open_symbols, self.symbols_allowed, symbol)
             logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
+            logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
 
-            if symbol not in open_symbols and not trading_allowed:
-                logging.warning(f"Skipping actions for symbol {symbol} as it's not tradable. due to trading allowed: {trading_allowed}")
-                continue  # This will skip the rest of the loop for this iteration
+
+            # if symbol not in open_symbols and not trading_allowed:
+            #     logging.warning(f"Skipping actions for symbol {symbol} as it's not tradable. due to trading allowed: {trading_allowed}")
+            #     continue  # This will skip the rest of the loop for this iteration
 
             short_pos_qty = position_data["short"]["qty"]
             long_pos_qty = position_data["long"]["qty"]
