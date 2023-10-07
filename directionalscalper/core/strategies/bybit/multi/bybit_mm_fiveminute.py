@@ -65,6 +65,10 @@ class BybitMMFiveMinute(Strategy):
         long_pos_price = None
         short_pos_price = None
 
+        # Initializing time trackers for less frequent API calls
+        last_equity_fetch_time = 0
+        equity_refresh_interval = 1800  # 30 minutes in seconds
+
         # Check leverages only at startup
         self.current_leverage = self.exchange.get_current_leverage_bybit(symbol)
         self.max_leverage = self.exchange.get_max_leverage_bybit(symbol)
@@ -100,16 +104,23 @@ class BybitMMFiveMinute(Strategy):
         previous_five_minute_distance = None
 
         while True:
+            current_time = time.time()
+
+            # Fetch rotator symbols and open symbols every loop
             rotator_symbols = self.manager.get_auto_rotate_symbols()
             open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
             open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
             open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
             api_data = self.manager.get_api_data(symbol)
             position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
-            total_equity = self.retry_api_call(self.exchange.get_balance_bybit, quote_currency)
-            available_equity = self.retry_api_call(self.exchange.get_available_balance_bybit, quote_currency)
             open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
-
+            
+            # Fetch equity data less frequently
+            if current_time - last_equity_fetch_time > equity_refresh_interval:
+                total_equity = self.retry_api_call(self.exchange.get_balance_bybit, quote_currency)
+                available_equity = self.retry_api_call(self.exchange.get_available_balance_bybit, quote_currency)
+                last_equity_fetch_time = current_time
+                
             whitelist = self.config.whitelist
             blacklist = self.config.blacklist
             if symbol not in whitelist or symbol in blacklist:
@@ -160,6 +171,8 @@ class BybitMMFiveMinute(Strategy):
             long_pos_qty = position_data["long"]["qty"]
 
             # #if symbol in rotator_symbols and symbol in open_symbols:
+
+            time.sleep(10)
 
             # If the symbol is in rotator_symbols and either it's already being traded or trading is allowed.
             if symbol in rotator_symbols and (symbol in open_symbols or trading_allowed):
@@ -276,7 +289,7 @@ class BybitMMFiveMinute(Strategy):
                 self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
                 self.cancel_stale_orders_bybit()
 
-                # time.sleep(5)
+                time.sleep(10)
 
             elif symbol not in rotator_symbols and symbol in open_symbols:
                 logging.info(f"Managing open symbols not in rotator_symbols")
