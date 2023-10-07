@@ -303,6 +303,20 @@ class BybitOBStrength(Strategy):
 
                 long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_obstrength(symbol, total_equity, best_ask_price, self.max_leverage)
 
+                should_short = self.short_trade_condition(best_ask_price, moving_averages["ma_3_high"])
+                should_long = self.long_trade_condition(best_bid_price, moving_averages["ma_3_low"])
+                should_add_to_short = False
+                should_add_to_long = False
+
+                if short_pos_price is not None:
+                    should_add_to_short = short_pos_price < moving_averages["ma_6_low"] and self.short_trade_condition(best_ask_price, moving_averages["ma_6_high"])
+
+                if long_pos_price is not None:
+                    should_add_to_long = long_pos_price > moving_averages["ma_6_high"] and self.long_trade_condition(best_bid_price, moving_averages["ma_6_low"])
+
+
+                self.bybit_hedge_additional_entry_obstrength(open_orders, symbol, trend, mfirsi_signal, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_add_to_long, should_add_to_short)
+
                 # [Rest of the logic for symbols not in open_positions]
                 # Place long TP order if there are no existing long TP orders
                 if long_pos_qty > 0 and long_take_profit is not None and tp_order_counts['long_tp_count'] == 0:
