@@ -218,7 +218,8 @@ class BybitOBStrength(Strategy):
                     self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
 
                 # Entries, and additional entries
-                self.bybit_hedge_entry_maker_obstrength(open_orders, symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
+                
+                self.bybit_hedge_entry_maker_obstrength(open_orders, symbol, trend, mfirsi_signal, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
 
                 tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
 
@@ -363,8 +364,7 @@ class BybitOBStrength(Strategy):
                     should_short = self.short_trade_condition(best_ask_price, moving_averages["ma_3_high"])
                     should_long = self.long_trade_condition(best_bid_price, moving_averages["ma_3_low"])
                             
-                    self.bybit_hedge_initial_entry_obstrength(open_orders, symbol, trend, mfirsi_signal, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
-
+                    self.bybit_hedge_initial_entry_obstrength(open_orders, symbol, trend, mfirsi_signal, long_dynamic_amount, short_dynmaic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
                     # time.sleep(15)
                 else:
                     logging.warning(f"Potential trade for {symbol} skipped as max symbol limit reached.")
