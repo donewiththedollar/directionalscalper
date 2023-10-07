@@ -183,8 +183,8 @@ class BybitMMFiveMinute(Strategy):
                 logging.info(f"Long pos qty {long_pos_qty} for {symbol}")
                 logging.info(f"Short pos qty {short_pos_qty} for {symbol}")
 
-                short_liq_price = position_data["short"]["liq_price"]
-                long_liq_price = position_data["long"]["liq_price"]
+                # short_liq_price = position_data["short"]["liq_price"]
+                # long_liq_price = position_data["long"]["liq_price"]
 
                 self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
                 self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
@@ -209,7 +209,6 @@ class BybitMMFiveMinute(Strategy):
 
                 short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
                 previous_five_minute_distance = five_minute_distance
-
 
                 logging.info(f"Short take profit: {short_take_profit}")
                 logging.info(f"Long take profit: {long_take_profit}")
