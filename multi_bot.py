@@ -43,7 +43,7 @@ def choose_strategy():
                           'bybit_hedge_rotator',
                           'bybit_hedge_mfirsi',
                           'bybit_auto_hedge_mfi_rotator',
-                          'bybit_mfirsi_trend_rotator',
+                          'bybit_mfirsi_trend',
                           'bybit_rotator_aggressive',
                           'bybit_mm',
                           'bybit_mm_hma',
@@ -96,7 +96,7 @@ class DirectionalMarketMaker:
         elif strategy_name.lower() == 'bybit_mm_fivemin':
             strategy = BybitMMFiveMinute(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol)
-        elif strategy_name.lower() == 'bybit_mfirsi_trend_rotator':
+        elif strategy_name.lower() == 'bybit_mfirsi_trend':
             strategy = BybitMFIRSITrendRotator(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol)
         # elif strategy_name.lower() == 'bybit_hedge_mfirsi':
@@ -215,7 +215,7 @@ if __name__ == '__main__':
             inquirer.List('strategy',
                         message="Which strategy do you want to use?",
                         choices=['bybit_hedge_rotator', 'bybit_hedge_rotator_mfirsi', 'bybit_auto_hedge_mfi_rotator',
-                                'bybit_mfirsi_trend_rotator', 'bybit_rotator_aggressive', 'bybit_mm_fivemin']) if not args.strategy else None,
+                                'bybit_mfirsi_trend', 'bybit_rotator_aggressive', 'bybit_mm_fivemin']) if not args.strategy else None,
             inquirer.Text('account_name',
                         message="Please enter the name of the account:") if not args.account_name else None
         ]
