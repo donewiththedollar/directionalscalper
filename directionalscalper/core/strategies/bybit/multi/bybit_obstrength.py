@@ -297,6 +297,11 @@ class BybitOBStrength(Strategy):
                 logging.info(f"Short take profit for managed symbol {symbol}: {short_take_profit}")
                 logging.info(f"Long take profit for managed symbol {symbol} : {long_take_profit}")
 
+                self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
+                self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
+
+                long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_obstrength(symbol, total_equity, best_ask_price, self.max_leverage)
+
                 # [Rest of the logic for symbols not in open_positions]
                 # Place long TP order if there are no existing long TP orders
                 if long_pos_qty > 0 and long_take_profit is not None and tp_order_counts['long_tp_count'] == 0:
@@ -333,6 +338,11 @@ class BybitOBStrength(Strategy):
                     )
 
                 self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
+
+                current_time = time.time()
+                if current_time - self.last_cancel_time >= self.spoofing_interval:
+                    self.spoofing_active = True
+                    self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
 
                 time.sleep(15)
 
