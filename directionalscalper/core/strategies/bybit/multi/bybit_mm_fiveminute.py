@@ -150,12 +150,18 @@ class BybitMMFiveMinute(Strategy):
             trading_allowed = self.can_trade_new_symbol(open_symbols, self.symbols_allowed, symbol)
             logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
 
+            if symbol not in open_symbols and not trading_allowed:
+                logging.warning(f"Skipping actions for symbol {symbol} as it's not tradable. due to trading allowed: {trading_allowed}")
+                continue  # This will skip the rest of the loop for this iteration
+
             short_pos_qty = position_data["short"]["qty"]
             long_pos_qty = position_data["long"]["qty"]
 
-            #if symbol in rotator_symbols and symbol in open_symbols:
-            if symbol in rotator_symbols and (symbol in open_symbols or trading_allowed):
+            # #if symbol in rotator_symbols and symbol in open_symbols:
 
+            # If the symbol is in rotator_symbols and either it's already being traded or trading is allowed.
+            if symbol in rotator_symbols and (symbol in open_symbols or trading_allowed):
+                            
                 logging.info(f"Rotator symbols: {rotator_symbols}")
                 logging.info(f"Open symbols: {open_symbols}")
 
@@ -332,7 +338,8 @@ class BybitMMFiveMinute(Strategy):
 
                 time.sleep(15)
 
-            elif symbol in rotator_symbols and symbol not in open_symbols:
+            # elif symbol in rotator_symbols and symbol not in open_symbols:
+            elif symbol in rotator_symbols and symbol not in open_symbols and trading_allowed:
 
                 logging.info(f"Managing new rotator symbol {symbol} not in open symbols")
 
