@@ -333,11 +333,17 @@ class Strategy:
 
         market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
 
-        long_dynamic_amount = 0.001 * self.initial_max_long_trade_qty_per_symbol[symbol]
-        short_dynamic_amount = 0.001 * self.initial_max_short_trade_qty_per_symbol[symbol]
+        #long_dynamic_amount = 0.001 * self.initial_max_long_trade_qty_per_symbol[symbol]
+        #short_dynamic_amount = 0.001 * self.initial_max_short_trade_qty_per_symbol[symbol]
+
+        long_dynamic_amount = 0.001 * total_equity
+        short_dynamic_amount = 0.001 * total_equity
 
         # Incorporate order book strength into the dynamic amounts
         strength = self.calculate_orderbook_strength(symbol)
+
+        logging.info(f"OB strength: {strength}")
+
         aggressive_multiplier = 1 + (3 * (strength - 0.5))  # Enhanced aggression!
 
         long_dynamic_amount *= aggressive_multiplier
@@ -382,61 +388,6 @@ class Strategy:
         logging.info(f"Symbol: {symbol} Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 
         return long_dynamic_amount, short_dynamic_amount, min_qty
-
-    # def calculate_dynamic_amount_obstrength(self, symbol, total_equity, best_ask_price, max_leverage):
-    #     self.initialize_trade_quantities(symbol, total_equity, best_ask_price, max_leverage)
-
-    #     market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
-
-    #     long_dynamic_amount = 0.001 * self.initial_max_long_trade_qty_per_symbol[symbol]
-    #     short_dynamic_amount = 0.001 * self.initial_max_short_trade_qty_per_symbol[symbol]
-
-    #     # Incorporate order book strength into the dynamic amounts
-    #     strength = self.calculate_orderbook_strength(symbol)
-    #     aggressive_multiplier = 1 + (2 * (strength - 0.5))
-
-    #     long_dynamic_amount *= aggressive_multiplier
-    #     short_dynamic_amount *= aggressive_multiplier
-
-    #     logging.info(f"Initial long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
-
-    #     # Cap the dynamic amount if it exceeds the maximum allowed
-    #     max_allowed_dynamic_amount = (self.MAX_PCT_EQUITY / 100) * total_equity
-    #     logging.info(f"Max allowed dynamic amount for {symbol} : {max_allowed_dynamic_amount}")
-
-    #     min_qty = float(market_data["min_qty"])
-
-    #     logging.info(f"Min qty for {symbol} : {min_qty}")
-
-    #     # Determine precision level directly
-    #     precision_level = len(str(min_qty).split('.')[-1]) if '.' in str(min_qty) else 0
-    #     logging.info(f"min_qty: {min_qty}, precision_level: {precision_level}")
-
-    #     # Round the dynamic amounts based on precision level
-    #     long_dynamic_amount = round(long_dynamic_amount, precision_level)
-    #     short_dynamic_amount = round(short_dynamic_amount, precision_level)
-
-    #     logging.info(f"Rounded long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
-
-    #     long_dynamic_amount = min(long_dynamic_amount, max_allowed_dynamic_amount)
-    #     short_dynamic_amount = min(short_dynamic_amount, max_allowed_dynamic_amount)
-
-    #     logging.info(f"Forced min qty long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
-
-    #     self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
-    #     self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
-
-    #     # Using min_qty if dynamic amount is too small
-    #     if long_dynamic_amount < min_qty:
-    #         logging.info(f"Dynamic amount too small for 0.001x, using min_qty for long_dynamic_amount")
-    #         long_dynamic_amount = min_qty
-    #     if short_dynamic_amount < min_qty:
-    #         logging.info(f"Dynamic amount too small for 0.001x, using min_qty for short_dynamic_amount")
-    #         short_dynamic_amount = min_qty
-
-    #     logging.info(f"Symbol: {symbol} Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
-
-    #     return long_dynamic_amount, short_dynamic_amount, min_qty
 
 
     def calculate_dynamic_amount(self, symbol, total_equity, best_ask_price, max_leverage):
