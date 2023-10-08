@@ -63,7 +63,7 @@ class Strategy:
         self.blacklist = self.config.blacklist
         self.max_usd_value = self.config.max_usd_value
         self.LEVERAGE_STEP = 0.002  # The step at which to increase leverage
-        self.MAX_LEVERAGE = 0.7 #0.3  # The maximum allowable leverage
+        self.MAX_LEVERAGE = 0.3 #0.3  # The maximum allowable leverage
         self.QTY_INCREMENT = 0.02 # How much your position size increases
         self.MAX_PCT_EQUITY = 0.1
         self.ORDER_BOOK_DEPTH = 10
@@ -351,9 +351,10 @@ class Strategy:
 
         logging.info(f"OB strength: {strength}")
 
-        aggressive_steps = (strength - 0.5) * 10  # This will give values between -5 to 5 based on strength
+        aggressive_steps = max(0, (strength - 0.5) * 10)  # This ensures values are always non-negative
         long_dynamic_amount += aggressive_steps * min_qty
         short_dynamic_amount += aggressive_steps * min_qty
+
 
         logging.info(f"Initial long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 
@@ -372,6 +373,59 @@ class Strategy:
         logging.info(f"Rounded long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 
         # If you're feeling audacious, you can comment out the next two lines. But beware of the risks!
+        long_dynamic_amount = min(long_dynamic_amount, max_allowed_dynamic_amount)
+        short_dynamic_amount = min(short_dynamic_amount, max_allowed_dynamic_amount)
+
+        logging.info(f"Forced min qty long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+
+        self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
+        self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
+
+        # Using min_qty if dynamic amount is too small
+        if long_dynamic_amount < min_qty:
+            logging.info(f"Dynamic amount too small for 0.001x, using min_qty for long_dynamic_amount")
+            long_dynamic_amount = min_qty
+        if short_dynamic_amount < min_qty:
+            logging.info(f"Dynamic amount too small for 0.001x, using min_qty for short_dynamic_amount")
+            short_dynamic_amount = min_qty
+
+        logging.info(f"Symbol: {symbol} Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+
+        return long_dynamic_amount, short_dynamic_amount, min_qty
+
+
+    def calculate_dynamic_amount_v2(self, symbol, total_equity, best_ask_price, max_leverage):
+
+        self.initialize_trade_quantities(symbol, total_equity, best_ask_price, max_leverage)
+
+        market_data = self.get_market_data_with_retry(symbol, max_retries = 100, retry_delay = 5)
+
+        min_qty = float(market_data["min_qty"])
+
+        logging.info(f"Min qty for {symbol} : {min_qty}")
+
+        long_dynamic_amount = 0.0001 * total_equity
+        short_dynamic_amount = 0.0001 * total_equity
+
+        # long_dynamic_amount = 0.001 * self.initial_max_long_trade_qty_per_symbol[symbol]
+        # short_dynamic_amount = 0.001 * self.initial_max_short_trade_qty_per_symbol[symbol]
+
+        logging.info(f"Initial long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+
+        # Cap the dynamic amount if it exceeds the maximum allowed
+        max_allowed_dynamic_amount = (self.MAX_PCT_EQUITY / 100) * total_equity
+        logging.info(f"Max allowed dynamic amount for {symbol} : {max_allowed_dynamic_amount}")
+        
+        # Determine precision level directly
+        precision_level = len(str(min_qty).split('.')[-1]) if '.' in str(min_qty) else 0
+        logging.info(f"min_qty: {min_qty}, precision_level: {precision_level}")
+
+        # Round the dynamic amounts based on precision level
+        long_dynamic_amount = round(long_dynamic_amount, precision_level)
+        short_dynamic_amount = round(short_dynamic_amount, precision_level)
+
+        logging.info(f"Rounded long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+
         long_dynamic_amount = min(long_dynamic_amount, max_allowed_dynamic_amount)
         short_dynamic_amount = min(short_dynamic_amount, max_allowed_dynamic_amount)
 
@@ -3192,7 +3246,7 @@ class Strategy:
                             logging.info(f"{order_side.capitalize()} take profit set at {take_profit_price}")
                             success = True
                         except Exception as e:
-                            logging.error(f"Failed to set {order_side} TP. Retry {retries + 1}/{max_retries}. Error: {e}")
+                            logging.error(f"Failed to set {order_side} TP for {symbol}. Retry {retries + 1}/{max_retries}. Error: {e}")
                             retries += 1
                             time.sleep(1)  # Wait for a moment before retrying
 
