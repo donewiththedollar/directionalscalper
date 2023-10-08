@@ -339,8 +339,12 @@ class Strategy:
         #long_dynamic_amount = 0.001 * self.initial_max_long_trade_qty_per_symbol[symbol]
         #short_dynamic_amount = 0.001 * self.initial_max_short_trade_qty_per_symbol[symbol]
 
-        # long_dynamic_amount = 0.001 * total_equity
-        # short_dynamic_amount = 0.001 * total_equity
+        long_dynamic_amount = 0.001 * total_equity
+        short_dynamic_amount = 0.001 * total_equity
+
+        logging.info(f"Regular long  dynamic amount: {long_dynamic_amount}")
+        logging.info(f"Regular short dynamic amount: {short_dynamic_amount}")
+        
 
         # Incorporate order book strength into the dynamic amounts
         strength = self.calculate_orderbook_strength(symbol)
