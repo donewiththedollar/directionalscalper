@@ -21,6 +21,7 @@ from directionalscalper.core.strategies.strategy import Strategy
 from directionalscalper.core.strategies.bybit.multi.bybit_auto_rotator import BybitAutoRotator
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator import BybitMFIRSITrendRotator
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute import BybitMMFiveMinute
+from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute_v2 import BybitMMFiveMinutev2
 from directionalscalper.core.strategies.bybit.multi.bybit_obstrength import BybitOBStrength
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi import BybitAutoRotatorMFIRSI
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator_ratio import BybitMFIRSITrendRatio
@@ -102,6 +103,9 @@ class DirectionalMarketMaker:
             strategy.run(symbol)
         elif strategy_name.lower() == 'bybit_obstrength':
             strategy = BybitOBStrength(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy.run(symbol)
+        elif strategy_name.lower() == 'bybit_mm_fivemin_v2':
+            strategy = BybitMMFiveMinutev2(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol)
         # elif strategy_name.lower() == 'bybit_hedge_mfirsi':
         #     strategy = BybitAutoRotatorMFIRSI(self.exchange, self.manager, config.bot, symbols_allowed)
