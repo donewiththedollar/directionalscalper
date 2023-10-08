@@ -333,21 +333,23 @@ class Strategy:
 
         market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
 
+        min_qty = float(market_data["min_qty"])
+        logging.info(f"Min qty for {symbol} : {min_qty}")
+
         #long_dynamic_amount = 0.001 * self.initial_max_long_trade_qty_per_symbol[symbol]
         #short_dynamic_amount = 0.001 * self.initial_max_short_trade_qty_per_symbol[symbol]
 
-        long_dynamic_amount = 0.001 * total_equity
-        short_dynamic_amount = 0.001 * total_equity
+        # long_dynamic_amount = 0.001 * total_equity
+        # short_dynamic_amount = 0.001 * total_equity
 
         # Incorporate order book strength into the dynamic amounts
         strength = self.calculate_orderbook_strength(symbol)
 
         logging.info(f"OB strength: {strength}")
 
-        aggressive_multiplier = 1 + (3 * (strength - 0.5))  # Enhanced aggression!
-
-        long_dynamic_amount *= aggressive_multiplier
-        short_dynamic_amount *= aggressive_multiplier
+        aggressive_steps = (strength - 0.5) * 10  # This will give values between -5 to 5 based on strength
+        long_dynamic_amount += aggressive_steps * min_qty
+        short_dynamic_amount += aggressive_steps * min_qty
 
         logging.info(f"Initial long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 
@@ -355,9 +357,6 @@ class Strategy:
         AGGRESSIVE_MAX_PCT_EQUITY = 0.5  # 50% of the total equity, but feel the thrill and adjust as you see fit!
         max_allowed_dynamic_amount = AGGRESSIVE_MAX_PCT_EQUITY * total_equity
         logging.info(f"Max allowed dynamic amount for {symbol} : {max_allowed_dynamic_amount}")
-
-        min_qty = float(market_data["min_qty"])
-        logging.info(f"Min qty for {symbol} : {min_qty}")
 
         # Determine precision level directly
         precision_level = len(str(min_qty).split('.')[-1]) if '.' in str(min_qty) else 0
