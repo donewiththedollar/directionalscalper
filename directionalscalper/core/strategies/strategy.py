@@ -359,7 +359,7 @@ class Strategy:
         logging.info(f"Initial long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 
         # Ramp up the maximum allowed dynamic amount for aggressive tactics
-        AGGRESSIVE_MAX_PCT_EQUITY = 0.5  # 50% of the total equity, but feel the thrill and adjust as you see fit!
+        AGGRESSIVE_MAX_PCT_EQUITY = 0.25  # 25% of the total equity, but feel the thrill and adjust as you see fit!
         max_allowed_dynamic_amount = AGGRESSIVE_MAX_PCT_EQUITY * total_equity
         logging.info(f"Max allowed dynamic amount for {symbol} : {max_allowed_dynamic_amount}")
 
