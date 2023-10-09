@@ -171,7 +171,7 @@ class BybitMFIRSITrendRotator(Strategy):
                 self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
                 self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
 
-                long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount(symbol, total_equity, best_ask_price, self.max_leverage)
+                long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v2(symbol, total_equity, best_ask_price, self.max_leverage)
                 logging.info(f"Long dynamic amount: {long_dynamic_amount} for {symbol}")
                 logging.info(f"Short dynamic amount: {short_dynamic_amount} for {symbol}")
 
@@ -344,7 +344,7 @@ class BybitMFIRSITrendRotator(Strategy):
                     self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
                     self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
 
-                    long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount(symbol, total_equity, best_ask_price, self.max_leverage)
+                    long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v2(symbol, total_equity, best_ask_price, self.max_leverage)
 
                     short_pos_qty = position_data["short"]["qty"]
                     long_pos_qty = position_data["long"]["qty"]
