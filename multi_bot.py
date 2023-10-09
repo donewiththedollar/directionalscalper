@@ -87,8 +87,8 @@ class DirectionalMarketMaker:
             print(f"Calling run method with symbols: {symbols_to_trade}")
 
         # Pass symbols_allowed to the strategy constructors
-        if strategy_name.lower() == 'bybit_hedge_rotator':
-            strategy = BybitAutoRotator(self.exchange, self.manager, config.bot, symbols_allowed)
+        if strategy_name.lower() == 'bybit_mm_mfirsi':
+            strategy = BybitAutoRotatorMFIRSI(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol)
         elif strategy_name.lower() == 'bybit_mm_fivemin':
             strategy = BybitMMFiveMinute(self.exchange, self.manager, config.bot, symbols_allowed)
