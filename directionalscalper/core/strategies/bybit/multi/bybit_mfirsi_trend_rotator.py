@@ -244,28 +244,30 @@ class BybitMFIRSITrendRotator(Strategy):
                 current_time = datetime.now()
 
                 # Check for long positions
-                if current_time >= self.next_long_tp_update and long_take_profit is not None:
-                    self.next_long_tp_update = self.update_take_profit_spread_bybit(
-                        symbol=symbol, 
-                        pos_qty=long_pos_qty, 
-                        positionIdx=1, 
-                        order_side="sell", 
-                        next_tp_update=self.next_long_tp_update,
-                        five_minute_distance=five_minute_distance, 
-                        previous_five_minute_distance=previous_five_minute_distance
-                    )
+                if long_pos_qty > 0:
+                    if current_time >= self.next_long_tp_update and long_take_profit is not None:
+                        self.next_long_tp_update = self.update_take_profit_spread_bybit(
+                            symbol=symbol, 
+                            pos_qty=long_pos_qty, 
+                            positionIdx=1, 
+                            order_side="sell", 
+                            next_tp_update=self.next_long_tp_update,
+                            five_minute_distance=five_minute_distance, 
+                            previous_five_minute_distance=previous_five_minute_distance
+                        )
 
                 # Check for short positions
-                if current_time >= self.next_short_tp_update and short_take_profit is not None:
-                    self.next_short_tp_update = self.update_take_profit_spread_bybit(
-                        symbol=symbol, 
-                        pos_qty=short_pos_qty, 
-                        positionIdx=2, 
-                        order_side="buy", 
-                        next_tp_update=self.next_short_tp_update,
-                        five_minute_distance=five_minute_distance, 
-                        previous_five_minute_distance=previous_five_minute_distance
-                    )
+                if short_pos_qty > 0:
+                    if current_time >= self.next_short_tp_update and short_take_profit is not None:
+                        self.next_short_tp_update = self.update_take_profit_spread_bybit(
+                            symbol=symbol, 
+                            pos_qty=short_pos_qty, 
+                            positionIdx=2, 
+                            order_side="buy", 
+                            next_tp_update=self.next_short_tp_update,
+                            five_minute_distance=five_minute_distance, 
+                            previous_five_minute_distance=previous_five_minute_distance
+                        )
 
 
                 self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
@@ -308,28 +310,30 @@ class BybitMFIRSITrendRotator(Strategy):
                 current_time = datetime.now()
 
                 # Check for long positions
-                if current_time >= self.next_long_tp_update and long_take_profit is not None:
-                    self.next_long_tp_update = self.update_take_profit_spread_bybit(
-                        symbol=symbol, 
-                        pos_qty=long_pos_qty, 
-                        positionIdx=1, 
-                        order_side="sell", 
-                        next_tp_update=self.next_long_tp_update,
-                        five_minute_distance=five_minute_distance, 
-                        previous_five_minute_distance=previous_five_minute_distance
-                    )
+                if long_pos_qty > 0:
+                    if current_time >= self.next_long_tp_update and long_take_profit is not None:
+                        self.next_long_tp_update = self.update_take_profit_spread_bybit(
+                            symbol=symbol, 
+                            pos_qty=long_pos_qty, 
+                            positionIdx=1, 
+                            order_side="sell", 
+                            next_tp_update=self.next_long_tp_update,
+                            five_minute_distance=five_minute_distance, 
+                            previous_five_minute_distance=previous_five_minute_distance
+                        )
 
                 # Check for short positions
-                if current_time >= self.next_short_tp_update and short_take_profit is not None:
-                    self.next_short_tp_update = self.update_take_profit_spread_bybit(
-                        symbol=symbol, 
-                        pos_qty=short_pos_qty, 
-                        positionIdx=2, 
-                        order_side="buy", 
-                        next_tp_update=self.next_short_tp_update,
-                        five_minute_distance=five_minute_distance, 
-                        previous_five_minute_distance=previous_five_minute_distance
-                    )
+                if short_pos_qty > 0:
+                    if current_time >= self.next_short_tp_update and short_take_profit is not None:
+                        self.next_short_tp_update = self.update_take_profit_spread_bybit(
+                            symbol=symbol, 
+                            pos_qty=short_pos_qty, 
+                            positionIdx=2, 
+                            order_side="buy", 
+                            next_tp_update=self.next_short_tp_update,
+                            five_minute_distance=five_minute_distance, 
+                            previous_five_minute_distance=previous_five_minute_distance
+                        )
 
                 self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
 
