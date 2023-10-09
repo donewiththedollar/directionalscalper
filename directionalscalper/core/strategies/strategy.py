@@ -3205,16 +3205,21 @@ class Strategy:
         return next_tp_update
 
 
-    def update_take_profit_spread_bybit(self, symbol, pos_qty, positionIdx, order_side, next_tp_update, five_minute_distance, previous_five_minute_distance, max_retries=10):
+    def update_take_profit_spread_bybit(self, symbol, pos_qty, short_take_profit, long_take_profit, short_pos_price, long_pos_price, positionIdx, order_side, next_tp_update, five_minute_distance, previous_five_minute_distance, max_retries=10):
         # Fetch the current open TP orders for the symbol
         long_tp_orders, short_tp_orders = self.exchange.bybit.get_open_tp_orders(symbol)
-        
-        # Calculate the TP values based on the spread
-        short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(None, None, symbol, five_minute_distance, previous_five_minute_distance, None, None)
+
+        # # Calculate the TP values based on the spread
+        # short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
+        # #short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(None, None, symbol, five_minute_distance, previous_five_minute_distance, None, None)
+
+        logging.info(f"From update_take_profit_spread : Calculated short TP for {symbol}: {short_take_profit}")
+        logging.info(f"From update_take_profit_spread : Calculated long TP for {symbol}: {long_take_profit}")
 
         # Determine the take profit price based on the order side
         take_profit_price = long_take_profit if order_side == "sell" else short_take_profit
-        
+        logging.info(f"Determined TP price for {symbol} {order_side}: {take_profit_price}") 
+
         # Determine the relevant TP orders and quantities based on the order side
         relevant_tp_orders = long_tp_orders if order_side == "sell" else short_tp_orders
 

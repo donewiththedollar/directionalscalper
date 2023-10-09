@@ -178,6 +178,8 @@ class BybitMMFiveMinute(Strategy):
 
             # If the symbol is in rotator_symbols and either it's already being traded or trading is allowed.
             if symbol in rotator_symbols and (symbol in open_symbols or trading_allowed):
+
+                logging.info(f"Rotator symbol trading: {symbol}")
                             
                 logging.info(f"Rotator symbols: {rotator_symbols}")
                 logging.info(f"Open symbols: {open_symbols}")
@@ -213,8 +215,8 @@ class BybitMMFiveMinute(Strategy):
                 previous_five_minute_distance = five_minute_distance
 
 
-                logging.info(f"Short take profit: {short_take_profit}")
-                logging.info(f"Long take profit: {long_take_profit}")
+                logging.info(f"Short take profit for {symbol}: {short_take_profit}")
+                logging.info(f"Long take profit for {symbol}: {long_take_profit}")
 
                 should_short = self.short_trade_condition(best_ask_price, moving_averages["ma_3_high"])
                 should_long = self.long_trade_condition(best_bid_price, moving_averages["ma_3_low"])
@@ -253,12 +255,17 @@ class BybitMMFiveMinute(Strategy):
                 logging.info(f"Long take profit {long_take_profit} for {symbol}")
                 logging.info(f"Short take profit {short_take_profit} for {symbol}")
 
+                logging.info(f"Long TP order count for {symbol} is {tp_order_counts['long_tp_count']}")
+                logging.info(f"Short TP order count for {symbol} is {tp_order_counts['short_tp_count']}")
+
                 # Place long TP order if there are no existing long TP orders
                 if long_pos_qty > 0 and long_take_profit is not None and tp_order_counts['long_tp_count'] == 0:
+                    logging.info(f"Placing long TP order for {symbol} with {long_take_profit}")
                     self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
 
                 # Place short TP order if there are no existing short TP orders
                 if short_pos_qty > 0 and short_take_profit is not None and tp_order_counts['short_tp_count'] == 0:
+                    logging.info(f"Placing short TP order for {symbol} with {short_take_profit}")
                     self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
                     
                 current_time = datetime.now()
@@ -269,6 +276,10 @@ class BybitMMFiveMinute(Strategy):
                         self.next_long_tp_update = self.update_take_profit_spread_bybit(
                             symbol=symbol, 
                             pos_qty=long_pos_qty, 
+                            long_take_profit=long_take_profit,
+                            short_take_profit=short_take_profit,
+                            short_pos_price=short_pos_price,
+                            long_pos_price=long_pos_price,
                             positionIdx=1, 
                             order_side="sell", 
                             next_tp_update=self.next_long_tp_update,
@@ -282,6 +293,10 @@ class BybitMMFiveMinute(Strategy):
                         self.next_short_tp_update = self.update_take_profit_spread_bybit(
                             symbol=symbol, 
                             pos_qty=short_pos_qty, 
+                            short_pos_price=short_pos_price,
+                            long_pos_price=long_pos_price,
+                            short_take_profit=short_take_profit,
+                            long_take_profit=long_take_profit,
                             positionIdx=2, 
                             order_side="buy", 
                             next_tp_update=self.next_short_tp_update,
@@ -330,12 +345,20 @@ class BybitMMFiveMinute(Strategy):
                 current_time = datetime.now()
 
 
+                logging.info(f"Short pos qty for managed {symbol}: {short_pos_qty}")
+                logging.info(f"Long pos qty for managed {symbol}: {long_pos_qty}")
+
+
                 if long_pos_qty > 0:
                     # Check for long positions
                     if current_time >= self.next_long_tp_update and long_take_profit is not None:
                         self.next_long_tp_update = self.update_take_profit_spread_bybit(
                             symbol=symbol, 
                             pos_qty=long_pos_qty, 
+                            short_take_profit=short_take_profit,
+                            long_take_profit=long_take_profit,
+                            short_pos_price=short_pos_price,
+                            long_pos_price=long_pos_price,
                             positionIdx=1, 
                             order_side="sell", 
                             next_tp_update=self.next_long_tp_update,
@@ -349,6 +372,10 @@ class BybitMMFiveMinute(Strategy):
                         self.next_short_tp_update = self.update_take_profit_spread_bybit(
                             symbol=symbol, 
                             pos_qty=short_pos_qty, 
+                            short_take_profit=short_take_profit,
+                            long_take_profit=long_take_profit,
+                            short_pos_price=short_pos_price,
+                            long_pos_price=long_pos_price,
                             positionIdx=2, 
                             order_side="buy", 
                             next_tp_update=self.next_short_tp_update,
