@@ -41,7 +41,7 @@ def choose_strategy():
         inquirer.List('strategy',
                       message='Which strategy would you like to run?',
                       choices=[
-                          'bybit_hedge_rotator',
+                          'bybit_mm_mfirsi',
                           'bybit_mm_fivemin',
                           'bybit_mfirsi_trend',
                           'bybit_obstrength',
@@ -216,7 +216,7 @@ if __name__ == '__main__':
                         choices=['bybit', 'bitget', 'mexc', 'huobi', 'okx', 'binance', 'phemex']) if not args.exchange else None,
             inquirer.List('strategy',
                         message="Which strategy do you want to use?",
-                        choices=['bybit_hedge_rotator', 'bybit_mm_fivemin', 'bybit_mfirsi_trend',
+                        choices=['bybit_mm_mfirsi', 'bybit_mm_fivemin', 'bybit_mfirsi_trend',
                                 'bybit_obstrength']) if not args.strategy else None,
             inquirer.Text('account_name',
                         message="Please enter the name of the account:") if not args.account_name else None
