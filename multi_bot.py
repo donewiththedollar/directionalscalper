@@ -21,7 +21,6 @@ from directionalscalper.core.strategies.strategy import Strategy
 from directionalscalper.core.strategies.bybit.multi.bybit_auto_rotator import BybitAutoRotator
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator import BybitMFIRSITrendRotator
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute import BybitMMFiveMinute
-from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute_v2 import BybitMMFiveMinutev2
 from directionalscalper.core.strategies.bybit.multi.bybit_obstrength import BybitOBStrength
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi import BybitAutoRotatorMFIRSI
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator_ratio import BybitMFIRSITrendRatio
@@ -99,9 +98,6 @@ class DirectionalMarketMaker:
             strategy.run(symbol)
         elif strategy_name.lower() == 'bybit_obstrength':
             strategy = BybitOBStrength(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol)
-        elif strategy_name.lower() == 'bybit_mm_fivemin_v2':
-            strategy = BybitMMFiveMinutev2(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol)
         # elif strategy_name.lower() == 'bybit_hedge_mfirsi':
         #     strategy = BybitAutoRotatorMFIRSI(self.exchange, self.manager, config.bot, symbols_allowed)
@@ -221,7 +217,7 @@ if __name__ == '__main__':
             inquirer.List('strategy',
                         message="Which strategy do you want to use?",
                         choices=['bybit_hedge_rotator', 'bybit_mm_fivemin', 'bybit_mfirsi_trend',
-                                'bybit_obstrength', 'bybit_mm_fivemin_v2']) if not args.strategy else None,
+                                'bybit_obstrength']) if not args.strategy else None,
             inquirer.Text('account_name',
                         message="Please enter the name of the account:") if not args.account_name else None
         ]
