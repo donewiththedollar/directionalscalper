@@ -29,7 +29,7 @@ class Manager:
         self,
         exchange,
         exchange_name: str = 'bybit',  # Defaulting to 'bybit'
-        data_source_exchange: str = 'binance',
+        data_source_exchange: str = 'bybit',
         api: str = "remote",
         cache_life_seconds: int = 240,
         asset_value_cache_life_seconds: int = 10,
@@ -117,27 +117,7 @@ class Manager:
 
         # Return cached data if all retries fail
         return self.data
-
-    # def fetch_data_from_url(self, url):
-    #     current_time = datetime.now()
-    #     if current_time <= self.data_cache_expiry:
-    #         return self.data
-    #     try:
-    #         header, raw_json = send_public_request(url=url)
-    #         # Update the data cache and its expiry time
-    #         self.data = raw_json
-    #         self.data_cache_expiry = current_time + timedelta(seconds=self.cache_life_seconds)
-    #         return raw_json
-    #     except requests.exceptions.RequestException as e:
-    #         logging.error(f"Request failed: {e}")
-    #     except json.decoder.JSONDecodeError as e:
-    #         logging.error(f"Failed to parse JSON: {e}")
-    #     except Exception as e:
-    #         logging.error(f"Unexpected error occurred: {e}")
-        
-    #     # Return cached data if there's an error
-    #     return self.data
-
+    
     def get_data(self):
         if self.api == "remote":
             return self.get_remote_data()
