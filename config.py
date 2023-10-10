@@ -11,7 +11,7 @@ from pydantic import BaseModel, HttpUrl, ValidationError, validator, DirectoryPa
 from directionalscalper.core.strategies.logger import Logger
 logging = Logger(logger_name="Configuration", filename="Configuration.log", stream=True)
 
-VERSION = "v2.3.1"
+VERSION = "v2.3.9"
 
 class Exchanges(Enum):
     BYBIT = "bybit"
