@@ -137,7 +137,6 @@ class BybitOBStrength(Strategy):
             best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
             moving_averages = self.get_all_moving_averages(symbol)
-            logging.info(f"Position data for {symbol} : {position_data}")
             
             logging.info(f"Open symbols: {open_symbols}")
             logging.info(f"HMA Current rotator symbols: {rotator_symbols}")
@@ -454,3 +453,4 @@ class BybitOBStrength(Strategy):
 
 
             time.sleep(10)
+
