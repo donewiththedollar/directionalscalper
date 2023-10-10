@@ -29,6 +29,13 @@ class BybitOBStrength(Strategy):
         self.spoofing_wall_size = 5
         self.spoofing_duration = 5
         self.spoofing_interval = 1
+        try:
+            self.max_usd_value = self.config.max_usd_value
+            self.whitelist = self.config.whitelist
+            self.blacklist = self.config.blacklist
+        except AttributeError as e:
+            logging.error(f"Failed to initialize attributes from config: {e}")
+
 
     def run(self, symbol):
         threads = [
@@ -93,7 +100,7 @@ class BybitOBStrength(Strategy):
         previous_five_minute_distance = None
 
         while True:
-            rotator_symbols = self.manager.get_auto_rotate_symbols()
+            rotator_symbols = self.manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=self.whitelist, blacklist=self.blacklist, max_usd_value=self.max_usd_value)
             open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
             open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
             open_symbols = [symbol.replace("/", "") for symbol in open_symbols]

@@ -29,7 +29,12 @@ class BybitAutoRotatorMFIRSI(Strategy):
         self.spoofing_wall_size = 5
         self.spoofing_duration = 5
         self.spoofing_interval = 1
-
+        try:
+            self.max_usd_value = self.config.max_usd_value
+            self.whitelist = self.config.whitelist
+            self.blacklist = self.config.blacklist
+        except AttributeError as e:
+            logging.error(f"Failed to initialize attributes from config: {e}")
 
 
     def run(self, symbol):
@@ -42,7 +47,6 @@ class BybitAutoRotatorMFIRSI(Strategy):
 
         for thread in threads:
             thread.join()
-
 
     def run_single_symbol(self, symbol):
         logging.info(f"Initializing default values")
@@ -92,20 +96,14 @@ class BybitAutoRotatorMFIRSI(Strategy):
         logging.info("Setting up exchange")
         self.exchange.setup_exchange_bybit(symbol)
 
-        # logging.info("Setting leverage")
-        # if current_leverage != max_leverage:
-        #     logging.info(f"Current leverage is not at maximum. Setting leverage to maximum. Maximum is {max_leverage}")
-        #     self.exchange.set_leverage_bybit(max_leverage, symbol)
-
         previous_five_minute_distance = None
 
         while True:
-            rotator_symbols = self.manager.get_auto_rotate_symbols()
+            rotator_symbols = self.manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=self.whitelist, blacklist=self.blacklist, max_usd_value=self.max_usd_value)
             open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
             open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
             open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
             api_data = self.manager.get_api_data(symbol)
-            position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
             total_equity = self.retry_api_call(self.exchange.get_balance_bybit, quote_currency)
             available_equity = self.retry_api_call(self.exchange.get_available_balance_bybit, quote_currency)
             open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
@@ -150,15 +148,15 @@ class BybitAutoRotatorMFIRSI(Strategy):
             trading_allowed = self.can_trade_new_symbol(open_symbols, self.symbols_allowed, symbol)
             logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
 
-            # if symbol not in open_symbols and not trading_allowed:
-            #     logging.warning(f"Skipping actions for symbol {symbol} as it's not tradable. due to trading allowed: {trading_allowed}")
-            #     continue  # This will skip the rest of the loop for this iteration
-
-            short_pos_qty = position_data["short"]["qty"]
-            long_pos_qty = position_data["long"]["qty"]
+            time.sleep(10)
 
             if symbol in rotator_symbols and (symbol in open_symbols or trading_allowed):
 
+                position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
+
+                short_pos_qty = position_data["short"]["qty"]
+                long_pos_qty = position_data["long"]["qty"]
+                
                 logging.info(f"Rotator symbols: {rotator_symbols}")
                 logging.info(f"Open symbols: {open_symbols}")
 
@@ -284,10 +282,15 @@ class BybitAutoRotatorMFIRSI(Strategy):
                 self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
                 self.cancel_stale_orders_bybit()
 
-                # time.sleep(5)
+                time.sleep(10)
 
             elif symbol not in rotator_symbols and symbol in open_symbols:
                 logging.info(f"Managing open symbols not in rotator_symbols")
+
+                position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
+
+                short_pos_qty = position_data["short"]["qty"]
+                long_pos_qty = position_data["long"]["qty"]
 
                 short_pos_price = position_data["short"]["price"] if short_pos_qty > 0 else None
                 long_pos_price = position_data["long"]["price"] if long_pos_qty > 0 else None
@@ -380,13 +383,19 @@ class BybitAutoRotatorMFIRSI(Strategy):
                     self.spoofing_active = True
                     self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
 
-                time.sleep(15)
+                time.sleep(10)
 
             elif symbol in rotator_symbols and symbol not in open_symbols and trading_allowed:
 
                 logging.info(f"Managing new rotator symbol {symbol} not in open symbols")
 
                 if trading_allowed:
+
+                    position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
+
+                    short_pos_qty = position_data["short"]["qty"]
+                    long_pos_qty = position_data["long"]["qty"]
+                    
                     logging.info(f"New position allowed {symbol}")
                     self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
                     self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
@@ -435,6 +444,5 @@ class BybitAutoRotatorMFIRSI(Strategy):
             avg_daily_gain = self.bot_db.compute_average_daily_gain()
             logging.info(f"Average Daily Gain Percentage: {avg_daily_gain}%")
 
-
-            time.sleep(15)
+            time.sleep(10)
 
