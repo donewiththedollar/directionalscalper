@@ -102,11 +102,6 @@ class BybitMMFiveMinute(Strategy):
         logging.info("Setting up exchange")
         self.exchange.setup_exchange_bybit(symbol)
 
-        # logging.info("Setting leverage")
-        # if current_leverage != max_leverage:
-        #     logging.info(f"Current leverage is not at maximum. Setting leverage to maximum. Maximum is {max_leverage}")
-        #     self.exchange.set_leverage_bybit(max_leverage, symbol)
-
         previous_five_minute_distance = None
 
         while True:
@@ -116,7 +111,6 @@ class BybitMMFiveMinute(Strategy):
             logging.info(f"Max USD value: {self.max_usd_value}")
 
             # Fetch rotator symbols and open symbols every loop
-            #rotator_symbols = self.manager.get_auto_rotate_symbols()
             rotator_symbols = self.manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=self.whitelist, blacklist=self.blacklist, max_usd_value=self.max_usd_value)
             open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
             open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
@@ -174,15 +168,8 @@ class BybitMMFiveMinute(Strategy):
             logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
             logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
 
-
-            # if symbol not in open_symbols and not trading_allowed:
-            #     logging.warning(f"Skipping actions for symbol {symbol} as it's not tradable. due to trading allowed: {trading_allowed}")
-            #     continue  # This will skip the rest of the loop for this iteration
-
             short_pos_qty = position_data["short"]["qty"]
             long_pos_qty = position_data["long"]["qty"]
-
-            # #if symbol in rotator_symbols and symbol in open_symbols:
 
             time.sleep(10)
 
