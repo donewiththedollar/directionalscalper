@@ -91,25 +91,52 @@ class Manager:
     def update_last_checked(self):
         self.last_checked = datetime.now().timestamp()
 
-    def fetch_data_from_url(self, url):
+    def fetch_data_from_url(self, url, max_retries: int = 5):
         current_time = datetime.now()
         if current_time <= self.data_cache_expiry:
             return self.data
-        try:
-            header, raw_json = send_public_request(url=url)
-            # Update the data cache and its expiry time
-            self.data = raw_json
-            self.data_cache_expiry = current_time + timedelta(seconds=self.cache_life_seconds)
-            return raw_json
-        except requests.exceptions.RequestException as e:
-            logging.error(f"Request failed: {e}")
-        except json.decoder.JSONDecodeError as e:
-            logging.error(f"Failed to parse JSON: {e}")
-        except Exception as e:
-            logging.error(f"Unexpected error occurred: {e}")
-        
-        # Return cached data if there's an error
+        for retry in range(max_retries):
+            delay = 2**retry  # exponential backoff
+            delay = min(60, delay)  # cap the delay to 60 seconds
+            try:
+                header, raw_json = send_public_request(url=url)
+                # Update the data cache and its expiry time
+                self.data = raw_json
+                self.data_cache_expiry = current_time + timedelta(seconds=self.cache_life_seconds)
+                return raw_json
+            except requests.exceptions.RequestException as e:
+                logging.error(f"Request failed: {e}")
+            except json.decoder.JSONDecodeError as e:
+                logging.error(f"Failed to parse JSON: {e}")
+            except Exception as e:
+                logging.error(f"Unexpected error occurred: {e}")
+            
+            # Wait before the next retry
+            if retry < max_retries - 1:
+                sleep(delay)
+
+        # Return cached data if all retries fail
         return self.data
+
+    # def fetch_data_from_url(self, url):
+    #     current_time = datetime.now()
+    #     if current_time <= self.data_cache_expiry:
+    #         return self.data
+    #     try:
+    #         header, raw_json = send_public_request(url=url)
+    #         # Update the data cache and its expiry time
+    #         self.data = raw_json
+    #         self.data_cache_expiry = current_time + timedelta(seconds=self.cache_life_seconds)
+    #         return raw_json
+    #     except requests.exceptions.RequestException as e:
+    #         logging.error(f"Request failed: {e}")
+    #     except json.decoder.JSONDecodeError as e:
+    #         logging.error(f"Failed to parse JSON: {e}")
+    #     except Exception as e:
+    #         logging.error(f"Unexpected error occurred: {e}")
+        
+    #     # Return cached data if there's an error
+    #     return self.data
 
     def get_data(self):
         if self.api == "remote":
