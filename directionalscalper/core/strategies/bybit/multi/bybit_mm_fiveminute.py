@@ -36,8 +36,6 @@ class BybitMMFiveMinute(Strategy):
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
 
-
-
     def run(self, symbol):
         threads = [
             Thread(target=self.run_single_symbol, args=(symbol,))
@@ -106,7 +104,6 @@ class BybitMMFiveMinute(Strategy):
 
         while True:
             current_time = time.time()
-
 
             logging.info(f"Max USD value: {self.max_usd_value}")
 
