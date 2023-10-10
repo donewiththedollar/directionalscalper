@@ -116,7 +116,6 @@ class BybitMMFiveMinute(Strategy):
             open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
             open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
             api_data = self.manager.get_api_data(symbol)
-            position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
             open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
             # Lets cache some data because we are using Bybit API too often in above variables
@@ -153,7 +152,6 @@ class BybitMMFiveMinute(Strategy):
             best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
             moving_averages = self.get_all_moving_averages(symbol)
-            logging.info(f"Position data for {symbol} : {position_data}")
             
             logging.info(f"Open symbols: {open_symbols}")
             logging.info(f"HMA Current rotator symbols: {rotator_symbols}")
@@ -168,13 +166,15 @@ class BybitMMFiveMinute(Strategy):
             logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
             logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
 
-            short_pos_qty = position_data["short"]["qty"]
-            long_pos_qty = position_data["long"]["qty"]
-
             time.sleep(10)
 
             # If the symbol is in rotator_symbols and either it's already being traded or trading is allowed.
             if symbol in rotator_symbols and (symbol in open_symbols or trading_allowed):
+
+                position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
+
+                short_pos_qty = position_data["short"]["qty"]
+                long_pos_qty = position_data["long"]["qty"]
 
                 logging.info(f"Rotator symbol trading: {symbol}")
                             
@@ -184,8 +184,8 @@ class BybitMMFiveMinute(Strategy):
                 logging.info(f"Long pos qty {long_pos_qty} for {symbol}")
                 logging.info(f"Short pos qty {short_pos_qty} for {symbol}")
 
-                short_liq_price = position_data["short"]["liq_price"]
-                long_liq_price = position_data["long"]["liq_price"]
+                # short_liq_price = position_data["short"]["liq_price"]
+                # long_liq_price = position_data["long"]["liq_price"]
 
                 self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
                 self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
@@ -310,6 +310,11 @@ class BybitMMFiveMinute(Strategy):
             elif symbol not in rotator_symbols and symbol in open_symbols:
                 logging.info(f"Managing open symbols not in rotator_symbols")
 
+                position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
+
+                short_pos_qty = position_data["short"]["qty"]
+                long_pos_qty = position_data["long"]["qty"]
+
                 self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
                 self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
 
@@ -405,6 +410,8 @@ class BybitMMFiveMinute(Strategy):
                     self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
 
                     long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v2(symbol, total_equity, best_ask_price, self.max_leverage)
+
+                    position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
 
                     short_pos_qty = position_data["short"]["qty"]
                     long_pos_qty = position_data["long"]["qty"]
