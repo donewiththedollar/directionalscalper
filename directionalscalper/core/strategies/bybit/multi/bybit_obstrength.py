@@ -30,8 +30,6 @@ class BybitOBStrength(Strategy):
         self.spoofing_duration = 5
         self.spoofing_interval = 1
 
-
-
     def run(self, symbol):
         threads = [
             Thread(target=self.run_single_symbol, args=(symbol,))
@@ -92,11 +90,6 @@ class BybitOBStrength(Strategy):
         logging.info("Setting up exchange")
         self.exchange.setup_exchange_bybit(symbol)
 
-        # logging.info("Setting leverage")
-        # if current_leverage != max_leverage:
-        #     logging.info(f"Current leverage is not at maximum. Setting leverage to maximum. Maximum is {max_leverage}")
-        #     self.exchange.set_leverage_bybit(max_leverage, symbol)
-
         previous_five_minute_distance = None
 
         while True:
@@ -149,13 +142,6 @@ class BybitOBStrength(Strategy):
 
             trading_allowed = self.can_trade_new_symbol(open_symbols, self.symbols_allowed, symbol)
             logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
-
-            # if symbol not in open_symbols and not trading_allowed:
-            #     logging.warning(f"Skipping actions for symbol {symbol} as it's not tradable. due to trading allowed: {trading_allowed}")
-            #     continue  # This will skip the rest of the loop for this iteration
-
-            short_pos_qty = position_data["short"]["qty"]
-            long_pos_qty = position_data["long"]["qty"]
 
             time.sleep(10)
 
