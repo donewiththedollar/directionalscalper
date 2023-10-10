@@ -29,6 +29,12 @@ class BybitMMFiveMinute(Strategy):
         self.spoofing_wall_size = 5
         self.spoofing_duration = 5
         self.spoofing_interval = 1
+        try:
+            self.max_usd_value = self.config.max_usd_value
+            self.whitelist = self.config.whitelist
+            self.blacklist = self.config.blacklist
+        except AttributeError as e:
+            logging.error(f"Failed to initialize attributes from config: {e}")
 
 
 
@@ -106,8 +112,12 @@ class BybitMMFiveMinute(Strategy):
         while True:
             current_time = time.time()
 
+
+            logging.info(f"Max USD value: {self.max_usd_value}")
+
             # Fetch rotator symbols and open symbols every loop
-            rotator_symbols = self.manager.get_auto_rotate_symbols()
+            #rotator_symbols = self.manager.get_auto_rotate_symbols()
+            rotator_symbols = self.manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=self.whitelist, blacklist=self.blacklist, max_usd_value=self.max_usd_value)
             open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
             open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
             open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
@@ -313,6 +323,16 @@ class BybitMMFiveMinute(Strategy):
             elif symbol not in rotator_symbols and symbol in open_symbols:
                 logging.info(f"Managing open symbols not in rotator_symbols")
 
+                self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
+                self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
+
+                long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v2(symbol, total_equity, best_ask_price, self.max_leverage)
+
+                # current_time = time.time()
+                # if current_time - self.last_cancel_time >= self.spoofing_interval:
+                #     self.spoofing_active = True
+                #     self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
+
                 short_pos_price = position_data["short"]["price"] if short_pos_qty > 0 else None
                 long_pos_price = position_data["long"]["price"] if long_pos_qty > 0 else None
 
@@ -385,7 +405,7 @@ class BybitMMFiveMinute(Strategy):
 
                 self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
 
-                time.sleep(15)
+                time.sleep(10)
 
             # elif symbol in rotator_symbols and symbol not in open_symbols:
             elif symbol in rotator_symbols and symbol not in open_symbols and trading_allowed:
@@ -407,7 +427,7 @@ class BybitMMFiveMinute(Strategy):
                             
                     self.bybit_initial_entry_mm_5m(open_orders, symbol, trend, hma_trend, mfirsi_signal, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
 
-                    # time.sleep(15)
+                    time.sleep(5)
                 else:
                     logging.warning(f"Potential trade for {symbol} skipped as max symbol limit reached.")
 
@@ -443,4 +463,4 @@ class BybitMMFiveMinute(Strategy):
             logging.info(f"Average Daily Gain Percentage: {avg_daily_gain}%")
 
 
-            time.sleep(15)
+            time.sleep(10)
