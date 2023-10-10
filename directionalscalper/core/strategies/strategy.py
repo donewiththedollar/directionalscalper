@@ -11,7 +11,7 @@ import uuid
 import logging
 import json
 import threading
-import ccxt.base.errors
+import ccxt
 import pytz
 import sqlite3
 from .logger import Logger
@@ -1588,15 +1588,27 @@ class Strategy:
         while retries < max_retries:
             try:
                 return function(*args, **kwargs)
-            except ccxt.base.errors.DDoSProtection:  # Catching the rate limit exception
+            except Exception as e:  # Catch all exceptions
                 retries += 1
                 delay = min(base_delay * (2 ** retries) + random.uniform(0, 0.1 * (2 ** retries)), max_delay)
-                logging.info(f"Rate limit hit. Retrying in {delay:.2f} seconds...")
+                logging.info(f"Error occurred: {e}. Retrying in {delay:.2f} seconds...")
                 time.sleep(delay)
-            except Exception as e:
-                logging.error(f"Error occurred during API call: {e}. Not retrying this error.")
-                break
         raise Exception(f"Failed to execute the API function after {max_retries} retries.")
+
+    # def retry_api_call(self, function, *args, max_retries=5, base_delay=5, max_delay=60, **kwargs):
+    #     retries = 0
+    #     while retries < max_retries:
+    #         try:
+    #             return function(*args, **kwargs)
+    #         except ccxt.DDoSProtection:  # Catching the rate limit exception
+    #             retries += 1
+    #             delay = min(base_delay * (2 ** retries) + random.uniform(0, 0.1 * (2 ** retries)), max_delay)
+    #             logging.info(f"Rate limit hit. Retrying in {delay:.2f} seconds...")
+    #             time.sleep(delay)
+    #         except Exception as e:
+    #             logging.error(f"Error occurred during API call: {e}. Not retrying this error.")
+    #             break
+    #     raise Exception(f"Failed to execute the API function after {max_retries} retries.")
 
     # def retry_api_call(self, function, *args, max_retries=5, base_delay=5, max_delay=60, **kwargs):
     #     retries = 0
