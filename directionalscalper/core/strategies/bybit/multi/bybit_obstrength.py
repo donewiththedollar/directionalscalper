@@ -104,6 +104,8 @@ class BybitOBStrength(Strategy):
         previous_five_minute_distance = None
 
         while True:
+            current_time = time.time()
+            
             # Fetch open symbols every loop
             open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
             open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
