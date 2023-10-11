@@ -72,7 +72,7 @@ class DirectionalMarketMaker:
         passphrase = exchange_config.passphrase
         self.exchange = Exchange(self.exchange_name, api_key, secret_key, passphrase)
 
-    def run_strategy(self, symbol, strategy_name, config, account_name, symbols_to_trade=None):
+    def run_strategy(self, symbol, strategy_name, config, account_name, symbols_to_trade=None, rotator_symbols_standardized=None):
         symbols_allowed = None
         for exch in config.exchanges:
             #print(f"Checking: {exch.name} vs {self.exchange_name} and {exch.account_name} vs {account_name}")
@@ -89,31 +89,16 @@ class DirectionalMarketMaker:
         # Pass symbols_allowed to the strategy constructors
         if strategy_name.lower() == 'bybit_mm_mfirsi':
             strategy = BybitAutoRotatorMFIRSI(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol)
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'bybit_mm_fivemin':
             strategy = BybitMMFiveMinute(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol)
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'bybit_mfirsi_trend':
             strategy = BybitMFIRSITrendRotator(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol)
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'bybit_obstrength':
             strategy = BybitOBStrength(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol)
-        # elif strategy_name.lower() == 'bybit_hedge_mfirsi':
-        #     strategy = BybitAutoRotatorMFIRSI(self.exchange, self.manager, config.bot, symbols_allowed)
-        #     strategy.run(symbol)
-        # elif strategy_name.lower() == 'bybit_mm_ratio':
-        #     strategy = BybitMFIRSITrendRatio(self.exchange, self.manager, config.bot, symbols_allowed)
-        #     strategy.run(symbol)
-        # elif strategy_name.lower() == 'bybit_rotator_spoof':
-        #     strategy = BybitSpoofRotator(self.exchange, self.manager, config.bot, symbols_allowed)
-        #     strategy.run(symbol)
-        # elif strategy_name.lower() == 'bybit_mm':
-        #     strategy = BybitMM(self.exchange, self.manager, config.bot, symbols_allowed)
-        #     strategy.run(symbol)
-        # elif strategy_name.lower() == 'bybit_mm_hma':
-        #     strategy = BybitMMhma(self.exchange, self.manager, config.bot, symbols_allowed)
-        #     strategy.run(symbol)
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
 
     def get_balance(self, quote, market_type=None, sub_type=None):
         if self.exchange_name == 'bitget':
@@ -142,7 +127,7 @@ class DirectionalMarketMaker:
         return self.exchange.symbols
 
 
-def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbols=None):
+def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized):
     current_thread = threading.current_thread()
     thread_to_symbol[current_thread] = symbol
     config_file_path = Path('configs/' + args.config)
@@ -161,7 +146,9 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
     # Pass account_name to DirectionalMarketMaker constructor
     market_maker = DirectionalMarketMaker(config, exchange_name, account_name)
     market_maker.manager = manager
-    market_maker.run_strategy(symbol, strategy_name, config, account_name, symbols_to_trade=symbols_allowed)
+    
+    # Pass rotator_symbols_standardized to the run_strategy method
+    market_maker.run_strategy(symbol, strategy_name, config, account_name, symbols_to_trade=symbols_allowed, rotator_symbols_standardized=rotator_symbols_standardized)
 
     quote = "USDT"
     if exchange_name.lower() == 'huobi':
@@ -173,11 +160,13 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         balance = market_maker.get_balance(quote)
         print(f"Futures balance: {balance}")
 
-def start_threads_for_symbols(symbols, args, manager, account_name, symbols_allowed):
-    threads = [threading.Thread(target=run_bot, args=(symbol, args, manager, account_name, symbols_allowed, symbols)) for symbol in symbols]
+
+def start_threads_for_symbols(symbols, args, manager, account_name, symbols_allowed, rotator_symbols_standardized):
+    threads = [threading.Thread(target=run_bot, args=(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized)) for symbol in symbols]
     for thread in threads:
         thread.start()
     return threads
+
 
 if __name__ == '__main__':
     # ASCII Art and Text
@@ -298,21 +287,24 @@ if __name__ == '__main__':
 
     # Start threads for initial set of symbols
     # active_threads = start_threads_for_symbols(symbols_to_trade, args, manager)
-    active_threads = start_threads_for_symbols(symbols_to_trade, args, manager, args.account_name, symbols_allowed)
+    # active_threads = start_threads_for_symbols(symbols_to_trade, args, manager, args.account_name, symbols_allowed)
+
+    # Start threads for initial set of symbols
+    active_threads = start_threads_for_symbols(symbols_to_trade, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
 
     # New section for continuous checking of rotator symbols
     while True:
         # Remove finished threads from active_threads list
         active_threads = [t for t in active_threads if t.is_alive()]
 
-        # Refresh the list of rotator symbols
+        # Refresh the list of rotator symbols once for this iteration
         rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist, max_usd_value=max_usd_value)]
 
         # Find new symbols that are not yet being traded
-        new_symbols = [s for s in rotator_symbols_standardized if s not in thread_to_symbol.values()]  # Step 3: Modify the line causing the error
+        new_symbols = [s for s in rotator_symbols_standardized if s not in thread_to_symbol.values()]
 
-        # Start new threads for new symbols
-        new_threads = start_threads_for_symbols(new_symbols, args, manager, args.account_name, symbols_allowed)
+        # Start new threads for new symbols and pass the rotator_symbols_standardized
+        new_threads = start_threads_for_symbols(new_symbols, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
         active_threads.extend(new_threads)
 
         # Sleep for a while before the next iteration

@@ -36,9 +36,9 @@ class BybitMMFiveMinute(Strategy):
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
 
-    def run(self, symbol):
+    def run(self, symbol, rotator_symbols_standardized=None):
         threads = [
-            Thread(target=self.run_single_symbol, args=(symbol,))
+            Thread(target=self.run_single_symbol, args=(symbol, rotator_symbols_standardized))
         ]
 
         for thread in threads:
@@ -47,8 +47,8 @@ class BybitMMFiveMinute(Strategy):
         for thread in threads:
             thread.join()
 
-
-    def run_single_symbol(self, symbol):
+    # def run_single_symbol(self, symbol):
+    def run_single_symbol(self, symbol, rotator_symbols_standardized=None):
         logging.info(f"Initializing default values")
         # [Initialization code remains unchanged]
         # Initialize potentially missing values
@@ -107,8 +107,7 @@ class BybitMMFiveMinute(Strategy):
 
             logging.info(f"Max USD value: {self.max_usd_value}")
 
-            # Fetch rotator symbols and open symbols every loop
-            rotator_symbols = self.manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=self.whitelist, blacklist=self.blacklist, max_usd_value=self.max_usd_value)
+            # Fetch open symbols every loop
             open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
             open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
             open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
@@ -138,8 +137,8 @@ class BybitMMFiveMinute(Strategy):
             moving_averages = self.get_all_moving_averages(symbol)
             
             logging.info(f"Open symbols: {open_symbols}")
-            logging.info(f"HMA Current rotator symbols: {rotator_symbols}")
-            symbols_to_manage = [s for s in open_symbols if s not in rotator_symbols]
+            logging.info(f"HMA Current rotator symbols: {rotator_symbols_standardized}")
+            symbols_to_manage = [s for s in open_symbols if s not in rotator_symbols_standardized]
             logging.info(f"Symbols to manage {symbols_to_manage}")
             
             logging.info(f"Open orders for {symbol}: {open_orders}")
@@ -153,7 +152,7 @@ class BybitMMFiveMinute(Strategy):
             time.sleep(10)
 
             # If the symbol is in rotator_symbols and either it's already being traded or trading is allowed.
-            if symbol in rotator_symbols and (symbol in open_symbols or trading_allowed):
+            if symbol in rotator_symbols_standardized and (symbol in open_symbols or trading_allowed):
                 api_data = self.manager.get_api_data(symbol)
 
                 one_minute_volume = api_data['1mVol']
@@ -171,7 +170,7 @@ class BybitMMFiveMinute(Strategy):
 
                 logging.info(f"Rotator symbol trading: {symbol}")
                             
-                logging.info(f"Rotator symbols: {rotator_symbols}")
+                logging.info(f"Rotator symbols: {rotator_symbols_standardized}")
                 logging.info(f"Open symbols: {open_symbols}")
 
                 logging.info(f"Long pos qty {long_pos_qty} for {symbol}")
@@ -300,7 +299,7 @@ class BybitMMFiveMinute(Strategy):
 
                 time.sleep(10)
 
-            elif symbol not in rotator_symbols and symbol in open_symbols:
+            elif symbol not in rotator_symbols_standardized and symbol in open_symbols:
                 api_data = self.manager.get_api_data(symbol)
 
                 one_minute_volume = api_data['1mVol']
@@ -403,7 +402,7 @@ class BybitMMFiveMinute(Strategy):
                 time.sleep(10)
 
             # elif symbol in rotator_symbols and symbol not in open_symbols:
-            elif symbol in rotator_symbols and symbol not in open_symbols and trading_allowed:
+            elif symbol in rotator_symbols_standardized and symbol not in open_symbols and trading_allowed:
                 api_data = self.manager.get_api_data(symbol)
 
                 one_minute_volume = api_data['1mVol']

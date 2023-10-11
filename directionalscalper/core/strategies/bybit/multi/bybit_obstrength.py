@@ -37,9 +37,9 @@ class BybitOBStrength(Strategy):
             logging.error(f"Failed to initialize attributes from config: {e}")
 
 
-    def run(self, symbol):
+    def run(self, symbol, rotator_symbols_standardized=None):
         threads = [
-            Thread(target=self.run_single_symbol, args=(symbol,))
+            Thread(target=self.run_single_symbol, args=(symbol, rotator_symbols_standardized))
         ]
 
         for thread in threads:
@@ -49,7 +49,7 @@ class BybitOBStrength(Strategy):
             thread.join()
 
 
-    def run_single_symbol(self, symbol):
+    def run_single_symbol(self, symbol, rotator_symbols_standardized=None):
         logging.info(f"Initializing default values")
         # [Initialization code remains unchanged]
         # Initialize potentially missing values
@@ -69,6 +69,10 @@ class BybitOBStrength(Strategy):
         cum_realised_pnl_short = 0
         long_pos_price = None
         short_pos_price = None
+
+        # Initializing time trackers for less frequent API calls
+        last_equity_fetch_time = 0
+        equity_refresh_interval = 1800  # 30 minutes in seconds
 
         # Check leverages only at startup
         self.current_leverage = self.exchange.get_current_leverage_bybit(symbol)
@@ -100,28 +104,25 @@ class BybitOBStrength(Strategy):
         previous_five_minute_distance = None
 
         while True:
-            rotator_symbols = self.manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=self.whitelist, blacklist=self.blacklist, max_usd_value=self.max_usd_value)
+            # Fetch open symbols every loop
             open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
             open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
             open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
-            api_data = self.manager.get_api_data(symbol)
-            total_equity = self.retry_api_call(self.exchange.get_balance_bybit, quote_currency)
-            available_equity = self.retry_api_call(self.exchange.get_available_balance_bybit, quote_currency)
             open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
+            # Lets cache some data because we are using Bybit API too often in above variables
+
+            # Fetch equity data less frequently
+            if current_time - last_equity_fetch_time > equity_refresh_interval:
+                total_equity = self.retry_api_call(self.exchange.get_balance_bybit, quote_currency)
+                available_equity = self.retry_api_call(self.exchange.get_available_balance_bybit, quote_currency)
+                last_equity_fetch_time = current_time
+                
             whitelist = self.config.whitelist
             blacklist = self.config.blacklist
             if symbol not in whitelist or symbol in blacklist:
                 logging.info(f"Symbol {symbol} is no longer allowed based on whitelist/blacklist. Stopping operations for this symbol.")
                 break
-
-            one_minute_volume = api_data['1mVol']
-            five_minute_volume = api_data['5mVol']
-            five_minute_distance = api_data['5mSpread']
-            trend = api_data['Trend']
-            mfirsi_signal = api_data['MFI']
-            funding_rate = api_data['Funding']
-            hma_trend = api_data['HMA Trend']
 
             logging.info(f"Trend for {symbol} : {trend}")
             logging.info(f"MFIRSI signal for {symbol} : {mfirsi_signal}")
@@ -139,8 +140,8 @@ class BybitOBStrength(Strategy):
             moving_averages = self.get_all_moving_averages(symbol)
             
             logging.info(f"Open symbols: {open_symbols}")
-            logging.info(f"HMA Current rotator symbols: {rotator_symbols}")
-            symbols_to_manage = [s for s in open_symbols if s not in rotator_symbols]
+            logging.info(f"HMA Current rotator symbols: {rotator_symbols_standardized}")
+            symbols_to_manage = [s for s in open_symbols if s not in rotator_symbols_standardized]
             logging.info(f"Symbols to manage {symbols_to_manage}")
             
             logging.info(f"Open orders: {open_orders}")
@@ -152,14 +153,24 @@ class BybitOBStrength(Strategy):
 
             time.sleep(10)
 
-            if symbol in rotator_symbols and (symbol in open_symbols or trading_allowed):
+            if symbol in rotator_symbols_standardized and (symbol in open_symbols or trading_allowed):
+
+                api_data = self.manager.get_api_data(symbol)
+
+                one_minute_volume = api_data['1mVol']
+                five_minute_volume = api_data['5mVol']
+                five_minute_distance = api_data['5mSpread']
+                trend = api_data['Trend']
+                mfirsi_signal = api_data['MFI']
+                funding_rate = api_data['Funding']
+                hma_trend = api_data['HMA Trend']
 
                 position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
 
                 short_pos_qty = position_data["short"]["qty"]
                 long_pos_qty = position_data["long"]["qty"]
 
-                logging.info(f"Rotator symbols: {rotator_symbols}")
+                logging.info(f"Rotator symbols: {rotator_symbols_standardized}")
                 logging.info(f"Open symbols: {open_symbols}")
 
                 logging.info(f"Long pos qty {long_pos_qty} for {symbol}")
@@ -284,8 +295,18 @@ class BybitOBStrength(Strategy):
 
                 time.sleep(10)
 
-            elif symbol not in rotator_symbols and symbol in open_symbols:
+            elif symbol not in rotator_symbols_standardized and symbol in open_symbols:
                 logging.info(f"Managing open symbols not in rotator_symbols")
+
+                api_data = self.manager.get_api_data(symbol)
+
+                one_minute_volume = api_data['1mVol']
+                five_minute_volume = api_data['5mVol']
+                five_minute_distance = api_data['5mSpread']
+                trend = api_data['Trend']
+                mfirsi_signal = api_data['MFI']
+                funding_rate = api_data['Funding']
+                hma_trend = api_data['HMA Trend']
 
                 position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
 
@@ -385,9 +406,19 @@ class BybitOBStrength(Strategy):
 
                 time.sleep(10)
 
-            elif symbol in rotator_symbols and symbol not in open_symbols and trading_allowed:
+            elif symbol in rotator_symbols_standardized and symbol not in open_symbols and trading_allowed:
 
                 logging.info(f"Managing new rotator symbol {symbol} not in open symbols")
+
+                api_data = self.manager.get_api_data(symbol)
+
+                one_minute_volume = api_data['1mVol']
+                five_minute_volume = api_data['5mVol']
+                five_minute_distance = api_data['5mSpread']
+                trend = api_data['Trend']
+                mfirsi_signal = api_data['MFI']
+                funding_rate = api_data['Funding']
+                hma_trend = api_data['HMA Trend']
 
                 if trading_allowed:
 
