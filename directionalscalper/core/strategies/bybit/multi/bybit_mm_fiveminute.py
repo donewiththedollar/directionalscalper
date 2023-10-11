@@ -112,7 +112,6 @@ class BybitMMFiveMinute(Strategy):
             open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
             open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
             open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
-            api_data = self.manager.get_api_data(symbol)
             open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
             # Lets cache some data because we are using Bybit API too often in above variables
@@ -128,18 +127,6 @@ class BybitMMFiveMinute(Strategy):
             if symbol not in whitelist or symbol in blacklist:
                 logging.info(f"Symbol {symbol} is no longer allowed based on whitelist/blacklist. Stopping operations for this symbol.")
                 break
-
-            one_minute_volume = api_data['1mVol']
-            five_minute_volume = api_data['5mVol']
-            five_minute_distance = api_data['5mSpread']
-            trend = api_data['Trend']
-            mfirsi_signal = api_data['MFI']
-            funding_rate = api_data['Funding']
-            hma_trend = api_data['HMA Trend']
-
-            logging.info(f"One minute volume for {symbol} : {one_minute_volume}")
-            logging.info(f"Five minute volume for {symbol} : {five_minute_volume}")
-            logging.info(f"Five minute distance for {symbol} : {five_minute_distance}")
 
             funding_check = self.is_funding_rate_acceptable(symbol)
             logging.info(f"Funding check on {symbol} : {funding_check}")
@@ -167,6 +154,15 @@ class BybitMMFiveMinute(Strategy):
 
             # If the symbol is in rotator_symbols and either it's already being traded or trading is allowed.
             if symbol in rotator_symbols and (symbol in open_symbols or trading_allowed):
+                api_data = self.manager.get_api_data(symbol)
+
+                one_minute_volume = api_data['1mVol']
+                five_minute_volume = api_data['5mVol']
+                five_minute_distance = api_data['5mSpread']
+                trend = api_data['Trend']
+                mfirsi_signal = api_data['MFI']
+                funding_rate = api_data['Funding']
+                hma_trend = api_data['HMA Trend']
 
                 position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
 
@@ -305,6 +301,16 @@ class BybitMMFiveMinute(Strategy):
                 time.sleep(10)
 
             elif symbol not in rotator_symbols and symbol in open_symbols:
+                api_data = self.manager.get_api_data(symbol)
+
+                one_minute_volume = api_data['1mVol']
+                five_minute_volume = api_data['5mVol']
+                five_minute_distance = api_data['5mSpread']
+                trend = api_data['Trend']
+                mfirsi_signal = api_data['MFI']
+                funding_rate = api_data['Funding']
+                hma_trend = api_data['HMA Trend']
+
                 logging.info(f"Managing open symbols not in rotator_symbols")
 
                 position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
@@ -398,6 +404,15 @@ class BybitMMFiveMinute(Strategy):
 
             # elif symbol in rotator_symbols and symbol not in open_symbols:
             elif symbol in rotator_symbols and symbol not in open_symbols and trading_allowed:
+                api_data = self.manager.get_api_data(symbol)
+
+                one_minute_volume = api_data['1mVol']
+                five_minute_volume = api_data['5mVol']
+                five_minute_distance = api_data['5mSpread']
+                trend = api_data['Trend']
+                mfirsi_signal = api_data['MFI']
+                funding_rate = api_data['Funding']
+                hma_trend = api_data['HMA Trend']
 
                 logging.info(f"Managing new rotator symbol {symbol} not in open symbols")
 
