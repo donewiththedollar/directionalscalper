@@ -105,7 +105,7 @@ class BybitOBStrength(Strategy):
 
         while True:
             current_time = time.time()
-            
+
             # Fetch open symbols every loop
             open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
             open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
@@ -125,12 +125,6 @@ class BybitOBStrength(Strategy):
             if symbol not in whitelist or symbol in blacklist:
                 logging.info(f"Symbol {symbol} is no longer allowed based on whitelist/blacklist. Stopping operations for this symbol.")
                 break
-
-            logging.info(f"Trend for {symbol} : {trend}")
-            logging.info(f"MFIRSI signal for {symbol} : {mfirsi_signal}")
-            logging.info(f"One minute volume for {symbol} : {one_minute_volume}")
-            logging.info(f"Five minute volume for {symbol} : {five_minute_volume}")
-            logging.info(f"Five minute distance for {symbol} : {five_minute_distance}")
 
             funding_check = self.is_funding_rate_acceptable(symbol)
             logging.info(f"Funding check on {symbol} : {funding_check}")
