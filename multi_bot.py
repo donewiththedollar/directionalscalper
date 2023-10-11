@@ -127,12 +127,18 @@ class DirectionalMarketMaker:
         return self.exchange.symbols
 
 
+BALANCE_REFRESH_INTERVAL = 600  # in seconds
+
 def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized):
     current_thread = threading.current_thread()
     thread_to_symbol[current_thread] = symbol
     config_file_path = Path('configs/' + args.config)
     print("Loading config from:", config_file_path)
     config = load_config(config_file_path)
+
+    # Initialize balance cache and last fetch time at the beginning
+    cached_balance = None
+    last_balance_fetch_time = 0
 
     exchange_name = args.exchange  # These are now guaranteed to be non-None
     strategy_name = args.strategy
@@ -151,14 +157,16 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
     market_maker.run_strategy(symbol, strategy_name, config, account_name, symbols_to_trade=symbols_allowed, rotator_symbols_standardized=rotator_symbols_standardized)
 
     quote = "USDT"
-    if exchange_name.lower() == 'huobi':
-        print(f"Loading huobi strategy..")
-    elif exchange_name.lower() == 'mexc':
-        balance = market_maker.get_balance(quote, type='swap')
-        print(f"Futures balance: {balance}")
-    else:
-        balance = market_maker.get_balance(quote)
-        print(f"Futures balance: {balance}")
+    current_time = time.time()
+    if current_time - last_balance_fetch_time > BALANCE_REFRESH_INTERVAL or not cached_balance:
+        if exchange_name.lower() == 'huobi':
+            print(f"Loading huobi strategy..")
+        elif exchange_name.lower() == 'mexc':
+            balance = market_maker.get_balance(quote, type='swap')
+            print(f"Futures balance: {balance}")
+        else:
+            balance = market_maker.get_balance(quote)
+            print(f"Futures balance: {balance}")
 
 
 def start_threads_for_symbols(symbols, args, manager, account_name, symbols_allowed, rotator_symbols_standardized):
