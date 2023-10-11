@@ -162,11 +162,12 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         if exchange_name.lower() == 'huobi':
             print(f"Loading huobi strategy..")
         elif exchange_name.lower() == 'mexc':
-            balance = market_maker.get_balance(quote, type='swap')
-            print(f"Futures balance: {balance}")
+            cached_balance = market_maker.get_balance(quote, type='swap')
+            print(f"Futures balance: {cached_balance}")
         else:
-            balance = market_maker.get_balance(quote)
-            print(f"Futures balance: {balance}")
+            cached_balance = market_maker.get_balance(quote)
+            print(f"Futures balance: {cached_balance}")
+        last_balance_fetch_time = current_time
 
 
 def start_threads_for_symbols(symbols, args, manager, account_name, symbols_allowed, rotator_symbols_standardized):
