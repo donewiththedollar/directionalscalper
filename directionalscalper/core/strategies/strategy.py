@@ -2450,12 +2450,12 @@ class Strategy:
         long_take_profit = avg_top_asks * 0.995  # 0.5% below average top asks
         short_take_profit = avg_top_bids * 1.005  # 0.5% above average top bids
 
-        if self.long_position_open(symbol):
+        if long_pos_qty > 0:
             self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
-        if self.short_position_open(symbol):
+        if short_pos_qty > 0:
             self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
 
-    def initiate_spread_entry(self, symbol, open_orders, long_dynamic_amount, short_dynamic_amount):
+    def initiate_spread_entry(self, symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty):
         analyzer = self.OrderBookAnalyzer(self.exchange, symbol, depth=self.ORDER_BOOK_DEPTH)
         
         best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
@@ -2464,9 +2464,9 @@ class Strategy:
         imbalance = self.get_order_book_imbalance(symbol)
 
         # Entry Logic
-        if imbalance == "buy_wall" and not self.entry_order_exists(open_orders, "buy") and not self.long_position_open(symbol):
+        if imbalance == "buy_wall" and not self.entry_order_exists(open_orders, "buy") and long_pos_qty <= 0:
             self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-        elif imbalance == "sell_wall" and not self.entry_order_exists(open_orders, "sell") and not self.short_position_open(symbol):
+        elif imbalance == "sell_wall" and not self.entry_order_exists(open_orders, "sell") and short_pos_qty <= 0:
             self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
     def set_spread_take_profits(self, symbol, open_orders, long_pos_qty, short_pos_qty):
@@ -2479,9 +2479,9 @@ class Strategy:
         long_take_profit = avg_top_asks * 0.995  # 0.5% below average top asks
         short_take_profit = avg_top_bids * 1.005  # 0.5% above average top bids
 
-        if self.long_position_open(symbol):
+        if long_pos_qty > 0:
             self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
-        if self.short_position_open(symbol):
+        if short_pos_qty > 0:
             self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
 
 
