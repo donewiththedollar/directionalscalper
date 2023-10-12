@@ -248,52 +248,8 @@ class BybitMMPlayTheSpread(Strategy):
 
                 logging.info(f"Long TP order count for {symbol} is {tp_order_counts['long_tp_count']}")
                 logging.info(f"Short TP order count for {symbol} is {tp_order_counts['short_tp_count']}")
-
-                # # Place long TP order if there are no existing long TP orders
-                # if long_pos_qty > 0 and long_take_profit is not None and tp_order_counts['long_tp_count'] == 0:
-                #     logging.info(f"Placing long TP order for {symbol} with {long_take_profit}")
-                #     self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
-
-                # # Place short TP order if there are no existing short TP orders
-                # if short_pos_qty > 0 and short_take_profit is not None and tp_order_counts['short_tp_count'] == 0:
-                #     logging.info(f"Placing short TP order for {symbol} with {short_take_profit}")
-                #     self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
-                    
+      
                 current_time = datetime.now()
-
-                # Check for long positions
-                if long_pos_qty > 0:
-                    if current_time >= self.next_long_tp_update and long_take_profit is not None:
-                        self.next_long_tp_update = self.update_take_profit_spread_bybit(
-                            symbol=symbol, 
-                            pos_qty=long_pos_qty, 
-                            long_take_profit=long_take_profit,
-                            short_take_profit=short_take_profit,
-                            short_pos_price=short_pos_price,
-                            long_pos_price=long_pos_price,
-                            positionIdx=1, 
-                            order_side="sell", 
-                            next_tp_update=self.next_long_tp_update,
-                            five_minute_distance=five_minute_distance, 
-                            previous_five_minute_distance=previous_five_minute_distance
-                        )
-
-                # Check for short positions
-                if short_pos_qty > 0:
-                    if current_time >= self.next_short_tp_update and short_take_profit is not None:
-                        self.next_short_tp_update = self.update_take_profit_spread_bybit(
-                            symbol=symbol, 
-                            pos_qty=short_pos_qty, 
-                            short_pos_price=short_pos_price,
-                            long_pos_price=long_pos_price,
-                            short_take_profit=short_take_profit,
-                            long_take_profit=long_take_profit,
-                            positionIdx=2, 
-                            order_side="buy", 
-                            next_tp_update=self.next_short_tp_update,
-                            five_minute_distance=five_minute_distance, 
-                            previous_five_minute_distance=previous_five_minute_distance
-                        )
 
 
                 self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
@@ -324,11 +280,6 @@ class BybitMMPlayTheSpread(Strategy):
 
                 long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v2(symbol, total_equity, best_ask_price, self.max_leverage)
 
-                # current_time = time.time()
-                # if current_time - self.last_cancel_time >= self.spoofing_interval:
-                #     self.spoofing_active = True
-                #     self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
-
                 short_pos_price = position_data["short"]["price"] if short_pos_qty > 0 else None
                 long_pos_price = position_data["long"]["price"] if long_pos_qty > 0 else None
 
@@ -340,60 +291,17 @@ class BybitMMPlayTheSpread(Strategy):
 
                 tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
 
-                # logging.info(f"Short take profit for managed symbol {symbol}: {short_take_profit}")
-                # logging.info(f"Long take profit for managed symbol {symbol} : {long_take_profit}")
+                current_time = time.time()
+                if current_time - self.last_cancel_time >= self.spoofing_interval:
+                    self.spoofing_active = True
+                    self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
 
                 self.set_spread_take_profits(symbol, open_orders, long_pos_qty, short_pos_qty)
 
-                # # [Rest of the logic for symbols not in open_positions]
-                # # Place long TP order if there are no existing long TP orders
-                # if long_pos_qty > 0 and long_take_profit is not None and tp_order_counts['long_tp_count'] == 0:
-                #     self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
-
-                # # Place short TP order if there are no existing short TP orders
-                # if short_pos_qty > 0 and short_take_profit is not None and tp_order_counts['short_tp_count'] == 0:
-                #     self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
-
                 current_time = datetime.now()
-
 
                 logging.info(f"Short pos qty for managed {symbol}: {short_pos_qty}")
                 logging.info(f"Long pos qty for managed {symbol}: {long_pos_qty}")
-
-
-                if long_pos_qty > 0:
-                    # Check for long positions
-                    if current_time >= self.next_long_tp_update and long_take_profit is not None:
-                        self.next_long_tp_update = self.update_take_profit_spread_bybit(
-                            symbol=symbol, 
-                            pos_qty=long_pos_qty, 
-                            short_take_profit=short_take_profit,
-                            long_take_profit=long_take_profit,
-                            short_pos_price=short_pos_price,
-                            long_pos_price=long_pos_price,
-                            positionIdx=1, 
-                            order_side="sell", 
-                            next_tp_update=self.next_long_tp_update,
-                            five_minute_distance=five_minute_distance, 
-                            previous_five_minute_distance=previous_five_minute_distance
-                        )
-
-                if short_pos_qty > 0:
-                    # Check for short positions
-                    if current_time >= self.next_short_tp_update and short_take_profit is not None:
-                        self.next_short_tp_update = self.update_take_profit_spread_bybit(
-                            symbol=symbol, 
-                            pos_qty=short_pos_qty, 
-                            short_take_profit=short_take_profit,
-                            long_take_profit=long_take_profit,
-                            short_pos_price=short_pos_price,
-                            long_pos_price=long_pos_price,
-                            positionIdx=2, 
-                            order_side="buy", 
-                            next_tp_update=self.next_short_tp_update,
-                            five_minute_distance=five_minute_distance, 
-                            previous_five_minute_distance=previous_five_minute_distance
-                        )
 
                 self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
 
@@ -428,8 +336,6 @@ class BybitMMPlayTheSpread(Strategy):
                     should_short = self.short_trade_condition(best_ask_price, moving_averages["ma_3_high"])
                     should_long = self.long_trade_condition(best_bid_price, moving_averages["ma_3_low"])
                             
-                    # self.bybit_initial_entry_mm_5m(open_orders, symbol, trend, hma_trend, mfirsi_signal, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
-
                     self.initiate_spread_entry(symbol, open_orders, long_dynamic_amount, short_dynamic_amount)
 
                     time.sleep(5)
