@@ -100,7 +100,7 @@ class DirectionalMarketMaker:
         elif strategy_name.lower() == 'bybit_obstrength':
             strategy = BybitOBStrength(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_ptp':
+        elif strategy_name.lower() == 'bybit_pts':
             strategy = BybitMMPlayTheSpread(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
 

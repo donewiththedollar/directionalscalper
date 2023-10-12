@@ -2472,17 +2472,52 @@ class Strategy:
     def set_spread_take_profits(self, symbol, open_orders, long_pos_qty, short_pos_qty):
         analyzer = self.OrderBookAnalyzer(self.exchange, symbol, depth=self.ORDER_BOOK_DEPTH)
         
-        # Take Profit Logic
-        avg_top_asks = sum([order[0] for order in analyzer.get_order_book()['asks'][:5]]) / 5
-        avg_top_bids = sum([order[0] for order in analyzer.get_order_book()['bids'][:5]]) / 5
+        order_book = analyzer.get_order_book()
+        top_asks = order_book['asks'][:5]
+        top_bids = order_book['bids'][:5]
+        
+        # Calculate average of top asks and bids
+        avg_top_asks = sum([ask[0] for ask in top_asks]) / 5
+        avg_top_bids = sum([bid[0] for bid in top_bids]) / 5
 
-        long_take_profit = avg_top_asks * 0.995  # 0.5% below average top asks
-        short_take_profit = avg_top_bids * 1.005  # 0.5% above average top bids
+        # Identify potential resistance (sell walls) and support (buy walls)
+        sell_walls = self.identify_walls(order_book, "sell")
+        buy_walls = self.identify_walls(order_book, "buy")
+
+        # For long take profit, if there's a sell wall, place take profit just before it
+        # If not, place it 0.5% below average of top asks
+        if sell_walls:
+            long_take_profit = sell_walls[0] * 0.998  # 0.2% before the wall
+        else:
+            long_take_profit = avg_top_asks * 0.995
+
+        # For short take profit, if there's a buy wall, place take profit just after it
+        # If not, place it 0.5% above average of top bids
+        if buy_walls:
+            short_take_profit = buy_walls[0] * 1.002  # 0.2% after the wall
+        else:
+            short_take_profit = avg_top_bids * 1.005
 
         if long_pos_qty > 0:
             self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
         if short_pos_qty > 0:
             self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
+
+
+    # def set_spread_take_profits(self, symbol, open_orders, long_pos_qty, short_pos_qty):
+    #     analyzer = self.OrderBookAnalyzer(self.exchange, symbol, depth=self.ORDER_BOOK_DEPTH)
+        
+    #     # Take Profit Logic
+    #     avg_top_asks = sum([order[0] for order in analyzer.get_order_book()['asks'][:5]]) / 5
+    #     avg_top_bids = sum([order[0] for order in analyzer.get_order_book()['bids'][:5]]) / 5
+
+    #     long_take_profit = avg_top_asks * 0.995  # 0.5% below average top asks
+    #     short_take_profit = avg_top_bids * 1.005  # 0.5% above average top bids
+
+    #     if long_pos_qty > 0:
+    #         self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
+    #     if short_pos_qty > 0:
+    #         self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
 
 
     def bybit_entry_mm_5m(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, five_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
