@@ -2429,6 +2429,62 @@ class Strategy:
                     logging.info(f"Placing additional short entry")
                     self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
+    def play_the_spread_entry_and_tp(self, symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty):
+        analyzer = self.OrderBookAnalyzer(self.exchange, symbol, depth=self.ORDER_BOOK_DEPTH)
+        
+        best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+        best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+        
+        imbalance = self.get_order_book_imbalance(symbol)
+
+        # Entry Logic
+        if imbalance == "buy_wall" and not self.entry_order_exists(open_orders, "buy"):
+            self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+        elif imbalance == "sell_wall" and not self.entry_order_exists(open_orders, "sell"):
+            self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+
+        # Take Profit Logic
+        avg_top_asks = sum([order[0] for order in analyzer.get_order_book()['asks'][:5]]) / 5
+        avg_top_bids = sum([order[0] for order in analyzer.get_order_book()['bids'][:5]]) / 5
+
+        long_take_profit = avg_top_asks * 0.995  # 0.5% below average top asks
+        short_take_profit = avg_top_bids * 1.005  # 0.5% above average top bids
+
+        if self.long_position_open(symbol):
+            self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
+        if self.short_position_open(symbol):
+            self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
+
+    def initiate_spread_entry(self, symbol, open_orders, long_dynamic_amount, short_dynamic_amount):
+        analyzer = self.OrderBookAnalyzer(self.exchange, symbol, depth=self.ORDER_BOOK_DEPTH)
+        
+        best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+        best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+        
+        imbalance = self.get_order_book_imbalance(symbol)
+
+        # Entry Logic
+        if imbalance == "buy_wall" and not self.entry_order_exists(open_orders, "buy") and not self.long_position_open(symbol):
+            self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+        elif imbalance == "sell_wall" and not self.entry_order_exists(open_orders, "sell") and not self.short_position_open(symbol):
+            self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+
+    def set_spread_take_profits(self, symbol, open_orders, long_pos_qty, short_pos_qty):
+        analyzer = self.OrderBookAnalyzer(self.exchange, symbol, depth=self.ORDER_BOOK_DEPTH)
+        
+        # Take Profit Logic
+        avg_top_asks = sum([order[0] for order in analyzer.get_order_book()['asks'][:5]]) / 5
+        avg_top_bids = sum([order[0] for order in analyzer.get_order_book()['bids'][:5]]) / 5
+
+        long_take_profit = avg_top_asks * 0.995  # 0.5% below average top asks
+        short_take_profit = avg_top_bids * 1.005  # 0.5% above average top bids
+
+        if self.long_position_open(symbol):
+            self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
+        if self.short_position_open(symbol):
+            self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
+
+
     def bybit_entry_mm_5m(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, five_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
 
         logging.info(f"Hedge entry maker hma function hit")
