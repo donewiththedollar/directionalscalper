@@ -340,8 +340,8 @@ class BybitMMPlayTheSpread(Strategy):
 
                 tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
 
-                logging.info(f"Short take profit for managed symbol {symbol}: {short_take_profit}")
-                logging.info(f"Long take profit for managed symbol {symbol} : {long_take_profit}")
+                # logging.info(f"Short take profit for managed symbol {symbol}: {short_take_profit}")
+                # logging.info(f"Long take profit for managed symbol {symbol} : {long_take_profit}")
 
                 self.set_spread_take_profits(symbol, open_orders, long_pos_qty, short_pos_qty)
 
