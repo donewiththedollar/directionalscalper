@@ -4653,25 +4653,38 @@ class Strategy:
                     
                     logging.info(f"Placed take profit order for stale position: {symbol} at price: {current_price}")
 
-    def cancel_stale_orders_bybit(self):
+
+    def cancel_stale_orders_bybit(self, symbol):
         current_time = time.time()
         if current_time - self.last_stale_order_check_time < 3720:  # 3720 seconds = 1 hour 12 minutes
             return  # Skip the rest of the function if it's been less than 1 hour 12 minutes
 
-        all_open_orders = self.exchange.get_all_open_orders_bybit()
-        open_position_data = self.exchange.get_all_open_positions_bybit()
-        open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
-        open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
-        #rotator_symbols = self.manager.get_auto_rotate_symbols()
-        rotator_symbols = self.manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=self.whitelist, blacklist=self.blacklist, max_usd_value=self.max_usd_value)
-        all_open_order_symbols = [order['symbol'] for order in all_open_orders]
-        orders_to_cancel = [order for order in all_open_order_symbols if order not in open_symbols and order not in rotator_symbols]
-
-        for symbol in orders_to_cancel:
-            self.exchange.cancel_all_open_orders_bybit(symbol)
-            logging.info(f"Stale order for {symbol} canceled")
+        # Directly cancel orders for the given symbol
+        self.exchange.cancel_all_open_orders_bybit(symbol)
+        logging.info(f"Stale orders for {symbol} canceled")
 
         self.last_stale_order_check_time = current_time  # Update the last check time
+
+
+    # def cancel_stale_orders_bybit(self):
+    #     current_time = time.time()
+    #     if current_time - self.last_stale_order_check_time < 3720:  # 3720 seconds = 1 hour 12 minutes
+    #         return  # Skip the rest of the function if it's been less than 1 hour 12 minutes
+
+    #     all_open_orders = self.exchange.get_all_open_orders_bybit()
+    #     open_position_data = self.exchange.get_all_open_positions_bybit()
+    #     open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
+    #     open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
+    #     #rotator_symbols = self.manager.get_auto_rotate_symbols()
+    #     rotator_symbols = self.manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=self.whitelist, blacklist=self.blacklist, max_usd_value=self.max_usd_value)
+    #     all_open_order_symbols = [order['symbol'] for order in all_open_orders]
+    #     orders_to_cancel = [order for order in all_open_order_symbols if order not in open_symbols and order not in rotator_symbols]
+
+    #     for symbol in orders_to_cancel:
+    #         self.exchange.cancel_all_open_orders_bybit(symbol)
+    #         logging.info(f"Stale order for {symbol} canceled")
+
+    #     self.last_stale_order_check_time = current_time  # Update the last check time
 
     def cancel_all_orders_for_symbol_bybit(self, symbol):
         try:
