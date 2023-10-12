@@ -608,7 +608,7 @@ class Exchange:
 
     #     return None
 
-    def retry_api_call(self, function, *args, max_retries=100, delay=5, **kwargs):
+    def retry_api_call(self, function, *args, max_retries=100, delay=10, **kwargs):
         for i in range(max_retries):
             try:
                 return function(*args, **kwargs)
@@ -617,27 +617,51 @@ class Exchange:
                 time.sleep(delay)
         raise Exception(f"Failed to execute the API function after {max_retries} retries.")
 
-    # Bybit
     def get_balance_bybit(self, quote):
         if self.exchange.has['fetchBalance']:
-            # Fetch the balance
-            balance_response = self.exchange.fetch_balance()
+            try:
+                # Fetch the balance
+                balance_response = self.exchange.fetch_balance()
+                
+                # Log the raw response for debugging purposes
+                logging.info(f"Raw balance response from Bybit: {balance_response}")
 
-            # Check if it's the unified structure
-            if 'result' in balance_response:
-                coin_list = balance_response.get('result', {}).get('coin', [])
-                for currency_balance in coin_list:
-                    if currency_balance['coin'] == quote:
-                        return float(currency_balance['equity'])
-            # If not unified, handle the old structure
-            elif 'info' in balance_response:
-                for currency_balance in balance_response['info']['result']['list']:
-                    if currency_balance['coin'] == quote:
-                        return float(currency_balance['equity'])
-            else:
-                raise Exception("Unable to fetch balance due to unexpected response structure.")
-        else:
-            raise Exception("fetchBalance not supported by the exchange.")
+                # Check if it's the unified structure
+                if 'result' in balance_response:
+                    coin_list = balance_response.get('result', {}).get('coin', [])
+                    for currency_balance in coin_list:
+                        if currency_balance['coin'] == quote:
+                            return float(currency_balance['equity'])
+                # If not unified, handle the old structure
+                elif 'info' in balance_response:
+                    for currency_balance in balance_response['info']['result']['list']:
+                        if currency_balance['coin'] == quote:
+                            return float(currency_balance['equity'])
+            except Exception as e:
+                logging.error(f"Error fetching balance from Bybit: {e}")
+        return None
+
+    # Bybit
+    # def get_balance_bybit(self, quote):
+    #     if self.exchange.has['fetchBalance']:
+    #         # Fetch the balance
+    #         balance_response = self.exchange.fetch_balance()
+
+    #         # Check if it's the unified structure
+    #         if 'result' in balance_response:
+    #             coin_list = balance_response.get('result', {}).get('coin', [])
+    #             for currency_balance in coin_list:
+    #                 if currency_balance['coin'] == quote:
+    #                     return float(currency_balance['equity'])
+    #         # If not unified, handle the old structure
+    #         elif 'info' in balance_response:
+    #             for currency_balance in balance_response['info']['result']['list']:
+    #                 if currency_balance['coin'] == quote:
+    #                     return float(currency_balance['equity'])
+    #         else:
+    #             raise Exception("Unable to fetch balance due to unexpected response structure.")
+    #     else:
+    #         raise Exception("fetchBalance not supported by the exchange.")
 
     def get_available_balance_bybit(self, quote):
         if self.exchange.has['fetchBalance']:
@@ -1941,7 +1965,7 @@ class Exchange:
     def cancel_all_open_orders_bybit(self, derivatives: bool = False, params={}):
         """
         Cancel all open orders for all symbols.
-        
+
         :param bool derivatives: Whether to cancel derivative orders.
         :param dict params: Additional parameters for the API call.
         :return: A list of canceled orders.
@@ -1960,10 +1984,41 @@ class Exchange:
                 if retry < max_retries - 1:
                     logging.warning(f"Rate limit exceeded. Retrying in {retry_delay} seconds...")
                     time.sleep(retry_delay)
-                    continue
                 else:  # If it's the last retry, raise the error
                     logging.error(f"Rate limit exceeded after {max_retries} retries.")
                     raise e
+            except Exception as ex:
+                # If any other exception, log it and re-raise
+                logging.error(f"Error occurred while canceling orders: {ex}")
+                raise ex
+
+
+    # def cancel_all_open_orders_bybit(self, derivatives: bool = False, params={}):
+    #     """
+    #     Cancel all open orders for all symbols.
+        
+    #     :param bool derivatives: Whether to cancel derivative orders.
+    #     :param dict params: Additional parameters for the API call.
+    #     :return: A list of canceled orders.
+    #     """
+    #     max_retries = 10  # Maximum number of retries
+    #     retry_delay = 5  # Delay (in seconds) between retries
+
+    #     for retry in range(max_retries):
+    #         try:
+    #             if derivatives:
+    #                 return self.exchange.cancel_all_derivatives_orders(None, params)
+    #             else:
+    #                 return self.exchange.cancel_all_orders(None, params)
+    #         except ccxt.RateLimitExceeded as e:
+    #             # If rate limit error and not the last retry, then wait and try again
+    #             if retry < max_retries - 1:
+    #                 logging.warning(f"Rate limit exceeded. Retrying in {retry_delay} seconds...")
+    #                 time.sleep(retry_delay)
+    #                 continue
+    #             else:  # If it's the last retry, raise the error
+    #                 logging.error(f"Rate limit exceeded after {max_retries} retries.")
+    #                 raise e
 
     # def cancel_all_open_orders_bybit(self, derivatives: bool = False, params={}):
     #     """
