@@ -287,7 +287,7 @@ class BybitOBStrength(Strategy):
 
 
                 self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
-                self.cancel_stale_orders_bybit()
+                self.cancel_stale_orders_bybit(symbol)
 
                 time.sleep(10)
 
