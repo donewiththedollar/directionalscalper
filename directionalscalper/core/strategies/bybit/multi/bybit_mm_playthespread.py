@@ -227,7 +227,11 @@ class BybitMMPlayTheSpread(Strategy):
                     self.spoofing_active = True
                     self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
 
-                self.play_the_spread_entry_and_tp(symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
+                if long_pos_qty > 0:
+                    self.play_the_spread_entry_and_tp(symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
+
+                if short_pos_qty > 0:
+                    self.play_the_spread_entry_and_tp(symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
 
                 tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
 
@@ -292,8 +296,14 @@ class BybitMMPlayTheSpread(Strategy):
                     self.spoofing_active = True
                     self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
 
-                self.set_spread_take_profits(symbol, open_orders, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
 
+                if long_pos_qty > 0:
+                    self.set_spread_take_profits(symbol, open_orders, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
+
+                if short_pos_qty > 0:
+                    self.set_spread_take_profits(symbol, open_orders, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
+
+                    
                 current_time = datetime.now()
 
                 logging.info(f"Short pos qty for managed {symbol}: {short_pos_qty}")
