@@ -2520,7 +2520,7 @@ class Strategy:
         logging.info(f"Current profit for {symbol} for short: {short_profit}")
 
         # Dynamic TP setting
-        PROFIT_THRESHOLD = 0.001  # for instance, 0.2%
+        PROFIT_THRESHOLD = 0.002  # for instance, 0.2%
 
         # Calculate the trading fee for long and short positions
         if long_pos_price is not None:
@@ -2603,7 +2603,7 @@ class Strategy:
         logging.info(f"Current profit for {symbol} for short: {short_profit}")
 
         # Dynamic TP setting
-        PROFIT_THRESHOLD = 0.001  # for instance, 0.2%
+        PROFIT_THRESHOLD = 0.002  # for instance, 0.2%
 
         # Calculate the trading fee for long and short positions
         if long_pos_price is not None:
