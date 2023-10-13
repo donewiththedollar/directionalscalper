@@ -2460,12 +2460,16 @@ class Strategy:
         long_profit = (avg_top_asks - long_pos_price) * long_pos_qty if long_pos_qty > 0 else 0
         short_profit = (short_pos_price - avg_top_bids) * short_pos_qty if short_pos_qty > 0 else 0
 
+        logging.info(f"Current profit for {symbol} for long: {long_profit}")
+        logging.info(f"Current profit for {symbol} for short: {short_profit}")
+
         # Dynamic TP setting
         PROFIT_THRESHOLD = 0.002  # for instance, 0.2%
 
         # For long positions
         if long_pos_qty > 0:
             if sell_walls:
+                logging.info(f"Sell wall found for {symbol}")
                 long_take_profit = sell_walls[0] * 0.998  # 0.2% before the wall
             elif long_profit > PROFIT_THRESHOLD * long_pos_price:
                 long_take_profit = avg_top_asks * 0.992  # Adjust to be slightly more aggressive
@@ -2477,10 +2481,13 @@ class Strategy:
         # For short positions
         if short_pos_qty > 0:
             if buy_walls:
+                logging.info(f"Buy wall found for {symbol}")
                 short_take_profit = buy_walls[0] * 1.002  # 0.2% after the wall
+                logging.info(f"Short take profit for {symbol} : {short_take_profit}")
             elif short_profit > PROFIT_THRESHOLD * short_pos_price:
                 short_take_profit = avg_top_bids * 1.008  # Adjust to be slightly more aggressive
             else:
+                logging.info(f"Short take profit for {symbol} : {short_take_profit}")
                 short_take_profit = avg_top_bids * 1.005
 
             self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
