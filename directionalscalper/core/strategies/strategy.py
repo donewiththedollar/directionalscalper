@@ -1780,6 +1780,55 @@ class Strategy:
             # Deactivate spoofing for the next cycle
             self.spoofing_active = False
 
+    def aggressive_action(self, symbol, short_dynamic_amount, long_dynamic_amount):
+        if self.spoofing_active:
+            # Fetch orderbook and positions
+            orderbook = self.exchange.get_orderbook(symbol)
+            best_bid_price = Decimal(orderbook['bids'][0][0])
+            best_ask_price = Decimal(orderbook['asks'][0][0])
+
+            position_data = self.exchange.get_positions_bybit(symbol)
+            short_pos_qty = position_data["short"]["qty"]
+            long_pos_qty = position_data["long"]["qty"]
+
+            if short_pos_qty is None and long_pos_qty is None:
+                logging.warning(f"Could not fetch position quantities for {symbol}. Skipping spoofing.")
+                return
+
+            # Initialize variables
+            spoofing_orders = []
+            safety_margin = Decimal('0.02')  # 2% safety margin
+            base_gap = Decimal('0.002')  # Base gap for spoofing orders
+
+            for i in range(self.spoofing_wall_size):
+                gap = base_gap + Decimal(i) * Decimal('0.001')  # Increasing gap for each subsequent order
+
+                if long_pos_qty > 0:  # If there's a long position, place sell spoof orders
+                    spoof_price_long = best_ask_price + gap + safety_margin
+                    spoof_price_long = spoof_price_long.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
+                    spoof_order_long = self.limit_order_bybit(symbol, "sell", long_dynamic_amount, spoof_price_long, positionIdx=2, reduceOnly=False)
+                    spoofing_orders.append(spoof_order_long)
+
+                if short_pos_qty > 0:  # If there's a short position, place buy spoof orders
+                    spoof_price_short = best_bid_price - gap - safety_margin
+                    spoof_price_short = spoof_price_short.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
+                    spoof_order_short = self.limit_order_bybit(symbol, "buy", short_dynamic_amount, spoof_price_short, positionIdx=1, reduceOnly=False)
+                    spoofing_orders.append(spoof_order_short)
+
+            # Sleep for the spoofing duration and then cancel all placed orders
+            time.sleep(self.spoofing_duration)
+
+            # Cancel orders and handle errors
+            for order in spoofing_orders:
+                if 'id' in order:
+                    logging.info(f"Spoofing order: {order}")
+                    self.exchange.cancel_order_by_id(order['id'], symbol)
+                else:
+                    logging.warning(f"Could not place spoofing order: {order.get('error', 'Unknown error')}")
+
+            # Deactivate spoofing for the next cycle
+            self.spoofing_active = False
+
     def spoof_order(self, symbol, side, max_amount, max_price, price_step=3.0, num_orders=5):
         total_amount = 0.0  # Initialize the total amount to zero
 
@@ -2465,16 +2514,17 @@ class Strategy:
 
         # Dynamic TP setting
         PROFIT_THRESHOLD = 0.002  # for instance, 0.2%
+        TAKER_FEE = 0.00055  # 0.055%
 
         # For long positions
         if long_pos_qty > 0:
             if sell_walls:
                 logging.info(f"Sell wall found for {symbol}")
-                long_take_profit = sell_walls[0] * 0.998  # 0.2% before the wall
+                long_take_profit = sell_walls[0] * (1 - TAKER_FEE)  # Adjust TP further from the sell wall by fee amount
             elif long_profit > PROFIT_THRESHOLD * long_pos_price:
-                long_take_profit = best_bid_price + 0.0001  # Set TP just above the best bid
+                long_take_profit = best_bid_price + 0.0001
             else:
-                long_take_profit = avg_top_asks * 0.995
+                long_take_profit = avg_top_asks * (1 - TAKER_FEE)
 
             self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
 
@@ -2482,41 +2532,13 @@ class Strategy:
         if short_pos_qty > 0:
             if buy_walls:
                 logging.info(f"Buy wall found for {symbol}")
-                short_take_profit = buy_walls[0] * 1.002  # 0.2% after the wall
+                short_take_profit = buy_walls[0] * (1 + TAKER_FEE)  # Adjust TP further from the buy wall by fee amount
             elif short_profit > PROFIT_THRESHOLD * short_pos_price:
-                short_take_profit = best_ask_price - 0.0001  # Set TP just below the best ask
+                short_take_profit = best_ask_price - 0.0001
             else:
-                short_take_profit = avg_top_bids * 1.005
+                short_take_profit = avg_top_bids * (1 + TAKER_FEE)
 
             self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
-
-
-        # # For long positions
-        # if long_pos_qty > 0:
-        #     if sell_walls:
-        #         logging.info(f"Sell wall found for {symbol}")
-        #         long_take_profit = sell_walls[0] * 0.998  # 0.2% before the wall
-        #     elif long_profit > PROFIT_THRESHOLD * long_pos_price:
-        #         long_take_profit = avg_top_asks * 0.992  # Adjust to be slightly more aggressive
-        #     else:
-        #         long_take_profit = avg_top_asks * 0.995
-
-        #     self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
-
-        # # For short positions
-        # if short_pos_qty > 0:
-        #     if buy_walls:
-        #         logging.info(f"Buy wall found for {symbol}")
-        #         short_take_profit = buy_walls[0] * 1.002  # 0.2% after the wall
-        #         logging.info(f"Short take profit for {symbol} : {short_take_profit}")
-        #     elif short_profit > PROFIT_THRESHOLD * short_pos_price:
-        #         short_take_profit = avg_top_bids * 1.008  # Adjust to be slightly more aggressive
-        #     else:
-        #         logging.info(f"Short take profit for {symbol} : {short_take_profit}")
-        #         short_take_profit = avg_top_bids * 1.005
-
-            self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
-
 
     def initiate_spread_entry(self, symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty):
         analyzer = self.OrderBookAnalyzer(self.exchange, symbol, depth=self.ORDER_BOOK_DEPTH)
@@ -2542,7 +2564,6 @@ class Strategy:
         best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
         best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
-        
         # Calculate average of top asks and bids
         avg_top_asks = sum([ask[0] for ask in top_asks]) / 5
         avg_top_bids = sum([bid[0] for bid in top_bids]) / 5
@@ -2560,16 +2581,17 @@ class Strategy:
 
         # Dynamic TP setting
         PROFIT_THRESHOLD = 0.002  # for instance, 0.2%
+        TAKER_FEE = 0.00055  # 0.055%
 
         # For long positions
         if long_pos_qty > 0:
             if sell_walls:
                 logging.info(f"Sell wall found for {symbol}")
-                long_take_profit = sell_walls[0] * 0.998  # 0.2% before the wall
+                long_take_profit = sell_walls[0] * (1 - TAKER_FEE)  # Adjust TP further from the sell wall by fee amount
             elif long_profit > PROFIT_THRESHOLD * long_pos_price:
-                long_take_profit = best_bid_price + 0.0001  # Set TP just above the best bid
+                long_take_profit = best_bid_price + 0.0001
             else:
-                long_take_profit = avg_top_asks * 0.995
+                long_take_profit = avg_top_asks * (1 - TAKER_FEE)
 
             self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
 
@@ -2577,35 +2599,13 @@ class Strategy:
         if short_pos_qty > 0:
             if buy_walls:
                 logging.info(f"Buy wall found for {symbol}")
-                short_take_profit = buy_walls[0] * 1.002  # 0.2% after the wall
+                short_take_profit = buy_walls[0] * (1 + TAKER_FEE)  # Adjust TP further from the buy wall by fee amount
             elif short_profit > PROFIT_THRESHOLD * short_pos_price:
-                short_take_profit = best_ask_price - 0.0001  # Set TP just below the best ask
+                short_take_profit = best_ask_price - 0.0001
             else:
-                short_take_profit = avg_top_bids * 1.005
+                short_take_profit = avg_top_bids * (1 + TAKER_FEE)
 
             self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
-
-        # # For long positions
-        # if long_pos_qty > 0:
-        #     if sell_walls:
-        #         long_take_profit = sell_walls[0] * 0.998  # 0.2% before the wall
-        #     elif long_profit > PROFIT_THRESHOLD * long_pos_price:
-        #         long_take_profit = avg_top_asks * 0.992  # Adjust to be slightly more aggressive
-        #     else:
-        #         long_take_profit = avg_top_asks * 0.995
-
-        #     self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
-
-        # # For short positions
-        # if short_pos_qty > 0:
-        #     if buy_walls:
-        #         short_take_profit = buy_walls[0] * 1.002  # 0.2% after the wall
-        #     elif short_profit > PROFIT_THRESHOLD * short_pos_price:
-        #         short_take_profit = avg_top_bids * 1.008  # Adjust to be slightly more aggressive
-        #     else:
-        #         short_take_profit = avg_top_bids * 1.005
-
-        #     self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
 
     def bybit_entry_mm_5m(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, five_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
 
