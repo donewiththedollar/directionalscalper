@@ -2434,6 +2434,9 @@ class Strategy:
         
         imbalance = self.get_order_book_imbalance(symbol)
 
+        best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+        best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+
         # Entry Logic
         if imbalance == "buy_wall" and not self.entry_order_exists(open_orders, "buy"):
             self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
@@ -2444,9 +2447,6 @@ class Strategy:
         order_book = analyzer.get_order_book()
         top_asks = order_book['asks'][:5]
         top_bids = order_book['bids'][:5]
-
-        best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
-        best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
         # Calculate the average of top asks and bids
         avg_top_asks = sum([ask[0] for ask in top_asks]) / 5
