@@ -26,7 +26,7 @@ class BybitMMPlayTheSpread(Strategy):
         self.next_short_tp_update = self.calculate_next_update_time()
         self.last_cancel_time = 0
         self.spoofing_active = False
-        self.spoofing_wall_size = 5
+        self.spoofing_wall_size = 10
         self.spoofing_duration = 5
         self.spoofing_interval = 1
         try:
@@ -225,7 +225,8 @@ class BybitMMPlayTheSpread(Strategy):
                 current_time = time.time()
                 if current_time - self.last_cancel_time >= self.spoofing_interval:
                     self.spoofing_active = True
-                    self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
+                    self.aggressive_action(symbol, short_dynamic_amount, long_dynamic_amount)
+                    #self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
 
                 if long_pos_qty > 0:
                     self.play_the_spread_entry_and_tp(symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
@@ -294,7 +295,8 @@ class BybitMMPlayTheSpread(Strategy):
                 current_time = time.time()
                 if current_time - self.last_cancel_time >= self.spoofing_interval:
                     self.spoofing_active = True
-                    self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
+                    self.aggressive_action(symbol, short_dynamic_amount, long_dynamic_amount)
+                    #self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
 
 
                 if long_pos_qty > 0:
