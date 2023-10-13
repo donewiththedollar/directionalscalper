@@ -2520,11 +2520,11 @@ class Strategy:
         if long_pos_qty > 0:
             if sell_walls:
                 logging.info(f"Sell wall found for {symbol}")
-                long_take_profit = sell_walls[0] * (1 - TAKER_FEE)  # Adjust TP further from the sell wall by fee amount
+                long_take_profit = sell_walls[0] * (1 + TAKER_FEE)  # Adjust TP upwards from the sell wall by fee amount
             elif long_profit > PROFIT_THRESHOLD * long_pos_price:
                 long_take_profit = best_bid_price + 0.0001
             else:
-                long_take_profit = avg_top_asks * (1 - TAKER_FEE)
+                long_take_profit = avg_top_asks * (1 + TAKER_FEE)
 
             self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
 
@@ -2532,11 +2532,11 @@ class Strategy:
         if short_pos_qty > 0:
             if buy_walls:
                 logging.info(f"Buy wall found for {symbol}")
-                short_take_profit = buy_walls[0] * (1 + TAKER_FEE)  # Adjust TP further from the buy wall by fee amount
+                short_take_profit = buy_walls[0] * (1 - TAKER_FEE)  # Adjust TP downwards from the buy wall by fee amount
             elif short_profit > PROFIT_THRESHOLD * short_pos_price:
                 short_take_profit = best_ask_price - 0.0001
             else:
-                short_take_profit = avg_top_bids * (1 + TAKER_FEE)
+                short_take_profit = avg_top_bids * (1 - TAKER_FEE)
 
             self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
 
@@ -2587,11 +2587,11 @@ class Strategy:
         if long_pos_qty > 0:
             if sell_walls:
                 logging.info(f"Sell wall found for {symbol}")
-                long_take_profit = sell_walls[0] * (1 - TAKER_FEE)  # Adjust TP further from the sell wall by fee amount
+                long_take_profit = sell_walls[0] * (1 + TAKER_FEE)  # Adjust TP upwards from the sell wall by fee amount
             elif long_profit > PROFIT_THRESHOLD * long_pos_price:
                 long_take_profit = best_bid_price + 0.0001
             else:
-                long_take_profit = avg_top_asks * (1 - TAKER_FEE)
+                long_take_profit = avg_top_asks * (1 + TAKER_FEE)
 
             self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
 
@@ -2599,11 +2599,11 @@ class Strategy:
         if short_pos_qty > 0:
             if buy_walls:
                 logging.info(f"Buy wall found for {symbol}")
-                short_take_profit = buy_walls[0] * (1 + TAKER_FEE)  # Adjust TP further from the buy wall by fee amount
+                short_take_profit = buy_walls[0] * (1 - TAKER_FEE)  # Adjust TP downwards from the buy wall by fee amount
             elif short_profit > PROFIT_THRESHOLD * short_pos_price:
                 short_take_profit = best_ask_price - 0.0001
             else:
-                short_take_profit = avg_top_bids * (1 + TAKER_FEE)
+                short_take_profit = avg_top_bids * (1 - TAKER_FEE)
 
             self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
 
