@@ -2472,7 +2472,7 @@ class Strategy:
                 logging.info(f"Sell wall found for {symbol}")
                 long_take_profit = sell_walls[0] * 0.998  # 0.2% before the wall
             elif long_profit > PROFIT_THRESHOLD * long_pos_price:
-                long_take_profit = avg_top_asks * 0.992  # Adjust to be slightly more aggressive
+                long_take_profit = best_bid_price + 0.0001  # Set TP just above the best bid
             else:
                 long_take_profit = avg_top_asks * 0.995
 
@@ -2483,12 +2483,37 @@ class Strategy:
             if buy_walls:
                 logging.info(f"Buy wall found for {symbol}")
                 short_take_profit = buy_walls[0] * 1.002  # 0.2% after the wall
-                logging.info(f"Short take profit for {symbol} : {short_take_profit}")
             elif short_profit > PROFIT_THRESHOLD * short_pos_price:
-                short_take_profit = avg_top_bids * 1.008  # Adjust to be slightly more aggressive
+                short_take_profit = best_ask_price - 0.0001  # Set TP just below the best ask
             else:
-                logging.info(f"Short take profit for {symbol} : {short_take_profit}")
                 short_take_profit = avg_top_bids * 1.005
+
+            self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
+
+
+        # # For long positions
+        # if long_pos_qty > 0:
+        #     if sell_walls:
+        #         logging.info(f"Sell wall found for {symbol}")
+        #         long_take_profit = sell_walls[0] * 0.998  # 0.2% before the wall
+        #     elif long_profit > PROFIT_THRESHOLD * long_pos_price:
+        #         long_take_profit = avg_top_asks * 0.992  # Adjust to be slightly more aggressive
+        #     else:
+        #         long_take_profit = avg_top_asks * 0.995
+
+        #     self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
+
+        # # For short positions
+        # if short_pos_qty > 0:
+        #     if buy_walls:
+        #         logging.info(f"Buy wall found for {symbol}")
+        #         short_take_profit = buy_walls[0] * 1.002  # 0.2% after the wall
+        #         logging.info(f"Short take profit for {symbol} : {short_take_profit}")
+        #     elif short_profit > PROFIT_THRESHOLD * short_pos_price:
+        #         short_take_profit = avg_top_bids * 1.008  # Adjust to be slightly more aggressive
+        #     else:
+        #         logging.info(f"Short take profit for {symbol} : {short_take_profit}")
+        #         short_take_profit = avg_top_bids * 1.005
 
             self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
 
@@ -2531,13 +2556,14 @@ class Strategy:
 
         # Dynamic TP setting
         PROFIT_THRESHOLD = 0.002  # for instance, 0.2%
-        
+
         # For long positions
         if long_pos_qty > 0:
             if sell_walls:
+                logging.info(f"Sell wall found for {symbol}")
                 long_take_profit = sell_walls[0] * 0.998  # 0.2% before the wall
             elif long_profit > PROFIT_THRESHOLD * long_pos_price:
-                long_take_profit = avg_top_asks * 0.992  # Adjust to be slightly more aggressive
+                long_take_profit = best_bid_price + 0.0001  # Set TP just above the best bid
             else:
                 long_take_profit = avg_top_asks * 0.995
 
@@ -2546,13 +2572,36 @@ class Strategy:
         # For short positions
         if short_pos_qty > 0:
             if buy_walls:
+                logging.info(f"Buy wall found for {symbol}")
                 short_take_profit = buy_walls[0] * 1.002  # 0.2% after the wall
             elif short_profit > PROFIT_THRESHOLD * short_pos_price:
-                short_take_profit = avg_top_bids * 1.008  # Adjust to be slightly more aggressive
+                short_take_profit = best_ask_price - 0.0001  # Set TP just below the best ask
             else:
                 short_take_profit = avg_top_bids * 1.005
 
             self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
+
+        # # For long positions
+        # if long_pos_qty > 0:
+        #     if sell_walls:
+        #         long_take_profit = sell_walls[0] * 0.998  # 0.2% before the wall
+        #     elif long_profit > PROFIT_THRESHOLD * long_pos_price:
+        #         long_take_profit = avg_top_asks * 0.992  # Adjust to be slightly more aggressive
+        #     else:
+        #         long_take_profit = avg_top_asks * 0.995
+
+        #     self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
+
+        # # For short positions
+        # if short_pos_qty > 0:
+        #     if buy_walls:
+        #         short_take_profit = buy_walls[0] * 1.002  # 0.2% after the wall
+        #     elif short_profit > PROFIT_THRESHOLD * short_pos_price:
+        #         short_take_profit = avg_top_bids * 1.008  # Adjust to be slightly more aggressive
+        #     else:
+        #         short_take_profit = avg_top_bids * 1.005
+
+        #     self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
 
     def bybit_entry_mm_5m(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, five_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
 
