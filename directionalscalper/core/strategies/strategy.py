@@ -2523,9 +2523,16 @@ class Strategy:
         PROFIT_THRESHOLD = 0.002  # for instance, 0.2%
 
         # Calculate the trading fee for long and short positions
-        long_trading_fee = self.calculate_trading_fee(long_pos_qty, long_pos_price)
-        short_trading_fee = self.calculate_trading_fee(short_pos_qty, short_pos_price)
+        if long_pos_price is not None:
+            long_trading_fee = self.calculate_trading_fee(long_pos_qty, long_pos_price)
+        else:
+            long_trading_fee = 0
 
+        if short_pos_price is not None:
+            short_trading_fee = self.calculate_trading_fee(short_pos_qty, short_pos_price)
+        else:
+            short_trading_fee = 0
+            
         # For long positions
         if long_pos_qty > 0:
             if sell_walls:
@@ -2597,8 +2604,15 @@ class Strategy:
         PROFIT_THRESHOLD = 0.002  # for instance, 0.2%
 
         # Calculate the trading fee for long and short positions
-        long_trading_fee = self.calculate_trading_fee(long_pos_qty, long_pos_price)
-        short_trading_fee = self.calculate_trading_fee(short_pos_qty, short_pos_price)
+        if long_pos_price is not None:
+            long_trading_fee = self.calculate_trading_fee(long_pos_qty, long_pos_price)
+        else:
+            long_trading_fee = 0
+
+        if short_pos_price is not None:
+            short_trading_fee = self.calculate_trading_fee(short_pos_qty, short_pos_price)
+        else:
+            short_trading_fee = 0
 
         # For long positions
         if long_pos_qty > 0:
