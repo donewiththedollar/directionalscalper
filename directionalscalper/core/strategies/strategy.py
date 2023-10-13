@@ -2432,9 +2432,6 @@ class Strategy:
     def play_the_spread_entry_and_tp(self, symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price):
         analyzer = self.OrderBookAnalyzer(self.exchange, symbol, depth=self.ORDER_BOOK_DEPTH)
         
-        best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
-        best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
-        
         imbalance = self.get_order_book_imbalance(symbol)
 
         # Entry Logic
@@ -2447,6 +2444,9 @@ class Strategy:
         order_book = analyzer.get_order_book()
         top_asks = order_book['asks'][:5]
         top_bids = order_book['bids'][:5]
+
+        best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+        best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
         # Calculate the average of top asks and bids
         avg_top_asks = sum([ask[0] for ask in top_asks]) / 5
@@ -2534,10 +2534,14 @@ class Strategy:
 
     def set_spread_take_profits(self, symbol, open_orders, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price):
         analyzer = self.OrderBookAnalyzer(self.exchange, symbol, depth=self.ORDER_BOOK_DEPTH)
-        
+
         order_book = analyzer.get_order_book()
         top_asks = order_book['asks'][:5]
         top_bids = order_book['bids'][:5]
+
+        best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+        best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+
         
         # Calculate average of top asks and bids
         avg_top_asks = sum([ask[0] for ask in top_asks]) / 5
