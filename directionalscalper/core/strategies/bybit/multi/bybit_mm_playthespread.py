@@ -227,10 +227,7 @@ class BybitMMPlayTheSpread(Strategy):
                     self.spoofing_active = True
                     self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
 
-                #self.bybit_additional_entries_mm_5m(open_orders, symbol, trend, hma_trend, mfirsi_signal, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_add_to_long, should_add_to_short)
-                # self.bybit_entry_mm_5m(open_orders, symbol, trend, hma_trend, mfirsi_signal, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
-
-                self.play_the_spread_entry_and_tp(symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty)
+                self.play_the_spread_entry_and_tp(symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
 
                 tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
 
@@ -250,7 +247,6 @@ class BybitMMPlayTheSpread(Strategy):
                 logging.info(f"Short TP order count for {symbol} is {tp_order_counts['short_tp_count']}")
       
                 current_time = datetime.now()
-
 
                 self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
                 self.cancel_stale_orders_bybit(symbol)
@@ -296,7 +292,7 @@ class BybitMMPlayTheSpread(Strategy):
                     self.spoofing_active = True
                     self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
 
-                self.set_spread_take_profits(symbol, open_orders, long_pos_qty, short_pos_qty)
+                self.set_spread_take_profits(symbol, open_orders, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price)
 
                 current_time = datetime.now()
 
@@ -336,7 +332,7 @@ class BybitMMPlayTheSpread(Strategy):
                     should_short = self.short_trade_condition(best_ask_price, moving_averages["ma_3_high"])
                     should_long = self.long_trade_condition(best_bid_price, moving_averages["ma_3_low"])
                             
-                    self.initiate_spread_entry(symbol, open_orders, long_dynamic_amount, short_dynamic_amount)
+                    self.initiate_spread_entry(symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty)
 
                     time.sleep(5)
                 else:
