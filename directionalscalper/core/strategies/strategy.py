@@ -2520,16 +2520,18 @@ class Strategy:
         logging.info(f"Current profit for {symbol} for short: {short_profit}")
 
         # Dynamic TP setting
-        PROFIT_THRESHOLD = 0.002  # for instance, 0.2%
+        PROFIT_THRESHOLD = 0.001  # for instance, 0.2%
 
         # Calculate the trading fee for long and short positions
         if long_pos_price is not None:
             long_trading_fee = self.calculate_trading_fee(long_pos_qty, long_pos_price)
+            logging.info(f"Long trading fee for {symbol} : {long_trading_fee}")
         else:
             long_trading_fee = 0
 
         if short_pos_price is not None:
             short_trading_fee = self.calculate_trading_fee(short_pos_qty, short_pos_price)
+            logging.info(f"Short trading fee for {symbol} : {short_trading_fee}")
         else:
             short_trading_fee = 0
             
@@ -2601,16 +2603,18 @@ class Strategy:
         logging.info(f"Current profit for {symbol} for short: {short_profit}")
 
         # Dynamic TP setting
-        PROFIT_THRESHOLD = 0.002  # for instance, 0.2%
+        PROFIT_THRESHOLD = 0.001  # for instance, 0.2%
 
         # Calculate the trading fee for long and short positions
         if long_pos_price is not None:
             long_trading_fee = self.calculate_trading_fee(long_pos_qty, long_pos_price)
+            logging.info(f"Long trading fee for {symbol} : {long_trading_fee}")
         else:
             long_trading_fee = 0
 
         if short_pos_price is not None:
             short_trading_fee = self.calculate_trading_fee(short_pos_qty, short_pos_price)
+            logging.info(f"Short trading fee for {symbol} : {short_trading_fee}")
         else:
             short_trading_fee = 0
 
