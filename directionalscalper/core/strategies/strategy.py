@@ -2540,12 +2540,12 @@ class Strategy:
             if sell_walls:
                 logging.info(f"Sell wall found for {symbol}")
                 # Adjust TP upwards from the sell wall by the calculated fee amount
-                long_take_profit = sell_walls[0] - long_trading_fee
+                long_take_profit = sell_walls[0] * (1 - long_trading_fee)
             elif long_profit > PROFIT_THRESHOLD * long_pos_price:
                 long_take_profit = best_bid_price + 0.0001
             else:
                 # Adjust TP upwards from the avg top asks by the calculated fee amount
-                long_take_profit = avg_top_asks - long_trading_fee
+                long_take_profit = avg_top_asks * (1 - long_trading_fee)
 
             self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
 
@@ -2554,15 +2554,15 @@ class Strategy:
             if buy_walls:
                 logging.info(f"Buy wall found for {symbol}")
                 # Adjust TP downwards from the buy wall by the calculated fee amount
-                short_take_profit = buy_walls[0] + short_trading_fee
+                short_take_profit = buy_walls[0] * (1 + short_trading_fee)
             elif short_profit > PROFIT_THRESHOLD * short_pos_price:
                 short_take_profit = best_ask_price - 0.0001
             else:
                 # Adjust TP downwards from the avg top bids by the calculated fee amount
-                short_take_profit = avg_top_bids + short_trading_fee
+                short_take_profit = avg_top_bids * (1 + short_trading_fee)
 
             self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
-
+            
     def initiate_spread_entry(self, symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty):
         analyzer = self.OrderBookAnalyzer(self.exchange, symbol, depth=self.ORDER_BOOK_DEPTH)
         
@@ -2623,12 +2623,12 @@ class Strategy:
             if sell_walls:
                 logging.info(f"Sell wall found for {symbol}")
                 # Adjust TP upwards from the sell wall by the calculated fee amount
-                long_take_profit = sell_walls[0] - long_trading_fee
+                long_take_profit = sell_walls[0] * (1 - long_trading_fee)
             elif long_profit > PROFIT_THRESHOLD * long_pos_price:
                 long_take_profit = best_bid_price + 0.0001
             else:
                 # Adjust TP upwards from the avg top asks by the calculated fee amount
-                long_take_profit = avg_top_asks - long_trading_fee
+                long_take_profit = avg_top_asks * (1 - long_trading_fee)
 
             self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
 
@@ -2637,15 +2637,15 @@ class Strategy:
             if buy_walls:
                 logging.info(f"Buy wall found for {symbol}")
                 # Adjust TP downwards from the buy wall by the calculated fee amount
-                short_take_profit = buy_walls[0] + short_trading_fee
+                short_take_profit = buy_walls[0] * (1 + short_trading_fee)
             elif short_profit > PROFIT_THRESHOLD * short_pos_price:
                 short_take_profit = best_ask_price - 0.0001
             else:
                 # Adjust TP downwards from the avg top bids by the calculated fee amount
-                short_take_profit = avg_top_bids + short_trading_fee
+                short_take_profit = avg_top_bids * (1 + short_trading_fee)
 
             self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
-
+            
     def bybit_entry_mm_5m(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, five_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
 
         logging.info(f"Hedge entry maker hma function hit")
