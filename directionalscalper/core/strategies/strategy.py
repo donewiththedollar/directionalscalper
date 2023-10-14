@@ -2489,47 +2489,55 @@ class Strategy:
         order_book = self.exchange.get_orderbook(symbol)
         top_asks = order_book['asks'][:10]
         top_bids = order_book['bids'][:10]
-        placed_orders = []  # List to keep track of placed orders
+        placed_orders = []
 
         if side == "long":
-            # Identify a potential front running opportunity
             if top_asks[0][1] > 3 * top_asks[1][1]:
-                amount += top_asks[0][1] * 0.1  # Increase the long amount by 10% of the top ask size
+                amount += top_asks[0][1] * 0.1
         elif side == "short":
-            # Identify a potential front running opportunity
             if top_bids[0][1] > 3 * top_bids[1][1]:
-                amount += top_bids[0][1] * 0.1  # Increase the short amount by 10% of the top bid size
+                amount += top_bids[0][1] * 0.1
 
         # QS
-        if random.randint(1, 10) > 8:  # 20% chance
-            for _ in range(5):  # Place and cancel 5 orders rapidly
-                if side == "long":
-                    order = self.postonly_limit_order_bybit(symbol, "buy", amount, top_bids[0][0], positionIdx=1, reduceOnly=False)
-                    placed_orders.append(order)
-                    time.sleep(0.01)  # Wait for 10 milliseconds
-                elif side == "short":
-                    order = self.postonly_limit_order_bybit(symbol, "sell", amount, top_asks[0][0], positionIdx=2, reduceOnly=False)
-                    placed_orders.append(order)
-                    time.sleep(0.01)  # Wait for 10 milliseconds
-        
+        if random.randint(1, 10) > 8:
+            for _ in range(5):
+                try:
+                    if side == "long":
+                        order = self.limit_order_bybit(symbol, "buy", amount, top_bids[0][0], positionIdx=1, reduceOnly=False)
+                    elif side == "short":
+                        order = self.limit_order_bybit(symbol, "sell", amount, top_asks[0][0], positionIdx=2, reduceOnly=False)
+
+                    if order is not None:  # Ensure order is not None
+                        placed_orders.append(order)
+                        time.sleep(0.01)
+
+                except Exception as e:
+                    logging.error(f"Error placing order: {e}")
+
         # L
-        if random.randint(1, 10) > 7:  # 30% chance
-            for _ in range(3):  # Place 3 orders 
-                if side == "long":
-                    order = self.postonly_limit_order_bybit(symbol, "buy", amount * 1.5, top_bids[0][0] * (1 - 0.001), positionIdx=1, reduceOnly=False)  # Place order 0.1% below top bid
-                    placed_orders.append(order)
-                elif side == "short":
-                    order = self.postonly_limit_order_bybit(symbol, "sell", amount * 1.5, top_asks[0][0] * (1 + 0.001), positionIdx=2, reduceOnly=False)  # Place order 0.1% above top ask
-                    placed_orders.append(order)
-            time.sleep(1)  # Wait for 1 second
+        if random.randint(1, 10) > 7:
+            for _ in range(3):
+                try:
+                    if side == "long":
+                        order = self.limit_order_bybit(symbol, "buy", amount * 1.5, top_bids[0][0] * (1 - 0.001), positionIdx=1, reduceOnly=False)
+                    elif side == "short":
+                        order = self.limit_order_bybit(symbol, "sell", amount * 1.5, top_asks[0][0] * (1 + 0.001), positionIdx=2, reduceOnly=False)
+
+                    if order is not None:  # Ensure order is not None
+                        placed_orders.append(order)
+                        
+                except Exception as e:
+                    logging.error(f"Error placing order: {e}")
+
+            time.sleep(1)
 
         # Cancel orders and handle errors
         for order in placed_orders:
-            if 'id' in order:
+            if order and 'id' in order:
                 logging.info(f"Order to be canceled: {order}")
                 self.exchange.cancel_order_by_id(order['id'], symbol)
             else:
-                logging.warning(f"Could not place order: {order.get('error', 'Unknown error')}")
+                logging.warning(f"Could not place order: {order.get('error', 'Unknown error') if order else 'Order is None'}")
 
         return amount
 
