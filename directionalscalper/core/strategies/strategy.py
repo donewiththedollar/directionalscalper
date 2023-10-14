@@ -2640,9 +2640,6 @@ class Strategy:
 
         best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
         best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
-
-        long_dynamic_amount = self.m_order_amount(symbol, "long", long_dynamic_amount)
-        short_dynamic_amount = self.m_order_amount(symbol, "short", short_dynamic_amount)
         
         # Calculate average of top asks and bids
         avg_top_asks = sum([ask[0] for ask in top_asks]) / 5
