@@ -24,6 +24,7 @@ from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute import B
 from directionalscalper.core.strategies.bybit.multi.bybit_obstrength import BybitOBStrength
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi import BybitAutoRotatorMFIRSI
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_playthespread import BybitMMPlayTheSpread
+from directionalscalper.core.strategies.bybit.multi.bybit_obstrength_random import BybitOBStrengthRandom
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator_ratio import BybitMFIRSITrendRatio
 from directionalscalper.core.strategies.bybit.multi.bybit_spoof_rotator import BybitSpoofRotator
 from directionalscalper.core.strategies.bybit.multi.bybit_mm import BybitMM
@@ -102,6 +103,9 @@ class DirectionalMarketMaker:
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'bybit_pts':
             strategy = BybitMMPlayTheSpread(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
+        elif strategy_name.lower() == 'bybit_obstrength_random':
+            strategy = BybitOBStrengthRandom(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
 
     def get_balance(self, quote, market_type=None, sub_type=None):
