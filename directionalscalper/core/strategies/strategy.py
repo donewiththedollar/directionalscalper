@@ -2485,6 +2485,54 @@ class Strategy:
                     logging.info(f"Placing additional short entry")
                     self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
+    def m_order_amount(self, symbol, side, amount):
+        order_book = self.exchange.get_orderbook(symbol)
+        top_asks = order_book['asks'][:10]
+        top_bids = order_book['bids'][:10]
+        placed_orders = []  # List to keep track of placed orders
+
+        if side == "long":
+            # Identify a potential front running opportunity
+            if top_asks[0][1] > 3 * top_asks[1][1]:
+                amount += top_asks[0][1] * 0.1  # Increase the long amount by 10% of the top ask size
+        elif side == "short":
+            # Identify a potential front running opportunity
+            if top_bids[0][1] > 3 * top_bids[1][1]:
+                amount += top_bids[0][1] * 0.1  # Increase the short amount by 10% of the top bid size
+
+        # QS
+        if random.randint(1, 10) > 8:  # 20% chance
+            for _ in range(5):  # Place and cancel 5 orders rapidly
+                if side == "long":
+                    order = self.postonly_limit_order_bybit(symbol, "buy", amount, top_bids[0][0], positionIdx=1, reduceOnly=False)
+                    placed_orders.append(order)
+                    time.sleep(0.01)  # Wait for 10 milliseconds
+                elif side == "short":
+                    order = self.postonly_limit_order_bybit(symbol, "sell", amount, top_asks[0][0], positionIdx=2, reduceOnly=False)
+                    placed_orders.append(order)
+                    time.sleep(0.01)  # Wait for 10 milliseconds
+        
+        # L
+        if random.randint(1, 10) > 7:  # 30% chance
+            for _ in range(3):  # Place 3 orders 
+                if side == "long":
+                    order = self.postonly_limit_order_bybit(symbol, "buy", amount * 1.5, top_bids[0][0] * (1 - 0.001), positionIdx=1, reduceOnly=False)  # Place order 0.1% below top bid
+                    placed_orders.append(order)
+                elif side == "short":
+                    order = self.postonly_limit_order_bybit(symbol, "sell", amount * 1.5, top_asks[0][0] * (1 + 0.001), positionIdx=2, reduceOnly=False)  # Place order 0.1% above top ask
+                    placed_orders.append(order)
+            time.sleep(1)  # Wait for 1 second
+
+        # Cancel orders and handle errors
+        for order in placed_orders:
+            if 'id' in order:
+                logging.info(f"Order to be canceled: {order}")
+                self.exchange.cancel_order_by_id(order['id'], symbol)
+            else:
+                logging.warning(f"Could not place order: {order.get('error', 'Unknown error')}")
+
+        return amount
+
     def play_the_spread_entry_and_tp(self, symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price):
         analyzer = self.OrderBookAnalyzer(self.exchange, symbol, depth=self.ORDER_BOOK_DEPTH)
         
@@ -2492,6 +2540,9 @@ class Strategy:
 
         best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
         best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+
+        long_dynamic_amount = self.m_order_amount(symbol, "long", long_dynamic_amount)
+        short_dynamic_amount = self.m_order_amount(symbol, "short", short_dynamic_amount)
 
         # Entry Logic
         if imbalance == "buy_wall" and not self.entry_order_exists(open_orders, "buy"):
@@ -2568,6 +2619,9 @@ class Strategy:
         
         best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
         best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+
+        long_dynamic_amount = self.m_order_amount(symbol, "long", long_dynamic_amount)
+        short_dynamic_amount = self.m_order_amount(symbol, "short", short_dynamic_amount)
         
         imbalance = self.get_order_book_imbalance(symbol)
 
@@ -2587,6 +2641,9 @@ class Strategy:
         best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
         best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
+        long_dynamic_amount = self.m_order_amount(symbol, "long", long_dynamic_amount)
+        short_dynamic_amount = self.m_order_amount(symbol, "short", short_dynamic_amount)
+        
         # Calculate average of top asks and bids
         avg_top_asks = sum([ask[0] for ask in top_asks]) / 5
         avg_top_bids = sum([bid[0] for bid in top_bids]) / 5
