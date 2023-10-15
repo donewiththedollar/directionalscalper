@@ -339,6 +339,9 @@ class Strategy:
         long_dynamic_amount += aggressive_steps * min_qty
         short_dynamic_amount += aggressive_steps * min_qty
 
+        logging.info(f"Long dynamic amount for {symbol} {long_dynamic_amount}")
+        logging.info(f"Short dynamic amount for {symbol} {short_dynamic_amount}")
+
         # Reduce the maximum allowed dynamic amount to be more conservative
         AGGRESSIVE_MAX_PCT_EQUITY = 0.05  # 5% of the total equity
         max_allowed_dynamic_amount = AGGRESSIVE_MAX_PCT_EQUITY * total_equity
