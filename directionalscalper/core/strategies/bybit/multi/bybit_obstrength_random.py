@@ -217,7 +217,7 @@ class BybitOBStrengthRandom(Strategy):
 
                 open_tp_order_count = self.exchange.bybit.get_open_tp_order_count(symbol)
 
-                logging.info(f"Open TP order count {open_tp_order_count}")
+                logging.info(f"Open TP order count for symbol {open_tp_order_count}")
 
                 current_time = time.time()
                 if current_time - self.last_cancel_time >= self.spoofing_interval:
@@ -232,8 +232,8 @@ class BybitOBStrengthRandom(Strategy):
                 long_tp_counts = tp_order_counts['long_tp_count']
                 short_tp_counts = tp_order_counts['short_tp_count']
 
-                logging.info(f"Long tp counts: {long_tp_counts}")
-                logging.info(f"Short tp counts: {short_tp_counts}")
+                logging.info(f"Long tp counts for {symbol} : {long_tp_counts}")
+                logging.info(f"Short tp counts for {symbol} : {short_tp_counts}")
 
                 logging.info(f"Long pos qty {long_pos_qty} for {symbol}")
                 logging.info(f"Short pos qty {short_pos_qty} for {symbol}")
@@ -309,16 +309,26 @@ class BybitOBStrengthRandom(Strategy):
                 short_pos_qty = position_data["short"]["qty"]
                 long_pos_qty = position_data["long"]["qty"]
 
+                logging.info(f"Symbol manager: Short pos qty {short_pos_qty} for {symbol}")
+                logging.info(f"Symbol manager: Long pos qty {long_pos_qty} for {symbol}")
+
                 short_pos_price = position_data["short"]["price"] if short_pos_qty > 0 else None
                 long_pos_price = position_data["long"]["price"] if long_pos_qty > 0 else None
 
-                logging.info(f"Symbol manager: Short pos price: {short_pos_price}")
-                logging.info(f"Symbol manager: Long pos price: {long_pos_price}")
+                logging.info(f"Symbol manager: Short pos price: {short_pos_price} for {symbol}")
+                logging.info(f"Symbol manager: Long pos price: {long_pos_price} for {symbol}")
 
-                logging.info(f"Symbol manager: Long pos qty: {long_pos_qty}")
-                logging.info(f"Symbol manager: Short pos qty: {short_pos_qty}")
+                logging.info(f"Symbol manager: Long pos qty: {long_pos_qty} for {symbol}")
+                logging.info(f"Symbol manager: Short pos qty: {short_pos_qty} for {symbol}")
 
                 tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
+
+
+                long_tp_order_count = tp_order_counts['long_tp_count']
+                short_tp_order_count = tp_order_counts['short_tp_count']
+
+                logging.info(f"Long tp order count for {symbol} {long_tp_order_count}")
+                logging.info(f"Short tp order count for {symbol} {short_tp_order_count}")
 
                 short_take_profit = None
                 long_take_profit = None
@@ -333,6 +343,9 @@ class BybitOBStrengthRandom(Strategy):
                 self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
 
                 long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_obstrength(symbol, total_equity, best_ask_price, self.max_leverage)
+
+                logging.info(f"Long dynamic amount for {symbol} : {long_dynamic_amount}")
+                logging.info(f"Short dynamic amount for {symbol} : {short_dynamic_amount}")
 
                 should_short = self.short_trade_condition(best_ask_price, moving_averages["ma_3_high"])
                 should_long = self.long_trade_condition(best_bid_price, moving_averages["ma_3_low"])
