@@ -214,7 +214,7 @@ class BybitOBStrengthRandom(Strategy):
                 current_time = time.time()
                 if current_time - self.last_cancel_time >= self.spoofing_interval:
                     self.spoofing_active = True
-                    self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
+                    self.apm(symbol, short_dynamic_amount, long_dynamic_amount)
 
                 # Entries, and additional entries
                 self.bybit_hedge_entry_maker_obstrength_random(open_orders, symbol, trend, mfirsi_signal, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
@@ -351,7 +351,7 @@ class BybitOBStrengthRandom(Strategy):
                     should_add_to_long = long_pos_price > moving_averages["ma_6_high"] and self.long_trade_condition(best_bid_price, moving_averages["ma_6_low"])
 
 
-                self.bybit_hedge_additional_entry_obstrength_random(open_orders, symbol, trend, mfirsi_signal, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_add_to_long, should_add_to_short)
+                #self.bybit_hedge_additional_entry_obstrength_random(open_orders, symbol, trend, mfirsi_signal, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_add_to_long, should_add_to_short)
 
                 # [Rest of the logic for symbols not in open_positions]
                 # Place long TP order if there are no existing long TP orders
@@ -403,7 +403,7 @@ class BybitOBStrengthRandom(Strategy):
                 current_time = time.time()
                 if current_time - self.last_cancel_time >= self.spoofing_interval:
                     self.spoofing_active = True
-                    self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
+                    self.apm(symbol, short_dynamic_amount, long_dynamic_amount)
 
                 time.sleep(10)
 
