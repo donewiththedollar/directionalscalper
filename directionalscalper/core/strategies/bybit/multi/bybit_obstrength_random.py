@@ -38,15 +38,7 @@ class BybitOBStrengthRandom(Strategy):
 
 
     def run(self, symbol, rotator_symbols_standardized=None):
-        threads = [
-            Thread(target=self.run_single_symbol, args=(symbol, rotator_symbols_standardized))
-        ]
-
-        for thread in threads:
-            thread.start()
-
-        for thread in threads:
-            thread.join()
+        self.run_single_symbol(symbol, rotator_symbols_standardized)
 
 
     def run_single_symbol(self, symbol, rotator_symbols_standardized=None):
