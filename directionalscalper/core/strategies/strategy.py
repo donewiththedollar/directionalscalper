@@ -579,7 +579,7 @@ class Strategy:
         # Fetch the last order timestamps for both buy and sell orders for the symbol
         last_orders = self.order_timestamps.get(symbol, {"buy": 0, "sell": 0})
 
-        print(f"{last_orders} for {symbol}")
+        #print(f"{last_orders} for {symbol}")
         
         logging.info(f"Last orders {last_orders} for {symbol}")
 
