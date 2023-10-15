@@ -143,7 +143,7 @@ class Manager:
         """Checks if the cache has expired based on cache_life_seconds."""
         return datetime.now() > self.rotator_symbols_cache_expiry
 
-    def get_auto_rotate_symbols(self, min_qty_threshold: float = None, whitelist: list = None, blacklist: list = None, max_usd_value: float = None, max_retries: int = 100):
+    def get_auto_rotate_symbols(self, min_qty_threshold: float = None, whitelist: list = None, blacklist: list = None, max_usd_value: float = None, max_retries: int = 5):
         if self.rotator_symbols_cache and not self.is_cache_expired():
             return self.rotator_symbols_cache
 
@@ -196,22 +196,92 @@ class Manager:
                     return symbols
 
                 else:
-                    logging.info("Unexpected data format. Expected a list of assets.")
-                    # No immediate retry here. The sleep at the end will handle the delay
+                    logging.warning("Unexpected data format. Expected a list of assets.")
                     
             except requests.exceptions.RequestException as e:
-                logging.info(f"Request failed: {e}")
+                logging.warning(f"Request failed: {e}")
             except json.decoder.JSONDecodeError as e:
-                logging.info(f"Failed to parse JSON: {e}. Response: {raw_json}")
+                logging.warning(f"Failed to parse JSON: {e}. Response: {raw_json}")
             except Exception as e:
-                logging.info(f"Unexpected error occurred: {e}")
+                logging.warning(f"Unexpected error occurred: {e}")
 
             # Wait before the next retry
             if retry < max_retries - 1:
                 sleep(delay)
         
-        # Return empty list if all retries fail
-        return []
+        # Return cached symbols if all retries fail
+        logging.warning(f"Couldn't fetch rotator symbols after {max_retries} attempts. Using cached symbols.")
+        return self.rotator_symbols_cache or []
+
+    # def get_auto_rotate_symbols(self, min_qty_threshold: float = None, whitelist: list = None, blacklist: list = None, max_usd_value: float = None, max_retries: int = 100):
+    #     if self.rotator_symbols_cache and not self.is_cache_expired():
+    #         return self.rotator_symbols_cache
+
+    #     symbols = []
+    #     url = f"http://api.tradesimple.xyz/data/rotatorsymbols_{self.data_source_exchange}.json"
+        
+    #     for retry in range(max_retries):
+    #         delay = 2**retry  # exponential backoff
+    #         delay = min(58, delay)  # cap the delay to 30 seconds
+
+    #         try:
+    #             logging.info(f"Sending request to {url} (Attempt: {retry + 1})")
+    #             header, raw_json = send_public_request(url=url)
+                
+    #             if isinstance(raw_json, list):
+    #                 logging.info(f"Received {len(raw_json)} assets from API")
+                    
+    #                 for asset in raw_json:
+    #                     symbol = asset.get("Asset", "")
+    #                     min_qty = asset.get("Min qty", 0)
+    #                     usd_price = asset.get("Price", float('inf')) 
+                        
+    #                     logging.info(f"Processing symbol {symbol} with min_qty {min_qty} and USD price {usd_price}")
+
+    #                     # Only consider the whitelist if it's not empty or None
+    #                     if whitelist and symbol not in whitelist and len(whitelist) > 0:
+    #                         logging.info(f"Skipping {symbol} as it's not in whitelist")
+    #                         continue
+
+    #                     # Consider the blacklist regardless of whether it's empty or not
+    #                     if blacklist and symbol in blacklist:
+    #                         logging.info(f"Skipping {symbol} as it's in blacklist")
+    #                         continue
+
+    #                     # Check against the max_usd_value, if provided
+    #                     if max_usd_value is not None and usd_price > max_usd_value:
+    #                         logging.info(f"Skipping {symbol} as its USD price {usd_price} is greater than the max allowed {max_usd_value}")
+    #                         continue
+
+    #                     if min_qty_threshold is None or min_qty <= min_qty_threshold:
+    #                         symbols.append(symbol)
+
+    #                 logging.info(f"Returning {len(symbols)} symbols")
+                    
+    #                 # If successfully fetched, update the cache and its expiry time
+    #                 if symbols:
+    #                     self.rotator_symbols_cache = symbols
+    #                     self.rotator_symbols_cache_expiry = datetime.now() + timedelta(seconds=self.cache_life_seconds)
+
+    #                 return symbols
+
+    #             else:
+    #                 logging.info("Unexpected data format. Expected a list of assets.")
+    #                 # No immediate retry here. The sleep at the end will handle the delay
+                    
+    #         except requests.exceptions.RequestException as e:
+    #             logging.info(f"Request failed: {e}")
+    #         except json.decoder.JSONDecodeError as e:
+    #             logging.info(f"Failed to parse JSON: {e}. Response: {raw_json}")
+    #         except Exception as e:
+    #             logging.info(f"Unexpected error occurred: {e}")
+
+    #         # Wait before the next retry
+    #         if retry < max_retries - 1:
+    #             sleep(delay)
+        
+    #     # Return empty list if all retries fail
+    #     return []
     
     def get_symbols(self):
         url = "http://api.tradesimple.xyz/data/rotatorsymbols.json"
@@ -341,3 +411,36 @@ class Manager:
             'Symbols': self.get_symbols()
         }
         return api_data
+
+    def extract_metrics(self, api_data, symbol):
+        try:
+            one_minute_volume = api_data.get('1mVol', 0)
+            five_minute_volume = api_data.get('5mVol', 0)
+            five_minute_distance = api_data.get('5mSpread', 0)
+            trend = api_data.get('Trend', 'neutral')
+            mfirsi_signal = api_data.get('MFI', 'neutral')
+            funding_rate = api_data.get('Funding', 0)
+            hma_trend = api_data.get('HMA Trend', 'neutral')
+            
+            # Return the extracted metrics as a dictionary
+            return {
+                "1mVol": one_minute_volume,
+                "5mVol": five_minute_volume,
+                "5mSpread": five_minute_distance,
+                "Trend": trend,
+                "MFI": mfirsi_signal,
+                "Funding": funding_rate,
+                "HMA Trend": hma_trend
+            }
+        except Exception as e:
+            logging.warning(f"Error processing API data for symbol {symbol}: {e}")
+            # Return a default dictionary in case of any issues
+            return {
+                "1mVol": 0,
+                "5mVol": 0,
+                "5mSpread": 0,
+                "Trend": 'neutral',
+                "MFI": 'neutral',
+                "Funding": 0,
+                "HMA Trend": 'neutral'
+            }

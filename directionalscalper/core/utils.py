@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import logging
 import time
+import random
 from collections import OrderedDict
 from urllib.parse import urlencode
 
@@ -86,6 +87,8 @@ def send_public_request(
     payload: dict | None = None,
     json_in: dict | None = None,
     json_out: bool = True,
+    max_retries: int = 5,
+    base_delay: float = 0.5  # base delay for exponential backoff
 ):
     empty_response = BlankResponse().content
     if url_path is not None:
@@ -96,42 +99,103 @@ def send_public_request(
     if query_string:
         url = url + "?" + query_string
 
-    log.debug(f"Requesting {url}")
+    for attempt in range(max_retries):
+        try:
+            log.debug(f"Requesting {url} (Attempt: {attempt + 1})")
 
-    try:
-        response = dispatch_request(method)(
-            url=url,
-            json=json_in,
-            timeout=5,
-        )
-        headers = response.headers
-        if not json_out:
-            return headers, response.text
-        json_response = response.json()
-        if "code" in json_response and "msg" in json_response:
-            if len(json_response["msg"]) > 0:
-                raise HTTPRequestError(
-                    url=url, code=json_response["code"], msg=json_response["msg"]
-                )
-        if "retCode" in json_response:
-            if json_response["retCode"] != 0:
-                raise HTTPRequestError(
-                    url=url, code=json_response["retCode"], msg=json_response["retMsg"]
-                )
-        return headers, json_response
-    except requests.exceptions.ConnectionError:
-        log.warning("Connection error")
-    except requests.exceptions.Timeout:
-        log.warning("Request timed out")
-    except requests.exceptions.TooManyRedirects:
-        log.warning("Too many redirects")
-    except requests.exceptions.JSONDecodeError as e:
-        log.warning(f"JSON decode error for URL {url}. Error: {e}. Response content: {response.text}")
-    except requests.exceptions.RequestException as e:
-        log.warning(f"Request exception: {e}")
-    except HTTPRequestError as e:
-        log.warning(f"HTTP Request error: {e}")
+            response = dispatch_request(method)(
+                url=url,
+                json=json_in,
+                timeout=10,  # Increased timeout
+            )
+            headers = response.headers
+            if not json_out:
+                return headers, response.text
+            json_response = response.json()
+            if "code" in json_response and "msg" in json_response:
+                if len(json_response["msg"]) > 0:
+                    raise HTTPRequestError(
+                        url=url, code=json_response["code"], msg=json_response["msg"]
+                    )
+            if "retCode" in json_response:
+                if json_response["retCode"] != 0:
+                    raise HTTPRequestError(
+                        url=url, code=json_response["retCode"], msg=json_response["retMsg"]
+                    )
+            return headers, json_response
+        except requests.exceptions.ConnectionError:
+            log.warning(f"Send public request : Connection error for URL {url}")
+        except requests.exceptions.Timeout:
+            log.warning(f"Send public request : Request timed out for URL {url}")
+        except requests.exceptions.TooManyRedirects:
+            log.warning(f"Send public request : Too many redirects for URL {url}")
+        except requests.exceptions.JSONDecodeError as e:
+            log.warning(f"Send public request : JSON decode error: {e} for URL {url}")
+        except requests.exceptions.RequestException as e:
+            log.warning(f"Send public request : Request exception: {e} for URL {url}")
+        except HTTPRequestError as e:
+            log.warning(f"Send public request : HTTP Request error: {e} for URL {url}")
+
+        # Exponential backoff with jitter
+        if attempt < max_retries - 1:
+            wait_time = (base_delay * (2 ** attempt)) + (random.random() * 0.1)
+            time.sleep(wait_time)
+
     return empty_response, empty_response
+
+# def send_public_request(
+#     url: str,
+#     method: str = "GET",
+#     url_path: str | None = None,
+#     payload: dict | None = None,
+#     json_in: dict | None = None,
+#     json_out: bool = True,
+# ):
+#     empty_response = BlankResponse().content
+#     if url_path is not None:
+#         url += url_path
+#     if payload is None:
+#         payload = {}
+#     query_string = urlencode(payload, True)
+#     if query_string:
+#         url = url + "?" + query_string
+
+#     log.debug(f"Requesting {url}")
+
+#     try:
+#         response = dispatch_request(method)(
+#             url=url,
+#             json=json_in,
+#             timeout=5,
+#         )
+#         headers = response.headers
+#         if not json_out:
+#             return headers, response.text
+#         json_response = response.json()
+#         if "code" in json_response and "msg" in json_response:
+#             if len(json_response["msg"]) > 0:
+#                 raise HTTPRequestError(
+#                     url=url, code=json_response["code"], msg=json_response["msg"]
+#                 )
+#         if "retCode" in json_response:
+#             if json_response["retCode"] != 0:
+#                 raise HTTPRequestError(
+#                     url=url, code=json_response["retCode"], msg=json_response["retMsg"]
+#                 )
+#         return headers, json_response
+#     except requests.exceptions.ConnectionError:
+#         log.warning("Connection error")
+#     except requests.exceptions.Timeout:
+#         log.warning("Request timed out")
+#     except requests.exceptions.TooManyRedirects:
+#         log.warning("Too many redirects")
+#     except requests.exceptions.JSONDecodeError as e:
+#         log.warning(f"JSON decode error for URL {url}. Error: {e}. Response content: {response.text}")
+#     except requests.exceptions.RequestException as e:
+#         log.warning(f"Request exception: {e}")
+#     except HTTPRequestError as e:
+#         log.warning(f"HTTP Request error: {e}")
+#     return empty_response, empty_response
 
 
 def send_signed_request(
