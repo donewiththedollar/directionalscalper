@@ -153,15 +153,20 @@ class BybitMMFiveMinute(Strategy):
 
             # If the symbol is in rotator_symbols and either it's already being traded or trading is allowed.
             if symbol in rotator_symbols_standardized and (symbol in open_symbols or trading_allowed):
+                # Fetch the API data
                 api_data = self.manager.get_api_data(symbol)
 
-                one_minute_volume = api_data['1mVol']
-                five_minute_volume = api_data['5mVol']
-                five_minute_distance = api_data['5mSpread']
-                trend = api_data['Trend']
-                mfirsi_signal = api_data['MFI']
-                funding_rate = api_data['Funding']
-                hma_trend = api_data['HMA Trend']
+                # Extract the required metrics using the new implementation
+                metrics = self.manager.extract_metrics(api_data, symbol)
+
+                # Assign the metrics to the respective variables
+                one_minute_volume = metrics['1mVol']
+                five_minute_volume = metrics['5mVol']
+                five_minute_distance = metrics['5mSpread']
+                trend = metrics['Trend']
+                mfirsi_signal = metrics['MFI']
+                funding_rate = metrics['Funding']
+                hma_trend = metrics['HMA Trend']
 
                 position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
 
@@ -300,15 +305,20 @@ class BybitMMFiveMinute(Strategy):
                 time.sleep(10)
 
             elif symbol not in rotator_symbols_standardized and symbol in open_symbols:
+                # Fetch the API data
                 api_data = self.manager.get_api_data(symbol)
 
-                one_minute_volume = api_data['1mVol']
-                five_minute_volume = api_data['5mVol']
-                five_minute_distance = api_data['5mSpread']
-                trend = api_data['Trend']
-                mfirsi_signal = api_data['MFI']
-                funding_rate = api_data['Funding']
-                hma_trend = api_data['HMA Trend']
+                # Extract the required metrics using the new implementation
+                metrics = self.manager.extract_metrics(api_data, symbol)
+
+                # Assign the metrics to the respective variables
+                one_minute_volume = metrics['1mVol']
+                five_minute_volume = metrics['5mVol']
+                five_minute_distance = metrics['5mSpread']
+                trend = metrics['Trend']
+                mfirsi_signal = metrics['MFI']
+                funding_rate = metrics['Funding']
+                hma_trend = metrics['HMA Trend']
 
                 logging.info(f"Managing open symbols not in rotator_symbols")
 
@@ -403,15 +413,20 @@ class BybitMMFiveMinute(Strategy):
 
             # elif symbol in rotator_symbols and symbol not in open_symbols:
             elif symbol in rotator_symbols_standardized and symbol not in open_symbols and trading_allowed:
+                # Fetch the API data
                 api_data = self.manager.get_api_data(symbol)
 
-                one_minute_volume = api_data['1mVol']
-                five_minute_volume = api_data['5mVol']
-                five_minute_distance = api_data['5mSpread']
-                trend = api_data['Trend']
-                mfirsi_signal = api_data['MFI']
-                funding_rate = api_data['Funding']
-                hma_trend = api_data['HMA Trend']
+                # Extract the required metrics using the new implementation
+                metrics = self.manager.extract_metrics(api_data, symbol)
+
+                # Assign the metrics to the respective variables
+                one_minute_volume = metrics['1mVol']
+                five_minute_volume = metrics['5mVol']
+                five_minute_distance = metrics['5mSpread']
+                trend = metrics['Trend']
+                mfirsi_signal = metrics['MFI']
+                funding_rate = metrics['Funding']
+                hma_trend = metrics['HMA Trend']
 
                 logging.info(f"Managing new rotator symbol {symbol} not in open symbols")
 
@@ -468,4 +483,4 @@ class BybitMMFiveMinute(Strategy):
             logging.info(f"Average Daily Gain Percentage: {avg_daily_gain}%")
 
 
-            time.sleep(10)
+            time.sleep(30)

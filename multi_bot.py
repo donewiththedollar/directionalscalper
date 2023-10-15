@@ -299,15 +299,17 @@ if __name__ == '__main__':
 
     print(f"Symbols to trade: {symbols_to_trade}")
 
-    # Fetch the rotator symbols once before starting the threads and standardize them as well
-    rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist, max_usd_value=max_usd_value)]
+    # # Fetch the rotator symbols once before starting the threads and standardize them as well
+    # rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist, max_usd_value=max_usd_value)]
 
     # Start threads for initial set of symbols
     # active_threads = start_threads_for_symbols(symbols_to_trade, args, manager)
     # active_threads = start_threads_for_symbols(symbols_to_trade, args, manager, args.account_name, symbols_allowed)
 
     # Start threads for initial set of symbols
-    active_threads = start_threads_for_symbols(symbols_to_trade, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
+    # active_threads = start_threads_for_symbols(symbols_to_trade, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
+
+    active_threads = start_threads_for_symbols(symbols_to_trade, args, manager, args.account_name, symbols_allowed, all_symbols_standardized)
 
     # New section for continuous checking of rotator symbols
     while True:

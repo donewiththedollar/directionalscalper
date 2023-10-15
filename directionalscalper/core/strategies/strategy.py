@@ -575,12 +575,20 @@ class Strategy:
     def postonly_limit_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
         # Check if we can place an order for the given symbol
         now = time.time()  # Current timestamp
-        last_two_orders = self.order_timestamps.get(symbol, [])
+        
+        # Fetch the last order timestamps for both buy and sell orders for the symbol
+        last_orders = self.order_timestamps.get(symbol, {"buy": 0, "sell": 0})
 
-        logging.info(f"Current timestamps for {symbol}: {last_two_orders}")  # Log the current timestamps for debugging
+        print(f"{last_orders} for {symbol}")
+        
+        logging.info(f"Last orders {last_orders} for {symbol}")
 
-        if len(last_two_orders) >= 2 and (now - last_two_orders[0]) <= 300:  # If two orders were placed in the last 5 minutes
-            logging.warning(f"Cannot place more than 2 orders per 5 minutes for {symbol}. Skipping order placement...")
+        # Log the current timestamps for debugging
+        logging.info(f"Last {side} order timestamp for {symbol}: {last_orders[side]}")
+        
+        # Check if the last order of the same type (buy or sell) was placed less than X seconds ago (let's say 5 seconds for this example)
+        if (now - last_orders[side]) <= 60:
+            logging.info(f"Cannot place another {side} order for {symbol} within 5 seconds. Skipping order placement...")
             return None
 
         params = {"reduceOnly": reduceOnly, "postOnly": True}
@@ -589,13 +597,11 @@ class Strategy:
             order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
             logging.info(f"Order result: {order}")
             
-            # If order placement is successful, update the order timestamps
+            # If order placement is successful, update the order timestamp for the given side
             if order:
-                last_two_orders.append(now)  # Add the current timestamp
-                if len(last_two_orders) > 2:  # Keep only the last two timestamps
-                    last_two_orders.pop(0)
-                self.order_timestamps[symbol] = last_two_orders
-                logging.info(f"Updated timestamps for {symbol}: {last_two_orders}")  # Log the updated timestamps for debugging
+                last_orders[side] = now
+                self.order_timestamps[symbol] = last_orders
+                logging.info(f"Updated {side} order timestamp for {symbol}: {last_orders[side]}")
 
             if order is None:
                 logging.warning(f"Order result is None for {side} limit order on {symbol}")
@@ -603,6 +609,38 @@ class Strategy:
         except Exception as e:
             logging.error(f"Error placing order: {str(e)}")
             logging.exception("Stack trace for error in placing order:")  # This will log the full stack trace
+
+    # def postonly_limit_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
+    #     # Check if we can place an order for the given symbol
+    #     now = time.time()  # Current timestamp
+    #     last_two_orders = self.order_timestamps.get(symbol, [])
+
+    #     logging.info(f"Current timestamps for {symbol}: {last_two_orders}")  # Log the current timestamps for debugging
+
+    #     if len(last_two_orders) >= 2 and (now - last_two_orders[0]) <= 300:  # If two orders were placed in the last 5 minutes
+    #         logging.warning(f"Cannot place more than 2 orders per 5 minutes for {symbol}. Skipping order placement...")
+    #         return None
+
+    #     params = {"reduceOnly": reduceOnly, "postOnly": True}
+    #     logging.info(f"Placing {side} limit order for {symbol} at {price} with qty {amount} and params {params}...")
+    #     try:
+    #         order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
+    #         logging.info(f"Order result: {order}")
+            
+    #         # If order placement is successful, update the order timestamps
+    #         if order:
+    #             last_two_orders.append(now)  # Add the current timestamp
+    #             if len(last_two_orders) > 2:  # Keep only the last two timestamps
+    #                 last_two_orders.pop(0)
+    #             self.order_timestamps[symbol] = last_two_orders
+    #             logging.info(f"Updated timestamps for {symbol}: {last_two_orders}")  # Log the updated timestamps for debugging
+
+    #         if order is None:
+    #             logging.warning(f"Order result is None for {side} limit order on {symbol}")
+    #         return order
+    #     except Exception as e:
+    #         logging.error(f"Error placing order: {str(e)}")
+    #         logging.exception("Stack trace for error in placing order:")  # This will log the full stack trace
 
     def postonly_limit_order_bybit_nolimit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
         params = {"reduceOnly": reduceOnly, "postOnly": True}
@@ -2832,6 +2870,7 @@ class Strategy:
                 elif ((trend.lower() == "long" or hma_trend.lower() == "long") and mfi.lower() == "long") and should_add_to_long and long_pos_qty < self.max_long_trade_qty_per_symbol.get(symbol, 0) and best_bid_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
                     logging.info(f"Placing additional long entry")
                     self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                    time.sleep(1.5)
 
                 # Before entering short
                 logging.info(f"Checking for short entry conditions. max_short_trade_qty for {symbol}: {self.max_short_trade_qty_per_symbol.get(symbol, 0)}, Current short_pos_qty: {short_pos_qty}")
@@ -2846,7 +2885,8 @@ class Strategy:
                 elif ((trend.lower() == "short" or hma_trend.lower() == "short") and mfi.lower() == "short") and should_add_to_short and short_pos_qty < self.max_short_trade_qty_per_symbol.get(symbol, 0) and best_ask_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
                     logging.info(f"Placing additional short entry")
                     self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
-            
+                    time.sleep(1.5)
+
     def bybit_initial_entry_mm_5m(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, five_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, should_long: bool, should_short: bool):
 
         if trend is None or mfi is None or hma_trend is None:
@@ -2904,7 +2944,8 @@ class Strategy:
         # Check for additional long entry conditions
         if ((trend.lower() == "long" or hma_trend.lower() == "long") and mfi.lower() == "long") and should_add_to_long and long_pos_qty < self.max_long_trade_qty_per_symbol.get(symbol, 0) and best_bid_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
             logging.info(f"Placing additional long entry")
-            self.postonly_limit_entry_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+            self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+            time.sleep(1.5)
 
         # Cancel existing additional short entries
         existing_additional_shorts = self.get_open_additional_entry_orders(symbol, open_orders, "sell")
@@ -2916,7 +2957,8 @@ class Strategy:
         # Check for additional short entry conditions
         if ((trend.lower() == "short" or hma_trend.lower() == "short") and mfi.lower() == "short") and should_add_to_short and short_pos_qty < self.max_short_trade_qty_per_symbol.get(symbol, 0) and best_ask_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
             logging.info(f"Placing additional short entry")
-            self.postonly_limit_entry_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+            self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+            time.sleep(1.5)
 
     def bybit_additional_entry_mm_5m(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, 
                                             five_minute_volume: float, five_minute_distance: float, min_vol: float, 
