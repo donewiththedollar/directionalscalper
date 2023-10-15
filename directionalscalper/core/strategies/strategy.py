@@ -348,7 +348,7 @@ class Strategy:
         logging.info(f"Initial long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 
         # Ramp up the maximum allowed dynamic amount for aggressive tactics
-        AGGRESSIVE_MAX_PCT_EQUITY = 0.25  # 25% of the total equity, but feel the thrill and adjust as you see fit!
+        AGGRESSIVE_MAX_PCT_EQUITY = 0.15 #0.25  # 25% of the total equity, but feel the thrill and adjust as you see fit!
         max_allowed_dynamic_amount = AGGRESSIVE_MAX_PCT_EQUITY * total_equity
         logging.info(f"Max allowed dynamic amount for {symbol} : {max_allowed_dynamic_amount}")
 
@@ -2914,13 +2914,13 @@ class Strategy:
 
                 # Check for long entry conditions
                 if ((trend.lower() == "long" or hma_trend.lower() == "long") and mfi.lower() == "long") and should_long and long_pos_qty == 0 and long_pos_qty < self.max_long_trade_qty_per_symbol.get(symbol, 0) and not self.entry_order_exists(open_orders, "buy"):
-                    logging.info(f"Placing initial long entry")
+                    logging.info(f"Placing initial long entry for {symbol}")
                     self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-                    logging.info(f"Placed initial long entry")
+                    logging.info(f"Placed initial long entry for {symbol}")
 
                 # Check for additional long entry conditions
                 elif ((trend.lower() == "long" or hma_trend.lower() == "long") and mfi.lower() == "long") and should_add_to_long and long_pos_qty < self.max_long_trade_qty_per_symbol.get(symbol, 0) and best_bid_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
-                    logging.info(f"Placing additional long entry")
+                    logging.info(f"Placing additional long entry for {symbol}")
                     self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
                     time.sleep(1.5)
 
@@ -2931,11 +2931,11 @@ class Strategy:
                 if ((trend.lower() == "short" or hma_trend.lower() == "short") and mfi.lower() == "short") and should_short and short_pos_qty == 0 and short_pos_qty < self.max_short_trade_qty_per_symbol.get(symbol, 0) and not self.entry_order_exists(open_orders, "sell"):
                     logging.info(f"Placing initial short entry")
                     self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
-                    logging.info(f"Placed initial short entry")
+                    logging.info(f"Placed initial short entry for {symbol}")
 
                 # Check for additional short entry conditions
                 elif ((trend.lower() == "short" or hma_trend.lower() == "short") and mfi.lower() == "short") and should_add_to_short and short_pos_qty < self.max_short_trade_qty_per_symbol.get(symbol, 0) and best_ask_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
-                    logging.info(f"Placing additional short entry")
+                    logging.info(f"Placing additional short entry for {symbol}")
                     self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
                     time.sleep(1.5)
 
@@ -2956,15 +2956,15 @@ class Strategy:
 
                 # Check for long entry conditions
                 if ((trend.lower() == "long" or hma_trend.lower() == "long") and mfi.lower() == "long") and should_long and long_pos_qty == 0 and long_pos_qty < max_long_trade_qty_for_symbol and not self.entry_order_exists(open_orders, "buy"):
-                    logging.info(f"Placing initial long entry")
+                    logging.info(f"Placing initial long entry for {symbol}")
                     self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-                    logging.info(f"Placed initial long entry")
+                    logging.info(f"Placed initial long entry for {symbol}")
 
                 # Check for short entry conditions
                 if ((trend.lower() == "short" or hma_trend.lower() == "short") and mfi.lower() == "short") and should_short and short_pos_qty == 0 and short_pos_qty < max_short_trade_qty_for_symbol and not self.entry_order_exists(open_orders, "sell"):
-                    logging.info(f"Placing initial short entry")
+                    logging.info(f"Placing initial short entry for {symbol}")
                     self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
-                    logging.info(f"Placed initial short entry")
+                    logging.info(f"Placed initial short entry for {symbol}")
 
     def bybit_additional_entries_mm_5m(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, five_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_add_to_long: bool, should_add_to_short: bool):
 
@@ -2995,7 +2995,7 @@ class Strategy:
 
         # Check for additional long entry conditions
         if ((trend.lower() == "long" or hma_trend.lower() == "long") and mfi.lower() == "long") and should_add_to_long and long_pos_qty < self.max_long_trade_qty_per_symbol.get(symbol, 0) and best_bid_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
-            logging.info(f"Placing additional long entry")
+            logging.info(f"Placing additional long entry for {symbol}")
             self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
             time.sleep(1.5)
 
@@ -3008,7 +3008,7 @@ class Strategy:
 
         # Check for additional short entry conditions
         if ((trend.lower() == "short" or hma_trend.lower() == "short") and mfi.lower() == "short") and should_add_to_short and short_pos_qty < self.max_short_trade_qty_per_symbol.get(symbol, 0) and best_ask_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
-            logging.info(f"Placing additional short entry")
+            logging.info(f"Placing additional short entry for {symbol}")
             self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
             time.sleep(1.5)
 
