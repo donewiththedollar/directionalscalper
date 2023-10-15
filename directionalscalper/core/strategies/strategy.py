@@ -350,7 +350,7 @@ class Strategy:
         logging.info(f"Initial long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 
         # Ramp up the maximum allowed dynamic amount for aggressive tactics
-        AGGRESSIVE_MAX_PCT_EQUITY = 0.15 #0.25  # 25% of the total equity, but feel the thrill and adjust as you see fit!
+        AGGRESSIVE_MAX_PCT_EQUITY = 0.10 #0.25  # 25% of the total equity, but feel the thrill and adjust as you see fit!
         max_allowed_dynamic_amount = AGGRESSIVE_MAX_PCT_EQUITY * total_equity
         logging.info(f"Max allowed dynamic amount for {symbol} : {max_allowed_dynamic_amount}")
 
@@ -1804,6 +1804,70 @@ class Strategy:
             logging.warning(f"Could not fetch active orders for {symbol}: {e}")
             return 0
 
+    def pm(self, symbol, short_dynamic_amount, long_dynamic_amount):
+        if self.spoofing_active:
+            # Fetch orderbook and positions
+            orderbook = self.exchange.get_orderbook(symbol)
+            best_bid_price = Decimal(orderbook['bids'][0][0])
+            best_ask_price = Decimal(orderbook['asks'][0][0])
+
+            position_data = self.exchange.get_positions_bybit(symbol)
+            short_pos_qty = position_data["short"]["qty"]
+            long_pos_qty = position_data["long"]["qty"]
+
+            if short_pos_qty is None and long_pos_qty is None:
+                logging.warning(f"Could not fetch position quantities for {symbol}. Skipping manipulation.")
+                return
+
+            # Determine which position is larger
+            larger_position = "long" if long_pos_qty > short_pos_qty else "short"
+
+            # Adjust spoofing_wall_size based on the larger position
+            base_spoofing_wall_size = self.spoofing_wall_size
+            adjusted_spoofing_wall_size = base_spoofing_wall_size + 10
+
+            spoofing_orders = []
+            safety_margin = Decimal('0.05')
+            base_gap = Decimal('0.005')
+            momentum_ignition_multiplier = 2  # To really push the price 
+
+            for i in range(adjusted_spoofing_wall_size):
+                gap = base_gap + Decimal(i) * Decimal('0.002')
+
+                if larger_position == "long":
+                    # Calculate long spoof price based on best ask price (top of the order book)
+                    spoof_price_long = best_ask_price + gap + safety_margin
+                    spoof_price_long = spoof_price_long.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
+                    spoof_order_long = self.limit_order_bybit(symbol, "sell", long_dynamic_amount * momentum_ignition_multiplier, spoof_price_long, positionIdx=2, reduceOnly=False)
+                    spoofing_orders.append(spoof_order_long)
+
+                if larger_position == "short":
+                    # Calculate short spoof price based on best bid price (top of the order book)
+                    spoof_price_short = best_bid_price - gap - safety_margin
+                    spoof_price_short = spoof_price_short.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
+                    spoof_order_short = self.limit_order_bybit(symbol, "buy", short_dynamic_amount * momentum_ignition_multiplier, spoof_price_short, positionIdx=1, reduceOnly=False)
+                    spoofing_orders.append(spoof_order_short)
+
+            # Ignite momentum by placing a real order in the desired direction (with a slightly larger amount)
+            if larger_position == "long":
+                self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount * 1.5, best_bid_price, positionIdx=2, reduceOnly=False)
+            else:
+                self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount * 1.5, best_ask_price, positionIdx=1, reduceOnly=False)
+
+            # Sleep for the spoofing duration and then cancel all placed orders
+            time.sleep(self.spoofing_duration)
+
+            # Cancel orders and handle errors
+            for order in spoofing_orders:
+                if 'id' in order:
+                    logging.info(f"Manipulation order: {order}")
+                    self.exchange.cancel_order_by_id(order['id'], symbol)
+                else:
+                    logging.warning(f"Could not place manipulation order: {order.get('error', 'Unknown error')}")
+
+            # Deactivate spoofing for the next cycle
+            self.spoofing_active = False
+
     def apm(self, symbol, short_dynamic_amount, long_dynamic_amount):
         if self.spoofing_active:
             # Fetch orderbook and positions
@@ -2451,8 +2515,11 @@ class Strategy:
             return
 
 
-        long_dynamic_amount = self.m_order_amount(symbol, "long", long_dynamic_amount)
-        short_dynamic_amount = self.m_order_amount(symbol, "short", short_dynamic_amount)
+        self.m_order_amount(symbol, "long", long_dynamic_amount)
+        self.m_order_amount(symbol, "short", short_dynamic_amount)
+
+        logging.info(f"M order: Long {long_dynamic_amount}")
+        logging.info(f"M order: Short {short_dynamic_amount}")
 
         best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
         best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
@@ -2486,8 +2553,8 @@ class Strategy:
         best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
         best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
-        long_dynamic_amount = self.m_order_amount(symbol, "long", long_dynamic_amount)
-        short_dynamic_amount = self.m_order_amount(symbol, "short", short_dynamic_amount)
+        self.m_order_amount(symbol, "long", long_dynamic_amount)
+        self.m_order_amount(symbol, "short", short_dynamic_amount)
 
         # Additional long entry
         if trend.lower() == "long" and mfi.lower() == "long" and should_add_to_long and long_pos_qty < self.max_long_trade_qty_per_symbol[symbol] and best_bid_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
@@ -2508,8 +2575,8 @@ class Strategy:
         best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
         best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
-        long_dynamic_amount = self.m_order_amount(symbol, "long", long_dynamic_amount)
-        short_dynamic_amount = self.m_order_amount(symbol, "short", short_dynamic_amount)
+        self.m_order_amount(symbol, "long", long_dynamic_amount)
+        self.m_order_amount(symbol, "short", short_dynamic_amount)
 
         # Initial long entry
         if trend.lower() == "long" and mfi.lower() == "long" and should_long and long_pos_qty == 0 and long_pos_qty < self.max_long_trade_qty_per_symbol[symbol] and not self.entry_order_exists(open_orders, "buy"):
