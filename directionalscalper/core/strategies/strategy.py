@@ -1810,7 +1810,6 @@ class Strategy:
             orderbook = self.exchange.get_orderbook(symbol)
             best_bid_price = Decimal(orderbook['bids'][0][0])
             best_ask_price = Decimal(orderbook['asks'][0][0])
-            current_price = (best_bid_price + best_ask_price) / Decimal('2')  # Convert to Decimal
 
             position_data = self.exchange.get_positions_bybit(symbol)
             short_pos_qty = position_data["short"]["qty"]
@@ -1820,26 +1819,34 @@ class Strategy:
                 logging.warning(f"Could not fetch position quantities for {symbol}. Skipping spoofing.")
                 return
 
+            # Determine which position is larger
+            larger_position = "long" if long_pos_qty > short_pos_qty else "short"
+
+            # Adjust spoofing_wall_size based on the larger position
+            base_spoofing_wall_size = self.spoofing_wall_size
+            adjusted_spoofing_wall_size = base_spoofing_wall_size + 5
+            # adjusted_spoofing_wall_size = base_spoofing_wall_size + math.ceil(abs(long_pos_qty - short_pos_qty) / SOME_CONSTANT)
+
             # Initialize variables
             spoofing_orders = []
             safety_margin = Decimal('0.05')  # 1% safety margin
             base_gap = Decimal('0.005')  # Base gap for spoofing orders
 
-            for i in range(self.spoofing_wall_size):
+            for i in range(adjusted_spoofing_wall_size):
                 gap = base_gap + Decimal(i) * Decimal('0.002')  # Increasing gap for each subsequent order
 
-                if long_pos_qty > 0:  # Only if there's a long position open
+                if larger_position == "long":
                     # Calculate long spoof price based on best ask price (top of the order book)
                     spoof_price_long = best_ask_price + gap + safety_margin
                     spoof_price_long = spoof_price_long.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
-                    spoof_order_long = self.limit_order_bybit(symbol, "sell", long_dynamic_amount, spoof_price_long, positionIdx=2, reduceOnly=False)
+                    spoof_order_long = self.limit_order_bybit(symbol, "sell", long_dynamic_amount * 1.5, spoof_price_long, positionIdx=2, reduceOnly=False)
                     spoofing_orders.append(spoof_order_long)
 
-                if short_pos_qty > 0:  # Only if there's a short position open
+                if larger_position == "short":
                     # Calculate short spoof price based on best bid price (top of the order book)
                     spoof_price_short = best_bid_price - gap - safety_margin
                     spoof_price_short = spoof_price_short.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
-                    spoof_order_short = self.limit_order_bybit(symbol, "buy", short_dynamic_amount, spoof_price_short, positionIdx=1, reduceOnly=False)
+                    spoof_order_short = self.limit_order_bybit(symbol, "buy", short_dynamic_amount * 1.5, spoof_price_short, positionIdx=1, reduceOnly=False)
                     spoofing_orders.append(spoof_order_short)
 
             # Sleep for the spoofing duration and then cancel all placed orders
@@ -2999,12 +3006,15 @@ class Strategy:
             if long_pos_qty < max_long_trade_qty_for_symbol and best_bid_price < long_pos_price:
                 if not self.entry_order_exists(open_orders, "buy"):
                     self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-
+                    logging.info(f"Placing additional short for {symbol}")
+                    time.sleep(5)
         # Check for additional short entry conditions
         if ((trend.lower() == "short" or hma_trend.lower() == "short") and mfi.lower() == "short") and should_add_to_short:
             if short_pos_qty < max_short_trade_qty_for_symbol and best_ask_price > short_pos_price:
                 if not self.entry_order_exists(open_orders, "sell"):
                     self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                    logging.info(f"Placing additional long for {symbol}")
+                    time.sleep(5)
 
     def bybit_hedge_initial_entry_maker_hma(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, should_long: bool, should_short: bool):
 

@@ -237,6 +237,7 @@ class BybitMMFiveMinute(Strategy):
 
                 #self.bybit_additional_entries_mm_5m(open_orders, symbol, trend, hma_trend, mfirsi_signal, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_add_to_long, should_add_to_short)
                 self.bybit_entry_mm_5m(open_orders, symbol, trend, hma_trend, mfirsi_signal, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
+                time.sleep(5)
 
                 tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
 
@@ -335,10 +336,10 @@ class BybitMMFiveMinute(Strategy):
 
                 long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v2(symbol, total_equity, best_ask_price, self.max_leverage)
 
-                # current_time = time.time()
-                # if current_time - self.last_cancel_time >= self.spoofing_interval:
-                #     self.spoofing_active = True
-                #     self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
+                current_time = time.time()
+                if current_time - self.last_cancel_time >= self.spoofing_interval:
+                    self.spoofing_active = True
+                    self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
 
                 short_pos_price = position_data["short"]["price"] if short_pos_qty > 0 else None
                 long_pos_price = position_data["long"]["price"] if long_pos_qty > 0 else None
@@ -450,7 +451,7 @@ class BybitMMFiveMinute(Strategy):
                             
                     self.bybit_initial_entry_mm_5m(open_orders, symbol, trend, hma_trend, mfirsi_signal, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
 
-                    time.sleep(5)
+                    time.sleep(10)
                 else:
                     logging.warning(f"Potential trade for {symbol} skipped as max symbol limit reached.")
 
