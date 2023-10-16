@@ -44,17 +44,12 @@ class BybitMMFiveMinute(Strategy):
             symbol_locks[symbol] = Lock()
         self.run_single_symbol(symbol, rotator_symbols_standardized)
 
-    # def run(self, symbol, rotator_symbols_standardized=None):
-    #     self.run_single_symbol(symbol, rotator_symbols_standardized)
-
-    # def run_single_symbol(self, symbol):
     def run_single_symbol(self, symbol, rotator_symbols_standardized=None):
         if not symbol_locks[symbol].acquire(blocking=False):
             logging.info(f"Symbol {symbol} is currently being traded by another thread. Skipping this iteration.")
             return
         logging.info(f"Initializing default values")
-        # [Initialization code remains unchanged]
-        # Initialize potentially missing values
+
         min_qty = None
         current_price = None
         total_equity = None
