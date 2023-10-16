@@ -2038,7 +2038,8 @@ class Strategy:
             # Initialize variables
             spoofing_orders = []
             safety_margin = Decimal('0.05')  # 1% safety margin
-            base_gap = Decimal('0.005')  # Base gap for spoofing orders
+            #base_gap = Decimal('0.005')  # Base gap for spoofing orders
+            base_gap = Decimal ('0.01')
 
             for i in range(adjusted_spoofing_wall_size):
                 gap = base_gap + Decimal(i) * Decimal('0.002')  # Increasing gap for each subsequent order
