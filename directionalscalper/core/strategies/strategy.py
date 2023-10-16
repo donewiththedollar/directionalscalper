@@ -2063,7 +2063,7 @@ class Strategy:
             # Cancel orders and handle errors
             for order in spoofing_orders:
                 if 'id' in order:
-                    logging.info(f"Spoofing order: {order}")
+                    logging.info(f"Spoofing order for {symbol}: {order}")
                     self.exchange.cancel_order_by_id(order['id'], symbol)
                 else:
                     logging.warning(f"Could not place spoofing order: {order.get('error', 'Unknown error')}")
