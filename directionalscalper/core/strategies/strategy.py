@@ -2820,35 +2820,34 @@ class Strategy:
             if top_bids[0][1] > 3 * top_bids[1][1]:
                 amount += top_bids[0][1] * 0.1
 
+        QS_BUFFER_PERCENTAGE = 0.002  # 0.2% buffer for QS orders
         # QS
         if random.randint(1, 10) > 8:
             for _ in range(5):
                 try:
                     if side == "long":
-                        order = self.limit_order_bybit(symbol, "buy", amount, top_bids[0][0], positionIdx=1, reduceOnly=False)
+                        order = self.limit_order_bybit(symbol, "buy", amount, top_bids[0][0] * (1 - QS_BUFFER_PERCENTAGE), positionIdx=1, reduceOnly=False)
                     elif side == "short":
-                        order = self.limit_order_bybit(symbol, "sell", amount, top_asks[0][0], positionIdx=2, reduceOnly=False)
+                        order = self.limit_order_bybit(symbol, "sell", amount, top_asks[0][0] * (1 + QS_BUFFER_PERCENTAGE), positionIdx=2, reduceOnly=False)
 
                     if order is not None:  # Ensure order is not None
                         placed_orders.append(order)
                         time.sleep(0.01)
-
                 except Exception as e:
                     logging.error(f"Error placing order: {e}")
 
+        L_BUFFER_PERCENTAGE = 0.005  # 0.5% buffer for L orders
         # L
-        BUFFER_PERCENTAGE = 0.005  # 0.5% buffer
         if random.randint(1, 10) > 7:
             for _ in range(3):
                 try:
                     if side == "long":
-                        order = self.limit_order_bybit(symbol, "buy", amount * 1.5, top_bids[0][0] * (1 - BUFFER_PERCENTAGE), positionIdx=1, reduceOnly=False)
+                        order = self.limit_order_bybit(symbol, "buy", amount * 1.5, top_bids[0][0] * (1 - L_BUFFER_PERCENTAGE), positionIdx=1, reduceOnly=False)
                     elif side == "short":
-                        order = self.limit_order_bybit(symbol, "sell", amount * 1.5, top_asks[0][0] * (1 + BUFFER_PERCENTAGE), positionIdx=2, reduceOnly=False)
+                        order = self.limit_order_bybit(symbol, "sell", amount * 1.5, top_asks[0][0] * (1 + L_BUFFER_PERCENTAGE), positionIdx=2, reduceOnly=False)
 
                     if order is not None:  # Ensure order is not None
                         placed_orders.append(order)
-                        
                 except Exception as e:
                     logging.error(f"Error placing order: {e}")
 
@@ -2863,6 +2862,7 @@ class Strategy:
                 logging.warning(f"Could not place order: {order.get('error', 'Unknown error') if order else 'Order is None'}")
 
         return amount
+
 
     # def m_order_amount(self, symbol, side, amount):
     #     order_book = self.exchange.get_orderbook(symbol)
