@@ -72,6 +72,7 @@ class Strategy:
         self.lock = threading.Lock()  # Create a lock
         self.last_order_time = {}  # 
         self.symbol_locks = {}
+        self.order_ids = {}
 
         self.bybit = self.Bybit(self)
 
@@ -601,16 +602,24 @@ class Strategy:
             logging.error(f"Failed to place market close order: {e}")
 
     def can_place_order(self, symbol, interval=60):
-        """Check if we can place an order for the given symbol based on the time interval."""
-        with self.lock:  # Acquire the lock
+        with self.lock:
             current_time = time.time()
+            logging.info(f"Attempting to check if an order can be placed for {symbol} at {current_time}")
+            
             if symbol in self.last_order_time:
-                if (current_time - self.last_order_time[symbol]) <= interval:
+                time_difference = current_time - self.last_order_time[symbol]
+                logging.info(f"Time since last order for {symbol}: {time_difference} seconds")
+                
+                if time_difference <= interval:
+                    logging.warning(f"Rate limit exceeded for {symbol}. Denying order placement.")
                     return False
+                
             self.last_order_time[symbol] = current_time
+            logging.info(f"Order allowed for {symbol} at {current_time}")
             return True
-        
+
     def place_postonly_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
+        logging.info(f"Attempting to place post-only order for {symbol}. Side: {side}, Amount: {amount}, Price: {price}, PositionIdx: {positionIdx}, ReduceOnly: {reduceOnly}")
         if not self.can_place_order(symbol):
             logging.warning(f"Order placement rate limit exceeded for {symbol}. Skipping...")
             return None
@@ -618,6 +627,7 @@ class Strategy:
 
     def postonly_limit_entry_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
         """Places a post-only limit entry order and stores its ID."""
+        logging.info(f"Attempting to place limit entry order for {symbol}. Side: {side}, Amount: {amount}, Price: {price}, PositionIdx: {positionIdx}, ReduceOnly: {reduceOnly}")
         order = self.place_order(symbol, side, amount, price, positionIdx, reduceOnly)
         
         # If the order was successfully placed, store its ID as an entry order ID for the symbol
@@ -630,6 +640,7 @@ class Strategy:
             logging.warning(f"Failed to store order ID for symbol {symbol} due to missing 'id' or unsuccessful order placement.")
 
         return order
+
 
     def limit_order_bybit_unified(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
         params = {"reduceOnly": reduceOnly}
@@ -669,7 +680,23 @@ class Strategy:
     def postonly_limit_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
         """Directly places the order with the exchange."""
         params = {"reduceOnly": reduceOnly, "postOnly": True}
-        return self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
+        order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
+
+        # Log and store the order ID if the order was placed successfully
+        if order and 'id' in order:
+            logging.info(f"Successfully placed post-only limit order for {symbol}. Order ID: {order['id']}. Side: {side}, Amount: {amount}, Price: {price}, PositionIdx: {positionIdx}, ReduceOnly: {reduceOnly}")
+            if symbol not in self.order_ids:
+                self.order_ids[symbol] = []
+            self.order_ids[symbol].append(order['id'])
+        else:
+            logging.warning(f"Failed to place post-only limit order for {symbol}. Side: {side}, Amount: {amount}, Price: {price}, PositionIdx: {positionIdx}, ReduceOnly: {reduceOnly}")
+
+        return order
+
+    # def postonly_limit_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
+    #     """Directly places the order with the exchange."""
+    #     params = {"reduceOnly": reduceOnly, "postOnly": True}
+    #     return self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
 
     # def postonly_limit_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
     #     # Check if we can place an order for the given symbol
@@ -746,7 +773,7 @@ class Strategy:
         logging.info(f"Placing {side} limit order for {symbol} at {price} with qty {amount} and params {params}...")
         try:
             order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
-            logging.info(f"Order result: {order}")
+            logging.info(f"Nolimit postonly order result for {symbol}: {order}")
             if order is None:
                 logging.warning(f"Order result is None for {side} limit order on {symbol}")
             return order
