@@ -3,7 +3,7 @@ import json
 import os
 import copy
 import pytz
-from threading import Thread
+from threading import Thread, Lock
 from datetime import datetime
 from ...strategy import Strategy
 from ...logger import Logger
@@ -11,6 +11,8 @@ from ....bot_metrics import BotDatabase
 from live_table_manager import shared_symbols_data
 
 logging = Logger(logger_name="Bybitfivemin", filename="Bybitfivemin.log", stream=True)
+
+symbol_locks = {}
 
 class BybitMMFiveMinute(Strategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
@@ -36,22 +38,20 @@ class BybitMMFiveMinute(Strategy):
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
 
-    # def run(self, symbol, rotator_symbols_standardized=None):
-    #     threads = [
-    #         Thread(target=self.run_single_symbol, args=(symbol, rotator_symbols_standardized))
-    #     ]
-
-    #     for thread in threads:
-    #         thread.start()
-
-    #     for thread in threads:
-    #         thread.join()
-
     def run(self, symbol, rotator_symbols_standardized=None):
+        # Initialize a lock for the symbol if not already present
+        if symbol not in symbol_locks:
+            symbol_locks[symbol] = Lock()
         self.run_single_symbol(symbol, rotator_symbols_standardized)
+
+    # def run(self, symbol, rotator_symbols_standardized=None):
+    #     self.run_single_symbol(symbol, rotator_symbols_standardized)
 
     # def run_single_symbol(self, symbol):
     def run_single_symbol(self, symbol, rotator_symbols_standardized=None):
+        if not symbol_locks[symbol].acquire(blocking=False):
+            logging.info(f"Symbol {symbol} is currently being traded by another thread. Skipping this iteration.")
+            return
         logging.info(f"Initializing default values")
         # [Initialization code remains unchanged]
         # Initialize potentially missing values
@@ -237,7 +237,6 @@ class BybitMMFiveMinute(Strategy):
 
                 #self.bybit_additional_entries_mm_5m(open_orders, symbol, trend, hma_trend, mfirsi_signal, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_add_to_long, should_add_to_short)
                 self.bybit_entry_mm_5m(open_orders, symbol, trend, hma_trend, mfirsi_signal, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
-                time.sleep(5)
 
                 tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
 
@@ -306,7 +305,7 @@ class BybitMMFiveMinute(Strategy):
                 self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
                 self.cancel_stale_orders_bybit(symbol)
 
-                time.sleep(10)
+                time.sleep(30)
 
             elif symbol not in rotator_symbols_standardized and symbol in open_symbols:
                 # Fetch the API data
@@ -488,3 +487,5 @@ class BybitMMFiveMinute(Strategy):
 
 
             time.sleep(30)
+
+        symbol_locks[symbol].release()
