@@ -2837,13 +2837,14 @@ class Strategy:
                     logging.error(f"Error placing order: {e}")
 
         # L
+        BUFFER_PERCENTAGE = 0.005  # 0.5% buffer
         if random.randint(1, 10) > 7:
             for _ in range(3):
                 try:
                     if side == "long":
-                        order = self.limit_order_bybit(symbol, "buy", amount * 1.5, top_bids[0][0] * (1 - 0.001), positionIdx=1, reduceOnly=False)
+                        order = self.limit_order_bybit(symbol, "buy", amount * 1.5, top_bids[0][0] * (1 - BUFFER_PERCENTAGE), positionIdx=1, reduceOnly=False)
                     elif side == "short":
-                        order = self.limit_order_bybit(symbol, "sell", amount * 1.5, top_asks[0][0] * (1 + 0.001), positionIdx=2, reduceOnly=False)
+                        order = self.limit_order_bybit(symbol, "sell", amount * 1.5, top_asks[0][0] * (1 + BUFFER_PERCENTAGE), positionIdx=2, reduceOnly=False)
 
                     if order is not None:  # Ensure order is not None
                         placed_orders.append(order)
@@ -2862,6 +2863,62 @@ class Strategy:
                 logging.warning(f"Could not place order: {order.get('error', 'Unknown error') if order else 'Order is None'}")
 
         return amount
+
+    # def m_order_amount(self, symbol, side, amount):
+    #     order_book = self.exchange.get_orderbook(symbol)
+    #     top_asks = order_book['asks'][:10]
+    #     top_bids = order_book['bids'][:10]
+    #     placed_orders = []
+
+    #     if side == "long":
+    #         if top_asks[0][1] > 3 * top_asks[1][1]:
+    #             amount += top_asks[0][1] * 0.1
+    #     elif side == "short":
+    #         if top_bids[0][1] > 3 * top_bids[1][1]:
+    #             amount += top_bids[0][1] * 0.1
+
+    #     # QS
+    #     if random.randint(1, 10) > 8:
+    #         for _ in range(5):
+    #             try:
+    #                 if side == "long":
+    #                     order = self.limit_order_bybit(symbol, "buy", amount, top_bids[0][0], positionIdx=1, reduceOnly=False)
+    #                 elif side == "short":
+    #                     order = self.limit_order_bybit(symbol, "sell", amount, top_asks[0][0], positionIdx=2, reduceOnly=False)
+
+    #                 if order is not None:  # Ensure order is not None
+    #                     placed_orders.append(order)
+    #                     time.sleep(0.01)
+
+    #             except Exception as e:
+    #                 logging.error(f"Error placing order: {e}")
+
+    #     # L
+    #     if random.randint(1, 10) > 7:
+    #         for _ in range(3):
+    #             try:
+    #                 if side == "long":
+    #                     order = self.limit_order_bybit(symbol, "buy", amount * 1.5, top_bids[0][0] * (1 - 0.001), positionIdx=1, reduceOnly=False)
+    #                 elif side == "short":
+    #                     order = self.limit_order_bybit(symbol, "sell", amount * 1.5, top_asks[0][0] * (1 + 0.001), positionIdx=2, reduceOnly=False)
+
+    #                 if order is not None:  # Ensure order is not None
+    #                     placed_orders.append(order)
+                        
+    #             except Exception as e:
+    #                 logging.error(f"Error placing order: {e}")
+
+    #         time.sleep(1)
+
+    #     # Cancel orders and handle errors
+    #     for order in placed_orders:
+    #         if order and 'id' in order:
+    #             logging.info(f"Order to be canceled: {order}")
+    #             self.exchange.cancel_order_by_id(order['id'], symbol)
+    #         else:
+    #             logging.warning(f"Could not place order: {order.get('error', 'Unknown error') if order else 'Order is None'}")
+
+    #     return amount
 
     def play_the_spread_entry_and_tp(self, symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price):
         analyzer = self.OrderBookAnalyzer(self.exchange, symbol, depth=self.ORDER_BOOK_DEPTH)
