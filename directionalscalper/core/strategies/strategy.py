@@ -2820,7 +2820,7 @@ class Strategy:
             if top_bids[0][1] > 3 * top_bids[1][1]:
                 amount += top_bids[0][1] * 0.1
 
-        QS_BUFFER_PERCENTAGE = 0.002  # 0.2% buffer for QS orders
+        QS_BUFFER_PERCENTAGE = 0.05 #0.002  # 0.2% buffer for QS orders
         # QS
         if random.randint(1, 10) > 8:
             for _ in range(5):
@@ -2836,7 +2836,7 @@ class Strategy:
                 except Exception as e:
                     logging.error(f"Error placing order: {e}")
 
-        L_BUFFER_PERCENTAGE = 0.005  # 0.5% buffer for L orders
+        L_BUFFER_PERCENTAGE = 0.05 #0.005  # 0.5% buffer for L orders
         # L
         if random.randint(1, 10) > 7:
             for _ in range(3):
