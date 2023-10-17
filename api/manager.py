@@ -218,7 +218,8 @@ class Manager:
     
     def get_symbols(self):
         #url = "http://api.tradesimple.xyz/data/rotatorsymbols.json"
-        url = f"http://apiv2.tradesimple.xyz/data/rotatorsymbols_{self.data_source_exchange}.json"
+        #url = f"http://apiv2.tradesimple.xyz/data/rotatorsymbols_{self.data_source_exchange}.json"
+        url = f"http://apiv2.tradesimple.xyz/data/quantdatav2_bybit.json"
         try:
             header, raw_json = send_public_request(url=url)
             if isinstance(raw_json, list):
