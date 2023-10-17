@@ -60,7 +60,7 @@ class Strategy:
         self.spoofing_active = False
         self.spoofing_wall_size = 5
         self.spoofing_interval = 1  # Time interval between spoofing actions
-        self.spoofing_duration = 15  # Spoofing duration in seconds
+        self.spoofing_duration = 5  # Spoofing duration in seconds
         self.whitelist = self.config.whitelist
         self.blacklist = self.config.blacklist
         self.max_usd_value = self.config.max_usd_value
