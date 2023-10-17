@@ -471,12 +471,13 @@ class BybitOBStrengthRandom(Strategy):
                     'short_pos_price': short_pos_price
                 }
 
-            if self.config.dashboard_enabled:
-                # No need to deep copy since we're using a lock now
-                with open(dashboard_path, "w") as f:
-                    json.dump(shared_symbols_data, f)
-                self.update_shared_data(shared_symbols_data[symbol], open_position_data, len(open_symbols))
-
+                if self.config.dashboard_enabled:
+                    try:
+                        with open(dashboard_path, "w") as f:
+                            json.dump(shared_symbols_data, f)
+                    except Exception as e:
+                        logging.error(f"Error when dumping JSON: {e}")
+                        
             avg_daily_gain = self.bot_db.compute_average_daily_gain()
             logging.info(f"Average Daily Gain Percentage: {avg_daily_gain}%")
 
