@@ -3,7 +3,7 @@ import json
 import os
 import copy
 import pytz
-from threading import Thread
+from threading import Thread, Lock
 from datetime import datetime
 from ...strategy import Strategy
 from ...logger import Logger
@@ -11,6 +11,8 @@ from ....bot_metrics import BotDatabase
 from live_table_manager import shared_symbols_data
 
 logging = Logger(logger_name="BybitOBStrengthRandom", filename="BybitOBStrengthRandom.log", stream=True)
+
+shared_symbols_data_lock = Lock()
 
 class BybitOBStrengthRandom(Strategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
@@ -422,6 +424,8 @@ class BybitOBStrengthRandom(Strategy):
                 hma_trend = api_data['HMA Trend']
 
                 if trading_allowed:
+                    
+                    logging.info(f"Trading allowed for {symbol}")
 
                     position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
 
@@ -446,32 +450,32 @@ class BybitOBStrengthRandom(Strategy):
                     logging.warning(f"Potential trade for {symbol} skipped as max symbol limit reached.")
 
 
-            symbol_data = {
-                'symbol': symbol,
-                'min_qty': min_qty,
-                'current_price': current_price,
-                'balance': total_equity,
-                'available_bal': available_equity,
-                'volume': five_minute_volume,
-                'spread': five_minute_distance,
-                'trend': trend,
-                'long_pos_qty': long_pos_qty,
-                'short_pos_qty': short_pos_qty,
-                'long_upnl': long_upnl,
-                'short_upnl': short_upnl,
-                'long_cum_pnl': cum_realised_pnl_long,
-                'short_cum_pnl': cum_realised_pnl_short,
-                'long_pos_price': long_pos_price,
-                'short_pos_price': short_pos_price
-            }
-
-            shared_symbols_data[symbol] = symbol_data
+            # Use lock when reading or writing to shared_symbols_data
+            with shared_symbols_data_lock:
+                shared_symbols_data[symbol] = {
+                    'symbol': symbol,
+                    'min_qty': min_qty,
+                    'current_price': current_price,
+                    'balance': total_equity,
+                    'available_bal': available_equity,
+                    'volume': five_minute_volume,
+                    'spread': five_minute_distance,
+                    'trend': trend,
+                    'long_pos_qty': long_pos_qty,
+                    'short_pos_qty': short_pos_qty,
+                    'long_upnl': long_upnl,
+                    'short_upnl': short_upnl,
+                    'long_cum_pnl': cum_realised_pnl_long,
+                    'short_cum_pnl': cum_realised_pnl_short,
+                    'long_pos_price': long_pos_price,
+                    'short_pos_price': short_pos_price
+                }
 
             if self.config.dashboard_enabled:
-                data_to_save = copy.deepcopy(shared_symbols_data)
+                # No need to deep copy since we're using a lock now
                 with open(dashboard_path, "w") as f:
-                    json.dump(data_to_save, f)
-                self.update_shared_data(symbol_data, open_position_data, len(open_symbols))
+                    json.dump(shared_symbols_data, f)
+                self.update_shared_data(shared_symbols_data[symbol], open_position_data, len(open_symbols))
 
             avg_daily_gain = self.bot_db.compute_average_daily_gain()
             logging.info(f"Average Daily Gain Percentage: {avg_daily_gain}%")
