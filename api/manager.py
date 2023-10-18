@@ -352,6 +352,7 @@ class Manager:
         try:
             one_minute_volume = api_data.get('1mVol', 0)
             five_minute_volume = api_data.get('5mVol', 0)
+            one_minute_distance = api_data.get('1mSpread', 0)
             five_minute_distance = api_data.get('5mSpread', 0)
             trend = api_data.get('Trend', 'neutral')
             mfirsi_signal = api_data.get('MFI', 'neutral')
@@ -362,6 +363,7 @@ class Manager:
             return {
                 "1mVol": one_minute_volume,
                 "5mVol": five_minute_volume,
+                "1mSpread": one_minute_distance,
                 "5mSpread": five_minute_distance,
                 "Trend": trend,
                 "MFI": mfirsi_signal,

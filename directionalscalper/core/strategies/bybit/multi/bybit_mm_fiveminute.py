@@ -160,6 +160,7 @@ class BybitMMFiveMinute(Strategy):
                 # Assign the metrics to the respective variables
                 one_minute_volume = metrics['1mVol']
                 five_minute_volume = metrics['5mVol']
+                one_minute_distance = metrics['1mSpread']
                 five_minute_distance = metrics['5mSpread']
                 trend = metrics['Trend']
                 mfirsi_signal = metrics['MFI']
@@ -228,9 +229,8 @@ class BybitMMFiveMinute(Strategy):
                 current_time = time.time()
                 if current_time - self.last_cancel_time >= self.spoofing_interval:
                     self.spoofing_active = True
-                    self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
-
-                #self.bybit_additional_entries_mm_5m(open_orders, symbol, trend, hma_trend, mfirsi_signal, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_add_to_long, should_add_to_short)
+                    self.helper(symbol, short_dynamic_amount, long_dynamic_amount)
+                    
                 self.bybit_entry_mm_5m(open_orders, symbol, trend, hma_trend, mfirsi_signal, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
 
                 tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
@@ -333,7 +333,7 @@ class BybitMMFiveMinute(Strategy):
                 current_time = time.time()
                 if current_time - self.last_cancel_time >= self.spoofing_interval:
                     self.spoofing_active = True
-                    self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
+                    self.helper(symbol, short_dynamic_amount, long_dynamic_amount)
 
                 short_pos_price = position_data["short"]["price"] if short_pos_qty > 0 else None
                 long_pos_price = position_data["long"]["price"] if long_pos_qty > 0 else None
