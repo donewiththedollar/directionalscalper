@@ -216,7 +216,7 @@ class BybitOBStrengthRandom(Strategy):
                 current_time = time.time()
                 if current_time - self.last_cancel_time >= self.spoofing_interval:
                     self.spoofing_active = True
-                    self.apm(symbol, short_dynamic_amount, long_dynamic_amount)
+                    self.helper(symbol, short_dynamic_amount, long_dynamic_amount)
 
                 # Entries, and additional entries
                 self.bybit_hedge_entry_maker_obstrength_random(open_orders, symbol, trend, mfirsi_signal, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
@@ -405,7 +405,7 @@ class BybitOBStrengthRandom(Strategy):
                 current_time = time.time()
                 if current_time - self.last_cancel_time >= self.spoofing_interval:
                     self.spoofing_active = True
-                    self.apm(symbol, short_dynamic_amount, long_dynamic_amount)
+                    self.helper(symbol, short_dynamic_amount, long_dynamic_amount)
 
                 time.sleep(10)
 
