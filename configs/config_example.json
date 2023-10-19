@@ -2,7 +2,7 @@
   "api": {
     "filename": "quantdatav2.json",
     "mode": "remote",
-    "url": "http://api.tradesimple.xyz/data/",
+    "url": "http://apiv3.tradesimple.xyz/data/",
     "data_source_exchange": "bybit"
   },
   "bot": {
