@@ -10,7 +10,7 @@ A hedge scalping strategy based on directional analysis using a quantitative app
 
 ### Links
 * Dashboard: https://tradesimple.xyz
-* APIv2: http://api.tradesimple.xyz/data/quantdatav2.json
+* APIv3 (BYBIT): http://apiv3.tradesimple.xyz/data/quantdatav2_bybit.json
 
 Directional Scalper        |  API Scraper               |  Dashboard                | Directional Scalper Multi | Menu GUI
 :-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:
@@ -117,7 +117,10 @@ Make sure you are in the directory directionalscalper
 ## Binance
 * binance_auto_hedge
   
-## Bybit
+## Bybit multi
+* bybit_mm_fivemin
+
+## Bybit single coin
 * bybit_hedge
 * bybit_auto_hedge - Dynamic entry, take profit distance, position leverage per side. Table included.
 * bybit_auto_hedge_maker
