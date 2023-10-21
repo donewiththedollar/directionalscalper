@@ -1015,13 +1015,29 @@ class Strategy:
         else:
             logging.info(f"Positions for {symbol} are currently safe from liquidation.")
 
-    def print_trade_quantities_once_bybit(self, symbol, max_trade_qty):
+    def print_trade_quantities_once_bybit(self, symbol):
         if not self.printed_trade_quantities:
+            if symbol not in self.max_long_trade_qty_per_symbol:
+                logging.warning(f"Symbol {symbol} not initialized in max_long_trade_qty_per_symbol. Unable to print trade quantities.")
+                return
+
             wallet_exposure = self.config.wallet_exposure
-            best_ask_price = self.exchange.get_orderbook(self.symbol)['asks'][0][0]
-            #self.exchange.print_trade_quantities_bybit(max_trade_qty, [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
-            self.exchange.print_trade_quantities_bybit(self.max_long_trade_qty_per_symbol[symbol], [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
+            best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+            self.exchange.print_trade_quantities_bybit(
+                self.max_long_trade_qty_per_symbol[symbol], 
+                [0.001, 0.01, 0.1, 1, 2.5, 5], 
+                wallet_exposure, 
+                best_ask_price
+            )
             self.printed_trade_quantities = True
+
+    # def print_trade_quantities_once_bybit(self, symbol, max_trade_qty):
+    #     if not self.printed_trade_quantities:
+    #         wallet_exposure = self.config.wallet_exposure
+    #         best_ask_price = self.exchange.get_orderbook(self.symbol)['asks'][0][0]
+    #         #self.exchange.print_trade_quantities_bybit(max_trade_qty, [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
+    #         self.exchange.print_trade_quantities_bybit(self.max_long_trade_qty_per_symbol[symbol], [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
+    #         self.printed_trade_quantities = True
 
     def print_trade_quantities_once_huobi(self, max_trade_qty, symbol):
         if not self.printed_trade_quantities:
