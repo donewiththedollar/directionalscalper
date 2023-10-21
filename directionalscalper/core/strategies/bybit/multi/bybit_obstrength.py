@@ -3,7 +3,7 @@ import json
 import os
 import copy
 import pytz
-from threading import Thread
+from threading import Thread, Lock
 from datetime import datetime
 from ...strategy import Strategy
 from ...logger import Logger
@@ -11,6 +11,8 @@ from ....bot_metrics import BotDatabase
 from live_table_manager import shared_symbols_data
 
 logging = Logger(logger_name="BybitOBStrength", filename="BybitOBStrength.log", stream=True)
+
+symbol_locks = {}
 
 class BybitOBStrength(Strategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
@@ -37,13 +39,17 @@ class BybitOBStrength(Strategy):
             logging.error(f"Failed to initialize attributes from config: {e}")
 
     def run(self, symbol, rotator_symbols_standardized=None):
+        # Initialize a lock for the symbol if not already present
+        if symbol not in symbol_locks:
+            symbol_locks[symbol] = Lock()
         self.run_single_symbol(symbol, rotator_symbols_standardized)
 
-
     def run_single_symbol(self, symbol, rotator_symbols_standardized=None):
+        if not symbol_locks[symbol].acquire(blocking=False):
+            logging.info(f"Symbol {symbol} is currently being traded by another thread. Skipping this iteration.")
+            return
         logging.info(f"Initializing default values")
-        # [Initialization code remains unchanged]
-        # Initialize potentially missing values
+
         min_qty = None
         current_price = None
         total_equity = None
@@ -95,7 +101,10 @@ class BybitOBStrength(Strategy):
         previous_five_minute_distance = None
 
         while True:
+
             current_time = time.time()
+
+            logging.info(f"Max USD value: {self.max_usd_value}")
 
             # Fetch open symbols every loop
             open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
@@ -110,7 +119,7 @@ class BybitOBStrength(Strategy):
                 total_equity = self.retry_api_call(self.exchange.get_balance_bybit, quote_currency)
                 available_equity = self.retry_api_call(self.exchange.get_available_balance_bybit, quote_currency)
                 last_equity_fetch_time = current_time
-                
+
             whitelist = self.config.whitelist
             blacklist = self.config.blacklist
             if symbol not in whitelist or symbol in blacklist:
@@ -131,51 +140,81 @@ class BybitOBStrength(Strategy):
             symbols_to_manage = [s for s in open_symbols if s not in rotator_symbols_standardized]
             logging.info(f"Symbols to manage {symbols_to_manage}")
             
-            logging.info(f"Open orders: {open_orders}")
+            logging.info(f"Open orders for {symbol}: {open_orders}")
 
             logging.info(f"Symbols allowed: {self.symbols_allowed}")
 
             trading_allowed = self.can_trade_new_symbol(open_symbols, self.symbols_allowed, symbol)
             logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
+            logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
+
+            self.initialize_symbol(symbol, total_equity, best_ask_price)
+
+            with self.initialized_symbols_lock:
+                logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
 
             time.sleep(10)
 
+            # If the symbol is in rotator_symbols and either it's already being traded or trading is allowed.
             if symbol in rotator_symbols_standardized and (symbol in open_symbols or trading_allowed):
-
+                # Fetch the API data
                 api_data = self.manager.get_api_data(symbol)
 
-                one_minute_volume = api_data['1mVol']
-                five_minute_volume = api_data['5mVol']
-                five_minute_distance = api_data['5mSpread']
-                trend = api_data['Trend']
-                mfirsi_signal = api_data['MFI']
-                funding_rate = api_data['Funding']
-                hma_trend = api_data['HMA Trend']
+                # Extract the required metrics using the new implementation
+                metrics = self.manager.extract_metrics(api_data, symbol)
+
+                # Assign the metrics to the respective variables
+                one_minute_volume = metrics['1mVol']
+                five_minute_volume = metrics['5mVol']
+                one_minute_distance = metrics['1mSpread']
+                five_minute_distance = metrics['5mSpread']
+                trend = metrics['Trend']
+                mfirsi_signal = metrics['MFI']
+                funding_rate = metrics['Funding']
+                hma_trend = metrics['HMA Trend']
 
                 position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
 
                 short_pos_qty = position_data["short"]["qty"]
                 long_pos_qty = position_data["long"]["qty"]
 
+                logging.info(f"Rotator symbol trading: {symbol}")
+                            
                 logging.info(f"Rotator symbols: {rotator_symbols_standardized}")
                 logging.info(f"Open symbols: {open_symbols}")
 
                 logging.info(f"Long pos qty {long_pos_qty} for {symbol}")
                 logging.info(f"Short pos qty {short_pos_qty} for {symbol}")
 
-                short_liq_price = position_data["short"]["liq_price"]
-                long_liq_price = position_data["long"]["liq_price"]
+                # short_liq_price = position_data["short"]["liq_price"]
+                # long_liq_price = position_data["long"]["liq_price"]
+
+                # Initialize the symbol and quantities if not done yet
+                self.initialize_symbol(symbol, total_equity, best_ask_price)
+
+                with self.initialized_symbols_lock:
+                    logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
 
                 self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
                 self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
 
+                # Update dynamic amounts based on max trade quantities
+                self.update_dynamic_amounts(symbol, total_equity, best_ask_price)
 
-                long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_obstrength(symbol, total_equity, best_ask_price, self.max_leverage)
+                long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v2(symbol, total_equity, best_ask_price, self.max_leverage)
+
+
                 logging.info(f"Long dynamic amount: {long_dynamic_amount} for {symbol}")
                 logging.info(f"Short dynamic amount: {short_dynamic_amount} for {symbol}")
 
-                self.print_trade_quantities_once_bybit(symbol, self.max_long_trade_qty)
-                self.print_trade_quantities_once_bybit(symbol, self.max_short_trade_qty)
+
+                self.print_trade_quantities_once_bybit(symbol)
+
+                logging.info(f"Tried to print trade quantities")
+
+                with self.initialized_symbols_lock:
+                    logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
+
 
                 short_upnl = position_data["short"]["upnl"]
                 long_upnl = position_data["long"]["upnl"]
@@ -192,8 +231,8 @@ class BybitOBStrength(Strategy):
                 previous_five_minute_distance = five_minute_distance
 
 
-                logging.info(f"Short take profit: {short_take_profit}")
-                logging.info(f"Long take profit: {long_take_profit}")
+                logging.info(f"Short take profit for {symbol}: {short_take_profit}")
+                logging.info(f"Long take profit for {symbol}: {long_take_profit}")
 
                 should_short = self.short_trade_condition(best_ask_price, moving_averages["ma_3_high"])
                 should_long = self.long_trade_condition(best_bid_price, moving_averages["ma_3_low"])
@@ -213,8 +252,8 @@ class BybitOBStrength(Strategy):
                 current_time = time.time()
                 if current_time - self.last_cancel_time >= self.spoofing_interval:
                     self.spoofing_active = True
-                    self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
-
+                    self.helper(symbol, short_dynamic_amount, long_dynamic_amount)
+                    
                 # Entries, and additional entries
                 self.bybit_hedge_entry_maker_obstrength(open_orders, symbol, trend, mfirsi_signal, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
 
@@ -232,24 +271,29 @@ class BybitOBStrength(Strategy):
                 logging.info(f"Long take profit {long_take_profit} for {symbol}")
                 logging.info(f"Short take profit {short_take_profit} for {symbol}")
 
+                logging.info(f"Long TP order count for {symbol} is {tp_order_counts['long_tp_count']}")
+                logging.info(f"Short TP order count for {symbol} is {tp_order_counts['short_tp_count']}")
+
                 # Place long TP order if there are no existing long TP orders
                 if long_pos_qty > 0 and long_take_profit is not None and tp_order_counts['long_tp_count'] == 0:
+                    logging.info(f"Placing long TP order for {symbol} with {long_take_profit}")
                     self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
 
                 # Place short TP order if there are no existing short TP orders
                 if short_pos_qty > 0 and short_take_profit is not None and tp_order_counts['short_tp_count'] == 0:
+                    logging.info(f"Placing short TP order for {symbol} with {short_take_profit}")
                     self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
                     
                 current_time = datetime.now()
 
+                # Check for long positions
                 if long_pos_qty > 0:
-                    # Check for long positions
                     if current_time >= self.next_long_tp_update and long_take_profit is not None:
                         self.next_long_tp_update = self.update_take_profit_spread_bybit(
                             symbol=symbol, 
                             pos_qty=long_pos_qty, 
-                            short_take_profit=short_take_profit,
                             long_take_profit=long_take_profit,
+                            short_take_profit=short_take_profit,
                             short_pos_price=short_pos_price,
                             long_pos_price=long_pos_price,
                             positionIdx=1, 
@@ -259,16 +303,16 @@ class BybitOBStrength(Strategy):
                             previous_five_minute_distance=previous_five_minute_distance
                         )
 
+                # Check for short positions
                 if short_pos_qty > 0:
-                    # Check for short positions
                     if current_time >= self.next_short_tp_update and short_take_profit is not None:
                         self.next_short_tp_update = self.update_take_profit_spread_bybit(
                             symbol=symbol, 
                             pos_qty=short_pos_qty, 
-                            short_take_profit=short_take_profit,
-                            long_take_profit=long_take_profit,
                             short_pos_price=short_pos_price,
                             long_pos_price=long_pos_price,
+                            short_take_profit=short_take_profit,
+                            long_take_profit=long_take_profit,
                             positionIdx=2, 
                             order_side="buy", 
                             next_tp_update=self.next_short_tp_update,
@@ -280,25 +324,48 @@ class BybitOBStrength(Strategy):
                 self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
                 self.cancel_stale_orders_bybit(symbol)
 
-                time.sleep(10)
+                time.sleep(30)
 
             elif symbol not in rotator_symbols_standardized and symbol in open_symbols:
-                logging.info(f"Managing open symbols not in rotator_symbols")
-
+                # Fetch the API data
                 api_data = self.manager.get_api_data(symbol)
 
-                one_minute_volume = api_data['1mVol']
-                five_minute_volume = api_data['5mVol']
-                five_minute_distance = api_data['5mSpread']
-                trend = api_data['Trend']
-                mfirsi_signal = api_data['MFI']
-                funding_rate = api_data['Funding']
-                hma_trend = api_data['HMA Trend']
+                # Extract the required metrics using the new implementation
+                metrics = self.manager.extract_metrics(api_data, symbol)
+
+                # Assign the metrics to the respective variables
+                one_minute_volume = metrics['1mVol']
+                five_minute_volume = metrics['5mVol']
+                five_minute_distance = metrics['5mSpread']
+                trend = metrics['Trend']
+                mfirsi_signal = metrics['MFI']
+                funding_rate = metrics['Funding']
+                hma_trend = metrics['HMA Trend']
+
+                logging.info(f"Managing open symbols not in rotator_symbols")
 
                 position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
 
                 short_pos_qty = position_data["short"]["qty"]
                 long_pos_qty = position_data["long"]["qty"]
+
+                self.initialize_symbol(symbol, total_equity, best_ask_price)
+
+                with self.initialized_symbols_lock:
+                    logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
+
+                self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
+                self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
+
+                # Update dynamic amounts based on max trade quantities
+                self.update_dynamic_amounts(symbol, total_equity, best_ask_price)
+
+                long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v2(symbol, total_equity, best_ask_price, self.max_leverage)
+
+                current_time = time.time()
+                if current_time - self.last_cancel_time >= self.spoofing_interval:
+                    self.spoofing_active = True
+                    self.helper(symbol, short_dynamic_amount, long_dynamic_amount)
 
                 short_pos_price = position_data["short"]["price"] if short_pos_qty > 0 else None
                 long_pos_price = position_data["long"]["price"] if long_pos_qty > 0 else None
@@ -320,25 +387,6 @@ class BybitOBStrength(Strategy):
                 logging.info(f"Short take profit for managed symbol {symbol}: {short_take_profit}")
                 logging.info(f"Long take profit for managed symbol {symbol} : {long_take_profit}")
 
-                self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
-                self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
-
-                long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_obstrength(symbol, total_equity, best_ask_price, self.max_leverage)
-
-                should_short = self.short_trade_condition(best_ask_price, moving_averages["ma_3_high"])
-                should_long = self.long_trade_condition(best_bid_price, moving_averages["ma_3_low"])
-                should_add_to_short = False
-                should_add_to_long = False
-
-                if short_pos_price is not None:
-                    should_add_to_short = short_pos_price < moving_averages["ma_6_low"] and self.short_trade_condition(best_ask_price, moving_averages["ma_6_high"])
-
-                if long_pos_price is not None:
-                    should_add_to_long = long_pos_price > moving_averages["ma_6_high"] and self.long_trade_condition(best_bid_price, moving_averages["ma_6_low"])
-
-
-                # self.bybit_hedge_additional_entry_obstrength(open_orders, symbol, trend, mfirsi_signal, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_add_to_long, should_add_to_short)
-
                 # [Rest of the logic for symbols not in open_positions]
                 # Place long TP order if there are no existing long TP orders
                 if long_pos_qty > 0 and long_take_profit is not None and tp_order_counts['long_tp_count'] == 0:
@@ -349,6 +397,11 @@ class BybitOBStrength(Strategy):
                     self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
 
                 current_time = datetime.now()
+
+
+                logging.info(f"Short pos qty for managed {symbol}: {short_pos_qty}")
+                logging.info(f"Long pos qty for managed {symbol}: {long_pos_qty}")
+
 
                 if long_pos_qty > 0:
                     # Check for long positions
@@ -386,39 +439,44 @@ class BybitOBStrength(Strategy):
 
                 self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
 
-                current_time = time.time()
-                if current_time - self.last_cancel_time >= self.spoofing_interval:
-                    self.spoofing_active = True
-                    self.spoofing_action(symbol, short_dynamic_amount, long_dynamic_amount)
-
                 time.sleep(10)
 
+            # elif symbol in rotator_symbols and symbol not in open_symbols:
             elif symbol in rotator_symbols_standardized and symbol not in open_symbols and trading_allowed:
+                # Fetch the API data
+                api_data = self.manager.get_api_data(symbol)
+
+                # Extract the required metrics using the new implementation
+                metrics = self.manager.extract_metrics(api_data, symbol)
+
+                # Assign the metrics to the respective variables
+                one_minute_volume = metrics['1mVol']
+                five_minute_volume = metrics['5mVol']
+                five_minute_distance = metrics['5mSpread']
+                trend = metrics['Trend']
+                mfirsi_signal = metrics['MFI']
+                funding_rate = metrics['Funding']
+                hma_trend = metrics['HMA Trend']
 
                 logging.info(f"Managing new rotator symbol {symbol} not in open symbols")
 
-                api_data = self.manager.get_api_data(symbol)
-
-                one_minute_volume = api_data['1mVol']
-                five_minute_volume = api_data['5mVol']
-                five_minute_distance = api_data['5mSpread']
-                trend = api_data['Trend']
-                mfirsi_signal = api_data['MFI']
-                funding_rate = api_data['Funding']
-                hma_trend = api_data['HMA Trend']
-
                 if trading_allowed:
-
-                    position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
-
-                    short_pos_qty = position_data["short"]["qty"]
-                    long_pos_qty = position_data["long"]["qty"]
-                    
                     logging.info(f"New position allowed {symbol}")
+
+                    self.initialize_symbol(symbol, total_equity, best_ask_price)
+
+                    with self.initialized_symbols_lock:
+                        logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
+
                     self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
                     self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
 
-                    long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_obstrength(symbol, total_equity, best_ask_price, self.max_leverage)
+                    # Update dynamic amounts based on max trade quantities
+                    self.update_dynamic_amounts(symbol, total_equity, best_ask_price)
+
+                    long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v2(symbol, total_equity, best_ask_price, self.max_leverage)
+
+                    position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
 
                     short_pos_qty = position_data["short"]["qty"]
                     long_pos_qty = position_data["long"]["qty"]
@@ -427,7 +485,8 @@ class BybitOBStrength(Strategy):
                     should_long = self.long_trade_condition(best_bid_price, moving_averages["ma_3_low"])
                             
                     self.bybit_hedge_initial_entry_obstrength(open_orders, symbol, trend, mfirsi_signal, long_dynamic_amount, short_dynmaic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
-                    # time.sleep(15)
+
+                    time.sleep(10)
                 else:
                     logging.warning(f"Potential trade for {symbol} skipped as max symbol limit reached.")
 
@@ -463,5 +522,6 @@ class BybitOBStrength(Strategy):
             logging.info(f"Average Daily Gain Percentage: {avg_daily_gain}%")
 
 
-            time.sleep(10)
+            time.sleep(30)
 
+        symbol_locks[symbol].release()
