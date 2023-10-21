@@ -1,6 +1,6 @@
 import time
 import math
-from ..strategy import Strategy
+from ...strategy import Strategy
 from datetime import datetime, timedelta
 from typing import Tuple
 from rich.console import Console
@@ -11,7 +11,7 @@ from rich import box
 import pandas as pd
 import ta
 import logging
-from ..logger import Logger
+from ...logger import Logger
 
 logging = Logger(logger_name="BybitHedgeMFIRISTrigger", filename="BybitHedgeMFIRSITrigger.log", stream=True)
 

@@ -1,6 +1,6 @@
 import time
 import math
-from ..strategy import Strategy
+from ...strategy import Strategy
 from datetime import datetime, timedelta
 from typing import Tuple
 from rich.console import Console
@@ -8,11 +8,11 @@ from rich.table import Table
 from rich.live import Live
 from rich.text import Text
 import logging
-from ..logger import Logger
+from ...logger import Logger
 
-logging = Logger(logger_name="BybitAutoHedgeERITrend", filename="BybitAutoHedgeERITrend.log", stream=True)
+logging = Logger(logger_name="BybitAutoHedgeMakerMFIRSI", filename="BybitAutoHedgeMakerMFIRSI.log", stream=True)
 
-class BybitAutoHedgeStrategyMakerERITrend(Strategy):
+class BybitAutoHedgeStrategyMakerMFIRSI(Strategy):
     def __init__(self, exchange, manager, config):
         super().__init__(exchange, config, manager)
         self.manager = manager
@@ -380,7 +380,7 @@ class BybitAutoHedgeStrategyMakerERITrend(Strategy):
 
                 #def bybit_hedge_entry_maker_v2(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
                 # Long and short entry placement
-                self.bybit_hedge_entry_maker_eritrend(symbol, trend, eri_trend, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
+                self.bybit_hedge_entry_maker_v2(symbol, trend, mfi, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short)
 
                 # Take profit placement 
 

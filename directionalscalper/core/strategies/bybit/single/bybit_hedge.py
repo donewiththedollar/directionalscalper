@@ -1,14 +1,16 @@
 import time
 import math
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_DOWN
-from ..strategy import Strategy
+from ...strategy import Strategy
 from typing import Tuple
+import threading
+import os
 import logging
-from ..logger import Logger
+from ...logger import Logger
 
-logging = Logger(logger_name="BybitHedgeUnified", filename="BybitHedgeUnified.log", stream=True)
+logging = Logger(logger_name="BybitHedge", filename="BybitHedge.log", stream=True)
 
-class BybitHedgeUnifiedStrategy(Strategy):
+class BybitHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):
         super().__init__(exchange, config, manager)
         self.manager = manager
@@ -22,8 +24,8 @@ class BybitHedgeUnifiedStrategy(Strategy):
         min_vol = self.config.min_volume
         current_leverage = self.exchange.get_current_leverage_bybit(symbol)
         max_leverage = self.exchange.get_max_leverage_bybit(symbol)
-        max_retries = 5
         retry_delay = 5
+        max_retries = 5
 
         print("Setting up exchange")
         self.exchange.setup_exchange_bybit(symbol)
@@ -42,16 +44,22 @@ class BybitHedgeUnifiedStrategy(Strategy):
             data = self.manager.get_data()
             one_minute_volume = self.manager.get_asset_value(symbol, data, "1mVol")
             five_minute_distance = self.manager.get_asset_value(symbol, data, "5mSpread")
+            thirty_minute_distance = self.manager.get_asset_value(symbol, data, "30mSpread")
+            one_hour_distance = self.manager.get_asset_value(symbol, data, "1hSpread")
             trend = self.manager.get_asset_value(symbol, data, "Trend")
             print(f"1m Volume: {one_minute_volume}")
             print(f"5m Spread: {five_minute_distance}")
             print(f"Trend: {trend}")
 
+            price_precision = int(self.exchange.get_price_precision(symbol))
+
+            print(f"Precision: {price_precision}")
+
             quote_currency = "USDT"
 
             for i in range(max_retries):
                 try:
-                    total_equity = self.exchange.get_balance_bybit_unified(quote_currency)
+                    total_equity = self.exchange.get_balance_bybit(quote_currency)
                     break
                 except Exception as e:
                     if i < max_retries - 1:
@@ -73,7 +81,7 @@ class BybitHedgeUnifiedStrategy(Strategy):
 
             max_trade_qty = self.calc_max_trade_qty(total_equity,
                                                      best_ask_price,
-                                                     max_leverage)
+                                                     max_leverage)        
             
             print(f"Max trade quantity for {symbol}: {max_trade_qty}")
 
@@ -94,11 +102,7 @@ class BybitHedgeUnifiedStrategy(Strategy):
             ma_1m_3_high = self.manager.get_1m_moving_averages(symbol)["MA_3_H"]
             ma_5m_3_high = self.manager.get_5m_moving_averages(symbol)["MA_3_H"]
 
-            #print(m_moving_averages)
-
             position_data = self.exchange.get_positions_bybit(symbol)
-
-            #print(position_data)
 
             #print(f"Bybit pos data: {position_data}")
 
@@ -136,16 +140,18 @@ class BybitHedgeUnifiedStrategy(Strategy):
 
             should_add_to_short = False
             should_add_to_long = False
-            
+        
             if short_pos_price is not None:
                 should_add_to_short = short_pos_price < ma_6_low
-                short_tp_distance_percent = ((short_take_profit - best_ask_price) / best_ask_price) * 100
-                print(f"Short TP price: {short_take_profit}, TP distance in percent: {short_tp_distance_percent:.2f}%")
-                
+                short_tp_distance_percent = ((short_take_profit - short_pos_price) / short_pos_price) * 100
+                short_expected_profit_usdt = short_tp_distance_percent / 100 * short_pos_price * short_pos_qty
+                print(f"Short TP price: {short_take_profit}, TP distance in percent: {-short_tp_distance_percent:.2f}%, Expected profit: {-short_expected_profit_usdt:.2f} USDT")
+
             if long_pos_price is not None:
                 should_add_to_long = long_pos_price > ma_6_low
-                long_tp_distance_percent = ((long_take_profit - best_bid_price) / best_bid_price) * 100
-                print(f"Long TP price: {long_take_profit}, TP distance in percent: {long_tp_distance_percent:.2f}%")
+                long_tp_distance_percent = ((long_take_profit - long_pos_price) / long_pos_price) * 100
+                long_expected_profit_usdt = long_tp_distance_percent / 100 * long_pos_price * long_pos_qty
+                print(f"Long TP price: {long_take_profit}, TP distance in percent: {long_tp_distance_percent:.2f}%, Expected profit: {long_expected_profit_usdt:.2f} USDT")
 
             print(f"Short condition: {should_short}")
             print(f"Long condition: {should_long}")
@@ -158,45 +164,40 @@ class BybitHedgeUnifiedStrategy(Strategy):
 
                         if trend.lower() == "long" and should_long and long_pos_qty == 0:
                             print(f"Placing initial long entry")
-                            self.limit_order_bybit_unified(symbol, "buy", amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                            self.limit_order_bybit(symbol, "buy", amount, best_bid_price, positionIdx=1, reduceOnly=False)
                             print(f"Placed initial long entry")
                         else:
                             if trend.lower() == "long" and should_add_to_long and long_pos_qty < max_trade_qty and best_bid_price < long_pos_price:
                                 print(f"Placed additional long entry")
-                                self.limit_order_bybit_unified(symbol, "buy", amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                                self.limit_order_bybit(symbol, "buy", amount, best_bid_price, positionIdx=1, reduceOnly=False)
 
                         if trend.lower() == "short" and should_short and short_pos_qty == 0:
                             print(f"Placing initial short entry")
-                            self.limit_order_bybit_unified(symbol, "sell", amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                            self.limit_order_bybit(symbol, "sell", amount, best_ask_price, positionIdx=2, reduceOnly=False)
                             print("Placed initial short entry")
                         else:
                             if trend.lower() == "short" and should_add_to_short and short_pos_qty < max_trade_qty and best_ask_price > short_pos_price:
                                 print(f"Placed additional short entry")
-                                self.limit_order_bybit_unified(symbol, "sell", amount, best_bid_price, positionIdx=2, reduceOnly=False)
+                                self.limit_order_bybit(symbol, "sell", amount, best_bid_price, positionIdx=2, reduceOnly=False)
         
-            open_orders = self.exchange.get_open_orders_bybit_unified(symbol)
-
-            # # Call the get_open_take_profit_order_quantity function for the 'buy' side
-            # buy_qty, buy_id = self.get_open_take_profit_order_quantity(open_orders, 'buy')
-
-            # # Call the get_open_take_profit_order_quantity function for the 'sell' side
-            # sell_qty, sell_id = self.get_open_take_profit_order_quantity(open_orders, 'sell')
-
-            # # Print the results
-            # print("Buy Take Profit Order - Quantity: ", buy_qty, "ID: ", buy_id)
-            # print("Sell Take Profit Order - Quantity: ", sell_qty, "ID: ", sell_id)
+            open_orders = self.exchange.get_open_orders(symbol)
 
             if long_pos_qty > 0 and long_take_profit is not None:
                 existing_long_tps = self.get_open_take_profit_order_quantities(open_orders, "sell")
                 total_existing_long_tp_qty = sum(qty for qty, _ in existing_long_tps)
+                print(f"Existing long TPs: {existing_long_tps}")
                 if not math.isclose(total_existing_long_tp_qty, long_pos_qty):
                     try:
-                        for _, existing_long_tp_id in existing_long_tps:
-                            self.exchange.cancel_take_profit_orders_bybit(symbol, "sell")  # Corrected side value to "sell"
-                            print(f"Long take profit canceled")
-                            time.sleep(0.05)
+                        for qty, existing_long_tp_id in existing_long_tps:
+                            if not math.isclose(qty, long_pos_qty):
+                                self.exchange.cancel_order_by_id(existing_long_tp_id, symbol)
+                                print(f"Long take profit {existing_long_tp_id} canceled")
+                                time.sleep(0.05)
+                    except Exception as e:
+                        print(f"Error in cancelling long TP orders {e}")
 
-                        #print(f"Debug: Long Position Quantity {long_pos_qty}, Long Take Profit {long_take_profit}")
+                if not any(math.isclose(qty, long_pos_qty) for qty, _ in existing_long_tps):
+                    try:
                         self.exchange.create_take_profit_order_bybit(symbol, "limit", "sell", long_pos_qty, long_take_profit, positionIdx=1, reduce_only=True)
                         print(f"Long take profit set at {long_take_profit}")
                         time.sleep(0.05)
@@ -206,14 +207,19 @@ class BybitHedgeUnifiedStrategy(Strategy):
             if short_pos_qty > 0 and short_take_profit is not None:
                 existing_short_tps = self.get_open_take_profit_order_quantities(open_orders, "buy")
                 total_existing_short_tp_qty = sum(qty for qty, _ in existing_short_tps)
+                print(f"Existing short TPs: {existing_short_tps}")
                 if not math.isclose(total_existing_short_tp_qty, short_pos_qty):
                     try:
-                        for _, existing_short_tp_id in existing_short_tps:
-                            self.exchange.cancel_take_profit_orders_bybit(symbol, "buy")  # Corrected side value to "buy"
-                            print(f"Short take profit canceled")
-                            time.sleep(0.05)
+                        for qty, existing_short_tp_id in existing_short_tps:
+                            if not math.isclose(qty, short_pos_qty):
+                                self.exchange.cancel_order_by_id(existing_short_tp_id, symbol)
+                                print(f"Short take profit {existing_short_tp_id} canceled")
+                                time.sleep(0.05)
+                    except Exception as e:
+                        print(f"Error in cancelling short TP orders: {e}")
 
-                        #print(f"Debug: Short Position Quantity {short_pos_qty}, Short Take Profit {short_take_profit}")
+                if not any(math.isclose(qty, short_pos_qty) for qty, _ in existing_short_tps):
+                    try:
                         self.exchange.create_take_profit_order_bybit(symbol, "limit", "buy", short_pos_qty, short_take_profit, positionIdx=2, reduce_only=True)
                         print(f"Short take profit set at {short_take_profit}")
                         time.sleep(0.05)

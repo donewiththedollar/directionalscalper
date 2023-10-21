@@ -1,7 +1,6 @@
 import time
 import math
-from threading import Thread
-from ..strategy import Strategy
+from ...strategy import Strategy
 from datetime import datetime, timedelta
 from typing import Tuple
 from rich.console import Console
@@ -12,11 +11,11 @@ from rich import box
 import pandas as pd
 import ta
 import logging
-from ..logger import Logger
+from ...logger import Logger
 
-logging = Logger(logger_name="BybitAutoRotator", filename="BybitAutoRotator.log", stream=True)
+logging = Logger(logger_name="BybitAutoHedgeMFIRSIMaker", filename="BybitAutoHedgeMFIRSIMaker.log", stream=True)
 
-class BybitAutoRotator(Strategy):
+class BybitAutoHedgeMFIRSIPostOnly(Strategy):
     def __init__(self, exchange, manager, config):
         super().__init__(exchange, config, manager)
         self.manager = manager
@@ -41,183 +40,69 @@ class BybitAutoRotator(Strategy):
         self.long_leverage_increased = False
         self.short_leverage_increased = False
         self.version = "2.0.6"
-        self.rows = {}
 
-    # def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev, long_max_trade_qty, short_max_trade_qty, long_expected_profit, short_expected_profit, long_liq_price, short_liq_price, should_long, should_add_to_long, should_short, should_add_to_short,  mfirsi_signal, eri_trend):
-    #     try:
-    #         table = Table(show_header=False, header_style="bold magenta", title=f"Directional Scalper MFIRSI {self.version}")
-    #         table.add_column("Key")
-    #         table.add_column("Value")
-    #         #min_vol_dist_data = self.manager.get_min_vol_dist_data(self.symbol)
-    #         #mode = self.find_mode()
-    #         #trend = self.find_trend()
-    #         #market_data = self.get_market_data()
-
-    #         table_data = {
-    #             "Symbol": symbol,
-    #             "Price": current_price,
-    #             "Balance": balance,
-    #             "Available bal.": available_bal,
-    #             "Long MAX QTY": long_max_trade_qty,
-    #             "Short MAX QTY": short_max_trade_qty,
-    #             "Long entry QTY": long_dynamic_amount,
-    #             "Short entry QTY": short_dynamic_amount,
-    #             "Long pos. QTY": long_pos_qty,
-    #             "Short pos. QTY": short_pos_qty,
-    #             "Long uPNL": long_upnl,
-    #             "Short uPNL": short_upnl,
-    #             "Long cum. uPNL": long_cum_pnl,
-    #             "Short cum. uPNL": short_cum_pnl,
-    #             "Long pos. price": long_pos_price,
-    #             "Long take profit": long_take_profit,
-    #             "Long expected profit": "{:.2f} USDT".format(long_expected_profit),
-    #             "Short pos. price": short_pos_price,
-    #             "Short take profit": short_take_profit,
-    #             "Short expected profit": "{:.2f} USDT".format(short_expected_profit),
-    #             "Long pos. lev.": long_pos_lev,
-    #             "Short pos. lev.": short_pos_lev,
-    #             "Long liq price": long_liq_price,
-    #             "Short liq price": short_liq_price,
-    #             "1m Vol": volume,
-    #             "5m Spread:": spread,
-    #             "Trend": trend,
-    #             "ERI Trend": eri_trend,
-    #             "MFIRSI Signal": mfirsi_signal,
-    #             "Long condition": should_long,
-    #             "Add long cond.": should_add_to_long,
-    #             "Short condition": should_short,
-    #             "Add short cond.": should_add_to_short, 
-    #             "Min. volume": self.config.min_volume,
-    #             "Min. spread": self.config.min_distance,
-    #             "Min. qty": min_qty,
-    #         }
-
-    #         for key, value in table_data.items():
-    #             table.add_row(key, str(value))
-            
-    #         return table
-
-    #     except Exception as e:
-    #         logging.info(f"Exception caught {e}")
-    #         return Table()
-
-    def generate_main_table(self, symbol_data):
+    def generate_main_table(self, symbol, min_qty, current_price, balance, available_bal, volume, spread, trend, long_pos_qty, short_pos_qty, long_upnl, short_upnl, long_cum_pnl, short_cum_pnl, long_pos_price, short_pos_price, long_dynamic_amount, short_dynamic_amount, long_take_profit, short_take_profit, long_pos_lev, short_pos_lev, long_max_trade_qty, short_max_trade_qty, long_expected_profit, short_expected_profit, long_liq_price, short_liq_price, should_long, should_add_to_long, should_short, should_add_to_short,  mfirsi_signal, eri_trend):
         try:
-            symbol = symbol_data['symbol']
+            table = Table(show_header=False, header_style="bold magenta", title=f"Directional Scalper MFIRSI {self.version}")
+            table.add_column("Key")
+            table.add_column("Value")
+            #min_vol_dist_data = self.manager.get_min_vol_dist_data(self.symbol)
+            #mode = self.find_mode()
+            #trend = self.find_trend()
+            #market_data = self.get_market_data()
 
-            # Update the rows dictionary
-            self.rows[symbol] = [
-                symbol,
-                str(symbol_data['min_qty']),
-                str(symbol_data['current_price']),
-                str(symbol_data['balance']),
-                str(symbol_data['available_bal']),
-                str(symbol_data['volume']),
-                str(symbol_data['spread']),
-                str(symbol_data['trend']),
-                str(symbol_data['long_pos_qty']),
-                str(symbol_data['short_pos_qty']),
-                str(symbol_data['long_upnl']),
-                str(symbol_data['short_upnl']),
-                str(symbol_data['long_cum_pnl']),
-                str(symbol_data['short_cum_pnl']),
-                str(symbol_data['long_pos_price']),
-                str(symbol_data['short_pos_price'])
-            ]
+            table_data = {
+                "Symbol": symbol,
+                "Price": current_price,
+                "Balance": balance,
+                "Available bal.": available_bal,
+                "Long MAX QTY": long_max_trade_qty,
+                "Short MAX QTY": short_max_trade_qty,
+                "Long entry QTY": long_dynamic_amount,
+                "Short entry QTY": short_dynamic_amount,
+                "Long pos. QTY": long_pos_qty,
+                "Short pos. QTY": short_pos_qty,
+                "Long uPNL": long_upnl,
+                "Short uPNL": short_upnl,
+                "Long cum. uPNL": long_cum_pnl,
+                "Short cum. uPNL": short_cum_pnl,
+                "Long pos. price": long_pos_price,
+                "Long take profit": long_take_profit,
+                "Long expected profit": "{:.2f} USDT".format(long_expected_profit),
+                "Short pos. price": short_pos_price,
+                "Short take profit": short_take_profit,
+                "Short expected profit": "{:.2f} USDT".format(short_expected_profit),
+                "Long pos. lev.": long_pos_lev,
+                "Short pos. lev.": short_pos_lev,
+                "Long liq price": long_liq_price,
+                "Short liq price": short_liq_price,
+                "1m Vol": volume,
+                "5m Spread:": spread,
+                "Trend": trend,
+                "ERI Trend": eri_trend,
+                "MFIRSI Signal": mfirsi_signal,
+                "Long condition": should_long,
+                "Add long cond.": should_add_to_long,
+                "Short condition": should_short,
+                "Add short cond.": should_add_to_short, 
+                "Min. volume": self.config.min_volume,
+                "Min. spread": self.config.min_distance,
+                "Min. qty": min_qty,
+            }
 
-            # Recreate the table
-            self.table = Table(header_style="bold magenta", title=f"Directional Scalper MFIRSI {self.version}")
-            self.table.add_column("Symbol")
-            self.table.add_column("Min. Qty")
-            self.table.add_column("Price")
-            self.table.add_column("Balance")
-            self.table.add_column("Available Bal.")
-            self.table.add_column("1m Vol")
-            self.table.add_column("5m Spread")
-            self.table.add_column("Trend")
-            self.table.add_column("Long Pos. Qty")
-            self.table.add_column("Short Pos. Qty")
-            self.table.add_column("Long uPNL")
-            self.table.add_column("Short uPNL")
-            self.table.add_column("Long cum. uPNL")
-            self.table.add_column("Short cum. uPNL")
-            self.table.add_column("Long Pos. Price")
-            self.table.add_column("Short Pos. Price")
+            for key, value in table_data.items():
+                table.add_row(key, str(value))
+            
+            return table
 
-            # Add all the rows from the dictionary
-            for row_data in self.rows.values():
-                self.table.add_row(*row_data)
-
-            return self.table
         except Exception as e:
             logging.info(f"Exception caught {e}")
             return Table()
 
-# Works well but does not have rows per symbol    
-    # def generate_main_table(self, symbol_data):
-    #     try:
-    #         table = Table(header_style="bold magenta", title=f"Directional Scalper MFIRSI {self.version}")
-    #         # Define the columns
-    #         table.add_column("Symbol")
-    #         table.add_column("Min. Qty")
-    #         table.add_column("Price")
-    #         table.add_column("Balance")
-    #         table.add_column("Available Bal.")
-    #         table.add_column("1m Vol")
-    #         table.add_column("5m Spread")
-    #         table.add_column("Trend")
-    #         table.add_column("Long Pos. Qty")
-    #         table.add_column("Short Pos. Qty")
-    #         table.add_column("Long uPNL")
-    #         table.add_column("Short uPNL")
-    #         table.add_column("Long cum. uPNL")
-    #         table.add_column("Short cum. uPNL")
-    #         table.add_column("Long Pos. Price")
-    #         table.add_column("Short Pos. Price")
-    #         # ... continue adding columns ...
-
-
-    #         # Add a row for the symbol
-    #         table.add_row(
-    #             symbol_data['symbol'],
-    #             str(symbol_data['min_qty']),
-    #             str(symbol_data['current_price']),
-    #             str(symbol_data['balance']),
-    #             str(symbol_data['available_bal']),
-    #             str(symbol_data['volume']),
-    #             str(symbol_data['spread']),
-    #             str(symbol_data['trend']),
-    #             str(symbol_data['long_pos_qty']),
-    #             str(symbol_data['short_pos_qty']),
-    #             str(symbol_data['long_upnl']),
-    #             str(symbol_data['short_upnl']),
-    #             str(symbol_data['long_cum_pnl']),
-    #             str(symbol_data['short_cum_pnl']),
-    #             str(symbol_data['long_pos_price']),
-    #             str(symbol_data['short_pos_price'])
-    #             # ... continue converting all values to strings ...
-    #         )
-
-            
-    #         return table
-
-    #     except Exception as e:
-    #         logging.info(f"Exception caught {e}")
-    #         return Table()
-
     def run(self, symbol):
-        threads = [Thread(target=self.run_single_symbol, args=(symbol,))]
-
-        for thread in threads:
-            thread.start()
-
-        for thread in threads:
-            thread.join()
-            
-    def run_single_symbol(self, symbol):
-        print(f"Running for symbol (inside run_single_symbol method): {symbol}")
         console = Console()
-        live = Live(console=console, refresh_per_second=10)
+
+        live = Live(console=console, refresh_per_second=2)
 
         quote_currency = "USDT"
         max_retries = 5
@@ -248,7 +133,6 @@ class BybitAutoRotator(Strategy):
                 # Get API data
                 data = self.manager.get_data()
                 one_minute_volume = self.manager.get_asset_value(symbol, data, "1mVol")
-                one_hour_volume = self.manager.get_asset_value(symbol, data, "1hVol")
                 one_minute_distance = self.manager.get_asset_value(symbol, data, "1mSpread")
                 five_minute_distance = self.manager.get_asset_value(symbol, data, "5mSpread")
                 thirty_minute_distance = self.manager.get_asset_value(symbol, data, "30mSpread")
@@ -257,11 +141,6 @@ class BybitAutoRotator(Strategy):
                 trend = self.manager.get_asset_value(symbol, data, "Trend")
                 mfirsi_signal = self.manager.get_asset_value(symbol, data, "MFI")
                 eri_trend = self.manager.get_asset_value(symbol, data, "ERI Trend")
-                rotatorsymbols = self.manager.get_symbols()
-                #rotator_symbols = self.manager.get_auto_rotate_symbols(self.config.min_qty_threshold)
-                rotator_symbols = self.manager.get_auto_rotate_symbols()
-
-                print(f"{rotator_symbols}")
 
                 quote_currency = "USDT"
 
@@ -420,92 +299,47 @@ class BybitAutoRotator(Strategy):
                 logging.info(f"Add short condition: {should_add_to_short}")
                 logging.info(f"Add long condition: {should_add_to_long}")
 
-                symbol_data = {
-                    'symbol': symbol,
-                    'min_qty': min_qty,
-                    'current_price': current_price,
-                    'balance': total_equity,
-                    'available_bal': available_equity,
-                    'volume': one_minute_volume,
-                    'spread': five_minute_distance,
-                    'trend': trend,
-                    'long_pos_qty': long_pos_qty,
-                    'short_pos_qty': short_pos_qty,
-                    'long_upnl': long_upnl,
-                    'short_upnl': short_upnl,
-                    'long_cum_pnl': cum_realised_pnl_long,
-                    'short_cum_pnl': cum_realised_pnl_short,
-                    'long_pos_price': long_pos_price,
-                    'short_pos_price': short_pos_price
-                    # ... continue adding all parameters ...
-                }
-
-                live.update(self.generate_main_table(symbol_data))
-
-
-                # symbol_data = {
-                #     'symbol': symbol,
-                #     'min_qty': min_qty,
-                #     'current_price': current_price,
-                #     'balance': total_equity,
-                #     'available_bal': available_equity,
-                #     'volume': one_minute_volume,
-                #     'spread': five_minute_distance,
-                #     'trend': trend,
-                #     'long_pos_qty': long_pos_qty,
-                #     'short_pos_qty': short_pos_qty,
-                #     'long_upnl': long_upnl,
-                #     'short_upnl': short_upnl,
-                #     'long_cum_pnl': cum_realised_pnl_long,
-                #     'short_cum_pnl': cum_realised_pnl_short,
-                #     'long_pos_price': long_pos_price,
-                #     'short_pos_price': short_pos_price
-                #     # ... continue adding all parameters ...
-                # }
-
-                # live.update(self.generate_main_table(symbol_data))
-
-                # live.update(self.generate_main_table(
-                #     symbol,
-                #     min_qty,
-                #     current_price,
-                #     total_equity,
-                #     available_equity,
-                #     one_minute_volume,
-                #     five_minute_distance,
-                #     trend,
-                #     long_pos_qty,
-                #     short_pos_qty,
-                #     long_upnl,
-                #     short_upnl,
-                #     cum_realised_pnl_long,
-                #     cum_realised_pnl_short,
-                #     long_pos_price,
-                #     short_pos_price,
-                #     long_dynamic_amount,
-                #     short_dynamic_amount,
-                #     long_take_profit,
-                #     short_take_profit,
-                #     self.long_pos_leverage,
-                #     self.short_pos_leverage,
-                #     self.max_long_trade_qty,
-                #     self.max_short_trade_qty,
-                #     self.long_expected_profit_usdt,
-                #     self.short_expected_profit_usdt,
-                #     long_liq_price,
-                #     short_liq_price,
-                #     should_long,
-                #     should_add_to_long,
-                #     should_short,
-                #     should_add_to_short,
-                #     mfirsi_signal,
-                #     eri_trend,
-                # ))
+                live.update(self.generate_main_table(
+                    symbol,
+                    min_qty,
+                    current_price,
+                    total_equity,
+                    available_equity,
+                    one_minute_volume,
+                    five_minute_distance,
+                    trend,
+                    long_pos_qty,
+                    short_pos_qty,
+                    long_upnl,
+                    short_upnl,
+                    cum_realised_pnl_long,
+                    cum_realised_pnl_short,
+                    long_pos_price,
+                    short_pos_price,
+                    long_dynamic_amount,
+                    short_dynamic_amount,
+                    long_take_profit,
+                    short_take_profit,
+                    self.long_pos_leverage,
+                    self.short_pos_leverage,
+                    self.max_long_trade_qty,
+                    self.max_short_trade_qty,
+                    self.long_expected_profit_usdt,
+                    self.short_expected_profit_usdt,
+                    long_liq_price,
+                    short_liq_price,
+                    should_long,
+                    should_add_to_long,
+                    should_short,
+                    should_add_to_short,
+                    mfirsi_signal,
+                    eri_trend,
+                ))
 
                 open_orders = self.exchange.get_open_orders(symbol)
 
                 # Entry logic
-                self.bybit_hedge_entry_maker_mfirsitrend(symbol, data, min_vol, min_dist, one_minute_volume, five_minute_distance, 
+                self.bybit_hedge_entry_maker_mfirsitrenderi(symbol, data, min_vol, min_dist, one_minute_volume, five_minute_distance, 
                                                         eri_trend, open_orders, long_pos_qty, should_add_to_long, 
                                                         self.max_long_trade_qty, best_bid_price, long_pos_price, long_dynamic_amount,
                                                         short_pos_qty, should_add_to_short, self.max_short_trade_qty, 

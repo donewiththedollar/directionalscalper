@@ -1,10 +1,10 @@
 import time
 import math
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_DOWN
-from ..strategy import Strategy
+from ...strategy import Strategy
 from typing import Tuple
 import logging
-from ..logger import Logger
+from ...logger import Logger
 
 logging = Logger(logger_name="BybitShortOnlyDynamicLev", filename="BybitShortOnlyDynamicLev.log", stream=True)
 
