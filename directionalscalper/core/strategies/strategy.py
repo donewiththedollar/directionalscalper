@@ -24,6 +24,9 @@ from ..bot_metrics import BotDatabase
 logging = Logger(logger_name="Strategy", filename="Strategy.log", stream=True)
 
 class Strategy:
+    initialized_symbols = set()
+    initialized_symbols_lock = threading.Lock()
+
     class Bybit:
         def __init__(self, parent):
             self.parent = parent
@@ -35,7 +38,6 @@ class Strategy:
         self.manager = manager
         self.symbol = config.symbol
         self.symbols_allowed = symbols_allowed
-        self.initialized_symbols = set()
         self.order_timestamps = {}
         self.entry_order_ids = {}
         self.long_dynamic_amount = {}
@@ -79,7 +81,17 @@ class Strategy:
 
         self.bybit = self.Bybit(self)
 
-
+    def initialize_symbol(self, symbol, total_equity, best_ask_price):
+        with self.initialized_symbols_lock:
+            if symbol not in self.initialized_symbols:
+                self.initialize_trade_quantities(symbol, total_equity, best_ask_price, self.max_leverage)
+                logging.info(f"Initialized quantities for {symbol}. Initial long qty: {self.initial_max_long_trade_qty_per_symbol.get(symbol, 'N/A')}, Initial short qty: {self.initial_max_short_trade_qty_per_symbol.get(symbol, 'N/A')}")
+                self.initialized_symbols.add(symbol)
+                return True
+            else:
+                logging.info(f"{symbol} is already initialized.")
+                return False
+            
     class OrderBookAnalyzer:
         def __init__(self, exchange, symbol, depth=10):
             self.exchange = exchange

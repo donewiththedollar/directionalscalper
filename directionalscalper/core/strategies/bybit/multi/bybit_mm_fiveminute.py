@@ -101,7 +101,7 @@ class BybitMMFiveMinute(Strategy):
         previous_five_minute_distance = None
 
         while True:
-            
+
             current_time = time.time()
 
             logging.info(f"Max USD value: {self.max_usd_value}")
@@ -148,11 +148,10 @@ class BybitMMFiveMinute(Strategy):
             logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
             logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
 
-            logging.info(f"Initialized symbols: {self.initialized_symbols}")
+            self.initialize_symbol(symbol, total_equity, best_ask_price)
 
-            if symbol not in self.initialized_symbols:
-                self.initialize_trade_quantities(symbol, total_equity, best_ask_price, self.max_leverage)
-                logging.info(f"Initialized quantities for {symbol}. Initial long qty: {self.initial_max_long_trade_qty_per_symbol.get(symbol, 'N/A')}, Initial short qty: {self.initial_max_short_trade_qty_per_symbol.get(symbol, 'N/A')}")
+            with self.initialized_symbols_lock:
+                logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
 
             time.sleep(10)
 
@@ -190,10 +189,11 @@ class BybitMMFiveMinute(Strategy):
                 # short_liq_price = position_data["short"]["liq_price"]
                 # long_liq_price = position_data["long"]["liq_price"]
 
-                # Only do initialization if not done yet
-                if symbol not in self.initialized_symbols:
-                    self.initialize_trade_quantities(symbol, total_equity, best_ask_price, self.max_leverage)
-                    logging.info(f"Initialized quantities for {symbol}. Initial long qty: {self.initial_max_long_trade_qty_per_symbol.get(symbol, 'N/A')}, Initial short qty: {self.initial_max_short_trade_qty_per_symbol.get(symbol, 'N/A')}")
+                # Initialize the symbol and quantities if not done yet
+                self.initialize_symbol(symbol, total_equity, best_ask_price)
+
+                with self.initialized_symbols_lock:
+                    logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
 
                 self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
                 self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
@@ -203,12 +203,18 @@ class BybitMMFiveMinute(Strategy):
 
                 long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v2(symbol, total_equity, best_ask_price, self.max_leverage)
 
-                # long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v2(symbol, total_equity, best_ask_price, self.max_leverage)
+
                 logging.info(f"Long dynamic amount: {long_dynamic_amount} for {symbol}")
                 logging.info(f"Short dynamic amount: {short_dynamic_amount} for {symbol}")
 
+
                 self.print_trade_quantities_once_bybit(symbol)
-                self.print_trade_quantities_once_bybit(symbol)
+
+                logging.info(f"Tried to print trade quantities")
+
+                with self.initialized_symbols_lock:
+                    logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
+
 
                 short_upnl = position_data["short"]["upnl"]
                 long_upnl = position_data["long"]["upnl"]
@@ -342,19 +348,16 @@ class BybitMMFiveMinute(Strategy):
                 short_pos_qty = position_data["short"]["qty"]
                 long_pos_qty = position_data["long"]["qty"]
 
-                # self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
-                # self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
+                self.initialize_symbol(symbol, total_equity, best_ask_price)
 
-                if symbol not in self.initialized_symbols:
-                    self.initialize_trade_quantities(symbol, total_equity, best_ask_price, self.max_leverage)
-                    logging.info(f"Initialized quantities for {symbol}. Initial long qty: {self.initial_max_long_trade_qty_per_symbol.get(symbol, 'N/A')}, Initial short qty: {self.initial_max_short_trade_qty_per_symbol.get(symbol, 'N/A')}")
+                with self.initialized_symbols_lock:
+                    logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
 
                 self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
                 self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
 
                 # Update dynamic amounts based on max trade quantities
                 self.update_dynamic_amounts(symbol, total_equity, best_ask_price)
-
 
                 long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v2(symbol, total_equity, best_ask_price, self.max_leverage)
 
@@ -459,16 +462,16 @@ class BybitMMFiveMinute(Strategy):
                 if trading_allowed:
                     logging.info(f"New position allowed {symbol}")
 
-                    if symbol not in self.initialized_symbols:
-                        self.initialize_trade_quantities(symbol, total_equity, best_ask_price, self.max_leverage)
-                        logging.info(f"Initialized quantities for {symbol}. Initial long qty: {self.initial_max_long_trade_qty_per_symbol.get(symbol, 'N/A')}, Initial short qty: {self.initial_max_short_trade_qty_per_symbol.get(symbol, 'N/A')}")
+                    self.initialize_symbol(symbol, total_equity, best_ask_price)
+
+                    with self.initialized_symbols_lock:
+                        logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
 
                     self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
                     self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
 
                     # Update dynamic amounts based on max trade quantities
                     self.update_dynamic_amounts(symbol, total_equity, best_ask_price)
-
 
                     long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v2(symbol, total_equity, best_ask_price, self.max_leverage)
 
