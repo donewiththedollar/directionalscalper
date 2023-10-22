@@ -98,9 +98,7 @@ class BybitMMFiveMinute(Strategy):
         previous_five_minute_distance = None
 
         while True:
-
             current_time = time.time()
-
             logging.info(f"Max USD value: {self.max_usd_value}")
 
             # Fetch open symbols every loop
@@ -109,13 +107,20 @@ class BybitMMFiveMinute(Strategy):
             open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
             open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
-            # Lets cache some data because we are using Bybit API too often in above variables
-
-            # Fetch equity data less frequently
-            if current_time - last_equity_fetch_time > equity_refresh_interval:
+            # Fetch equity data less frequently or if it's not available yet
+            if current_time - last_equity_fetch_time > equity_refresh_interval or total_equity is None:
                 total_equity = self.retry_api_call(self.exchange.get_balance_bybit, quote_currency)
                 available_equity = self.retry_api_call(self.exchange.get_available_balance_bybit, quote_currency)
                 last_equity_fetch_time = current_time
+
+                logging.info(f"Total equity: {total_equity}")
+                logging.info(f"Available equity: {available_equity}")
+                
+                # If total_equity is still None after fetching, log a warning and skip to the next iteration
+                if total_equity is None:
+                    logging.warning("Failed to fetch total_equity. Skipping this iteration.")
+                    time.sleep(10)  # wait for a short period before retrying
+                    continue
 
             whitelist = self.config.whitelist
             blacklist = self.config.blacklist
