@@ -7,7 +7,6 @@ from threading import Thread
 from datetime import datetime
 from ...strategy import Strategy
 from ...logger import Logger
-from ....bot_metrics import BotDatabase
 from live_table_manager import shared_symbols_data
 
 logging = Logger(logger_name="BybitMMPlayTheSpread", filename="BybitMMPlayTheSpread.log", stream=True)
@@ -18,8 +17,6 @@ class BybitMMPlayTheSpread(Strategy):
         # Removed redundant initializations (they are already done in the parent class)
         self.last_health_check_time = time.time()
         self.health_check_interval = 600
-        self.bot_db = BotDatabase(exchange=self.exchange)
-        self.bot_db.create_tables_if_not_exists()
         self.last_long_tp_update = datetime.now()
         self.last_short_tp_update = datetime.now()
         self.next_long_tp_update = self.calculate_next_update_time()
@@ -380,9 +377,5 @@ class BybitMMPlayTheSpread(Strategy):
                 with open(dashboard_path, "w") as f:
                     json.dump(data_to_save, f)
                 self.update_shared_data(symbol_data, open_position_data, len(open_symbols))
-
-            avg_daily_gain = self.bot_db.compute_average_daily_gain()
-            logging.info(f"Average Daily Gain Percentage: {avg_daily_gain}%")
-
 
             time.sleep(10)

@@ -7,7 +7,6 @@ from threading import Thread, Lock
 from datetime import datetime
 from ...strategy import Strategy
 from ...logger import Logger
-from ....bot_metrics import BotDatabase
 from live_table_manager import shared_symbols_data
 
 logging = Logger(logger_name="BybitOBStrengthRandom", filename="BybitOBStrengthRandom.log", stream=True)
@@ -516,9 +515,6 @@ class BybitOBStrengthRandom(Strategy):
                 with open(dashboard_path, "w") as f:
                     json.dump(data_to_save, f)
                 self.update_shared_data(symbol_data, open_position_data, len(open_symbols))
-
-            avg_daily_gain = self.bot_db.compute_average_daily_gain()
-            logging.info(f"Average Daily Gain Percentage: {avg_daily_gain}%")
 
 
             time.sleep(30)

@@ -56,7 +56,27 @@ class BotDatabase:
                 if start_date_str:  # Ensure start_date_str is not None
                     start_date = datetime.strptime(start_date_str, '%Y-%m-%dT%H:%M:%S.%f')
                     return initial_equity, start_date
-            return None, None
+            else:
+                # Insert initial values if not found
+                initial_equity = 0.0  # Set your default initial equity
+                start_date = datetime.now()
+                self.save_initial_values(initial_equity, start_date)
+                return initial_equity, start_date
+
+
+    # def get_initial_values(self):
+    #     with self.get_connection() as conn:
+    #         cursor = conn.cursor()
+            
+    #         cursor.execute('SELECT initial_equity, start_date FROM initial_values WHERE id = 1')
+    #         row = cursor.fetchone()
+            
+    #         if row:
+    #             initial_equity, start_date_str = row
+    #             if start_date_str:  # Ensure start_date_str is not None
+    #                 start_date = datetime.strptime(start_date_str, '%Y-%m-%dT%H:%M:%S.%f')
+    #                 return initial_equity, start_date
+    #         return None, None
 
 
     def get_average_daily_gain(self):
