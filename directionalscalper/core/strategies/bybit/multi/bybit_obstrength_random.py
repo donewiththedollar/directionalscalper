@@ -19,8 +19,6 @@ class BybitOBStrengthRandom(Strategy):
         # Removed redundant initializations (they are already done in the parent class)
         self.last_health_check_time = time.time()
         self.health_check_interval = 600
-        self.bot_db = BotDatabase(exchange=self.exchange)
-        self.bot_db.create_tables_if_not_exists()
         self.last_long_tp_update = datetime.now()
         self.last_short_tp_update = datetime.now()
         self.next_long_tp_update = self.calculate_next_update_time()
