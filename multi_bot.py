@@ -20,6 +20,7 @@ from directionalscalper.core.strategies.strategy import Strategy
 # Bybit rotator
 from directionalscalper.core.strategies.bybit.multi.bybit_auto_rotator import BybitAutoRotator
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator import BybitMFIRSITrendRotator
+from directionalscalper.core.strategies.bybit.multi.bybit_mm_oneminute import BybitMMOneMinute
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute import BybitMMFiveMinute
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute_walls import BybitMMFiveMinuteWalls
 from directionalscalper.core.strategies.bybit.multi.bybit_obstrength import BybitOBStrength
@@ -47,6 +48,7 @@ def choose_strategy():
                       choices=[
                           'bybit_mm_mfirsi',
                           'bybit_mm_fivemin',
+                          'bybit_mm_onemin',
                           'bybit_mfirsi_trend',
                           'bybit_obstrength',
                           'bybit_mm_fivemin_walls',
@@ -94,6 +96,9 @@ class DirectionalMarketMaker:
         # Pass symbols_allowed to the strategy constructors
         if strategy_name.lower() == 'bybit_mm_mfirsi':
             strategy = BybitAutoRotatorMFIRSI(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
+        elif strategy_name.lower() == 'bybit_mm_onemin':
+            strategy = BybitMMOneMinute(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'bybit_mm_fivemin':
             strategy = BybitMMFiveMinute(self.exchange, self.manager, config.bot, symbols_allowed)
