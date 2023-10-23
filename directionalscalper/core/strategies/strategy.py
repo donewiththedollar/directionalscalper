@@ -129,6 +129,24 @@ class Strategy:
             else:
                 return "neutral"
 
+    def detect_order_book_walls(self, symbol, threshold=5.0):
+        order_book = self.exchange.get_orderbook(symbol)
+        bids = order_book['bids']
+        asks = order_book['asks']
+
+        avg_bid_size = sum([bid[1] for bid in bids[:10]]) / 10
+        bid_walls = [(price, size) for price, size in bids if size > avg_bid_size * threshold]
+
+        avg_ask_size = sum([ask[1] for ask in asks[:10]]) / 10
+        ask_walls = [(price, size) for price, size in asks if size > avg_ask_size * threshold]
+
+        if bid_walls:
+            logging.info(f"Detected buy walls at {bid_walls} for {symbol}")
+        if ask_walls:
+            logging.info(f"Detected sell walls at {ask_walls} for {symbol}")
+
+        return bid_walls, ask_walls
+
     TAKER_FEE_RATE = 0.00055
 
     def calculate_trading_fee(self, qty, executed_price, fee_rate=TAKER_FEE_RATE):
@@ -3013,6 +3031,144 @@ class Strategy:
                 short_take_profit = min(avg_top_bids * (1 + short_trading_fee), short_pos_price - 0.0001)  # Ensure TP is below the short position price
 
             self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
+
+    def bybit_entry_mm_5m_with_wall_detection(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, five_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
+
+        if symbol not in self.symbol_locks:
+            self.symbol_locks[symbol] = threading.Lock()
+
+        with self.symbol_locks[symbol]:
+            logging.info(f"5m Hedge entry function initialized for {symbol}")
+
+            if trend is None or mfi is None or hma_trend is None:
+                logging.warning(f"Either 'trend', 'mfi', or 'hma_trend' is None for symbol {symbol}. Skipping current execution...")
+                return
+
+            logging.info(f"Trend is {trend}")
+            logging.info(f"MFI is {mfi}")
+            logging.info(f"HMA is {hma_trend}")
+
+            logging.info(f"Five min vol for {symbol} is {five_minute_volume}")
+            logging.info(f"Five min dist for {symbol} is {five_minute_distance}")
+
+            logging.info(f"Should long for {symbol}: {should_long}")
+            logging.info(f"Should short for {symbol}: {should_short}")
+            logging.info(f"Should add to long for {symbol}: {should_add_to_long}")
+            logging.info(f"Should add to short for {symbol}: {should_add_to_short}")
+
+            logging.info(f"Min dist: {min_dist}")
+            logging.info(f"Min vol: {min_vol}")
+
+            if five_minute_volume is None or five_minute_distance is None:
+                logging.warning("Five minute volume or distance is None. Skipping current execution...")
+                return
+
+            if five_minute_volume > min_vol and five_minute_distance > min_dist:
+                logging.info(f"Made it into the entry maker function for {symbol}")
+
+                best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+                best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+
+                # Detect order book walls
+                bid_walls, ask_walls = self.detect_order_book_walls(symbol)
+                if bid_walls:
+                    logging.info(f"Detected buy walls at {bid_walls} for {symbol}")
+                if ask_walls:
+                    logging.info(f"Detected sell walls at {ask_walls} for {symbol}")
+
+                # Trading logic for long positions
+                if ((trend.lower() == "long" or hma_trend.lower() == "long") and mfi.lower() == "long") and should_long:
+                    if long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
+                        logging.info(f"Placing initial long entry for {symbol}")
+                        self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                    elif should_add_to_long and long_pos_qty < self.max_long_trade_qty_per_symbol.get(symbol, 0) and best_bid_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
+                        logging.info(f"Placing additional long entry for {symbol}")
+                        self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+
+                # Additional trading logic for long positions based on order book walls
+                if ask_walls and trend.lower() == "long":
+                    logging.info(f"Placing additional long trade due to detected buy wall for {symbol}")
+                    self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+
+                # Trading logic for short positions
+                if ((trend.lower() == "short" or hma_trend.lower() == "short") and mfi.lower() == "short") and should_short:
+                    if short_pos_qty == 0 and not self.entry_order_exists(open_orders, "sell"):
+                        logging.info(f"Placing initial short entry for {symbol}")
+                        self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                    elif should_add_to_short and short_pos_qty < self.max_short_trade_qty_per_symbol.get(symbol, 0) and best_ask_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
+                        logging.info(f"Placing additional short entry for {symbol}")
+                        self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+
+                # Additional trading logic for short positions based on order book walls
+                if buy_walls and trend.lower() == "short":
+                    logging.info(f"Placing additional short trade due to detected sell wall for {symbol}")
+                    self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+
+                time.sleep(5)
+
+    def bybit_entry_mm_5m_initial_only(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, five_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool):
+
+        if symbol not in self.symbol_locks:
+            self.symbol_locks[symbol] = threading.Lock()
+
+        with self.symbol_locks[symbol]:
+            logging.info(f"5m Hedge initial entry function initialized for {symbol}")
+
+            if trend is None or mfi is None or hma_trend is None:
+                logging.warning(f"Either 'trend', 'mfi', or 'hma_trend' is None for symbol {symbol}. Skipping current execution...")
+                return
+
+            logging.info(f"Trend is {trend}")
+            logging.info(f"MFI is {mfi}")
+            logging.info(f"HMA is {hma_trend}")
+
+            logging.info(f"Five min vol for {symbol} is {five_minute_volume}")
+            logging.info(f"Five min dist for {symbol} is {five_minute_distance}")
+
+            logging.info(f"Should long for {symbol}: {should_long}")
+            logging.info(f"Should short for {symbol}: {should_short}")
+
+            logging.info(f"Min dist: {min_dist}")
+            logging.info(f"Min vol: {min_vol}")
+
+            if five_minute_volume is None or five_minute_distance is None:
+                logging.warning("Five minute volume or distance is None. Skipping current execution...")
+                return
+
+            if five_minute_volume > min_vol and five_minute_distance > min_dist:
+                logging.info(f"Made it into the initial entry maker function for {symbol}")
+
+                best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+                best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+
+                # Detect order book walls
+                bid_walls, ask_walls = self.detect_order_book_walls(symbol)
+                if bid_walls:
+                    logging.info(f"Detected buy walls at {bid_walls} for {symbol}")
+                if ask_walls:
+                    logging.info(f"Detected sell walls at {ask_walls} for {symbol}")
+
+                # Initial trading logic for long positions
+                if ((trend.lower() == "long" or hma_trend.lower() == "long") and mfi.lower() == "long") and should_long and long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
+                    logging.info(f"Placing initial long entry for {symbol}")
+                    self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+
+                # Additional trading logic for long positions based on order book walls
+                if ask_walls and trend.lower() == "long":
+                    logging.info(f"Placing additional long trade due to detected buy wall for {symbol}")
+                    self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+
+                # Initial trading logic for short positions
+                if ((trend.lower() == "short" or hma_trend.lower() == "short") and mfi.lower() == "short") and should_short and short_pos_qty == 0 and not self.entry_order_exists(open_orders, "sell"):
+                    logging.info(f"Placing initial short entry for {symbol}")
+                    self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+
+                # Additional trading logic for short positions based on order book walls
+                if buy_walls and trend.lower() == "short":
+                    logging.info(f"Placing additional short trade due to detected sell wall for {symbol}")
+                    self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+
+                time.sleep(5)
 
     def bybit_entry_mm_5m(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, five_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
 

@@ -21,6 +21,7 @@ from directionalscalper.core.strategies.strategy import Strategy
 from directionalscalper.core.strategies.bybit.multi.bybit_auto_rotator import BybitAutoRotator
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator import BybitMFIRSITrendRotator
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute import BybitMMFiveMinute
+from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute_walls import BybitMMFiveMinuteWalls
 from directionalscalper.core.strategies.bybit.multi.bybit_obstrength import BybitOBStrength
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi import BybitAutoRotatorMFIRSI
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_playthespread import BybitMMPlayTheSpread
@@ -30,6 +31,7 @@ from directionalscalper.core.strategies.bybit.multi.bybit_spoof_rotator import B
 from directionalscalper.core.strategies.bybit.multi.bybit_mm import BybitMM
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_hma import BybitMMhma
 from live_table_manager import LiveTableManager, shared_symbols_data
+
 
 from directionalscalper.core.strategies.logger import Logger
 
@@ -47,6 +49,7 @@ def choose_strategy():
                           'bybit_mm_fivemin',
                           'bybit_mfirsi_trend',
                           'bybit_obstrength',
+                          'bybit_mm_fivemin_walls',
                       ]
                      )
     ]
@@ -94,6 +97,9 @@ class DirectionalMarketMaker:
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'bybit_mm_fivemin':
             strategy = BybitMMFiveMinute(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
+        elif strategy_name.lower() == 'bybit_mm_fivemin_walls':
+            strategy = BybitMMFiveMinuteWalls(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'bybit_mfirsi_trend':
             strategy = BybitMFIRSITrendRotator(self.exchange, self.manager, config.bot, symbols_allowed)
