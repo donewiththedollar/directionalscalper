@@ -3100,7 +3100,7 @@ class Strategy:
                         self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
                 # Additional trading logic for short positions based on order book walls
-                if buy_walls and trend.lower() == "short":
+                if bid_walls and trend.lower() == "short":
                     logging.info(f"Placing additional short trade due to detected sell wall for {symbol}")
                     self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
