@@ -134,8 +134,6 @@ class BybitMMFiveMinuteWalls(Strategy):
             current_price = self.exchange.get_current_price(symbol)
             best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
             best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
-
-            moving_averages = self.get_all_moving_averages(symbol)
             
             logging.info(f"Open symbols: {open_symbols}")
             logging.info(f"HMA Current rotator symbols: {rotator_symbols_standardized}")
@@ -155,10 +153,14 @@ class BybitMMFiveMinuteWalls(Strategy):
             with self.initialized_symbols_lock:
                 logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
 
+
+            moving_averages = self.get_all_moving_averages(symbol)
+
             time.sleep(10)
 
             # If the symbol is in rotator_symbols and either it's already being traded or trading is allowed.
             if symbol in rotator_symbols_standardized and (symbol in open_symbols or trading_allowed):
+
                 # Fetch the API data
                 api_data = self.manager.get_api_data(symbol)
 
@@ -330,6 +332,8 @@ class BybitMMFiveMinuteWalls(Strategy):
                 time.sleep(30)
 
             elif symbol not in rotator_symbols_standardized and symbol in open_symbols:
+
+
                 # Fetch the API data
                 api_data = self.manager.get_api_data(symbol)
 
@@ -446,6 +450,7 @@ class BybitMMFiveMinuteWalls(Strategy):
 
             # elif symbol in rotator_symbols and symbol not in open_symbols:
             elif symbol in rotator_symbols_standardized and symbol not in open_symbols and trading_allowed:
+
                 # Fetch the API data
                 api_data = self.manager.get_api_data(symbol)
 
