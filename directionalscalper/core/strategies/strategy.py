@@ -3085,10 +3085,10 @@ class Strategy:
                         logging.info(f"Placing additional long entry for {symbol}")
                         self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
 
-                # Additional trading logic for long positions based on order book walls
+                # Additional trading logic for short positions based on order book walls
                 if ask_walls and trend.lower() == "long":
-                    logging.info(f"Placing additional long trade due to detected buy wall for {symbol}")
-                    self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                    logging.info(f"Placing additional short trade due to detected sell wall and trend {trend} for {symbol}")
+                    self.place_postonly_order_bybit(symbol, "sell", long_dynamic_amount, best_bid_price, positionIdx=2, reduceOnly=False)
 
                 # Trading logic for short positions
                 if ((trend.lower() == "short" or hma_trend.lower() == "short") and mfi.lower() == "short") and should_short:
@@ -3099,10 +3099,10 @@ class Strategy:
                         logging.info(f"Placing additional short entry for {symbol}")
                         self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
-                # Additional trading logic for short positions based on order book walls
+                # Additional trading logic for long positions based on order book walls
                 if bid_walls and trend.lower() == "short":
-                    logging.info(f"Placing additional short trade due to detected sell wall for {symbol}")
-                    self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                    logging.info(f"Placing additional long trade due to detected bid wall and trend {trend} for {symbol}")
+                    self.place_postonly_order_bybit(symbol, "buy", short_dynamic_amount, best_ask_price, positionIdx=1, reduceOnly=False)
 
                 time.sleep(5)
 
