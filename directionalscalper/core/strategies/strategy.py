@@ -1947,8 +1947,8 @@ class Strategy:
             spoofing_orders = []
 
             # Dynamic safety_margin and base_gap based on asset's price
-            safety_margin = best_ask_price * Decimal('0.0030')  # 0.10% of current price
-            base_gap = best_ask_price * Decimal('0.0030')  # 0.10% of current price
+            safety_margin = best_ask_price * Decimal('0.0040')  # 0.0030 # 0.10% of current price
+            base_gap = best_ask_price * Decimal('0.0040') #0.0030  # 0.10% of current price
 
             for i in range(adjusted_spoofing_wall_size):
                 gap = base_gap + Decimal(i) * Decimal('0.002')  # Increasing gap for each subsequent order
@@ -3110,7 +3110,7 @@ class Strategy:
                     self.place_postonly_order_bybit(symbol, "buy", short_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
 
                 time.sleep(5)
-                
+
     def bybit_entry_mm_5m_initial_only(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, five_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool):
 
         if symbol not in self.symbol_locks:
