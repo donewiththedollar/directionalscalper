@@ -134,25 +134,31 @@ class Exchange:
             exchange_params["password"] = self.passphrase
 
         # Set the defaultType based on the market_type parameter
+        # Adjusting the defaultType specifically for Bybit Spot
         exchange_params['options'] = {
-            'defaultType': self.market_type,
+            'defaultType': 'spot' if self.exchange_id.lower() == 'bybit_spot' else self.market_type,
             'adjustForTimeDifference': True,
         }
+
+        # Existing condition for Huobi
         if self.exchange_id.lower() == 'huobi' and self.market_type == 'swap':
             exchange_params['options']['defaultSubType'] = 'linear'
         
-        # Add enableUnifiedMargin option for Bybit unified
+        # Existing condition for Bybit unified
         if self.exchange_id.lower() == 'bybit_unified':
             exchange_params['options']['enableUnifiedMargin'] = True
 
+        # Initializing the exchange object
         self.exchange = exchange_class(exchange_params)
 
-        # if self.exchange_id.lower() == 'bybit':
-        #     exchange_params['urls'] = {
-        #         'api': 'https://api-testnet.bybit.com',
-        #         'public': 'https://api-testnet.bybit.com',
-        #         'private': 'https://api-testnet.bybit.com',
-        #     }
+        # Uncomment and adjust the URLs if you need to connect to Bybit's testnet
+        #if self.exchange_id.lower() == 'bybit_spot':
+        #    exchange_params['urls'] = {
+        #        'api': 'https://api-testnet.bybit.com',
+        #        'public': 'https://api-testnet.bybit.com',
+        #        'private': 'https://api-testnet.bybit.com',
+        #    }
+
 
     def _get_symbols(self):
         while True:
