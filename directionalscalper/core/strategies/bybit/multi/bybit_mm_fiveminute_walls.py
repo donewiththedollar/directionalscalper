@@ -327,11 +327,11 @@ class BybitMMFiveMinuteWalls(Strategy):
 
 
                 self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
-                self.cancel_stale_orders_bybit(symbol)
+                # self.cancel_stale_orders_bybit(symbol)
 
                 time.sleep(30)
 
-            elif symbol not in rotator_symbols_standardized and symbol in open_symbols:
+            elif symbol not in rotator_symbols_standardized and symbol in open_symbols and trading_allowed:
 
 
                 # Fetch the API data
