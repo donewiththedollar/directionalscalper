@@ -327,7 +327,7 @@ class BybitMMFiveMinute(Strategy):
 
                 time.sleep(30)
 
-            elif symbol not in rotator_symbols_standardized and symbol in open_symbols:
+            elif symbol not in rotator_symbols_standardized and symbol in open_symbols and trading_allowed:
                 # Fetch the API data
                 api_data = self.manager.get_api_data(symbol)
 
