@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime
 
 from directionalscalper.api.exchanges.exchange import Exchange
 from directionalscalper.api.exchanges.utils import Intervals
@@ -13,9 +12,9 @@ log = logging.getLogger(__name__)
 
 class Bybit(Exchange):
     def __init__(self):
-        super().__init__()  # Call the parent class's initializer
+        super().__init__()
         log.info("Bybit initialised")
-        self.funding_rates_cache = {}  # Each instance has its own funding rates cache
+        self.funding_rates_cache = {}
 
     exchange = "bybit"
     futures_api_url = "https://api.bybit.com"
@@ -133,16 +132,84 @@ class Bybit(Exchange):
                     return reversed_data
         return []
 
+    # def get_funding_rate(self, symbol: str) -> float:
+    #     # Get current timestamp
+    #     current_time = time.time()
+
+    #     # Check if the symbol is in the cache
+    #     if symbol in self.funding_rates_cache:
+    #         cached_time, cached_rate = self.funding_rates_cache[symbol]
+            
+    #         # If cached data is less than 3 hours old, return the cached rate
+    #         if (current_time - cached_time) < (3 * 3600):  # 3 hours in seconds
+    #             return cached_rate
+
+    #     # Fetch new rate if not in cache or if older than 3 hours
+    #     funding = 0.0
+    #     params = {"category": "linear", "symbol": symbol}
+    #     header, raw_json = send_public_request(
+    #         url=self.futures_api_url,
+    #         url_path="/v5/market/tickers",
+    #         payload=params,
+    #     )
+    #     if "result" in raw_json:
+    #         if "list" in raw_json["result"]:
+    #             if len(raw_json["result"]["list"]) > 0:
+    #                 funding = float(raw_json["result"]["list"][0]["fundingRate"])
+
+    #     # Cache the newly fetched rate with the current timestamp
+    #     self.funding_rates_cache[symbol] = (current_time, funding)
+
+    #     return funding
+
+    # def get_funding_rate(self, symbol: str, funding_rates_cache: dict) -> float:
+    #     # Check if the funding rate for the symbol is already in the cache
+    #     if symbol in funding_rates_cache:
+    #         return funding_rates_cache[symbol]
+
+    #     self.check_weight()
+    #     funding = 0.0
+    #     params = {"category": "linear", "symbol": symbol}
+    #     header, raw_json = send_public_request(
+    #         url=self.futures_api_url,
+    #         url_path="/v5/market/tickers",
+    #         payload=params,
+    #     )
+    #     if "result" in raw_json:
+    #         if "list" in raw_json["result"]:
+    #             if len(raw_json["result"]["list"]) > 0:
+    #                 funding = float(raw_json["result"]["list"][0]["fundingRate"])
+    #                 # Cache the fetched funding rate for the symbol
+    #                 funding_rates_cache[symbol] = funding
+    #     return funding
+
+
+    # New function
+    # def get_funding_rate(self, symbol: str) -> float:
+    #     self.check_weight()
+    #     funding = 0.0
+    #     params = {"category": "linear", "symbol": symbol}
+    #     header, raw_json = send_public_request(
+    #         url=self.futures_api_url,
+    #         url_path="/v5/market/tickers",
+    #         payload=params,
+    #     )
+    #     if "result" in raw_json:
+    #         if "list" in raw_json["result"]:
+    #             if len(raw_json["result"]["list"]) > 0:
+    #                 funding = float(raw_json["result"]["list"][0]["fundingRate"])
+    #     return funding
+
     def get_funding_rate(self, symbol: str) -> float:
         # Get current timestamp
-        current_time = datetime.now()
+        current_time = time.time()
 
         # Check if the symbol is in the cache
-        cached_data = self.funding_rates_cache.get(symbol, None)
-        if cached_data:
-            cached_time, cached_rate = cached_data
+        if symbol in self.funding_rates_cache:
+            cached_time, cached_rate = self.funding_rates_cache[symbol]
+            
             # If cached data is less than 3 hours old, return the cached rate
-            if (current_time - cached_time).total_seconds() < (3 * 3600):  # 3 hours in seconds
+            if (current_time - cached_time) < (3 * 3600):  # 3 hours in seconds
                 return cached_rate
 
         # Fetch new rate if not in cache or if older than 3 hours
@@ -154,75 +221,15 @@ class Bybit(Exchange):
             url_path="/v5/market/tickers",
             payload=params,
         )
-        if "result" in raw_json and "list" in raw_json["result"] and raw_json["result"]["list"]:
-            funding = float(raw_json["result"]["list"][0]["fundingRate"])
+        if "result" in raw_json:
+            if "list" in raw_json["result"]:
+                if len(raw_json["result"]["list"]) > 0:
+                    funding = float(raw_json["result"]["list"][0]["fundingRate"])
 
         # Cache the newly fetched rate with the current timestamp
         self.funding_rates_cache[symbol] = (current_time, funding)
 
         return funding
-
-
-    # def get_funding_rate(self, symbol: str) -> float:
-    #     # Get current timestamp
-    #     current_time = datetime.now()
-
-    #     # Check if the symbol is in the shared cache
-    #     with self.lock:  # Ensure that access to the shared cache is thread-safe
-    #         cached_data = self.funding_cache.get(symbol, None)
-    #         if cached_data:
-    #             cached_time, cached_rate = cached_data
-    #             # If cached data is less than 3 hours old, return the cached rate
-    #             if (current_time - cached_time).total_seconds() < (3 * 3600):  # 3 hours in seconds
-    #                 return cached_rate
-
-    #     # Fetch new rate if not in cache or if older than 3 hours
-    #     self.check_weight()
-    #     funding = 0.0
-    #     params = {"category": "linear", "symbol": symbol}
-    #     header, raw_json = send_public_request(
-    #         url=self.futures_api_url,
-    #         url_path="/v5/market/tickers",
-    #         payload=params,
-    #     )
-    #     if "result" in raw_json and "list" in raw_json["result"] and raw_json["result"]["list"]:
-    #         funding = float(raw_json["result"]["list"][0]["fundingRate"])
-
-    #     # Cache the newly fetched rate with the current timestamp in the shared cache
-    #     with self.lock:  # Ensure that access to the shared cache is thread-safe
-    #         self.funding_cache[symbol] = (current_time, funding)
-
-    #     return funding
-
-    # def get_funding_rate(self, symbol: str) -> float:
-    #     # Get current timestamp
-    #     current_time = datetime.now()
-
-    #     # Check if the symbol is in the shared cache
-    #     cached_data = funding_cache.get(symbol, None)
-    #     if cached_data:
-    #         cached_time, cached_rate = cached_data
-    #         # If cached data is less than 3 hours old, return the cached rate
-    #         if (current_time - cached_time).total_seconds() < (3 * 3600):  # 3 hours in seconds
-    #             return cached_rate
-
-    #     # Fetch new rate if not in cache or if older than 3 hours
-    #     self.check_weight()
-    #     funding = 0.0
-    #     params = {"category": "linear", "symbol": symbol}
-    #     header, raw_json = send_public_request(
-    #         url=self.futures_api_url,
-    #         url_path="/v5/market/tickers",
-    #         payload=params,
-    #     )
-    #     if "result" in raw_json and "list" in raw_json["result"] and raw_json["result"]["list"]:
-    #         funding = float(raw_json["result"]["list"][0]["fundingRate"])
-
-    #     # Cache the newly fetched rate with the current timestamp in the shared cache
-    #     funding_cache[symbol] = (current_time, funding)
-
-    #     return funding
-
 
     def get_open_interest(
         self, symbol: str, interval: Intervals = Intervals.ONE_DAY, limit: int = 200
