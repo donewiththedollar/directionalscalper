@@ -23,6 +23,7 @@ from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator i
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_oneminute import BybitMMOneMinute
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute import BybitMMFiveMinute
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute_walls import BybitMMFiveMinuteWalls
+from directionalscalper.core.strategies.bybit.multi.bybit_mm_oneminute_walls import BybitMMOneMinuteWalls
 from directionalscalper.core.strategies.bybit.multi.bybit_obstrength import BybitOBStrength
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi import BybitAutoRotatorMFIRSI
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_playthespread import BybitMMPlayTheSpread
@@ -52,6 +53,7 @@ def choose_strategy():
                           'bybit_mfirsi_trend',
                           'bybit_obstrength',
                           'bybit_mm_fivemin_walls',
+                          'bybit_mm_onemin_walls',
                       ]
                      )
     ]
@@ -104,6 +106,9 @@ class DirectionalMarketMaker:
             strategy = BybitMMFiveMinute(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'bybit_mm_fivemin_walls':
+            strategy = BybitMMFiveMinuteWalls(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
+        elif strategy_name.lower() == 'bybit_mm_onemin_walls':
             strategy = BybitMMFiveMinuteWalls(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'bybit_mfirsi_trend':
@@ -234,7 +239,7 @@ if __name__ == '__main__':
             inquirer.List('strategy',
                         message="Which strategy do you want to use?",
                         choices=['bybit_mm_mfirsi', 'bybit_mm_fivemin', 'bybit_mfirsi_trend',
-                                'bybit_obstrength', 'bybit_mm_fivemin_walls']) if not args.strategy else None,
+                                'bybit_obstrength', 'bybit_mm_fivemin_walls', 'bybit_mm_onemin_walls']) if not args.strategy else None,
             inquirer.Text('account_name',
                         message="Please enter the name of the account:") if not args.account_name else None
         ]
