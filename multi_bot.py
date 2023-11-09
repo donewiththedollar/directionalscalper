@@ -156,9 +156,18 @@ BALANCE_REFRESH_INTERVAL = 600  # in seconds
 def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized):
     current_thread = threading.current_thread()
     thread_to_symbol[current_thread] = symbol
-    config_file_path = Path('configs/' + args.config)
+
+    # Correct the path for the configuration file
+    if not args.config.startswith('configs/'):
+        config_file_path = Path('configs/' + args.config)
+    else:
+        config_file_path = Path(args.config)
     print("Loading config from:", config_file_path)
     config = load_config(config_file_path)
+    
+    # config_file_path = Path('configs/' + args.config)
+    # print("Loading config from:", config_file_path)
+    # config = load_config(config_file_path)
 
     # Initialize balance cache and last fetch time at the beginning
     cached_balance = None
@@ -256,8 +265,16 @@ if __name__ == '__main__':
     print(f"DirectionalScalper {VERSION} Initialized Successfully!".center(50))
     print("=" * 50 + "\n")
 
-    config_file_path = Path('configs/' + args.config)
+    # Correct the path for the configuration file
+    if not args.config.startswith('configs/'):
+        config_file_path = Path('configs/' + args.config)
+    else:
+        config_file_path = Path(args.config)
+
     config = load_config(config_file_path)
+
+    # config_file_path = Path('configs/' + args.config)
+    # config = load_config(config_file_path)
 
     exchange_name = args.exchange  # Now it will have a value
     market_maker = DirectionalMarketMaker(config, exchange_name, args.account_name)
