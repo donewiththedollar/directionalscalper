@@ -24,6 +24,7 @@ from directionalscalper.core.strategies.bybit.multi.bybit_mm_oneminute import By
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute import BybitMMFiveMinute
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute_walls import BybitMMFiveMinuteWalls
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_oneminute_walls import BybitMMOneMinuteWalls
+from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute_qfl_mfi import BybitMMFiveMinuteQFLMFI
 from directionalscalper.core.strategies.bybit.multi.bybit_obstrength import BybitOBStrength
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi import BybitAutoRotatorMFIRSI
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_playthespread import BybitMMPlayTheSpread
@@ -109,7 +110,10 @@ class DirectionalMarketMaker:
             strategy = BybitMMFiveMinuteWalls(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'bybit_mm_onemin_walls':
-            strategy = BybitMMFiveMinuteWalls(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy = BybitMMOneMinuteWalls(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
+        elif strategy_name.lower() == 'bybit_mm_qfl_mfi':
+            strategy = BybitMMFiveMinuteQFLMFI(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'bybit_mfirsi_trend':
             strategy = BybitMFIRSITrendRotator(self.exchange, self.manager, config.bot, symbols_allowed)
@@ -164,7 +168,7 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         config_file_path = Path(args.config)
     print("Loading config from:", config_file_path)
     config = load_config(config_file_path)
-    
+
     # config_file_path = Path('configs/' + args.config)
     # print("Loading config from:", config_file_path)
     # config = load_config(config_file_path)
