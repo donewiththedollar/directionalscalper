@@ -2249,7 +2249,21 @@ class Strategy:
                     logging.info(f"Placing additional short entry")
                     self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
-    def calculate_qfl_base(self, symbol: str, timeframe='1h', lookback_period=24):
+    def calculate_qfl_levels(self, symbol: str, timeframe='5m', lookback_period=12):
+        # Fetch historical candle data
+        candles = self.exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=lookback_period)
+        df = pd.DataFrame(candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+        
+        # Convert timestamps to readable dates (optional)
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        
+        # Find the lowest lows and highest highs of the lookback period for QFL bases and ceilings
+        qfl_base = df['low'].min()  # Support level
+        qfl_ceiling = df['high'].max()  # Resistance level
+
+        return qfl_base, qfl_ceiling
+
+    def calculate_qfl_base(self, symbol: str, timeframe='5m', lookback_period=12):
         # Fetch historical candle data
         candles = self.exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=lookback_period)
         df = pd.DataFrame(candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
@@ -3034,6 +3048,45 @@ class Strategy:
                 short_take_profit = min(avg_top_bids * (1 + short_trading_fee), short_pos_price - 0.0001)  # Ensure TP is below the short position price
 
             self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
+
+    def bybit_entry_mm_5m_with_qfl_and_mfi(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, five_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool):
+
+        if symbol not in self.symbol_locks:
+            self.symbol_locks[symbol] = threading.Lock()
+
+        with self.symbol_locks[symbol]:
+            logging.info(f"Entry function with QFL and MFI filter initialized for {symbol}")
+
+            qfl_base, qfl_ceiling = self.calculate_qfl_levels(symbol=symbol, timeframe='5m', lookback_period=12)
+            current_price = self.exchange.get_current_price(symbol)
+            # current_price = self.exchange.fetch_ticker(symbol)['last']
+
+            if five_minute_volume > min_vol and five_minute_distance > min_dist:
+                best_ask_price = self.exchange.fetch_order_book(symbol)['asks'][0][0]
+                best_bid_price = self.exchange.fetch_order_book(symbol)['bids'][0][0]
+
+                if should_long and trend.lower() == "long" and mfi.lower() == "long" and current_price >= qfl_base:
+                    if long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
+                        logging.info(f"Placing initial long entry for {symbol}")
+                        self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                    elif long_pos_qty > 0 and current_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
+                        logging.info(f"Placing additional long entry for {symbol}")
+                        self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+
+                if should_short and trend.lower() == "short" and mfi.lower() == "short" and current_price <= qfl_ceiling:
+                    if short_pos_qty == 0 and not self.entry_order_exists(open_orders, "sell"):
+                        logging.info(f"Placing initial short entry for {symbol}")
+                        self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                    elif short_pos_qty > 0 and current_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
+                        logging.info(f"Placing additional short entry for {symbol}")
+                        self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+
+            else:
+                logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
+
+            time.sleep(5)
+
+
 
     def bybit_entry_mm_5m_with_wall_detection(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, five_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
 
