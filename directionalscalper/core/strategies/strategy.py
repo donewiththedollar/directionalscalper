@@ -3062,8 +3062,9 @@ class Strategy:
             largest_ask_wall = max(ask_walls, key=lambda x: x[1], default=None)
             
             qfl_base, qfl_ceiling = self.calculate_qfl_levels(symbol=symbol, timeframe='5m', lookback_period=12)
+            logging.info(f"QFL Base for {symbol}: {qfl_base}")
+            logging.info(f"QFL Ceiling for {symbol}: {qfl_ceiling}")
             current_price = self.exchange.get_current_price(symbol)
-            # current_price = self.exchange.fetch_ticker(symbol)['last']
 
             if five_minute_volume > min_vol and five_minute_distance > min_dist:
                 best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
@@ -3112,7 +3113,7 @@ class Strategy:
             if five_minute_volume > min_vol and five_minute_distance > min_dist:
                 best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
                 best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
-                
+
                 if should_long and trend.lower() == "long" and mfi.lower() == "long" and current_price >= qfl_base:
                     if long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
                         logging.info(f"Placing initial long entry for {symbol}")
