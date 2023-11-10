@@ -1,6 +1,7 @@
 from colorama import Fore
 from typing import Optional, Tuple, List, Dict, Union
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_DOWN
+import pandas as pd
 import time
 import math
 import numpy
@@ -2093,65 +2094,6 @@ class Strategy:
             # Deactivate spoofing for the next cycle
             self.spoofing_active = False
 
-    # def spoofing_action(self, symbol, short_dynamic_amount, long_dynamic_amount):
-    #     if self.spoofing_active:
-    #         # Fetch orderbook and positions
-    #         orderbook = self.exchange.get_orderbook(symbol)
-    #         best_bid_price = Decimal(orderbook['bids'][0][0])
-    #         best_ask_price = Decimal(orderbook['asks'][0][0])
-    #         current_price = (best_bid_price + best_ask_price) / Decimal('2')  # Convert to Decimal
-
-    #         position_data = self.exchange.get_positions_bybit(symbol)
-    #         short_pos_qty = position_data["short"]["qty"]
-    #         long_pos_qty = position_data["long"]["qty"]
-
-    #         if short_pos_qty is None and long_pos_qty is None:
-    #             logging.warning(f"Could not fetch position quantities for {symbol}. Skipping spoofing.")
-    #             return
-
-    #         # Initialize variables
-    #         spoofing_orders = []
-    #         larger_position = "long" if long_pos_qty > short_pos_qty else "short"
-    #         safety_margin = Decimal('0.05')  # 1% safety margin
-    #         base_gap = Decimal('0.005')  # Base gap for spoofing orders
-
-    #         for i in range(self.spoofing_wall_size):
-    #             gap = base_gap + Decimal(i) * Decimal('0.002')  # Increasing gap for each subsequent order
-
-    #             # Calculate long spoof price based on best ask price (top of the order book)
-    #             spoof_price_long = best_ask_price + gap + safety_margin
-    #             spoof_price_long = spoof_price_long.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
-                
-    #             if larger_position == "long":
-    #                 spoof_price_long = spoof_price_long + current_price * Decimal('0.005')#('0.005')  # Adjust price in the direction of larger position
-                
-    #             spoof_order_long = self.limit_order_bybit(symbol, "sell", long_dynamic_amount, spoof_price_long, positionIdx=2, reduceOnly=False)
-    #             spoofing_orders.append(spoof_order_long)
-
-    #             # Calculate short spoof price based on best bid price (top of the order book)
-    #             spoof_price_short = best_bid_price - gap - safety_margin
-    #             spoof_price_short = spoof_price_short.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
-                
-    #             if larger_position == "short":
-    #                 spoof_price_short = spoof_price_short - current_price * Decimal('0.005')#('0.005')  # Adjust price in the direction of larger position
-                
-    #             spoof_order_short = self.limit_order_bybit(symbol, "buy", short_dynamic_amount, spoof_price_short, positionIdx=1, reduceOnly=False)
-    #             spoofing_orders.append(spoof_order_short)
-
-    #         # Sleep for the spoofing duration and then cancel all placed orders
-    #         time.sleep(self.spoofing_duration)
-
-    #         # Cancel orders and handle errors
-    #         for order in spoofing_orders:
-    #             if 'id' in order:
-    #                 logging.info(f"Spoofing order: {order}")
-    #                 self.exchange.cancel_order_by_id(order['id'], symbol)
-    #             else:
-    #                 logging.warning(f"Could not place spoofing order: {order.get('error', 'Unknown error')}")
-
-    #         # Deactivate spoofing for the next cycle
-    #         self.spoofing_active = False
-
     def aggressive_action(self, symbol, short_dynamic_amount, long_dynamic_amount):
         if self.spoofing_active:
             # Fetch orderbook and positions
@@ -2306,6 +2248,18 @@ class Strategy:
                 elif (trend.lower() == "short" and mfi.lower() == "short") and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price:
                     logging.info(f"Placing additional short entry")
                     self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+
+    def calculate_qfl_base(self, symbol: str, timeframe='1h', lookback_period=24):
+        # Fetch historical candle data
+        candles = self.exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=lookback_period)
+        df = pd.DataFrame(candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+        
+        # Convert timestamps to readable dates (optional)
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        
+        # Find the lowest lows of the lookback period
+        qfl_base = df['low'].min()
+        return qfl_base
 
     # Bybit regular auto hedge logic
     # Bybit entry logic
