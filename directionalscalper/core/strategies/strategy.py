@@ -3064,15 +3064,18 @@ class Strategy:
             qfl_base, qfl_ceiling = self.calculate_qfl_levels(symbol=symbol, timeframe='5m', lookback_period=12)
             current_price = self.exchange.get_current_price(symbol)
 
+            best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+            best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+            
             # Auto-hedging logic
             if long_pos_qty > 0 and abs(current_price - long_pos_price) / long_pos_price >= price_difference_threshold:
                 hedge_amount = long_dynamic_amount * hedge_ratio
-                self.place_postonly_order_bybit(symbol, "sell", hedge_amount, current_price, positionIdx=2, reduceOnly=False)
+                self.place_postonly_order_bybit(symbol, "sell", hedge_amount, best_ask_price, positionIdx=2, reduceOnly=False)
                 logging.info(f"Auto-hedging for long position in {symbol} executed")
 
             if short_pos_qty > 0 and abs(current_price - short_pos_price) / short_pos_price >= price_difference_threshold:
                 hedge_amount = short_dynamic_amount * hedge_ratio
-                self.place_postonly_order_bybit(symbol, "buy", hedge_amount, current_price, positionIdx=1, reduceOnly=False)
+                self.place_postonly_order_bybit(symbol, "buy", hedge_amount, best_bid_price, positionIdx=1, reduceOnly=False)
                 logging.info(f"Auto-hedging for short position in {symbol} executed")
 
             if five_minute_volume > min_vol and five_minute_distance > min_dist:
