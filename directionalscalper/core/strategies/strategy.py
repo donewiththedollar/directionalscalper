@@ -3072,7 +3072,7 @@ class Strategy:
                 price_diff_percentage_long = abs(current_price - long_pos_price) / long_pos_price
                 logging.info(f"Long Position: Current Price: {current_price}, Entry Price: {long_pos_price}, Price Diff %: {price_diff_percentage_long}")
                 current_hedge_ratio_long = short_pos_qty / long_pos_qty if long_pos_qty > 0 else 0
-                logging.info(f"Long position hedge ratio: {current_hedge_ratio_long}")
+                logging.info(f"Long position hedge ratio for {symbol}: {current_hedge_ratio_long}")
                 if price_diff_percentage_long >= price_difference_threshold and current_hedge_ratio_long < hedge_ratio:
                     additional_hedge_needed_long = (long_pos_qty * hedge_ratio) - short_pos_qty
                     self.place_postonly_order_bybit(symbol, "sell", additional_hedge_needed_long, best_ask_price, positionIdx=2, reduceOnly=False)
@@ -3083,7 +3083,7 @@ class Strategy:
                 price_diff_percentage_short = abs(current_price - short_pos_price) / short_pos_price
                 logging.info(f"Short Position: Current Price: {current_price}, Entry Price: {short_pos_price}, Price Diff %: {price_diff_percentage_short}")
                 current_hedge_ratio_short = long_pos_qty / short_pos_qty if short_pos_qty > 0 else 0
-                logging.info(f"Short position hedge ratio: {current_hedge_ratio_short}")
+                logging.info(f"Short position hedge ratio for {symbol}: {current_hedge_ratio_short}")
                 if price_diff_percentage_short >= price_difference_threshold and current_hedge_ratio_short < hedge_ratio:
                     additional_hedge_needed_short = (short_pos_qty * hedge_ratio) - long_pos_qty
                     self.place_postonly_order_bybit(symbol, "buy", additional_hedge_needed_short, best_bid_price, positionIdx=1, reduceOnly=False)
