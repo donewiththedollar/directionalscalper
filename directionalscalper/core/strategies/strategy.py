@@ -3049,6 +3049,65 @@ class Strategy:
 
             self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
 
+    def bybit_entry_mm_5m_with_qfl_mfi_and_auto_hedge(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, five_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, hedge_ratio: float, price_difference_threshold: float):
+
+        if symbol not in self.symbol_locks:
+            self.symbol_locks[symbol] = threading.Lock()
+
+        with self.symbol_locks[symbol]:
+            logging.info(f"Entry function with QFL, MFI, and auto-hedging initialized for {symbol}")
+
+            bid_walls, ask_walls = self.detect_order_book_walls(symbol)
+            largest_bid_wall = max(bid_walls, key=lambda x: x[1], default=None)
+            largest_ask_wall = max(ask_walls, key=lambda x: x[1], default=None)
+            
+            qfl_base, qfl_ceiling = self.calculate_qfl_levels(symbol=symbol, timeframe='5m', lookback_period=12)
+            current_price = self.exchange.get_current_price(symbol)
+
+            # Auto-hedging logic
+            if long_pos_qty > 0 and abs(current_price - long_pos_price) / long_pos_price >= price_difference_threshold:
+                hedge_amount = long_dynamic_amount * hedge_ratio
+                self.place_postonly_order_bybit(symbol, "sell", hedge_amount, current_price, positionIdx=2, reduceOnly=False)
+                logging.info(f"Auto-hedging for long position in {symbol} executed")
+
+            if short_pos_qty > 0 and abs(current_price - short_pos_price) / short_pos_price >= price_difference_threshold:
+                hedge_amount = short_dynamic_amount * hedge_ratio
+                self.place_postonly_order_bybit(symbol, "buy", hedge_amount, current_price, positionIdx=1, reduceOnly=False)
+                logging.info(f"Auto-hedging for short position in {symbol} executed")
+
+            if five_minute_volume > min_vol and five_minute_distance > min_dist:
+                best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+                best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+
+                if should_long and trend.lower() == "long" and mfi.lower() == "long" and current_price >= qfl_base:
+                    if long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
+                        logging.info(f"Placing initial long entry for {symbol}")
+                        self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                    elif long_pos_qty > 0 and current_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
+                        logging.info(f"Placing additional long entry for {symbol}")
+                        self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+
+                    if largest_bid_wall and current_price < largest_bid_wall[0] and not self.entry_order_exists(open_orders, "buy"):
+                        logging.info(f"Placing additional long trade due to detected buy wall for {symbol}")
+                        self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, largest_bid_wall[0], positionIdx=1, reduceOnly=False)
+
+                if should_short and trend.lower() == "short" and mfi.lower() == "short" and current_price <= qfl_ceiling:
+                    if short_pos_qty == 0 and not self.entry_order_exists(open_orders, "sell"):
+                        logging.info(f"Placing initial short entry for {symbol}")
+                        self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                    elif short_pos_qty > 0 and current_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
+                        logging.info(f"Placing additional short entry for {symbol}")
+                        self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+
+                    if largest_ask_wall and current_price > largest_ask_wall[0] and not self.entry_order_exists(open_orders, "sell"):
+                        logging.info(f"Placing additional short trade due to detected sell wall for {symbol}")
+                        self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, largest_ask_wall[0], positionIdx=2, reduceOnly=False)
+
+            else:
+                logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
+
+            time.sleep(5)
+
     def bybit_entry_mm_5m_with_qfl_and_mfi(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, five_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool):
 
         if symbol not in self.symbol_locks:
