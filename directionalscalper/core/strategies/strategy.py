@@ -3070,24 +3070,20 @@ class Strategy:
             # Auto-hedging logic for long position
             if long_pos_qty > 0:
                 price_diff_percentage_long = abs(current_price - long_pos_price) / long_pos_price
-                logging.info(f"Long Position: Current Price: {current_price}, Entry Price: {long_pos_price}, Price Diff %: {price_diff_percentage_long}")
                 current_hedge_ratio_long = short_pos_qty / long_pos_qty if long_pos_qty > 0 else 0
-                logging.info(f"Long position hedge ratio for {symbol}: {current_hedge_ratio_long}")
                 if price_diff_percentage_long >= price_difference_threshold and current_hedge_ratio_long < hedge_ratio:
                     additional_hedge_needed_long = (long_pos_qty * hedge_ratio) - short_pos_qty
-                    self.place_postonly_order_bybit(symbol, "sell", additional_hedge_needed_long, best_ask_price, positionIdx=2, reduceOnly=False)
-                    logging.info(f"Auto-hedging for long position in {symbol} executed. Hedge Amount: {additional_hedge_needed_long}")
+                    if additional_hedge_needed_long > 0:  # Check if additional hedge is needed
+                        self.place_postonly_order_bybit(symbol, "sell", additional_hedge_needed_long, best_ask_price, positionIdx=2, reduceOnly=False)
 
             # Auto-hedging logic for short position
             if short_pos_qty > 0:
                 price_diff_percentage_short = abs(current_price - short_pos_price) / short_pos_price
-                logging.info(f"Short Position: Current Price: {current_price}, Entry Price: {short_pos_price}, Price Diff %: {price_diff_percentage_short}")
                 current_hedge_ratio_short = long_pos_qty / short_pos_qty if short_pos_qty > 0 else 0
-                logging.info(f"Short position hedge ratio for {symbol}: {current_hedge_ratio_short}")
                 if price_diff_percentage_short >= price_difference_threshold and current_hedge_ratio_short < hedge_ratio:
                     additional_hedge_needed_short = (short_pos_qty * hedge_ratio) - long_pos_qty
-                    self.place_postonly_order_bybit(symbol, "buy", additional_hedge_needed_short, best_bid_price, positionIdx=1, reduceOnly=False)
-                    logging.info(f"Auto-hedging for short position in {symbol} executed. Hedge Amount: {additional_hedge_needed_short}")
+                    if additional_hedge_needed_short > 0:  # Check if additional hedge is needed
+                        self.place_postonly_order_bybit(symbol, "buy", additional_hedge_needed_short, best_bid_price, positionIdx=1, reduceOnly=False)
 
             if five_minute_volume > min_vol and five_minute_distance > min_dist:
                 best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
