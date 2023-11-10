@@ -3057,6 +3057,10 @@ class Strategy:
         with self.symbol_locks[symbol]:
             logging.info(f"Entry function with QFL and MFI filter initialized for {symbol}")
 
+            bid_walls, ask_walls = self.detect_order_book_walls(symbol)
+            largest_bid_wall = max(bid_walls, key=lambda x: x[1], default=None)
+            largest_ask_wall = max(ask_walls, key=lambda x: x[1], default=None)
+            
             qfl_base, qfl_ceiling = self.calculate_qfl_levels(symbol=symbol, timeframe='5m', lookback_period=12)
             current_price = self.exchange.get_current_price(symbol)
             # current_price = self.exchange.fetch_ticker(symbol)['last']
@@ -3073,6 +3077,10 @@ class Strategy:
                         logging.info(f"Placing additional long entry for {symbol}")
                         self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
 
+                    if largest_bid_wall and current_price < largest_bid_wall[0] and not self.entry_order_exists(open_orders, "buy"):
+                        logging.info(f"Placing additional long trade due to detected buy wall for {symbol}")
+                        self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, largest_bid_wall[0], positionIdx=1, reduceOnly=False)
+
                 if should_short and trend.lower() == "short" and mfi.lower() == "short" and current_price <= qfl_ceiling:
                     if short_pos_qty == 0 and not self.entry_order_exists(open_orders, "sell"):
                         logging.info(f"Placing initial short entry for {symbol}")
@@ -3081,6 +3089,10 @@ class Strategy:
                         logging.info(f"Placing additional short entry for {symbol}")
                         self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
+                    if largest_ask_wall and current_price > largest_ask_wall[0] and not self.entry_order_exists(open_orders, "sell"):
+                        logging.info(f"Placing additional short trade due to detected sell wall for {symbol}")
+                        self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, largest_ask_wall[0], positionIdx=2, reduceOnly=False)
+                
             else:
                 logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
 
