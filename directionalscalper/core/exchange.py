@@ -928,17 +928,19 @@ class Exchange:
         return values
     
     # Universal
-    def fetch_ohlcv(self, symbol, timeframe='1d'):
+
+    def fetch_ohlcv(self, symbol, timeframe='1d', limit=None):
         """
         Fetch OHLCV data for the given symbol and timeframe.
 
         :param symbol: Trading symbol.
         :param timeframe: Timeframe string.
+        :param limit: Limit the number of returned data points.
         :return: DataFrame with OHLCV data.
         """
         try:
             # Fetch the OHLCV data from the exchange
-            ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe)
+            ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, limit=limit)  # Pass the limit parameter
 
             df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
 
@@ -951,6 +953,30 @@ class Exchange:
         except ccxt.BaseError as e:
             print(f'Failed to fetch OHLCV data: {e}')
             return pd.DataFrame()
+
+    # def fetch_ohlcv(self, symbol, timeframe='1d'):
+    #     """
+    #     Fetch OHLCV data for the given symbol and timeframe.
+
+    #     :param symbol: Trading symbol.
+    #     :param timeframe: Timeframe string.
+    #     :return: DataFrame with OHLCV data.
+    #     """
+    #     try:
+    #         # Fetch the OHLCV data from the exchange
+    #         ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe)
+
+    #         df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+
+    #         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+
+    #         df.set_index('timestamp', inplace=True)
+
+    #         return df
+
+    #     except ccxt.BaseError as e:
+    #         print(f'Failed to fetch OHLCV data: {e}')
+    #         return pd.DataFrame()
 
     def get_orderbook(self, symbol, max_retries=3, retry_delay=5) -> dict:
         values = {"bids": [], "asks": []}
