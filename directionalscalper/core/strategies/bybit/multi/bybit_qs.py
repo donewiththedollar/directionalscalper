@@ -262,10 +262,10 @@ class BybitQSStrategy(Strategy):
                 if current_time - self.last_cancel_time >= self.spoofing_interval:
                     self.spoofing_active = True
                     self.helper(symbol, short_dynamic_amount, long_dynamic_amount)
-                    
 
-                self.bybit_entry_mm_5m_with_qfl_mfi_and_auto_hedge(open_orders, symbol, trend, hma_trend, mfirsi_signal, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, hedge_ratio, price_difference_threshold)
-                
+                self.bybit_qs_entry_exit(open_orders, symbol, trend, hma_trend, mfirsi_signal, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, hedge_ratio, price_difference_threshold)
+
+                    
                 tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
 
                 long_tp_counts = tp_order_counts['long_tp_count']
@@ -377,8 +377,6 @@ class BybitQSStrategy(Strategy):
                 if current_time - self.last_cancel_time >= self.spoofing_interval:
                     self.spoofing_active = True
                     self.helper(symbol, short_dynamic_amount, long_dynamic_amount)
-
-                self.bybit_qs_entry_exit(open_orders, symbol, trend, hma_trend, mfirsi_signal, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, hedge_ratio, price_difference_threshold)
 
 
                 short_pos_price = position_data["short"]["price"] if short_pos_qty > 0 else None
