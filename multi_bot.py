@@ -55,7 +55,7 @@ def choose_strategy():
                           'bybit_mm_onemin_walls',
                           'bybit_mm_qfl_mfi',
                           'bybit_mm_qfl_mfi_autohedge',
-                          'BybitQSStrategy',
+                          'bybit_mm_qs',
                       ]
                      )
     ]
