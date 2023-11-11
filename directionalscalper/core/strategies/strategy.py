@@ -3456,11 +3456,11 @@ class Strategy:
 
                 if should_long and trend.lower() == "long" and mfi.lower() == "long" and current_price >= qfl_base:
                     if long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
-                        self.m_order_amount(symbol, "long", long_dynamic_amount)
-                        time.sleep(5)
                         logging.info(f"Placing initial long entry for {symbol}")
                         self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
                     elif long_pos_qty > 0 and current_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
+                        self.m_order_amount(symbol, "long", long_dynamic_amount)
+                        time.sleep(5)
                         logging.info(f"Placing additional long entry for {symbol}")
                         self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
 
@@ -3470,11 +3470,11 @@ class Strategy:
 
                 if should_short and trend.lower() == "short" and mfi.lower() == "short" and current_price <= qfl_ceiling:
                     if short_pos_qty == 0 and not self.entry_order_exists(open_orders, "sell"):
-                        self.m_order_amount(symbol, "short", short_dynamic_amount)
-                        time.sleep(5)
                         logging.info(f"Placing initial short entry for {symbol}")
                         self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
                     elif short_pos_qty > 0 and current_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
+                        self.m_order_amount(symbol, "short", short_dynamic_amount)
+                        time.sleep(5)
                         logging.info(f"Placing additional short entry for {symbol}")
                         self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
