@@ -353,7 +353,8 @@ class Manager:
             mfirsi_signal = api_data.get('MFI', 'neutral')
             funding_rate = api_data.get('Funding', 0)
             hma_trend = api_data.get('HMA Trend', 'neutral')
-            
+            eri_trend = api_data.get('ERI Trend', 'undefined')
+
             # Return the extracted metrics as a dictionary
             return {
                 "1mVol": one_minute_volume,
@@ -363,7 +364,8 @@ class Manager:
                 "Trend": trend,
                 "MFI": mfirsi_signal,
                 "Funding": funding_rate,
-                "HMA Trend": hma_trend
+                "HMA Trend": hma_trend,
+                "ERI Trend": eri_trend
             }
         except Exception as e:
             logging.warning(f"Error processing API data for symbol {symbol}: {e}")
@@ -375,5 +377,6 @@ class Manager:
                 "Trend": 'neutral',
                 "MFI": 'neutral',
                 "Funding": 0,
-                "HMA Trend": 'neutral'
+                "HMA Trend": 'neutral',
+                "ERI Trend": 'undefined'  # Include a default value for ERI Trend
             }
