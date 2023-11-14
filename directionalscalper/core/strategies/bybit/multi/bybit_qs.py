@@ -181,6 +181,7 @@ class BybitQSStrategy(Strategy):
                 mfirsi_signal = metrics['MFI']
                 funding_rate = metrics['Funding']
                 hma_trend = metrics['HMA Trend']
+                eri_trend = metrics['ERI Trend']
 
                 position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
 
@@ -263,7 +264,8 @@ class BybitQSStrategy(Strategy):
                     self.spoofing_active = True
                     self.helper(symbol, short_dynamic_amount, long_dynamic_amount)
 
-                self.bybit_qs_entry_exit(open_orders, symbol, trend, hma_trend, mfirsi_signal, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, hedge_ratio, price_difference_threshold)
+                self.bybit_qs_entry_exit_eri(open_orders, symbol, trend, hma_trend, mfirsi_signal, eri_trend, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, hedge_ratio, price_difference_threshold)
+                #self.bybit_qs_entry_exit(open_orders, symbol, trend, hma_trend, mfirsi_signal, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, hedge_ratio, price_difference_threshold)
 
                     
                 tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
