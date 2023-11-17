@@ -104,6 +104,7 @@ class Exchange:
 
 
     def __init__(self, exchange_id, api_key, secret_key, passphrase=None, market_type='swap'):
+        self.order_timestamps = None
         self.exchange_id = exchange_id
         self.api_key = api_key
         self.secret_key = secret_key
@@ -115,6 +116,9 @@ class Exchange:
         self.market_precisions = {}
         self.open_positions_cache = None
         self.last_open_positions_time = None
+
+        self.entry_order_ids = {}  # Initialize order history
+        self.entry_order_ids_lock = threading.Lock()  # For thread safety
 
         self.bybit = self.Bybit(self)
 
@@ -159,6 +163,46 @@ class Exchange:
         #        'private': 'https://api-testnet.bybit.com',
         #    }
 
+
+    def update_order_history(self, symbol, order_id, timestamp):
+        with self.entry_order_ids_lock:
+            # Check if the symbol is already in the order history
+            if symbol not in self.entry_order_ids:
+                self.entry_order_ids[symbol] = []
+                logging.info(f"Creating new order history entry for symbol: {symbol}")
+
+            # Append the new order data
+            self.entry_order_ids[symbol].append({'id': order_id, 'timestamp': timestamp})
+            logging.info(f"Updated order history for {symbol} with order ID {order_id} at timestamp {timestamp}")
+
+            # Optionally, log the entire current order history for the symbol
+            logging.debug(f"Current order history for {symbol}: {self.entry_order_ids[symbol]}")
+            
+    def set_order_timestamps(self, order_timestamps):
+        self.order_timestamps = order_timestamps
+
+    def populate_order_history(self, symbols: list, since: int = None, limit: int = 100):
+        for symbol in symbols:
+            try:
+                logging.info(f"Fetching trades for {symbol}")
+                recent_trades = self.exchange.fetch_trades(symbol, since=since, limit=limit)
+
+                # Check if recent_trades is None or empty
+                if not recent_trades:
+                    logging.warning(f"No trade data returned for {symbol}. It might not be a valid symbol or no recent trades.")
+                    continue
+
+                last_trade = recent_trades[-1]
+                last_trade_time = datetime.fromtimestamp(last_trade['timestamp'] / 1000)  # Convert ms to seconds
+
+                if symbol not in self.order_timestamps:
+                    self.order_timestamps[symbol] = []
+                self.order_timestamps[symbol].append(last_trade_time)
+
+                logging.info(f"Updated order timestamps for {symbol} with last trade at {last_trade_time}")
+
+            except Exception as e:
+                logging.error(f"Exception occurred while processing trades for {symbol}: {e}")
 
     def _get_symbols(self):
         while True:
@@ -532,6 +576,27 @@ class Exchange:
         except Exception as e:
             logging.info(f"Error occurred in debug_binance_market_data: {e}")
 
+    # Bybit
+    def fetch_recent_trades(self, symbol, since=None, limit=100):
+        """
+        Fetch recent trades for a given symbol.
+
+        :param str symbol: The trading pair symbol.
+        :param int since: Timestamp in milliseconds for fetching trades since this time.
+        :param int limit: The maximum number of trades to fetch.
+        :return: List of recent trades.
+        """
+        try:
+            # Ensure the markets are loaded
+            self.exchange.load_markets()
+
+            # Fetch trades using ccxt
+            trades = self.exchange.fetch_trades(symbol, since=since, limit=limit)
+            return trades
+        except Exception as e:
+            logging.error(f"Error fetching recent trades for {symbol}: {e}")
+            return []
+        
     # Huobi
     def fetch_max_leverage_huobi(self, symbol, max_retries=3, delay_between_retries=5):
         """
