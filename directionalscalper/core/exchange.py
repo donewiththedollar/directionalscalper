@@ -597,6 +597,22 @@ class Exchange:
             logging.error(f"Error fetching recent trades for {symbol}: {e}")
             return []
         
+    def fetch_trades(self, symbol: str, since: int = None, limit: int = None, params={}):
+        """
+        Get the list of most recent trades for a particular symbol.
+        :param str symbol: Unified symbol of the market to fetch trades for.
+        :param int since: Timestamp in ms of the earliest trade to fetch.
+        :param int limit: The maximum amount of trades to fetch.
+        :param dict params: Extra parameters specific to the Bybit API endpoint.
+        :returns: A list of trade structures.
+        """
+        try:
+            return self.exchange.fetch_trades(symbol, since=since, limit=limit, params=params)
+        except Exception as e:
+            logging.error(f"Error fetching trades for {symbol}: {e}")
+            return []
+
+
     # Huobi
     def fetch_max_leverage_huobi(self, symbol, max_retries=3, delay_between_retries=5):
         """
