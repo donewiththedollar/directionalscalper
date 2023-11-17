@@ -27,6 +27,7 @@ from directionalscalper.core.strategies.bybit.multi.bybit_mm_oneminute_walls imp
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute_qfl_mfi import BybitMMFiveMinuteQFLMFI
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute_qfl_mfi_autohedge import BybitMMFiveMinuteQFLMFIAutoHedge
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute_qfl_mfi_eri_autohedge import BybitMMFiveMinuteQFLMFIERIAutoHedge
+from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute_qfl_mfi_eri_autohedge_unstuck import BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck
 from directionalscalper.core.strategies.bybit.multi.bybit_qs import BybitQSStrategy
 from directionalscalper.core.strategies.bybit.multi.bybit_obstrength import BybitOBStrength
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi import BybitAutoRotatorMFIRSI
@@ -58,6 +59,7 @@ def choose_strategy():
                           'bybit_mm_qfl_mfi_autohedge',
                           'bybit_mm_qs',
                           'bybit_mm_qfl_mfi_eri_autohedge',
+                          'bybit_mm_qfl_mfi_eri_autohedge_unstuck',
                       ]
                      )
     ]
@@ -123,6 +125,9 @@ class DirectionalMarketMaker:
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'bybit_mm_qfl_mfi_eri_autohedge':
             strategy = BybitMMFiveMinuteQFLMFIERIAutoHedge(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
+        elif strategy_name.lower() == 'bybit_mm_qfl_mfi_eri_autohedge_unstuck':
+            strategy = BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'bybit_mm_qs':
             strategy = BybitQSStrategy(self.exchange, self.manager, config.bot, symbols_allowed)
@@ -266,7 +271,7 @@ if __name__ == '__main__':
                         message="Which strategy do you want to use?",
                         choices=['bybit_mm_mfirsi', 'bybit_mm_fivemin', 'bybit_mfirsi_trend',
                                 'bybit_obstrength', 'bybit_mm_fivemin_walls', 'bybit_mm_onemin_walls', 'bybit_mm_qfl_mfi', 'bybit_mm_qfl_mfi_autohedge',
-                                'bybit_mm_qs', 'bybit_mm_qfl_mfi_eri_autohedge']) if not args.strategy else None,
+                                'bybit_mm_qs', 'bybit_mm_qfl_mfi_eri_autohedge', 'bybit_mm_qfl_mfi_eri_autohedge_unstuck']) if not args.strategy else None,
             inquirer.Text('account_name',
                         message="Please enter the name of the account:") if not args.account_name else None
         ]
@@ -296,6 +301,17 @@ if __name__ == '__main__':
 
     exchange_name = args.exchange  # Now it will have a value
     market_maker = DirectionalMarketMaker(config, exchange_name, args.account_name)
+
+### TESTING ###
+    # # Calculate 'since' for 24 hours ago
+    # twenty_four_hours_ago = int((time.time() - 24 * 60 * 60) * 1000)  # Convert to milliseconds
+
+    # # Populate the order history once before starting the threads
+    # open_position_data = market_maker.exchange.get_all_open_positions_bybit()
+    # open_symbols = [standardize_symbol(position['symbol']) for position in open_position_data]
+    # market_maker.exchange.populate_order_history(open_symbols, since=twenty_four_hours_ago)
+
+### TESTING ###
 
     manager = Manager(
         market_maker.exchange, 
