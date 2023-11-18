@@ -16,7 +16,8 @@ symbol_locks = {}
 class BybitMMFiveMinuteQFLMFIERIAutoHedge(Strategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
-        # Removed redundant initializations (they are already done in the parent class)
+        self.last_known_ask = {}  # Dictionary to store last known ask prices for each symbol
+        self.last_known_bid = {} 
         self.last_health_check_time = time.time()
         self.health_check_interval = 600
         self.last_long_tp_update = datetime.now()
@@ -137,9 +138,23 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedge(Strategy):
             logging.info(f"Funding check on {symbol} : {funding_check}")
 
             current_price = self.exchange.get_current_price(symbol)
-            best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
-            best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
-            
+
+            order_book = self.exchange.get_orderbook(symbol)
+
+            # Handling best ask price
+            if 'asks' in order_book and len(order_book['asks']) > 0:
+                best_ask_price = order_book['asks'][0][0]
+                self.last_known_ask[symbol] = best_ask_price  # Update last known ask price
+            else:
+                best_ask_price = self.last_known_ask.get(symbol)  # Use last known ask price
+
+            # Handling best bid price
+            if 'bids' in order_book and len(order_book['bids']) > 0:
+                best_bid_price = order_book['bids'][0][0]
+                self.last_known_bid[symbol] = best_bid_price  # Update last known bid price
+            else:
+                best_bid_price = self.last_known_bid.get(symbol)  # Use last known bid price
+                            
             logging.info(f"Open symbols: {open_symbols}")
             logging.info(f"HMA Current rotator symbols: {rotator_symbols_standardized}")
             symbols_to_manage = [s for s in open_symbols if s not in rotator_symbols_standardized]
@@ -264,7 +279,7 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedge(Strategy):
                     self.spoofing_active = True
                     self.helper(symbol, short_dynamic_amount, long_dynamic_amount)
                     
-                self.bybit_entry_mm_5m_with_qfl_mfi_and_auto_hedge_with_eri_new(open_orders, symbol, trend, hma_trend, mfirsi_signal, eri_trend, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, hedge_ratio, price_difference_threshold)
+                self.bybit_entry_mm_5m_with_qfl_mfi_and_auto_hedge_with_eri(open_orders, symbol, trend, hma_trend, mfirsi_signal, eri_trend, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, hedge_ratio, price_difference_threshold)
 
                 tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
 
@@ -398,7 +413,17 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedge(Strategy):
                 logging.info(f"Short take profit for managed symbol {symbol}: {short_take_profit}")
                 logging.info(f"Long take profit for managed symbol {symbol} : {long_take_profit}")
 
-                # [Rest of the logic for symbols not in open_positions]
+                should_add_to_short = False
+                should_add_to_long = False
+
+                if short_pos_price is not None:
+                    should_add_to_short = short_pos_price < moving_averages["ma_6_low"] and self.short_trade_condition(best_ask_price, moving_averages["ma_6_high"])
+
+                if long_pos_price is not None:
+                    should_add_to_long = long_pos_price > moving_averages["ma_6_high"] and self.long_trade_condition(best_bid_price, moving_averages["ma_6_low"])
+
+                self.bybit_additional_entry_with_qfl_mfi_and_eri(open_orders, symbol, trend, mfirsi_signal, eri_trend, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_add_to_long, should_add_to_short)
+
                 # Place long TP order if there are no existing long TP orders
                 if long_pos_qty > 0 and long_take_profit is not None and tp_order_counts['long_tp_count'] == 0:
                     self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
@@ -409,10 +434,8 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedge(Strategy):
 
                 current_time = datetime.now()
 
-
                 logging.info(f"Short pos qty for managed {symbol}: {short_pos_qty}")
                 logging.info(f"Long pos qty for managed {symbol}: {long_pos_qty}")
-
 
                 if long_pos_qty > 0:
                     # Check for long positions

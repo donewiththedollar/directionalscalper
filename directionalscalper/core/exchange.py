@@ -576,6 +576,19 @@ class Exchange:
         except Exception as e:
             logging.info(f"Error occurred in debug_binance_market_data: {e}")
 
+    def get_position_update_time(self, symbol):
+        try:
+            position = self.exchange.fetch_position(symbol)
+            updated_time_ms = position.get('info', {}).get('updatedTime')
+            if updated_time_ms:
+                updated_time = datetime.datetime.fromtimestamp(updated_time_ms / 1000.0)
+                return updated_time
+            else:
+                return "Updated time not available"
+        except Exception as e:
+            return f"Error fetching position update time: {e}"
+
+
     # Bybit
     def fetch_recent_trades(self, symbol, since=None, limit=100):
         """

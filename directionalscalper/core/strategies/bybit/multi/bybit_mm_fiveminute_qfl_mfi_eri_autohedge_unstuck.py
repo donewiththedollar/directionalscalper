@@ -125,6 +125,8 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
             logging.info(f"No recent trading activity for {symbol} in the last 24 hours")
 
 
+
+
         while True:
             current_time = time.time()
             logging.info(f"Max USD value: {self.max_usd_value}")
@@ -134,6 +136,10 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
             open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
             open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
             open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+
+            position_last_update_time = self.get_position_update_time(symbol)
+
+            logging.info(f"{symbol} last update time: {position_last_update_time}")
 
             # Fetch equity data less frequently or if it's not available yet
             if current_time - last_equity_fetch_time > equity_refresh_interval or total_equity is None:
@@ -305,7 +311,7 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                     self.spoofing_active = True
                     self.helper(symbol, short_dynamic_amount, long_dynamic_amount)
                     
-                self.bybit_entry_mm_5m_with_qfl_mfi_and_auto_hedge_with_eri_new(open_orders, symbol, trend, hma_trend, mfirsi_signal, eri_trend, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, hedge_ratio, price_difference_threshold)
+                self.bybit_entry_mm_5m_with_qfl_mfi_and_auto_hedge_with_eri(open_orders, symbol, trend, hma_trend, mfirsi_signal, eri_trend, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short, hedge_ratio, price_difference_threshold)
 
                 tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
 
@@ -393,6 +399,7 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                 mfirsi_signal = metrics['MFI']
                 funding_rate = metrics['Funding']
                 hma_trend = metrics['HMA Trend']
+                eri_trend = metrics['ERI Trend']
 
                 logging.info(f"Managing open symbols not in rotator_symbols")
 
@@ -439,7 +446,17 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                 logging.info(f"Short take profit for managed symbol {symbol}: {short_take_profit}")
                 logging.info(f"Long take profit for managed symbol {symbol} : {long_take_profit}")
 
-                # [Rest of the logic for symbols not in open_positions]
+                should_add_to_short = False
+                should_add_to_long = False
+
+                if short_pos_price is not None:
+                    should_add_to_short = short_pos_price < moving_averages["ma_6_low"] and self.short_trade_condition(best_ask_price, moving_averages["ma_6_high"])
+
+                if long_pos_price is not None:
+                    should_add_to_long = long_pos_price > moving_averages["ma_6_high"] and self.long_trade_condition(best_bid_price, moving_averages["ma_6_low"])
+
+                self.bybit_additional_entry_with_qfl_mfi_and_eri(open_orders, symbol, trend, mfirsi_signal, eri_trend, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_add_to_long, should_add_to_short)
+
                 # Place long TP order if there are no existing long TP orders
                 if long_pos_qty > 0 and long_take_profit is not None and tp_order_counts['long_tp_count'] == 0:
                     self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
