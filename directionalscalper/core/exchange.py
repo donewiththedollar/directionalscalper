@@ -370,6 +370,22 @@ class Exchange:
         except Exception as e:
             logging.info(f"Exception in bybit_fetch_precision: {e}")
 
+    # v5
+    def get_current_max_leverage_bybit(self, symbol):
+        try:
+            # Fetch leverage tiers for the symbol
+            leverage_tiers = self.exchange.fetch_market_leverage_tiers(symbol)
+
+            # Process leverage tiers to find the maximum leverage
+            max_leverage = max([tier['maxLeverage'] for tier in leverage_tiers if 'maxLeverage' in tier])
+            logging.info(f"Maximum leverage for symbol {symbol}: {max_leverage}")
+
+            return max_leverage
+
+        except Exception as e:
+            logging.error(f"Error retrieving leverage tiers for {symbol}: {e}")
+            return None
+        
     # Bybit
     def get_current_leverage_bybit(self, symbol):
         try:
@@ -720,72 +736,45 @@ class Exchange:
     def get_balance_bybit(self, quote):
         if self.exchange.has['fetchBalance']:
             try:
-                # Fetch the balance
-                balance_response = self.exchange.fetch_balance()
-                
-                # Log the raw response for debugging purposes
-                logging.info(f"Raw balance response from Bybit: {balance_response}")
+                # Fetch the balance with params to specify the account type if needed
+                balance_response = self.exchange.fetch_balance({'type': 'swap'})
 
-                # Check if it's the unified structure
-                if 'result' in balance_response:
-                    coin_list = balance_response.get('result', {}).get('coin', [])
-                    for currency_balance in coin_list:
-                        if currency_balance['coin'] == quote:
-                            return float(currency_balance['equity'])
-                # If not unified, handle the old structure
-                elif 'info' in balance_response:
-                    for currency_balance in balance_response['info']['result']['list']:
-                        if currency_balance['coin'] == quote:
-                            return float(currency_balance['equity'])
+                # Log the raw response for debugging purposes
+                #logging.info(f"Raw balance response from Bybit: {balance_response}")
+
+                # Parse the balance
+                if quote in balance_response['total']:
+                    total_balance = balance_response['total'][quote]
+                    return total_balance
+                else:
+                    logging.warning(f"Balance for {quote} not found in the response.")
             except Exception as e:
                 logging.error(f"Error fetching balance from Bybit: {e}")
+
         return None
-
-    # Bybit
-    # def get_balance_bybit(self, quote):
-    #     if self.exchange.has['fetchBalance']:
-    #         # Fetch the balance
-    #         balance_response = self.exchange.fetch_balance()
-
-    #         # Check if it's the unified structure
-    #         if 'result' in balance_response:
-    #             coin_list = balance_response.get('result', {}).get('coin', [])
-    #             for currency_balance in coin_list:
-    #                 if currency_balance['coin'] == quote:
-    #                     return float(currency_balance['equity'])
-    #         # If not unified, handle the old structure
-    #         elif 'info' in balance_response:
-    #             for currency_balance in balance_response['info']['result']['list']:
-    #                 if currency_balance['coin'] == quote:
-    #                     return float(currency_balance['equity'])
-    #         else:
-    #             raise Exception("Unable to fetch balance due to unexpected response structure.")
-    #     else:
-    #         raise Exception("fetchBalance not supported by the exchange.")
-
+    
+    # v5
     def get_available_balance_bybit(self, quote):
         if self.exchange.has['fetchBalance']:
-            # Fetch the balance
-            balance_response = self.exchange.fetch_balance()
+            try:
+                # Fetch the balance with params to specify the account type
+                balance_response = self.exchange.fetch_balance({'type': 'swap'})
 
-            # Check if it's the unified structure
-            if 'result' in balance_response:
-                coin_list = balance_response.get('result', {}).get('coin', [])
-                for currency_balance in coin_list:
-                    if currency_balance['coin'] == quote:
-                        return float(currency_balance['availableToWithdraw'])
-            # If not unified, handle the old structure
-            elif 'info' in balance_response:
-                try:
-                    for currency_balance in balance_response['info']['result']['list']:
-                        if currency_balance['coin'] == quote:
-                            return float(currency_balance['availableBalance'])
-                except KeyError as e:
-                    print(f"KeyError: {e}")
-                    print(balance_response)  # Print the balance if there was a KeyError
+                # Log the raw response for debugging purposes
+                #logging.info(f"Raw available balance response from Bybit: {balance_response}")
+
+                # Check for the required keys in the response
+                if 'free' in balance_response and quote in balance_response['free']:
+                    # Return the available balance for the specified currency
+                    return float(balance_response['free'][quote])
+                else:
+                    logging.warning(f"Available balance for {quote} not found in the response.")
+
+            except Exception as e:
+                logging.error(f"Error fetching available balance from Bybit: {e}")
 
         return None
-
+    
 
     def get_available_balance_huobi(self, symbol):
         try:
@@ -2179,95 +2168,23 @@ class Exchange:
                 
             time.sleep(interval_seconds)
 
-    #def cancel_all_entries_bybit(selfl, symbol: str, open_orders: list) -> None:        
+    # v5
     def cancel_all_entries_bybit(self, symbol: str) -> None:
         try:
             orders = self.exchange.fetch_open_orders(symbol)
-            logging.debug(f"Fetched orders: {orders}")  # Debugging line
+            logging.info(f"[Thread ID: {threading.get_ident()}] cancel_all_entries function in exchange class accessed")
+            logging.info(f"Fetched orders: {orders}")
 
-            long_orders = 0
-            short_orders = 0
-
-            # Count the number of open long and short orders
             for order in orders:
-                order_info = order["info"]
-                logging.debug(f"Order info: {order_info}")  # Debugging line
-
-                order_status = order_info["orderStatus"]
-                order_side = order_info["side"]
-                reduce_only = order_info["reduceOnly"]
-                position_idx = int(order_info["positionIdx"])
-
-                if order_status != "Filled" and order_status != "Cancelled" and not reduce_only:
-                    if position_idx == 1 and order_side == "Buy":
-                        long_orders += 1
-                    elif position_idx == 2 and order_side == "Sell":
-                        short_orders += 1
-
-            logging.info(f"Number of long orders: {long_orders}, Number of short orders: {short_orders}")  # Debugging line
-
-            # Cancel extra long or short orders
-            if long_orders > 0 or short_orders > 0:
-                for order in orders:
-                    order_info = order["info"]
-                    order_id = order_info["orderId"]
-                    order_status = order_info["orderStatus"]
-                    order_side = order_info["side"]
-                    reduce_only = order_info["reduceOnly"]
-                    position_idx = int(order_info["positionIdx"])
-
-                    if (
-                        order_status != "Filled"
-                        and order_status != "Cancelled"
-                        and not reduce_only
-                    ):
-                        self.exchange.cancel_order(symbol=symbol, id=order_id)
-                        logging.info(f"Cancelling order: {order_id}")  # Debugging line
-            else:
-                logging.info("No orders to cancel.")  # Debugging line
+                if order['status'] in ['open', 'partially_filled']:
+                    # Check if the order is not a reduce-only order
+                    if not order['reduceOnly']:
+                        order_id = order['id']
+                        self.exchange.cancel_order(order_id, symbol)
+                        logging.info(f"Cancelling order: {order_id}")
 
         except Exception as e:
-            logging.warning(f"An unknown error occurred in cancel_all_entries_bybit(): {e}")  # Debugging line
-
-    # def cancel_all_entries_bybit(self, symbol: str) -> None:
-    #     try:
-    #         orders = self.exchange.fetch_open_orders(symbol)
-    #         long_orders = 0
-    #         short_orders = 0
-
-    #         # Count the number of open long and short orders
-    #         for order in orders:
-    #             order_info = order["info"]
-    #             order_status = order_info["orderStatus"]
-    #             order_side = order_info["side"]
-    #             reduce_only = order_info["reduceOnly"]
-    #             position_idx = int(order_info["positionIdx"])
-
-    #             if order_status != "Filled" and order_status != "Cancelled" and not reduce_only:
-    #                 if position_idx == 1 and order_side == "Buy":
-    #                     long_orders += 1
-    #                 elif position_idx == 2 and order_side == "Sell":
-    #                     short_orders += 1
-
-    #         # Cancel extra long or short orders
-    #         if long_orders > 0 or short_orders > 0:
-    #             for order in orders:
-    #                 order_info = order["info"]
-    #                 order_id = order_info["orderId"]
-    #                 order_status = order_info["orderStatus"]
-    #                 order_side = order_info["side"]
-    #                 reduce_only = order_info["reduceOnly"]
-    #                 position_idx = int(order_info["positionIdx"])
-
-    #                 if (
-    #                     order_status != "Filled"
-    #                     and order_status != "Cancelled"
-    #                     and not reduce_only
-    #                 ):
-    #                     self.exchange.cancel_order(symbol=symbol, id=order_id)
-    #                     logging.info(f"Cancelling order: {order_id}")
-    #     except Exception as e:
-    #         logging.warning(f"An unknown error occurred in cancel_all_entries_bybit(): {e}")
+            logging.warning(f"An unknown error occurred in cancel_all_entries_bybit(): {e}")
 
     def cancel_all_entries_huobi(self, symbol: str) -> None:
         try:
@@ -2566,7 +2483,7 @@ class Exchange:
         return total_qty
 
 
-    # Bybit
+    # v5
     def cancel_take_profit_orders_bybit(self, symbol, side):
         side = side.lower()
         side_map = {"long": "buy", "short": "sell"}
@@ -2575,19 +2492,19 @@ class Exchange:
         try:
             open_orders = self.exchange.fetch_open_orders(symbol)
             position_idx_map = {"buy": 1, "sell": 2}
-            #print("Open Orders:", open_orders)
-            #print("Position Index Map:", position_idx_map)
+
             for order in open_orders:
                 if (
                     order['side'].lower() == side
                     and order['info'].get('reduceOnly')
                     and order['info'].get('positionIdx') == position_idx_map[side]
                 ):
-                    order_id = order['info']['orderId']
-                    self.exchange.cancel_derivatives_order(order_id, symbol)
+                    order_id = order['id']  # Assuming 'id' is the standard format expected by cancel_order
+                    self.exchange.cancel_order(order_id, symbol)
                     logging.info(f"Canceled take profit order - ID: {order_id}")
+
         except Exception as e:
-            print(f"An unknown error occurred in cancel_take_profit_orders: {e}")
+            logging.error(f"An unknown error occurred in cancel_take_profit_orders: {e}")
 
     def cancel_take_profit_orders_binance(self, symbol, side):
         side = side.lower()
@@ -2606,13 +2523,15 @@ class Exchange:
         except Exception as e:
             print(f"An unknown error occurred in cancel_take_profit_orders_binance: {e}")
 
-    # Bybit
+    # v5 bybit
     def cancel_order_by_id(self, order_id, symbol):
         try:
-            self.exchange.cancel_derivatives_order(order_id, symbol)
-            logging.info(f"Canceled order - ID: {order_id}")
+            # Call the updated cancel_order method
+            result = self.exchange.cancel_order(id=order_id, symbol=symbol)
+            logging.info(f"Canceled order - ID: {order_id}, Response: {result}")
         except Exception as e:
-            logging.info(f"An unknown error occurred in cancel_take_profit_orders: {e}")
+            logging.error(f"Error occurred in cancel_order_by_id: {e}")
+
 
     def cancel_order_by_id_binance(self, order_id, symbol):
         try:
