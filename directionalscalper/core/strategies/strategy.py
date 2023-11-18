@@ -717,11 +717,21 @@ class Strategy:
     #     """
     #     return self.exchange.fetch_recent_trades(symbol, since, limit)
     
+    # def place_postonly_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
+    #     logging.info(f"Attempting to place post-only order for {symbol}. Side: {side}, Amount: {amount}, Price: {price}, PositionIdx: {positionIdx}, ReduceOnly: {reduceOnly}")
+    #     if not self.can_place_order(symbol):
+    #         logging.warning(f"Order placement rate limit exceeded for {symbol}. Skipping...")
+    #         return None
+    #     return self.postonly_limit_order_bybit(symbol, side, amount, price, positionIdx, reduceOnly)
+
     def place_postonly_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
-        logging.info(f"Attempting to place post-only order for {symbol}. Side: {side}, Amount: {amount}, Price: {price}, PositionIdx: {positionIdx}, ReduceOnly: {reduceOnly}")
+        current_thread_id = threading.get_ident()  # Get the current thread ID
+        logging.info(f"[Thread ID: {current_thread_id}] Attempting to place post-only order for {symbol}. Side: {side}, Amount: {amount}, Price: {price}, PositionIdx: {positionIdx}, ReduceOnly: {reduceOnly}")
+
         if not self.can_place_order(symbol):
-            logging.warning(f"Order placement rate limit exceeded for {symbol}. Skipping...")
+            logging.warning(f"[Thread ID: {current_thread_id}] Order placement rate limit exceeded for {symbol}. Skipping...")
             return None
+
         return self.postonly_limit_order_bybit(symbol, side, amount, price, positionIdx, reduceOnly)
 
     def postonly_limit_entry_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):

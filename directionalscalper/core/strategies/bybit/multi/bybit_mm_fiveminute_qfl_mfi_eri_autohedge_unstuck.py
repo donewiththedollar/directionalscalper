@@ -3,6 +3,7 @@ import json
 import os
 import copy
 import pytz
+import threading
 from threading import Thread, Lock
 from datetime import datetime, timedelta
 
@@ -38,16 +39,29 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
 
+    # def run(self, symbol, rotator_symbols_standardized=None):
+    #     # Initialize a lock for the symbol if not already present
+    #     if symbol not in symbol_locks:
+    #         symbol_locks[symbol] = Lock()
+    #     self.run_single_symbol(symbol, rotator_symbols_standardized)
+
     def run(self, symbol, rotator_symbols_standardized=None):
+        current_thread_id = threading.get_ident()  # Get the current thread ID
+        logging.info(f"[Thread ID: {current_thread_id}] Running strategy for symbol {symbol}")
+
         # Initialize a lock for the symbol if not already present
         if symbol not in symbol_locks:
             symbol_locks[symbol] = Lock()
-        self.run_single_symbol(symbol, rotator_symbols_standardized)
 
+        logging.info(f"[Thread ID: {current_thread_id}] Acquiring lock for symbol {symbol}")
+        with symbol_locks[symbol]:
+            logging.info(f"[Thread ID: {current_thread_id}] Lock acquired for symbol {symbol}, executing run_single_symbol")
+            self.run_single_symbol(symbol, rotator_symbols_standardized)
+            
     def run_single_symbol(self, symbol, rotator_symbols_standardized=None):
-        if not symbol_locks[symbol].acquire(blocking=False):
-            logging.info(f"Symbol {symbol} is currently being traded by another thread. Skipping this iteration.")
-            return
+        # if not symbol_locks[symbol].acquire(blocking=False):
+        #     logging.info(f"Symbol {symbol} is currently being traded by another thread. Skipping this iteration.")
+        #     return
         logging.info(f"Initializing default values")
 
         min_qty = None
@@ -72,13 +86,14 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
         equity_refresh_interval = 1800  # 30 minutes in seconds
 
         # Check leverages only at startup
-        self.current_leverage = self.exchange.get_current_leverage_bybit(symbol)
-        self.max_leverage = self.exchange.get_max_leverage_bybit(symbol)
+        #self.current_leverage = self.exchange.get_current_leverage_bybit(symbol)
+        #self.max_leverage = self.exchange.get_max_lev_bybit(symbol)
+        self.max_leverage = self.exchange.get_current_max_leverage_bybit(symbol)
 
-        # Set the leverage to max if it's not already
-        if self.current_leverage != self.max_leverage:
-            logging.info(f"Current leverage is not at maximum. Setting leverage to maximum. Maximum is {self.max_leverage}")
-            self.exchange.set_leverage_bybit(self.max_leverage, symbol)
+        # # Set the leverage to max if it's not already
+        # if self.current_leverage != self.max_leverage:
+        #     logging.info(f"Current leverage is not at maximum. Setting leverage to maximum. Maximum is {self.max_leverage}")
+        #     self.exchange.set_leverage_bybit(self.max_leverage, symbol)
 
         logging.info(f"Running for symbol (inside run_single_symbol method): {symbol}")
 
@@ -125,21 +140,54 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
             logging.info(f"No recent trading activity for {symbol} in the last 24 hours")
 
 
-
-
         while True:
+
+            # Log which thread is running this part of the code
+            thread_id = threading.get_ident()
+            logging.info(f"[Thread ID: {thread_id}] In while true loop {symbol}")
+
             current_time = time.time()
             logging.info(f"Max USD value: {self.max_usd_value}")
 
             # Fetch open symbols every loop
             open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
+
+            logging.info(f"Open position data: {open_position_data}")
+
+            position_details = {}
+
+            for position in open_position_data:
+                info = position.get('info', {})
+                symbol = info.get('symbol', '').split(':')[0]  # Splitting to get the base symbol
+
+                # Ensure 'size', 'side', and 'avgPrice' keys exist in the info dictionary
+                if 'size' in info and 'side' in info and 'avgPrice' in info:
+                    size = float(info['size'])
+                    side = info['side'].lower()
+                    avg_price = float(info['avgPrice'])
+
+                    # Initialize the nested dictionary if the symbol is not already in position_details
+                    if symbol not in position_details:
+                        position_details[symbol] = {'long': {'qty': 0, 'avg_price': 0}, 'short': {'qty': 0, 'avg_price': 0}}
+
+                    # Update the quantities and average prices based on the side of the position
+                    if side == 'buy':
+                        position_details[symbol]['long']['qty'] += size
+                        position_details[symbol]['long']['avg_price'] = avg_price
+                    elif side == 'sell':
+                        position_details[symbol]['short']['qty'] += size
+                        position_details[symbol]['short']['avg_price'] = avg_price
+                else:
+                    logging.warning(f"Missing 'size', 'side', or 'avgPrice' in position info for {symbol}")
+
             open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
             open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
+
+            logging.info(f"Open symbols: {open_symbols}")
+
             open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
-            position_last_update_time = self.get_position_update_time(symbol)
-
-            logging.info(f"{symbol} last update time: {position_last_update_time}")
+            logging.info(f"Open orders data : {open_orders}")
 
             # Fetch equity data less frequently or if it's not available yet
             if current_time - last_equity_fetch_time > equity_refresh_interval or total_equity is None:
@@ -213,6 +261,8 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
             # If the symbol is in rotator_symbols and either it's already being traded or trading is allowed.
             if symbol in rotator_symbols_standardized and (symbol in open_symbols or trading_allowed):
 
+                logging.info(f"{symbol} being traded")
+
                 # Fetch the API data
                 api_data = self.manager.get_api_data(symbol)
 
@@ -232,8 +282,16 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
 
                 position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
 
-                short_pos_qty = position_data["short"]["qty"]
-                long_pos_qty = position_data["long"]["qty"]
+                logging.info(f"Position data: {position_data}")
+
+                position_details = self.process_position_data(open_position_data)
+
+
+                long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
+                short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
+
+                long_pos_price = position_details.get(symbol, {}).get('long', {}).get('avg_price', None)
+                short_pos_price = position_details.get(symbol, {}).get('short', {}).get('avg_price', None)
 
                 logging.info(f"Rotator symbol trading: {symbol}")
                             
@@ -278,8 +336,9 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                 cum_realised_pnl_long = position_data["long"]["cum_realised"]
                 cum_realised_pnl_short = position_data["short"]["cum_realised"]
 
-                short_pos_price = position_data["short"]["price"] if short_pos_qty > 0 else None
-                long_pos_price = position_data["long"]["price"] if long_pos_qty > 0 else None
+                # Get the average price for long and short positions
+                long_pos_price = position_details.get(symbol, {}).get('long', {}).get('avg_price', None)
+                short_pos_price = position_details.get(symbol, {}).get('short', {}).get('avg_price', None)
 
                 short_take_profit = None
                 long_take_profit = None
@@ -311,7 +370,7 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                     self.spoofing_active = True
                     self.helper(symbol, short_dynamic_amount, long_dynamic_amount)
                     
-                self.bybit_entry_mm_5m_with_qfl_mfi_and_auto_hedge_with_eri(open_orders, symbol, trend, hma_trend, mfirsi_signal, eri_trend, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short, hedge_ratio, price_difference_threshold)
+                self.bybit_entry_mm_5m_with_qfl_mfi_and_auto_hedge_with_eri_new(open_orders, symbol, trend, hma_trend, mfirsi_signal, eri_trend, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, hedge_ratio, price_difference_threshold)
 
                 tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
 
@@ -399,14 +458,18 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                 mfirsi_signal = metrics['MFI']
                 funding_rate = metrics['Funding']
                 hma_trend = metrics['HMA Trend']
-                eri_trend = metrics['ERI Trend']
 
                 logging.info(f"Managing open symbols not in rotator_symbols")
 
-                position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
 
-                short_pos_qty = position_data["short"]["qty"]
-                long_pos_qty = position_data["long"]["qty"]
+
+                position_details = self.process_position_data(open_position_data)
+
+                long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
+                short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
+
+                long_pos_price = position_details.get(symbol, {}).get('long', {}).get('avg_price', None)
+                short_pos_price = position_details.get(symbol, {}).get('short', {}).get('avg_price', None)
 
                 self.initialize_symbol(symbol, total_equity, best_ask_price)
 
@@ -426,9 +489,12 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                     self.spoofing_active = True
                     self.helper(symbol, short_dynamic_amount, long_dynamic_amount)
 
-                short_pos_price = position_data["short"]["price"] if short_pos_qty > 0 else None
-                long_pos_price = position_data["long"]["price"] if long_pos_qty > 0 else None
+                long_pos_price = position_details.get(symbol, {}).get('long', {}).get('avg_price', None)
+                short_pos_price = position_details.get(symbol, {}).get('short', {}).get('avg_price', None)
 
+                # long_pos_price = position_details.get(symbol, {}).get('long', {}).get('avg_price', 0)
+                # short_pos_price = position_details.get(symbol, {}).get('short', {}).get('avg_price', 0)
+            
                 logging.info(f"Symbol manager: Short pos price: {short_pos_price}")
                 logging.info(f"Symbol manager: Long pos price: {long_pos_price}")
 
@@ -446,17 +512,7 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                 logging.info(f"Short take profit for managed symbol {symbol}: {short_take_profit}")
                 logging.info(f"Long take profit for managed symbol {symbol} : {long_take_profit}")
 
-                should_add_to_short = False
-                should_add_to_long = False
-
-                if short_pos_price is not None:
-                    should_add_to_short = short_pos_price < moving_averages["ma_6_low"] and self.short_trade_condition(best_ask_price, moving_averages["ma_6_high"])
-
-                if long_pos_price is not None:
-                    should_add_to_long = long_pos_price > moving_averages["ma_6_high"] and self.long_trade_condition(best_bid_price, moving_averages["ma_6_low"])
-
-                self.bybit_additional_entry_with_qfl_mfi_and_eri(open_orders, symbol, trend, mfirsi_signal, eri_trend, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_add_to_long, should_add_to_short)
-
+                # [Rest of the logic for symbols not in open_positions]
                 # Place long TP order if there are no existing long TP orders
                 if long_pos_qty > 0 and long_take_profit is not None and tp_order_counts['long_tp_count'] == 0:
                     self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
@@ -548,8 +604,13 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
 
                     position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
 
-                    short_pos_qty = position_data["short"]["qty"]
-                    long_pos_qty = position_data["long"]["qty"]
+                    position_details = self.process_position_data(open_position_data)
+
+                    long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
+                    short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
+
+                    long_pos_price = position_details.get(symbol, {}).get('long', {}).get('avg_price', None)
+                    short_pos_price = position_details.get(symbol, {}).get('short', {}).get('avg_price', None)
 
                     should_short = self.short_trade_condition(best_ask_price, moving_averages["ma_3_high"])
                     should_long = self.long_trade_condition(best_bid_price, moving_averages["ma_3_low"])

@@ -1,6 +1,7 @@
 import sys
 import time
 import threading
+from threading import Thread
 from pathlib import Path
 
 project_dir = str(Path(__file__).resolve().parent)
@@ -229,15 +230,32 @@ thread_to_symbol = {}
 
 def start_threads_for_symbols(symbols, args, manager, account_name, symbols_allowed, rotator_symbols_standardized):
     threads = []
+    global thread_to_symbol  # Referencing the global mapping
+
+    # Clean up finished threads and their mappings
+    for thread in list(thread_to_symbol):
+        if not thread.is_alive():
+            del thread_to_symbol[thread]
+
     for symbol in symbols:
-        # Check if the symbol is already being processed by an active thread
+        # Check if the symbol is already being processed by any active thread
         if symbol not in thread_to_symbol.values():
-            thread = threading.Thread(target=run_bot, args=(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized))
+            thread = Thread(target=run_bot, args=(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized))
             thread.start()
             threads.append(thread)
             thread_to_symbol[thread] = symbol
     return threads
 
+# def start_threads_for_symbols(symbols, args, manager, account_name, symbols_allowed, rotator_symbols_standardized):
+#     threads = []
+#     for symbol in symbols:
+#         # Check if the symbol is already being processed by an active thread
+#         if symbol not in thread_to_symbol.values():
+#             thread = threading.Thread(target=run_bot, args=(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized))
+#             thread.start()
+#             threads.append(thread)
+#             thread_to_symbol[thread] = symbol
+#     return threads
 
 # def start_threads_for_symbols(symbols, args, manager, account_name, symbols_allowed, rotator_symbols_standardized):
 #     threads = [threading.Thread(target=run_bot, args=(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized)) for symbol in symbols]
