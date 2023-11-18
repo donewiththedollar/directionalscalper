@@ -225,11 +225,25 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         last_balance_fetch_time = current_time
 
 
+thread_to_symbol = {}
+
 def start_threads_for_symbols(symbols, args, manager, account_name, symbols_allowed, rotator_symbols_standardized):
-    threads = [threading.Thread(target=run_bot, args=(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized)) for symbol in symbols]
-    for thread in threads:
-        thread.start()
+    threads = []
+    for symbol in symbols:
+        # Check if the symbol is already being processed by an active thread
+        if symbol not in thread_to_symbol.values():
+            thread = threading.Thread(target=run_bot, args=(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized))
+            thread.start()
+            threads.append(thread)
+            thread_to_symbol[thread] = symbol
     return threads
+
+
+# def start_threads_for_symbols(symbols, args, manager, account_name, symbols_allowed, rotator_symbols_standardized):
+#     threads = [threading.Thread(target=run_bot, args=(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized)) for symbol in symbols]
+#     for thread in threads:
+#         thread.start()
+#     return threads
 
 
 if __name__ == '__main__':
