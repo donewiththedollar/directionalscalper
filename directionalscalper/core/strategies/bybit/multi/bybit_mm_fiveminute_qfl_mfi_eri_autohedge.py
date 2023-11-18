@@ -367,6 +367,7 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedge(Strategy):
                 mfirsi_signal = metrics['MFI']
                 funding_rate = metrics['Funding']
                 hma_trend = metrics['HMA Trend']
+                eri_trend = metrics['ERI Trend']
 
                 logging.info(f"Managing open symbols not in rotator_symbols")
 
