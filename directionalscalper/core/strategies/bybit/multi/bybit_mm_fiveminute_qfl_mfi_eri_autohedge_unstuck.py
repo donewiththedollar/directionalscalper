@@ -259,7 +259,8 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
             time.sleep(10)
 
             # If the symbol is in rotator_symbols and either it's already being traded or trading is allowed.
-            if symbol in rotator_symbols_standardized and (symbol in open_symbols or trading_allowed):
+            #if symbol in rotator_symbols_standardized and (symbol in open_symbols or trading_allowed):
+            if symbol in open_symbols and trading_allowed:
 
                 logging.info(f"{symbol} being traded")
 
@@ -441,132 +442,6 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
 
                 time.sleep(30)
 
-            elif symbol not in rotator_symbols_standardized and symbol in open_symbols and trading_allowed:
-
-
-                # Fetch the API data
-                api_data = self.manager.get_api_data(symbol)
-
-                # Extract the required metrics using the new implementation
-                metrics = self.manager.extract_metrics(api_data, symbol)
-
-                # Assign the metrics to the respective variables
-                one_minute_volume = metrics['1mVol']
-                five_minute_volume = metrics['5mVol']
-                five_minute_distance = metrics['5mSpread']
-                trend = metrics['Trend']
-                mfirsi_signal = metrics['MFI']
-                funding_rate = metrics['Funding']
-                hma_trend = metrics['HMA Trend']
-
-                logging.info(f"Managing open symbols not in rotator_symbols")
-
-
-
-                position_details = self.process_position_data(open_position_data)
-
-                long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
-                short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
-
-                long_pos_price = position_details.get(symbol, {}).get('long', {}).get('avg_price', None)
-                short_pos_price = position_details.get(symbol, {}).get('short', {}).get('avg_price', None)
-
-                self.initialize_symbol(symbol, total_equity, best_ask_price)
-
-                with self.initialized_symbols_lock:
-                    logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
-
-                self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
-                self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
-
-                # Update dynamic amounts based on max trade quantities
-                self.update_dynamic_amounts(symbol, total_equity, best_ask_price)
-
-                long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v2(symbol, total_equity, best_ask_price, self.max_leverage)
-
-                current_time = time.time()
-                if current_time - self.last_cancel_time >= self.spoofing_interval:
-                    self.spoofing_active = True
-                    self.helper(symbol, short_dynamic_amount, long_dynamic_amount)
-
-                long_pos_price = position_details.get(symbol, {}).get('long', {}).get('avg_price', None)
-                short_pos_price = position_details.get(symbol, {}).get('short', {}).get('avg_price', None)
-
-                # long_pos_price = position_details.get(symbol, {}).get('long', {}).get('avg_price', 0)
-                # short_pos_price = position_details.get(symbol, {}).get('short', {}).get('avg_price', 0)
-            
-                logging.info(f"Symbol manager: Short pos price: {short_pos_price}")
-                logging.info(f"Symbol manager: Long pos price: {long_pos_price}")
-
-                logging.info(f"Symbol manager: Long pos qty: {long_pos_qty}")
-                logging.info(f"Symbol manager: Short pos qty: {short_pos_qty}")
-
-                tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
-
-                short_take_profit = None
-                long_take_profit = None
-
-                short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
-                previous_five_minute_distance = five_minute_distance
-
-                logging.info(f"Short take profit for managed symbol {symbol}: {short_take_profit}")
-                logging.info(f"Long take profit for managed symbol {symbol} : {long_take_profit}")
-
-                # [Rest of the logic for symbols not in open_positions]
-                # Place long TP order if there are no existing long TP orders
-                if long_pos_qty > 0 and long_take_profit is not None and tp_order_counts['long_tp_count'] == 0:
-                    self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
-
-                # Place short TP order if there are no existing short TP orders
-                if short_pos_qty > 0 and short_take_profit is not None and tp_order_counts['short_tp_count'] == 0:
-                    self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
-
-                current_time = datetime.now()
-
-
-                logging.info(f"Short pos qty for managed {symbol}: {short_pos_qty}")
-                logging.info(f"Long pos qty for managed {symbol}: {long_pos_qty}")
-
-
-                if long_pos_qty > 0:
-                    # Check for long positions
-                    if current_time >= self.next_long_tp_update and long_take_profit is not None:
-                        self.next_long_tp_update = self.update_take_profit_spread_bybit(
-                            symbol=symbol, 
-                            pos_qty=long_pos_qty, 
-                            short_take_profit=short_take_profit,
-                            long_take_profit=long_take_profit,
-                            short_pos_price=short_pos_price,
-                            long_pos_price=long_pos_price,
-                            positionIdx=1, 
-                            order_side="sell", 
-                            next_tp_update=self.next_long_tp_update,
-                            five_minute_distance=five_minute_distance, 
-                            previous_five_minute_distance=previous_five_minute_distance
-                        )
-
-                if short_pos_qty > 0:
-                    # Check for short positions
-                    if current_time >= self.next_short_tp_update and short_take_profit is not None:
-                        self.next_short_tp_update = self.update_take_profit_spread_bybit(
-                            symbol=symbol, 
-                            pos_qty=short_pos_qty, 
-                            short_take_profit=short_take_profit,
-                            long_take_profit=long_take_profit,
-                            short_pos_price=short_pos_price,
-                            long_pos_price=long_pos_price,
-                            positionIdx=2, 
-                            order_side="buy", 
-                            next_tp_update=self.next_short_tp_update,
-                            five_minute_distance=five_minute_distance, 
-                            previous_five_minute_distance=previous_five_minute_distance
-                        )
-
-                self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
-
-                time.sleep(10)
-
-            # elif symbol in rotator_symbols and symbol not in open_symbols:
             elif symbol in rotator_symbols_standardized and symbol not in open_symbols and trading_allowed:
 
                 # Fetch the API data
