@@ -39,29 +39,26 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
 
-    # def run(self, symbol, rotator_symbols_standardized=None):
-    #     # Initialize a lock for the symbol if not already present
-    #     if symbol not in symbol_locks:
-    #         symbol_locks[symbol] = Lock()
-    #     self.run_single_symbol(symbol, rotator_symbols_standardized)
-
     def run(self, symbol, rotator_symbols_standardized=None):
-        current_thread_id = threading.get_ident()  # Get the current thread ID
-        logging.info(f"[Thread ID: {current_thread_id}] Running strategy for symbol {symbol}")
+        current_thread_id = threading.get_ident()
+        logging.info(f"[Thread ID: {current_thread_id}] Starting run method for symbol: {symbol}")
 
-        # Initialize a lock for the symbol if not already present
         if symbol not in symbol_locks:
-            symbol_locks[symbol] = Lock()
+            symbol_locks[symbol] = threading.Lock()
 
-        logging.info(f"[Thread ID: {current_thread_id}] Acquiring lock for symbol {symbol}")
-        with symbol_locks[symbol]:
-            logging.info(f"[Thread ID: {current_thread_id}] Lock acquired for symbol {symbol}, executing run_single_symbol")
+        # Acquire lock
+        if not symbol_locks[symbol].acquire(blocking=False):
+            logging.info(f"Symbol {symbol} is currently being traded by another thread. Skipping this iteration.")
+            return
+
+        try:
             self.run_single_symbol(symbol, rotator_symbols_standardized)
-            
+        finally:
+            symbol_locks[symbol].release()
+            logging.info(f"[Thread ID: {current_thread_id}] Lock released for symbol: {symbol}")
+
+
     def run_single_symbol(self, symbol, rotator_symbols_standardized=None):
-        # if not symbol_locks[symbol].acquire(blocking=False):
-        #     logging.info(f"Symbol {symbol} is currently being traded by another thread. Skipping this iteration.")
-        #     return
         logging.info(f"Initializing default values")
 
         min_qty = None
@@ -259,7 +256,6 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
             time.sleep(10)
 
             # If the symbol is in rotator_symbols and either it's already being traded or trading is allowed.
-            #if symbol in rotator_symbols_standardized and (symbol in open_symbols or trading_allowed):
             if symbol in open_symbols and trading_allowed:
 
                 logging.info(f"{symbol} being traded")
@@ -525,5 +521,3 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                 self.update_shared_data(symbol_data, open_position_data, len(open_symbols))
 
             time.sleep(30)
-
-        symbol_locks[symbol].release()
