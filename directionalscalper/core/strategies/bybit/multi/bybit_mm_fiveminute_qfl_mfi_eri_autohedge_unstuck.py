@@ -34,31 +34,24 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
         self.spoofing_interval = 1
         try:
             self.max_usd_value = self.config.max_usd_value
-            self.whitelist = self.config.whitelist
+            # self.whitelist = self.config.whitelist
             self.blacklist = self.config.blacklist
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
 
     def run(self, symbol, rotator_symbols_standardized=None):
-        current_thread_id = threading.get_ident()
+        current_thread_id = threading.get_ident()  # Get the current thread ID
         logging.info(f"[Thread ID: {current_thread_id}] Starting run method for symbol: {symbol}")
 
         if symbol not in symbol_locks:
             symbol_locks[symbol] = threading.Lock()
 
-        # Acquire lock
+        self.run_single_symbol(symbol, rotator_symbols_standardized)
+
+    def run_single_symbol(self, symbol, rotator_symbols_standardized=None):
         if not symbol_locks[symbol].acquire(blocking=False):
             logging.info(f"Symbol {symbol} is currently being traded by another thread. Skipping this iteration.")
             return
-
-        try:
-            self.run_single_symbol(symbol, rotator_symbols_standardized)
-        finally:
-            symbol_locks[symbol].release()
-            logging.info(f"[Thread ID: {current_thread_id}] Lock released for symbol: {symbol}")
-
-
-    def run_single_symbol(self, symbol, rotator_symbols_standardized=None):
         logging.info(f"Initializing default values")
 
         min_qty = None
@@ -201,10 +194,10 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                     time.sleep(10)  # wait for a short period before retrying
                     continue
 
-            whitelist = self.config.whitelist
+            # whitelist = self.config.whitelist
             blacklist = self.config.blacklist
-            if symbol not in whitelist or symbol in blacklist:
-                logging.info(f"Symbol {symbol} is no longer allowed based on whitelist/blacklist. Stopping operations for this symbol.")
+            if symbol in blacklist:
+                logging.info(f"Symbol {symbol} is no longer allowed based on blacklist. Stopping operations for this symbol.")
                 break
 
             funding_check = self.is_funding_rate_acceptable(symbol)
@@ -454,6 +447,7 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                 mfirsi_signal = metrics['MFI']
                 funding_rate = metrics['Funding']
                 hma_trend = metrics['HMA Trend']
+                eri_trend = metrics['ERI Trend']
 
                 logging.info(f"Managing new rotator symbol {symbol} not in open symbols")
 
@@ -521,3 +515,5 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                 self.update_shared_data(symbol_data, open_position_data, len(open_symbols))
 
             time.sleep(30)
+
+        symbol_locks[symbol].release()

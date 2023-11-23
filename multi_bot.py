@@ -1,7 +1,6 @@
 import sys
 import time
 import threading
-from threading import Thread
 from pathlib import Path
 
 project_dir = str(Path(__file__).resolve().parent)
@@ -41,9 +40,12 @@ from directionalscalper.core.strategies.logger import Logger
 
 logging = Logger(logger_name="MultiBot", filename="MultiBot.log", stream=True)
 
+
+# Function to standardize symbols
 def standardize_symbol(symbol):
     return symbol.replace('/', '').split(':')[0]
 
+# Function to choose a strategy via the command line
 def choose_strategy():
     questions = [
         inquirer.List('strategy',
@@ -61,32 +63,25 @@ def choose_strategy():
                           'bybit_mm_qs',
                           'bybit_mm_qfl_mfi_eri_autohedge',
                           'bybit_mm_qfl_mfi_eri_autohedge_unstuck',
-                      ]
-                     )
+                      ])
     ]
     answers = inquirer.prompt(questions)
     return answers['strategy']
 
-thread_to_symbol = {}
-
 class DirectionalMarketMaker:
-    def __init__(self, config: Config, exchange_name: str, account_name: str):
+    def __init__(self, config: Config, exchange_name: str, account_name: str, manager):
         self.config = config
         self.exchange_name = exchange_name
         self.account_name = account_name
-        exchange_config = None
-
+        self.manager = manager
+        exchange_config = self.get_exchange_config(config, exchange_name, account_name)
+        self.exchange = Exchange(exchange_name, exchange_config.api_key, exchange_config.api_secret, exchange_config.passphrase)
+    
+    def get_exchange_config(self, config, exchange_name, account_name):
         for exch in config.exchanges:
-            if exch.name == exchange_name and exch.account_name == account_name:  # Check both fields
-                exchange_config = exch
-                break
-
-        if not exchange_config:
-            raise ValueError(f"Exchange {exchange_name} with account {account_name} not found in the configuration file.")
-        api_key = exchange_config.api_key
-        secret_key = exchange_config.api_secret
-        passphrase = exchange_config.passphrase
-        self.exchange = Exchange(self.exchange_name, api_key, secret_key, passphrase)
+            if exch.name == exchange_name and exch.account_name == account_name:
+                return exch
+        raise ValueError(f"Exchange {exchange_name} with account {account_name} not found in the configuration file.")
 
     def run_strategy(self, symbol, strategy_name, config, account_name, symbols_to_trade=None, rotator_symbols_standardized=None):
         symbols_allowed = None
@@ -94,7 +89,7 @@ class DirectionalMarketMaker:
             #print(f"Checking: {exch.name} vs {self.exchange_name} and {exch.account_name} vs {account_name}")
             if exch.name == self.exchange_name and exch.account_name == account_name:
                 symbols_allowed = exch.symbols_allowed
-                print(f"Matched exchange: {exchange_name}, account: {args.account_name}. Symbols allowed: {symbols_allowed}")
+                print(f"Matched exchange: {self.exchange_name}, account: {args.account_name}. Symbols allowed: {symbols_allowed}")
                 break
 
         print(f"Multibot.py: symbols_allowed from config: {symbols_allowed}")
@@ -146,7 +141,6 @@ class DirectionalMarketMaker:
             strategy = BybitOBStrengthRandom(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
 
-
     def get_balance(self, quote, market_type=None, sub_type=None):
         if self.exchange_name == 'bitget':
             return self.exchange.get_balance_bitget(quote)
@@ -172,79 +166,46 @@ class DirectionalMarketMaker:
 
     def get_symbols(self):
         return self.exchange.symbols
-
-
-BALANCE_REFRESH_INTERVAL = 600  # in seconds
-
-def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized):
+    
+# Function to run the bot
+def run_bot(market_maker, symbol, args, account_name, symbols_allowed, rotator_symbols_standardized):
+    # Identify the current thread for future reference
     current_thread = threading.current_thread()
     thread_to_symbol[current_thread] = symbol
 
-    # Correct the path for the configuration file
-    if not args.config.startswith('configs/'):
-        config_file_path = Path('configs/' + args.config)
-    else:
-        config_file_path = Path(args.config)
-    print("Loading config from:", config_file_path)
-    config = load_config(config_file_path)
+    # Log basic information about the operation
+    print(f"Running strategy for Symbol: {symbol}")
+    print(f"Exchange name: {market_maker.exchange_name}")
+    print(f"Strategy name: {args.strategy}")
+    print(f"Account name: {account_name}")
 
-    # config_file_path = Path('configs/' + args.config)
-    # print("Loading config from:", config_file_path)
-    # config = load_config(config_file_path)
+    # Pass rotator_symbols_standardized to the run_strategy method
+    market_maker.run_strategy(symbol, args.strategy, market_maker.config, account_name, symbols_allowed, rotator_symbols_standardized)
 
-    # Initialize balance cache and last fetch time at the beginning
+    # Implement logic for balance check and other operations as necessary
+    # For example, checking the balance at regular intervals
+    quote = "USDT"
+    current_time = time.time()
+    balance_refresh_interval = 600  # seconds
     cached_balance = None
     last_balance_fetch_time = 0
 
-    exchange_name = args.exchange  # These are now guaranteed to be non-None
-    strategy_name = args.strategy
-    account_name = args.account_name  # Get the account_name from args
-
-    print(f"Symbol: {symbol}")
-    print(f"Exchange name: {exchange_name}")
-    print(f"Strategy name: {strategy_name}")
-    print(f"Account name: {account_name}")  # Print the account_name
-
-    # Pass account_name to DirectionalMarketMaker constructor
-    market_maker = DirectionalMarketMaker(config, exchange_name, account_name)
-    market_maker.manager = manager
-    
-    # Pass rotator_symbols_standardized to the run_strategy method
-    market_maker.run_strategy(symbol, strategy_name, config, account_name, symbols_to_trade=symbols_allowed, rotator_symbols_standardized=rotator_symbols_standardized)
-
-    quote = "USDT"
-    current_time = time.time()
-    if current_time - last_balance_fetch_time > BALANCE_REFRESH_INTERVAL or not cached_balance:
-        if exchange_name.lower() == 'huobi':
-            print(f"Loading huobi strategy..")
-        elif exchange_name.lower() == 'mexc':
-            cached_balance = market_maker.get_balance(quote, type='swap')
-            print(f"Futures balance: {cached_balance}")
-        else:
-            cached_balance = market_maker.get_balance(quote)
-            print(f"Futures balance: {cached_balance}")
+    if current_time - last_balance_fetch_time > balance_refresh_interval or not cached_balance:
+        cached_balance = market_maker.get_balance(quote)
+        print(f"Futures balance: {cached_balance}")
         last_balance_fetch_time = current_time
 
-
-thread_to_symbol = {}
-
-def start_threads_for_symbols(symbols, args, manager, account_name, symbols_allowed, rotator_symbols_standardized):
+# Function to start threads for each symbol
+# Ensure to update start_threads_for_symbols to pass market_maker instead of individual params
+def start_threads_for_symbols(market_maker, symbols, args, manager, account_name, symbols_allowed, rotator_symbols_standardized):
     threads = []
     for symbol in symbols:
-        # Only start a new thread for the symbol if it's not already being processed
-        if symbol not in thread_to_symbol.values():
-            thread = threading.Thread(target=run_bot, args=(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized))
-            thread.start()
-            threads.append(thread)
-            thread_to_symbol[thread] = symbol
-
-    # Remove mapping for threads that are no longer alive
-    for thread in list(thread_to_symbol):
-        if not thread.is_alive():
-            del thread_to_symbol[thread]
-
+        thread = threading.Thread(target=run_bot, args=(market_maker, symbol, args, account_name, symbols_allowed, rotator_symbols_standardized))
+        threads.append(thread)
+        thread.start()
     return threads
 
+# Main execution block
 if __name__ == '__main__':
     # ASCII Art and Text
     sword = "====||====>"
@@ -257,144 +218,88 @@ if __name__ == '__main__':
     # Loading animation
     for i in range(3):
         time.sleep(0.5)
-        print(".", end="", flush=True)
+        print(".", end="")
     print("\n")
 
     # Display the ASCII art
     print("Battle-Ready Algorithm".center(50))
+    print("Developed by TradeSimple Foundation")
     print(sword.center(50) + "\n")
 
     parser = argparse.ArgumentParser(description='DirectionalScalper')
     parser.add_argument('--config', type=str, default='configs/config.json', help='Path to the configuration file')
-    parser.add_argument('--account_name', type=str, help='The name of the account to use')
-    parser.add_argument('--exchange', type=str, help='The name of the exchange to use')
-    parser.add_argument('--strategy', type=str, help='The name of the strategy to use')
-    parser.add_argument('--symbol', type=str, help='The trading symbol to use')
-    parser.add_argument('--amount', type=str, help='The size to use')
-
+    parser.add_argument('--account_name', type=str, required=True, help='The name of the account to use')
+    parser.add_argument('--exchange', type=str, required=True, help='The name of the exchange to use')
+    parser.add_argument('--strategy', type=str, required=True, help='The name of the strategy to use')
     args = parser.parse_args()
 
-    # Ask for exchange, strategy, and account_name if they're not provided
-    if not args.exchange or not args.strategy or not args.account_name:
-        questions = [
-            inquirer.List('exchange',
-                        message="Which exchange do you want to use?",
-                        choices=['bybit', 'bitget', 'mexc', 'huobi', 'okx', 'binance', 'phemex']) if not args.exchange else None,
-            inquirer.List('strategy',
-                        message="Which strategy do you want to use?",
-                        choices=['bybit_mm_mfirsi', 'bybit_mm_fivemin', 'bybit_mfirsi_trend',
-                                'bybit_obstrength', 'bybit_mm_fivemin_walls', 'bybit_mm_onemin_walls', 'bybit_mm_qfl_mfi', 'bybit_mm_qfl_mfi_autohedge',
-                                'bybit_mm_qs', 'bybit_mm_qfl_mfi_eri_autohedge', 'bybit_mm_qfl_mfi_eri_autohedge_unstuck']) if not args.strategy else None,
-            inquirer.Text('account_name',
-                        message="Please enter the name of the account:") if not args.account_name else None
-        ]
-        questions = [q for q in questions if q is not None]  # Remove None values
-        answers = inquirer.prompt(questions)
-        
-        if not args.exchange:
-            args.exchange = answers['exchange']
-        if not args.strategy:
-            args.strategy = answers['strategy']
-        if not args.account_name:
-            args.account_name = answers['account_name']
-
-    print(f"DirectionalScalper {VERSION} Initialized Successfully!".center(50))
-    print("=" * 50 + "\n")
-
-    # Correct the path for the configuration file
-    if not args.config.startswith('configs/'):
-        config_file_path = Path('configs/' + args.config)
-    else:
-        config_file_path = Path(args.config)
-
+    config_file_path = Path('configs/' + args.config)
     config = load_config(config_file_path)
 
-    # config_file_path = Path('configs/' + args.config)
-    # config = load_config(config_file_path)
-
-    exchange_name = args.exchange  # Now it will have a value
-    market_maker = DirectionalMarketMaker(config, exchange_name, args.account_name)
-
-### TESTING ###
-    # # Calculate 'since' for 24 hours ago
-    # twenty_four_hours_ago = int((time.time() - 24 * 60 * 60) * 1000)  # Convert to milliseconds
-
-    # # Populate the order history once before starting the threads
-    # open_position_data = market_maker.exchange.get_all_open_positions_bybit()
-    # open_symbols = [standardize_symbol(position['symbol']) for position in open_position_data]
-    # market_maker.exchange.populate_order_history(open_symbols, since=twenty_four_hours_ago)
-
-### TESTING ###
-
+    # Initialize the Manager object
     manager = Manager(
-        market_maker.exchange, 
-        exchange_name=args.exchange, 
-        data_source_exchange=config.api.data_source_exchange,
-        api=config.api.mode, 
-        path=Path("data", config.api.filename), 
+        None,  # Temporarily set to None
+        args.exchange,
+        config.api.data_source_exchange,
+        config.api.mode,
+        cache_life_seconds=240,
+        asset_value_cache_life_seconds=10,
+        path=Path("data", config.api.filename),
         url=f"{config.api.url}{config.api.filename}"
     )
 
-    print(f"Using exchange {config.api.data_source_exchange} for API data")
+    # Create the DirectionalMarketMaker object
+    market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name, manager)
+    manager.exchange = market_maker.exchange  # Update exchange in manager
 
-    whitelist = config.bot.whitelist
+    # Access blacklist and max_usd_value from config
     blacklist = config.bot.blacklist
     max_usd_value = config.bot.max_usd_value
 
-    # symbols_allowed = config.bot.symbols_allowed
-  
-    # Loop through the exchanges to find the correct exchange and account name
-    for exch in config.exchanges:
-        if exch.name == exchange_name and exch.account_name == args.account_name:
-            logging.info(f"Symbols allowed changed to symbols_allowed from config")
-            symbols_allowed = exch.symbols_allowed
-            break
-    else:
-        # Default to a reasonable value if symbols_allowed is None
-        logging.info(f"Symbols allowed defaulted to 10")
-        symbols_allowed = 10  # You can choose an appropriate default value
-
     ### ILAY ###
     table_manager = LiveTableManager()
-    display_thread = threading.Thread(target=table_manager.display_table)
-    display_thread.daemon = True
+    display_thread = threading.Thread(target=table_manager.display_table, daemon=True)
     display_thread.start()
     ### ILAY ###
 
-    # Fetch all symbols that meet your criteria and standardize them
-    all_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist, max_usd_value=max_usd_value)]
+    thread_to_symbol = {}
 
-    # Get symbols with open positions and standardize them
-    open_position_data = market_maker.exchange.get_all_open_positions_bybit()
-    open_positions_symbols = [standardize_symbol(position['symbol']) for position in open_position_data]
-    
-    print(f"Open positions symbols {open_positions_symbols}")
-
-    # Determine new symbols to trade on
-    potential_new_symbols = [symbol for symbol in all_symbols_standardized if symbol not in open_positions_symbols]
-    new_symbols = potential_new_symbols[:symbols_allowed]
-
-    # Combine open positions symbols and new symbols
-    symbols_to_trade = open_positions_symbols + new_symbols
-
-    print(f"Symbols to trade: {symbols_to_trade}")
-
-    active_threads = start_threads_for_symbols(symbols_to_trade, args, manager, args.account_name, symbols_allowed, all_symbols_standardized)
-
-    # New section for continuous checking of rotator symbols
     while True:
-        # Remove finished threads from active_threads list
-        active_threads = [t for t in active_threads if t.is_alive()]
+        # Fetch and standardize all symbols from the manager
+        all_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols()]
 
-        # Refresh the list of rotator symbols once for this iteration
-        rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist, max_usd_value=max_usd_value)]
+        # Retrieve symbols_allowed for the specific exchange and account
+        symbols_allowed = None
+        for exch in config.exchanges:
+            if exch.name == args.exchange and exch.account_name == args.account_name:
+                symbols_allowed = exch.symbols_allowed
+                break
 
-        # Find new symbols that are not yet being traded
-        new_symbols = [s for s in rotator_symbols_standardized if s not in thread_to_symbol.values()]
+        if symbols_allowed is None:
+            raise ValueError(f"Symbols allowed not set for exchange {args.exchange} and account {args.account_name}")
 
-        # Start new threads for new symbols and pass the rotator_symbols_standardized
-        new_threads = start_threads_for_symbols(new_symbols, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
-        active_threads.extend(new_threads)
+        # Remove dead threads from the thread_to_symbol mapping
+        thread_to_symbol = {t: s for t, s in thread_to_symbol.items() if t.is_alive()}
 
-        # Sleep for a while before the next iteration
+        # Filter out blacklisted symbols
+        tradeable_symbols = [symbol for symbol in all_symbols_standardized if symbol not in blacklist]
+
+        # Get currently active symbols
+        active_symbols = [thread_to_symbol[t] for t in thread_to_symbol]
+
+        # Determine new symbols to trade
+        new_symbols = [symbol for symbol in tradeable_symbols if symbol not in active_symbols]
+        num_symbols_to_add = min(symbols_allowed - len(active_symbols), len(new_symbols))
+        new_symbols = new_symbols[:num_symbols_to_add]
+
+        # Start threads for new symbols
+        for symbol in new_symbols:
+            thread = threading.Thread(target=run_bot, args=(market_maker, symbol, args, args.account_name, symbols_allowed, all_symbols_standardized))
+            thread.start()
+            thread_to_symbol[thread] = symbol
+            logging.info(f"Started new thread for {symbol}")
+
+        # Log the number of active threads
+        logging.info(f"Active threads: {len(thread_to_symbol)}")
+
         time.sleep(60)
