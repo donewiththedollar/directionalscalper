@@ -246,7 +246,7 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
 
             # self.check_for_inactivity(long_pos_qty, short_pos_qty)
 
-            time.sleep(10)
+            time.sleep(5)
 
             # If the symbol is in rotator_symbols and either it's already being traded or trading is allowed.
             if symbol in open_symbols and trading_allowed:
@@ -358,9 +358,23 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                 current_time = time.time()
                 if current_time - self.last_cancel_time >= self.spoofing_interval:
                     self.spoofing_active = True
-                    self.helper(symbol, short_dynamic_amount, long_dynamic_amount)
+                    self.helperv2(symbol, short_dynamic_amount, long_dynamic_amount)
                     
-                self.bybit_entry_mm_5m_with_qfl_mfi_and_auto_hedge_with_eri_new(open_orders, symbol, trend, hma_trend, mfirsi_signal, eri_trend, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, hedge_ratio, price_difference_threshold)
+                self.bybit_entry_mm_5m_with_qfl_mfi_and_auto_hedge_with_eri(
+                    open_orders, 
+                    symbol, 
+                    trend, 
+                    hma_trend, 
+                    mfirsi_signal, 
+                    eri_trend, 
+                    five_minute_volume, 
+                    five_minute_distance, 
+                    min_vol, min_dist, 
+                    long_dynamic_amount, 
+                    short_dynamic_amount, 
+                    long_pos_qty, short_pos_qty, 
+                    long_pos_price, 
+                    short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short, hedge_ratio, price_difference_threshold)
 
                 tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
 
@@ -429,7 +443,7 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                 self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
                 # self.cancel_stale_orders_bybit(symbol)
 
-                time.sleep(30)
+                time.sleep(5)
 
             elif symbol in rotator_symbols_standardized and symbol not in open_symbols and trading_allowed:
 
@@ -482,7 +496,7 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
 
                     self.bybit_initial_entry_with_qfl_mfi_and_eri(open_orders, symbol, trend, hma_trend, mfirsi_signal, eri_trend, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
                     
-                    time.sleep(10)
+                    time.sleep(5)
                 else:
                     logging.warning(f"Potential trade for {symbol} skipped as max symbol limit reached.")
 
@@ -514,6 +528,6 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                     json.dump(data_to_save, f)
                 self.update_shared_data(symbol_data, open_position_data, len(open_symbols))
 
-            time.sleep(30)
+            time.sleep(5)
 
         symbol_locks[symbol].release()

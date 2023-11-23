@@ -223,7 +223,7 @@ if __name__ == '__main__':
 
     # Display the ASCII art
     print("Battle-Ready Algorithm".center(50))
-    print("Developed by TradeSimple Foundation")
+    print("Developed by TradeSimple Foundation".center(50))
     print(sword.center(50) + "\n")
 
     parser = argparse.ArgumentParser(description='DirectionalScalper')

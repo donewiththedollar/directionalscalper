@@ -2063,6 +2063,69 @@ class Strategy:
                 # Deactivate spoofing for the next cycle
                 self.spoofing_active = False
 
+    def helperv2(self, symbol, short_dynamic_amount, long_dynamic_amount):
+        if self.spoofing_active:
+            # Fetch orderbook and positions
+            orderbook = self.exchange.get_orderbook(symbol)
+            best_bid_price = Decimal(orderbook['bids'][0][0])
+            best_ask_price = Decimal(orderbook['asks'][0][0])
+
+            open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
+            position_details = self.process_position_data(open_position_data)
+
+            long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
+            short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
+        
+            if short_pos_qty is None and long_pos_qty is None:
+                logging.warning(f"Could not fetch position quantities for {symbol}. Skipping spoofing.")
+                return
+
+            # Determine which position is larger
+            larger_position = "long" if long_pos_qty > short_pos_qty else "short"
+
+            # Adjust spoofing_wall_size based on the larger position
+            base_spoofing_wall_size = self.spoofing_wall_size
+            adjusted_spoofing_wall_size = base_spoofing_wall_size + 5
+
+            # Initialize variables
+            spoofing_orders = []
+
+            # Dynamic safety_margin and base_gap based on asset's price
+            safety_margin = best_ask_price * Decimal('0.0040')  # 0.0030 # 0.10% of current price
+            base_gap = best_ask_price * Decimal('0.0040') #0.0030  # 0.10% of current price
+
+            for i in range(adjusted_spoofing_wall_size):
+                gap = base_gap + Decimal(i) * Decimal('0.002')  # Increasing gap for each subsequent order
+
+                if larger_position == "long":
+                    # Calculate long spoof price based on best ask price (top of the order book)
+                    spoof_price_long = best_ask_price + gap + safety_margin
+                    spoof_price_long = spoof_price_long.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
+                    spoof_order_long = self.limit_order_bybit(symbol, "sell", long_dynamic_amount * 1.5, spoof_price_long, positionIdx=2, reduceOnly=False)
+                    spoofing_orders.append(spoof_order_long)
+
+                if larger_position == "short":
+                    # Calculate short spoof price based on best bid price (top of the order book)
+                    spoof_price_short = best_bid_price - gap - safety_margin
+                    spoof_price_short = spoof_price_short.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
+                    spoof_order_short = self.limit_order_bybit(symbol, "buy", short_dynamic_amount * 1.5, spoof_price_short, positionIdx=1, reduceOnly=False)
+                    spoofing_orders.append(spoof_order_short)
+
+            # Sleep for the spoofing duration and then cancel all placed orders
+            time.sleep(self.spoofing_duration)
+
+            # Cancel orders and handle errors
+            for order in spoofing_orders:
+                if 'id' in order:
+                    logging.info(f"Spoofing order for {symbol}: {order}")
+                    self.exchange.cancel_order_by_id(order['id'], symbol)
+                else:
+                    logging.warning(f"Could not place spoofing order for {symbol}: {order.get('error', 'Unknown error')}")
+
+            # Deactivate spoofing for the next cycle
+            self.spoofing_active = False
+
+
     def helper(self, symbol, short_dynamic_amount, long_dynamic_amount):
         if self.spoofing_active:
             # Fetch orderbook and positions
