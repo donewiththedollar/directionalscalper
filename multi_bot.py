@@ -66,6 +66,7 @@ def choose_strategy():
     answers = inquirer.prompt(questions)
     return answers['strategy']
 
+
 class DirectionalMarketMaker:
     def __init__(self, config: Config, exchange_name: str, account_name: str):
         self.config = config
@@ -84,11 +85,25 @@ class DirectionalMarketMaker:
         secret_key = exchange_config.api_secret
         passphrase = exchange_config.passphrase
         self.exchange = Exchange(self.exchange_name, api_key, secret_key, passphrase)
+        self.manager = Manager(
+            self.exchange, 
+            exchange_name=exchange_name, 
+            data_source_exchange=config.api.data_source_exchange,
+            api=config.api.mode, 
+            path=Path("data", config.api.filename), 
+            url=f"{config.api.url}{config.api.filename}"
+        )
+
+        # Fetch all possible symbols
+        all_possible_symbols = self.manager.get_all_possible_symbols()
+
+        # Initialize symbol_locks
+        global symbol_locks
+        symbol_locks = {symbol: threading.Lock() for symbol in all_possible_symbols}
 
     def run_strategy(self, symbol, strategy_name, config, account_name, symbols_to_trade=None, rotator_symbols_standardized=None):
         symbols_allowed = None
         for exch in config.exchanges:
-            #print(f"Checking: {exch.name} vs {self.exchange_name} and {exch.account_name} vs {account_name}")
             if exch.name == self.exchange_name and exch.account_name == account_name:
                 symbols_allowed = exch.symbols_allowed
                 print(f"Matched exchange: {exchange_name}, account: {args.account_name}. Symbols allowed: {symbols_allowed}")
@@ -99,50 +114,51 @@ class DirectionalMarketMaker:
         if symbols_to_trade:
             print(f"Calling run method with symbols: {symbols_to_trade}")
 
-        # Pass symbols_allowed to the strategy constructors
+        # Pass symbols_allowed and symbol_locks to the strategy constructors
+        strategy = None
         if strategy_name.lower() == 'bybit_mm_mfirsi':
-            strategy = BybitAutoRotatorMFIRSI(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
+            strategy = BybitAutoRotatorMFIRSI(self.exchange, self.manager, config.bot, symbols_allowed, symbol_locks)
         elif strategy_name.lower() == 'bybit_mm_onemin':
-            strategy = BybitMMOneMinute(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
+            strategy = BybitMMOneMinute(self.exchange, self.manager, config.bot, symbols_allowed, symbol_locks)
         elif strategy_name.lower() == 'bybit_mm_fivemin':
-            strategy = BybitMMFiveMinute(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_mm_fivemin_walls':
-            strategy = BybitMMFiveMinuteWalls(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_mm_onemin_walls':
-            strategy = BybitMMOneMinuteWalls(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_mm_qfl_mfi':
-            strategy = BybitMMFiveMinuteQFLMFI(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_mm_qfl_mfi_autohedge':
-            strategy = BybitMMFiveMinuteQFLMFIAutoHedge(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_mm_qfl_mfi_eri_autohedge':
-            strategy = BybitMMFiveMinuteQFLMFIERIAutoHedge(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_mm_qfl_mfi_eri_autohedge_unstuck':
-            strategy = BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_mm_qs':
-            strategy = BybitQSStrategy(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_mfirsi_trend':
-            strategy = BybitMFIRSITrendRotator(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_obstrength':
-            strategy = BybitOBStrength(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_pts':
-            strategy = BybitMMPlayTheSpread(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_obstrength_random':
-            strategy = BybitOBStrengthRandom(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
+            strategy = BybitMMFiveMinute(self.exchange, self.manager, config.bot, symbols_allowed, symbol_locks)
 
+        elif strategy_name.lower() == 'bybit_mm_fivemin_walls':
+            strategy = BybitMMFiveMinuteWalls(self.exchange, self.manager, config.bot, symbols_allowed, symbol_locks)
+            
+        elif strategy_name.lower() == 'bybit_mm_onemin_walls':
+            strategy = BybitMMOneMinuteWalls(self.exchange, self.manager, config.bot, symbols_allowed, symbol_locks)
+
+        elif strategy_name.lower() == 'bybit_mm_qfl_mfi':
+            strategy = BybitMMFiveMinuteQFLMFI(self.exchange, self.manager, config.bot, symbols_allowed, symbol_locks)
+
+        elif strategy_name.lower() == 'bybit_mm_qfl_mfi_autohedge':
+            strategy = BybitMMFiveMinuteQFLMFIAutoHedge(self.exchange, self.manager, config.bot, symbols_allowed, symbol_locks)
+
+        elif strategy_name.lower() == 'bybit_mm_qfl_mfi_eri_autohedge':
+            strategy = BybitMMFiveMinuteQFLMFIERIAutoHedge(self.exchange, self.manager, config.bot, symbols_allowed, symbol_locks)
+          
+        elif strategy_name.lower() == 'bybit_mm_qfl_mfi_eri_autohedge_unstuck':
+            strategy = BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(self.exchange, self.manager, config.bot, symbols_allowed, symbol_locks)
+           
+        elif strategy_name.lower() == 'bybit_mm_qs':
+            strategy = BybitQSStrategy(self.exchange, self.manager, config.bot, symbols_allowed, symbol_locks)
+           
+        elif strategy_name.lower() == 'bybit_mfirsi_trend':
+            strategy = BybitMFIRSITrendRotator(self.exchange, self.manager, config.bot, symbols_allowed, symbol_locks)
+           
+        elif strategy_name.lower() == 'bybit_obstrength':
+            strategy = BybitOBStrength(self.exchange, self.manager, config.bot, symbols_allowed, symbol_locks)
+           
+        elif strategy_name.lower() == 'bybit_pts':
+            strategy = BybitMMPlayTheSpread(self.exchange, self.manager, config.bot, symbols_allowed, symbol_locks)
+            
+        elif strategy_name.lower() == 'bybit_obstrength_random':
+            strategy = BybitOBStrengthRandom(self.exchange, self.manager, config.bot, symbols_allowed, symbol_locks)
+           
+
+        if strategy:
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
 
     def get_balance(self, quote, market_type=None, sub_type=None):
         if self.exchange_name == 'bitget':
@@ -346,26 +362,31 @@ if __name__ == '__main__':
 
     while True:
         with lock:
-            # Update active symbols based on alive threads
+            # Refresh the set of symbols managed by currently active threads
             active_symbols = set([thread_to_symbol[t] for t in threading.enumerate() if t in thread_to_symbol])
 
-            # Remove inactive threads from symbol_to_thread mapping
-            for symbol in list(symbol_to_thread.keys()):
-                if symbol not in active_symbols:
-                    del symbol_to_thread[symbol]
+            open_positions = market_maker.get_open_positions()
+            open_symbols = [standardize_symbol(pos['symbol']) for pos in open_positions]
 
-        # Fetch open positions and standardize symbols
-        open_positions = market_maker.get_open_positions()
-        open_symbols = [standardize_symbol(pos['symbol']) for pos in open_positions]
+            # Get rotator symbols and filter out blacklisted ones
+            rotator_symbols_standardized = [standardize_symbol(s) for s in manager.get_auto_rotate_symbols()]
 
-        # Get rotator symbols and filter out blacklisted ones
-        rotator_symbols_standardized = [standardize_symbol(s) for s in manager.get_auto_rotate_symbols()]
+            # Refresh symbol_to_thread mapping and start threads for unmanaged open symbols
+            for symbol in open_symbols:
+                if symbol not in active_symbols and symbol not in symbol_to_thread:
+                    # Start a new thread for an unmanaged open symbol
+                    thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized))
+                    thread.start()
+                    symbol_to_thread[symbol] = thread
+                elif symbol in symbol_to_thread and not symbol_to_thread[symbol].is_alive():
+                    # Restart thread for an open symbol whose thread has terminated
+                    thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized))
+                    thread.start()
+                    symbol_to_thread[symbol] = thread
 
-        with lock:
-            # Start threads for new symbols (not currently active or already having a thread)
-            new_symbols = [s for s in rotator_symbols_standardized if s not in active_symbols and s not in symbol_to_thread]
+            # Start threads for new symbols
+            new_symbols = [s for s in rotator_symbols_standardized if s not in active_symbols and s not in open_symbols and s not in symbol_to_thread]
             start_threads_for_symbols(new_symbols, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
 
-        # Log and wait before next iteration
         print(f"Active threads: {len(thread_to_symbol)}")
         time.sleep(60)

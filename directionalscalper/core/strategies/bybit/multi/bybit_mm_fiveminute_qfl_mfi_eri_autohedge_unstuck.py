@@ -13,11 +13,13 @@ from live_table_manager import shared_symbols_data
 
 logging = Logger(logger_name="BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck", filename="BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck.log", stream=True)
 
-symbol_locks = {}
-
 class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
-    def __init__(self, exchange, manager, config, symbols_allowed=None):
+    def __init__(self, exchange, manager, config, symbols_allowed=None, symbol_locks=None):
         super().__init__(exchange, config, manager, symbols_allowed)
+        # Ensure symbol_locks is passed and is a dictionary
+        if symbol_locks is None or not isinstance(symbol_locks, dict):
+            raise ValueError("symbol_locks must be provided as a dictionary")
+        self.symbol_locks = symbol_locks
         self.is_order_history_populated = False
         # Thread-safe dictionaries
         self.last_known_ask = {}
@@ -55,13 +57,15 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
 
 
     def run(self, symbol, rotator_symbols_standardized=None):
-        current_thread_id = threading.get_ident()  # Get the current thread ID
+        current_thread_id = threading.get_ident()
         logging.info(f"[Thread ID: {current_thread_id}] Picked up symbol: {symbol}")
 
-        if symbol not in symbol_locks:
-            symbol_locks[symbol] = threading.Lock()
+        if symbol not in self.symbol_locks:
+            logging.error(f"No lock found for symbol: {symbol}. Skipping.")
+            return
 
         self.run_single_symbol(symbol, rotator_symbols_standardized)
+
 
     def run_single_symbol(self, symbol, rotator_symbols_standardized=None):
         current_thread_id = threading.get_ident()
@@ -71,7 +75,7 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
             logging.info(f"[Thread ID: {current_thread_id}] Attempting to acquire lock for symbol: {symbol}")
             
             # Attempt to acquire the lock
-            lock_acquired = symbol_locks[symbol].acquire(blocking=False)
+            lock_acquired = self.symbol_locks[symbol].acquire(blocking=False)
             if not lock_acquired:
                 logging.info(f"[Thread ID: {current_thread_id}] Symbol {symbol} is currently being traded by another thread. Skipping this iteration.")
                 return
@@ -555,7 +559,6 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                 time.sleep(5)
 
         finally:
-            # Release the lock only if it was acquired
             if lock_acquired:
-                logging.info(f"[Thread ID: {current_thread_id}] Releasing lock for symbol: {symbol}")
-                symbol_locks[symbol].release()
+                self.symbol_locks[symbol].release()
+                logging.info(f"[Thread ID: {current_thread_id}] Released lock for symbol: {symbol}")
