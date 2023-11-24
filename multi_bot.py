@@ -374,26 +374,49 @@ if __name__ == '__main__':
 
             open_positions = market_maker.get_open_positions()
             open_symbols = [standardize_symbol(pos['symbol']) for pos in open_positions]
-
-            # Get rotator symbols and filter out blacklisted ones
             rotator_symbols_standardized = [standardize_symbol(s) for s in manager.get_auto_rotate_symbols()]
 
-            # Refresh symbol_to_thread mapping and start threads for unmanaged open symbols
-            for symbol in open_symbols:
-                if symbol not in active_symbols and symbol not in symbol_to_thread:
-                    # Start a new thread for an unmanaged open symbol
-                    thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized))
-                    thread.start()
-                    symbol_to_thread[symbol] = thread
-                elif symbol in symbol_to_thread and not symbol_to_thread[symbol].is_alive():
-                    # Restart thread for an open symbol whose thread has terminated
-                    thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized))
-                    thread.start()
-                    symbol_to_thread[symbol] = thread
-
-            # Start threads for new symbols
-            new_symbols = [s for s in rotator_symbols_standardized if s not in active_symbols and s not in open_symbols and s not in symbol_to_thread]
+            # Start threads for new symbols not currently active or already having a thread
+            new_symbols = [s for s in rotator_symbols_standardized if s not in active_symbols and s not in symbol_to_thread]
             start_threads_for_symbols(new_symbols, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
+
+            # Restart threads for symbols whose threads have terminated
+            for symbol in open_symbols:
+                if symbol not in active_symbols and (symbol not in symbol_to_thread or not symbol_to_thread[symbol].is_alive()):
+                    thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized))
+                    thread.start()
+                    symbol_to_thread[symbol] = thread
 
         print(f"Active threads: {len(thread_to_symbol)}")
         time.sleep(60)
+        
+    # while True:
+    #     with lock:
+    #         # Refresh the set of symbols managed by currently active threads
+    #         active_symbols = set([thread_to_symbol[t] for t in threading.enumerate() if t in thread_to_symbol])
+
+    #         open_positions = market_maker.get_open_positions()
+    #         open_symbols = [standardize_symbol(pos['symbol']) for pos in open_positions]
+
+    #         # Get rotator symbols and filter out blacklisted ones
+    #         rotator_symbols_standardized = [standardize_symbol(s) for s in manager.get_auto_rotate_symbols()]
+
+    #         # Refresh symbol_to_thread mapping and start threads for unmanaged open symbols
+    #         for symbol in open_symbols:
+    #             if symbol not in active_symbols and symbol not in symbol_to_thread:
+    #                 # Start a new thread for an unmanaged open symbol
+    #                 thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized))
+    #                 thread.start()
+    #                 symbol_to_thread[symbol] = thread
+    #             elif symbol in symbol_to_thread and not symbol_to_thread[symbol].is_alive():
+    #                 # Restart thread for an open symbol whose thread has terminated
+    #                 thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized))
+    #                 thread.start()
+    #                 symbol_to_thread[symbol] = thread
+
+    #         # Start threads for new symbols
+    #         new_symbols = [s for s in rotator_symbols_standardized if s not in active_symbols and s not in open_symbols and s not in symbol_to_thread]
+    #         start_threads_for_symbols(new_symbols, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
+
+    #     print(f"Active threads: {len(thread_to_symbol)}")
+    #     time.sleep(60)

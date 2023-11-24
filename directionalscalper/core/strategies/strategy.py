@@ -82,10 +82,10 @@ class Strategy:
 
         self.bybit = self.Bybit(self)
 
-    def initialize_symbol(self, symbol, total_equity, best_ask_price):
+    def initialize_symbol(self, symbol, total_equity, best_ask_price, max_leverage):
         with self.initialized_symbols_lock:
             if symbol not in self.initialized_symbols:
-                self.initialize_trade_quantities(symbol, total_equity, best_ask_price, self.max_leverage)
+                self.initialize_trade_quantities(symbol, total_equity, best_ask_price, max_leverage)
                 logging.info(f"Initialized quantities for {symbol}. Initial long qty: {self.initial_max_long_trade_qty_per_symbol.get(symbol, 'N/A')}, Initial short qty: {self.initial_max_short_trade_qty_per_symbol.get(symbol, 'N/A')}")
                 self.initialized_symbols.add(symbol)
                 return True
@@ -1153,15 +1153,7 @@ class Strategy:
                 best_ask_price
             )
             self.printed_trade_quantities = True
-
-    # def print_trade_quantities_once_bybit(self, symbol, max_trade_qty):
-    #     if not self.printed_trade_quantities:
-    #         wallet_exposure = self.config.wallet_exposure
-    #         best_ask_price = self.exchange.get_orderbook(self.symbol)['asks'][0][0]
-    #         #self.exchange.print_trade_quantities_bybit(max_trade_qty, [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
-    #         self.exchange.print_trade_quantities_bybit(self.max_long_trade_qty_per_symbol[symbol], [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
-    #         self.printed_trade_quantities = True
-
+            
     def print_trade_quantities_once_huobi(self, max_trade_qty, symbol):
         if not self.printed_trade_quantities:
             wallet_exposure = self.config.wallet_exposure
@@ -3269,9 +3261,20 @@ class Strategy:
             qfl_base, qfl_ceiling = self.calculate_qfl_levels(symbol=symbol, timeframe='5m', lookback_period=12)
             current_price = self.exchange.get_current_price(symbol)
 
-            best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
-            best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
-            
+            # Fetch and process order book
+            order_book = self.exchange.get_orderbook(symbol)
+
+            # Extract and update best ask/bid prices
+            if 'asks' in order_book and len(order_book['asks']) > 0:
+                best_ask_price = order_book['asks'][0][0]
+            else:
+                best_ask_price = self.last_known_ask.get(symbol)
+
+            if 'bids' in order_book and len(order_book['bids']) > 0:
+                best_bid_price = order_book['bids'][0][0]
+            else:
+                best_bid_price = self.last_known_bid.get(symbol)
+                
             min_order_size = 1
 
             # Auto-hedging logic for long position
@@ -3293,9 +3296,20 @@ class Strategy:
                         self.place_postonly_order_bybit(symbol, "buy", additional_hedge_needed_short, best_bid_price, positionIdx=1, reduceOnly=False)
 
             if five_minute_volume > min_vol: #and five_minute_distance > min_dist:
-                best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
-                best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+                # Fetch and process order book
+                order_book = self.exchange.get_orderbook(symbol)
 
+                # Extract and update best ask/bid prices
+                if 'asks' in order_book and len(order_book['asks']) > 0:
+                    best_ask_price = order_book['asks'][0][0]
+                else:
+                    best_ask_price = self.last_known_ask.get(symbol)
+
+                if 'bids' in order_book and len(order_book['bids']) > 0:
+                    best_bid_price = order_book['bids'][0][0]
+                else:
+                    best_bid_price = self.last_known_bid.get(symbol)
+                    
                 # Long Entry
                 if (should_long or should_add_to_long) and current_price >= qfl_base:
                     trend_aligned_long = (eri_trend == "bullish" or trend.lower() == "long")

@@ -109,6 +109,8 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
             #self.max_leverage = self.exchange.get_max_lev_bybit(symbol)
             self.max_leverage = self.exchange.get_current_max_leverage_bybit(symbol)
 
+            logging.info(f"Max leverage for {symbol} : {self.max_leverage}")
+
             # # Set the leverage to max if it's not already
             # if self.current_leverage != self.max_leverage:
             #     logging.info(f"Current leverage is not at maximum. Setting leverage to maximum. Maximum is {self.max_leverage}")
@@ -264,7 +266,7 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                 logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
                 logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
 
-                self.initialize_symbol(symbol, total_equity, best_ask_price)
+                self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
 
                 with self.initialized_symbols_lock:
                     logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
@@ -273,6 +275,8 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                 moving_averages = self.get_all_moving_averages(symbol)
 
                 # self.check_for_inactivity(long_pos_qty, short_pos_qty)
+
+                self.print_trade_quantities_once_bybit(symbol)
 
                 time.sleep(5)
 
@@ -322,11 +326,11 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                     # short_liq_price = position_data["short"]["liq_price"]
                     # long_liq_price = position_data["long"]["liq_price"]
 
-                    # Initialize the symbol and quantities if not done yet
-                    self.initialize_symbol(symbol, total_equity, best_ask_price)
+                    # # Initialize the symbol and quantities if not done yet
+                    # self.initialize_symbol(symbol, total_equity, best_ask_price)
 
-                    with self.initialized_symbols_lock:
-                        logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
+                    # with self.initialized_symbols_lock:
+                    #     logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
 
                     self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
                     self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
@@ -341,9 +345,6 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                     logging.info(f"Short dynamic amount: {short_dynamic_amount} for {symbol}")
 
 
-                    self.print_trade_quantities_once_bybit(symbol)
-
-                    logging.info(f"Tried to print trade quantities")
 
                     with self.initialized_symbols_lock:
                         logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
