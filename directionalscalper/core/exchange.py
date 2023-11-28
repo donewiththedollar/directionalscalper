@@ -371,6 +371,22 @@ class Exchange:
             logging.info(f"Exception in bybit_fetch_precision: {e}")
 
     # v5
+    def get_max_lev_bybit(self, symbol):
+        try:
+            # Fetch leverage tiers for the symbol
+            leverage_tiers = self.exchange.fetch_market_leverage_tiers(symbol)
+
+            # Process leverage tiers to find the maximum leverage
+            max_leverage = max([tier['maxLeverage'] for tier in leverage_tiers if 'maxLeverage' in tier])
+            logging.info(f"Maximum leverage for symbol {symbol}: {max_leverage}")
+
+            return max_leverage
+
+        except Exception as e:
+            logging.error(f"Error retrieving leverage tiers for {symbol}: {e}")
+            return None
+
+    # v5
     def get_current_max_leverage_bybit(self, symbol):
         try:
             # Fetch leverage tiers for the symbol
@@ -387,17 +403,17 @@ class Exchange:
             return None
         
     # Bybit
-    def get_current_leverage_bybit(self, symbol):
-        try:
-            positions = self.exchange.fetch_derivatives_positions([symbol])
-            if len(positions) > 0:
-                position = positions[0]
-                leverage = position['leverage']
-                logging.info(f"Current leverage for symbol {symbol}: {leverage}")
-            else:
-                logging.info(f"No positions found for symbol {symbol}")
-        except Exception as e:
-            logging.info(f"Error retrieving current leverage: {e}")
+    # def get_current_leverage_bybit(self, symbol):
+    #     try:
+    #         positions = self.exchange.fetch_derivatives_positions([symbol])
+    #         if len(positions) > 0:
+    #             position = positions[0]
+    #             leverage = position['leverage']
+    #             logging.info(f"Current leverage for symbol {symbol}: {leverage}")
+    #         else:
+    #             logging.info(f"No positions found for symbol {symbol}")
+    #     except Exception as e:
+    #         logging.info(f"Error retrieving current leverage: {e}")
             
     # Bybit
     def set_leverage_bybit(self, leverage, symbol):
@@ -592,19 +608,6 @@ class Exchange:
         except Exception as e:
             logging.info(f"Error occurred in debug_binance_market_data: {e}")
 
-    def get_position_update_time(self, symbol):
-        try:
-            position = self.exchange.fetch_position(symbol)
-            updated_time_ms = position.get('info', {}).get('updatedTime')
-            if updated_time_ms:
-                updated_time = datetime.datetime.fromtimestamp(updated_time_ms / 1000.0)
-                return updated_time
-            else:
-                return "Updated time not available"
-        except Exception as e:
-            return f"Error fetching position update time: {e}"
-
-
     # Bybit
     def fetch_recent_trades(self, symbol, since=None, limit=100):
         """
@@ -733,6 +736,8 @@ class Exchange:
                 time.sleep(delay)
         raise Exception(f"Failed to execute the API function after {max_retries} retries.")
 
+
+## v5
     def get_balance_bybit(self, quote):
         if self.exchange.has['fetchBalance']:
             try:
@@ -752,8 +757,55 @@ class Exchange:
                 logging.error(f"Error fetching balance from Bybit: {e}")
 
         return None
-    
-    # v5
+
+
+    # def get_balance_bybit(self, quote):
+    #     if self.exchange.has['fetchBalance']:
+    #         try:
+    #             # Fetch the balance
+    #             balance_response = self.exchange.fetch_balance()
+                
+    #             # Log the raw response for debugging purposes
+    #             logging.info(f"Raw balance response from Bybit: {balance_response}")
+
+    #             # Check if it's the unified structure
+    #             if 'result' in balance_response:
+    #                 coin_list = balance_response.get('result', {}).get('coin', [])
+    #                 for currency_balance in coin_list:
+    #                     if currency_balance['coin'] == quote:
+    #                         return float(currency_balance['equity'])
+    #             # If not unified, handle the old structure
+    #             elif 'info' in balance_response:
+    #                 for currency_balance in balance_response['info']['result']['list']:
+    #                     if currency_balance['coin'] == quote:
+    #                         return float(currency_balance['equity'])
+    #         except Exception as e:
+    #             logging.error(f"Error fetching balance from Bybit: {e}")
+    #     return None
+
+    # Bybit
+    # def get_balance_bybit(self, quote):
+    #     if self.exchange.has['fetchBalance']:
+    #         # Fetch the balance
+    #         balance_response = self.exchange.fetch_balance()
+
+    #         # Check if it's the unified structure
+    #         if 'result' in balance_response:
+    #             coin_list = balance_response.get('result', {}).get('coin', [])
+    #             for currency_balance in coin_list:
+    #                 if currency_balance['coin'] == quote:
+    #                     return float(currency_balance['equity'])
+    #         # If not unified, handle the old structure
+    #         elif 'info' in balance_response:
+    #             for currency_balance in balance_response['info']['result']['list']:
+    #                 if currency_balance['coin'] == quote:
+    #                     return float(currency_balance['equity'])
+    #         else:
+    #             raise Exception("Unable to fetch balance due to unexpected response structure.")
+    #     else:
+    #         raise Exception("fetchBalance not supported by the exchange.")
+
+
     def get_available_balance_bybit(self, quote):
         if self.exchange.has['fetchBalance']:
             try:
@@ -775,6 +827,29 @@ class Exchange:
 
         return None
     
+    # def get_available_balance_bybit(self, quote):
+    #     if self.exchange.has['fetchBalance']:
+    #         # Fetch the balance
+    #         balance_response = self.exchange.fetch_balance()
+
+    #         # Check if it's the unified structure
+    #         if 'result' in balance_response:
+    #             coin_list = balance_response.get('result', {}).get('coin', [])
+    #             for currency_balance in coin_list:
+    #                 if currency_balance['coin'] == quote:
+    #                     return float(currency_balance['availableToWithdraw'])
+    #         # If not unified, handle the old structure
+    #         elif 'info' in balance_response:
+    #             try:
+    #                 for currency_balance in balance_response['info']['result']['list']:
+    #                     if currency_balance['coin'] == quote:
+    #                         return float(currency_balance['availableBalance'])
+    #             except KeyError as e:
+    #                 print(f"KeyError: {e}")
+    #                 print(balance_response)  # Print the balance if there was a KeyError
+
+    #     return None
+
 
     def get_available_balance_huobi(self, symbol):
         try:
@@ -1272,6 +1347,107 @@ class Exchange:
 
     #     return values
 
+    # def get_position_details(self, symbol):
+    #     try:
+    #         # Fetch position information for the given symbol
+    #         position = self.exchange.fetch_position(symbol)
+            
+    #         # Log the raw API response for debugging
+    #         logging.info(f"Raw API response for {symbol}: {position}")
+
+    #         details = {
+    #             'symbol': position.get('symbol', ''),
+    #             'leverage': position.get('leverage', 0),
+    #             'avgPrice': position.get('avgPrice', 0),
+    #             'liqPrice': position.get('liqPrice', 0),
+    #             'positionValue': position.get('positionValue', 0),
+    #             'unrealisedPnl': position.get('unrealisedPnl', 0),
+    #             'markPrice': position.get('markPrice', 0),
+    #             'cumRealisedPnl': position.get('cumRealisedPnl', 0),
+    #             'positionStatus': position.get('positionStatus', ''),
+    #             'size': position.get('size', 0),
+    #             'side': position.get('side', '').lower()
+    #         }
+
+    #         long_qty = 0
+    #         short_qty = 0
+
+    #         if details['side'] == 'buy':
+    #             long_qty = details['size']
+    #         elif details['side'] == 'sell':
+    #             short_qty = details['size']
+
+    #         return {
+    #             'long': {'qty': long_qty},
+    #             'short': {'qty': short_qty}
+    #         }
+
+    #     except Exception as e:
+    #         logging.error(f"Error fetching position details for {symbol}: {e}")
+    #         return {'long': {'qty': 0}, 'short': {'qty': 0}}
+
+
+    # def get_position_details(self, open_position_data):
+    #     position_details = {}
+
+    #     for position in open_position_data:
+    #         info = position.get('info', {})
+    #         symbol = info.get('symbol', '').split(':')[0]  # Splitting to get the base symbol
+
+    #         # Ensure 'size', 'side', and 'avgPrice' keys exist in the info dictionary
+    #         if 'size' in info and 'side' in info and 'avgPrice' in info:
+    #             size = float(info['size'])
+    #             side = info['side'].lower()
+    #             avg_price = float(info['avgPrice'])
+
+    #             # Initialize the nested dictionary if the symbol is not already in position_details
+    #             if symbol not in position_details:
+    #                 position_details[symbol] = {'long': {'qty': 0, 'avg_price': None}, 'short': {'qty': 0, 'avg_price': None}}
+
+    #             # Update the quantities and average prices based on the side of the position
+    #             if side == 'buy':
+    #                 position_details[symbol]['long']['qty'] += size
+    #                 position_details[symbol]['long']['avg_price'] = avg_price
+    #             elif side == 'sell':
+    #                 position_details[symbol]['short']['qty'] += size
+    #                 position_details[symbol]['short']['avg_price'] = avg_price
+
+    #     return position_details
+    
+    # def get_position_details(self, symbol):
+    #     try:
+    #         # Fetch position information for the given symbol
+    #         position = self.exchange.fetch_position(symbol)
+    #         details = {
+    #             'symbol': position.get('symbol', ''),
+    #             'leverage': position.get('leverage', 0),
+    #             'avgPrice': position.get('avgPrice', 0),
+    #             'liqPrice': position.get('liqPrice', 0),
+    #             'positionValue': position.get('positionValue', 0),
+    #             'unrealisedPnl': position.get('unrealisedPnl', 0),
+    #             'markPrice': position.get('markPrice', 0),
+    #             'cumRealisedPnl': position.get('cumRealisedPnl', 0),
+    #             'positionStatus': position.get('positionStatus', ''),
+    #             'size': position.get('size', 0),
+    #             'side': position.get('side', '').lower()
+    #         }
+
+    #         # Determine if the position is long or short and extract the quantity
+    #         if details['side'] == 'buy':
+    #             details['longQty'] = details['size']
+    #             details['shortQty'] = 0
+    #         elif details['side'] == 'sell':
+    #             details['shortQty'] = details['size']
+    #             details['longQty'] = 0
+    #         else:
+    #             details['longQty'] = 0
+    #             details['shortQty'] = 0
+
+    #         return details
+
+    #     except Exception as e:
+    #         return f"Error fetching position details: {e}"
+        
 
     # Bybit 
     def get_positions_bybit(self, symbol, max_retries=100, retry_delay=5) -> dict:
@@ -2168,6 +2344,56 @@ class Exchange:
                 
             time.sleep(interval_seconds)
 
+    #def cancel_all_entries_bybit(selfl, symbol: str, open_orders: list) -> None:        
+    # def cancel_all_entries_bybit(self, symbol: str) -> None:
+    #     try:
+    #         orders = self.exchange.fetch_open_orders(symbol)
+    #         logging.info(f"Fetched orders: {orders}")  # Debugging line
+
+    #         long_orders = 0
+    #         short_orders = 0
+
+    #         # Count the number of open long and short orders
+    #         for order in orders:
+    #             order_info = order["info"]
+    #             logging.info(f"Order info: {order_info}")  # Debugging line
+
+    #             order_status = order_info["orderStatus"]
+    #             order_side = order_info["side"]
+    #             reduce_only = order_info["reduceOnly"]
+    #             position_idx = int(order_info["positionIdx"])
+
+    #             if order_status != "Filled" and order_status != "Cancelled" and not reduce_only:
+    #                 if position_idx == 1 and order_side == "Buy":
+    #                     long_orders += 1
+    #                 elif position_idx == 2 and order_side == "Sell":
+    #                     short_orders += 1
+
+    #         logging.info(f"Number of long orders: {long_orders}, Number of short orders: {short_orders}")  # Debugging line
+
+    #         # Cancel extra long or short orders
+    #         if long_orders > 0 or short_orders > 0:
+    #             for order in orders:
+    #                 order_info = order["info"]
+    #                 order_id = order_info["orderId"]
+    #                 order_status = order_info["orderStatus"]
+    #                 order_side = order_info["side"]
+    #                 reduce_only = order_info["reduceOnly"]
+    #                 position_idx = int(order_info["positionIdx"])
+
+    #                 if (
+    #                     order_status != "Filled"
+    #                     and order_status != "Cancelled"
+    #                     and not reduce_only
+    #                 ):
+    #                     self.exchange.cancel_order(symbol=symbol, id=order_id)
+    #                     logging.info(f"Cancelling order: {order_id}")  # Debugging line
+    #         else:
+    #             logging.info("No orders to cancel.")  # Debugging line
+
+    #     except Exception as e:
+    #         logging.warning(f"An unknown error occurred in cancel_all_entries_bybit(): {e}")  # Debugging line
+
     # v5
     def cancel_all_entries_bybit(self, symbol: str) -> None:
         try:
@@ -2185,6 +2411,46 @@ class Exchange:
 
         except Exception as e:
             logging.warning(f"An unknown error occurred in cancel_all_entries_bybit(): {e}")
+
+    # def cancel_all_entries_bybit(self, symbol: str) -> None:
+    #     try:
+    #         orders = self.exchange.fetch_open_orders(symbol)
+    #         long_orders = 0
+    #         short_orders = 0
+
+    #         # Count the number of open long and short orders
+    #         for order in orders:
+    #             order_info = order["info"]
+    #             order_status = order_info["orderStatus"]
+    #             order_side = order_info["side"]
+    #             reduce_only = order_info["reduceOnly"]
+    #             position_idx = int(order_info["positionIdx"])
+
+    #             if order_status != "Filled" and order_status != "Cancelled" and not reduce_only:
+    #                 if position_idx == 1 and order_side == "Buy":
+    #                     long_orders += 1
+    #                 elif position_idx == 2 and order_side == "Sell":
+    #                     short_orders += 1
+
+    #         # Cancel extra long or short orders
+    #         if long_orders > 0 or short_orders > 0:
+    #             for order in orders:
+    #                 order_info = order["info"]
+    #                 order_id = order_info["orderId"]
+    #                 order_status = order_info["orderStatus"]
+    #                 order_side = order_info["side"]
+    #                 reduce_only = order_info["reduceOnly"]
+    #                 position_idx = int(order_info["positionIdx"])
+
+    #                 if (
+    #                     order_status != "Filled"
+    #                     and order_status != "Cancelled"
+    #                     and not reduce_only
+    #                 ):
+    #                     self.exchange.cancel_order(symbol=symbol, id=order_id)
+    #                     logging.info(f"Cancelling order: {order_id}")
+    #     except Exception as e:
+    #         logging.warning(f"An unknown error occurred in cancel_all_entries_bybit(): {e}")
 
     def cancel_all_entries_huobi(self, symbol: str) -> None:
         try:
@@ -2276,35 +2542,6 @@ class Exchange:
     def get_contract_size_bybit(self, symbol):
         positions = self.exchange.fetch_derivatives_positions([symbol])
         return positions[0]['contractSize']
-
-    # Bybit
-    # def get_max_leverage_bybit(self, symbol):
-    #     tiers = self.exchange.fetch_derivatives_market_leverage_tiers(symbol)
-    #     for tier in tiers:
-    #         info = tier.get('info', {})
-    #         if info.get('symbol') == symbol:
-    #             return float(info.get('maxLeverage'))
-    #     return None
-
-    # def get_max_leverage_bybit(self, symbol, max_retries=5, backoff_factor=0.5):
-    #     for retry in range(max_retries):
-    #         try:
-    #             tiers = self.exchange.fetch_derivatives_market_leverage_tiers(symbol)
-    #             for tier in tiers:
-    #                 info = tier.get('info', {})
-    #                 if info.get('symbol') == symbol:
-    #                     return float(info.get('maxLeverage'))
-    #             return None  # If symbol not found in tiers
-
-    #         except Exception as e:
-    #             # Check if it's a rate limit exception, otherwise raise the original exception
-    #             if isinstance(e, RateLimitExceeded):
-    #                 if retry < max_retries - 1:  # Don't wait if it's the last retry
-    #                     sleep_time = backoff_factor * (2 ** retry)  # Exponential backoff
-    #                     time.sleep(sleep_time)
-    #             else:
-    #                 raise e
-    #     raise Exception(f"Failed to get max leverage for {symbol} after {max_retries} retries.")
 
     def get_max_leverage_bybit(self, symbol, max_retries=10, backoff_factor=0.5):
         #logging.info(f"Called get_max_leverage_bybit with symbol: {symbol}")
@@ -2483,7 +2720,31 @@ class Exchange:
         return total_qty
 
 
+    # Bybit
+    # def cancel_take_profit_orders_bybit(self, symbol, side):
+    #     side = side.lower()
+    #     side_map = {"long": "buy", "short": "sell"}
+    #     side = side_map.get(side, side)
+        
+    #     try:
+    #         open_orders = self.exchange.fetch_open_orders(symbol)
+    #         position_idx_map = {"buy": 1, "sell": 2}
+    #         #print("Open Orders:", open_orders)
+    #         #print("Position Index Map:", position_idx_map)
+    #         for order in open_orders:
+    #             if (
+    #                 order['side'].lower() == side
+    #                 and order['info'].get('reduceOnly')
+    #                 and order['info'].get('positionIdx') == position_idx_map[side]
+    #             ):
+    #                 order_id = order['info']['orderId']
+    #                 self.exchange.cancel_derivatives_order(order_id, symbol)
+    #                 logging.info(f"Canceled take profit order - ID: {order_id}")
+    #     except Exception as e:
+    #         print(f"An unknown error occurred in cancel_take_profit_orders: {e}")
+
     # v5
+    #Bybit
     def cancel_take_profit_orders_bybit(self, symbol, side):
         side = side.lower()
         side_map = {"long": "buy", "short": "sell"}
@@ -2523,7 +2784,7 @@ class Exchange:
         except Exception as e:
             print(f"An unknown error occurred in cancel_take_profit_orders_binance: {e}")
 
-    # v5 bybit
+    # v5
     def cancel_order_by_id(self, order_id, symbol):
         try:
             # Call the updated cancel_order method
@@ -2532,6 +2793,13 @@ class Exchange:
         except Exception as e:
             logging.error(f"Error occurred in cancel_order_by_id: {e}")
 
+    # Bybit
+    # def cancel_order_by_id(self, order_id, symbol):
+    #     try:
+    #         self.exchange.cancel_derivatives_order(order_id, symbol)
+    #         logging.info(f"Canceled order - ID: {order_id}")
+    #     except Exception as e:
+    #         logging.info(f"An unknown error occurred in cancel_take_profit_orders: {e}")
 
     def cancel_order_by_id_binance(self, order_id, symbol):
         try:

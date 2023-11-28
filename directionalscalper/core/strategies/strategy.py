@@ -1801,15 +1801,16 @@ class Strategy:
         """
         Checks if the bot can trade a given symbol.
         """
-        self.open_symbols_count = len(open_symbols)  # Update the attribute with the current count
+        unique_open_symbols = set(open_symbols)  # Convert to set to get unique symbols
+        self.open_symbols_count = len(unique_open_symbols)  # Count unique symbols
 
-        logging.info(f"Open symbols count: {self.open_symbols_count}")
+        logging.info(f"Open symbols count (unique): {self.open_symbols_count}")
 
         if symbols_allowed is None:
             symbols_allowed = 10  # Use a default value if symbols_allowed is not specified
 
         # If the current symbol is already being traded, allow it
-        if current_symbol in open_symbols:
+        if current_symbol in unique_open_symbols:
             return True
 
         # If we haven't reached the symbol limit, allow a new symbol to be traded
@@ -1818,6 +1819,28 @@ class Strategy:
 
         # If none of the above conditions are met, don't allow the new trade
         return False
+
+    # def can_trade_new_symbol(self, open_symbols: list, symbols_allowed: int, current_symbol: str) -> bool:
+    #     """
+    #     Checks if the bot can trade a given symbol.
+    #     """
+    #     self.open_symbols_count = len(open_symbols)  # Update the attribute with the current count
+
+    #     logging.info(f"Open symbols count: {self.open_symbols_count}")
+
+    #     if symbols_allowed is None:
+    #         symbols_allowed = 10  # Use a default value if symbols_allowed is not specified
+
+    #     # If the current symbol is already being traded, allow it
+    #     if current_symbol in open_symbols:
+    #         return True
+
+    #     # If we haven't reached the symbol limit, allow a new symbol to be traded
+    #     if self.open_symbols_count < symbols_allowed:
+    #         return True
+
+    #     # If none of the above conditions are met, don't allow the new trade
+    #     return False
 
     def update_shared_data(self, symbol_data: dict, open_position_data: dict, open_symbols_count: int):
         # Update and serialize symbol data
@@ -3294,6 +3317,8 @@ class Strategy:
                     additional_hedge_needed_short = (short_pos_qty * hedge_ratio) - long_pos_qty
                     if additional_hedge_needed_short > min_order_size:
                         self.place_postonly_order_bybit(symbol, "buy", additional_hedge_needed_short, best_bid_price, positionIdx=1, reduceOnly=False)
+
+            logging.info(f"Five minute volume for symbol: {symbol} : {five_minute_volume}")
 
             if five_minute_volume > min_vol: #and five_minute_distance > min_dist:
                 # Fetch and process order book
