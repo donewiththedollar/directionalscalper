@@ -3284,6 +3284,8 @@ class Strategy:
             qfl_base, qfl_ceiling = self.calculate_qfl_levels(symbol=symbol, timeframe='5m', lookback_period=12)
             current_price = self.exchange.get_current_price(symbol)
 
+            logging.info(f"Current price in autohedge: {current_price}")
+
             # Fetch and process order book
             order_book = self.exchange.get_orderbook(symbol)
 
@@ -3303,8 +3305,10 @@ class Strategy:
             # Auto-hedging logic for long position
             if long_pos_qty > 0:
                 price_diff_percentage_long = abs(current_price - long_pos_price) / long_pos_price
+                logging.info(f"Price difference long {price_diff_percentage_long}")
                 current_hedge_ratio_long = short_pos_qty / long_pos_qty if long_pos_qty > 0 else 0
                 if price_diff_percentage_long >= price_difference_threshold and current_hedge_ratio_long < hedge_ratio:
+                    logging.info(f"Auto hedging for long position for {symbol}")
                     additional_hedge_needed_long = (long_pos_qty * hedge_ratio) - short_pos_qty
                     if additional_hedge_needed_long > min_order_size:
                         self.place_postonly_order_bybit(symbol, "sell", additional_hedge_needed_long, best_ask_price, positionIdx=2, reduceOnly=False)
@@ -3312,8 +3316,10 @@ class Strategy:
             # Auto-hedging logic for short position
             if short_pos_qty > 0:
                 price_diff_percentage_short = abs(current_price - short_pos_price) / short_pos_price
+                logging.info(f"Price difference short {price_diff_percentage_short}")
                 current_hedge_ratio_short = long_pos_qty / short_pos_qty if short_pos_qty > 0 else 0
                 if price_diff_percentage_short >= price_difference_threshold and current_hedge_ratio_short < hedge_ratio:
+                    logging.info(f"Auto hedging for short position for {symbol}")
                     additional_hedge_needed_short = (short_pos_qty * hedge_ratio) - long_pos_qty
                     if additional_hedge_needed_short > min_order_size:
                         self.place_postonly_order_bybit(symbol, "buy", additional_hedge_needed_short, best_bid_price, positionIdx=1, reduceOnly=False)
