@@ -47,7 +47,6 @@ class Bot(BaseModel):
     blacklist: List[str] = []
     dashboard_enabled: bool = False
     shared_data_path: Optional[DirectoryPath] = None
-    symbols_allowed: int  # Add this line
 
     
     @validator("min_volume")
