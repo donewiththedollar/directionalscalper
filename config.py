@@ -11,7 +11,7 @@ from pydantic import BaseModel, HttpUrl, ValidationError, validator, DirectoryPa
 from directionalscalper.core.strategies.logger import Logger
 logging = Logger(logger_name="Configuration", filename="Configuration.log", stream=True)
 
-VERSION = "v2.5.0"
+VERSION = "v2.6.0"
 
 class Exchanges(Enum):
     BYBIT = "bybit"
@@ -44,10 +44,11 @@ class Bot(BaseModel):
     MaxAbsFundingRate: float = 0.0002
     wallet_exposure: float = 1.00
     max_usd_value: Optional[float] = None
-    whitelist: List[str] = []
     blacklist: List[str] = []
     dashboard_enabled: bool = False
     shared_data_path: Optional[DirectoryPath] = None
+    symbols_allowed: int  # Add this line
+
     
     @validator("min_volume")
     def minimum_min_volume(cls, v):

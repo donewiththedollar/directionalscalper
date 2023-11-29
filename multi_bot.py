@@ -341,7 +341,7 @@ if __name__ == '__main__':
 
     print(f"Using exchange {config.api.data_source_exchange} for API data")
 
-    whitelist = config.bot.whitelist
+    # whitelist = config.bot.whitelist
     blacklist = config.bot.blacklist
     max_usd_value = config.bot.max_usd_value
 
@@ -366,7 +366,7 @@ if __name__ == '__main__':
     ### ILAY ###
 
     # Fetch all symbols that meet your criteria and standardize them
-    all_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist, max_usd_value=max_usd_value)]
+    all_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, max_usd_value=max_usd_value)]
 
     # Get symbols with open positions and standardize them
     open_position_data = market_maker.exchange.get_all_open_positions_bybit()
@@ -384,7 +384,7 @@ if __name__ == '__main__':
     while True:
         # Active threads and rotator symbols update
         active_threads = [t for t in active_threads if t.is_alive()]
-        rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist, max_usd_value=max_usd_value)]
+        rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, max_usd_value=max_usd_value)]
 
         # Update and prioritize open position symbols
         open_position_data = market_maker.exchange.get_all_open_positions_bybit()
