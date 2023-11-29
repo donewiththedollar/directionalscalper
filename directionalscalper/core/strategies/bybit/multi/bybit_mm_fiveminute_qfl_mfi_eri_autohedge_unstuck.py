@@ -57,29 +57,9 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
         else:
             logging.info(f"Failed to acquire lock for symbol: {standardized_symbol}")
 
-    # def run(self, symbol, rotator_symbols_standardized=None):
-    #     current_thread_id = threading.get_ident()  # Get the current thread ID
-    #     logging.info(f"[Thread ID: {current_thread_id}] Starting run method for symbol: {symbol}")
-
-    #     if symbol not in symbol_locks:
-    #         symbol_locks[symbol] = threading.Lock()
-
-    #     # Implementing a retry mechanism for lock acquisition
-    #     for _ in range(3):  # Retry up to 3 times
-    #         if symbol_locks[symbol].acquire(blocking=False):
-    #             try:
-    #                 self.run_single_symbol(symbol, rotator_symbols_standardized)
-    #             finally:
-    #                 symbol_locks[symbol].release()  # Ensure lock is released
-    #             break  # Break out of the loop once processing is done
-    #         else:
-    #             logging.info(f"Waiting to acquire lock for symbol: {symbol}")
-    #             time.sleep(1)  # Wait for 1 second before retrying
-
     def run_single_symbol(self, symbol, rotator_symbols_standardized=None):
         logging.info(f"Starting to process symbol: {symbol}")
         logging.info(f"Initializing default values for symbol: {symbol}")
-
 
         min_qty = None
         current_price = None
@@ -101,6 +81,9 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
         # Initializing time trackers for less frequent API calls
         last_equity_fetch_time = 0
         equity_refresh_interval = 1800  # 30 minutes in seconds
+
+        # Clean out orders
+        self.exchange.cancel_all_orders_for_symbol_bybit(symbol)
 
         # Check leverages only at startup
         self.current_leverage = self.exchange.get_current_max_leverage_bybit(symbol)
@@ -127,9 +110,6 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
 
         price_difference_threshold = self.config.hedge_price_difference_threshold
 
-        # current_leverage = self.exchange.get_current_leverage_bybit(symbol)
-        # max_leverage = self.exchange.get_max_leverage_bybit(symbol)
-
         if self.config.dashboard_enabled:
             dashboard_path = os.path.join(self.config.shared_data_path, "shared_data.json")
 
@@ -137,13 +117,6 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
         self.exchange.setup_exchange_bybit(symbol)
 
         previous_five_minute_distance = None
-
-        # since_timestamp = int((datetime.now() - timedelta(days=1)).timestamp() * 1000)  # Convert to milliseconds
-
-
-        # recent_trades = self.fetch_recent_trades_for_symbol(symbol, since=since_timestamp, limit=100)
-
-        # logging.info(f"Recent trades fetched: {recent_trades} for {symbol}")
 
         since_timestamp = int((datetime.now() - timedelta(days=1)).timestamp() * 1000)  # 24 hours ago in milliseconds
         recent_trades = self.fetch_recent_trades_for_symbol(symbol, since=since_timestamp, limit=20)
@@ -156,8 +129,6 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
             logging.info(f"Recent trading activity detected for {symbol}")
         else:
             logging.info(f"No recent trading activity for {symbol} in the last 24 hours")
-
-
 
 
         while True:
@@ -198,32 +169,6 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                         position_details[position_symbol]['short']['avg_price'] = avg_price
                 else:
                     logging.warning(f"Missing 'size', 'side', or 'avgPrice' in position info for {position_symbol}")
-
-
-            # for position in open_position_data:
-            #     info = position.get('info', {})
-            #     symbol = info.get('symbol', '').split(':')[0]  # Splitting to get the base symbol
-
-            #     # Ensure 'size', 'side', and 'avgPrice' keys exist in the info dictionary
-            #     if 'size' in info and 'side' in info and 'avgPrice' in info:
-            #         size = float(info['size'])
-            #         side = info['side'].lower()
-            #         avg_price = float(info['avgPrice'])
-
-            #         # Initialize the nested dictionary if the symbol is not already in position_details
-            #         if symbol not in position_details:
-            #             position_details[symbol] = {'long': {'qty': 0, 'avg_price': 0}, 'short': {'qty': 0, 'avg_price': 0}}
-
-            #         # Update the quantities and average prices based on the side of the position
-            #         if side == 'buy':
-            #             position_details[symbol]['long']['qty'] += size
-            #             position_details[symbol]['long']['avg_price'] = avg_price
-            #         elif side == 'sell':
-            #             position_details[symbol]['short']['qty'] += size
-            #             position_details[symbol]['short']['avg_price'] = avg_price
-            #     else:
-            #         logging.warning(f"Missing 'size', 'side', or 'avgPrice' in position info for {symbol}")
-
 
             open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
             open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
@@ -279,11 +224,11 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                 best_bid_price = self.last_known_bid.get(symbol)  # Use last known bid price
                             
             logging.info(f"Open symbols: {open_symbols}")
-            logging.info(f"HMA Current rotator symbols: {rotator_symbols_standardized}")
+            logging.info(f"Current rotator symbols: {rotator_symbols_standardized}")
             symbols_to_manage = [s for s in open_symbols if s not in rotator_symbols_standardized]
             logging.info(f"Symbols to manage {symbols_to_manage}")
             
-            logging.info(f"Open orders for {symbol}: {open_orders}")
+            #logging.info(f"Open orders for {symbol}: {open_orders}")
 
             logging.info(f"Symbols allowed: {self.symbols_allowed}")
 

@@ -47,29 +47,50 @@ logging = Logger(logger_name="MultiBot", filename="MultiBot.log", stream=True)
 def standardize_symbol(symbol):
     return symbol.replace('/', '').split(':')[0]
 
+def get_available_strategies():
+    return [
+        'bybit_mm_mfirsi',
+        'bybit_mm_fivemin',
+        'bybit_mm_onemin',
+        'bybit_mfirsi_trend',
+        'bybit_obstrength',
+        'bybit_mm_fivemin_walls',
+        'bybit_mm_onemin_walls',
+        'bybit_mm_qfl_mfi',
+        'bybit_mm_qfl_mfi_autohedge',
+        'bybit_mm_qs',
+        'bybit_mm_qfl_mfi_eri_autohedge',
+        'bybit_mm_qfl_mfi_eri_autohedge_unstuck',
+    ]
+
 def choose_strategy():
     questions = [
         inquirer.List('strategy',
                       message='Which strategy would you like to run?',
-                      choices=[
-                          'bybit_mm_mfirsi',
-                          'bybit_mm_fivemin',
-                          'bybit_mm_onemin',
-                          'bybit_mfirsi_trend',
-                          'bybit_obstrength',
-                          'bybit_mm_fivemin_walls',
-                          'bybit_mm_onemin_walls',
-                          'bybit_mm_qfl_mfi',
-                          'bybit_mm_qfl_mfi_autohedge',
-                          'bybit_mm_qs',
-                          'bybit_mm_qfl_mfi_eri_autohedge',
-                          'bybit_mm_qfl_mfi_eri_autohedge_unstuck',
-                      ]
-                     )
+                      choices=get_available_strategies())
     ]
     answers = inquirer.prompt(questions)
     return answers['strategy']
 
+def get_available_exchanges():
+    return ['bybit', 'bitget', 'mexc', 'huobi', 'okx', 'binance', 'phemex']
+
+def ask_for_missing_arguments(args):
+    questions = []
+    if not args.exchange:
+        questions.append(inquirer.List('exchange', message="Which exchange do you want to use?", choices=get_available_exchanges()))
+    if not args.strategy:
+        questions.append(inquirer.List('strategy', message="Which strategy do you want to use?", choices=get_available_strategies()))
+    if not args.account_name:
+        questions.append(inquirer.Text('account_name', message="Please enter the name of the account:"))
+
+    if questions:
+        answers = inquirer.prompt(questions)
+        args.exchange = args.exchange or answers.get('exchange')
+        args.strategy = args.strategy or answers.get('strategy')
+        args.account_name = args.account_name or answers.get('account_name')
+
+    return args
 
 class DirectionalMarketMaker:
     def __init__(self, config: Config, exchange_name: str, account_name: str):
@@ -238,6 +259,15 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
                 del thread_to_symbol[current_thread]
         logging.info(f"Thread for symbol {symbol} has completed.")
 
+def start_thread_for_symbol(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized):
+    thread = threading.Thread(target=run_bot, args=(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized))
+    thread.start()
+    active_threads.append(thread)
+    logging.info(f"Started thread for symbol: {symbol}")
+
+def start_threads_for_new_symbols(new_symbols, args, manager, account_name, symbols_allowed, rotator_symbols_standardized):
+    for symbol in new_symbols:
+        start_thread_for_symbol(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized)
 
 
 def start_threads_for_symbols(symbols, args, manager, account_name, symbols_allowed, rotator_symbols_standardized):
@@ -257,6 +287,7 @@ if __name__ == '__main__':
 
     print("\n" + "=" * 50)
     print(f"DirectionalScalper {VERSION}".center(50))
+    print(f"Developed by Tyler Simpson and contributors at TradeSimple".center(50))
     print("=" * 50 + "\n")
 
     print("Initializing", end="")
@@ -280,29 +311,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    # Ask for exchange, strategy, and account_name if they're not provided
-    if not args.exchange or not args.strategy or not args.account_name:
-        questions = [
-            inquirer.List('exchange',
-                        message="Which exchange do you want to use?",
-                        choices=['bybit', 'bitget', 'mexc', 'huobi', 'okx', 'binance', 'phemex']) if not args.exchange else None,
-            inquirer.List('strategy',
-                        message="Which strategy do you want to use?",
-                        choices=['bybit_mm_mfirsi', 'bybit_mm_fivemin', 'bybit_mfirsi_trend',
-                                'bybit_obstrength', 'bybit_mm_fivemin_walls', 'bybit_mm_onemin_walls', 'bybit_mm_qfl_mfi', 'bybit_mm_qfl_mfi_autohedge',
-                                'bybit_mm_qs', 'bybit_mm_qfl_mfi_eri_autohedge', 'bybit_mm_qfl_mfi_eri_autohedge_unstuck']) if not args.strategy else None,
-            inquirer.Text('account_name',
-                        message="Please enter the name of the account:") if not args.account_name else None
-        ]
-        questions = [q for q in questions if q is not None]  # Remove None values
-        answers = inquirer.prompt(questions)
-        
-        if not args.exchange:
-            args.exchange = answers['exchange']
-        if not args.strategy:
-            args.strategy = answers['strategy']
-        if not args.account_name:
-            args.account_name = answers['account_name']
+    args = ask_for_missing_arguments(args)
 
     print(f"DirectionalScalper {VERSION} Initialized Successfully!".center(50))
     print("=" * 50 + "\n")
@@ -373,32 +382,22 @@ if __name__ == '__main__':
     active_threads = start_threads_for_symbols(symbols_to_trade, args, manager, args.account_name, symbols_allowed, all_symbols_standardized)
 
     while True:
-        # Keep only the active threads
+        # Active threads and rotator symbols update
         active_threads = [t for t in active_threads if t.is_alive()]
-
-        logging.info(f"Active threads: {active_threads}")
-
-        logging.info(f"Symbols allowed: {symbols_allowed}")
-
         rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist, max_usd_value=max_usd_value)]
 
-        logging.info(f"Rotator symbols standardized: {rotator_symbols_standardized}")
+        # Update and prioritize open position symbols
+        open_position_data = market_maker.exchange.get_all_open_positions_bybit()
+        open_positions_symbols = [standardize_symbol(position['symbol']) for position in open_position_data]
 
+        # Start or maintain threads for open positions regardless of symbols_allowed limit
+        for symbol in open_positions_symbols:
+            if symbol not in thread_to_symbol.values():
+                start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
 
-        # Clean up the thread_to_symbol mapping
-        with thread_to_symbol_lock:
-            thread_to_symbol = {thread: symbol for thread, symbol in thread_to_symbol.items() if thread.is_alive()}
-
+        # Start threads for rotator symbols if under the limit, excluding already handled open positions
+        new_symbols = [s for s in rotator_symbols_standardized if s not in thread_to_symbol.values() and s not in open_positions_symbols]
         if len(active_threads) < symbols_allowed:
-            # Refresh the list of rotator symbols
-            rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, whitelist=whitelist, blacklist=blacklist, max_usd_value=max_usd_value)]
+            start_threads_for_new_symbols(new_symbols, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
 
-            # Find new symbols that are not yet being traded
-            new_symbols = [s for s in rotator_symbols_standardized if s not in thread_to_symbol.values()][:symbols_allowed - len(active_threads)]
-
-            # Start new threads for new symbols
-            new_threads = start_threads_for_symbols(new_symbols, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
-            active_threads.extend(new_threads)
-
-        # Wait before the next iteration
         time.sleep(60)
