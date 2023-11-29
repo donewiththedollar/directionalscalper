@@ -34,7 +34,6 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
         self.spoofing_interval = 1
         try:
             self.max_usd_value = self.config.max_usd_value
-            self.whitelist = self.config.whitelist
             self.blacklist = self.config.blacklist
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
@@ -194,10 +193,9 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                     time.sleep(10)  # wait for a short period before retrying
                     continue
 
-            whitelist = self.config.whitelist
             blacklist = self.config.blacklist
-            if symbol not in whitelist or symbol in blacklist:
-                logging.info(f"Symbol {symbol} is no longer allowed based on whitelist/blacklist. Stopping operations for this symbol.")
+            if symbol in blacklist:
+                logging.info(f"Symbol {symbol} is in the blacklist. Stopping operations for this symbol.")
                 break
 
             funding_check = self.is_funding_rate_acceptable(symbol)
