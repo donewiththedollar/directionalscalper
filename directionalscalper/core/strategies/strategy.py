@@ -67,7 +67,7 @@ class Strategy:
         self.spoofing_wall_size = 5
         self.spoofing_interval = 1  # Time interval between spoofing actions
         self.spoofing_duration = 5  # Spoofing duration in seconds
-        self.whitelist = self.config.whitelist
+        #self.whitelist = self.config.whitelist
         self.blacklist = self.config.blacklist
         self.max_usd_value = self.config.max_usd_value
         self.LEVERAGE_STEP = 0.002  # The step at which to increase leverage
@@ -3396,9 +3396,20 @@ class Strategy:
             current_price = self.exchange.get_current_price(symbol)
 
             if five_minute_volume > min_vol and five_minute_distance > min_dist:
-                best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
-                best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+                # Fetch and process order book
+                order_book = self.exchange.get_orderbook(symbol)
 
+                # Extract and update best ask/bid prices
+                if 'asks' in order_book and len(order_book['asks']) > 0:
+                    best_ask_price = order_book['asks'][0][0]
+                else:
+                    best_ask_price = self.last_known_ask.get(symbol)
+
+                if 'bids' in order_book and len(order_book['bids']) > 0:
+                    best_bid_price = order_book['bids'][0][0]
+                else:
+                    best_bid_price = self.last_known_bid.get(symbol)
+                    
                 # Long Entry Logic
                 if should_long and long_pos_qty == 0:
                     # Check if trend aligned for long (either eri trend or trend is bullish/long)
