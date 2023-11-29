@@ -2253,6 +2253,16 @@ class Exchange:
         except Exception as e:
             logging.info(f"An unknown error occurred in _cancel_entry(): {e}")
 
+    def cancel_all_orders_for_symbol_bybit(self, symbol):
+        try:
+            # Assuming 'self.exchange' is your initialized CCXT exchange instance
+            cancel_result = self.exchange.cancel_all_orders(symbol)
+            logging.info(f"All open orders for {symbol} have been cancelled. Result: {cancel_result}")
+            return cancel_result
+        except Exception as e:
+            logging.error(f"Error cancelling open orders for {symbol}: {e}")
+            return None
+        
     def cancel_all_open_orders_bybit(self, derivatives: bool = False, params={}):
         """
         Cancel all open orders for all symbols.
