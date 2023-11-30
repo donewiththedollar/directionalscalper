@@ -67,7 +67,7 @@ class Strategy:
         self.spoofing_wall_size = 5
         self.spoofing_interval = 1  # Time interval between spoofing actions
         self.spoofing_duration = 5  # Spoofing duration in seconds
-        self.whitelist = self.config.whitelist
+        #self.whitelist = self.config.whitelist
         self.blacklist = self.config.blacklist
         self.max_usd_value = self.config.max_usd_value
         self.LEVERAGE_STEP = 0.002  # The step at which to increase leverage
@@ -82,10 +82,10 @@ class Strategy:
 
         self.bybit = self.Bybit(self)
 
-    def initialize_symbol(self, symbol, total_equity, best_ask_price):
+    def initialize_symbol(self, symbol, total_equity, best_ask_price, max_leverage):
         with self.initialized_symbols_lock:
             if symbol not in self.initialized_symbols:
-                self.initialize_trade_quantities(symbol, total_equity, best_ask_price, self.max_leverage)
+                self.initialize_trade_quantities(symbol, total_equity, best_ask_price, max_leverage)
                 logging.info(f"Initialized quantities for {symbol}. Initial long qty: {self.initial_max_long_trade_qty_per_symbol.get(symbol, 'N/A')}, Initial short qty: {self.initial_max_short_trade_qty_per_symbol.get(symbol, 'N/A')}")
                 self.initialized_symbols.add(symbol)
                 return True
@@ -644,6 +644,35 @@ class Strategy:
             logging.info(f"Order allowed for {symbol} at {current_time}")
             return True
 
+    ## v5
+    def process_position_data(self, open_position_data):
+        position_details = {}
+
+        for position in open_position_data:
+            info = position.get('info', {})
+            symbol = info.get('symbol', '').split(':')[0]  # Splitting to get the base symbol
+
+            # Ensure 'size', 'side', and 'avgPrice' keys exist in the info dictionary
+            if 'size' in info and 'side' in info and 'avgPrice' in info:
+                size = float(info['size'])
+                side = info['side'].lower()
+                avg_price = float(info['avgPrice'])
+
+                # Initialize the nested dictionary if the symbol is not already in position_details
+                if symbol not in position_details:
+                    position_details[symbol] = {'long': {'qty': 0, 'avg_price': None}, 'short': {'qty': 0, 'avg_price': None}}
+
+                # Update the quantities and average prices based on the side of the position
+                if side == 'buy':
+                    position_details[symbol]['long']['qty'] += size
+                    position_details[symbol]['long']['avg_price'] = avg_price
+                elif side == 'sell':
+                    position_details[symbol]['short']['qty'] += size
+                    position_details[symbol]['short']['avg_price'] = avg_price
+
+        return position_details
+    
+        
     def get_position_update_time(self, symbol):
         try:
             # Fetch position information
@@ -688,11 +717,21 @@ class Strategy:
     #     """
     #     return self.exchange.fetch_recent_trades(symbol, since, limit)
     
+    # def place_postonly_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
+    #     logging.info(f"Attempting to place post-only order for {symbol}. Side: {side}, Amount: {amount}, Price: {price}, PositionIdx: {positionIdx}, ReduceOnly: {reduceOnly}")
+    #     if not self.can_place_order(symbol):
+    #         logging.warning(f"Order placement rate limit exceeded for {symbol}. Skipping...")
+    #         return None
+    #     return self.postonly_limit_order_bybit(symbol, side, amount, price, positionIdx, reduceOnly)
+
     def place_postonly_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
-        logging.info(f"Attempting to place post-only order for {symbol}. Side: {side}, Amount: {amount}, Price: {price}, PositionIdx: {positionIdx}, ReduceOnly: {reduceOnly}")
+        current_thread_id = threading.get_ident()  # Get the current thread ID
+        logging.info(f"[Thread ID: {current_thread_id}] Attempting to place post-only order for {symbol}. Side: {side}, Amount: {amount}, Price: {price}, PositionIdx: {positionIdx}, ReduceOnly: {reduceOnly}")
+
         if not self.can_place_order(symbol):
-            logging.warning(f"Order placement rate limit exceeded for {symbol}. Skipping...")
+            logging.warning(f"[Thread ID: {current_thread_id}] Order placement rate limit exceeded for {symbol}. Skipping...")
             return None
+
         return self.postonly_limit_order_bybit(symbol, side, amount, price, positionIdx, reduceOnly)
 
     def postonly_limit_entry_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
@@ -1114,15 +1153,7 @@ class Strategy:
                 best_ask_price
             )
             self.printed_trade_quantities = True
-
-    # def print_trade_quantities_once_bybit(self, symbol, max_trade_qty):
-    #     if not self.printed_trade_quantities:
-    #         wallet_exposure = self.config.wallet_exposure
-    #         best_ask_price = self.exchange.get_orderbook(self.symbol)['asks'][0][0]
-    #         #self.exchange.print_trade_quantities_bybit(max_trade_qty, [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
-    #         self.exchange.print_trade_quantities_bybit(self.max_long_trade_qty_per_symbol[symbol], [0.001, 0.01, 0.1, 1, 2.5, 5], wallet_exposure, best_ask_price)
-    #         self.printed_trade_quantities = True
-
+            
     def print_trade_quantities_once_huobi(self, max_trade_qty, symbol):
         if not self.printed_trade_quantities:
             wallet_exposure = self.config.wallet_exposure
@@ -1770,15 +1801,16 @@ class Strategy:
         """
         Checks if the bot can trade a given symbol.
         """
-        self.open_symbols_count = len(open_symbols)  # Update the attribute with the current count
+        unique_open_symbols = set(open_symbols)  # Convert to set to get unique symbols
+        self.open_symbols_count = len(unique_open_symbols)  # Count unique symbols
 
-        logging.info(f"Open symbols count: {self.open_symbols_count}")
+        logging.info(f"Open symbols count (unique): {self.open_symbols_count}")
 
         if symbols_allowed is None:
             symbols_allowed = 10  # Use a default value if symbols_allowed is not specified
 
         # If the current symbol is already being traded, allow it
-        if current_symbol in open_symbols:
+        if current_symbol in unique_open_symbols:
             return True
 
         # If we haven't reached the symbol limit, allow a new symbol to be traded
@@ -1787,6 +1819,28 @@ class Strategy:
 
         # If none of the above conditions are met, don't allow the new trade
         return False
+
+    # def can_trade_new_symbol(self, open_symbols: list, symbols_allowed: int, current_symbol: str) -> bool:
+    #     """
+    #     Checks if the bot can trade a given symbol.
+    #     """
+    #     self.open_symbols_count = len(open_symbols)  # Update the attribute with the current count
+
+    #     logging.info(f"Open symbols count: {self.open_symbols_count}")
+
+    #     if symbols_allowed is None:
+    #         symbols_allowed = 10  # Use a default value if symbols_allowed is not specified
+
+    #     # If the current symbol is already being traded, allow it
+    #     if current_symbol in open_symbols:
+    #         return True
+
+    #     # If we haven't reached the symbol limit, allow a new symbol to be traded
+    #     if self.open_symbols_count < symbols_allowed:
+    #         return True
+
+    #     # If none of the above conditions are met, don't allow the new trade
+    #     return False
 
     def update_shared_data(self, symbol_data: dict, open_position_data: dict, open_symbols_count: int):
         # Update and serialize symbol data
@@ -2023,6 +2077,69 @@ class Strategy:
 
                 # Deactivate spoofing for the next cycle
                 self.spoofing_active = False
+
+    def helperv2(self, symbol, short_dynamic_amount, long_dynamic_amount):
+        if self.spoofing_active:
+            # Fetch orderbook and positions
+            orderbook = self.exchange.get_orderbook(symbol)
+            best_bid_price = Decimal(orderbook['bids'][0][0])
+            best_ask_price = Decimal(orderbook['asks'][0][0])
+
+            open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
+            position_details = self.process_position_data(open_position_data)
+
+            long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
+            short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
+        
+            if short_pos_qty is None and long_pos_qty is None:
+                logging.warning(f"Could not fetch position quantities for {symbol}. Skipping spoofing.")
+                return
+
+            # Determine which position is larger
+            larger_position = "long" if long_pos_qty > short_pos_qty else "short"
+
+            # Adjust spoofing_wall_size based on the larger position
+            base_spoofing_wall_size = self.spoofing_wall_size
+            adjusted_spoofing_wall_size = base_spoofing_wall_size + 5
+
+            # Initialize variables
+            spoofing_orders = []
+
+            # Dynamic safety_margin and base_gap based on asset's price
+            safety_margin = best_ask_price * Decimal('0.0040')  # 0.0030 # 0.10% of current price
+            base_gap = best_ask_price * Decimal('0.0040') #0.0030  # 0.10% of current price
+
+            for i in range(adjusted_spoofing_wall_size):
+                gap = base_gap + Decimal(i) * Decimal('0.002')  # Increasing gap for each subsequent order
+
+                if larger_position == "long":
+                    # Calculate long spoof price based on best ask price (top of the order book)
+                    spoof_price_long = best_ask_price + gap + safety_margin
+                    spoof_price_long = spoof_price_long.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
+                    spoof_order_long = self.limit_order_bybit(symbol, "sell", long_dynamic_amount * 1.5, spoof_price_long, positionIdx=2, reduceOnly=False)
+                    spoofing_orders.append(spoof_order_long)
+
+                if larger_position == "short":
+                    # Calculate short spoof price based on best bid price (top of the order book)
+                    spoof_price_short = best_bid_price - gap - safety_margin
+                    spoof_price_short = spoof_price_short.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
+                    spoof_order_short = self.limit_order_bybit(symbol, "buy", short_dynamic_amount * 1.5, spoof_price_short, positionIdx=1, reduceOnly=False)
+                    spoofing_orders.append(spoof_order_short)
+
+            # Sleep for the spoofing duration and then cancel all placed orders
+            time.sleep(self.spoofing_duration)
+
+            # Cancel orders and handle errors
+            for order in spoofing_orders:
+                if 'id' in order:
+                    logging.info(f"Spoofing order for {symbol}: {order}")
+                    self.exchange.cancel_order_by_id(order['id'], symbol)
+                else:
+                    logging.warning(f"Could not place spoofing order for {symbol}: {order.get('error', 'Unknown error')}")
+
+            # Deactivate spoofing for the next cycle
+            self.spoofing_active = False
+
 
     def helper(self, symbol, short_dynamic_amount, long_dynamic_amount):
         if self.spoofing_active:
@@ -3167,33 +3284,67 @@ class Strategy:
             qfl_base, qfl_ceiling = self.calculate_qfl_levels(symbol=symbol, timeframe='5m', lookback_period=12)
             current_price = self.exchange.get_current_price(symbol)
 
-            best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
-            best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
-            
+            logging.info(f"Current price in autohedge: for {symbol} : {current_price}")
+
+            # Fetch and process order book
+            order_book = self.exchange.get_orderbook(symbol)
+
+            # Extract and update best ask/bid prices
+            if 'asks' in order_book and len(order_book['asks']) > 0:
+                best_ask_price = order_book['asks'][0][0]
+            else:
+                best_ask_price = self.last_known_ask.get(symbol)
+
+            if 'bids' in order_book and len(order_book['bids']) > 0:
+                best_bid_price = order_book['bids'][0][0]
+            else:
+                best_bid_price = self.last_known_bid.get(symbol)
+                
             min_order_size = 1
 
             # Auto-hedging logic for long position
             if long_pos_qty > 0:
                 price_diff_percentage_long = abs(current_price - long_pos_price) / long_pos_price
+                logging.info(f"Price difference long for {symbol} {price_diff_percentage_long}")
                 current_hedge_ratio_long = short_pos_qty / long_pos_qty if long_pos_qty > 0 else 0
+                logging.info(f"Current hedge ratio long for {symbol} : {current_hedge_ratio_long}")
                 if price_diff_percentage_long >= price_difference_threshold and current_hedge_ratio_long < hedge_ratio:
+                    logging.info(f"Auto hedging for long position for {symbol}")
                     additional_hedge_needed_long = (long_pos_qty * hedge_ratio) - short_pos_qty
+                    logging.info(f"Additional hedge needed long for {symbol}: {additional_hedge_needed_long}")
                     if additional_hedge_needed_long > min_order_size:
                         self.place_postonly_order_bybit(symbol, "sell", additional_hedge_needed_long, best_ask_price, positionIdx=2, reduceOnly=False)
 
             # Auto-hedging logic for short position
             if short_pos_qty > 0:
                 price_diff_percentage_short = abs(current_price - short_pos_price) / short_pos_price
+                logging.info(f"Price difference short for {symbol} {price_diff_percentage_short}")
                 current_hedge_ratio_short = long_pos_qty / short_pos_qty if short_pos_qty > 0 else 0
+                logging.info(f"Current hedge ratio short for {symbol} : {current_hedge_ratio_short}")
                 if price_diff_percentage_short >= price_difference_threshold and current_hedge_ratio_short < hedge_ratio:
+                    logging.info(f"Auto hedging for short position for {symbol}")
                     additional_hedge_needed_short = (short_pos_qty * hedge_ratio) - long_pos_qty
+                    logging.info(f"Additional hedge needed short for {symbol}: {additional_hedge_needed_short}")
                     if additional_hedge_needed_short > min_order_size:
                         self.place_postonly_order_bybit(symbol, "buy", additional_hedge_needed_short, best_bid_price, positionIdx=1, reduceOnly=False)
 
-            if five_minute_volume > min_vol: #and five_minute_distance > min_dist:
-                best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
-                best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+            logging.info(f"Five minute volume for symbol: {symbol} : {five_minute_volume}")
 
+            if five_minute_volume > min_vol: #and five_minute_distance > min_dist:
+                # Fetch and process order book
+                order_book = self.exchange.get_orderbook(symbol)
+
+                # Extract and update best ask/bid prices
+                if 'asks' in order_book and len(order_book['asks']) > 0:
+                    best_ask_price = order_book['asks'][0][0]
+                else:
+                    best_ask_price = self.last_known_ask.get(symbol)
+
+                if 'bids' in order_book and len(order_book['bids']) > 0:
+                    best_bid_price = order_book['bids'][0][0]
+                else:
+                    best_bid_price = self.last_known_bid.get(symbol)
+                    
                 # Long Entry
                 if (should_long or should_add_to_long) and current_price >= qfl_base:
                     trend_aligned_long = (eri_trend == "bullish" or trend.lower() == "long")
@@ -3245,9 +3396,20 @@ class Strategy:
             current_price = self.exchange.get_current_price(symbol)
 
             if five_minute_volume > min_vol and five_minute_distance > min_dist:
-                best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
-                best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+                # Fetch and process order book
+                order_book = self.exchange.get_orderbook(symbol)
 
+                # Extract and update best ask/bid prices
+                if 'asks' in order_book and len(order_book['asks']) > 0:
+                    best_ask_price = order_book['asks'][0][0]
+                else:
+                    best_ask_price = self.last_known_ask.get(symbol)
+
+                if 'bids' in order_book and len(order_book['bids']) > 0:
+                    best_bid_price = order_book['bids'][0][0]
+                else:
+                    best_bid_price = self.last_known_bid.get(symbol)
+                    
                 # Long Entry Logic
                 if should_long and long_pos_qty == 0:
                     # Check if trend aligned for long (either eri trend or trend is bullish/long)

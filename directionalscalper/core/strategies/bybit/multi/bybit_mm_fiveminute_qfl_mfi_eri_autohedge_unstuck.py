@@ -3,6 +3,7 @@ import json
 import os
 import copy
 import pytz
+import threading
 from threading import Thread, Lock
 from datetime import datetime, timedelta
 
@@ -33,22 +34,32 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
         self.spoofing_interval = 1
         try:
             self.max_usd_value = self.config.max_usd_value
-            self.whitelist = self.config.whitelist
             self.blacklist = self.config.blacklist
+            self.test_orders_enabled = self.config.test_orders_enabled
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
 
     def run(self, symbol, rotator_symbols_standardized=None):
-        # Initialize a lock for the symbol if not already present
-        if symbol not in symbol_locks:
-            symbol_locks[symbol] = Lock()
-        self.run_single_symbol(symbol, rotator_symbols_standardized)
+        standardized_symbol = symbol.upper()  # Standardize the symbol name
+        logging.info(f"Standardized symbol: {standardized_symbol}")
+        current_thread_id = threading.get_ident()
+
+        if standardized_symbol not in symbol_locks:
+            symbol_locks[standardized_symbol] = threading.Lock()
+
+        if symbol_locks[standardized_symbol].acquire(blocking=False):
+            logging.info(f"Lock acquired for symbol {standardized_symbol} by thread {current_thread_id}")
+            try:
+                self.run_single_symbol(standardized_symbol, rotator_symbols_standardized)
+            finally:
+                symbol_locks[standardized_symbol].release()
+                logging.info(f"Lock released for symbol {standardized_symbol} by thread {current_thread_id}")
+        else:
+            logging.info(f"Failed to acquire lock for symbol: {standardized_symbol}")
 
     def run_single_symbol(self, symbol, rotator_symbols_standardized=None):
-        if not symbol_locks[symbol].acquire(blocking=False):
-            logging.info(f"Symbol {symbol} is currently being traded by another thread. Skipping this iteration.")
-            return
-        logging.info(f"Initializing default values")
+        logging.info(f"Starting to process symbol: {symbol}")
+        logging.info(f"Initializing default values for symbol: {symbol}")
 
         min_qty = None
         current_price = None
@@ -71,14 +82,15 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
         last_equity_fetch_time = 0
         equity_refresh_interval = 1800  # 30 minutes in seconds
 
-        # Check leverages only at startup
-        self.current_leverage = self.exchange.get_current_leverage_bybit(symbol)
-        self.max_leverage = self.exchange.get_max_leverage_bybit(symbol)
+        # Clean out orders
+        self.exchange.cancel_all_orders_for_symbol_bybit(symbol)
 
-        # Set the leverage to max if it's not already
-        if self.current_leverage != self.max_leverage:
-            logging.info(f"Current leverage is not at maximum. Setting leverage to maximum. Maximum is {self.max_leverage}")
-            self.exchange.set_leverage_bybit(self.max_leverage, symbol)
+        # Check leverages only at startup
+        self.current_leverage = self.exchange.get_current_max_leverage_bybit(symbol)
+        self.max_leverage = self.exchange.get_current_max_leverage_bybit(symbol)
+
+        self.exchange.set_leverage_bybit(self.max_leverage, symbol)
+        self.exchange.set_symbol_to_cross_margin(symbol, self.max_leverage)
 
         logging.info(f"Running for symbol (inside run_single_symbol method): {symbol}")
 
@@ -94,9 +106,6 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
 
         price_difference_threshold = self.config.hedge_price_difference_threshold
 
-        # current_leverage = self.exchange.get_current_leverage_bybit(symbol)
-        # max_leverage = self.exchange.get_max_leverage_bybit(symbol)
-
         if self.config.dashboard_enabled:
             dashboard_path = os.path.join(self.config.shared_data_path, "shared_data.json")
 
@@ -104,13 +113,6 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
         self.exchange.setup_exchange_bybit(symbol)
 
         previous_five_minute_distance = None
-
-        # since_timestamp = int((datetime.now() - timedelta(days=1)).timestamp() * 1000)  # Convert to milliseconds
-
-
-        # recent_trades = self.fetch_recent_trades_for_symbol(symbol, since=since_timestamp, limit=100)
-
-        # logging.info(f"Recent trades fetched: {recent_trades} for {symbol}")
 
         since_timestamp = int((datetime.now() - timedelta(days=1)).timestamp() * 1000)  # 24 hours ago in milliseconds
         recent_trades = self.fetch_recent_trades_for_symbol(symbol, since=since_timestamp, limit=20)
@@ -125,21 +127,53 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
             logging.info(f"No recent trading activity for {symbol} in the last 24 hours")
 
 
-
-
         while True:
             current_time = time.time()
             logging.info(f"Max USD value: {self.max_usd_value}")
 
+            # Log which thread is running this part of the code
+            thread_id = threading.get_ident()
+            logging.info(f"[Thread ID: {thread_id}] In while true loop {symbol}")
+
             # Fetch open symbols every loop
             open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
+
+            logging.info(f"Open position data: {open_position_data}")
+
+            position_details = {}
+
+            for position in open_position_data:
+                info = position.get('info', {})
+                position_symbol = info.get('symbol', '').split(':')[0]  # Use a different variable name
+
+                # Ensure 'size', 'side', and 'avgPrice' keys exist in the info dictionary
+                if 'size' in info and 'side' in info and 'avgPrice' in info:
+                    size = float(info['size'])
+                    side = info['side'].lower()
+                    avg_price = float(info['avgPrice'])
+
+                    # Initialize the nested dictionary if the position_symbol is not already in position_details
+                    if position_symbol not in position_details:
+                        position_details[position_symbol] = {'long': {'qty': 0, 'avg_price': 0}, 'short': {'qty': 0, 'avg_price': 0}}
+
+                    # Update the quantities and average prices based on the side of the position
+                    if side == 'buy':
+                        position_details[position_symbol]['long']['qty'] += size
+                        position_details[position_symbol]['long']['avg_price'] = avg_price
+                    elif side == 'sell':
+                        position_details[position_symbol]['short']['qty'] += size
+                        position_details[position_symbol]['short']['avg_price'] = avg_price
+                else:
+                    logging.warning(f"Missing 'size', 'side', or 'avgPrice' in position info for {position_symbol}")
+
             open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
             open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
+            logging.info(f"Open symbols: {open_symbols}")
             open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
-            position_last_update_time = self.get_position_update_time(symbol)
+            # position_last_update_time = self.get_position_update_time(symbol)
 
-            logging.info(f"{symbol} last update time: {position_last_update_time}")
+            # logging.info(f"{symbol} last update time: {position_last_update_time}")
 
             # Fetch equity data less frequently or if it's not available yet
             if current_time - last_equity_fetch_time > equity_refresh_interval or total_equity is None:
@@ -156,10 +190,9 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                     time.sleep(10)  # wait for a short period before retrying
                     continue
 
-            whitelist = self.config.whitelist
             blacklist = self.config.blacklist
-            if symbol not in whitelist or symbol in blacklist:
-                logging.info(f"Symbol {symbol} is no longer allowed based on whitelist/blacklist. Stopping operations for this symbol.")
+            if symbol in blacklist:
+                logging.info(f"Symbol {symbol} is in the blacklist. Stopping operations for this symbol.")
                 break
 
             funding_check = self.is_funding_rate_acceptable(symbol)
@@ -186,11 +219,11 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                 best_bid_price = self.last_known_bid.get(symbol)  # Use last known bid price
                             
             logging.info(f"Open symbols: {open_symbols}")
-            logging.info(f"HMA Current rotator symbols: {rotator_symbols_standardized}")
+            logging.info(f"Current rotator symbols: {rotator_symbols_standardized}")
             symbols_to_manage = [s for s in open_symbols if s not in rotator_symbols_standardized]
             logging.info(f"Symbols to manage {symbols_to_manage}")
             
-            logging.info(f"Open orders for {symbol}: {open_orders}")
+            #logging.info(f"Open orders for {symbol}: {open_orders}")
 
             logging.info(f"Symbols allowed: {self.symbols_allowed}")
 
@@ -198,7 +231,7 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
             logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
             logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
 
-            self.initialize_symbol(symbol, total_equity, best_ask_price)
+            self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
 
             with self.initialized_symbols_lock:
                 logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
@@ -210,8 +243,10 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
 
             time.sleep(10)
 
+            logging.info(f"Rotator symbols standardized: {rotator_symbols_standardized}")
+
             # If the symbol is in rotator_symbols and either it's already being traded or trading is allowed.
-            if symbol in rotator_symbols_standardized and (symbol in open_symbols or trading_allowed):
+            if symbol in rotator_symbols_standardized or (symbol in open_symbols or trading_allowed): # and instead of or
 
                 # Fetch the API data
                 api_data = self.manager.get_api_data(symbol)
@@ -232,8 +267,8 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
 
                 position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
 
-                short_pos_qty = position_data["short"]["qty"]
-                long_pos_qty = position_data["long"]["qty"]
+                long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
+                short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
 
                 logging.info(f"Rotator symbol trading: {symbol}")
                             
@@ -247,7 +282,7 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                 # long_liq_price = position_data["long"]["liq_price"]
 
                 # Initialize the symbol and quantities if not done yet
-                self.initialize_symbol(symbol, total_equity, best_ask_price)
+                self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
 
                 with self.initialized_symbols_lock:
                     logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
@@ -278,8 +313,9 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                 cum_realised_pnl_long = position_data["long"]["cum_realised"]
                 cum_realised_pnl_short = position_data["short"]["cum_realised"]
 
-                short_pos_price = position_data["short"]["price"] if short_pos_qty > 0 else None
-                long_pos_price = position_data["long"]["price"] if long_pos_qty > 0 else None
+                # Get the average price for long and short positions
+                long_pos_price = position_details.get(symbol, {}).get('long', {}).get('avg_price', None)
+                short_pos_price = position_details.get(symbol, {}).get('short', {}).get('avg_price', None)
 
                 short_take_profit = None
                 long_take_profit = None
@@ -306,10 +342,11 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
 
                 logging.info(f"Open TP order count {open_tp_order_count}")
 
-                current_time = time.time()
-                if current_time - self.last_cancel_time >= self.spoofing_interval:
+                if self.test_orders_enabled and current_time - self.last_cancel_time >= self.spoofing_interval:
                     self.spoofing_active = True
-                    self.helper(symbol, short_dynamic_amount, long_dynamic_amount)
+                    self.helperv2(symbol, short_dynamic_amount, long_dynamic_amount)
+                
+                logging.info(f"Five minute volume for {symbol} : {five_minute_volume}")
                     
                 self.bybit_entry_mm_5m_with_qfl_mfi_and_auto_hedge_with_eri(open_orders, symbol, trend, hma_trend, mfirsi_signal, eri_trend, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short, hedge_ratio, price_difference_threshold)
 
@@ -382,135 +419,6 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
 
                 time.sleep(30)
 
-            elif symbol not in rotator_symbols_standardized and symbol in open_symbols and trading_allowed:
-
-
-                # Fetch the API data
-                api_data = self.manager.get_api_data(symbol)
-
-                # Extract the required metrics using the new implementation
-                metrics = self.manager.extract_metrics(api_data, symbol)
-
-                # Assign the metrics to the respective variables
-                one_minute_volume = metrics['1mVol']
-                five_minute_volume = metrics['5mVol']
-                five_minute_distance = metrics['5mSpread']
-                trend = metrics['Trend']
-                mfirsi_signal = metrics['MFI']
-                funding_rate = metrics['Funding']
-                hma_trend = metrics['HMA Trend']
-                eri_trend = metrics['ERI Trend']
-
-                logging.info(f"Managing open symbols not in rotator_symbols")
-
-                position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
-
-                short_pos_qty = position_data["short"]["qty"]
-                long_pos_qty = position_data["long"]["qty"]
-
-                self.initialize_symbol(symbol, total_equity, best_ask_price)
-
-                with self.initialized_symbols_lock:
-                    logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
-
-                self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
-                self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
-
-                # Update dynamic amounts based on max trade quantities
-                self.update_dynamic_amounts(symbol, total_equity, best_ask_price)
-
-                long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v2(symbol, total_equity, best_ask_price, self.max_leverage)
-
-                current_time = time.time()
-                if current_time - self.last_cancel_time >= self.spoofing_interval:
-                    self.spoofing_active = True
-                    self.helper(symbol, short_dynamic_amount, long_dynamic_amount)
-
-                short_pos_price = position_data["short"]["price"] if short_pos_qty > 0 else None
-                long_pos_price = position_data["long"]["price"] if long_pos_qty > 0 else None
-
-                logging.info(f"Symbol manager: Short pos price: {short_pos_price}")
-                logging.info(f"Symbol manager: Long pos price: {long_pos_price}")
-
-                logging.info(f"Symbol manager: Long pos qty: {long_pos_qty}")
-                logging.info(f"Symbol manager: Short pos qty: {short_pos_qty}")
-
-                tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
-
-                short_take_profit = None
-                long_take_profit = None
-
-                short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
-                previous_five_minute_distance = five_minute_distance
-
-                logging.info(f"Short take profit for managed symbol {symbol}: {short_take_profit}")
-                logging.info(f"Long take profit for managed symbol {symbol} : {long_take_profit}")
-
-                should_add_to_short = False
-                should_add_to_long = False
-
-                if short_pos_price is not None:
-                    should_add_to_short = short_pos_price < moving_averages["ma_6_low"] and self.short_trade_condition(best_ask_price, moving_averages["ma_6_high"])
-
-                if long_pos_price is not None:
-                    should_add_to_long = long_pos_price > moving_averages["ma_6_high"] and self.long_trade_condition(best_bid_price, moving_averages["ma_6_low"])
-
-                self.bybit_additional_entry_with_qfl_mfi_and_eri(open_orders, symbol, trend, mfirsi_signal, eri_trend, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_add_to_long, should_add_to_short)
-
-                # Place long TP order if there are no existing long TP orders
-                if long_pos_qty > 0 and long_take_profit is not None and tp_order_counts['long_tp_count'] == 0:
-                    self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
-
-                # Place short TP order if there are no existing short TP orders
-                if short_pos_qty > 0 and short_take_profit is not None and tp_order_counts['short_tp_count'] == 0:
-                    self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
-
-                current_time = datetime.now()
-
-
-                logging.info(f"Short pos qty for managed {symbol}: {short_pos_qty}")
-                logging.info(f"Long pos qty for managed {symbol}: {long_pos_qty}")
-
-
-                if long_pos_qty > 0:
-                    # Check for long positions
-                    if current_time >= self.next_long_tp_update and long_take_profit is not None:
-                        self.next_long_tp_update = self.update_take_profit_spread_bybit(
-                            symbol=symbol, 
-                            pos_qty=long_pos_qty, 
-                            short_take_profit=short_take_profit,
-                            long_take_profit=long_take_profit,
-                            short_pos_price=short_pos_price,
-                            long_pos_price=long_pos_price,
-                            positionIdx=1, 
-                            order_side="sell", 
-                            next_tp_update=self.next_long_tp_update,
-                            five_minute_distance=five_minute_distance, 
-                            previous_five_minute_distance=previous_five_minute_distance
-                        )
-
-                if short_pos_qty > 0:
-                    # Check for short positions
-                    if current_time >= self.next_short_tp_update and short_take_profit is not None:
-                        self.next_short_tp_update = self.update_take_profit_spread_bybit(
-                            symbol=symbol, 
-                            pos_qty=short_pos_qty, 
-                            short_take_profit=short_take_profit,
-                            long_take_profit=long_take_profit,
-                            short_pos_price=short_pos_price,
-                            long_pos_price=long_pos_price,
-                            positionIdx=2, 
-                            order_side="buy", 
-                            next_tp_update=self.next_short_tp_update,
-                            five_minute_distance=five_minute_distance, 
-                            previous_five_minute_distance=previous_five_minute_distance
-                        )
-
-                self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
-
-                time.sleep(10)
-
-            # elif symbol in rotator_symbols and symbol not in open_symbols:
             elif symbol in rotator_symbols_standardized and symbol not in open_symbols and trading_allowed:
 
                 # Fetch the API data
@@ -533,7 +441,7 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                 if trading_allowed:
                     logging.info(f"New position allowed {symbol}")
 
-                    self.initialize_symbol(symbol, total_equity, best_ask_price)
+                    self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
 
                     with self.initialized_symbols_lock:
                         logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
@@ -548,8 +456,9 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
 
                     position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
 
-                    short_pos_qty = position_data["short"]["qty"]
-                    long_pos_qty = position_data["long"]["qty"]
+                    long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
+                    short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
+
 
                     should_short = self.short_trade_condition(best_ask_price, moving_averages["ma_3_high"])
                     should_long = self.long_trade_condition(best_bid_price, moving_averages["ma_3_low"])
@@ -589,5 +498,3 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                 self.update_shared_data(symbol_data, open_position_data, len(open_symbols))
 
             time.sleep(30)
-
-        symbol_locks[symbol].release()

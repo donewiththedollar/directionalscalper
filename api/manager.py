@@ -143,7 +143,42 @@ class Manager:
         """Checks if the cache has expired based on cache_life_seconds."""
         return datetime.now() > self.rotator_symbols_cache_expiry
 
-    def get_auto_rotate_symbols(self, min_qty_threshold: float = None, whitelist: list = None, blacklist: list = None, max_usd_value: float = None, max_retries: int = 5):
+    def get_all_possible_symbols(self, max_retries: int = 5):
+        url = "http://apiv3.tradesimple.xyz/data/quantdatav2_bybit.json"
+        
+        for retry in range(max_retries):
+            delay = 2**retry  # exponential backoff
+            delay = min(58, delay)  # cap the delay to 30 seconds
+
+            try:
+                logging.info(f"Sending request to {url} (Attempt: {retry + 1})")
+                header, raw_json = send_public_request(url=url)
+                
+                if isinstance(raw_json, list):
+                    logging.info(f"Received {len(raw_json)} symbols from API")
+                    
+                    symbols = [asset.get("Asset", "") for asset in raw_json if "Asset" in asset]
+                    logging.info(f"Returning {len(symbols)} symbols")
+                    return symbols
+                else:
+                    logging.warning("Unexpected data format. Expected a list of symbols.")
+                    
+            except requests.exceptions.RequestException as e:
+                logging.warning(f"Request failed: {e}")
+            except json.decoder.JSONDecodeError as e:
+                logging.warning(f"Failed to parse JSON: {e}. Response: {raw_json}")
+            except Exception as e:
+                logging.warning(f"Unexpected error occurred: {e}")
+
+            # Wait before the next retry
+            if retry < max_retries - 1:
+                sleep(delay)
+        
+        # If all retries fail, return an empty list
+        logging.warning(f"Couldn't fetch symbols after {max_retries} attempts.")
+        return []
+
+    def get_auto_rotate_symbols(self, min_qty_threshold: float = None, blacklist: list = None, max_usd_value: float = None, max_retries: int = 5):
         if self.rotator_symbols_cache and not self.is_cache_expired():
             return self.rotator_symbols_cache
 
@@ -168,12 +203,7 @@ class Manager:
                         
                         logging.info(f"Processing symbol {symbol} with min_qty {min_qty} and USD price {usd_price}")
 
-                        # Only consider the whitelist if it's not empty or None
-                        if whitelist and symbol not in whitelist and len(whitelist) > 0:
-                            logging.info(f"Skipping {symbol} as it's not in whitelist")
-                            continue
-
-                        # Consider the blacklist regardless of whether it's empty or not
+                        # Exclude symbols that are in the blacklist
                         if blacklist and symbol in blacklist:
                             logging.info(f"Skipping {symbol} as it's in blacklist")
                             continue
@@ -212,7 +242,6 @@ class Manager:
         # Return cached symbols if all retries fail
         logging.warning(f"Couldn't fetch rotator symbols after {max_retries} attempts. Using cached symbols.")
         return self.rotator_symbols_cache or []
-
     
     def get_symbols(self):
         url = f"http://apiv3.tradesimple.xyz/data/quantdatav2_bybit.json"
