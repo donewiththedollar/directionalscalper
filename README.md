@@ -12,16 +12,29 @@ A hedge scalping strategy based on directional analysis using a quantitative app
 * Dashboard: https://tradesimple.xyz
 * APIv3 (BYBIT): http://apiv3.tradesimple.xyz/data/quantdatav2_bybit.json
 
+### Contributions / Donations
+* Contribution / Donation addresses: (Used for API server costs, other overhead costs (who knows what) or "buying me a cup of coffee")
+
+* USDT (ERC20): 0xb40b2842d4ce93e31CFC8DC2629E2Bd426e4b87E
+
+* DOGE: DAZid4pETjmrgGkYvgN5rZZtCaBpYtiK8E
+
+* BTC: bc1q9hyvvtcsm0k39svz59hjgz4f6dr6c2k4wlrxmc
+
 Directional Scalper        |  API Scraper               |  Dashboard                | Directional Scalper Multi | Menu GUI
 :-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:
 ![](https://github.com/donewiththedollar/directional-scalper/blob/main/directional-scalper.gif)  |  ![](https://github.com/donewiththedollar/directional-scalper/blob/main/scraper.gif)  |  ![](https://github.com/donewiththedollar/directional-scalper/blob/main/dashboardimg.gif)  |  ![](https://github.com/donewiththedollar/directionalscalper/blob/main/directionalscalpermulti.gif)  |  ![](https://github.com/donewiththedollar/directional-scalper/blob/main/menugui.gif)
 
-## Quickstart
+
+## Quickstart - ONLY WORKING STRATEGY IS bybit_mm_qfl_mfi_eri_autohedge_unstuck as of 11/29/23
 - Clone the repo `git clone https://github.com/donewiththedollar/directionalscalper.git`
 - Install requirements `pip3.11 install -r requirements.txt`
 - Add API key(s) to config.json in /configs folder
 - Run the bot `python3.11 multi_bot.py --config config.json` to display the menu
-- Multi bot auto symbol rotator strategy example: `python3.11 multi_bot.py --exchange bybit --strategy bybit_mfirsi_trend_rotator --config config.json`
+
+  OR via command line parameters
+  
+- Multi bot auto symbol rotator strategy example: `python3.11 multi_bot.py --exchange bybit --account_name account_1 --strategy bybit_mm_qfl_mfi_eri_autohedge_unstuck --config config.json`
 - Old single coin strategy example: `python3.11 bot.py --exchange bybit --symbol DOGEUSDT --strategy bybit_auto_hedge_maker_v2 --config config.json`
 
 ## Working Exchanges
@@ -178,10 +191,4 @@ $ export HTTPS_PROXY="http://10.10.1.10:1080"
 
 ### To do:
 * A lot of top secret cutting edge stuff
-* Binance, Phemex, MEXC base. (MEXC Futs API down until Q4)
-
-
-### Donations
-Funds acquired through contributions will be judiciously allocated towards the maintenance and enhancement of our API server infrastructure. This financial support is instrumental in ensuring seamless operations, while also facilitating continuous improvements to our broader network infrastructure.
-* **BTC**: bc1q9hyvvtcsm0k39svz59hjgz4f6dr6c2k4wlrxmc
-* **USDT (ERC20)**: 0xb40b2842d4ce93e31CFC8DC2629E2Bd426e4b87E
+* Huobi, Binance, Phemex, MEXC base. (MEXC Futs API down until Q4)
