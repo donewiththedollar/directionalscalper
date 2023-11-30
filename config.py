@@ -38,11 +38,11 @@ class Bot(BaseModel):
     hedge_price_difference_threshold: float = 0.15
     min_qty_threshold: float = 0
     symbol: str
-    violent_multiplier: float = 2.00
     long_liq_pct: float = 0.05
     short_liq_pct: float = 0.05
     MaxAbsFundingRate: float = 0.0002
     wallet_exposure: float = 1.00
+    test_orders_enabled: bool = False
     max_usd_value: Optional[float] = None
     blacklist: List[str] = []
     dashboard_enabled: bool = False
@@ -71,6 +71,12 @@ class Bot(BaseModel):
     def minimum_short_liq_pct(cls, v):
         if v < 0.0:
             raise ValueError("short_liq_pct must be greater than 0")
+        return v
+
+    @validator('test_orders_enabled')
+    def check_test_orders_enabled_is_bool(cls, v):
+        if not isinstance(v, bool):
+            raise ValueError("test_orders_enabled must be a boolean")
         return v
 
 class Exchange(BaseModel):

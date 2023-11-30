@@ -401,20 +401,28 @@ class Exchange:
         except Exception as e:
             logging.error(f"Error retrieving leverage tiers for {symbol}: {e}")
             return None
-        
-    # Bybit
-    # def get_current_leverage_bybit(self, symbol):
-    #     try:
-    #         positions = self.exchange.fetch_derivatives_positions([symbol])
-    #         if len(positions) > 0:
-    #             position = positions[0]
-    #             leverage = position['leverage']
-    #             logging.info(f"Current leverage for symbol {symbol}: {leverage}")
-    #         else:
-    #             logging.info(f"No positions found for symbol {symbol}")
-    #     except Exception as e:
-    #         logging.info(f"Error retrieving current leverage: {e}")
+
+    # v5    
+    def set_symbol_to_cross_margin(self, symbol, leverage):
+        """
+        Set a specific symbol's margin mode to cross with specified leverage.
+        """
+        try:
+            response = self.exchange.set_margin_mode('cross', symbol=symbol, params={'leverage': leverage})
             
+            retCode = response.get('retCode') if isinstance(response, dict) else None
+
+            if retCode == 110026:  # Margin mode is already set to cross
+                logging.info(f"Symbol {symbol} is already set to cross margin mode. No changes made.")
+                return {"status": "unchanged", "response": response}
+            else:
+                logging.info(f"Margin mode set to cross for symbol {symbol} with leverage {leverage}. Response: {response}")
+                return {"status": "changed", "response": response}
+
+        except Exception as e:
+            logging.info(f"Failed to set margin mode or margin mode already set to cross for symbol {symbol} with leverage {leverage}: {e}")
+            return {"status": "error", "message": str(e)}
+
     # Bybit
     def set_leverage_bybit(self, leverage, symbol):
         try:

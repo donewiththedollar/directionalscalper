@@ -35,6 +35,7 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
         try:
             self.max_usd_value = self.config.max_usd_value
             self.blacklist = self.config.blacklist
+            self.test_orders_enabled = self.config.test_orders_enabled
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
 
@@ -88,12 +89,8 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
         self.current_leverage = self.exchange.get_current_max_leverage_bybit(symbol)
         self.max_leverage = self.exchange.get_current_max_leverage_bybit(symbol)
 
-        # # Set the leverage to max if it's not already
-        # if self.current_leverage != self.max_leverage:
-        #     logging.info(f"Current leverage is not at maximum. Setting leverage to maximum. Maximum is {self.max_leverage}")
-        #     self.exchange.set_leverage_bybit(self.max_leverage, symbol)
-
         self.exchange.set_leverage_bybit(self.max_leverage, symbol)
+        self.exchange.set_symbol_to_cross_margin(symbol, self.max_leverage)
 
         logging.info(f"Running for symbol (inside run_single_symbol method): {symbol}")
 
@@ -345,11 +342,10 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
 
                 logging.info(f"Open TP order count {open_tp_order_count}")
 
-                current_time = time.time()
-                if current_time - self.last_cancel_time >= self.spoofing_interval:
+                if self.test_orders_enabled and current_time - self.last_cancel_time >= self.spoofing_interval:
                     self.spoofing_active = True
                     self.helperv2(symbol, short_dynamic_amount, long_dynamic_amount)
-
+                
                 logging.info(f"Five minute volume for {symbol} : {five_minute_volume}")
                     
                 self.bybit_entry_mm_5m_with_qfl_mfi_and_auto_hedge_with_eri(open_orders, symbol, trend, hma_trend, mfirsi_signal, eri_trend, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short, hedge_ratio, price_difference_threshold)
@@ -502,5 +498,3 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(Strategy):
                 self.update_shared_data(symbol_data, open_position_data, len(open_symbols))
 
             time.sleep(30)
-
-        # symbol_locks[symbol].release()
