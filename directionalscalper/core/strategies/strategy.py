@@ -3345,6 +3345,30 @@ class Strategy:
 
             time.sleep(5)
 
+    def auto_hedge_orders_bybit(self, symbol, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, best_ask_price, best_bid_price, hedge_ratio, price_difference_threshold, min_order_size):
+        # Auto-hedging logic for long position
+        if long_pos_qty > 0:
+            price_diff_percentage_long = abs(best_ask_price - long_pos_price) / long_pos_price
+            current_hedge_ratio_long = short_pos_qty / long_pos_qty if long_pos_qty > 0 else 0
+
+            if price_diff_percentage_long >= price_difference_threshold and current_hedge_ratio_long < hedge_ratio:
+                additional_hedge_needed_long = (long_pos_qty * hedge_ratio) - short_pos_qty
+                if additional_hedge_needed_long > min_order_size:
+                    order_response = self.place_postonly_order_bybit(symbol, "sell", additional_hedge_needed_long, best_ask_price, positionIdx=2, reduceOnly=False)
+                    logging.info(f"Auto-hedge long order placed for {symbol}: {order_response}")
+                    time.sleep(5)
+        # Auto-hedging logic for short position
+        if short_pos_qty > 0:
+            price_diff_percentage_short = abs(best_bid_price - short_pos_price) / short_pos_price
+            current_hedge_ratio_short = long_pos_qty / short_pos_qty if short_pos_qty > 0 else 0
+
+            if price_diff_percentage_short >= price_difference_threshold and current_hedge_ratio_short < hedge_ratio:
+                additional_hedge_needed_short = (short_pos_qty * hedge_ratio) - long_pos_qty
+                if additional_hedge_needed_short > min_order_size:
+                    order_response = self.place_postonly_order_bybit(symbol, "buy", additional_hedge_needed_short, best_bid_price, positionIdx=1, reduceOnly=False)
+                    logging.info(f"Auto-hedge short order placed for {symbol}: {order_response}")
+                    time.sleep(5)
+
     def bybit_entry_mm_5m_with_qfl_mfi_and_auto_hedge_with_eri(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, eri_trend: str, five_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool, hedge_ratio: float, price_difference_threshold: float):
         if symbol not in self.symbol_locks:
             self.symbol_locks[symbol] = threading.Lock()
@@ -3389,6 +3413,8 @@ class Strategy:
                     logging.info(f"Additional hedge needed long for {symbol}: {additional_hedge_needed_long}")
                     if additional_hedge_needed_long > min_order_size:
                         self.place_postonly_order_bybit(symbol, "sell", additional_hedge_needed_long, best_ask_price, positionIdx=2, reduceOnly=False)
+                        time.sleep(5)
+
 
             # Auto-hedging logic for short position
             if short_pos_qty > 0:
@@ -3402,7 +3428,9 @@ class Strategy:
                     logging.info(f"Additional hedge needed short for {symbol}: {additional_hedge_needed_short}")
                     if additional_hedge_needed_short > min_order_size:
                         self.place_postonly_order_bybit(symbol, "buy", additional_hedge_needed_short, best_bid_price, positionIdx=1, reduceOnly=False)
+                        time.sleep(5)
 
+                    
             logging.info(f"Five minute volume for symbol: {symbol} : {five_minute_volume}")
 
             if five_minute_volume > min_vol: #and five_minute_distance > min_dist:
