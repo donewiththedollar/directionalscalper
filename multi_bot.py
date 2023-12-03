@@ -25,8 +25,7 @@ from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute import B
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute_walls import BybitMMFiveMinuteWalls
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_oneminute_walls import BybitMMOneMinuteWalls
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute_qfl_mfi import BybitMMFiveMinuteQFLMFI
-from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute_qfl_mfi_autohedge import BybitMMFiveMinuteQFLMFIAutoHedge
-from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute_qfl_mfi_eri_autohedge import BybitMMFiveMinuteQFLMFIERIAutoHedge
+from directionalscalper.core.strategies.bybit.multi.bybit_mm_fivemin_qfl_mfi_eri_walls_autohedge import BybitMMFiveMinuteQFLMFIERIAutoHedgeWalls
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute_qfl_mfi_eri_autohedge_unstuck import BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck
 from directionalscalper.core.strategies.bybit.multi.bybit_qs import BybitQSStrategy
 from directionalscalper.core.strategies.bybit.multi.bybit_obstrength import BybitOBStrength
@@ -59,7 +58,7 @@ def get_available_strategies():
         'bybit_mm_qfl_mfi',
         'bybit_mm_qfl_mfi_autohedge',
         'bybit_mm_qs',
-        'bybit_mm_qfl_mfi_eri_autohedge',
+        'bybit_mm_qfl_mfi_eri_autohedge_walls',
         'bybit_mm_qfl_mfi_eri_autohedge_unstuck',
     ]
 
@@ -144,11 +143,8 @@ class DirectionalMarketMaker:
         elif strategy_name.lower() == 'bybit_mm_qfl_mfi':
             strategy = BybitMMFiveMinuteQFLMFI(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_mm_qfl_mfi_autohedge':
-            strategy = BybitMMFiveMinuteQFLMFIAutoHedge(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_mm_qfl_mfi_eri_autohedge':
-            strategy = BybitMMFiveMinuteQFLMFIERIAutoHedge(self.exchange, self.manager, config.bot, symbols_allowed)
+        elif strategy_name.lower() == 'bybit_mm_qfl_mfi_eri_autohedge_walls':
+            strategy = BybitMMFiveMinuteQFLMFIERIAutoHedgeWalls(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'bybit_mm_qfl_mfi_eri_autohedge_unstuck':
             strategy = BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(self.exchange, self.manager, config.bot, symbols_allowed)
