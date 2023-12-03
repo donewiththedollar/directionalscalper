@@ -3472,6 +3472,7 @@ class Strategy:
                 elif long_pos_qty > 0 and current_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
                     logging.info(f"Placing additional long entry for {symbol}")
                     self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                    time.sleep(5)
 
             # Short Entry for Trend and MFI Signal
             mfi_signal_short = mfi.lower() == "short"
@@ -3482,18 +3483,21 @@ class Strategy:
                 elif short_pos_qty > 0 and current_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
                     logging.info(f"Placing additional short entry for {symbol}")
                     self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                    time.sleep(5)
 
             # Order Book Wall Long Entry Logic
             if largest_bid_wall and not self.entry_order_exists(open_orders, "buy"):
-                if (should_long or should_add_to_long) and trend_aligned_long and mfi_signal_short:
+                if (should_long or should_add_to_long) and trend_aligned_long:
                     logging.info(f"Placing additional long trade due to detected buy wall for {symbol}")
                     self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, largest_bid_wall[0], positionIdx=1, reduceOnly=False)
+                    time.sleep(5)
 
             # Order Book Wall Short Entry Logic
             if largest_ask_wall and not self.entry_order_exists(open_orders, "sell"):
-                if (should_short or should_add_to_short) and trend_aligned_short and mfi_signal_long:
+                if (should_short or should_add_to_short) and trend_aligned_short:
                     logging.info(f"Placing additional short trade due to detected sell wall for {symbol}")
                     self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, largest_ask_wall[0], positionIdx=2, reduceOnly=False)
+                    time.sleep(5)
 
             else:
                 logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
