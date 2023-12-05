@@ -28,10 +28,8 @@ from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute_qfl_mfi 
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_fivemin_qfl_mfi_eri_walls_autohedge import BybitMMFiveMinuteQFLMFIERIAutoHedgeWalls
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute_qfl_mfi_eri_autohedge_unstuck import BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck
 from directionalscalper.core.strategies.bybit.multi.bybit_qs import BybitQSStrategy
-from directionalscalper.core.strategies.bybit.multi.bybit_obstrength import BybitOBStrength
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi import BybitAutoRotatorMFIRSI
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_playthespread import BybitMMPlayTheSpread
-from directionalscalper.core.strategies.bybit.multi.bybit_obstrength_random import BybitOBStrengthRandom
 from live_table_manager import LiveTableManager, shared_symbols_data
 
 
@@ -48,17 +46,17 @@ def standardize_symbol(symbol):
 
 def get_available_strategies():
     return [
-        'bybit_mm_mfirsi',
-        'bybit_mm_fivemin',
-        'bybit_mm_onemin',
-        'bybit_mfirsi_trend',
-        'bybit_mm_fivemin_walls',
-        'bybit_mm_onemin_walls',
-        'bybit_mm_qfl_mfi',
-        'bybit_mm_qfl_mfi_autohedge',
-        'bybit_mm_qs',
+        # 'bybit_mm_mfirsi',
+        # 'bybit_mm_fivemin',
+        # 'bybit_mm_onemin',
+        # 'bybit_mfirsi_trend',
+        # 'bybit_mm_fivemin_walls',
+        # 'bybit_mm_onemin_walls',
+        # 'bybit_mm_qfl_mfi',
+        # 'bybit_mm_qfl_mfi_autohedge',
+        # 'bybit_mm_qs',
         'bybit_mm_qfl_mfi_eri_autohedge_walls',
-        'bybit_mm_qfl_mfi_eri_autohedge_unstuck',
+        'bybit_mm_qfl_mfi_eri_autohedge',
     ]
 
 def choose_strategy():
