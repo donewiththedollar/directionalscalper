@@ -52,7 +52,6 @@ def get_available_strategies():
         'bybit_mm_fivemin',
         'bybit_mm_onemin',
         'bybit_mfirsi_trend',
-        'bybit_obstrength',
         'bybit_mm_fivemin_walls',
         'bybit_mm_onemin_walls',
         'bybit_mm_qfl_mfi',
@@ -155,16 +154,9 @@ class DirectionalMarketMaker:
         elif strategy_name.lower() == 'bybit_mfirsi_trend':
             strategy = BybitMFIRSITrendRotator(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_obstrength':
-            strategy = BybitOBStrength(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'bybit_pts':
             strategy = BybitMMPlayTheSpread(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_obstrength_random':
-            strategy = BybitOBStrengthRandom(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-
 
     def get_balance(self, quote, market_type=None, sub_type=None):
         if self.exchange_name == 'bitget':
