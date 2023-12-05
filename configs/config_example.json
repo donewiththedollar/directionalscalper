@@ -22,7 +22,7 @@
     "MaxAbsFundingRate": 0.0002,
     "blacklist": ["BTCUSDT", "ETHUSDT", "1000LADYSUSDT"],
     "dashboard_enabled": false,
-    "shared_data_path": "/home/ubuntu/directionalscalper/"
+    "shared_data_path": "../data/"
   },
   "exchanges": [
     {
