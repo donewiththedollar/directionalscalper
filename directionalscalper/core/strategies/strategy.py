@@ -79,8 +79,13 @@ class Strategy:
         self.last_order_time = {}  # 
         self.symbol_locks = {}
         self.order_ids = {}
+        self.hedged_symbols = {}
+        self.hedged_positions = {}
 
         self.bybit = self.Bybit(self)
+
+    def update_hedged_status(self, symbol, is_hedged):
+        self.hedged_positions[symbol] = is_hedged
 
     def initialize_symbol(self, symbol, total_equity, best_ask_price, max_leverage):
         with self.initialized_symbols_lock:
@@ -717,12 +722,16 @@ class Strategy:
     #     """
     #     return self.exchange.fetch_recent_trades(symbol, since, limit)
     
-    # def place_postonly_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
-    #     logging.info(f"Attempting to place post-only order for {symbol}. Side: {side}, Amount: {amount}, Price: {price}, PositionIdx: {positionIdx}, ReduceOnly: {reduceOnly}")
-    #     if not self.can_place_order(symbol):
-    #         logging.warning(f"Order placement rate limit exceeded for {symbol}. Skipping...")
-    #         return None
-    #     return self.postonly_limit_order_bybit(symbol, side, amount, price, positionIdx, reduceOnly)
+    def place_hedge_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
+        """Places a hedge order and updates the hedging status."""
+        order = self.place_postonly_order_bybit(symbol, side, amount, price, positionIdx, reduceOnly)
+        if order and 'id' in order:
+            self.update_hedged_status(symbol, True)
+            logging.info(f"Hedge order placed for {symbol}: {order['id']}")
+        else:
+            logging.warning(f"Failed to place hedge order for {symbol}")
+        return order
+
 
     def place_postonly_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
         current_thread_id = threading.get_ident()  # Get the current thread ID
@@ -3208,6 +3217,40 @@ class Strategy:
 
             time.sleep(5)
 
+    def auto_hedge_orders_bybit_v2(self, symbol, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, best_ask_price, best_bid_price, hedge_ratio, price_difference_threshold, min_order_size):
+        if symbol in self.hedged_positions:
+            logging.info(f"{symbol} is already hedged. Skipping further hedging.")
+            return
+
+        if long_pos_qty > 0:
+            price_diff_percentage_long = abs(best_ask_price - long_pos_price) / long_pos_price
+            current_hedge_ratio_long = short_pos_qty / long_pos_qty if long_pos_qty > 0 else 0
+            if price_diff_percentage_long >= price_difference_threshold and current_hedge_ratio_long < hedge_ratio:
+                additional_hedge_needed_long = (long_pos_qty * hedge_ratio) - short_pos_qty
+                if additional_hedge_needed_long > min_order_size:
+                    order_response = self.place_postonly_order_bybit(symbol, "sell", additional_hedge_needed_long, best_ask_price, positionIdx=2, reduceOnly=False)
+                    logging.info(f"Auto-hedge long order placed for {symbol}: {order_response}")
+                    time.sleep(5)
+                    self.hedged_positions[symbol] = 'short'
+
+        if short_pos_qty > 0:
+            price_diff_percentage_short = abs(best_bid_price - short_pos_price) / short_pos_price
+            current_hedge_ratio_short = long_pos_qty / short_pos_qty if short_pos_qty > 0 else 0
+            if price_diff_percentage_short >= price_difference_threshold and current_hedge_ratio_short < hedge_ratio:
+                additional_hedge_needed_short = (short_pos_qty * hedge_ratio) - long_pos_qty
+                if additional_hedge_needed_short > min_order_size:
+                    order_response = self.place_postonly_order_bybit(symbol, "buy", additional_hedge_needed_short, best_bid_price, positionIdx=1, reduceOnly=False)
+                    logging.info(f"Auto-hedge short order placed for {symbol}: {order_response}")
+                    time.sleep(5)
+                    self.hedged_positions[symbol] = 'long'
+
+
+    def calculate_dynamic_hedge_threshold(self, symbol, long_pos_price, short_pos_price):
+        if long_pos_price and short_pos_price:
+            return abs(long_pos_price - short_pos_price) / min(long_pos_price, short_pos_price)
+        else:
+            return self.default_hedge_price_difference_threshold  # fallback to a default threshold
+
     def auto_hedge_orders_bybit(self, symbol, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, best_ask_price, best_bid_price, hedge_ratio, price_difference_threshold, min_order_size):
         # Auto-hedging logic for long position
         if long_pos_qty > 0:
@@ -3218,6 +3261,7 @@ class Strategy:
                 additional_hedge_needed_long = (long_pos_qty * hedge_ratio) - short_pos_qty
                 if additional_hedge_needed_long > min_order_size:
                     order_response = self.place_postonly_order_bybit(symbol, "sell", additional_hedge_needed_long, best_ask_price, positionIdx=2, reduceOnly=False)
+                    logging.info(f"order_response: {order_response}")
                     logging.info(f"Auto-hedge long order placed for {symbol}: {order_response}")
                     time.sleep(5)
         # Auto-hedging logic for short position
@@ -3229,6 +3273,7 @@ class Strategy:
                 additional_hedge_needed_short = (short_pos_qty * hedge_ratio) - long_pos_qty
                 if additional_hedge_needed_short > min_order_size:
                     order_response = self.place_postonly_order_bybit(symbol, "buy", additional_hedge_needed_short, best_bid_price, positionIdx=1, reduceOnly=False)
+                    logging.info(f"order_response: {order_response}")
                     logging.info(f"Auto-hedge short order placed for {symbol}: {order_response}")
                     time.sleep(5)
 
@@ -3293,6 +3338,93 @@ class Strategy:
             min_order_size = 1
 
             self.auto_hedge_orders_bybit(symbol,
+            long_pos_qty,
+            short_pos_qty,
+            long_pos_price,
+            short_pos_price,
+            best_ask_price,
+            best_bid_price,
+            hedge_ratio,
+            price_difference_threshold,
+            min_order_size)
+                    
+            # Trend Alignment Checks
+            trend_aligned_long = (eri_trend == "bullish" or trend.lower() == "long")
+            trend_aligned_short = (eri_trend == "bearish" or trend.lower() == "short")
+
+            # Long Entry for Trend and MFI Signal
+            mfi_signal_long = mfi.lower() == "long"
+            if (should_long or should_add_to_long) and current_price >= qfl_base and trend_aligned_long and mfi_signal_long:
+                if long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
+                    logging.info(f"Placing initial long entry for {symbol}")
+                    self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                elif long_pos_qty > 0 and current_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
+                    logging.info(f"Placing additional long entry for {symbol}")
+                    self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                    time.sleep(5)
+
+            # Short Entry for Trend and MFI Signal
+            mfi_signal_short = mfi.lower() == "short"
+            if (should_short or should_add_to_short) and current_price <= qfl_ceiling and trend_aligned_short and mfi_signal_short:
+                if short_pos_qty == 0 and not self.entry_order_exists(open_orders, "sell"):
+                    logging.info(f"Placing initial short entry for {symbol}")
+                    self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                elif short_pos_qty > 0 and current_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
+                    logging.info(f"Placing additional short entry for {symbol}")
+                    self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                    time.sleep(5)
+
+            # Order Book Wall Long Entry Logic
+            if largest_bid_wall and not self.entry_order_exists(open_orders, "buy"):
+                if (should_long or should_add_to_long) and trend_aligned_long:
+                    logging.info(f"Placing additional long trade due to detected buy wall for {symbol}")
+                    self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, largest_bid_wall[0], positionIdx=1, reduceOnly=False)
+                    time.sleep(5)
+
+            # Order Book Wall Short Entry Logic
+            if largest_ask_wall and not self.entry_order_exists(open_orders, "sell"):
+                if (should_short or should_add_to_short) and trend_aligned_short:
+                    logging.info(f"Placing additional short trade due to detected sell wall for {symbol}")
+                    self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, largest_ask_wall[0], positionIdx=2, reduceOnly=False)
+                    time.sleep(5)
+
+            else:
+                logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
+
+            time.sleep(5)
+
+
+    def bybit_5m_mfi_eri_walls_v2(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, eri_trend: str, five_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool, hedge_ratio: float, price_difference_threshold: float):
+        if symbol not in self.symbol_locks:
+            self.symbol_locks[symbol] = threading.Lock()
+
+        with self.symbol_locks[symbol]:
+            bid_walls, ask_walls = self.detect_order_book_walls(symbol)
+            largest_bid_wall = max(bid_walls, key=lambda x: x[1], default=None)
+            largest_ask_wall = max(ask_walls, key=lambda x: x[1], default=None)
+            
+            qfl_base, qfl_ceiling = self.calculate_qfl_levels(symbol=symbol, timeframe='5m', lookback_period=12)
+            current_price = self.exchange.get_current_price(symbol)
+
+            logging.info(f"Current price in autohedge: for {symbol} : {current_price}")
+
+            # Fetch and process order book
+            order_book = self.exchange.get_orderbook(symbol)
+
+            # Extract and update best ask/bid prices
+            if 'asks' in order_book and len(order_book['asks']) > 0:
+                best_ask_price = order_book['asks'][0][0]
+            else:
+                best_ask_price = self.last_known_ask.get(symbol)
+
+            if 'bids' in order_book and len(order_book['bids']) > 0:
+                best_bid_price = order_book['bids'][0][0]
+            else:
+                best_bid_price = self.last_known_bid.get(symbol)
+                
+            min_order_size = 1
+
+            self.auto_hedge_orders_bybit_v2(symbol,
             long_pos_qty,
             short_pos_qty,
             long_pos_price,
@@ -4628,6 +4760,63 @@ class Strategy:
                 
         return next_tp_update
 
+    def update_take_profit_spread_bybit_v2(self, symbol, pos_qty, short_take_profit, long_take_profit, short_pos_price, long_pos_price, positionIdx, order_side, next_tp_update, five_minute_distance, previous_five_minute_distance, max_retries=10):
+        # Fetch the current open TP orders for the symbol
+        long_tp_orders, short_tp_orders = self.exchange.bybit.get_open_tp_orders(symbol)
+
+        logging.info(f"From update_take_profit_spread : Calculated short TP for {symbol}: {short_take_profit}")
+        logging.info(f"From update_take_profit_spread : Calculated long TP for {symbol}: {long_take_profit}")
+
+        # Determine the take profit price based on the order side
+        take_profit_price = long_take_profit if order_side == "sell" else short_take_profit
+        logging.info(f"Determined TP price for {symbol} {order_side}: {take_profit_price}") 
+
+        # Determine the relevant TP orders and quantities based on the order side
+        relevant_tp_orders = long_tp_orders if order_side == "sell" else short_tp_orders
+
+        # Check if there's an existing TP order with a mismatched quantity
+        mismatched_qty_orders = [order for order in relevant_tp_orders if order['qty'] != pos_qty]
+
+        # If mismatched TP orders exist, cancel them
+        if mismatched_qty_orders:
+            for order in mismatched_qty_orders:
+                try:
+                    self.exchange.cancel_order_by_id(order['id'], symbol)
+                    logging.info(f"{order_side.capitalize()} take profit {order['id']} canceled due to mismatched quantity.")
+                    time.sleep(0.05)
+                except Exception as e:
+                    logging.error(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
+
+        # Proceed to set or update TP orders
+        now = datetime.now()
+        if now >= next_tp_update:
+            try:
+                retries = 0
+                success = False
+                while retries < max_retries and not success:
+                    try:
+                        tp_order = self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, take_profit_price, positionIdx=positionIdx, reduce_only=True)
+                        logging.info(f"{order_side.capitalize()} take profit set at {take_profit_price}")
+
+                        # If a new TP order is placed, check if it's part of a hedge and mark it accordingly
+                        if self.is_hedged_position(symbol):
+                            self.mark_hedge_tp_order(symbol, tp_order, order_side)
+
+                        success = True
+                    except Exception as e:
+                        logging.error(f"Failed to set {order_side} TP for {symbol}. Retry {retries + 1}/{max_retries}. Error: {e}")
+                        retries += 1
+                        time.sleep(1)  # Wait for a moment before retrying
+
+                next_tp_update = self.calculate_next_update_time()  # Calculate the next update time after placing the order
+            except Exception as e:
+                logging.error(f"Error in updating {order_side} TP: {e}")
+        else:
+            logging.info(f"Take profit already exists for {symbol} {order_side} with correct quantity. Skipping update.")
+
+        return next_tp_update
+
+
     # Bybit update take profit based on spread
     def update_take_profit_spread_bybit(self, symbol, pos_qty, short_take_profit, long_take_profit, short_pos_price, long_pos_price, positionIdx, order_side, next_tp_update, five_minute_distance, previous_five_minute_distance, max_retries=10):
         # Fetch the current open TP orders for the symbol
@@ -4687,6 +4876,67 @@ class Strategy:
             logging.info(f"Take profit already exists for {symbol} {order_side} with correct quantity. Skipping update.")
 
         return next_tp_update
+
+    def is_hedge_order(self, symbol, order_side):
+        hedge_info = self.hedged_positions.get(symbol)
+        return hedge_info and hedge_info['type'] == order_side
+
+    def mark_hedge_as_completed(self, symbol, order_side):
+        if self.is_hedge_order(symbol, order_side):
+            del self.hedged_positions[symbol]  # Remove the hedge flag as the hedge is completed
+
+    def is_hedged_position(self, symbol):
+        return symbol in self.hedged_positions
+
+    def mark_hedge_tp_order(self, symbol, tp_order, order_side):
+        if tp_order and 'id' in tp_order:
+            # Storing order_side along with the TP order ID
+            self.hedged_positions[symbol]['tp_order'] = {
+                'id': tp_order['id'],
+                'side': order_side
+            }
+            logging.info(f"Hedged TP order (side: {order_side}) placed for {symbol}, ID: {tp_order['id']}")
+        else:
+            logging.warning(f"Failed to mark TP order as hedge for {symbol}")
+
+
+    # def mark_hedge_tp_order(self, symbol, tp_order, order_side):
+    #     if tp_order and 'id' in tp_order:
+    #         self.hedged_positions[symbol]['tp_order_id'] = tp_order['id']
+    #         logging.info(f"Hedged TP order placed for {symbol}, ID: {tp_order['id']}")
+    #     else:
+    #         logging.warning(f"Failed to mark TP order as hedge for {symbol}")
+            
+    def bybit_hedge_placetp_maker_v2(self, symbol, pos_qty, take_profit_price, positionIdx, order_side, open_orders):
+        logging.info(f"TP maker function Trying to place TP for {symbol}")
+        existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
+        logging.info(f"Existing TP from TP maker functions: {existing_tps}")
+        total_existing_tp_qty = sum(qty for qty, _ in existing_tps)
+        logging.info(f"TP maker function Existing {order_side} TPs: {existing_tps}")
+
+        if not math.isclose(total_existing_tp_qty, pos_qty):
+            try:
+                for qty, existing_tp_id in existing_tps:
+                    if not math.isclose(qty, pos_qty):
+                        self.exchange.cancel_order_by_id(existing_tp_id, symbol)
+                        logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
+                        time.sleep(0.05)
+            except Exception as e:
+                logging.info(f"Error in cancelling {order_side} TP orders {e}")
+
+        if len(existing_tps) < 1:
+            try:
+                tp_order = self.postonly_limit_order_bybit_nolimit(symbol, order_side, pos_qty, take_profit_price, positionIdx, reduceOnly=True)
+                logging.info(f"{order_side.capitalize()} take profit set at {take_profit_price}")
+
+                # Mark the TP order for hedged positions
+                if self.is_hedged_position(symbol):
+                    self.mark_hedge_tp_order(symbol, tp_order, order_side)
+
+                time.sleep(0.05)
+            except Exception as e:
+                logging.info(f"Error in placing {order_side} TP: {e}")
+
 
     def bybit_hedge_placetp_maker(self, symbol, pos_qty, take_profit_price, positionIdx, order_side, open_orders):
         logging.info(f"TP maker function Trying to place TP for {symbol}")
