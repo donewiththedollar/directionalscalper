@@ -1,7 +1,8 @@
 from __future__ import annotations
 from typing import List, Optional
 
-
+import os
+from pathlib import Path
 import json
 from enum import Enum
 from typing import Union
@@ -46,7 +47,8 @@ class Bot(BaseModel):
     max_usd_value: Optional[float] = None
     blacklist: List[str] = []
     dashboard_enabled: bool = False
-    shared_data_path: Optional[DirectoryPath] = None
+    shared_data_path: Optional[str] = None
+    # shared_data_path: Optional[DirectoryPath] = None
 
     
     @validator("min_volume")
@@ -140,24 +142,59 @@ class Config(BaseModel):
 #     logger: Logger
 #     messengers: dict[str, Union[Discord, Telegram]]
 
+def resolve_shared_data_path(relative_path: str) -> Path:
+    # Get the directory of the config file
+    base_path = Path(__file__).parent
+
+    # Resolve the relative path
+    absolute_path = (base_path / relative_path).resolve()
+
+    if not absolute_path.exists():
+        raise ValueError(f"Shared data path does not exist: {absolute_path}")
+
+    return absolute_path
 
 def load_config(path):
     if not path.is_file():
         raise ValueError(f"{path} does not exist")
     else:
-        f = open(path)
+        with open(path) as f:
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    f"ERROR: Invalid JSON: {exc.msg}, line {exc.lineno}, column {exc.colno}"
+                )
         try:
-            data = json.load(f)
-        except json.JSONDecodeError as exc:
-            raise ValueError(
-                f"ERROR: Invalid JSON: {exc.msg}, line {exc.lineno}, column {exc.colno}"
-            )
-        try:
-            return Config(**data)
+            config_data = Config(**data)
+
+            # Resolve shared_data_path if it's provided
+            if config_data.bot.shared_data_path:
+                config_data.bot.shared_data_path = str(resolve_shared_data_path(config_data.bot.shared_data_path))
+
+            return config_data
         except ValidationError as e:
-            # Enhancing the error output for better clarity
+            # Enhanced error output
             error_details = "\n".join([f"{err['loc']} - {err['msg']}" for err in e.errors()])
             raise ValueError(f"Configuration Error(s):\n{error_details}")
+        
+# def load_config(path):
+#     if not path.is_file():
+#         raise ValueError(f"{path} does not exist")
+#     else:
+#         f = open(path)
+#         try:
+#             data = json.load(f)
+#         except json.JSONDecodeError as exc:
+#             raise ValueError(
+#                 f"ERROR: Invalid JSON: {exc.msg}, line {exc.lineno}, column {exc.colno}"
+#             )
+#         try:
+#             return Config(**data)
+#         except ValidationError as e:
+#             # Enhancing the error output for better clarity
+#             error_details = "\n".join([f"{err['loc']} - {err['msg']}" for err in e.errors()])
+#             raise ValueError(f"Configuration Error(s):\n{error_details}")
 
 def get_exchange_name(cli_exchange_name):
     if cli_exchange_name:
