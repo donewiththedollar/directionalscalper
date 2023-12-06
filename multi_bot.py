@@ -180,10 +180,6 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         print("Loading config from:", config_file_path)
         config = load_config(config_file_path)
 
-        # config_file_path = Path('configs/' + args.config)
-        # print("Loading config from:", config_file_path)
-        # config = load_config(config_file_path)
-
         # Initialize balance cache and last fetch time at the beginning
         cached_balance = None
         last_balance_fetch_time = 0
@@ -194,8 +190,8 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
 
         print(f"Symbol: {symbol}")
         print(f"Exchange name: {exchange_name}")
-        print(f"Starategy name: {strategy_name}")
-        print(f"Account name: {account_name}")  # Print the account_name
+        print(f"Strategy name: {strategy_name}")
+        print(f"Account name: {account_name}") 
 
         # Pass account_name to DirectionalMarketMaker constructor
         market_maker = DirectionalMarketMaker(config, exchange_name, account_name)
