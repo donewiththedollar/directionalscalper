@@ -194,7 +194,7 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
 
         print(f"Symbol: {symbol}")
         print(f"Exchange name: {exchange_name}")
-        print(f"Strategy name: {strategy_name}")
+        print(f"Starategy name: {strategy_name}")
         print(f"Account name: {account_name}")  # Print the account_name
 
         # Pass account_name to DirectionalMarketMaker constructor
