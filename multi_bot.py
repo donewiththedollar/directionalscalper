@@ -133,6 +133,9 @@ class DirectionalMarketMaker:
         elif strategy_name.lower() == 'bybit_mm_qfl_mfi_eri_autohedge_walls_v2':
             strategy = BybitMMFiveMinuteQFLMFIERIAutoHedgeWallsV2(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
+        elif strategy_name.lower() == 'bybit_mm_qfl_mfi_eri_autohedge_walls_v3':
+            strategy = BybitMMFiveMinuteQFLMFIERIAutoHedgeWallsV3(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'bybit_mm_qfl_mfi_eri_autohedge_unstuck':
             strategy = BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
