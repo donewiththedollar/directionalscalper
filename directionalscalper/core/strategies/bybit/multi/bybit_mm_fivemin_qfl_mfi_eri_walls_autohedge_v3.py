@@ -135,69 +135,69 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeWallsV3(Strategy):
             logging.info(f"[Thread ID: {thread_id}] In while true loop {symbol}")
 
             # Fetch open positions data
-            open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
-            logging.info(f"Open position data: {open_position_data}")
-
-            position_details = {}
-
-            for position in open_position_data:
-                info = position.get('info', {})
-                position_symbol = info.get('symbol', '').split(':')[0]  # Extract the symbol name
-
-                if 'size' in info and 'side' in info and 'avgPrice' in info:
-                    size = float(info['size'])
-                    side = info['side'].lower()
-                    avg_price = float(info['avgPrice'])
-                    liq_price = float(info['liqPrice'])  # Extract the liquidation price
-
-                    if position_symbol not in position_details:
-                        position_details[position_symbol] = {
-                            'long': {'qty': 0, 'avg_price': 0, 'liq_price': None},
-                            'short': {'qty': 0, 'avg_price': 0, 'liq_price': None}
-                        }
-
-                    if side == 'buy':
-                        position_details[position_symbol]['long']['qty'] += size
-                        position_details[position_symbol]['long']['avg_price'] = avg_price
-                        position_details[position_symbol]['long']['liq_price'] = liq_price
-                    elif side == 'sell':
-                        position_details[position_symbol]['short']['qty'] += size
-                        position_details[position_symbol]['short']['avg_price'] = avg_price
-                        position_details[position_symbol]['short']['liq_price'] = liq_price
-                else:
-                    logging.warning(f"Missing 'size', 'side', or 'avgPrice' in position info for {position_symbol}")
-
-
-            # Fetch open symbols every loop
             # open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
-
             # logging.info(f"Open position data: {open_position_data}")
 
             # position_details = {}
 
             # for position in open_position_data:
             #     info = position.get('info', {})
-            #     position_symbol = info.get('symbol', '').split(':')[0]  # Use a different variable name
+            #     position_symbol = info.get('symbol', '').split(':')[0]  # Extract the symbol name
 
-            #     # Ensure 'size', 'side', and 'avgPrice' keys exist in the info dictionary
             #     if 'size' in info and 'side' in info and 'avgPrice' in info:
             #         size = float(info['size'])
             #         side = info['side'].lower()
             #         avg_price = float(info['avgPrice'])
+            #         liq_price = float(info['liqPrice'])  # Extract the liquidation price
 
-            #         # Initialize the nested dictionary if the position_symbol is not already in position_details
             #         if position_symbol not in position_details:
-            #             position_details[position_symbol] = {'long': {'qty': 0, 'avg_price': 0}, 'short': {'qty': 0, 'avg_price': 0}}
+            #             position_details[position_symbol] = {
+            #                 'long': {'qty': 0, 'avg_price': 0, 'liq_price': None},
+            #                 'short': {'qty': 0, 'avg_price': 0, 'liq_price': None}
+            #             }
 
-            #         # Update the quantities and average prices based on the side of the position
             #         if side == 'buy':
             #             position_details[position_symbol]['long']['qty'] += size
             #             position_details[position_symbol]['long']['avg_price'] = avg_price
+            #             position_details[position_symbol]['long']['liq_price'] = liq_price
             #         elif side == 'sell':
             #             position_details[position_symbol]['short']['qty'] += size
             #             position_details[position_symbol]['short']['avg_price'] = avg_price
+            #             position_details[position_symbol]['short']['liq_price'] = liq_price
             #     else:
             #         logging.warning(f"Missing 'size', 'side', or 'avgPrice' in position info for {position_symbol}")
+
+
+            # Fetch open symbols every loop
+            open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
+
+            logging.info(f"Open position data: {open_position_data}")
+
+            position_details = {}
+
+            for position in open_position_data:
+                info = position.get('info', {})
+                position_symbol = info.get('symbol', '').split(':')[0]  # Use a different variable name
+
+                # Ensure 'size', 'side', and 'avgPrice' keys exist in the info dictionary
+                if 'size' in info and 'side' in info and 'avgPrice' in info:
+                    size = float(info['size'])
+                    side = info['side'].lower()
+                    avg_price = float(info['avgPrice'])
+
+                    # Initialize the nested dictionary if the position_symbol is not already in position_details
+                    if position_symbol not in position_details:
+                        position_details[position_symbol] = {'long': {'qty': 0, 'avg_price': 0}, 'short': {'qty': 0, 'avg_price': 0}}
+
+                    # Update the quantities and average prices based on the side of the position
+                    if side == 'buy':
+                        position_details[position_symbol]['long']['qty'] += size
+                        position_details[position_symbol]['long']['avg_price'] = avg_price
+                    elif side == 'sell':
+                        position_details[position_symbol]['short']['qty'] += size
+                        position_details[position_symbol]['short']['avg_price'] = avg_price
+                else:
+                    logging.warning(f"Missing 'size', 'side', or 'avgPrice' in position info for {position_symbol}")
 
             open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
             open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
@@ -310,7 +310,7 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeWallsV3(Strategy):
                 logging.info(f"Long liquidation price for {symbol}: {long_liq_price}")
                 logging.info(f"Short liquidation price for {symbol}: {short_liq_price}")
 
-                
+
                 logging.info(f"Rotator symbol trading: {symbol}")
                             
                 logging.info(f"Rotator symbols: {rotator_symbols_standardized}")
