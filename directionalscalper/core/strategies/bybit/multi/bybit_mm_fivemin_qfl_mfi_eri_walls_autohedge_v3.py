@@ -367,7 +367,7 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeWallsV3(Strategy):
                 
                 logging.info(f"Five minute volume for {symbol} : {five_minute_volume}")
                     
-                self.bybit_5m_mfi_eri_walls_v3(open_orders, symbol, trend, hma_trend, mfirsi_signal, eri_trend, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short, hedge_ratio, price_difference_threshold)
+                self.bybit_5m_mfi_eri_walls_v4(open_orders, symbol, trend, hma_trend, mfirsi_signal, eri_trend, five_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short, hedge_ratio, price_difference_threshold)
 
                 tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
 
