@@ -175,29 +175,57 @@ class BybitMMFiveMinuteQFLMFIERIAutoHedgeWallsV3(Strategy):
 
             position_details = {}
 
+
             for position in open_position_data:
                 info = position.get('info', {})
-                position_symbol = info.get('symbol', '').split(':')[0]  # Use a different variable name
+                position_symbol = info.get('symbol', '').split(':')[0]
 
-                # Ensure 'size', 'side', and 'avgPrice' keys exist in the info dictionary
                 if 'size' in info and 'side' in info and 'avgPrice' in info:
                     size = float(info['size'])
                     side = info['side'].lower()
                     avg_price = float(info['avgPrice'])
+                    liq_price = float(info.get('liqPrice', 0))  # Default to 0 if liqPrice is missing
 
-                    # Initialize the nested dictionary if the position_symbol is not already in position_details
                     if position_symbol not in position_details:
-                        position_details[position_symbol] = {'long': {'qty': 0, 'avg_price': 0}, 'short': {'qty': 0, 'avg_price': 0}}
+                        position_details[position_symbol] = {
+                            'long': {'qty': 0, 'avg_price': 0, 'liq_price': 0},
+                            'short': {'qty': 0, 'avg_price': 0, 'liq_price': 0}
+                        }
 
-                    # Update the quantities and average prices based on the side of the position
                     if side == 'buy':
                         position_details[position_symbol]['long']['qty'] += size
                         position_details[position_symbol]['long']['avg_price'] = avg_price
+                        position_details[position_symbol]['long']['liq_price'] = liq_price
                     elif side == 'sell':
                         position_details[position_symbol]['short']['qty'] += size
                         position_details[position_symbol]['short']['avg_price'] = avg_price
+                        position_details[position_symbol]['short']['liq_price'] = liq_price
                 else:
-                    logging.warning(f"Missing 'size', 'side', or 'avgPrice' in position info for {position_symbol}")
+                    logging.warning(f"Missing required keys in position info for {position_symbol}")
+
+            # for position in open_position_data:
+            #     info = position.get('info', {})
+            #     position_symbol = info.get('symbol', '').split(':')[0]  # Use a different variable name
+
+            #     # Ensure 'size', 'side', and 'avgPrice' keys exist in the info dictionary
+            #     if 'size' in info and 'side' in info and 'avgPrice' in info:
+            #         size = float(info['size'])
+            #         side = info['side'].lower()
+            #         avg_price = float(info['avgPrice'])
+
+            #         # Initialize the nested dictionary if the position_symbol is not already in position_details
+            #         if position_symbol not in position_details:
+            #             position_details[position_symbol] = {'long': {'qty': 0, 'avg_price': 0}, 'short': {'qty': 0, 'avg_price': 0}}
+
+            #         # Update the quantities and average prices based on the side of the position
+            #         if side == 'buy':
+            #             position_details[position_symbol]['long']['qty'] += size
+            #             position_details[position_symbol]['long']['avg_price'] = avg_price
+            #         elif side == 'sell':
+            #             position_details[position_symbol]['short']['qty'] += size
+            #             position_details[position_symbol]['short']['avg_price'] = avg_price
+            #     else:
+            #         logging.warning(f"Missing 'size', 'side', or 'avgPrice' in position info for {position_symbol}")
 
             open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
             open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
