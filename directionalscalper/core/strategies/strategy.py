@@ -327,7 +327,7 @@ class Strategy:
         return -MaxAbsFundingRate <= funding_rate <= MaxAbsFundingRate
 
     # Bybit
-    def fetch_historical_data(self, symbol, timeframe='1h', limit=15):
+    def fetch_historical_data(self, symbol, timeframe, limit=15):
         ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
         df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
@@ -3232,6 +3232,40 @@ class Strategy:
 
             time.sleep(5)
 
+    def auto_hedge_orders_bybit_v4(self, symbol, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, best_ask_price, best_bid_price, hedge_ratio, atr, min_order_size):
+        atr_multiplier = 5  # Setting the ATR multiplier to 5
+
+        # Calculate dynamic thresholds based on ATR and the multiplier
+        dynamic_threshold_long = (atr * atr_multiplier) / long_pos_price
+        dynamic_threshold_short = (atr * atr_multiplier) / short_pos_price
+
+        # Auto-hedging logic for long position
+        if long_pos_qty > 0:
+            price_diff_percentage_long = abs(best_ask_price - long_pos_price) / long_pos_price
+            current_hedge_ratio_long = short_pos_qty / long_pos_qty if long_pos_qty > 0 else 0
+
+            if current_hedge_ratio_long < hedge_ratio:
+                if price_diff_percentage_long >= dynamic_threshold_long:
+                    additional_hedge_needed_long = (long_pos_qty * hedge_ratio) - short_pos_qty
+                    if additional_hedge_needed_long > min_order_size:
+                        order_response = self.place_postonly_order_bybit(symbol, "sell", additional_hedge_needed_long, best_ask_price, positionIdx=2, reduceOnly=False)
+                        logging.info(f"Auto-hedge long order placed for {symbol}: {order_response}")
+                        time.sleep(5)
+
+        # Auto-hedging logic for short position
+        if short_pos_qty > 0:
+            price_diff_percentage_short = abs(best_bid_price - short_pos_price) / short_pos_price
+            current_hedge_ratio_short = long_pos_qty / short_pos_qty if short_pos_qty > 0 else 0
+
+            if current_hedge_ratio_short < hedge_ratio:
+                if price_diff_percentage_short >= dynamic_threshold_short:
+                    additional_hedge_needed_short = (short_pos_qty * hedge_ratio) - long_pos_qty
+                    if additional_hedge_needed_short > min_order_size:
+                        order_response = self.place_postonly_order_bybit(symbol, "buy", additional_hedge_needed_short, best_bid_price, positionIdx=1, reduceOnly=False)
+                        logging.info(f"Auto-hedge short order placed for {symbol}: {order_response}")
+                        time.sleep(5)
+
+
     def auto_hedge_orders_bybit_v3(self, symbol, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, best_ask_price, best_bid_price, hedge_ratio, price_difference_threshold, min_order_size):
         # Auto-hedging logic for long position
         if long_pos_qty > 0:
@@ -3701,7 +3735,7 @@ class Strategy:
 
             time.sleep(5)
 
-    def bybit_1m_mfi_eri_walls(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, eri_trend: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool, hedge_ratio: float, price_difference_threshold: float):
+    def bybit_1m_mfi_eri_walls_atr(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, eri_trend: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool, hedge_ratio: float, atr: float):
         if symbol not in self.symbol_locks:
             self.symbol_locks[symbol] = threading.Lock()
 
@@ -3731,7 +3765,7 @@ class Strategy:
                 
             min_order_size = 1
 
-            self.auto_hedge_orders_bybit_v3(symbol,
+            self.auto_hedge_orders_bybit_v4(symbol,
             long_pos_qty,
             short_pos_qty,
             long_pos_price,
@@ -3739,7 +3773,7 @@ class Strategy:
             best_ask_price,
             best_bid_price,
             hedge_ratio,
-            price_difference_threshold,
+            atr,
             min_order_size)
                     
             # Trend Alignment Checks
