@@ -4,7 +4,7 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_DOWN
 import pandas as pd
 import time
 import math
-import numpy
+import numpy as np
 import random
 import ta as ta
 import os
@@ -326,6 +326,21 @@ class Strategy:
         # Check for longs and shorts combined
         return -MaxAbsFundingRate <= funding_rate <= MaxAbsFundingRate
 
+    # Bybit
+    def fetch_historical_data(self, symbol, timeframe='1h', limit=15):
+        ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
+        df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        return df
+        
+    def calculate_atr(self, df, period=14):
+        high_low = df['high'] - df['low']
+        high_close = np.abs(df['high'] - df['close'].shift())
+        low_close = np.abs(df['low'] - df['close'].shift())
+        tr = np.max([high_low, high_close, low_close], axis=0)
+        atr = np.mean(tr[-period:])
+        return atr
+
     def convert_to_binance_symbol(symbol: str) -> str:
         """Convert Bybit's symbol name to Binance's format."""
         if symbol.startswith("SHIB1000"):
@@ -591,7 +606,7 @@ class Strategy:
             ma_5m_3_high = self.manager.get_5m_moving_averages(symbol)["MA_3_H"]
 
             # Check if the data is correct
-            if all(isinstance(value, (float, int, numpy.number)) for value in [ma_6_high, ma_6_low, ma_3_low, ma_3_high, ma_1m_3_high, ma_5m_3_high]):
+            if all(isinstance(value, (float, int, np.number)) for value in [ma_6_high, ma_6_low, ma_3_low, ma_3_high, ma_1m_3_high, ma_5m_3_high]):
                 return {
                     "ma_6_high": ma_6_high,
                     "ma_6_low": ma_6_low,
@@ -5578,24 +5593,24 @@ class Strategy:
                 )
                 logging.info(f"Short leverage for {symbol} returned to normal {self.short_pos_leverage_per_symbol[symbol]}x")
 
-    def calculate_atr(self, symbol, period=14):
-        # Fetch historical OHLC data for the symbol and timeframe
-        ohlc_data = self.exchange.get_ohlc_data(symbol, timeframe="1H", limit=period+1)  # Assuming hourly data for example, adjust as needed
+    # def calculate_atr(self, symbol, period=14):
+    #     # Fetch historical OHLC data for the symbol and timeframe
+    #     ohlc_data = self.exchange.get_ohlc_data(symbol, timeframe="1H", limit=period+1)  # Assuming hourly data for example, adjust as needed
         
-        tr_values = []
+    #     tr_values = []
         
-        for i in range(1, len(ohlc_data)):
-            high = ohlc_data[i]['high']
-            low = ohlc_data[i]['low']
-            prev_close = ohlc_data[i-1]['close']
+    #     for i in range(1, len(ohlc_data)):
+    #         high = ohlc_data[i]['high']
+    #         low = ohlc_data[i]['low']
+    #         prev_close = ohlc_data[i-1]['close']
             
-            tr = max(high - low, abs(high - prev_close), abs(low - prev_close))
-            tr_values.append(tr)
+    #         tr = max(high - low, abs(high - prev_close), abs(low - prev_close))
+    #         tr_values.append(tr)
         
-        # Calculate the average TR over the specified period
-        atr = sum(tr_values) / period
+    #     # Calculate the average TR over the specified period
+    #     atr = sum(tr_values) / period
         
-        return atr
+    #     return atr
 
 # Bybit position leverage management
 

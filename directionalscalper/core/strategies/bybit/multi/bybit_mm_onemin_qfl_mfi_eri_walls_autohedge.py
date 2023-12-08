@@ -367,6 +367,14 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWalls(Strategy):
                 
                 logging.info(f"Five minute volume for {symbol} : {five_minute_volume}")
                     
+                historical_data = self.fetch_historical_data(
+                    symbol
+                )
+
+                one_hour_atr_value = self.calculate_atr(historical_data)
+
+                logging.info(f"ATR for {symbol} : {one_hour_atr_value}")
+
                 self.bybit_1m_mfi_eri_walls(open_orders, symbol, trend, hma_trend, mfirsi_signal, eri_trend, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short, hedge_ratio, price_difference_threshold)
 
                 tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
