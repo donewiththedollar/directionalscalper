@@ -3233,7 +3233,7 @@ class Strategy:
             time.sleep(5)
 
     def auto_hedge_orders_bybit_v4(self, symbol, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, best_ask_price, best_bid_price, hedge_ratio, atr, min_order_size):
-        atr_multiplier = 5  # Setting the ATR multiplier to 5
+        atr_multiplier = 2
 
         # Check and calculate dynamic thresholds based on ATR and the multiplier
         dynamic_threshold_long = (atr * atr_multiplier) / long_pos_price if long_pos_price != 0 else float('inf')
