@@ -71,8 +71,8 @@ class Strategy:
         self.blacklist = self.config.blacklist
         self.max_usd_value = self.config.max_usd_value
         self.LEVERAGE_STEP = 0.002  # The step at which to increase leverage
-        self.MAX_LEVERAGE = 0.3 #0.3  # The maximum allowable leverage
-        self.QTY_INCREMENT = 0.02 # How much your position size increases
+        self.MAX_LEVERAGE = 0.1 #0.3  # The maximum allowable leverage
+        self.QTY_INCREMENT = 0.01 # How much your position size increases
         self.MAX_PCT_EQUITY = 0.1
         self.ORDER_BOOK_DEPTH = 10
         self.lock = threading.Lock()  # Create a lock
