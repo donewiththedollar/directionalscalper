@@ -3235,13 +3235,13 @@ class Strategy:
     def auto_hedge_orders_bybit_v4(self, symbol, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, best_ask_price, best_bid_price, hedge_ratio, atr, min_order_size):
         atr_multiplier = 5  # Setting the ATR multiplier to 5
 
-        # Calculate dynamic thresholds based on ATR and the multiplier
-        dynamic_threshold_long = (atr * atr_multiplier) / long_pos_price
-        dynamic_threshold_short = (atr * atr_multiplier) / short_pos_price
+        # Check and calculate dynamic thresholds based on ATR and the multiplier
+        dynamic_threshold_long = (atr * atr_multiplier) / long_pos_price if long_pos_price != 0 else float('inf')
+        dynamic_threshold_short = (atr * atr_multiplier) / short_pos_price if short_pos_price != 0 else float('inf')
 
         # Auto-hedging logic for long position
         if long_pos_qty > 0:
-            price_diff_percentage_long = abs(best_ask_price - long_pos_price) / long_pos_price
+            price_diff_percentage_long = abs(best_ask_price - long_pos_price) / long_pos_price if long_pos_price != 0 else float('inf')
             current_hedge_ratio_long = short_pos_qty / long_pos_qty if long_pos_qty > 0 else 0
 
             if current_hedge_ratio_long < hedge_ratio:
@@ -3254,7 +3254,7 @@ class Strategy:
 
         # Auto-hedging logic for short position
         if short_pos_qty > 0:
-            price_diff_percentage_short = abs(best_bid_price - short_pos_price) / short_pos_price
+            price_diff_percentage_short = abs(best_bid_price - short_pos_price) / short_pos_price if short_pos_price != 0 else float('inf')
             current_hedge_ratio_short = long_pos_qty / short_pos_qty if short_pos_qty > 0 else 0
 
             if current_hedge_ratio_short < hedge_ratio:
@@ -3264,6 +3264,7 @@ class Strategy:
                         order_response = self.place_postonly_order_bybit(symbol, "buy", additional_hedge_needed_short, best_bid_price, positionIdx=1, reduceOnly=False)
                         logging.info(f"Auto-hedge short order placed for {symbol}: {order_response}")
                         time.sleep(5)
+
 
 
     def auto_hedge_orders_bybit_v3(self, symbol, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, best_ask_price, best_bid_price, hedge_ratio, price_difference_threshold, min_order_size):
