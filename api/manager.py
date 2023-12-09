@@ -344,6 +344,10 @@ class Manager:
                     return asset_data["ERI Trend"]
                 if value == "HMA Trend" in asset_data:
                     return asset_data["HMA Trend"]
+                if value == "Top Signal 5m" in asset_data:
+                    return asset_data["Top Signal 5m"]
+                if value == "Bottom Signal 5m" in asset_data:
+                    return asset_data["Bottom signal 5m"]
         except Exception as e:
             logging.info(f"{e}")
         return None
@@ -368,7 +372,9 @@ class Manager:
             'MFI': self.get_asset_value(symbol, data, "MFI"),
             'ERI Trend': self.get_asset_value(symbol, data, "ERI Trend"),
             'Funding': self.get_asset_value(symbol, data, "Funding"),
-            'Symbols': self.get_symbols()
+            'Symbols': self.get_symbols(),
+            'Top Signal 5m': self.get_asset_value(symbol, data, "Top Signal 5m"),
+            'Bottom Signal 5m': self.get_asset_value(symbol, data, "Bottom Signal 5m")
         }
         return api_data
 
