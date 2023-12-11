@@ -10,11 +10,11 @@ from datetime import datetime, timedelta
 from ...strategy import Strategy
 from ...logger import Logger
 from live_table_manager import shared_symbols_data
-logging = Logger(logger_name="BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATRTopBottom", filename="BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATRTopBottom.log", stream=True)
+logging = Logger(logger_name="BybitMMOneMinuteQFLMFIERIAutoHedgeWalls", filename="BybitMMOneMinuteQFLMFIERIAutoHedgeWalls.log", stream=True)
 
 symbol_locks = {}
 
-class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATRTopBottom(Strategy):
+class BybitMMOneMinuteQFLMFIERIAutoHedgeWalls(Strategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
         self.is_order_history_populated = False
@@ -269,11 +269,6 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATRTopBottom(Strategy):
                 funding_rate = metrics['Funding']
                 hma_trend = metrics['HMA Trend']
                 eri_trend = metrics['ERI Trend']
-                top_signal = metrics['5m Top Signal']
-                bottom_signal = metrics['5m Bottom Signal']
-
-                top_signal_bool = self.convert_to_boolean(top_signal)
-                bottom_signal_bool = self.convert_to_boolean(bottom_signal)
 
                 position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
 
@@ -403,8 +398,6 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATRTopBottom(Strategy):
                     should_short,
                     should_add_to_long,
                     should_add_to_short,
-                    hedge_ratio,
-                    atr=one_hour_atr_value,
                 )
                 
                 tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
