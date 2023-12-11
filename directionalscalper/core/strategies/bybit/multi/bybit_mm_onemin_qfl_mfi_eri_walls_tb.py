@@ -14,7 +14,7 @@ logging = Logger(logger_name="BybitMMOneMinuteQFLMFIERIAutoHedgeWalls", filename
 
 symbol_locks = {}
 
-class BybitMMOneMinuteQFLMFIERIAutoHedgeWalls(Strategy):
+class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsTB(Strategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
         self.is_order_history_populated = False
