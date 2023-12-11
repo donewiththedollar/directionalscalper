@@ -389,8 +389,8 @@ class Manager:
             funding_rate = api_data.get('Funding', 0)
             hma_trend = api_data.get('HMA Trend', 'neutral')
             eri_trend = api_data.get('ERI Trend', 'undefined')
-            top_signal = api_data.get('Top Signal 5m', False)
-            bottom_signal = api_data.get('Bottom Signal 5m', False)
+            top_signal = api_data.get('Top Signal 5m', 'False')
+            bottom_signal = api_data.get('Bottom Signal 5m', 'False')
 
             # Return the extracted metrics as a dictionary
             return {
@@ -418,8 +418,8 @@ class Manager:
                 "Funding": 0,
                 "HMA Trend": 'neutral',
                 "ERI Trend": 'undefined',
-                "Top Signal 5m": False,
-                "Bottom Signal 5m": False
+                "Top Signal 5m": 'False',
+                "Bottom Signal 5m": 'False'
             }
 
 
