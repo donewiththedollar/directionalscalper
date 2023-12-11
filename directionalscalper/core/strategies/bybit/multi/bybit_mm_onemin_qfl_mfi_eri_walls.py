@@ -269,6 +269,11 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWalls(Strategy):
                 funding_rate = metrics['Funding']
                 hma_trend = metrics['HMA Trend']
                 eri_trend = metrics['ERI Trend']
+                top_signal = metrics['5m Top Signal']
+                bottom_signal = metrics['5m Bottom Signal']
+
+                logging.info(f"Top signal for {symbol} : {top_signal})
+                logging.info(f"Bottom signal for {symbol} : {bottom_signal})
 
                 position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
 
