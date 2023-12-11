@@ -60,6 +60,7 @@ def get_available_strategies():
         # 'bybit_1m_qfl_mfi_eri_autohedge_walls'
         # 'bybit_mm_qfl_mfi_eri_autohedge_walls',
         # 'bybit_mm_qfl_mfi_eri_autohedge_walls_v2',
+        'bybit_1m_qfl_mfi_eri_walls_tb',
         'bybit_1m_qfl_mfi_eri_walls',
         'bybit_1m_qfl_mfi_eri_autohedge_walls_atr_v2',
         'bybit_mm_qfl_mfi_eri_autohedge_walls_v3',
