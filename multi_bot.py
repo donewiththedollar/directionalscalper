@@ -373,47 +373,23 @@ if __name__ == '__main__':
     while True:
         # Active threads update
         active_threads = [t for t in active_threads if t.is_alive()]
-
-        # Fetch new rotator symbols
         rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, max_usd_value=max_usd_value)]
 
         # Update and manage threads for open positions
         open_position_data = market_maker.exchange.get_all_open_positions_bybit()
         open_positions_symbols = [standardize_symbol(position['symbol']) for position in open_position_data]
 
-        for symbol in open_positions_symbols:
-            if symbol not in thread_to_symbol.values():
-                start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
-
-        # Calculate available slots for new symbols
-        available_slots = max(0, symbols_allowed - len(active_threads))
-
-        # Start threads for new rotator symbols within limit
-        new_symbols = [s for s in rotator_symbols_standardized if s not in thread_to_symbol.values() and s not in open_positions_symbols][:available_slots]
+        # Determine the symbols to start threads for
+        symbols_to_start_threads = []
+        for symbol in open_positions_symbols + rotator_symbols_standardized:
+            if symbol not in thread_to_symbol.values() and symbol not in symbols_to_start_threads:
+                symbols_to_start_threads.append(symbol)
         
-        for symbol in new_symbols:
+        # Enforce symbols_allowed limit
+        symbols_to_start_threads = symbols_to_start_threads[:symbols_allowed]
+
+        # Start threads for prioritized symbols
+        for symbol in symbols_to_start_threads:
             start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
 
         time.sleep(60)
-
-
-    # while True:
-    #     # Active threads and rotator symbols update
-    #     active_threads = [t for t in active_threads if t.is_alive()]
-    #     rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, max_usd_value=max_usd_value)]
-
-    #     # Update and prioritize open position symbols
-    #     open_position_data = market_maker.exchange.get_all_open_positions_bybit()
-    #     open_positions_symbols = [standardize_symbol(position['symbol']) for position in open_position_data]
-
-    #     # Start or maintain threads for open positions regardless of symbols_allowed limit
-    #     for symbol in open_positions_symbols:
-    #         if symbol not in thread_to_symbol.values():
-    #             start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
-
-    #     # Start threads for rotator symbols if under the limit, excluding already handled open positions
-    #     new_symbols = [s for s in rotator_symbols_standardized if s not in thread_to_symbol.values() and s not in open_positions_symbols]
-    #     if len(active_threads) < symbols_allowed:
-    #         start_threads_for_new_symbols(new_symbols, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
-
-    #     time.sleep(60)
