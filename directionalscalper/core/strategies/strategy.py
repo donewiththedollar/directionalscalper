@@ -3159,6 +3159,9 @@ class Strategy:
             qfl_base, qfl_ceiling = self.calculate_qfl_levels(symbol=symbol, timeframe='5m', lookback_period=12)
             current_price = self.exchange.get_current_price(symbol)
 
+            eri_trend_aligned_long = eri_trend == "bullish"
+            eri_trend_aligned_short = eri_trend == "bearish"
+
             logging.info(f"Current price in autohedge: for {symbol} : {current_price}")
 
             # Fetch and process order book

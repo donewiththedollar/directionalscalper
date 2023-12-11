@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from ...strategy import Strategy
 from ...logger import Logger
 from live_table_manager import shared_symbols_data
-logging = Logger(logger_name="BybitMMOneMinuteQFLMFIERIAutoHedgeWalls", filename="BybitMMOneMinuteQFLMFIERIAutoHedgeWalls.log", stream=True)
+logging = Logger(logger_name="BybitMMOneMinuteQFLMFIERIAutoHedgeWallsTB", filename="BybitMMOneMinuteQFLMFIERIAutoHedgeWallsTB.log", stream=True)
 
 symbol_locks = {}
 
@@ -271,6 +271,10 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsTB(Strategy):
                 eri_trend = metrics['ERI Trend']
                 top_signal = metrics['5m Top Signal']
                 bottom_signal = metrics['5m Bottom Signal']
+
+
+                logging.info(f"Top signal: {top_signal}")
+                logging.info(f"Bottom signal: {bottom_signal}")
 
                 position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
 

@@ -377,15 +377,13 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWalls(Strategy):
                 logging.info(f"ATR for {symbol} : {one_hour_atr_value}")
 
 
-                self.bybit_1m_mfi_eri_walls_topbottom(
+                self.bybit_1m_mfi_eri_walls(
                     open_orders,
                     symbol,
                     trend,
                     hma_trend,
                     mfirsi_signal,
                     eri_trend,
-                    top_signal,
-                    bottom_signal,
                     one_minute_volume,
                     five_minute_distance,
                     min_vol,
