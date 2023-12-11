@@ -269,9 +269,8 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsTB(Strategy):
                 funding_rate = metrics['Funding']
                 hma_trend = metrics['HMA Trend']
                 eri_trend = metrics['ERI Trend']
-                top_signal = metrics['5m Top Signal']
-                bottom_signal = metrics['5m Bottom Signal']
-
+                top_signal = metrics['fivemin_top_signal']
+                bottom_signal = metrics['fivemin_bottom_signal']
 
                 logging.info(f"Top signal: {top_signal}")
                 logging.info(f"Bottom signal: {bottom_signal}")
