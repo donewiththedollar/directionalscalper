@@ -29,6 +29,7 @@ from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_walls import BybitMMOneMinuteQFLMFIERIAutoHedgeWalls
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_walls_allowedfix import BybitMMOneMinuteQFLMFIERIAutoHedgeWallsAllowedFix
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_walls_tb import BybitMMOneMinuteQFLMFIERIAutoHedgeWallsTB
+from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_eri_tb import BybitMMOneMinERITB
 
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute_qfl_mfi_eri_autohedge_unstuck import BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck
 from directionalscalper.core.strategies.bybit.multi.bybit_qs import BybitQSStrategy
@@ -61,6 +62,7 @@ def get_available_strategies():
         # 'bybit_1m_qfl_mfi_eri_autohedge_walls'
         # 'bybit_mm_qfl_mfi_eri_autohedge_walls',
         # 'bybit_mm_qfl_mfi_eri_autohedge_walls_v2',
+        'bybit_1m_eri_tb',
         'bybit_1m_qfl_mfi_eri_walls_allowedfix',
         'bybit_1m_qfl_mfi_eri_walls_tb',
         'bybit_1m_qfl_mfi_eri_walls',
@@ -146,6 +148,9 @@ class DirectionalMarketMaker:
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'bybit_1m_qfl_mfi_eri_walls_tb':
             strategy = BybitMMOneMinuteQFLMFIERIAutoHedgeWallsTB(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
+        elif strategy_name.lower() == 'bybit_1m_eri_tb':
+            strategy = BybitMMOneMinERITB(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'bybit_1m_qfl_mfi_eri_autohedge_walls_autohedge':
             strategy = BybitMMOneMinuteQFLMFIERIAutoHedgeWallsAutoHedge(self.exchange, self.manager, config.bot, symbols_allowed)

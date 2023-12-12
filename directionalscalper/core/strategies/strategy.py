@@ -3147,6 +3147,55 @@ class Strategy:
 
             time.sleep(5)
 
+    def bybit_1m_walls_topbottom(self, open_orders: list, symbol: str, trend: str, hma_trend: str, eri_trend: str, top_signal: str, bottom_signal: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
+        if symbol not in self.symbol_locks:
+            self.symbol_locks[symbol] = threading.Lock()
+
+        with self.symbol_locks[symbol]:
+            bid_walls, ask_walls = self.detect_order_book_walls(symbol)
+            largest_bid_wall = max(bid_walls, key=lambda x: x[1], default=None)
+            largest_ask_wall = max(ask_walls, key=lambda x: x[1], default=None)
+
+            qfl_base, qfl_ceiling = self.calculate_qfl_levels(symbol=symbol, timeframe='5m', lookback_period=12)
+            current_price = self.exchange.get_current_price(symbol)
+
+            # Fetch and process order book
+            order_book = self.exchange.get_orderbook(symbol)
+
+            # Extract and update best ask/bid prices
+            best_ask_price = order_book['asks'][0][0] if 'asks' in order_book and order_book['asks'] else self.last_known_ask.get(symbol)
+            best_bid_price = order_book['bids'][0][0] if 'bids' in order_book and order_book['bids'] else self.last_known_bid.get(symbol)
+
+            # Define variables for trend alignment
+            trend_aligned_long = (eri_trend == "bullish" or trend.lower() == "long")
+            trend_aligned_short = (eri_trend == "bearish" or trend.lower() == "short")
+
+            # Long Entry Conditions
+            if one_minute_volume > min_vol and ((should_long or should_add_to_long) and bottom_signal == 'True' and trend_aligned_long):
+                if long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
+                    self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                elif long_pos_qty > 0 and current_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
+                    self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+
+            # Short Entry Conditions
+            if one_minute_volume > min_vol and ((should_short or should_add_to_short) and top_signal == 'True' and trend_aligned_short):
+                if short_pos_qty == 0 and not self.entry_order_exists(open_orders, "sell"):
+                    self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                elif short_pos_qty > 0 and current_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
+                    self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+
+            # Order Book Wall Logic for Long Entries
+            if largest_bid_wall and not self.entry_order_exists(open_orders, "buy") and ((should_long or should_add_to_long) and bottom_signal == 'True' and trend_aligned_long):
+                self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, largest_bid_wall[0], positionIdx=1, reduceOnly=False)
+
+            # Order Book Wall Logic for Short Entries
+            if largest_ask_wall and not self.entry_order_exists(open_orders, "sell") and ((should_short or should_add_to_short) and top_signal == 'True' and trend_aligned_short):
+                self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, largest_ask_wall[0], positionIdx=2, reduceOnly=False)
+
+            time.sleep(5)
+
+
+
     def bybit_1m_mfi_eri_walls_topbottom(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, eri_trend: str, top_signal: str, bottom_signal: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
         if symbol not in self.symbol_locks:
             self.symbol_locks[symbol] = threading.Lock()
