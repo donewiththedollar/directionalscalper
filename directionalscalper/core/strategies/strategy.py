@@ -3195,7 +3195,6 @@ class Strategy:
             time.sleep(5)
 
 
-
     def bybit_1m_mfi_eri_walls_topbottom(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, eri_trend: str, top_signal: str, bottom_signal: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
         if symbol not in self.symbol_locks:
             self.symbol_locks[symbol] = threading.Lock()
@@ -3212,16 +3211,9 @@ class Strategy:
             order_book = self.exchange.get_orderbook(symbol)
 
             # Extract and update best ask/bid prices
-            if 'asks' in order_book and len(order_book['asks']) > 0:
-                best_ask_price = order_book['asks'][0][0]
-            else:
-                best_ask_price = self.last_known_ask.get(symbol)
+            best_ask_price = order_book['asks'][0][0] if 'asks' in order_book and order_book['asks'] else self.last_known_ask.get(symbol)
+            best_bid_price = order_book['bids'][0][0] if 'bids' in order_book and order_book['bids'] else self.last_known_bid.get(symbol)
 
-            if 'bids' in order_book and len(order_book['bids']) > 0:
-                best_bid_price = order_book['bids'][0][0]
-            else:
-                best_bid_price = self.last_known_bid.get(symbol)
-                
             # Define variables for trend alignment
             trend_aligned_long = (eri_trend == "bullish" or trend.lower() == "long")
             trend_aligned_short = (eri_trend == "bearish" or trend.lower() == "short")
@@ -3231,44 +3223,31 @@ class Strategy:
             mfi_signal_short = mfi.lower() == "short"
 
             # Long Entry Conditions
-            if one_minute_volume > min_vol and trend_aligned_long and mfi_signal_long and bottom_signal == 'True':
+            if one_minute_volume > min_vol and ((should_long or should_add_to_long) and bottom_signal == 'True' and trend_aligned_long) and mfi_signal_long:
                 if long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
-                    logging.info(f"Placing initial long entry for {symbol}")
                     self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
                 elif long_pos_qty > 0 and current_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
-                    logging.info(f"Placing additional long entry for {symbol}")
                     self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-                    time.sleep(5)
 
             # Short Entry Conditions
-            if one_minute_volume > min_vol and trend_aligned_short and mfi_signal_short and top_signal == 'True':
+            if one_minute_volume > min_vol and ((should_short or should_add_to_short) and top_signal == 'True' and trend_aligned_short) and mfi_signal_short:
                 if short_pos_qty == 0 and not self.entry_order_exists(open_orders, "sell"):
-                    logging.info(f"Placing initial short entry for {symbol}")
                     self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
                 elif short_pos_qty > 0 and current_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
-                    logging.info(f"Placing additional short entry for {symbol}")
                     self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
-                    time.sleep(5)
 
             # Order Book Wall Logic for Long Entries
-            if largest_bid_wall and not self.entry_order_exists(open_orders, "buy"):
-                if trend_aligned_long and bottom_signal == 'True':
-                    logging.info(f"Placing additional long trade due to detected buy wall and trend alignment for {symbol}")
-                    self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, largest_bid_wall[0], positionIdx=1, reduceOnly=False)
-                    time.sleep(5)
+            if largest_bid_wall and not self.entry_order_exists(open_orders, "buy") and ((should_long or should_add_to_long) and bottom_signal == 'True' and trend_aligned_long):
+                self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, largest_bid_wall[0], positionIdx=1, reduceOnly=False)
 
             # Order Book Wall Logic for Short Entries
-            if largest_ask_wall and not self.entry_order_exists(open_orders, "sell"):
-                if trend_aligned_short and top_signal == 'True':
-                    logging.info(f"Placing additional short trade due to detected sell wall and trend alignment for {symbol}")
-                    self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, largest_ask_wall[0], positionIdx=2, reduceOnly=False)
-                    time.sleep(5)
-
-
-            else:
-                logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
+            if largest_ask_wall and not self.entry_order_exists(open_orders, "sell") and ((should_short or should_add_to_short) and top_signal == 'True' and trend_aligned_short):
+                self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, largest_ask_wall[0], positionIdx=2, reduceOnly=False)
 
             time.sleep(5)
+
+
+
 
 
     def bybit_1m_mfi_eri_walls(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, eri_trend: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
