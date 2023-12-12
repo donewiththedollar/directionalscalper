@@ -389,10 +389,11 @@ class Manager:
             funding_rate = api_data.get('Funding', 0)
             hma_trend = api_data.get('HMA Trend', 'neutral')
             eri_trend = api_data.get('ERI Trend', 'undefined')
-            fivemin_top_signal = api_data.get('Top Signal 5m', 'False')
-            fivemin_bottom_signal = api_data.get('Bottom Signal 5m', 'False')
+            
+            # Ensure boolean values are used for top and bottom signals
+            fivemin_top_signal = api_data.get('Top Signal 5m', False)
+            fivemin_bottom_signal = api_data.get('Bottom Signal 5m', False)
 
-            # Return the extracted metrics as a dictionary
             return {
                 "1mVol": one_minute_volume,
                 "5mVol": five_minute_volume,
@@ -408,7 +409,6 @@ class Manager:
             }
         except Exception as e:
             logging.warning(f"Error processing API data for symbol {symbol}: {e}")
-            # Return a default dictionary in case of any issues
             return {
                 "1mVol": 0,
                 "5mVol": 0,
@@ -418,8 +418,8 @@ class Manager:
                 "Funding": 0,
                 "HMA Trend": 'neutral',
                 "ERI Trend": 'undefined',
-                "Top Signal 5m": 'False',
-                "Bottom Signal 5m": 'False'
+                "Top Signal 5m": False,
+                "Bottom Signal 5m": False
             }
 
 
