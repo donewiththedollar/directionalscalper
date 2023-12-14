@@ -10,11 +10,11 @@ from datetime import datetime, timedelta
 from ...strategy import Strategy
 from ...logger import Logger
 from live_table_manager import shared_symbols_data
-logging = Logger(logger_name="BybitMMOneMinuteQFLMFIERIAutoHedgeWalls", filename="BybitMMOneMinuteQFLMFIERIAutoHedgeWalls.log", stream=True)
+logging = Logger(logger_name="BybitMMOneMinuteQFLMFIERIAutoHedgeWallsAllowedFix", filename="BybitMMOneMinuteQFLMFIERIAutoHedgeWallsAllowedFix.log", stream=True)
 
 symbol_locks = {}
 
-class BybitMMOneMinuteQFLMFIERIAutoHedgeWalls(Strategy):
+class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsAllowedFix(Strategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
         self.is_order_history_populated = False
@@ -42,6 +42,12 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWalls(Strategy):
         standardized_symbol = symbol.upper()  # Standardize the symbol name
         logging.info(f"Standardized symbol: {standardized_symbol}")
         current_thread_id = threading.get_ident()
+
+        # Check if the number of symbols being processed is within the allowed limit
+        with self.initialized_symbols_lock:
+            if len(self.initialized_symbols) >= self.symbols_allowed:
+                logging.info(f"Reached maximum number of symbols allowed ({self.symbols_allowed}). Skipping {standardized_symbol}.")
+                return
 
         if standardized_symbol not in symbol_locks:
             symbol_locks[standardized_symbol] = threading.Lock()

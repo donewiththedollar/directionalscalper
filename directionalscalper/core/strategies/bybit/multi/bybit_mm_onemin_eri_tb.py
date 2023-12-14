@@ -10,11 +10,11 @@ from datetime import datetime, timedelta
 from ...strategy import Strategy
 from ...logger import Logger
 from live_table_manager import shared_symbols_data
-logging = Logger(logger_name="BybitMMOneMinuteQFLMFIERIAutoHedgeWalls", filename="BybitMMOneMinuteQFLMFIERIAutoHedgeWalls.log", stream=True)
+logging = Logger(logger_name="BybitMMOneMinERITB", filename="BybitMMOneMinERITB.log", stream=True)
 
 symbol_locks = {}
 
-class BybitMMOneMinuteQFLMFIERIAutoHedgeWalls(Strategy):
+class BybitMMOneMinERITB(Strategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
         self.is_order_history_populated = False
@@ -270,6 +270,10 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWalls(Strategy):
                 hma_trend = metrics['HMA Trend']
                 eri_trend = metrics['ERI Trend']
 
+                # Assign the 5-minute top and bottom signals
+                fivemin_top_signal = metrics['Top Signal 5m']
+                fivemin_bottom_signal = metrics['Bottom Signal 5m']
+
                 # # Assign the 5-minute top and bottom signals
                 # fivemin_top_signal = metrics['Top Signal 5m']
                 # fivemin_bottom_signal = metrics['Bottom Signal 5m']
@@ -384,13 +388,14 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWalls(Strategy):
                 logging.info(f"ATR for {symbol} : {one_hour_atr_value}")
 
 
-                self.bybit_1m_mfi_eri_walls(
+                self.bybit_1m_walls_topbottom(
                     open_orders,
                     symbol,
                     trend,
                     hma_trend,
-                    mfirsi_signal,
                     eri_trend,
+                    fivemin_top_signal,
+                    fivemin_bottom_signal,
                     one_minute_volume,
                     five_minute_distance,
                     min_vol,

@@ -389,8 +389,11 @@ class Manager:
             funding_rate = api_data.get('Funding', 0)
             hma_trend = api_data.get('HMA Trend', 'neutral')
             eri_trend = api_data.get('ERI Trend', 'undefined')
+            
+            # Ensure boolean values are used for top and bottom signals
+            fivemin_top_signal = api_data.get('Top Signal 5m', False)
+            fivemin_bottom_signal = api_data.get('Bottom Signal 5m', False)
 
-            # Return the extracted metrics as a dictionary
             return {
                 "1mVol": one_minute_volume,
                 "5mVol": five_minute_volume,
@@ -400,11 +403,12 @@ class Manager:
                 "MFI": mfirsi_signal,
                 "Funding": funding_rate,
                 "HMA Trend": hma_trend,
-                "ERI Trend": eri_trend
+                "ERI Trend": eri_trend,
+                "Top Signal 5m": fivemin_top_signal,
+                "Bottom Signal 5m": fivemin_bottom_signal
             }
         except Exception as e:
             logging.warning(f"Error processing API data for symbol {symbol}: {e}")
-            # Return a default dictionary in case of any issues
             return {
                 "1mVol": 0,
                 "5mVol": 0,
@@ -413,5 +417,46 @@ class Manager:
                 "MFI": 'neutral',
                 "Funding": 0,
                 "HMA Trend": 'neutral',
-                "ERI Trend": 'undefined'  # Include a default value for ERI Trend
+                "ERI Trend": 'undefined',
+                "Top Signal 5m": False,
+                "Bottom Signal 5m": False
             }
+
+
+    # def extract_metrics(self, api_data, symbol):
+    #     try:
+    #         one_minute_volume = api_data.get('1mVol', 0)
+    #         five_minute_volume = api_data.get('5mVol', 0)
+    #         one_minute_distance = api_data.get('1mSpread', 0)
+    #         five_minute_distance = api_data.get('5mSpread', 0)
+    #         trend = api_data.get('Trend', 'neutral')
+    #         mfirsi_signal = api_data.get('MFI', 'neutral')
+    #         funding_rate = api_data.get('Funding', 0)
+    #         hma_trend = api_data.get('HMA Trend', 'neutral')
+    #         eri_trend = api_data.get('ERI Trend', 'undefined')
+
+    #         # Return the extracted metrics as a dictionary
+    #         return {
+    #             "1mVol": one_minute_volume,
+    #             "5mVol": five_minute_volume,
+    #             "1mSpread": one_minute_distance,
+    #             "5mSpread": five_minute_distance,
+    #             "Trend": trend,
+    #             "MFI": mfirsi_signal,
+    #             "Funding": funding_rate,
+    #             "HMA Trend": hma_trend,
+    #             "ERI Trend": eri_trend
+    #         }
+    #     except Exception as e:
+    #         logging.warning(f"Error processing API data for symbol {symbol}: {e}")
+    #         # Return a default dictionary in case of any issues
+    #         return {
+    #             "1mVol": 0,
+    #             "5mVol": 0,
+    #             "5mSpread": 0,
+    #             "Trend": 'neutral',
+    #             "MFI": 'neutral',
+    #             "Funding": 0,
+    #             "HMA Trend": 'neutral',
+    #             "ERI Trend": 'undefined'  # Include a default value for ERI Trend
+    #         }
