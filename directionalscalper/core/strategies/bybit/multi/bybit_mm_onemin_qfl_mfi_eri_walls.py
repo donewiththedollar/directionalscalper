@@ -43,6 +43,12 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWalls(Strategy):
         logging.info(f"Standardized symbol: {standardized_symbol}")
         current_thread_id = threading.get_ident()
 
+        # Check if the number of symbols being processed is within the allowed limit
+        with self.initialized_symbols_lock:
+            if len(self.initialized_symbols) >= self.symbols_allowed:
+                logging.info(f"Reached maximum number of symbols allowed ({self.symbols_allowed}). Skipping {standardized_symbol}.")
+                return
+
         if standardized_symbol not in symbol_locks:
             symbol_locks[standardized_symbol] = threading.Lock()
 
@@ -55,6 +61,25 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWalls(Strategy):
                 logging.info(f"Lock released for symbol {standardized_symbol} by thread {current_thread_id}")
         else:
             logging.info(f"Failed to acquire lock for symbol: {standardized_symbol}")
+
+
+    # def run(self, symbol, rotator_symbols_standardized=None):
+    #     standardized_symbol = symbol.upper()  # Standardize the symbol name
+    #     logging.info(f"Standardized symbol: {standardized_symbol}")
+    #     current_thread_id = threading.get_ident()
+
+    #     if standardized_symbol not in symbol_locks:
+    #         symbol_locks[standardized_symbol] = threading.Lock()
+
+    #     if symbol_locks[standardized_symbol].acquire(blocking=False):
+    #         logging.info(f"Lock acquired for symbol {standardized_symbol} by thread {current_thread_id}")
+    #         try:
+    #             self.run_single_symbol(standardized_symbol, rotator_symbols_standardized)
+    #         finally:
+    #             symbol_locks[standardized_symbol].release()
+    #             logging.info(f"Lock released for symbol {standardized_symbol} by thread {current_thread_id}")
+    #     else:
+    #         logging.info(f"Failed to acquire lock for symbol: {standardized_symbol}")
 
     def run_single_symbol(self, symbol, rotator_symbols_standardized=None):
         logging.info(f"Starting to process symbol: {symbol}")
