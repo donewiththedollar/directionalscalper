@@ -213,6 +213,8 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         with thread_to_symbol_lock:
             thread_to_symbol[current_thread] = symbol
 
+            time.sleep(1)
+
         # Correct the path for the configuration file
         if not args.config.startswith('configs/'):
             config_file_path = Path('configs/' + args.config)
