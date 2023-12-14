@@ -441,13 +441,13 @@ class Exchange:
         except Exception as e:
             logging.info(f"An unknown error occurred in with set_position_mode: {e}")
 
-        market_data = self.get_market_data_bybit(symbol=symbol)
-        try:
-            # Set the margin mode to cross
-            self.exchange.set_derivatives_margin_mode(marginMode="cross", symbol=symbol)
+        # market_data = self.get_market_data_bybit(symbol=symbol)
+        # try:
+        #     # Set the margin mode to cross
+        #     self.exchange.set_derivatives_margin_mode(marginMode="cross", symbol=symbol)
 
-        except Exception as e:
-            logging.info(f"An unknown error occurred in with set_derivatives_margin_mode: {e}")
+        # except Exception as e:
+        #     logging.info(f"An unknown error occurred in with set_derivatives_margin_mode: {e}")
 
         # log.info(values)
 
