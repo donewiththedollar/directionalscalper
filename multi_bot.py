@@ -18,7 +18,6 @@ from api.manager import Manager
 from directionalscalper.core.exchange import Exchange
 from directionalscalper.core.strategies.strategy import Strategy
 # Bybit rotator
-from directionalscalper.core.strategies.bybit.multi.bybit_auto_rotator import BybitAutoRotator
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator import BybitMFIRSITrendRotator
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute_qfl_mfi import BybitMMFiveMinuteQFLMFI
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_fivemin_qfl_mfi_eri_walls_autohedge_v2 import BybitMMFiveMinuteQFLMFIERIAutoHedgeWallsV2
@@ -30,8 +29,6 @@ from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_walls_allowedfix import BybitMMOneMinuteQFLMFIERIAutoHedgeWallsAllowedFix
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_walls_tb import BybitMMOneMinuteQFLMFIERIAutoHedgeWallsTB
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_eri_tb import BybitMMOneMinERITB
-
-from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute_qfl_mfi_eri_autohedge_unstuck import BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck
 from directionalscalper.core.strategies.bybit.multi.bybit_qs import BybitQSStrategy
 from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi import BybitAutoRotatorMFIRSI
 from live_table_manager import LiveTableManager, shared_symbols_data
@@ -50,25 +47,12 @@ def standardize_symbol(symbol):
 
 def get_available_strategies():
     return [
-        # 'bybit_mm_mfirsi',
-        # 'bybit_mm_fivemin',
-        # 'bybit_mm_onemin',
-        # 'bybit_mfirsi_trend',
-        # 'bybit_mm_fivemin_walls',
-        # 'bybit_mm_onemin_walls',
-        # 'bybit_mm_qfl_mfi',
-        # 'bybit_mm_qfl_mfi_autohedge',
-        # 'bybit_mm_qs',
-        # 'bybit_1m_qfl_mfi_eri_autohedge_walls'
-        # 'bybit_mm_qfl_mfi_eri_autohedge_walls',
-        # 'bybit_mm_qfl_mfi_eri_autohedge_walls_v2',
         'bybit_1m_eri_tb',
         'bybit_1m_qfl_mfi_eri_walls_allowedfix',
         'bybit_1m_qfl_mfi_eri_walls_tb',
         'bybit_1m_qfl_mfi_eri_walls',
         'bybit_1m_qfl_mfi_eri_autohedge_walls_atr_v2',
         'bybit_mm_qfl_mfi_eri_autohedge_walls_v3',
-        # 'bybit_mm_qfl_mfi_eri_autohedge',
     ]
 
 def choose_strategy():
@@ -166,9 +150,6 @@ class DirectionalMarketMaker:
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'bybit_mm_qfl_mfi_eri_autohedge_walls_v3':
             strategy = BybitMMFiveMinuteQFLMFIERIAutoHedgeWallsV3(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_mm_qfl_mfi_eri_autohedge_unstuck':
-            strategy = BybitMMFiveMinuteQFLMFIERIAutoHedgeUnstuck(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'bybit_mm_qs':
             strategy = BybitQSStrategy(self.exchange, self.manager, config.bot, symbols_allowed)
