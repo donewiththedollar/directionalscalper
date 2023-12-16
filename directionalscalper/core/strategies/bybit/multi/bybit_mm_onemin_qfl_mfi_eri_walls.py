@@ -171,12 +171,15 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                     info = position.get('info', {})
                     position_symbol = info.get('symbol', '').split(':')[0]
 
-                    if all(key in info for key in ['size', 'side', 'avgPrice', 'liqPrice', 'unrealisedPnl']):
+                    if all(key in info for key in ['size', 'side', 'avgPrice', 'liqPrice']):
                         size = float(info['size'])
                         side = info['side'].lower()
                         avg_price = float(info['avgPrice'])
                         liq_price = float(info.get('liqPrice', 0))
-                        unrealised_pnl = float(info['unrealisedPnl'])
+
+                        # Handle empty or invalid unrealisedPnl
+                        unrealised_pnl_str = info.get('unrealisedPnl', '0')
+                        unrealised_pnl = float(unrealised_pnl_str) if unrealised_pnl_str else 0.0
 
                         # Initialize dictionary structure
                         if position_symbol not in position_details:
