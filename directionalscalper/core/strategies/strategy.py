@@ -1477,6 +1477,19 @@ class Strategy:
             return float(short_profit_price)
         return None
 
+    # def calculate_take_profits_based_on_spread(self, short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit):
+    #     logging.info(f"Inputs to calculate_take_profits_based_on_spread: short_pos_price={short_pos_price}, long_pos_price={long_pos_price}, symbol={symbol}, five_minute_distance={five_minute_distance}, previous_five_minute_distance={previous_five_minute_distance}, short_take_profit={short_take_profit}, long_take_profit={long_take_profit}")
+
+    #     if five_minute_distance != previous_five_minute_distance or short_take_profit is None or long_take_profit is None:
+    #         short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, five_minute_distance)
+    #         long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
+            
+    #         logging.info(f"Newly calculated short_take_profit: {short_take_profit}")
+    #         logging.info(f"Newly calculated long_take_profit: {long_take_profit}")
+        
+    #     return short_take_profit, long_take_profit
+
+
     def calculate_take_profits_based_on_spread(self, short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit):
         """
         Calculate long and short take profits based on the spread.
@@ -3428,7 +3441,7 @@ class Strategy:
                 if largest_bid_wall and not self.entry_order_exists(open_orders, "buy"):
                     price_approaching_bid_wall = self.is_price_approaching_wall(current_price, largest_bid_wall[0], 'bid')
 
-                    if price_approaching_bid_wall and (should_long or should_add_to_long) and eri_trend_aligned_long:
+                    if price_approaching_bid_wall and (should_long or should_add_to_long) and eri_trend_aligned_long and mfi_signal_neutral:
                         logging.info(f"Price approaching significant buy wall for {symbol}. Placing long trade.")
                         self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, largest_bid_wall[0], positionIdx=1, reduceOnly=False)
                         time.sleep(5)
@@ -3437,24 +3450,11 @@ class Strategy:
                 if largest_ask_wall and not self.entry_order_exists(open_orders, "sell"):
                     price_approaching_ask_wall = self.is_price_approaching_wall(current_price, largest_ask_wall[0], 'ask')
 
-                    if price_approaching_ask_wall and (should_short or should_add_to_short) and eri_trend_aligned_short:
+                    if price_approaching_ask_wall and (should_short or should_add_to_short) and eri_trend_aligned_short and mfi_signal_neutral:
                         logging.info(f"Price approaching significant sell wall for {symbol}. Placing short trade.")
                         self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, largest_ask_wall[0], positionIdx=2, reduceOnly=False)
                         time.sleep(5)
                         
-                # # Order Book Wall Long Entry Logic
-                # if largest_bid_wall and not self.entry_order_exists(open_orders, "buy"):
-                #     if (should_long or should_add_to_long) and eri_trend_aligned_long:
-                #         logging.info(f"Placing additional long trade due to detected buy wall for {symbol}")
-                #         self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, largest_bid_wall[0], positionIdx=1, reduceOnly=False)
-                #         time.sleep(5)
-
-                # # Order Book Wall Short Entry Logic
-                # if largest_ask_wall and not self.entry_order_exists(open_orders, "sell"):
-                #     if (should_short or should_add_to_short) and eri_trend_aligned_short:
-                #         logging.info(f"Placing additional short trade due to detected sell wall for {symbol}")
-                #         self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, largest_ask_wall[0], positionIdx=2, reduceOnly=False)
-                #         time.sleep(5)
             else:
                 logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
 
@@ -3747,21 +3747,25 @@ class Strategy:
             eri_trend_aligned_long = eri_trend == "bullish"
             eri_trend_aligned_short = eri_trend == "bearish"
 
+            mfi_signal_long = mfi.lower() == "long"
+            mfi_signal_short = mfi.lower() == "short"
+            mfi_signal_neutral = mfi.lower() == "neutral"
 
             if one_minute_volume > min_vol:
                 # Long Entry Logic
-                if should_long and long_pos_qty == 0 and eri_trend_aligned_long and current_price >= qfl_base:
+                if should_long and long_pos_qty == 0 and eri_trend_aligned_long and current_price >= qfl_base and mfi_signal_long:
                     if not self.entry_order_exists(open_orders, "buy"):
                         logging.info(f"Placing initial long entry for {symbol}")
                         entry_price = largest_bid_wall[0] if largest_bid_wall else best_bid_price
                         self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, entry_price, positionIdx=1, reduceOnly=False)
 
                 # Short Entry Logic
-                if should_short and short_pos_qty == 0 and eri_trend_aligned_short and current_price <= qfl_ceiling:
+                if should_short and short_pos_qty == 0 and eri_trend_aligned_short and current_price <= qfl_ceiling and mfi_signal_short:
                     if not self.entry_order_exists(open_orders, "sell"):
                         logging.info(f"Placing initial short entry for {symbol}")
                         entry_price = largest_ask_wall[0] if largest_ask_wall else best_ask_price
                         self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, entry_price, positionIdx=2, reduceOnly=False)
+
 
             time.sleep(5)
 
@@ -4802,7 +4806,64 @@ class Strategy:
         return next_tp_update
 
 
-    # Bybit update take profit based on spread
+    # def update_take_profit_spread_bybit(self, symbol, pos_qty, short_take_profit, long_take_profit, short_pos_price, long_pos_price, positionIdx, order_side, next_tp_update, five_minute_distance, previous_five_minute_distance, tp_adjustment_factor=0.2, max_retries=10):
+    #     # Fetch the current open TP orders for the symbol
+    #     long_tp_orders, short_tp_orders = self.exchange.bybit.get_open_tp_orders(symbol)
+
+    #     logging.info(f"From update_take_profit_spread : Calculated short TP for {symbol}: {short_take_profit}")
+    #     logging.info(f"From update_take_profit_spread : Calculated long TP for {symbol}: {long_take_profit}")
+
+    #     # Calculate the TP values based on the spread and adjust by the factor
+    #     short_tp_distance = short_take_profit - short_pos_price if short_pos_price else 0
+    #     long_tp_distance = long_take_profit - long_pos_price if long_pos_price else 0
+    #     adjusted_short_tp = short_take_profit - (short_tp_distance * tp_adjustment_factor)
+    #     adjusted_long_tp = long_take_profit - (long_tp_distance * tp_adjustment_factor)
+
+    #     take_profit_price = adjusted_long_tp if order_side == "sell" else adjusted_short_tp
+    #     logging.info(f"Determined TP price for {symbol} {order_side}: {take_profit_price}") 
+
+    #     # Determine the relevant TP orders and quantities based on the order side
+    #     relevant_tp_orders = long_tp_orders if order_side == "sell" else short_tp_orders
+
+    #     # Check if there's an existing TP order with a mismatched quantity
+    #     mismatched_qty_orders = [order for order in relevant_tp_orders if order['qty'] != pos_qty]
+
+    #     # If mismatched TP orders exist, cancel them
+    #     if mismatched_qty_orders:
+    #         for order in mismatched_qty_orders:
+    #             try:
+    #                 self.exchange.cancel_order_by_id(order['id'], symbol)
+    #                 logging.info(f"{order_side.capitalize()} take profit {order['id']} canceled due to mismatched quantity.")
+    #                 time.sleep(0.05)
+    #             except Exception as e:
+    #                 logging.error(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
+
+    #     # If there's no TP order or there was a mismatched TP order, create a new TP order
+    #     if not relevant_tp_orders or mismatched_qty_orders:
+    #         now = datetime.now()
+    #         if now >= next_tp_update:
+    #             try:
+    #                 retries = 0
+    #                 success = False
+    #                 while retries < max_retries and not success:
+    #                     try:
+    #                         self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, take_profit_price, positionIdx=positionIdx, reduce_only=True)
+    #                         logging.info(f"{order_side.capitalize()} take profit set at {take_profit_price}")
+    #                         success = True
+    #                     except Exception as e:
+    #                         logging.error(f"Failed to set {order_side} TP for {symbol}. Retry {retries + 1}/{max_retries}. Error: {e}")
+    #                         retries += 1
+    #                         time.sleep(1)
+
+    #                 next_tp_update = self.calculate_next_update_time()
+    #             except Exception as e:
+    #                 logging.error(f"Error in updating {order_side} TP: {e}")
+    #     else:
+    #         logging.info(f"Take profit already exists for {symbol} {order_side} with correct quantity. Skipping update.")
+
+    #     return next_tp_update
+
+    # # Bybit update take profit based on spread
     def update_take_profit_spread_bybit(self, symbol, pos_qty, short_take_profit, long_take_profit, short_pos_price, long_pos_price, positionIdx, order_side, next_tp_update, five_minute_distance, previous_five_minute_distance, max_retries=10):
         # Fetch the current open TP orders for the symbol
         long_tp_orders, short_tp_orders = self.exchange.bybit.get_open_tp_orders(symbol)
