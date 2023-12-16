@@ -180,6 +180,23 @@ class Strategy:
 
         return significant_bid_walls, significant_ask_walls
 
+    def is_price_approaching_wall(self, current_price, wall_price, wall_type):
+        # Define a relative proximity threshold, e.g., 0.5%
+        proximity_percentage = 0.005  # 0.5%
+
+        # Calculate the proximity threshold in price units
+        proximity_threshold = wall_price * proximity_percentage
+
+        # Check if current price is within the threshold of the wall price
+        if wall_type == 'bid' and current_price >= wall_price - proximity_threshold:
+            # Price is approaching a bid wall
+            return True
+        elif wall_type == 'ask' and current_price <= wall_price + proximity_threshold:
+            # Price is approaching an ask wall
+            return True
+
+        return False
+
 
     TAKER_FEE_RATE = 0.00055
 
@@ -3319,12 +3336,28 @@ class Strategy:
                     self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
             # Order Book Wall Logic for Long Entries
-            if largest_bid_wall and not self.entry_order_exists(open_orders, "buy") and ((should_long or should_add_to_long) and bottom_signal == 'True' and trend_aligned_long):
-                self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, largest_bid_wall[0], positionIdx=1, reduceOnly=False)
+            if largest_bid_wall and not self.entry_order_exists(open_orders, "buy"):
+                price_approaching_bid_wall = self.is_price_approaching_wall(current_price, largest_bid_wall[0], 'bid')
+
+                if price_approaching_bid_wall and ((should_long or should_add_to_long) and bottom_signal == 'True' and trend_aligned_long):
+                    logging.info(f"Approaching significant bid wall for long entry in {symbol}.")
+                    self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, largest_bid_wall[0], positionIdx=1, reduceOnly=False)
 
             # Order Book Wall Logic for Short Entries
-            if largest_ask_wall and not self.entry_order_exists(open_orders, "sell") and ((should_short or should_add_to_short) and top_signal == 'True' and trend_aligned_short):
-                self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, largest_ask_wall[0], positionIdx=2, reduceOnly=False)
+            if largest_ask_wall and not self.entry_order_exists(open_orders, "sell"):
+                price_approaching_ask_wall = self.is_price_approaching_wall(current_price, largest_ask_wall[0], 'ask')
+
+                if price_approaching_ask_wall and ((should_short or should_add_to_short) and top_signal == 'True' and trend_aligned_short):
+                    logging.info(f"Approaching significant ask wall for short entry in {symbol}.")
+                    self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, largest_ask_wall[0], positionIdx=2, reduceOnly=False)
+
+            # # Order Book Wall Logic for Long Entries
+            # if largest_bid_wall and not self.entry_order_exists(open_orders, "buy") and ((should_long or should_add_to_long) and bottom_signal == 'True' and trend_aligned_long):
+            #     self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, largest_bid_wall[0], positionIdx=1, reduceOnly=False)
+
+            # # Order Book Wall Logic for Short Entries
+            # if largest_ask_wall and not self.entry_order_exists(open_orders, "sell") and ((should_short or should_add_to_short) and top_signal == 'True' and trend_aligned_short):
+            #     self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, largest_ask_wall[0], positionIdx=2, reduceOnly=False)
 
             time.sleep(5)
 
@@ -3391,17 +3424,35 @@ class Strategy:
 
                 # Order Book Wall Long Entry Logic
                 if largest_bid_wall and not self.entry_order_exists(open_orders, "buy"):
-                    if (should_long or should_add_to_long) and eri_trend_aligned_long:
-                        logging.info(f"Placing additional long trade due to detected buy wall for {symbol}")
+                    price_approaching_bid_wall = self.is_price_approaching_wall(current_price, largest_bid_wall[0], 'bid')
+
+                    if price_approaching_bid_wall and (should_long or should_add_to_long) and eri_trend_aligned_long:
+                        logging.info(f"Price approaching significant buy wall for {symbol}. Placing long trade.")
                         self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, largest_bid_wall[0], positionIdx=1, reduceOnly=False)
                         time.sleep(5)
 
                 # Order Book Wall Short Entry Logic
                 if largest_ask_wall and not self.entry_order_exists(open_orders, "sell"):
-                    if (should_short or should_add_to_short) and eri_trend_aligned_short:
-                        logging.info(f"Placing additional short trade due to detected sell wall for {symbol}")
+                    price_approaching_ask_wall = self.is_price_approaching_wall(current_price, largest_ask_wall[0], 'ask')
+
+                    if price_approaching_ask_wall and (should_short or should_add_to_short) and eri_trend_aligned_short:
+                        logging.info(f"Price approaching significant sell wall for {symbol}. Placing short trade.")
                         self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, largest_ask_wall[0], positionIdx=2, reduceOnly=False)
                         time.sleep(5)
+                        
+                # # Order Book Wall Long Entry Logic
+                # if largest_bid_wall and not self.entry_order_exists(open_orders, "buy"):
+                #     if (should_long or should_add_to_long) and eri_trend_aligned_long:
+                #         logging.info(f"Placing additional long trade due to detected buy wall for {symbol}")
+                #         self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, largest_bid_wall[0], positionIdx=1, reduceOnly=False)
+                #         time.sleep(5)
+
+                # # Order Book Wall Short Entry Logic
+                # if largest_ask_wall and not self.entry_order_exists(open_orders, "sell"):
+                #     if (should_short or should_add_to_short) and eri_trend_aligned_short:
+                #         logging.info(f"Placing additional short trade due to detected sell wall for {symbol}")
+                #         self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, largest_ask_wall[0], positionIdx=2, reduceOnly=False)
+                #         time.sleep(5)
             else:
                 logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
 
@@ -3675,7 +3726,7 @@ class Strategy:
             logging.info(f"Initial entry function with QFL, MFI, and ERI trend initialized for {symbol}")
 
             # Detecting order book walls
-            bid_walls, ask_walls = self.detect_order_book_walls(symbol)
+            bid_walls, ask_walls = self.detect_significant_order_book_walls(symbol)
             largest_bid_wall = max(bid_walls, key=lambda x: x[1], default=None)
             largest_ask_wall = max(ask_walls, key=lambda x: x[1], default=None)
 
