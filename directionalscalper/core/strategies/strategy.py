@@ -153,6 +153,34 @@ class Strategy:
 
         return bid_walls, ask_walls
 
+    def detect_significant_order_book_walls(self, symbol, timeframe='1h', base_threshold_factor=5.0):
+        order_book = self.exchange.get_orderbook(symbol)
+        bids, asks = order_book['bids'], order_book['asks']
+
+        # Fetch historical data and calculate ATR
+        historical_data = self.fetch_historical_data(symbol, timeframe)
+        atr = self.calculate_atr(historical_data)
+
+        # Dynamic threshold based on ATR
+        dynamic_threshold = base_threshold_factor * atr
+
+        # Current market price
+        current_price = self.exchange.get_current_price(symbol)
+
+        # Function to check wall significance
+        def is_wall_significant(price, size, threshold):
+            return size > threshold and abs(price - current_price) / current_price < atr
+
+        # Detect significant bid and ask walls
+        significant_bid_walls = [(price, size) for price, size in bids if is_wall_significant(price, size, dynamic_threshold)]
+        significant_ask_walls = [(price, size) for price, size in asks if is_wall_significant(price, size, dynamic_threshold)]
+
+        logging.info(f"Significant bid walls: {significant_bid_walls} for {symbol}")
+        logging.info(f"Significant ask walls: {significant_ask_walls} for {symbol}")
+
+        return significant_bid_walls, significant_ask_walls
+
+
     TAKER_FEE_RATE = 0.00055
 
     def calculate_trading_fee(self, qty, executed_price, fee_rate=TAKER_FEE_RATE):
@@ -3305,7 +3333,8 @@ class Strategy:
             self.symbol_locks[symbol] = threading.Lock()
 
         with self.symbol_locks[symbol]:
-            bid_walls, ask_walls = self.detect_order_book_walls(symbol)
+            bid_walls, ask_walls = self.detect_significant_order_book_walls(symbol)
+            # bid_walls, ask_walls = self.detect_order_book_walls(symbol)
             largest_bid_wall = max(bid_walls, key=lambda x: x[1], default=None)
             largest_ask_wall = max(ask_walls, key=lambda x: x[1], default=None)
             
