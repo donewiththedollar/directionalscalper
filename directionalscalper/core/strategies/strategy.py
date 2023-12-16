@@ -3409,7 +3409,7 @@ class Strategy:
 
             time.sleep(5)
 
-    def bybit_1m_mfi_eri_walls(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, eri_trend: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
+    def bybit_1m_mfi_eri_walls(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, eri_trend: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool, fivemin_top_signal: bool, fivemin_bottom_signal: bool):
         if symbol not in self.symbol_locks:
             self.symbol_locks[symbol] = threading.Lock()
 
@@ -3476,8 +3476,9 @@ class Strategy:
                 if largest_bid_wall and not self.entry_order_exists(open_orders, "buy"):
                     price_approaching_bid_wall = self.is_price_approaching_wall(current_price, largest_bid_wall[0], 'bid')
 
-                    if price_approaching_bid_wall and (should_long or should_add_to_long) and eri_trend_aligned_long and mfi_signal_neutral:
-                        logging.info(f"Price approaching significant buy wall for {symbol}. Placing long trade.")
+                    # Check if the bottom signal is present for long entries
+                    if price_approaching_bid_wall and (should_long or should_add_to_long) and eri_trend_aligned_long and mfi_signal_neutral and fivemin_bottom_signal:
+                        logging.info(f"Price approaching significant buy wall and bottom signal detected for {symbol}. Placing long trade.")
                         self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, largest_bid_wall[0], positionIdx=1, reduceOnly=False)
                         time.sleep(5)
 
@@ -3485,10 +3486,29 @@ class Strategy:
                 if largest_ask_wall and not self.entry_order_exists(open_orders, "sell"):
                     price_approaching_ask_wall = self.is_price_approaching_wall(current_price, largest_ask_wall[0], 'ask')
 
-                    if price_approaching_ask_wall and (should_short or should_add_to_short) and eri_trend_aligned_short and mfi_signal_neutral:
-                        logging.info(f"Price approaching significant sell wall for {symbol}. Placing short trade.")
+                    # Check if the top signal is present for short entries
+                    if price_approaching_ask_wall and (should_short or should_add_to_short) and eri_trend_aligned_short and mfi_signal_neutral and fivemin_top_signal:
+                        logging.info(f"Price approaching significant sell wall and top signal detected for {symbol}. Placing short trade.")
                         self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, largest_ask_wall[0], positionIdx=2, reduceOnly=False)
                         time.sleep(5)
+                    
+                # # Order Book Wall Long Entry Logic
+                # if largest_bid_wall and not self.entry_order_exists(open_orders, "buy"):
+                #     price_approaching_bid_wall = self.is_price_approaching_wall(current_price, largest_bid_wall[0], 'bid')
+
+                #     if price_approaching_bid_wall and (should_long or should_add_to_long) and eri_trend_aligned_long and mfi_signal_neutral:
+                #         logging.info(f"Price approaching significant buy wall for {symbol}. Placing long trade.")
+                #         self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, largest_bid_wall[0], positionIdx=1, reduceOnly=False)
+                #         time.sleep(5)
+
+                # # Order Book Wall Short Entry Logic
+                # if largest_ask_wall and not self.entry_order_exists(open_orders, "sell"):
+                #     price_approaching_ask_wall = self.is_price_approaching_wall(current_price, largest_ask_wall[0], 'ask')
+
+                #     if price_approaching_ask_wall and (should_short or should_add_to_short) and eri_trend_aligned_short and mfi_signal_neutral:
+                #         logging.info(f"Price approaching significant sell wall for {symbol}. Placing short trade.")
+                #         self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, largest_ask_wall[0], positionIdx=2, reduceOnly=False)
+                #         time.sleep(5)
                         
             else:
                 logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
