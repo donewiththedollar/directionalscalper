@@ -26,16 +26,16 @@ Directional Scalper        |  API Scraper               |  Dashboard            
 ![](https://github.com/donewiththedollar/directional-scalper/blob/main/directional-scalper.gif)  |  ![](https://github.com/donewiththedollar/directional-scalper/blob/main/scraper.gif)  |  ![](https://github.com/donewiththedollar/directional-scalper/blob/main/dashboardimg.gif)  |  ![](https://github.com/donewiththedollar/directionalscalper/blob/main/directionalscalpermulti.gif)  |  ![](https://github.com/donewiththedollar/directional-scalper/blob/main/menugui.gif)
 
 
-## Quickstart - ONLY WORKING STRATEGY IS bybit_mm_qfl_mfi_eri_autohedge_unstuck as of 11/29/23
+## Quickstart
 - Clone the repo `git clone https://github.com/donewiththedollar/directionalscalper.git`
 - Install requirements `pip3.11 install -r requirements.txt`
 - Add API key(s) to config.json in /configs folder
-- Run the bot `python3.11 multi_bot.py --config config.json` to display the menu
+- Run the bot `python3.11 multi_bot.py --config config.json` to display the menu to select a strategy
 
   OR via command line parameters
   
-- Multi bot auto symbol rotator strategy example: `python3.11 multi_bot.py --exchange bybit --account_name account_1 --strategy bybit_mm_qfl_mfi_eri_autohedge_unstuck --config config.json`
-- Old single coin strategy example: `python3.11 bot.py --exchange bybit --symbol DOGEUSDT --strategy bybit_auto_hedge_maker_v2 --config config.json`
+- Multi bot auto symbol rotator strategy example: `python3.11 multi_bot.py --exchange bybit --account_name account_1 --strategy bybit_1m_qfl_mfi_eri_walls --config config.json`
+- Old single coin strategy example: `python3.11 bot.py --exchange bybit --symbol DOGEUSDT --strategy bybit_1m_qfl_mfi_eri_walls --config config.json`
 
 ## Working Exchanges
 >  Bybit, Binance, Bitget, Huobi
