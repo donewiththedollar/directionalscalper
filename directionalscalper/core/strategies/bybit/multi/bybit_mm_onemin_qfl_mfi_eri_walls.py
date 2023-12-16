@@ -167,31 +167,34 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
             position_details = {}
 
             for position in open_position_data:
-                info = position.get('info', {})
-                position_symbol = info.get('symbol', '').split(':')[0]
+                try:
+                    info = position.get('info', {})
+                    position_symbol = info.get('symbol', '').split(':')[0]
 
-                if 'size' in info and 'side' in info and 'avgPrice' in info and 'liqPrice' in info and 'unrealisedPnl' in info:
-                    size = float(info['size'])
-                    side = info['side'].lower()
-                    avg_price = float(info['avgPrice'])
-                    liq_price = float(info.get('liqPrice', 0))
-                    unrealised_pnl = float(info['unrealisedPnl'])
+                    if all(key in info for key in ['size', 'side', 'avgPrice', 'liqPrice', 'unrealisedPnl']):
+                        size = float(info['size'])
+                        side = info['side'].lower()
+                        avg_price = float(info['avgPrice'])
+                        liq_price = float(info.get('liqPrice', 0))
+                        unrealised_pnl = float(info['unrealisedPnl'])
 
-                    # Initialize dictionary structure
-                    if position_symbol not in position_details:
-                        position_details[position_symbol] = {
-                            'long': {'qty': 0, 'avg_price': 0, 'liq_price': None, 'upnl': 0}, 
-                            'short': {'qty': 0, 'avg_price': 0, 'liq_price': None, 'upnl': 0}
-                        }
+                        # Initialize dictionary structure
+                        if position_symbol not in position_details:
+                            position_details[position_symbol] = {
+                                'long': {'qty': 0, 'avg_price': 0, 'liq_price': None, 'upnl': 0}, 
+                                'short': {'qty': 0, 'avg_price': 0, 'liq_price': None, 'upnl': 0}
+                            }
 
-                    # Update details based on side
-                    position_side = 'long' if side == 'Buy' else 'short'
-                    position_details[position_symbol][position_side]['qty'] += size
-                    position_details[position_symbol][position_side]['avg_price'] = avg_price
-                    position_details[position_symbol][position_side]['liq_price'] = liq_price
-                    position_details[position_symbol][position_side]['upnl'] += unrealised_pnl
-                else:
-                    logging.warning(f"Missing required keys in position info for {position_symbol}")
+                        # Update details based on side
+                        position_side = 'long' if side == 'Buy' else 'short'
+                        position_details[position_symbol][position_side]['qty'] += size
+                        position_details[position_symbol][position_side]['avg_price'] = avg_price
+                        position_details[position_symbol][position_side]['liq_price'] = liq_price
+                        position_details[position_symbol][position_side]['upnl'] += unrealised_pnl
+                    else:
+                        logging.warning(f"Missing required keys in position info for {position_symbol}")
+                except Exception as e:
+                    logging.error(f"Error processing position data for {position_symbol}: {e}")
 
 
             # for position in open_position_data:
@@ -346,7 +349,7 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
 
                 logging.info(f"Unrealized PnL for long position in {symbol}: {long_upnl}")
                 logging.info(f"Unrealized PnL for short position in {symbol}: {short_upnl}")
-                
+
 
                 logging.info(f"Rotator symbol trading: {symbol}")
                             
