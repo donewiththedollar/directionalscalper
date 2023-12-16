@@ -10,11 +10,11 @@ from datetime import datetime, timedelta
 from ...strategy import Strategy
 from ...logger import Logger
 from live_table_manager import shared_symbols_data
-logging = Logger(logger_name="BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATRV2", filename="BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATRV2.log", stream=True)
+logging = Logger(logger_name="BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR", filename="BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR.log", stream=True)
 
 symbol_locks = {}
 
-class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATRV2(Strategy):
+class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
         self.is_order_history_populated = False
