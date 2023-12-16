@@ -391,8 +391,11 @@ class Manager:
             eri_trend = api_data.get('ERI Trend', 'undefined')
             
             # Ensure boolean values are used for top and bottom signals
-            fivemin_top_signal = api_data.get('Top Signal 5m', False)
-            fivemin_bottom_signal = api_data.get('Bottom Signal 5m', False)
+            # fivemin_top_signal = api_data.get('Top Signal 5m', False)
+            # fivemin_bottom_signal = api_data.get('Bottom Signal 5m', False)
+
+            fivemin_top_signal = str(api_data.get('Top Signal 5m', 'false')).lower() == 'true'
+            fivemin_bottom_signal = str(api_data.get('Bottom Signal 5m', 'false')).lower() == 'true'
 
             return {
                 "1mVol": one_minute_volume,
