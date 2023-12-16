@@ -462,6 +462,8 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                     should_short,
                     should_add_to_long,
                     should_add_to_short,
+                    fivemin_top_signal,
+                    fivemin_bottom_signal
                 )
                 
                 tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
