@@ -347,11 +347,11 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                 long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
                 short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
 
-                long_upnl = position_details.get(symbol, {}).get('long', {}).get('upnl', 0)
-                short_upnl = position_details.get(symbol, {}).get('short', {}).get('upnl', 0)
+                # long_upnl = position_details.get(symbol, {}).get('long', {}).get('upnl', 0)
+                # short_upnl = position_details.get(symbol, {}).get('short', {}).get('upnl', 0)
 
-                logging.info(f"Unrealized PnL for long position in {symbol}: {long_upnl}")
-                logging.info(f"Unrealized PnL for short position in {symbol}: {short_upnl}")
+                # logging.info(f"Unrealized PnL for long position in {symbol}: {long_upnl}")
+                # logging.info(f"Unrealized PnL for short position in {symbol}: {short_upnl}")
 
 
                 logging.info(f"Rotator symbol trading: {symbol}")
