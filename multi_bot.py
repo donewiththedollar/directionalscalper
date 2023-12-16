@@ -25,7 +25,7 @@ from directionalscalper.core.strategies.bybit.multi.bybit_mm_fivemin_qfl_mfi_eri
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_walls_autohedge import BybitMMOneMinuteQFLMFIERIAutoHedgeWallsAutoHedge
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_walls_autohedge_atr import BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_walls_autohedge_atr_topbottom import BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATRTopBottom
-from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_walls import BybitMMOneMinuteQFLMFIERIAutoHedgeWalls
+from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_walls import BybitMMOneMinuteQFLMFIERIWalls
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_walls_allowedfix import BybitMMOneMinuteQFLMFIERIAutoHedgeWallsAllowedFix
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_walls_tb import BybitMMOneMinuteQFLMFIERIAutoHedgeWallsTB
 from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_eri_tb import BybitMMOneMinERITB
@@ -124,7 +124,7 @@ class DirectionalMarketMaker:
             strategy = BybitMMFiveMinuteQFLMFI(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'bybit_1m_qfl_mfi_eri_walls':
-            strategy = BybitMMOneMinuteQFLMFIERIAutoHedgeWalls(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy = BybitMMOneMinuteQFLMFIERIWalls(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'bybit_1m_qfl_mfi_eri_walls_allowedfix':
             strategy = BybitMMOneMinuteQFLMFIERIAutoHedgeWallsAllowedFix(self.exchange, self.manager, config.bot, symbols_allowed)
