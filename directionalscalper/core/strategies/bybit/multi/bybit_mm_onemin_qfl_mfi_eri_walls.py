@@ -168,33 +168,61 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
 
             for position in open_position_data:
                 info = position.get('info', {})
-                position_symbol = info.get('symbol', '').split(':')[0]  # Use a different variable name
+                position_symbol = info.get('symbol', '').split(':')[0]
 
-                # Ensure 'size', 'side', 'avgPrice', and 'liqPrice' keys exist in the info dictionary
-                if 'size' in info and 'side' in info and 'avgPrice' in info and 'liqPrice' in info:
+                if 'size' in info and 'side' in info and 'avgPrice' in info and 'liqPrice' in info and 'unrealisedPnl' in info:
                     size = float(info['size'])
                     side = info['side'].lower()
                     avg_price = float(info['avgPrice'])
-                    liq_price = info.get('liqPrice', None)  # Default to None if not available
+                    liq_price = float(info.get('liqPrice', 0))
+                    unrealised_pnl = float(info['unrealisedPnl'])
 
-                    # Initialize the nested dictionary if the position_symbol is not already in position_details
+                    # Initialize dictionary structure
                     if position_symbol not in position_details:
                         position_details[position_symbol] = {
-                            'long': {'qty': 0, 'avg_price': 0, 'liq_price': None}, 
-                            'short': {'qty': 0, 'avg_price': 0, 'liq_price': None}
+                            'long': {'qty': 0, 'avg_price': 0, 'liq_price': None, 'upnl': 0}, 
+                            'short': {'qty': 0, 'avg_price': 0, 'liq_price': None, 'upnl': 0}
                         }
 
-                    # Update the quantities, average prices, and liquidation prices based on the side of the position
-                    if side == 'buy':
-                        position_details[position_symbol]['long']['qty'] += size
-                        position_details[position_symbol]['long']['avg_price'] = avg_price
-                        position_details[position_symbol]['long']['liq_price'] = liq_price
-                    elif side == 'sell':
-                        position_details[position_symbol]['short']['qty'] += size
-                        position_details[position_symbol]['short']['avg_price'] = avg_price
-                        position_details[position_symbol]['short']['liq_price'] = liq_price
+                    # Update details based on side
+                    position_side = 'long' if side == 'Buy' else 'short'
+                    position_details[position_symbol][position_side]['qty'] += size
+                    position_details[position_symbol][position_side]['avg_price'] = avg_price
+                    position_details[position_symbol][position_side]['liq_price'] = liq_price
+                    position_details[position_symbol][position_side]['upnl'] += unrealised_pnl
                 else:
                     logging.warning(f"Missing required keys in position info for {position_symbol}")
+
+
+            # for position in open_position_data:
+            #     info = position.get('info', {})
+            #     position_symbol = info.get('symbol', '').split(':')[0]  # Use a different variable name
+
+            #     # Ensure 'size', 'side', 'avgPrice', and 'liqPrice' keys exist in the info dictionary
+            #     if 'size' in info and 'side' in info and 'avgPrice' in info and 'liqPrice' in info:
+            #         size = float(info['size'])
+            #         side = info['side'].lower()
+            #         avg_price = float(info['avgPrice'])
+            #         liq_price = info.get('liqPrice', None)  # Default to None if not available
+
+            #         # Initialize the nested dictionary if the position_symbol is not already in position_details
+            #         if position_symbol not in position_details:
+            #             position_details[position_symbol] = {
+            #                 'long': {'qty': 0, 'avg_price': 0, 'liq_price': None}, 
+            #                 'short': {'qty': 0, 'avg_price': 0, 'liq_price': None}
+            #             }
+
+            #         # Update the quantities, average prices, and liquidation prices based on the side of the position
+            #         if side == 'buy':
+            #             position_details[position_symbol]['long']['qty'] += size
+            #             position_details[position_symbol]['long']['avg_price'] = avg_price
+            #             position_details[position_symbol]['long']['liq_price'] = liq_price
+            #         elif side == 'sell':
+            #             position_details[position_symbol]['short']['qty'] += size
+            #             position_details[position_symbol]['short']['avg_price'] = avg_price
+            #             position_details[position_symbol]['short']['liq_price'] = liq_price
+            #     else:
+            #         logging.warning(f"Missing required keys in position info for {position_symbol}")
 
             open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
             open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
@@ -313,13 +341,12 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                 long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
                 short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
 
-                # # Now, assuming you are processing a particular symbol:
-                # long_liq_price = position_details.get(symbol, {}).get('long', {}).get('liq_price', None)
-                # short_liq_price = position_details.get(symbol, {}).get('short', {}).get('liq_price', None)
+                long_upnl = position_details.get(symbol, {}).get('long', {}).get('upnl', 0)
+                short_upnl = position_details.get(symbol, {}).get('short', {}).get('upnl', 0)
 
-                # logging.info(f"Long liquidation price for {symbol}: {long_liq_price}")
-                # logging.info(f"Short liquidation price for {symbol}: {short_liq_price}")
-
+                logging.info(f"Unrealized PnL for long position in {symbol}: {long_upnl}")
+                logging.info(f"Unrealized PnL for short position in {symbol}: {short_upnl}")
+                
 
                 logging.info(f"Rotator symbol trading: {symbol}")
                             
