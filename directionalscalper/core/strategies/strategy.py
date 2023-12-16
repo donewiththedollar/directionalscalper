@@ -153,32 +153,67 @@ class Strategy:
 
         return bid_walls, ask_walls
 
-    def detect_significant_order_book_walls(self, symbol, timeframe='1h', base_threshold_factor=5.0):
+    def detect_significant_order_book_walls(self, symbol, timeframe='1h', base_threshold_factor=5.0, atr_proximity_percentage=10.0):
         order_book = self.exchange.get_orderbook(symbol)
         bids, asks = order_book['bids'], order_book['asks']
 
-        # Fetch historical data and calculate ATR
+        # Calculate ATR for market volatility
         historical_data = self.fetch_historical_data(symbol, timeframe)
         atr = self.calculate_atr(historical_data)
-
-        # Dynamic threshold based on ATR
+        
+        # Calculate dynamic threshold based on ATR
         dynamic_threshold = base_threshold_factor * atr
+
+        # Calculate average order size for the top 10 orders
+        avg_bid_size = sum([bid[1] for bid in bids[:10]]) / 10
+        avg_ask_size = sum([ask[1] for ask in asks[:10]]) / 10
 
         # Current market price
         current_price = self.exchange.get_current_price(symbol)
 
+        # Calculate proximity threshold as a percentage of the current price
+        proximity_threshold = (atr_proximity_percentage / 100) * current_price
+
         # Function to check wall significance
-        def is_wall_significant(price, size, threshold):
-            return size > threshold and abs(price - current_price) / current_price < atr
+        def is_wall_significant(price, size, threshold, avg_size):
+            return size > max(threshold, avg_size * base_threshold_factor) and abs(price - current_price) <= proximity_threshold
 
         # Detect significant bid and ask walls
-        significant_bid_walls = [(price, size) for price, size in bids if is_wall_significant(price, size, dynamic_threshold)]
-        significant_ask_walls = [(price, size) for price, size in asks if is_wall_significant(price, size, dynamic_threshold)]
+        significant_bid_walls = [(price, size) for price, size in bids if is_wall_significant(price, size, dynamic_threshold, avg_bid_size)]
+        significant_ask_walls = [(price, size) for price, size in asks if is_wall_significant(price, size, dynamic_threshold, avg_ask_size)]
 
         logging.info(f"Significant bid walls: {significant_bid_walls} for {symbol}")
         logging.info(f"Significant ask walls: {significant_ask_walls} for {symbol}")
 
         return significant_bid_walls, significant_ask_walls
+
+
+    # def detect_significant_order_book_walls(self, symbol, timeframe='1h', base_threshold_factor=5.0):
+    #     order_book = self.exchange.get_orderbook(symbol)
+    #     bids, asks = order_book['bids'], order_book['asks']
+
+    #     # Fetch historical data and calculate ATR
+    #     historical_data = self.fetch_historical_data(symbol, timeframe)
+    #     atr = self.calculate_atr(historical_data)
+
+    #     # Dynamic threshold based on ATR
+    #     dynamic_threshold = base_threshold_factor * atr
+
+    #     # Current market price
+    #     current_price = self.exchange.get_current_price(symbol)
+
+    #     # Function to check wall significance
+    #     def is_wall_significant(price, size, threshold):
+    #         return size > threshold and abs(price - current_price) / current_price < atr
+
+    #     # Detect significant bid and ask walls
+    #     significant_bid_walls = [(price, size) for price, size in bids if is_wall_significant(price, size, dynamic_threshold)]
+    #     significant_ask_walls = [(price, size) for price, size in asks if is_wall_significant(price, size, dynamic_threshold)]
+
+    #     logging.info(f"Significant bid walls: {significant_bid_walls} for {symbol}")
+    #     logging.info(f"Significant ask walls: {significant_ask_walls} for {symbol}")
+
+    #     return significant_bid_walls, significant_ask_walls
 
     def is_price_approaching_wall(self, current_price, wall_price, wall_type):
         # Define a relative proximity threshold, e.g., 0.5%
