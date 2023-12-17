@@ -21,6 +21,9 @@ A hedge scalping strategy based on directional analysis using a quantitative app
 
 * BTC: bc1q9hyvvtcsm0k39svz59hjgz4f6dr6c2k4wlrxmc
 
+### Affiliate links
+## Bybit https://partner.bybit.com/b/tradesimple
+
 Directional Scalper        |  API Scraper               |  Dashboard                | Directional Scalper Multi | Menu GUI
 :-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:
 ![](https://github.com/donewiththedollar/directional-scalper/blob/main/directional-scalper.gif)  |  ![](https://github.com/donewiththedollar/directional-scalper/blob/main/scraper.gif)  |  ![](https://github.com/donewiththedollar/directional-scalper/blob/main/dashboardimg.gif)  |  ![](https://github.com/donewiththedollar/directionalscalper/blob/main/directionalscalpermulti.gif)  |  ![](https://github.com/donewiththedollar/directional-scalper/blob/main/menugui.gif)
