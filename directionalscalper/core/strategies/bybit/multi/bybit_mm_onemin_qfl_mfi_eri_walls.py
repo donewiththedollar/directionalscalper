@@ -177,23 +177,21 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                         avg_price = float(info['avgPrice'])
                         liq_price = float(info.get('liqPrice', 0))
 
-                        # Initialize dictionary structure
+                        unrealised_pnl_str = info.get('unrealisedPnl', '0')
+                        unrealised_pnl = 0.0
+                        if unrealised_pnl_str:
+                            try:
+                                unrealised_pnl = float(unrealised_pnl_str)
+                            except ValueError:
+                                logging.warning(f"Invalid unrealisedPnl format for {position_symbol}: {unrealised_pnl_str}")
+                                unrealised_pnl = 0.0  # Default to 0 if conversion fails
+
                         if position_symbol not in position_details:
                             position_details[position_symbol] = {
                                 'long': {'qty': 0, 'avg_price': 0, 'liq_price': None, 'upnl': 0}, 
                                 'short': {'qty': 0, 'avg_price': 0, 'liq_price': None, 'upnl': 0}
                             }
 
-                        # Safely parse unrealisedPnl
-                        unrealised_pnl_str = info.get('unrealisedPnl', '0')
-                        unrealised_pnl = 0.0  # Default to 0.0
-                        if unrealised_pnl_str:
-                            try:
-                                unrealised_pnl = float(unrealised_pnl_str)
-                            except ValueError:
-                                logging.warning(f"Invalid unrealisedPnl format for {position_symbol}: {unrealised_pnl_str}")
-
-                        # Update details based on side
                         position_side = 'long' if side == 'Buy' else 'short'
                         position_details[position_symbol][position_side]['qty'] += size
                         position_details[position_symbol][position_side]['avg_price'] = avg_price
@@ -351,11 +349,13 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                 long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
                 short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
 
-                # long_upnl = position_details.get(symbol, {}).get('long', {}).get('upnl', 0)
-                # short_upnl = position_details.get(symbol, {}).get('short', {}).get('upnl', 0)
+                # Access the unrealized PnL for both long and short positions
+                long_upnl = position_details.get(symbol, {}).get('long', {}).get('upnl', 0)
+                short_upnl = position_details.get(symbol, {}).get('short', {}).get('upnl', 0)
 
-                # logging.info(f"Unrealized PnL for long position in {symbol}: {long_upnl}")
-                # logging.info(f"Unrealized PnL for short position in {symbol}: {short_upnl}")
+                # Log the unrealized PnL
+                logging.info(f"Unrealized PnL for long position in {symbol}: {long_upnl}")
+                logging.info(f"Unrealized PnL for short position in {symbol}: {short_upnl}")
 
 
                 logging.info(f"Rotator symbol trading: {symbol}")
