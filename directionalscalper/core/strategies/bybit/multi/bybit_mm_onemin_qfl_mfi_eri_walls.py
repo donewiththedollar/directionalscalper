@@ -358,13 +358,6 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                 with self.initialized_symbols_lock:
                     logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
 
-
-                short_upnl = position_details.get(symbol, {}).get('short', {}).get('upnl', 0)
-                long_upnl = position_details.get(symbol, {}).get('long', {}).get('upnl', 0)
-
-                logging.info(f"Long uPNL for {symbol} {long_upnl}")
-                logging.info(f"Short uPNL for {symbol} {short_upnl}")
-
                 cum_realised_pnl_long = position_data["long"]["cum_realised"]
                 cum_realised_pnl_short = position_data["short"]["cum_realised"]
 
