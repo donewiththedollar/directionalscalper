@@ -396,8 +396,9 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                     logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
 
 
-                short_upnl = position_data["short"]["upnl"]
-                long_upnl = position_data["long"]["upnl"]
+                short_upnl = position_details.get(symbol, {}).get('short', {}).get('upnl', 0)
+                long_upnl = position_details.get(symbol, {}).get('long', {}).get('upnl', 0)
+
                 logging.info(f"Long uPNL for {symbol} {long_upnl}")
                 logging.info(f"Short uPNL for {symbol} {short_upnl}")
 
