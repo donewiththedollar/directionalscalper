@@ -166,69 +166,73 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
 
             position_details = {}
 
-            # for position in open_position_data:
-            #     try:
-            #         info = position.get('info', {})
-            #         position_symbol = info.get('symbol', '').split(':')[0]
-
-            #         if all(key in info for key in ['size', 'side', 'avgPrice', 'liqPrice']):
-            #             size = float(info['size'])
-            #             side = info['side'].lower()
-            #             avg_price = float(info['avgPrice'])
-            #             liq_price = float(info.get('liqPrice', 0))
-
-            #             # Handle empty or invalid unrealisedPnl
-            #             unrealised_pnl_str = info.get('unrealisedPnl', '0')
-            #             unrealised_pnl = float(unrealised_pnl_str) if unrealised_pnl_str else 0.0
-
-            #             # Initialize dictionary structure
-            #             if position_symbol not in position_details:
-            #                 position_details[position_symbol] = {
-            #                     'long': {'qty': 0, 'avg_price': 0, 'liq_price': None, 'upnl': 0}, 
-            #                     'short': {'qty': 0, 'avg_price': 0, 'liq_price': None, 'upnl': 0}
-            #                 }
-
-            #             # Update details based on side
-            #             position_side = 'long' if side == 'Buy' else 'short'
-            #             position_details[position_symbol][position_side]['qty'] += size
-            #             position_details[position_symbol][position_side]['avg_price'] = avg_price
-            #             position_details[position_symbol][position_side]['liq_price'] = liq_price
-            #             position_details[position_symbol][position_side]['upnl'] += unrealised_pnl
-            #         else:
-            #             logging.warning(f"Missing required keys in position info for {position_symbol}")
-            #     except Exception as e:
-            #         logging.error(f"Error processing position data for {position_symbol}: {e}")
-
-
             for position in open_position_data:
-                info = position.get('info', {})
-                position_symbol = info.get('symbol', '').split(':')[0]  # Use a different variable name
+                try:
+                    info = position.get('info', {})
+                    position_symbol = info.get('symbol', '').split(':')[0]
 
-                # Ensure 'size', 'side', 'avgPrice', and 'liqPrice' keys exist in the info dictionary
-                if 'size' in info and 'side' in info and 'avgPrice' in info and 'liqPrice' in info:
-                    size = float(info['size'])
-                    side = info['side'].lower()
-                    avg_price = float(info['avgPrice'])
-                    liq_price = info.get('liqPrice', None)  # Default to None if not available
+                    if all(key in info for key in ['size', 'side', 'avgPrice', 'liqPrice']):
+                        size = float(info['size'])
+                        side = info['side'].lower()
+                        avg_price = float(info['avgPrice'])
+                        liq_price = float(info.get('liqPrice', 0))
 
-                    # Initialize the nested dictionary if the position_symbol is not already in position_details
-                    if position_symbol not in position_details:
-                        position_details[position_symbol] = {
-                            'long': {'qty': 0, 'avg_price': 0, 'liq_price': None}, 
-                            'short': {'qty': 0, 'avg_price': 0, 'liq_price': None}
-                        }
+                        # Safely parse unrealisedPnl
+                        unrealised_pnl_str = info.get('unrealisedPnl', '0')
+                        try:
+                            unrealised_pnl = float(unrealised_pnl_str) if unrealised_pnl_str else 0.0
+                        except ValueError:
+                            unrealised_pnl = 0.0
+                            logging.warning(f"Invalid unrealisedPnl format for {position_symbol}: {unrealised_pnl_str}")
 
-                    # Update the quantities, average prices, and liquidation prices based on the side of the position
-                    if side == 'buy':
-                        position_details[position_symbol]['long']['qty'] += size
-                        position_details[position_symbol]['long']['avg_price'] = avg_price
-                        position_details[position_symbol]['long']['liq_price'] = liq_price
-                    elif side == 'sell':
-                        position_details[position_symbol]['short']['qty'] += size
-                        position_details[position_symbol]['short']['avg_price'] = avg_price
-                        position_details[position_symbol]['short']['liq_price'] = liq_price
-                else:
-                    logging.warning(f"Missing required keys in position info for {position_symbol}")
+                        # Initialize dictionary structure
+                        if position_symbol not in position_details:
+                            position_details[position_symbol] = {
+                                'long': {'qty': 0, 'avg_price': 0, 'liq_price': None, 'upnl': 0}, 
+                                'short': {'qty': 0, 'avg_price': 0, 'liq_price': None, 'upnl': 0}
+                            }
+
+                        # Update details based on side
+                        position_side = 'long' if side == 'Buy' else 'short'
+                        position_details[position_symbol][position_side]['qty'] += size
+                        position_details[position_symbol][position_side]['avg_price'] = avg_price
+                        position_details[position_symbol][position_side]['liq_price'] = liq_price
+                        position_details[position_symbol][position_side]['upnl'] += unrealised_pnl
+                    else:
+                        logging.warning(f"Missing required keys in position info for {position_symbol}")
+                except Exception as e:
+                    logging.error(f"Error processing position data for {position_symbol}: {e}")
+                    
+
+            # for position in open_position_data:
+            #     info = position.get('info', {})
+            #     position_symbol = info.get('symbol', '').split(':')[0]  # Use a different variable name
+
+            #     # Ensure 'size', 'side', 'avgPrice', and 'liqPrice' keys exist in the info dictionary
+            #     if 'size' in info and 'side' in info and 'avgPrice' in info and 'liqPrice' in info:
+            #         size = float(info['size'])
+            #         side = info['side'].lower()
+            #         avg_price = float(info['avgPrice'])
+            #         liq_price = info.get('liqPrice', None)  # Default to None if not available
+
+            #         # Initialize the nested dictionary if the position_symbol is not already in position_details
+            #         if position_symbol not in position_details:
+            #             position_details[position_symbol] = {
+            #                 'long': {'qty': 0, 'avg_price': 0, 'liq_price': None}, 
+            #                 'short': {'qty': 0, 'avg_price': 0, 'liq_price': None}
+            #             }
+
+            #         # Update the quantities, average prices, and liquidation prices based on the side of the position
+            #         if side == 'buy':
+            #             position_details[position_symbol]['long']['qty'] += size
+            #             position_details[position_symbol]['long']['avg_price'] = avg_price
+            #             position_details[position_symbol]['long']['liq_price'] = liq_price
+            #         elif side == 'sell':
+            #             position_details[position_symbol]['short']['qty'] += size
+            #             position_details[position_symbol]['short']['avg_price'] = avg_price
+            #             position_details[position_symbol]['short']['liq_price'] = liq_price
+            #     else:
+            #         logging.warning(f"Missing required keys in position info for {position_symbol}")
 
             open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
             open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
