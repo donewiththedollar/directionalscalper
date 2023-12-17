@@ -177,20 +177,21 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                         avg_price = float(info['avgPrice'])
                         liq_price = float(info.get('liqPrice', 0))
 
-                        # Safely parse unrealisedPnl
-                        unrealised_pnl_str = info.get('unrealisedPnl', '0')
-                        try:
-                            unrealised_pnl = float(unrealised_pnl_str) if unrealised_pnl_str else 0.0
-                        except ValueError:
-                            unrealised_pnl = 0.0
-                            logging.warning(f"Invalid unrealisedPnl format for {position_symbol}: {unrealised_pnl_str}")
-
                         # Initialize dictionary structure
                         if position_symbol not in position_details:
                             position_details[position_symbol] = {
                                 'long': {'qty': 0, 'avg_price': 0, 'liq_price': None, 'upnl': 0}, 
                                 'short': {'qty': 0, 'avg_price': 0, 'liq_price': None, 'upnl': 0}
                             }
+
+                        # Safely parse unrealisedPnl
+                        unrealised_pnl_str = info.get('unrealisedPnl', '0')
+                        unrealised_pnl = 0.0  # Default to 0.0
+                        if unrealised_pnl_str:
+                            try:
+                                unrealised_pnl = float(unrealised_pnl_str)
+                            except ValueError:
+                                logging.warning(f"Invalid unrealisedPnl format for {position_symbol}: {unrealised_pnl_str}")
 
                         # Update details based on side
                         position_side = 'long' if side == 'Buy' else 'short'
@@ -202,7 +203,7 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                         logging.warning(f"Missing required keys in position info for {position_symbol}")
                 except Exception as e:
                     logging.error(f"Error processing position data for {position_symbol}: {e}")
-                    
+
 
             # for position in open_position_data:
             #     info = position.get('info', {})
@@ -350,11 +351,11 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                 long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
                 short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
 
-                long_upnl = position_details.get(symbol, {}).get('long', {}).get('upnl', 0)
-                short_upnl = position_details.get(symbol, {}).get('short', {}).get('upnl', 0)
+                # long_upnl = position_details.get(symbol, {}).get('long', {}).get('upnl', 0)
+                # short_upnl = position_details.get(symbol, {}).get('short', {}).get('upnl', 0)
 
-                logging.info(f"Unrealized PnL for long position in {symbol}: {long_upnl}")
-                logging.info(f"Unrealized PnL for short position in {symbol}: {short_upnl}")
+                # logging.info(f"Unrealized PnL for long position in {symbol}: {long_upnl}")
+                # logging.info(f"Unrealized PnL for short position in {symbol}: {short_upnl}")
 
 
                 logging.info(f"Rotator symbol trading: {symbol}")
@@ -397,6 +398,9 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
 
                 short_upnl = position_data["short"]["upnl"]
                 long_upnl = position_data["long"]["upnl"]
+                logging.info(f"Long uPNL for {symbol} {long_upnl}")
+                logging.info(f"Short uPNL for {symbol} {short_upnl}")
+
                 cum_realised_pnl_long = position_data["long"]["cum_realised"]
                 cum_realised_pnl_short = position_data["short"]["cum_realised"]
 
