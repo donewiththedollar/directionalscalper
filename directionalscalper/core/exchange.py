@@ -766,54 +766,6 @@ class Exchange:
 
         return None
 
-
-    # def get_balance_bybit(self, quote):
-    #     if self.exchange.has['fetchBalance']:
-    #         try:
-    #             # Fetch the balance
-    #             balance_response = self.exchange.fetch_balance()
-                
-    #             # Log the raw response for debugging purposes
-    #             logging.info(f"Raw balance response from Bybit: {balance_response}")
-
-    #             # Check if it's the unified structure
-    #             if 'result' in balance_response:
-    #                 coin_list = balance_response.get('result', {}).get('coin', [])
-    #                 for currency_balance in coin_list:
-    #                     if currency_balance['coin'] == quote:
-    #                         return float(currency_balance['equity'])
-    #             # If not unified, handle the old structure
-    #             elif 'info' in balance_response:
-    #                 for currency_balance in balance_response['info']['result']['list']:
-    #                     if currency_balance['coin'] == quote:
-    #                         return float(currency_balance['equity'])
-    #         except Exception as e:
-    #             logging.error(f"Error fetching balance from Bybit: {e}")
-    #     return None
-
-    # Bybit
-    # def get_balance_bybit(self, quote):
-    #     if self.exchange.has['fetchBalance']:
-    #         # Fetch the balance
-    #         balance_response = self.exchange.fetch_balance()
-
-    #         # Check if it's the unified structure
-    #         if 'result' in balance_response:
-    #             coin_list = balance_response.get('result', {}).get('coin', [])
-    #             for currency_balance in coin_list:
-    #                 if currency_balance['coin'] == quote:
-    #                     return float(currency_balance['equity'])
-    #         # If not unified, handle the old structure
-    #         elif 'info' in balance_response:
-    #             for currency_balance in balance_response['info']['result']['list']:
-    #                 if currency_balance['coin'] == quote:
-    #                     return float(currency_balance['equity'])
-    #         else:
-    #             raise Exception("Unable to fetch balance due to unexpected response structure.")
-    #     else:
-    #         raise Exception("fetchBalance not supported by the exchange.")
-
-
     def get_available_balance_bybit(self, quote):
         if self.exchange.has['fetchBalance']:
             try:
@@ -862,30 +814,6 @@ class Exchange:
 
         return unrealized_pnl
     
-    # def get_available_balance_bybit(self, quote):
-    #     if self.exchange.has['fetchBalance']:
-    #         # Fetch the balance
-    #         balance_response = self.exchange.fetch_balance()
-
-    #         # Check if it's the unified structure
-    #         if 'result' in balance_response:
-    #             coin_list = balance_response.get('result', {}).get('coin', [])
-    #             for currency_balance in coin_list:
-    #                 if currency_balance['coin'] == quote:
-    #                     return float(currency_balance['availableToWithdraw'])
-    #         # If not unified, handle the old structure
-    #         elif 'info' in balance_response:
-    #             try:
-    #                 for currency_balance in balance_response['info']['result']['list']:
-    #                     if currency_balance['coin'] == quote:
-    #                         return float(currency_balance['availableBalance'])
-    #             except KeyError as e:
-    #                 print(f"KeyError: {e}")
-    #                 print(balance_response)  # Print the balance if there was a KeyError
-
-    #     return None
-
-
     def get_available_balance_huobi(self, symbol):
         try:
             balance_data = self.exchange.fetch_balance()
@@ -1146,30 +1074,6 @@ class Exchange:
         except ccxt.BaseError as e:
             print(f'Failed to fetch OHLCV data: {e}')
             return pd.DataFrame()
-
-    # def fetch_ohlcv(self, symbol, timeframe='1d'):
-    #     """
-    #     Fetch OHLCV data for the given symbol and timeframe.
-
-    #     :param symbol: Trading symbol.
-    #     :param timeframe: Timeframe string.
-    #     :return: DataFrame with OHLCV data.
-    #     """
-    #     try:
-    #         # Fetch the OHLCV data from the exchange
-    #         ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe)
-
-    #         df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-
-    #         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-
-    #         df.set_index('timestamp', inplace=True)
-
-    #         return df
-
-    #     except ccxt.BaseError as e:
-    #         print(f'Failed to fetch OHLCV data: {e}')
-    #         return pd.DataFrame()
 
     def get_orderbook(self, symbol, max_retries=3, retry_delay=5) -> dict:
         values = {"bids": [], "asks": []}

@@ -38,31 +38,6 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
 
-    # def run(self, symbol, rotator_symbols_standardized=None):
-    #     standardized_symbol = symbol.upper()  # Standardize the symbol name
-    #     logging.info(f"Standardized symbol: {standardized_symbol}")
-    #     current_thread_id = threading.get_ident()
-
-    #     # Check if the number of symbols being processed is within the allowed limit
-    #     with self.initialized_symbols_lock:
-    #         if len(self.initialized_symbols) >= self.symbols_allowed:
-    #             logging.info(f"Reached maximum number of symbols allowed ({self.symbols_allowed}). Skipping {standardized_symbol}.")
-    #             return
-
-    #     if standardized_symbol not in symbol_locks:
-    #         symbol_locks[standardized_symbol] = threading.Lock()
-
-    #     if symbol_locks[standardized_symbol].acquire(blocking=False):
-    #         logging.info(f"Lock acquired for symbol {standardized_symbol} by thread {current_thread_id}")
-    #         try:
-    #             self.run_single_symbol(standardized_symbol, rotator_symbols_standardized)
-    #         finally:
-    #             symbol_locks[standardized_symbol].release()
-    #             logging.info(f"Lock released for symbol {standardized_symbol} by thread {current_thread_id}")
-    #     else:
-    #         logging.info(f"Failed to acquire lock for symbol: {standardized_symbol}")
-
-
     def run(self, symbol, rotator_symbols_standardized=None):
         standardized_symbol = symbol.upper()  # Standardize the symbol name
         logging.info(f"Standardized symbol: {standardized_symbol}")
@@ -311,15 +286,6 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
 
                 long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
                 short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
-
-                # for symbol, position_data in position_details.items():
-                #     # Retrieve the unrealized PnL for long and short positions
-                #     long_upnl = position_data["long"].get("upnl", 0)
-                #     short_upnl = position_data["short"].get("upnl", 0)
-
-                #     # Log the unrealized PnL
-                #     logging.info(f"Unrealized PnL for long position in {symbol}: {long_upnl}")
-                #     logging.info(f"Unrealized PnL for short position in {symbol}: {short_upnl}")
 
                 logging.info(f"Rotator symbol trading: {symbol}")
                             
