@@ -835,6 +835,33 @@ class Exchange:
 
         return None
     
+    def fetch_unrealized_pnl(self, symbol):
+        """
+        Fetches the unrealized profit and loss (PNL) for both long and short positions of a given symbol.
+
+        :param symbol: The trading pair symbol.
+        :return: A dictionary containing the unrealized PNL for long and short positions.
+                The dictionary has keys 'long' and 'short' with corresponding PNL values.
+                Returns None for a position if it's not open or the key is not present.
+        """
+        # Fetch positions for the symbol
+        response = self.exchange.fetch_positions([symbol])
+        logging.info(f"Response from unrealized pnl: {response}")
+        unrealized_pnl = {'long': None, 'short': None}
+
+        # Loop through each position in the response
+        for pos in response:
+            side = pos['info'].get('side', '').lower()
+            pnl = pos['info'].get('unrealisedPnl')
+            if pnl is not None:
+                pnl = float(pnl)
+                if side == 'buy':  # Long position
+                    unrealized_pnl['long'] = pnl
+                elif side == 'sell':  # Short position
+                    unrealized_pnl['short'] = pnl
+
+        return unrealized_pnl
+    
     # def get_available_balance_bybit(self, quote):
     #     if self.exchange.has['fetchBalance']:
     #         # Fetch the balance

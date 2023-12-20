@@ -405,6 +405,23 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
 
                 logging.info(f"ATR for {symbol} : {one_hour_atr_value}")
 
+                # Check for long position
+                if long_pos_qty > 0:
+                    try:
+                        unrealized_pnl = self.exchange.fetch_unrealized_pnl(symbol)
+                        long_upnl = unrealized_pnl.get('long')
+                        logging.info(f"Long UPNL for {symbol}: {long_upnl}")
+                    except Exception as e:
+                        logging.info(f"Exception fetching Long UPNL for {symbol}: {e}")
+
+                # Check for short position
+                if short_pos_qty > 0:
+                    try:
+                        unrealized_pnl = self.exchange.fetch_unrealized_pnl(symbol)
+                        short_upnl = unrealized_pnl.get('short')
+                        logging.info(f"Short UPNL for {symbol}: {short_upnl}")
+                    except Exception as e:
+                        logging.info(f"Exception fetching Short UPNL for {symbol}: {e}")
 
                 self.bybit_1m_mfi_eri_walls(
                     open_orders,
