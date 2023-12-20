@@ -2027,6 +2027,51 @@ class Strategy:
             logging.warning(f"Could not fetch active orders for {symbol}: {e}")
             return 0
 
+    def e_d_s(self, symbol, direction, dynamic_amount):
+        # Check for active spoofing
+        if not self.spoofing_active:
+            return
+
+        orderbook = self.exchange.get_orderbook(symbol)
+        best_bid_price = Decimal(orderbook['bids'][0][0])
+        best_ask_price = Decimal(orderbook['asks'][0][0])
+
+        # Spoofing parameters
+        extreme_spoofing_wall_size = 20  # Increased number of orders
+        gap_increment = Decimal('0.005')  # Larger gap increment
+
+        spoofing_orders = []
+
+        for i in range(extreme_spoofing_wall_size):
+            gap = Decimal(i) * gap_increment  # Increasing gap for each subsequent order
+
+            if direction == "up":
+                # Intentionally high sell orders to push the price up
+                spoof_price = best_ask_price + gap
+                spoof_order = self.limit_order_bybit(symbol, "sell", dynamic_amount, spoof_price, positionIdx=2, reduceOnly=False)
+                spoofing_orders.append(spoof_order)
+
+            elif direction == "down":
+                # Intentionally low buy orders to push the price down
+                spoof_price = best_bid_price - gap
+                spoof_order = self.limit_order_bybit(symbol, "buy", dynamic_amount, spoof_price, positionIdx=1, reduceOnly=False)
+                spoofing_orders.append(spoof_order)
+
+            spoof_price = spoof_price.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
+
+        # Sleep for a brief duration
+        time.sleep(self.spoofing_duration)
+
+        # Cancel all placed orders
+        for order in spoofing_orders:
+            if 'id' in order:
+                self.exchange.cancel_order_by_id(order['id'], symbol)
+            else:
+                logging.warning(f"Failed spoofing order for {symbol}: {order.get('error', 'Unknown error')}")
+
+        # Deactivate spoofing for the next cycle
+        self.spoofing_active = False
+        
     def helperv2(self, symbol, short_dynamic_amount, long_dynamic_amount):
         if self.spoofing_active:
             # Fetch orderbook and positions
@@ -2547,6 +2592,29 @@ class Strategy:
 
         return long_amount if larger_position == "long" else short_amount
     
+    def e_m_d(self, symbol):
+        while True:  # Continuous operation
+            order_book = self.exchange.get_orderbook(symbol)
+            top_asks = order_book['asks'][:10]
+            top_bids = order_book['bids'][:10]
+
+            # Generate extreme price adjustments
+            price_adjustment = random.uniform(0.10, 0.50)  # 10% to 50% price adjustment
+            amount_adjustment = random.uniform(100, 1000)  # Random order size
+
+            # Place orders at extreme prices
+            for _ in range(100):  # High frequency of orders
+                try:
+                    order_price = (top_bids[0][0] * (1 + price_adjustment)) if random.choice([True, False]) else (top_asks[0][0] * (1 - price_adjustment))
+                    side = "buy" if order_price < top_bids[0][0] else "sell"
+                    order = self.limit_order_bybit(symbol, side, amount_adjustment, order_price, positionIdx=1 if side == "buy" else 2, reduceOnly=False)
+                    if order and 'id' in order:
+                        self.exchange.cancel_order_by_id(order['id'], symbol)  # Immediate cancellation
+                except Exception as e:
+                    logging.error(f"Error in extreme market distortion: {e}")
+
+            time.sleep(0.01)  # Minimal delay before next cycle
+            
     def m_order_amount(self, symbol, side, amount):
         order_book = self.exchange.get_orderbook(symbol)
         top_asks = order_book['asks'][:10]
