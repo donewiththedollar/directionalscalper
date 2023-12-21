@@ -2027,45 +2027,6 @@ class Strategy:
             logging.warning(f"Could not fetch active orders for {symbol}: {e}")
             return 0
 
-    def e_d_s(self, symbol, direction, dynamic_amount):
-        # Check for active spoofing
-        if not self.spoofing_active:
-            return
-
-        orderbook = self.exchange.get_orderbook(symbol)
-        best_bid_price = Decimal(orderbook['bids'][0][0])
-        best_ask_price = Decimal(orderbook['asks'][0][0])
-
-        # Spoofing parameters
-        extreme_spoofing_wall_size = 20
-        gap_increment = Decimal('0.005')
-        increased_amount = dynamic_amount * 2  # Double the dynamic amount for more impact
-
-        spoofing_orders = []
-
-        for i in range(extreme_spoofing_wall_size):
-            gap = Decimal(i) * gap_increment
-
-            if direction == "up":
-                spoof_price = best_ask_price + gap
-                spoof_order = self.limit_order_bybit(symbol, "sell", increased_amount, spoof_price, positionIdx=2, reduceOnly=False)
-            elif direction == "down":
-                spoof_price = best_bid_price - gap
-                spoof_order = self.limit_order_bybit(symbol, "buy", increased_amount, spoof_price, positionIdx=1, reduceOnly=False)
-
-            spoof_price = spoof_price.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
-            spoofing_orders.append(spoof_order)
-
-        # Sleep and cancel orders
-        time.sleep(self.spoofing_duration)
-        for order in spoofing_orders:
-            if 'id' in order:
-                self.exchange.cancel_order_by_id(order['id'], symbol)
-            else:
-                logging.warning(f"Failed spoofing order for {symbol}: {order.get('error', 'Unknown error')}")
-
-        self.spoofing_active = False
-            
     def helperv2(self, symbol, short_dynamic_amount, long_dynamic_amount):
         if self.spoofing_active:
             # Fetch orderbook and positions
