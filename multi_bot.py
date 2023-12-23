@@ -17,20 +17,7 @@ from config import VERSION
 from api.manager import Manager
 from directionalscalper.core.exchange import Exchange
 from directionalscalper.core.strategies.strategy import Strategy
-# Bybit rotator
-from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator import BybitMFIRSITrendRotator
-from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute_qfl_mfi import BybitMMFiveMinuteQFLMFI
-from directionalscalper.core.strategies.bybit.multi.bybit_mm_fivemin_qfl_mfi_eri_walls_autohedge_v2 import BybitMMFiveMinuteQFLMFIERIAutoHedgeWallsV2
-from directionalscalper.core.strategies.bybit.multi.bybit_mm_fivemin_qfl_mfi_eri_walls_autohedge_v3 import BybitMMFiveMinuteQFLMFIERIAutoHedgeWallsV3
-from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_walls_autohedge import BybitMMOneMinuteQFLMFIERIAutoHedgeWallsAutoHedge
-# from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_walls_autohedge_atr import BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR
-from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_walls_autohedge_atr_topbottom import BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATRTopBottom
-# from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_walls import BybitMMOneMinuteQFLMFIERIWalls
-from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_walls_allowedfix import BybitMMOneMinuteQFLMFIERIAutoHedgeWallsAllowedFix
-from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_walls_tb import BybitMMOneMinuteQFLMFIERIAutoHedgeWallsTB
-from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_eri_tb import BybitMMOneMinERITB
-from directionalscalper.core.strategies.bybit.multi.bybit_qs import BybitQSStrategy
-from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi import BybitAutoRotatorMFIRSI
+
 
 import directionalscalper.core.strategies.bybit.scalping as bybit_scalping
 import directionalscalper.core.strategies.bybit.hedging as bybit_hedging
@@ -123,46 +110,13 @@ class DirectionalMarketMaker:
             print(f"Calling run method with symbols: {symbols_to_trade}")
 
         # Pass symbols_allowed to the strategy constructors
-        if strategy_name.lower() == 'bybit_mm_mfirsi':
-            strategy = BybitAutoRotatorMFIRSI(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_mm_qfl_mfi':
-            strategy = BybitMMFiveMinuteQFLMFI(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_1m_qfl_mfi_eri_walls':
+        if strategy_name.lower() == 'bybit_1m_qfl_mfi_eri_walls':
             strategy = bybit_scalping.BybitMMOneMinuteQFLMFIERIWalls(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_1m_qfl_mfi_eri_walls_allowedfix':
-            strategy = BybitMMOneMinuteQFLMFIERIAutoHedgeWallsAllowedFix(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_1m_qfl_mfi_eri_walls_tb':
-            strategy = BybitMMOneMinuteQFLMFIERIAutoHedgeWallsTB(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_1m_eri_tb':
-            strategy = BybitMMOneMinERITB(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_1m_qfl_mfi_eri_autohedge_walls_autohedge':
-            strategy = BybitMMOneMinuteQFLMFIERIAutoHedgeWallsAutoHedge(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'bybit_1m_qfl_mfi_eri_autohedge_walls_atr':
             strategy = bybit_hedging.BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_1m_qfl_mfi_eri_autohedge_walls_atr_top_bottom':
-            strategy = BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATRTopBottom(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_mm_qfl_mfi_eri_autohedge_walls_v2':
-            strategy = BybitMMFiveMinuteQFLMFIERIAutoHedgeWallsV2(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_mm_qfl_mfi_eri_autohedge_walls_v3':
-            strategy = BybitMMFiveMinuteQFLMFIERIAutoHedgeWallsV3(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_mm_qs':
-            strategy = BybitQSStrategy(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_mfirsi_trend':
-            strategy = BybitMFIRSITrendRotator(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-
+            
     def get_balance(self, quote, market_type=None, sub_type=None):
         if self.exchange_name == 'bitget':
             return self.exchange.get_balance_bitget(quote)
