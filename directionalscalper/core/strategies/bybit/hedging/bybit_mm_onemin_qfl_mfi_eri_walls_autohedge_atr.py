@@ -7,8 +7,6 @@ import threading
 from threading import Thread, Lock
 from datetime import datetime, timedelta
 
-# from ...strategy import Strategy
-# from ...logger import Logger
 from directionalscalper.core.strategies.strategy import Strategy
 from directionalscalper.core.strategies.logger import Logger
 
