@@ -2985,6 +2985,32 @@ class Strategy:
 
             time.sleep(5)
 
+    def calculate_order_size_imbalance(self, order_book):
+        total_bids = sum([amount for price, amount in order_book['bids'][:10]])
+        total_asks = sum([amount for price, amount in order_book['asks'][:10]])
+        imbalance = total_bids / total_asks if total_asks > 0 else 1
+        return imbalance
+
+    def adjust_dynamic_amounts_based_on_imbalance(self, imbalance, base_amount):
+        if imbalance > 1.5:
+            return base_amount * 1.5
+        elif imbalance < 0.5:
+            return base_amount * 1.5
+        return base_amount
+
+    def aggressive_entry_based_on_walls(self, current_price, largest_bid_wall, largest_ask_wall, should_long, should_short):
+        if largest_bid_wall and should_long and current_price - largest_bid_wall[0] < current_price * 0.005:
+            return True
+        if largest_ask_wall and should_short and largest_ask_wall[0] - current_price < current_price * 0.005:
+            return True
+        return False
+
+    def adjust_leverage_based_on_market_confidence(self, symbol, market_confidence):
+        if market_confidence > 0.8:
+            self.exchange.set_leverage_bybit(10, symbol)
+        elif market_confidence < 0.3:
+            self.exchange.set_leverage_bybit(5, symbol)
+
     def bybit_1m_mfi_eri_walls_imbalance(self, open_orders, symbol, mfi, eri_trend, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_short, should_add_to_long, should_add_to_short, fivemin_top_signal, fivemin_bottom_signal):
         if symbol not in self.symbol_locks:
             self.symbol_locks[symbol] = threading.Lock()
