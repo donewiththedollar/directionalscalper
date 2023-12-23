@@ -139,7 +139,7 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
             # Fetch open symbols every loop
             open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
 
-            logging.info(f"Open position data: {open_position_data}")
+            #logging.info(f"Open position data: {open_position_data}")
 
             position_details = {}
 
