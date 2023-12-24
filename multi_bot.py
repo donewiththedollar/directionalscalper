@@ -17,20 +17,13 @@ from config import VERSION
 from api.manager import Manager
 from directionalscalper.core.exchange import Exchange
 from directionalscalper.core.strategies.strategy import Strategy
-# Bybit rotator
-from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi_trend_rotator import BybitMFIRSITrendRotator
-from directionalscalper.core.strategies.bybit.multi.bybit_mm_fiveminute_qfl_mfi import BybitMMFiveMinuteQFLMFI
-from directionalscalper.core.strategies.bybit.multi.bybit_mm_fivemin_qfl_mfi_eri_walls_autohedge_v2 import BybitMMFiveMinuteQFLMFIERIAutoHedgeWallsV2
-from directionalscalper.core.strategies.bybit.multi.bybit_mm_fivemin_qfl_mfi_eri_walls_autohedge_v3 import BybitMMFiveMinuteQFLMFIERIAutoHedgeWallsV3
-from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_walls_autohedge import BybitMMOneMinuteQFLMFIERIAutoHedgeWallsAutoHedge
-from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_walls_autohedge_atr import BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR
-from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_walls_autohedge_atr_topbottom import BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATRTopBottom
-from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_walls import BybitMMOneMinuteQFLMFIERIWalls
-from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_walls_allowedfix import BybitMMOneMinuteQFLMFIERIAutoHedgeWallsAllowedFix
-from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_qfl_mfi_eri_walls_tb import BybitMMOneMinuteQFLMFIERIAutoHedgeWallsTB
-from directionalscalper.core.strategies.bybit.multi.bybit_mm_onemin_eri_tb import BybitMMOneMinERITB
-from directionalscalper.core.strategies.bybit.multi.bybit_qs import BybitQSStrategy
-from directionalscalper.core.strategies.bybit.multi.bybit_mfirsi import BybitAutoRotatorMFIRSI
+
+
+import directionalscalper.core.strategies.bybit.scalping as bybit_scalping
+import directionalscalper.core.strategies.bybit.hedging as bybit_hedging
+from directionalscalper.core.strategies.binance import *
+from directionalscalper.core.strategies.huobi import *
+
 from live_table_manager import LiveTableManager, shared_symbols_data
 
 
@@ -49,9 +42,7 @@ def get_available_strategies():
     return [
         'bybit_1m_qfl_mfi_eri_walls',
         'bybit_1m_qfl_mfi_eri_autohedge_walls_atr',
-        # 'bybit_1m_eri_tb',
-        # 'bybit_1m_qfl_mfi_eri_walls_tb',
-        # 'bybit_1m_qfl_mfi_eri_walls_allowedfix',
+        'bybit_mfirsi_imbalance',
     ]
 
 def choose_strategy():
@@ -117,45 +108,16 @@ class DirectionalMarketMaker:
             print(f"Calling run method with symbols: {symbols_to_trade}")
 
         # Pass symbols_allowed to the strategy constructors
-        if strategy_name.lower() == 'bybit_mm_mfirsi':
-            strategy = BybitAutoRotatorMFIRSI(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_mm_qfl_mfi':
-            strategy = BybitMMFiveMinuteQFLMFI(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_1m_qfl_mfi_eri_walls':
-            strategy = BybitMMOneMinuteQFLMFIERIWalls(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_1m_qfl_mfi_eri_walls_allowedfix':
-            strategy = BybitMMOneMinuteQFLMFIERIAutoHedgeWallsAllowedFix(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_1m_qfl_mfi_eri_walls_tb':
-            strategy = BybitMMOneMinuteQFLMFIERIAutoHedgeWallsTB(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_1m_eri_tb':
-            strategy = BybitMMOneMinERITB(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_1m_qfl_mfi_eri_autohedge_walls_autohedge':
-            strategy = BybitMMOneMinuteQFLMFIERIAutoHedgeWallsAutoHedge(self.exchange, self.manager, config.bot, symbols_allowed)
+        if strategy_name.lower() == 'bybit_1m_qfl_mfi_eri_walls':
+            strategy = bybit_scalping.BybitMMOneMinuteQFLMFIERIWalls(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'bybit_1m_qfl_mfi_eri_autohedge_walls_atr':
-            strategy = BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy = bybit_hedging.BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_1m_qfl_mfi_eri_autohedge_walls_atr_top_bottom':
-            strategy = BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATRTopBottom(self.exchange, self.manager, config.bot, symbols_allowed)
+        elif strategy_name.lower() == 'bybit_mfirsi_imbalance':
+            strategy = bybit_scalping.BybitMFIRSIERIOBImbalance(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_mm_qfl_mfi_eri_autohedge_walls_v2':
-            strategy = BybitMMFiveMinuteQFLMFIERIAutoHedgeWallsV2(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_mm_qfl_mfi_eri_autohedge_walls_v3':
-            strategy = BybitMMFiveMinuteQFLMFIERIAutoHedgeWallsV3(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_mm_qs':
-            strategy = BybitQSStrategy(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'bybit_mfirsi_trend':
-            strategy = BybitMFIRSITrendRotator(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
+            
 
     def get_balance(self, quote, market_type=None, sub_type=None):
         if self.exchange_name == 'bitget':
@@ -391,50 +353,3 @@ if __name__ == '__main__':
                 available_new_symbol_slots -= 1
 
         time.sleep(60)
-
-# All of these comments are staying for now because symbols_allowed is being that annoying yes
-                
-    # while True:
-    #     # Active threads update
-    #     active_threads = [t for t in active_threads if t is not None and t.is_alive()]
-    #     rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, max_usd_value=max_usd_value)]
-
-    #     # Fetch open position symbols
-    #     open_position_data = market_maker.exchange.get_all_open_positions_bybit()
-    #     open_positions_symbols = [standardize_symbol(position['symbol']) for position in open_position_data]
-
-    #     # Start or maintain threads for open positions
-    #     for symbol in open_positions_symbols:
-    #         if symbol not in thread_to_symbol.values():
-    #             start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
-
-    #     # Calculate available slots after accommodating open positions
-    #     available_slots = max(0, symbols_allowed - len(thread_to_symbol.values()))
-
-    #     # Start threads for new rotator symbols within the available slots
-    #     new_symbols = [s for s in rotator_symbols_standardized if s not in thread_to_symbol.values()][:available_slots]
-    #     for symbol in new_symbols:
-    #         start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
-
-    #     time.sleep(60)
-
-    # while True:
-    #     # Active threads and rotator symbols update
-    #     active_threads = [t for t in active_threads if t.is_alive()]
-    #     rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, max_usd_value=max_usd_value)]
-
-    #     # Update and prioritize open position symbols
-    #     open_position_data = market_maker.exchange.get_all_open_positions_bybit()
-    #     open_positions_symbols = [standardize_symbol(position['symbol']) for position in open_position_data]
-
-    #     # Start or maintain threads for open positions regardless of symbols_allowed limit
-    #     for symbol in open_positions_symbols:
-    #         if symbol not in thread_to_symbol.values():
-    #             start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
-
-    #     # Start threads for rotator symbols if under the limit, excluding already handled open positions
-    #     new_symbols = [s for s in rotator_symbols_standardized if s not in thread_to_symbol.values() and s not in open_positions_symbols]
-    #     if len(active_threads) < symbols_allowed:
-    #         start_threads_for_new_symbols(new_symbols, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
-
-    #     time.sleep(60)
