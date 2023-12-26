@@ -277,6 +277,9 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                 fivemin_top_signal = metrics['Top Signal 5m']
                 fivemin_bottom_signal = metrics['Bottom Signal 5m']
 
+                onemin_top_signal = metrics['Top Signal 1m']
+                onemin_bottom_signal = metrics['Bottom Signal 1m']
+
                 logging.info(f"Fivemin top signal: {fivemin_top_signal}")
                 logging.info(f"Fivemin bottom signal: {fivemin_bottom_signal}")
 
@@ -417,8 +420,8 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                     should_short,
                     should_add_to_long,
                     should_add_to_short,
-                    fivemin_top_signal,
-                    fivemin_bottom_signal
+                    fivemin_top_signal=onemin_top_signal,
+                    fivemin_bottom_signal=onemin_bottom_signal
                 )
                 
                 tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
@@ -539,7 +542,7 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                     should_short = self.short_trade_condition(best_ask_price, moving_averages["ma_3_high"])
                     should_long = self.long_trade_condition(best_bid_price, moving_averages["ma_3_low"])
 
-                    self.bybit_initial_entry_with_qfl_mfi_and_eri(open_orders, symbol, trend, hma_trend, mfirsi_signal, eri_trend, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short, fivemin_top_signal, fivemin_bottom_signal)
+                    self.bybit_initial_entry_with_qfl_mfi_and_eri(open_orders, symbol, trend, hma_trend, mfirsi_signal, eri_trend, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short, fivemin_top_signal=onemin_top_signal, fivemin_bottom_signal=onemin_bottom_signal)
                     
                     time.sleep(10)
                 else:
