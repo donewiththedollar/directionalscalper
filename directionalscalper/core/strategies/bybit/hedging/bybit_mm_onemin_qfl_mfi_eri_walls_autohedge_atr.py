@@ -411,6 +411,8 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
                     should_add_to_short,
                     hedge_ratio,
                     atr=one_hour_atr_value,
+                    fivemin_top_signal=fivemin_top_signal,
+                    fivemin_bottom_signal=fivemin_bottom_signal
                 )
                 
                 tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
