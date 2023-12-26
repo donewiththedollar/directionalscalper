@@ -502,6 +502,9 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                 funding_rate = metrics['Funding']
                 hma_trend = metrics['HMA Trend']
 
+                fivemin_top_signal = metrics['Top Signal 5m']
+                fivemin_bottom_signal = metrics['Bottom Signal 5m']
+
                 logging.info(f"Managing new rotator symbol {symbol} not in open symbols")
 
                 if trading_allowed:
@@ -529,7 +532,7 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                     should_short = self.short_trade_condition(best_ask_price, moving_averages["ma_3_high"])
                     should_long = self.long_trade_condition(best_bid_price, moving_averages["ma_3_low"])
 
-                    self.bybit_initial_entry_with_qfl_mfi_and_eri(open_orders, symbol, trend, hma_trend, mfirsi_signal, eri_trend, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
+                    self.bybit_initial_entry_with_qfl_mfi_and_eri(open_orders, symbol, trend, hma_trend, mfirsi_signal, eri_trend, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short, fivemin_top_signal, fivemin_bottom_signal)
                     
                     time.sleep(10)
                 else:
