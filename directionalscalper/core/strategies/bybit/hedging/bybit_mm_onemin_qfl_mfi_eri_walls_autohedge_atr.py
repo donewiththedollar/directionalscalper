@@ -114,6 +114,7 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
         self.exchange.setup_exchange_bybit(symbol)
 
         previous_five_minute_distance = None
+        previous_one_minute_distance = None
 
         since_timestamp = int((datetime.now() - timedelta(days=1)).timestamp() * 1000)  # 24 hours ago in milliseconds
         recent_trades = self.fetch_recent_trades_for_symbol(symbol, since=since_timestamp, limit=20)
@@ -345,8 +346,11 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
                 short_take_profit = None
                 long_take_profit = None
 
-                short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
+                short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, one_minute_distance, previous_one_minute_distance, short_take_profit, long_take_profit)
+                #short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
                 previous_five_minute_distance = five_minute_distance
+
+                previous_one_minute_distance = one_minute_distance
 
 
                 logging.info(f"Short take profit for {symbol}: {short_take_profit}")
@@ -450,8 +454,8 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
                             positionIdx=1, 
                             order_side="sell", 
                             next_tp_update=self.next_long_tp_update,
-                            five_minute_distance=five_minute_distance, 
-                            previous_five_minute_distance=previous_five_minute_distance
+                            five_minute_distance=one_minute_distance, 
+                            previous_five_minute_distance=previous_one_minute_distance
                         )
 
                 # Check for short positions
@@ -467,8 +471,8 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
                             positionIdx=2, 
                             order_side="buy", 
                             next_tp_update=self.next_short_tp_update,
-                            five_minute_distance=five_minute_distance, 
-                            previous_five_minute_distance=previous_five_minute_distance
+                            five_minute_distance=one_minute_distance, 
+                            previous_five_minute_distance=previous_one_minute_distance
                         )
 
 
@@ -488,6 +492,7 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
                 # Assign the metrics to the respective variables
                 one_minute_volume = metrics['1mVol']
                 five_minute_volume = metrics['5mVol']
+                one_minute_distance = metrics['1mSpread']
                 five_minute_distance = metrics['5mSpread']
                 trend = metrics['Trend']
                 mfirsi_signal = metrics['MFI']
