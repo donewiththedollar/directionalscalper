@@ -2055,8 +2055,8 @@ class Strategy:
             spoofing_orders = []
 
             # Dynamic safety_margin and base_gap based on asset's price
-            safety_margin = best_ask_price * Decimal('0.0040')  # 0.0030 # 0.10% of current price
-            base_gap = best_ask_price * Decimal('0.0040') #0.0030  # 0.10% of current price
+            safety_margin = best_ask_price * Decimal('0.0060')  # 0.0030 # 0.10% of current price
+            base_gap = best_ask_price * Decimal('0.0060') #0.0030  # 0.10% of current price
 
             for i in range(adjusted_spoofing_wall_size):
                 gap = base_gap + Decimal(i) * Decimal('0.002')  # Increasing gap for each subsequent order
