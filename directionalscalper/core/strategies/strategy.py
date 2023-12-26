@@ -3490,14 +3490,14 @@ class Strategy:
 
             if one_minute_volume > min_vol:
                 # Long Entry Logic
-                if should_long and long_pos_qty == 0 and eri_trend_aligned_long and current_price >= qfl_base and mfi_signal_long and fivemin_bottom_signal:
+                if should_long and long_pos_qty == 0 and eri_trend_aligned_long and current_price >= qfl_base and mfi_signal_long:
                     if not self.entry_order_exists(open_orders, "buy"):
                         logging.info(f"Placing initial long entry for {symbol}")
                         entry_price = largest_bid_wall[0] if largest_bid_wall else best_bid_price
                         self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, entry_price, positionIdx=1, reduceOnly=False)
 
                 # Short Entry Logic
-                if should_short and short_pos_qty == 0 and eri_trend_aligned_short and current_price <= qfl_ceiling and mfi_signal_short and fivemin_top_signal:
+                if should_short and short_pos_qty == 0 and eri_trend_aligned_short and current_price <= qfl_ceiling and mfi_signal_short:
                     if not self.entry_order_exists(open_orders, "sell"):
                         logging.info(f"Placing initial short entry for {symbol}")
                         entry_price = largest_ask_wall[0] if largest_ask_wall else best_ask_price
