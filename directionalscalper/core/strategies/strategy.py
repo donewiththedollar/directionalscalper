@@ -3296,7 +3296,7 @@ class Strategy:
             time.sleep(5)
 
 
-    def bybit_1m_mfi_eri_walls_atr_v2(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, eri_trend: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool, hedge_ratio: float, atr: float):
+    def bybit_1m_mfi_eri_walls_atr(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, eri_trend: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool, hedge_ratio: float, atr: float, fivemin_top_signal: bool, fivemin_bottom_signal: bool):
         if symbol not in self.symbol_locks:
             self.symbol_locks[symbol] = threading.Lock()
 
@@ -3325,7 +3325,7 @@ class Strategy:
             if one_minute_volume > min_vol:
                 # Long Entry for Trend and MFI Signal
                 mfi_signal_long = mfi.lower() == "long"
-                if eri_trend_aligned_long and (should_long or should_add_to_long) and current_price >= qfl_base and mfi_signal_long:
+                if eri_trend_aligned_long and (should_long or should_add_to_long) and current_price >= qfl_base and mfi_signal_long and fivemin_bottom_signal:
                     if long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
                         self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
                     elif long_pos_qty > 0 and current_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
@@ -3333,110 +3333,20 @@ class Strategy:
 
                 # Short Entry for Trend and MFI Signal
                 mfi_signal_short = mfi.lower() == "short"
-                if eri_trend_aligned_short and (should_short or should_add_to_short) and current_price <= qfl_ceiling and mfi_signal_short:
+                if eri_trend_aligned_short and (should_short or should_add_to_short) and current_price <= qfl_ceiling and mfi_signal_short and fivemin_top_signal:
                     if short_pos_qty == 0 and not self.entry_order_exists(open_orders, "sell"):
                         self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
                     elif short_pos_qty > 0 and current_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
                         self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
 
                 # Order Book Wall Long Entry Logic
-                if largest_bid_wall and eri_trend_aligned_long and should_add_to_long and not self.entry_order_exists(open_orders, "buy"):
+                if largest_bid_wall and eri_trend_aligned_long and should_add_to_long and fivemin_bottom_signal and not self.entry_order_exists(open_orders, "buy"):
                     self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, largest_bid_wall[0], positionIdx=1, reduceOnly=False)
 
                 # Modified Order Book Wall Short Entry Logic
-                if largest_ask_wall and eri_trend_aligned_short and should_add_to_short and not self.entry_order_exists(open_orders, "sell"):
+                if largest_ask_wall and eri_trend_aligned_short and should_add_to_short and fivemin_top_signal and not self.entry_order_exists(open_orders, "sell"):
                     self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, largest_ask_wall[0], positionIdx=2, reduceOnly=False)
 
-            else:
-                logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
-
-            time.sleep(5)
-
-
-    def bybit_1m_mfi_eri_walls_atr(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, eri_trend: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool, hedge_ratio: float, atr: float):
-        if symbol not in self.symbol_locks:
-            self.symbol_locks[symbol] = threading.Lock()
-
-        with self.symbol_locks[symbol]:
-            bid_walls, ask_walls = self.detect_order_book_walls(symbol)
-            largest_bid_wall = max(bid_walls, key=lambda x: x[1], default=None)
-            largest_ask_wall = max(ask_walls, key=lambda x: x[1], default=None)
-            
-            qfl_base, qfl_ceiling = self.calculate_qfl_levels(symbol=symbol, timeframe='5m', lookback_period=12)
-            current_price = self.exchange.get_current_price(symbol)
-
-            logging.info(f"Current price in autohedge: for {symbol} : {current_price}")
-
-            # Fetch and process order book
-            order_book = self.exchange.get_orderbook(symbol)
-
-            # Extract and update best ask/bid prices
-            if 'asks' in order_book and len(order_book['asks']) > 0:
-                best_ask_price = order_book['asks'][0][0]
-            else:
-                best_ask_price = self.last_known_ask.get(symbol)
-
-            if 'bids' in order_book and len(order_book['bids']) > 0:
-                best_bid_price = order_book['bids'][0][0]
-            else:
-                best_bid_price = self.last_known_bid.get(symbol)
-                
-            min_order_size = 1
-
-            self.auto_hedge_orders_bybit_atr(symbol,
-            long_pos_qty,
-            short_pos_qty,
-            long_pos_price,
-            short_pos_price,
-            best_ask_price,
-            best_bid_price,
-            hedge_ratio,
-            atr,
-            min_order_size)
-                    
-            # Trend Alignment Checks
-            trend_aligned_long = (eri_trend == "bullish" or trend.lower() == "long")
-            trend_aligned_short = (eri_trend == "bearish" or trend.lower() == "short")
-
-            eri_trend_aligned_long = eri_trend == "bullish"
-            eri_trend_aligned_short = eri_trend == "bearish"
-
-            if one_minute_volume > min_vol:
-                # Long Entry for Trend and MFI Signal
-                mfi_signal_long = mfi.lower() == "long"
-                if (should_long or should_add_to_long) and current_price >= qfl_base and trend_aligned_long and mfi_signal_long:
-                    if long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
-                        logging.info(f"Placing initial long entry for {symbol}")
-                        self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-                    elif long_pos_qty > 0 and current_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
-                        logging.info(f"Placing additional long entry for {symbol}")
-                        self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-                        time.sleep(5)
-
-                # Short Entry for Trend and MFI Signal
-                mfi_signal_short = mfi.lower() == "short"
-                if (should_short or should_add_to_short) and current_price <= qfl_ceiling and trend_aligned_short and mfi_signal_short:
-                    if short_pos_qty == 0 and not self.entry_order_exists(open_orders, "sell"):
-                        logging.info(f"Placing initial short entry for {symbol}")
-                        self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
-                    elif short_pos_qty > 0 and current_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
-                        logging.info(f"Placing additional short entry for {symbol}")
-                        self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
-                        time.sleep(5)
-
-                # Order Book Wall Long Entry Logic
-                if largest_bid_wall and not self.entry_order_exists(open_orders, "buy"):
-                    if (should_long or should_add_to_long) and eri_trend_aligned_long:
-                        logging.info(f"Placing additional long trade due to detected buy wall for {symbol}")
-                        self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, largest_bid_wall[0], positionIdx=1, reduceOnly=False)
-                        time.sleep(5)
-
-                # Order Book Wall Short Entry Logic
-                if largest_ask_wall and not self.entry_order_exists(open_orders, "sell"):
-                    if (should_short or should_add_to_short) and eri_trend_aligned_short:
-                        logging.info(f"Placing additional short trade due to detected sell wall for {symbol}")
-                        self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, largest_ask_wall[0], positionIdx=2, reduceOnly=False)
-                        time.sleep(5)
             else:
                 logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
 

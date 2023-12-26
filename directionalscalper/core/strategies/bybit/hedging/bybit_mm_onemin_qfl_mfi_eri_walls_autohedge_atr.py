@@ -272,6 +272,10 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
                 hma_trend = metrics['HMA Trend']
                 eri_trend = metrics['ERI Trend']
 
+                fivemin_top_signal = metrics['Top Signal 5m']
+                fivemin_bottom_signal = metrics['Bottom Signal 5m']
+
+
                 position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
 
                 long_liquidation_price = position_details.get(symbol, {}).get('long', {}).get('liq_price')
@@ -379,7 +383,7 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
                 logging.info(f"ATR for {symbol} : {one_hour_atr_value}")
 
 
-                self.bybit_1m_mfi_eri_walls_atr_v2(
+                self.bybit_1m_mfi_eri_walls_atr(
                     open_orders,
                     symbol,
                     trend,
@@ -490,6 +494,9 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
                 funding_rate = metrics['Funding']
                 hma_trend = metrics['HMA Trend']
 
+                fivemin_top_signal = metrics['Top Signal 5m']
+                fivemin_bottom_signal = metrics['Bottom Signal 5m']
+
                 logging.info(f"Managing new rotator symbol {symbol} not in open symbols")
 
                 if trading_allowed:
@@ -517,7 +524,7 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
                     should_short = self.short_trade_condition(best_ask_price, moving_averages["ma_3_high"])
                     should_long = self.long_trade_condition(best_bid_price, moving_averages["ma_3_low"])
 
-                    self.bybit_initial_entry_with_qfl_mfi_and_eri(open_orders, symbol, trend, hma_trend, mfirsi_signal, eri_trend, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short)
+                    self.bybit_initial_entry_with_qfl_mfi_and_eri(open_orders, symbol, trend, hma_trend, mfirsi_signal, eri_trend, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short, fivemin_top_signal, fivemin_bottom_signal)
                     
                     time.sleep(10)
                 else:
