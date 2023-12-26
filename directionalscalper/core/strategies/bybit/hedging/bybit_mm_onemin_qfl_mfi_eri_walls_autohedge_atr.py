@@ -67,6 +67,7 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
         total_equity = None
         available_equity = None
         one_minute_volume = None
+        one_minute_distance = None
         five_minute_volume = None
         five_minute_distance = None
         trend = None
