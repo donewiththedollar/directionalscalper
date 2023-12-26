@@ -3243,7 +3243,7 @@ class Strategy:
 
             if one_minute_volume > min_vol:
                 # Long Entry for Trend and MFI Signal
-                if (should_long or should_add_to_long) and current_price >= qfl_base and eri_trend_aligned_long and mfi_signal_long and fivemin_bottom_signal:
+                if (should_long or should_add_to_long) and current_price >= qfl_base and eri_trend_aligned_long and mfi_signal_long:
                     if long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
                         logging.info(f"Placing initial long entry for {symbol}")
                         self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
@@ -3253,7 +3253,7 @@ class Strategy:
                         time.sleep(5)
 
                 # Short Entry for Trend and MFI Signal
-                if (should_short or should_add_to_short) and current_price <= qfl_ceiling and eri_trend_aligned_short and mfi_signal_short and fivemin_top_signal:
+                if (should_short or should_add_to_short) and current_price <= qfl_ceiling and eri_trend_aligned_short and mfi_signal_short:
                     if short_pos_qty == 0 and not self.entry_order_exists(open_orders, "sell"):
                         logging.info(f"Placing initial short entry for {symbol}")
                         self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
