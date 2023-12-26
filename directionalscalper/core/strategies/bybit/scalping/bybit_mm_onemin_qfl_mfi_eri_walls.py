@@ -68,6 +68,7 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
         available_equity = None
         one_minute_volume = None
         five_minute_volume = None
+        one_minute_distance = None
         five_minute_distance = None
         trend = None
         long_pos_qty = 0
@@ -113,6 +114,7 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
         logging.info("Setting up exchange")
         self.exchange.setup_exchange_bybit(symbol)
 
+        previous_one_minute_distance = None
         previous_five_minute_distance = None
 
         since_timestamp = int((datetime.now() - timedelta(days=1)).timestamp() * 1000)  # 24 hours ago in milliseconds
@@ -336,8 +338,11 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                 short_take_profit = None
                 long_take_profit = None
 
-                short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
+                short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, one_minute_distance, previous_one_minute_distance, short_take_profit, long_take_profit)
+                #short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
                 previous_five_minute_distance = five_minute_distance
+
+                previous_one_minute_distance = one_minute_distance
 
 
                 logging.info(f"Short take profit for {symbol}: {short_take_profit}")
@@ -399,7 +404,7 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                     mfirsi_signal,
                     eri_trend,
                     one_minute_volume,
-                    five_minute_distance,
+                    one_minute_distance,
                     min_vol,
                     min_dist,
                     long_dynamic_amount,
@@ -458,7 +463,8 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                             positionIdx=1, 
                             order_side="sell", 
                             next_tp_update=self.next_long_tp_update,
-                            five_minute_distance=five_minute_distance, 
+                            #five_minute_distance=five_minute_distance, 
+                            five_minute_distance=one_minute_distance,
                             previous_five_minute_distance=previous_five_minute_distance
                         )
 
@@ -475,7 +481,8 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                             positionIdx=2, 
                             order_side="buy", 
                             next_tp_update=self.next_short_tp_update,
-                            five_minute_distance=five_minute_distance, 
+                            # five_minute_distance=five_minute_distance, 
+                            five_minute_distance=one_minute_distance,
                             previous_five_minute_distance=previous_five_minute_distance
                         )
 
