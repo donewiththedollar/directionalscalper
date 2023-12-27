@@ -3173,14 +3173,14 @@ class Strategy:
             # Quick scalp logic for long positions
             if long_pos_qty > 0:
                 long_upnl = self.exchange.fetch_unrealized_pnl(symbol)['long']
-                logging.info(f"Long uPNL for symbol {symbol}")
+                logging.info(f"Long uPNL {long_upnl} for symbol {symbol}")
                 if quick_scalp_check_and_execute(long_pos_qty, long_upnl, "sell"):
                     return
 
             # Quick scalp logic for short positions
             if short_pos_qty > 0:
                 short_upnl = self.exchange.fetch_unrealized_pnl(symbol)['short']
-                logging.info(f"Short uPNL for symbol {symbol}")
+                logging.info(f"Short uPNL {short_upnl} for symbol {symbol}")
                 if quick_scalp_check_and_execute(short_pos_qty, short_upnl, "buy"):
                     return
 
