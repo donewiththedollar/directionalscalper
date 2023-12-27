@@ -103,6 +103,7 @@ class BybitMFIRSIQuickScalp(Strategy):
         wallet_exposure = self.config.wallet_exposure
         min_dist = self.config.min_distance
         min_vol = self.config.min_volume
+        upnl_profit_pct = self.config.upnl_profit_pct
         MaxAbsFundingRate = self.config.MaxAbsFundingRate
         
         hedge_ratio = self.config.hedge_ratio
@@ -417,7 +418,7 @@ class BybitMFIRSIQuickScalp(Strategy):
                     should_short,
                     should_add_to_long,
                     should_add_to_short,
-                    upnl_threshold
+                    upnl_profit_pct
                 )
                 
                 tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
