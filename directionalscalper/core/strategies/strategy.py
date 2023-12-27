@@ -3137,8 +3137,9 @@ class Strategy:
                     self.place_postonly_order_bybit(symbol, order_side, pos_qty, best_ask_price, positionIdx=1, reduceOnly=True)
 
                 # Log the quick scalp execution with detailed distance information
-                logging.info(f"Quick-scalped {order_side} position for {symbol} at uPNL: {upnl}. Target price: {target_price}, Current price: {current_price}, Absolute distance to TP: {absolute_distance}, Percentage distance to TP: {percentage_distance}%")
+                logging.info(f"Quick-scalped {order_side} position for {symbol} at uPNL: {upnl}. Order side: {order_side}, Target price: {target_price}, Current price: {current_price}, Absolute distance to TP: {absolute_distance}, Percentage distance to TP: {percentage_distance}%")
                 return True
+
 
             # Quick scalp logic for long positions
             if long_pos_qty > 0:
