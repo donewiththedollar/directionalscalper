@@ -343,7 +343,11 @@ class BybitMFIRSIQuickScalp(Strategy):
                 short_take_profit = None
                 long_take_profit = None
 
-                short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, one_minute_distance, previous_one_minute_distance, short_take_profit, long_take_profit)
+                # Calculate take profit for short and long positions using quickscalp method
+                short_take_profit = self.calculate_quickscalp_short_take_profit(short_pos_price, symbol, upnl_profit_pct)
+                long_take_profit = self.calculate_quickscalp_long_take_profit(long_pos_price, symbol, upnl_profit_pct)
+
+                # short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, one_minute_distance, previous_one_minute_distance, short_take_profit, long_take_profit)
                 #short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
                 previous_five_minute_distance = five_minute_distance
 
@@ -438,6 +442,17 @@ class BybitMFIRSIQuickScalp(Strategy):
                 logging.info(f"Long TP order count for {symbol} is {tp_order_counts['long_tp_count']}")
                 logging.info(f"Short TP order count for {symbol} is {tp_order_counts['short_tp_count']}")
 
+                # Place long TP order if there are no existing long TP orders
+                if long_pos_qty > 0 and long_take_profit is not None and tp_order_counts['long_tp_count'] == 0:
+                    logging.info(f"Placing long TP order for {symbol} with {long_take_profit}")
+                    self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
+
+                # Place short TP order if there are no existing short TP orders
+                if short_pos_qty > 0 and short_take_profit is not None and tp_order_counts['short_tp_count'] == 0:
+                    logging.info(f"Placing short TP order for {symbol} with {short_take_profit}")
+                    self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
+                    
+                
                 self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
                 # self.cancel_stale_orders_bybit(symbol)
 

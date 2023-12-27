@@ -1512,19 +1512,6 @@ class Strategy:
             return float(short_profit_price)
         return None
 
-    # def calculate_take_profits_based_on_spread(self, short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit):
-    #     logging.info(f"Inputs to calculate_take_profits_based_on_spread: short_pos_price={short_pos_price}, long_pos_price={long_pos_price}, symbol={symbol}, five_minute_distance={five_minute_distance}, previous_five_minute_distance={previous_five_minute_distance}, short_take_profit={short_take_profit}, long_take_profit={long_take_profit}")
-
-    #     if five_minute_distance != previous_five_minute_distance or short_take_profit is None or long_take_profit is None:
-    #         short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, five_minute_distance)
-    #         long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
-            
-    #         logging.info(f"Newly calculated short_take_profit: {short_take_profit}")
-    #         logging.info(f"Newly calculated long_take_profit: {long_take_profit}")
-        
-    #     return short_take_profit, long_take_profit
-
-
     def calculate_take_profits_based_on_spread(self, short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit):
         """
         Calculate long and short take profits based on the spread.
@@ -3092,6 +3079,50 @@ class Strategy:
             else:
                 logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
 
+    def calculate_quickscalp_long_take_profit(self, long_pos_price, symbol, upnl_profit_pct):
+        if long_pos_price is None:
+            return None
+
+        price_precision = int(self.exchange.get_price_precision(symbol))
+        logging.info(f"Price precision for {symbol}: {price_precision}")
+
+        # Calculate the target profit price
+        target_profit_price = Decimal(long_pos_price) * (1 + Decimal(upnl_profit_pct))
+        
+        # Quantize the target profit price
+        try:
+            target_profit_price = target_profit_price.quantize(
+                Decimal('1e-{}'.format(price_precision)),
+                rounding=ROUND_HALF_UP
+            )
+        except InvalidOperation as e:
+            logging.error(f"Error when quantizing target_profit_price. {e}")
+            return None
+
+        return float(target_profit_price)
+
+    def calculate_quickscalp_short_take_profit(self, short_pos_price, symbol, upnl_profit_pct):
+        if short_pos_price is None:
+            return None
+
+        price_precision = int(self.exchange.get_price_precision(symbol))
+        logging.info(f"Price precision for {symbol}: {price_precision}")
+
+        # Calculate the target profit price
+        target_profit_price = Decimal(short_pos_price) * (1 - Decimal(upnl_profit_pct))
+        
+        # Quantize the target profit price
+        try:
+            target_profit_price = target_profit_price.quantize(
+                Decimal('1e-{}'.format(price_precision)),
+                rounding=ROUND_HALF_UP
+            )
+        except InvalidOperation as e:
+            logging.error(f"Error when quantizing target_profit_price. {e}")
+            return None
+
+        return float(target_profit_price)
+
     def bybit_1m_mfi_quickscalp(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, eri_trend: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool, uPNL_threshold: float):
         if symbol not in self.symbol_locks:
             self.symbol_locks[symbol] = threading.Lock()
@@ -3117,61 +3148,61 @@ class Strategy:
             mfi_signal_long = mfirsi.lower() == "long"
             mfi_signal_short = mfirsi.lower() == "short"
 
-            def quick_scalp_check_and_execute(pos_qty, upnl, order_side):
-                existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
-                if len(existing_tps) > 0:
-                    for qty, existing_tp_id in existing_tps:
-                        self.exchange.cancel_order_by_id(existing_tp_id, symbol)
-                        logging.info(f"Cancelled existing {order_side} TP {existing_tp_id} for quick scalp")
-                    time.sleep(0.05)
+            # def quick_scalp_check_and_execute(pos_qty, upnl, order_side):
+            #     existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
+            #     if len(existing_tps) > 0:
+            #         for qty, existing_tp_id in existing_tps:
+            #             self.exchange.cancel_order_by_id(existing_tp_id, symbol)
+            #             logging.info(f"Cancelled existing {order_side} TP {existing_tp_id} for quick scalp")
+            #         time.sleep(0.05)
 
-                # Define target price based on order side
-                target_price = best_ask_price if order_side == "sell" else best_bid_price
+            #     # Define target price based on order side
+            #     target_price = best_ask_price if order_side == "sell" else best_bid_price
 
-                logging.info(f"Symbol: {symbol}, uPNL {upnl}, Target Price: {target_price}, Order side: {order_side}, Current price: {current_price}")
-                # Calculate the percentage of unrealized PNL
-                upnl_percentage = (upnl / pos_qty) * 100
+            #     logging.info(f"Symbol: {symbol}, uPNL {upnl}, Target Price: {target_price}, Order side: {order_side}, Current price: {current_price}")
+            #     # Calculate the percentage of unrealized PNL
+            #     upnl_percentage = (upnl / pos_qty) * 100
 
-                logging.info(f"uPNL Percentage for {symbol} : {upnl_percentage}% for {order_side}")
-                logging.info(f"uPNL Threshold: {uPNL_threshold}%")
+            #     logging.info(f"uPNL Percentage for {symbol} : {upnl_percentage}% for {order_side}")
+            #     logging.info(f"uPNL Threshold: {uPNL_threshold}%")
 
-                # Check for scalp condition based on position type
-                scalp_condition = False
-                if order_side == "sell":  # For long positions
-                    scalp_condition = upnl_percentage >= uPNL_threshold
-                elif order_side == "buy":  # For short positions
-                    # For short positions, profit is taken when uPNL is positive and meets the threshold
-                    scalp_condition = (upnl_percentage > 0) and (upnl_percentage >= uPNL_threshold)
+            #     # Check for scalp condition based on position type
+            #     scalp_condition = False
+            #     if order_side == "sell":  # For long positions
+            #         scalp_condition = upnl_percentage >= uPNL_threshold
+            #     elif order_side == "buy":  # For short positions
+            #         # For short positions, profit is taken when uPNL is positive and meets the threshold
+            #         scalp_condition = (upnl_percentage > 0) and (upnl_percentage >= uPNL_threshold)
 
-                logging.info(f"Scalp condition for {symbol} (order side: {order_side}): {scalp_condition}")
+            #     logging.info(f"Scalp condition for {symbol} (order side: {order_side}): {scalp_condition}")
 
-                if scalp_condition:
-                    logging.info(f"Placing TP order for {symbol}. Pos Qty: {pos_qty}, TP Price: {target_price}, Order side: {order_side}")
-                    self.bybit_hedge_placetp_maker(symbol, pos_qty, target_price, 1 if order_side == "sell" else 2, order_side, open_orders)
-                else:
-                    logging.info(f"No TP order placed for {symbol} as scalp condition not met.")
+            #     if scalp_condition:
+            #         logging.info(f"Placing TP order for {symbol}. Pos Qty: {pos_qty}, TP Price: {target_price}, Order side: {order_side}")
+            #         self.bybit_hedge_placetp_maker(symbol, pos_qty, target_price, 1 if order_side == "sell" else 2, order_side, open_orders)
+            #     else:
+            #         logging.info(f"No TP order placed for {symbol} as scalp condition not met.")
 
-                return True
+            #     return True
 
-            # Quick scalp logic for long positions
-            if long_pos_qty > 0:
-                long_upnl = self.exchange.fetch_unrealized_pnl(symbol)['long']
-                logging.info(f"Checking quick scalp for long position in {symbol}. Pos Qty: {long_pos_qty}, uPNL: {long_upnl}")
-                if quick_scalp_check_and_execute(long_pos_qty, long_upnl, "sell"):
-                    logging.info(f"Quick scalp executed for long position in {symbol}")
-                    return
-                else:
-                    logging.info(f"Quick scalp not executed for long position in {symbol}")
+            # # Quick scalp logic for long positions
+            # if long_pos_qty > 0:
+            #     long_upnl = self.exchange.fetch_unrealized_pnl(symbol)['long']
+            #     logging.info(f"Checking quick scalp for long position in {symbol}. Pos Qty: {long_pos_qty}, uPNL: {long_upnl}")
+            #     if quick_scalp_check_and_execute(long_pos_qty, long_upnl, "sell"):
+            #         logging.info(f"Quick scalp executed for long position in {symbol}")
+            #         return
+            #     else:
+            #         logging.info(f"Quick scalp not executed for long position in {symbol}")
 
-            # Quick scalp logic for short positions
-            if short_pos_qty > 0:
-                short_upnl = self.exchange.fetch_unrealized_pnl(symbol)['short']
-                logging.info(f"Checking quick scalp for short position in {symbol}. Pos Qty: {short_pos_qty}, uPNL: {short_upnl}")
-                if quick_scalp_check_and_execute(short_pos_qty, short_upnl, "buy"):
-                    logging.info(f"Quick scalp executed for short position in {symbol}")
-                    return
-                else:
-                    logging.info(f"Quick scalp not executed for short position in {symbol}")
+            # # Quick scalp logic for short positions
+            # if short_pos_qty > 0:
+            #     short_upnl = self.exchange.fetch_unrealized_pnl(symbol)['short']
+            #     logging.info(f"Checking quick scalp for short position in {symbol}. Pos Qty: {short_pos_qty}, uPNL: {short_upnl}")
+            #     if quick_scalp_check_and_execute(short_pos_qty, short_upnl, "buy"):
+            #         logging.info(f"Quick scalp executed for short position in {symbol}")
+            #         return
+            #     else:
+            #         logging.info(f"Quick scalp not executed for short position in {symbol}")
 
 
             if one_minute_volume > min_vol:
