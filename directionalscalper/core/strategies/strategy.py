@@ -1,6 +1,6 @@
 from colorama import Fore
 from typing import Optional, Tuple, List, Dict, Union
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_DOWN
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_HALF_DOWN, ROUND_DOWN
 import pandas as pd
 import time
 import math
@@ -3115,7 +3115,7 @@ class Strategy:
         try:
             target_profit_price = target_profit_price.quantize(
                 Decimal('1e-{}'.format(price_precision)),
-                rounding=ROUND_HALF_UP
+                rounding=ROUND_HALF_DOWN
             )
         except InvalidOperation as e:
             logging.error(f"Error when quantizing target_profit_price. {e}")
