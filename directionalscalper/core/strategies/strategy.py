@@ -3092,11 +3092,102 @@ class Strategy:
             else:
                 logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
 
+    def bybit_1m_mfi_quickscalp(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, eri_trend: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool, uPNL_threshold: float):
+        if symbol not in self.symbol_locks:
+            self.symbol_locks[symbol] = threading.Lock()
+
+        with self.symbol_locks[symbol]:
+            current_price = self.exchange.get_current_price(symbol)
+            logging.info(f"Current price for {symbol}: {current_price}")
+
+            order_book = self.exchange.get_orderbook(symbol)
+            best_ask_price = order_book['asks'][0][0] if 'asks' in order_book and len(order_book['asks']) > 0 else self.last_known_ask.get(symbol)
+            best_bid_price = order_book['bids'][0][0] if 'bids' in order_book and len(order_book['bids']) > 0 else self.last_known_bid.get(symbol)
+            
+            eri_trend_aligned_long = eri_trend == "bullish"
+            eri_trend_aligned_short = eri_trend == "bearish"
+            mfi_signal_long = mfirsi.lower() == "long"
+            mfi_signal_short = mfirsi.lower() == "short"
+
+            def quick_scalp_check_and_execute(pos_qty, upnl, order_side):
+                existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
+                if len(existing_tps) > 0:
+                    for qty, existing_tp_id in existing_tps:
+                        self.exchange.cancel_order_by_id(existing_tp_id, symbol)
+                        logging.info(f"Cancelled existing {order_side} TP {existing_tp_id} for quick scalp")
+                    time.sleep(0.05)
+                if order_side == "buy":
+                    self.place_postonly_order_bybit(symbol, order_side, pos_qty, best_bid_price, positionIdx=2, reduceOnly=True)
+                else:
+                    self.place_postonly_order_bybit(symbol, order_side, pos_qty, best_ask_price, positionIdx=1, reduceOnly=True)
+                logging.info(f"Quick-scalped {order_side} position for {symbol} at uPNL")
+                return True
+
+            if long_pos_qty > 0:
+                long_upnl = self.exchange.fetch_unrealized_pnl(symbol)['long']
+                if long_upnl >= uPNL_threshold:
+                    if quick_scalp_check_and_execute(long_pos_qty, long_upnl, "sell"):
+                        return
+
+            if short_pos_qty > 0:
+                short_upnl = self.exchange.fetch_unrealized_pnl(symbol)['short']
+                if short_upnl >= uPNL_threshold:
+                    if quick_scalp_check_and_execute(short_pos_qty, short_upnl, "buy"):
+                        return
+                    
+            if min_vol > one_minute_volume:
+                # Entry logic for initial and additional entries
+                if long_pos_qty == 0 and should_long and eri_trend_aligned_long and mfi_signal_long and not self.entry_order_exists(open_orders, "buy"):
+                    logging.info(f"Placing initial ERI and MFI-based long entry for {symbol}")
+                    self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                elif long_pos_qty > 0 and should_add_to_long and mfi_signal_long and current_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
+                    logging.info(f"Placing additional MFI-based long entry for {symbol}")
+                    self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+
+                if short_pos_qty == 0 and should_short and eri_trend_aligned_short and mfi_signal_short and not self.entry_order_exists(open_orders, "sell"):
+                    logging.info(f"Placing initial ERI and MFI-based short entry for {symbol}")
+                    self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                elif short_pos_qty > 0 and should_add_to_short and mfi_signal_short and current_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
+                    logging.info(f"Placing additional MFI-based short entry for {symbol}")
+                    self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+
+
+            time.sleep(5)
+
+
     def bybit_1m_mfi_eri_walls_quickscalp(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, eri_trend: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool, fivemin_top_signal: bool, fivemin_bottom_signal: bool, uPNL_threshold: float):
         if symbol not in self.symbol_locks:
             self.symbol_locks[symbol] = threading.Lock()
 
         with self.symbol_locks[symbol]:
+
+            # Quick scalp logic with TP order check
+            def quick_scalp_check_and_execute(pos_qty, upnl, order_side):
+                existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
+                if len(existing_tps) > 0:
+                    for qty, existing_tp_id in existing_tps:
+                        self.exchange.cancel_order_by_id(existing_tp_id, symbol)
+                        logging.info(f"Cancelled existing {order_side} TP {existing_tp_id} for quick scalp")
+                    time.sleep(0.05)
+                if order_side == "buy":
+                    self.place_postonly_order_bybit(symbol, order_side, pos_qty, best_bid_price, positionIdx=2, reduceOnly=True)
+                else:
+                    self.place_postonly_order_bybit(symbol, order_side, pos_qty, best_ask_price, positionIdx=1, reduceOnly=True)
+                logging.info(f"Quick-scalped {order_side} position for {symbol} at uPNL")
+                return True
+
+            if long_pos_qty > 0:
+                long_upnl = self.exchange.fetch_unrealized_pnl(symbol)['long']
+                if long_upnl >= uPNL_threshold:
+                    if quick_scalp_check_and_execute(long_pos_qty, long_upnl, "sell"):
+                        return
+
+            if short_pos_qty > 0:
+                short_upnl = self.exchange.fetch_unrealized_pnl(symbol)['short']
+                if short_upnl >= uPNL_threshold:
+                    if quick_scalp_check_and_execute(short_pos_qty, short_upnl, "buy"):
+                        return
+                    
             bid_walls, ask_walls = self.detect_significant_order_book_walls(symbol)
             # bid_walls, ask_walls = self.detect_order_book_walls(symbol)
             largest_bid_wall = max(bid_walls, key=lambda x: x[1], default=None)
@@ -3133,24 +3224,6 @@ class Strategy:
             mfi_signal_long = mfi.lower() == "long"
             mfi_signal_short = mfi.lower() == "short"
             mfi_signal_neutral = mfi.lower() == "neutral"
-
-            # Quick scalp logic for long positions
-            if long_pos_qty > 0:
-                long_upnl = self.exchange.fetch_unrealized_pnl(symbol)['long']
-                long_upnl_pct = (long_upnl / long_pos_qty) * 100
-                if long_upnl_pct >= uPNL_threshold:
-                    logging.info(f"Scalping long position for {symbol} at uPNL {long_upnl_pct}%")
-                    self.place_postonly_order_bybit(symbol, "sell", long_pos_qty, best_ask_price, positionIdx=1, reduceOnly=True)
-                    return  # Exit function after scalping
-
-            # Quick scalp logic for short positions
-            if short_pos_qty > 0:
-                short_upnl = self.exchange.fetch_unrealized_pnl(symbol)['short']
-                short_upnl_pct = (short_upnl / short_pos_qty) * 100
-                if short_upnl_pct >= uPNL_threshold:
-                    logging.info(f"Scalping short position for {symbol} at uPNL {short_upnl_pct}%")
-                    self.place_postonly_order_bybit(symbol, "buy", short_pos_qty, best_bid_price, positionIdx=2, reduceOnly=True)
-                    return  # Exit function after scalping
 
             if one_minute_volume > min_vol:
                 # Long Entry for Trend and MFI Signal

@@ -1,2 +1,3 @@
 from .bybit_mm_onemin_qfl_mfi_eri_walls import BybitMMOneMinuteQFLMFIERIWalls
 from .mfirsi_eri_ob_imbalance import BybitMFIRSIERIOBImbalance
+from .mfi_quickscalp import BybitMFIRSIQuickScalp
