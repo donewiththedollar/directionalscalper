@@ -3140,7 +3140,8 @@ class Strategy:
                 if order_side == "sell":  # For long positions
                     scalp_condition = upnl_percentage >= uPNL_threshold
                 elif order_side == "buy":  # For short positions
-                    scalp_condition = upnl_percentage >= uPNL_threshold
+                    # For short positions, profit is taken when uPNL is positive and meets the threshold
+                    scalp_condition = (upnl_percentage > 0) and (upnl_percentage >= uPNL_threshold)
 
                 logging.info(f"Scalp condition for {symbol} (order side: {order_side}): {scalp_condition}")
 
