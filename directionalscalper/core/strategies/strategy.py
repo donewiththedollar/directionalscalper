@@ -3167,6 +3167,8 @@ class Strategy:
                     logging.info(f"Placing additional MFI-based short entry for {symbol}")
                     self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
                     time.sleep(5)
+            else:
+                logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
 
             time.sleep(5)
 
