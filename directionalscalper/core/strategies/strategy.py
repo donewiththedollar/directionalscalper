@@ -3163,7 +3163,10 @@ class Strategy:
                 distance_to_tp_short = abs(current_price - best_bid_price)
                 logging.info(f"Short position uPNL: {short_upnl}, Distance to TP: {distance_to_tp_short}")
 
+                logging.info(f"Current price: {current_price}, Best bid price: {best_bid_price}, Position Quantity: {short_pos_qty}, Short uPNL: {short_upnl}")
+
                 if short_upnl >= uPNL_threshold:
+                    logging.info(f"Attempting quick scalp for short position. Current price: {current_price}, Best bid price: {best_bid_price}, Position Quantity: {short_pos_qty}, Short uPNL: {short_upnl}")
                     if quick_scalp_check_and_execute(short_pos_qty, short_upnl, "buy"):
                         return
 
