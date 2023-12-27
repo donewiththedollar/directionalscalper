@@ -438,55 +438,6 @@ class BybitMFIRSIQuickScalp(Strategy):
                 logging.info(f"Long TP order count for {symbol} is {tp_order_counts['long_tp_count']}")
                 logging.info(f"Short TP order count for {symbol} is {tp_order_counts['short_tp_count']}")
 
-                # # Place long TP order if there are no existing long TP orders
-                # if long_pos_qty > 0 and long_take_profit is not None and tp_order_counts['long_tp_count'] == 0:
-                #     logging.info(f"Placing long TP order for {symbol} with {long_take_profit}")
-                #     self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
-
-                # # Place short TP order if there are no existing short TP orders
-                # if short_pos_qty > 0 and short_take_profit is not None and tp_order_counts['short_tp_count'] == 0:
-                #     logging.info(f"Placing short TP order for {symbol} with {short_take_profit}")
-                #     self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
-                    
-                # current_time = datetime.now()
-
-                # # Check for long positions
-                # if long_pos_qty > 0:
-                #     if current_time >= self.next_long_tp_update and long_take_profit is not None:
-                #         self.next_long_tp_update = self.update_take_profit_spread_bybit(
-                #             symbol=symbol, 
-                #             pos_qty=long_pos_qty, 
-                #             long_take_profit=long_take_profit,
-                #             short_take_profit=short_take_profit,
-                #             short_pos_price=short_pos_price,
-                #             long_pos_price=long_pos_price,
-                #             positionIdx=1, 
-                #             order_side="sell", 
-                #             next_tp_update=self.next_long_tp_update,
-                #             #five_minute_distance=five_minute_distance, 
-                #             five_minute_distance=one_minute_distance,
-                #             previous_five_minute_distance=previous_five_minute_distance
-                #         )
-
-                # # Check for short positions
-                # if short_pos_qty > 0:
-                #     if current_time >= self.next_short_tp_update and short_take_profit is not None:
-                #         self.next_short_tp_update = self.update_take_profit_spread_bybit(
-                #             symbol=symbol, 
-                #             pos_qty=short_pos_qty, 
-                #             short_pos_price=short_pos_price,
-                #             long_pos_price=long_pos_price,
-                #             short_take_profit=short_take_profit,
-                #             long_take_profit=long_take_profit,
-                #             positionIdx=2, 
-                #             order_side="buy", 
-                #             next_tp_update=self.next_short_tp_update,
-                #             # five_minute_distance=five_minute_distance, 
-                #             five_minute_distance=one_minute_distance,
-                #             previous_five_minute_distance=previous_five_minute_distance
-                #         )
-
-
                 self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
                 # self.cancel_stale_orders_bybit(symbol)
 
