@@ -3144,7 +3144,7 @@ class Strategy:
             if long_pos_qty > 0:
                 long_upnl = self.exchange.fetch_unrealized_pnl(symbol)['long']
                 distance_to_tp_long = abs(current_price - best_ask_price)
-                logging.info(f"Long position uPNL: {long_upnl}, Distance to TP: {distance_to_tp_long}, Target price: {best_ask_price}")
+                logging.info(f"Symbol: {symbol}, Current price: {current_price}, Long position uPNL: {long_upnl}, Distance to TP: {distance_to_tp_long}, Target price: {best_ask_price}")
 
                 if long_upnl >= uPNL_threshold:
                     if quick_scalp_check_and_execute(long_pos_qty, long_upnl, "sell"):
@@ -3154,7 +3154,7 @@ class Strategy:
             if short_pos_qty > 0:
                 short_upnl = self.exchange.fetch_unrealized_pnl(symbol)['short']
                 distance_to_tp_short = abs(current_price - best_bid_price)
-                logging.info(f"Short position uPNL: {short_upnl}, Distance to TP: {distance_to_tp_short}, Target price: {best_bid_price}")
+                logging.info(f"Symbol: {symbol}, Current price: {current_price}, Short position uPNL: {short_upnl}, Distance to TP: {distance_to_tp_short}, Target price: {best_bid_price}")
 
                 if short_upnl >= uPNL_threshold:
                     logging.info(f"Attempting quick scalp for short position. Current price: {current_price}, Best bid price: {best_bid_price}, Position Quantity: {short_pos_qty}, Short uPNL: {short_upnl}")
