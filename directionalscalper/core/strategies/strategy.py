@@ -3128,7 +3128,7 @@ class Strategy:
                 # Define target price based on order side
                 target_price = best_ask_price if order_side == "sell" else best_bid_price
 
-                logging.info(f"Symbol: {symbol}, Target Price: {target_price}, Order side: {order_side}, Current price: {current_price}")
+                logging.info(f"Symbol: {symbol}, uPNL {upnl}, Target Price: {target_price}, Order side: {order_side}, Current price: {current_price}")
                 # Calculate the percentage of unrealized PNL
                 upnl_percentage = (upnl / pos_qty) * 100
 
