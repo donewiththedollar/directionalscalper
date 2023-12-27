@@ -3128,8 +3128,12 @@ class Strategy:
                 # Define target price based on order side
                 target_price = best_ask_price if order_side == "sell" else best_bid_price
 
+                logging.info(f"Symbol: {symbol}, Target Price: {target_price}, Order side: {order_side}, Current price: {current_price}")
                 # Calculate the percentage of unrealized PNL
                 upnl_percentage = (upnl / pos_qty) * 100
+
+                logging.info(f"uPNL Percentage for {symbol} : {upnl_percentage}")
+                logging.info(f"uPNL Threshold: {uPNL_threshold}")
 
                 if upnl_percentage >= uPNL_threshold:
                     self.bybit_hedge_placetp_maker(symbol, pos_qty, target_price, 1 if order_side == "sell" else 2, order_side, open_orders)
