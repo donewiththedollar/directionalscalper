@@ -3148,63 +3148,6 @@ class Strategy:
             mfi_signal_long = mfirsi.lower() == "long"
             mfi_signal_short = mfirsi.lower() == "short"
 
-            # def quick_scalp_check_and_execute(pos_qty, upnl, order_side):
-            #     existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
-            #     if len(existing_tps) > 0:
-            #         for qty, existing_tp_id in existing_tps:
-            #             self.exchange.cancel_order_by_id(existing_tp_id, symbol)
-            #             logging.info(f"Cancelled existing {order_side} TP {existing_tp_id} for quick scalp")
-            #         time.sleep(0.05)
-
-            #     # Define target price based on order side
-            #     target_price = best_ask_price if order_side == "sell" else best_bid_price
-
-            #     logging.info(f"Symbol: {symbol}, uPNL {upnl}, Target Price: {target_price}, Order side: {order_side}, Current price: {current_price}")
-            #     # Calculate the percentage of unrealized PNL
-            #     upnl_percentage = (upnl / pos_qty) * 100
-
-            #     logging.info(f"uPNL Percentage for {symbol} : {upnl_percentage}% for {order_side}")
-            #     logging.info(f"uPNL Threshold: {uPNL_threshold}%")
-
-            #     # Check for scalp condition based on position type
-            #     scalp_condition = False
-            #     if order_side == "sell":  # For long positions
-            #         scalp_condition = upnl_percentage >= uPNL_threshold
-            #     elif order_side == "buy":  # For short positions
-            #         # For short positions, profit is taken when uPNL is positive and meets the threshold
-            #         scalp_condition = (upnl_percentage > 0) and (upnl_percentage >= uPNL_threshold)
-
-            #     logging.info(f"Scalp condition for {symbol} (order side: {order_side}): {scalp_condition}")
-
-            #     if scalp_condition:
-            #         logging.info(f"Placing TP order for {symbol}. Pos Qty: {pos_qty}, TP Price: {target_price}, Order side: {order_side}")
-            #         self.bybit_hedge_placetp_maker(symbol, pos_qty, target_price, 1 if order_side == "sell" else 2, order_side, open_orders)
-            #     else:
-            #         logging.info(f"No TP order placed for {symbol} as scalp condition not met.")
-
-            #     return True
-
-            # # Quick scalp logic for long positions
-            # if long_pos_qty > 0:
-            #     long_upnl = self.exchange.fetch_unrealized_pnl(symbol)['long']
-            #     logging.info(f"Checking quick scalp for long position in {symbol}. Pos Qty: {long_pos_qty}, uPNL: {long_upnl}")
-            #     if quick_scalp_check_and_execute(long_pos_qty, long_upnl, "sell"):
-            #         logging.info(f"Quick scalp executed for long position in {symbol}")
-            #         return
-            #     else:
-            #         logging.info(f"Quick scalp not executed for long position in {symbol}")
-
-            # # Quick scalp logic for short positions
-            # if short_pos_qty > 0:
-            #     short_upnl = self.exchange.fetch_unrealized_pnl(symbol)['short']
-            #     logging.info(f"Checking quick scalp for short position in {symbol}. Pos Qty: {short_pos_qty}, uPNL: {short_upnl}")
-            #     if quick_scalp_check_and_execute(short_pos_qty, short_upnl, "buy"):
-            #         logging.info(f"Quick scalp executed for short position in {symbol}")
-            #         return
-            #     else:
-            #         logging.info(f"Quick scalp not executed for short position in {symbol}")
-
-
             if one_minute_volume > min_vol:
                 # Entry logic for initial and additional entries
                 if long_pos_qty == 0 and should_long and mfi_signal_long and not self.entry_order_exists(open_orders, "buy"):
