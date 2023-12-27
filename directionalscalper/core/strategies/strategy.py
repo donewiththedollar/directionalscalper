@@ -3135,7 +3135,7 @@ class Strategy:
                     if quick_scalp_check_and_execute(short_pos_qty, short_upnl, "buy"):
                         return
                     
-            if min_vol > one_minute_volume:
+            if one_minute_volume > min_vol:
                 # Entry logic for initial and additional entries
                 if long_pos_qty == 0 and should_long and eri_trend_aligned_long and mfi_signal_long and not self.entry_order_exists(open_orders, "buy"):
                     logging.info(f"Placing initial ERI and MFI-based long entry for {symbol}")
