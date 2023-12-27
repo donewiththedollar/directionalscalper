@@ -3151,20 +3151,20 @@ class Strategy:
             if one_minute_volume > min_vol:
                 # Entry logic for initial and additional entries
                 if long_pos_qty == 0 and should_long and mfi_signal_long and not self.entry_order_exists(open_orders, "buy"):
-                    logging.info(f"Placing initial MFI-based long entry for {symbol}")
+                    logging.info(f"Placing initial MFI-based long entry for {symbol} at {best_bid_price} with amount {long_dynamic_amount}")
                     self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
                     time.sleep(5)
                 elif long_pos_qty > 0 and should_add_to_long and mfi_signal_long and current_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
-                    logging.info(f"Placing additional MFI-based long entry for {symbol}")
+                    logging.info(f"Placing additional MFI-based long entry for {symbol} at {best_bid_price} with amount {long_dynamic_amount}")
                     self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
                     time.sleep(5)
 
                 if short_pos_qty == 0 and should_short and mfi_signal_short and not self.entry_order_exists(open_orders, "sell"):
-                    logging.info(f"Placing initial MFI-based short entry for {symbol}")
+                    logging.info(f"Placing initial MFI-based short entry for {symbol} at {best_ask_price} with amount {short_dynamic_amount}")
                     self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
                     time.sleep(5)
                 elif short_pos_qty > 0 and should_add_to_short and mfi_signal_short and current_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
-                    logging.info(f"Placing additional MFI-based short entry for {symbol}")
+                    logging.info(f"Placing additional MFI-based short entry for {symbol} at {best_ask_price} with amount {short_dynamic_amount}")
                     self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
                     time.sleep(5)
             else:
