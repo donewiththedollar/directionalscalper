@@ -3163,7 +3163,7 @@ class Strategy:
                 if order_side == "sell":  # For long positions
                     scalp_condition = upnl_percentage >= uPNL_threshold
                 elif order_side == "buy":  # For short positions
-                    scalp_condition = upnl_percentage <= -uPNL_threshold
+                    scalp_condition = upnl_percentage >= uPNL_threshold
 
                 if scalp_condition:
                     self.bybit_hedge_placetp_maker(symbol, pos_qty, target_price, 1 if order_side == "sell" else 2, order_side, open_orders)
