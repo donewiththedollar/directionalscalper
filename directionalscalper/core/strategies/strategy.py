@@ -3128,6 +3128,8 @@ class Strategy:
                 # Define target price based on order side
                 target_price = best_ask_price if order_side == "sell" else best_bid_price
 
+                logging.info(f"Symbol: {symbol} Target price: {target_price}")
+
                 # Calculate the absolute and percentage distances from the current price to the target price
                 absolute_distance = abs(target_price - current_price)
                 percentage_distance = (absolute_distance / current_price) * 100
