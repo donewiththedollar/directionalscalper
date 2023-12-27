@@ -4488,11 +4488,11 @@ class Strategy:
         # Determine the relevant TP orders based on the order side
         relevant_tp_orders = long_tp_orders if order_side == "sell" else short_tp_orders
 
-        # Check if there's an existing TP order with a mismatched quantity
-        mismatched_qty_orders = [order for order in relevant_tp_orders if order['qty'] != pos_qty]
+        # Check for TP orders with mismatched quantity or incorrect price
+        orders_to_cancel = [order for order in relevant_tp_orders if order['qty'] != pos_qty or (order_side == "sell" and float(order['price']) != new_long_tp) or (order_side == "buy" and float(order['price']) != new_short_tp)]
 
-        # Cancel mismatched TP orders if any
-        for order in mismatched_qty_orders:
+        # Cancel mismatched or incorrectly priced TP orders if any
+        for order in orders_to_cancel:
             try:
                 self.exchange.cancel_order_by_id(order['id'], symbol)
                 logging.info(f"Cancelled TP order {order['id']} for update.")
@@ -4501,7 +4501,7 @@ class Strategy:
                 logging.error(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
 
         now = datetime.now()
-        if now >= next_tp_update or mismatched_qty_orders:
+        if now >= next_tp_update or orders_to_cancel:
             # Set new TP orders with updated quickscalp prices
             new_tp_price = new_long_tp if order_side == "sell" else new_short_tp
             try:
@@ -4515,7 +4515,6 @@ class Strategy:
         else:
             logging.info(f"Waiting for the next update time for TP orders.")
             return next_tp_update
-
 
     def update_take_profit_spread_bybit(self, symbol, pos_qty, short_take_profit, long_take_profit, short_pos_price, long_pos_price, positionIdx, order_side, next_tp_update, five_minute_distance, previous_five_minute_distance, max_retries=10):
         # Fetch the current open TP orders for the symbol
