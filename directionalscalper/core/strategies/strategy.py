@@ -3160,26 +3160,27 @@ class Strategy:
 
                 # Check for scalp condition based on position type
                 scalp_condition = False
-                if order_side == "sell":  # For short positions
-                    scalp_condition = upnl_percentage <= -uPNL_threshold
-                elif order_side == "buy":  # For long positions
+                if order_side == "sell":  # For long positions
                     scalp_condition = upnl_percentage >= uPNL_threshold
+                elif order_side == "buy":  # For short positions
+                    scalp_condition = upnl_percentage <= -uPNL_threshold
 
                 if scalp_condition:
                     self.bybit_hedge_placetp_maker(symbol, pos_qty, target_price, 1 if order_side == "sell" else 2, order_side, open_orders)
 
                 return True
 
-
             # Quick scalp logic for long positions
             if long_pos_qty > 0:
                 long_upnl = self.exchange.fetch_unrealized_pnl(symbol)['long']
+                logging.info(f"Long uPNL for symbol {symbol}")
                 if quick_scalp_check_and_execute(long_pos_qty, long_upnl, "sell"):
                     return
 
             # Quick scalp logic for short positions
             if short_pos_qty > 0:
                 short_upnl = self.exchange.fetch_unrealized_pnl(symbol)['short']
+                logging.info(f"Short uPNL for symbol {symbol}")
                 if quick_scalp_check_and_execute(short_pos_qty, short_upnl, "buy"):
                     return
 
