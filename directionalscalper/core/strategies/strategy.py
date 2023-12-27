@@ -3128,14 +3128,18 @@ class Strategy:
                 # Define target price based on order side
                 target_price = best_ask_price if order_side == "sell" else best_bid_price
 
+                # Calculate the absolute and percentage distances from the current price to the target price
+                absolute_distance = abs(target_price - current_price)
+                percentage_distance = (absolute_distance / current_price) * 100
+
                 # Place the quick scalp order
                 if order_side == "buy":
                     self.place_postonly_order_bybit(symbol, order_side, pos_qty, best_bid_price, positionIdx=2, reduceOnly=True)
                 else:
                     self.place_postonly_order_bybit(symbol, order_side, pos_qty, best_ask_price, positionIdx=1, reduceOnly=True)
 
-                # Log the quick scalp execution
-                logging.info(f"Quick-scalped {order_side} position for {symbol} at uPNL: {upnl}. Target price: {target_price}, Current price: {current_price}")
+                # Log the quick scalp execution with detailed distance information
+                logging.info(f"Quick-scalped {order_side} position for {symbol} at uPNL: {upnl}. Target price: {target_price}, Current price: {current_price}, Absolute distance to TP: {absolute_distance}, Percentage distance to TP: {percentage_distance}%")
 
                 return True
 
@@ -3160,6 +3164,7 @@ class Strategy:
                 if short_upnl >= uPNL_threshold:
                     if quick_scalp_check_and_execute(short_pos_qty, short_upnl, "buy"):
                         return
+
                     
             if one_minute_volume > min_vol:
                 # Entry logic for initial and additional entries
