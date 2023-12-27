@@ -3124,21 +3124,39 @@ class Strategy:
                         self.exchange.cancel_order_by_id(existing_tp_id, symbol)
                         logging.info(f"Cancelled existing {order_side} TP {existing_tp_id} for quick scalp")
                     time.sleep(0.05)
+
+                # Define target price based on order side
+                target_price = best_ask_price if order_side == "sell" else best_bid_price
+
+                # Place the quick scalp order
                 if order_side == "buy":
                     self.place_postonly_order_bybit(symbol, order_side, pos_qty, best_bid_price, positionIdx=2, reduceOnly=True)
                 else:
                     self.place_postonly_order_bybit(symbol, order_side, pos_qty, best_ask_price, positionIdx=1, reduceOnly=True)
-                logging.info(f"Quick-scalped {order_side} position for {symbol} at uPNL")
+
+                # Log the quick scalp execution
+                logging.info(f"Quick-scalped {order_side} position for {symbol} at uPNL: {upnl}. Target price: {target_price}, Current price: {current_price}")
+
                 return True
 
+            # Quick scalp logic for long positions
             if long_pos_qty > 0:
                 long_upnl = self.exchange.fetch_unrealized_pnl(symbol)['long']
+                # Calculate distance to target for logging
+                distance_to_tp_long = abs(current_price - best_ask_price)
+                logging.info(f"Long position uPNL: {long_upnl}, Distance to TP: {distance_to_tp_long}")
+
                 if long_upnl >= uPNL_threshold:
                     if quick_scalp_check_and_execute(long_pos_qty, long_upnl, "sell"):
                         return
 
+            # Quick scalp logic for short positions
             if short_pos_qty > 0:
                 short_upnl = self.exchange.fetch_unrealized_pnl(symbol)['short']
+                # Calculate distance to target for logging
+                distance_to_tp_short = abs(current_price - best_bid_price)
+                logging.info(f"Short position uPNL: {short_upnl}, Distance to TP: {distance_to_tp_short}")
+
                 if short_upnl >= uPNL_threshold:
                     if quick_scalp_check_and_execute(short_pos_qty, short_upnl, "buy"):
                         return
