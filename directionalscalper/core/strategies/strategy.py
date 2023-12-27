@@ -3132,7 +3132,7 @@ class Strategy:
                 # Calculate the percentage of unrealized PNL
                 upnl_percentage = (upnl / pos_qty) * 100
 
-                logging.info(f"uPNL Percentage for {symbol} : {upnl_percentage}")
+                logging.info(f"uPNL Percentage for {symbol} : {upnl_percentage} for {order_side}")
                 logging.info(f"uPNL Threshold: {uPNL_threshold}")
 
                 if upnl_percentage >= uPNL_threshold:
