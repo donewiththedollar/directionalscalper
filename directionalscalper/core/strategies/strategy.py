@@ -3117,6 +3117,29 @@ class Strategy:
             mfi_signal_long = mfirsi.lower() == "long"
             mfi_signal_short = mfirsi.lower() == "short"
 
+            # def quick_scalp_check_and_execute(pos_qty, upnl, order_side):
+            #     existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
+            #     if len(existing_tps) > 0:
+            #         for qty, existing_tp_id in existing_tps:
+            #             self.exchange.cancel_order_by_id(existing_tp_id, symbol)
+            #             logging.info(f"Cancelled existing {order_side} TP {existing_tp_id} for quick scalp")
+            #         time.sleep(0.05)
+
+            #     # Define target price based on order side
+            #     target_price = best_ask_price if order_side == "sell" else best_bid_price
+
+            #     logging.info(f"Symbol: {symbol}, uPNL {upnl}, Target Price: {target_price}, Order side: {order_side}, Current price: {current_price}")
+            #     # Calculate the percentage of unrealized PNL
+            #     upnl_percentage = (upnl / pos_qty) * 100
+
+            #     logging.info(f"uPNL Percentage for {symbol} : {upnl_percentage} for {order_side}")
+            #     logging.info(f"uPNL Threshold: {uPNL_threshold}")
+
+            #     if upnl_percentage >= uPNL_threshold:
+            #         self.bybit_hedge_placetp_maker(symbol, pos_qty, target_price, 1 if order_side == "sell" else 2, order_side, open_orders)
+
+            #     return True
+
             def quick_scalp_check_and_execute(pos_qty, upnl, order_side):
                 existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
                 if len(existing_tps) > 0:
@@ -3135,10 +3158,18 @@ class Strategy:
                 logging.info(f"uPNL Percentage for {symbol} : {upnl_percentage} for {order_side}")
                 logging.info(f"uPNL Threshold: {uPNL_threshold}")
 
-                if upnl_percentage >= uPNL_threshold:
+                # Check for scalp condition based on position type
+                scalp_condition = False
+                if order_side == "sell":  # For short positions
+                    scalp_condition = upnl_percentage <= -uPNL_threshold
+                elif order_side == "buy":  # For long positions
+                    scalp_condition = upnl_percentage >= uPNL_threshold
+
+                if scalp_condition:
                     self.bybit_hedge_placetp_maker(symbol, pos_qty, target_price, 1 if order_side == "sell" else 2, order_side, open_orders)
 
                 return True
+
 
             # Quick scalp logic for long positions
             if long_pos_qty > 0:
