@@ -3126,9 +3126,9 @@ class Strategy:
                     time.sleep(0.05)
 
                 # Define target price based on order side
-                target_price = best_ask_price if order_side == "sell" else best_bid_price
-                absolute_distance = abs(target_price - current_price)
-                percentage_distance = (absolute_distance / current_price) * 100
+                target_price = round(best_ask_price, 6) if order_side == "sell" else round(best_bid_price, 6)
+                absolute_distance = round(abs(target_price - current_price), 6)
+                percentage_distance = round((absolute_distance / current_price) * 100, 2)
 
                 # Place the quick scalp order
                 if order_side == "buy":
@@ -3143,7 +3143,7 @@ class Strategy:
             # Quick scalp logic for long positions
             if long_pos_qty > 0:
                 long_upnl = self.exchange.fetch_unrealized_pnl(symbol)['long']
-                distance_to_tp_long = abs(current_price - best_ask_price)
+                distance_to_tp_long = round(abs(current_price - best_ask_price), 6)
                 logging.info(f"Symbol: {symbol}, Current price: {current_price}, Long position uPNL: {long_upnl}, Distance to TP: {distance_to_tp_long}, Target price: {best_ask_price}")
 
                 if long_upnl >= uPNL_threshold:
@@ -3153,7 +3153,7 @@ class Strategy:
             # Quick scalp logic for short positions
             if short_pos_qty > 0:
                 short_upnl = self.exchange.fetch_unrealized_pnl(symbol)['short']
-                distance_to_tp_short = abs(current_price - best_bid_price)
+                distance_to_tp_short = round(abs(current_price - best_bid_price), 6)
                 logging.info(f"Symbol: {symbol}, Current price: {current_price}, Short position uPNL: {short_upnl}, Distance to TP: {distance_to_tp_short}, Target price: {best_bid_price}")
 
                 if short_upnl >= uPNL_threshold:
