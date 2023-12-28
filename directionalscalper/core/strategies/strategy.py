@@ -3006,7 +3006,7 @@ class Strategy:
         try:
             stop_loss_price = stop_loss_price.quantize(
                 Decimal('1e-{}'.format(price_precision)),
-                rounding=ROUND_HALF_UP
+                rounding=ROUND_HALF_DOWN
             )
         except InvalidOperation as e:
             logging.error(f"Error when quantizing stop_loss_price. {e}")
