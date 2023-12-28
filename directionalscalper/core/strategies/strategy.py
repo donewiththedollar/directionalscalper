@@ -3078,8 +3078,6 @@ class Strategy:
             else:
                 best_bid_price = self.last_known_bid.get(symbol)
                 
-            eri_trend_aligned_long = eri_trend == "bullish"
-            eri_trend_aligned_short = eri_trend == "bearish"
             mfi_signal_long = mfirsi.lower() == "long"
             mfi_signal_short = mfirsi.lower() == "short"
 
