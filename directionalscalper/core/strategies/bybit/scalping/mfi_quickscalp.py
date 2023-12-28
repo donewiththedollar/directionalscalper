@@ -38,6 +38,8 @@ class BybitMFIRSIQuickScalp(Strategy):
             self.blacklist = self.config.blacklist
             self.test_orders_enabled = self.config.test_orders_enabled
             self.upnl_profit_pct = self.config.upnl_profit_pct
+            self.stoploss_enabled = self.config.stoploss_enabled
+            self.stoploss_upnl_pct = self.config.stoploss_upnl_pct
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
 
@@ -97,6 +99,7 @@ class BybitMFIRSIQuickScalp(Strategy):
 
         logging.info(f"Running for symbol (inside run_single_symbol method): {symbol}")
 
+        # Important definitions
         quote_currency = "USDT"
         max_retries = 5
         retry_delay = 5
@@ -104,6 +107,9 @@ class BybitMFIRSIQuickScalp(Strategy):
         min_dist = self.config.min_distance
         min_vol = self.config.min_volume
         upnl_profit_pct = self.config.upnl_profit_pct
+        stoploss_enabled = self.config.stoploss_enabled
+        stoploss_upnl_pct = self.config.stoploss_upnl_pct
+
         MaxAbsFundingRate = self.config.MaxAbsFundingRate
         
         hedge_ratio = self.config.hedge_ratio
@@ -346,6 +352,14 @@ class BybitMFIRSIQuickScalp(Strategy):
                 # Calculate take profit for short and long positions using quickscalp method
                 short_take_profit = self.calculate_quickscalp_short_take_profit(short_pos_price, symbol, upnl_profit_pct)
                 long_take_profit = self.calculate_quickscalp_long_take_profit(long_pos_price, symbol, upnl_profit_pct)
+
+                short_stop_loss = None
+                long_stop_loss = None
+
+                if stoploss_enabled:
+                    # Calculate stop loss for short and long positions using the new method
+                    short_stop_loss = self.calculate_quickscalp_short_stop_loss(short_pos_price, symbol, stoploss_upnl_pct)
+                    long_stop_loss = self.calculate_quickscalp_long_stop_loss(long_pos_price, symbol, stoploss_upnl_pct)
 
                 # short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, one_minute_distance, previous_one_minute_distance, short_take_profit, long_take_profit)
                 #short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)

@@ -187,34 +187,6 @@ class Strategy:
 
         return significant_bid_walls, significant_ask_walls
 
-
-    # def detect_significant_order_book_walls(self, symbol, timeframe='1h', base_threshold_factor=5.0):
-    #     order_book = self.exchange.get_orderbook(symbol)
-    #     bids, asks = order_book['bids'], order_book['asks']
-
-    #     # Fetch historical data and calculate ATR
-    #     historical_data = self.fetch_historical_data(symbol, timeframe)
-    #     atr = self.calculate_atr(historical_data)
-
-    #     # Dynamic threshold based on ATR
-    #     dynamic_threshold = base_threshold_factor * atr
-
-    #     # Current market price
-    #     current_price = self.exchange.get_current_price(symbol)
-
-    #     # Function to check wall significance
-    #     def is_wall_significant(price, size, threshold):
-    #         return size > threshold and abs(price - current_price) / current_price < atr
-
-    #     # Detect significant bid and ask walls
-    #     significant_bid_walls = [(price, size) for price, size in bids if is_wall_significant(price, size, dynamic_threshold)]
-    #     significant_ask_walls = [(price, size) for price, size in asks if is_wall_significant(price, size, dynamic_threshold)]
-
-    #     logging.info(f"Significant bid walls: {significant_bid_walls} for {symbol}")
-    #     logging.info(f"Significant ask walls: {significant_ask_walls} for {symbol}")
-
-    #     return significant_bid_walls, significant_ask_walls
-
     def is_price_approaching_wall(self, current_price, wall_price, wall_type):
         # Define a relative proximity threshold, e.g., 0.5%
         proximity_percentage = 0.005  # 0.5%
@@ -231,7 +203,6 @@ class Strategy:
             return True
 
         return False
-
 
     TAKER_FEE_RATE = 0.00055
 
@@ -1927,19 +1898,7 @@ class Strategy:
         # If none of the above conditions are met, don't allow the new trade
         return False
 
-    # def update_shared_data(self, symbol_data: dict, open_position_data: dict, open_symbols_count: int):
-    #     # Update and serialize symbol data
-    #     with open("symbol_data.json", "w") as f:
-    #         json.dump(symbol_data, f)
-
-    #     # Update and serialize open position data
-    #     with open("open_positions_data.json", "w") as f:
-    #         json.dump(open_position_data, f)
-        
-    #     # Update and serialize count of open symbols
-    #     with open("open_symbols_count.json", "w") as f:
-    #         json.dump({"count": open_symbols_count}, f)
-
+    # Dashboard
     def update_shared_data(self, symbol_data: dict, open_position_data: dict, open_symbols_count: int):
         data_directory = "data"  # Define the data directory
 
@@ -1954,7 +1913,6 @@ class Strategy:
         # Update and serialize count of open symbols
         with open(os.path.join(data_directory, "open_symbols_count.json"), "w") as f:
             json.dump({"count": open_symbols_count}, f)
-
 
     def manage_liquidation_risk(self, long_pos_price, short_pos_price, long_liq_price, short_liq_price, symbol, amount):
         # Create some thresholds for when to act
@@ -2038,67 +1996,6 @@ class Strategy:
             # Dynamic safety_margin and base_gap based on asset's price
             safety_margin = best_ask_price * Decimal('0.0060')  # 0.0030 # 0.10% of current price
             base_gap = best_ask_price * Decimal('0.0060') #0.0030  # 0.10% of current price
-
-            for i in range(adjusted_spoofing_wall_size):
-                gap = base_gap + Decimal(i) * Decimal('0.002')  # Increasing gap for each subsequent order
-
-                if larger_position == "long":
-                    # Calculate long spoof price based on best ask price (top of the order book)
-                    spoof_price_long = best_ask_price + gap + safety_margin
-                    spoof_price_long = spoof_price_long.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
-                    spoof_order_long = self.limit_order_bybit(symbol, "sell", long_dynamic_amount * 1.5, spoof_price_long, positionIdx=2, reduceOnly=False)
-                    spoofing_orders.append(spoof_order_long)
-
-                if larger_position == "short":
-                    # Calculate short spoof price based on best bid price (top of the order book)
-                    spoof_price_short = best_bid_price - gap - safety_margin
-                    spoof_price_short = spoof_price_short.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
-                    spoof_order_short = self.limit_order_bybit(symbol, "buy", short_dynamic_amount * 1.5, spoof_price_short, positionIdx=1, reduceOnly=False)
-                    spoofing_orders.append(spoof_order_short)
-
-            # Sleep for the spoofing duration and then cancel all placed orders
-            time.sleep(self.spoofing_duration)
-
-            # Cancel orders and handle errors
-            for order in spoofing_orders:
-                if 'id' in order:
-                    logging.info(f"Spoofing order for {symbol}: {order}")
-                    self.exchange.cancel_order_by_id(order['id'], symbol)
-                else:
-                    logging.warning(f"Could not place spoofing order for {symbol}: {order.get('error', 'Unknown error')}")
-
-            # Deactivate spoofing for the next cycle
-            self.spoofing_active = False
-
-
-    def helper(self, symbol, short_dynamic_amount, long_dynamic_amount):
-        if self.spoofing_active:
-            # Fetch orderbook and positions
-            orderbook = self.exchange.get_orderbook(symbol)
-            best_bid_price = Decimal(orderbook['bids'][0][0])
-            best_ask_price = Decimal(orderbook['asks'][0][0])
-
-            position_data = self.exchange.get_positions_bybit(symbol)
-            short_pos_qty = position_data["short"]["qty"]
-            long_pos_qty = position_data["long"]["qty"]
-
-            if short_pos_qty is None and long_pos_qty is None:
-                logging.warning(f"Could not fetch position quantities for {symbol}. Skipping spoofing.")
-                return
-
-            # Determine which position is larger
-            larger_position = "long" if long_pos_qty > short_pos_qty else "short"
-
-            # Adjust spoofing_wall_size based on the larger position
-            base_spoofing_wall_size = self.spoofing_wall_size
-            adjusted_spoofing_wall_size = base_spoofing_wall_size + 5
-
-            # Initialize variables
-            spoofing_orders = []
-
-            # Dynamic safety_margin and base_gap based on asset's price
-            safety_margin = best_ask_price * Decimal('0.0040')  # 0.0030 # 0.10% of current price
-            base_gap = best_ask_price * Decimal('0.0040') #0.0030  # 0.10% of current price
 
             for i in range(adjusted_spoofing_wall_size):
                 gap = base_gap + Decimal(i) * Decimal('0.002')  # Increasing gap for each subsequent order
@@ -3072,6 +2969,50 @@ class Strategy:
                 
             else:
                 logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
+
+    def calculate_quickscalp_long_stop_loss(self, long_pos_price, symbol, stoploss_upnl_pct):
+        if long_pos_price is None:
+            return None
+
+        price_precision = int(self.exchange.get_price_precision(symbol))
+        logging.info(f"Price precision for {symbol}: {price_precision}")
+
+        # Calculate the stop loss price by reducing the long position price by the stop loss percentage
+        stop_loss_price = Decimal(long_pos_price) * (1 - Decimal(stoploss_upnl_pct))
+        
+        # Quantize the stop loss price
+        try:
+            stop_loss_price = stop_loss_price.quantize(
+                Decimal('1e-{}'.format(price_precision)),
+                rounding=ROUND_HALF_DOWN
+            )
+        except InvalidOperation as e:
+            logging.error(f"Error when quantizing stop_loss_price. {e}")
+            return None
+
+        return float(stop_loss_price)
+
+    def calculate_quickscalp_short_stop_loss(self, short_pos_price, symbol, stoploss_upnl_pct):
+        if short_pos_price is None:
+            return None
+
+        price_precision = int(self.exchange.get_price_precision(symbol))
+        logging.info(f"Price precision for {symbol}: {price_precision}")
+
+        # Calculate the stop loss price by increasing the short position price by the stop loss percentage
+        stop_loss_price = Decimal(short_pos_price) * (1 + Decimal(stoploss_upnl_pct))
+        
+        # Quantize the stop loss price
+        try:
+            stop_loss_price = stop_loss_price.quantize(
+                Decimal('1e-{}'.format(price_precision)),
+                rounding=ROUND_HALF_UP
+            )
+        except InvalidOperation as e:
+            logging.error(f"Error when quantizing stop_loss_price. {e}")
+            return None
+
+        return float(stop_loss_price)
 
     def calculate_quickscalp_long_take_profit(self, long_pos_price, symbol, upnl_profit_pct):
         if long_pos_price is None:
