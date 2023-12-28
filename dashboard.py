@@ -34,26 +34,25 @@ def save_open_positions_data(data: pd.DataFrame):
     write_to_json(data_dict, "open_positions_data.json")
 
 def get_symbol_data(retries=5, delay=0.5) -> pd.DataFrame:
+    json_path = "data/shared_data.json"  # Updated path
     for _ in range(retries):
-        with open("shared_data.json", "r") as f:
-            content = f.read()
-            if not content.strip():  # Check if file is empty
-                time.sleep(delay)
-                continue  # Retry reading the file
-                
-            try:
-                data = json.loads(content)
+        try:
+            with open(json_path, "r") as f:
+                data = json.load(f)
                 return pd.DataFrame(list(data.values()))
-            except json.JSONDecodeError:
-                time.sleep(delay)
-                continue  # Retry reading the file
-                
-    # If after all retries, we still can't get the data
+        except FileNotFoundError:
+            st.error(f"File {json_path} not found.")
+            return pd.DataFrame()  # Return empty DataFrame
+        except json.JSONDecodeError:
+            time.sleep(delay)
+            continue  # Retry reading the file
+
     st.warning("Trouble fetching the data. Please refresh or try again later.")
     return pd.DataFrame()  # Return empty DataFrame
 
+
 def get_open_positions_data() -> pd.DataFrame:
-    with open("open_positions_data.json", "r") as f:
+    with open("data/open_positions_data.json", "r") as f:
         content = f.read()
         if not content.strip():  # Check if file is empty
             return pd.DataFrame()  # Return empty DataFrame
@@ -67,7 +66,7 @@ def get_open_positions_data() -> pd.DataFrame:
             return pd.DataFrame()  # Return empty DataFrame if there's a decode error
 
 def get_open_symbols_count() -> int:
-    with open("open_symbols_count.json", "r") as f:
+    with open("data/open_symbols_count.json", "r") as f:
         content = f.read()
         if not content.strip():  # Check if file is empty
             return 0  # Return 0 if file is empty
