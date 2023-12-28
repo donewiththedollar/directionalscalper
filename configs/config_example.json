@@ -12,6 +12,8 @@
     "min_distance_largecap": 0.085,
     "min_volume": 15000,
     "upnl_profit_pct": 0.003,
+    "stoploss_enabled": false,
+    "stoploss_upnl_pct": 0.05,
     "hedge_ratio": 0.20,
     "hedge_price_difference_threshold": 0.15,
     "wallet_exposure": 1.00,
