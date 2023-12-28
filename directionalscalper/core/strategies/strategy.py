@@ -3050,7 +3050,7 @@ class Strategy:
         try:
             target_profit_price = target_profit_price.quantize(
                 Decimal('1e-{}'.format(price_precision)),
-                rounding=ROUND_HALF_DOWN
+                rounding=ROUND_HALF_UP
             )
         except InvalidOperation as e:
             logging.error(f"Error when quantizing target_profit_price. {e}")
