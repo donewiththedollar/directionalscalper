@@ -1927,40 +1927,34 @@ class Strategy:
         # If none of the above conditions are met, don't allow the new trade
         return False
 
-    # def can_trade_new_symbol(self, open_symbols: list, symbols_allowed: int, current_symbol: str) -> bool:
-    #     """
-    #     Checks if the bot can trade a given symbol.
-    #     """
-    #     self.open_symbols_count = len(open_symbols)  # Update the attribute with the current count
+    # def update_shared_data(self, symbol_data: dict, open_position_data: dict, open_symbols_count: int):
+    #     # Update and serialize symbol data
+    #     with open("symbol_data.json", "w") as f:
+    #         json.dump(symbol_data, f)
 
-    #     logging.info(f"Open symbols count: {self.open_symbols_count}")
-
-    #     if symbols_allowed is None:
-    #         symbols_allowed = 10  # Use a default value if symbols_allowed is not specified
-
-    #     # If the current symbol is already being traded, allow it
-    #     if current_symbol in open_symbols:
-    #         return True
-
-    #     # If we haven't reached the symbol limit, allow a new symbol to be traded
-    #     if self.open_symbols_count < symbols_allowed:
-    #         return True
-
-    #     # If none of the above conditions are met, don't allow the new trade
-    #     return False
+    #     # Update and serialize open position data
+    #     with open("open_positions_data.json", "w") as f:
+    #         json.dump(open_position_data, f)
+        
+    #     # Update and serialize count of open symbols
+    #     with open("open_symbols_count.json", "w") as f:
+    #         json.dump({"count": open_symbols_count}, f)
 
     def update_shared_data(self, symbol_data: dict, open_position_data: dict, open_symbols_count: int):
+        data_directory = "data"  # Define the data directory
+
         # Update and serialize symbol data
-        with open("symbol_data.json", "w") as f:
+        with open(os.path.join(data_directory, "symbol_data.json"), "w") as f:
             json.dump(symbol_data, f)
 
         # Update and serialize open position data
-        with open("open_positions_data.json", "w") as f:
+        with open(os.path.join(data_directory, "open_positions_data.json"), "w") as f:
             json.dump(open_position_data, f)
         
         # Update and serialize count of open symbols
-        with open("open_symbols_count.json", "w") as f:
+        with open(os.path.join(data_directory, "open_symbols_count.json"), "w") as f:
             json.dump({"count": open_symbols_count}, f)
+
 
     def manage_liquidation_risk(self, long_pos_price, short_pos_price, long_liq_price, short_liq_price, symbol, amount):
         # Create some thresholds for when to act
