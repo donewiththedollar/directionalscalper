@@ -357,24 +357,54 @@ class BybitMFIRSIQuickScalp(Strategy):
                 long_stop_loss = None
 
                 if stoploss_enabled:
-                    # Calculate initial stop loss for short and long positions
-                    short_stop_loss = self.calculate_quickscalp_short_stop_loss(short_pos_price, symbol, stoploss_upnl_pct)
-                    long_stop_loss = self.calculate_quickscalp_long_stop_loss(long_pos_price, symbol, stoploss_upnl_pct)
+                    # Initial stop loss calculation
+                    initial_short_stop_loss = self.calculate_quickscalp_short_stop_loss(short_pos_price, symbol, stoploss_upnl_pct)
+                    initial_long_stop_loss = self.calculate_quickscalp_long_stop_loss(long_pos_price, symbol, stoploss_upnl_pct)
 
                     current_price = self.exchange.get_current_price(symbol)
+                    order_book = self.exchange.get_orderbook(symbol)
+                    current_bid_price = order_book['bids'][0][0] if 'bids' in order_book and order_book['bids'] else None
+                    current_ask_price = order_book['asks'][0][0] if 'asks' in order_book and order_book['asks'] else None
+
+                    # Define a threshold for placing the initial stop loss
+                    threshold_for_long = long_pos_price - (long_pos_price - initial_long_stop_loss) * 0.1  # 90% towards the stop loss
+                    threshold_for_short = short_pos_price + (initial_short_stop_loss - short_pos_price) * 0.1  # 90% towards the stop loss
+
                     # For long positions
-                    if long_pos_qty > 0 and long_stop_loss is not None:
-                        if current_price <= long_stop_loss:
-                            long_stop_loss = self.calculate_quickscalp_long_stop_loss(current_price, symbol, stoploss_upnl_pct)
-                            logging.info(f"Adjusted long stop loss level: {long_stop_loss}")
-                            self.postonly_limit_order_bybit_nolimit(symbol, "sell", long_pos_qty, long_stop_loss, positionIdx=1, reduceOnly=True)
+                    if long_pos_qty > 0:
+                        if current_price <= threshold_for_long:
+                            adjusted_long_stop_loss = initial_long_stop_loss if current_price > initial_long_stop_loss else current_bid_price
+                            logging.info(f"Setting long stop loss for {symbol} at {adjusted_long_stop_loss}")
+                            self.postonly_limit_order_bybit_nolimit(symbol, "sell", long_pos_qty, adjusted_long_stop_loss, positionIdx=1, reduceOnly=True)
 
                     # For short positions
-                    if short_pos_qty > 0 and short_stop_loss is not None:
-                        if current_price >= short_stop_loss:
-                            short_stop_loss = self.calculate_quickscalp_short_stop_loss(current_price, symbol, stoploss_upnl_pct)
-                            logging.info(f"Adjusted short stop loss level: {short_stop_loss}")
-                            self.postonly_limit_order_bybit_nolimit(symbol, "buy", short_pos_qty, short_stop_loss, positionIdx=2, reduceOnly=True)
+                    if short_pos_qty > 0:
+                        if current_price >= threshold_for_short:
+                            adjusted_short_stop_loss = initial_short_stop_loss if current_price < initial_short_stop_loss else current_ask_price
+                            logging.info(f"Setting short stop loss for {symbol} at {adjusted_short_stop_loss}")
+                            self.postonly_limit_order_bybit_nolimit(symbol, "buy", short_pos_qty, adjusted_short_stop_loss, positionIdx=2, reduceOnly=True)
+
+
+                # Tired will remove later
+                # if stoploss_enabled:
+                #     # Calculate initial stop loss for short and long positions
+                #     short_stop_loss = self.calculate_quickscalp_short_stop_loss(short_pos_price, symbol, stoploss_upnl_pct)
+                #     long_stop_loss = self.calculate_quickscalp_long_stop_loss(long_pos_price, symbol, stoploss_upnl_pct)
+
+                #     current_price = self.exchange.get_current_price(symbol)
+                #     # For long positions
+                #     if long_pos_qty > 0 and long_stop_loss is not None:
+                #         if current_price <= long_stop_loss:
+                #             long_stop_loss = self.calculate_quickscalp_long_stop_loss(current_price, symbol, stoploss_upnl_pct)
+                #             logging.info(f"Adjusted long stop loss level: {long_stop_loss}")
+                #             self.postonly_limit_order_bybit_nolimit(symbol, "sell", long_pos_qty, long_stop_loss, positionIdx=1, reduceOnly=True)
+
+                #     # For short positions
+                #     if short_pos_qty > 0 and short_stop_loss is not None:
+                #         if current_price >= short_stop_loss:
+                #             short_stop_loss = self.calculate_quickscalp_short_stop_loss(current_price, symbol, stoploss_upnl_pct)
+                #             logging.info(f"Adjusted short stop loss level: {short_stop_loss}")
+                #             self.postonly_limit_order_bybit_nolimit(symbol, "buy", short_pos_qty, short_stop_loss, positionIdx=2, reduceOnly=True)
 
                 # short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, one_minute_distance, previous_one_minute_distance, short_take_profit, long_take_profit)
                 #short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
