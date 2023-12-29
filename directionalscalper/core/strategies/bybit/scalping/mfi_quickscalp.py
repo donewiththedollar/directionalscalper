@@ -514,7 +514,7 @@ class BybitMFIRSIQuickScalp(Strategy):
                 self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
                 # self.cancel_stale_orders_bybit(symbol)
 
-                time.sleep(30)
+                time.sleep(5)
 
             elif symbol in rotator_symbols_standardized and symbol not in open_symbols and trading_allowed:
 
@@ -565,7 +565,7 @@ class BybitMFIRSIQuickScalp(Strategy):
 
                     self.bybit_initial_entry_quickscalp(open_orders, symbol, trend, mfirsi_signal, eri_trend, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short, fivemin_top_signal=fivemin_top_signal, fivemin_bottom_signal=fivemin_bottom_signal)
                     
-                    time.sleep(10)
+                    time.sleep(5)
                 else:
                     logging.warning(f"Potential trade for {symbol} skipped as max symbol limit reached.")
 
@@ -597,4 +597,4 @@ class BybitMFIRSIQuickScalp(Strategy):
                     json.dump(data_to_save, f)
                 self.update_shared_data(symbol_data, open_position_data, len(open_symbols))
 
-            time.sleep(30)
+            time.sleep(10)
