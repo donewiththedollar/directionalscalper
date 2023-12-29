@@ -1251,9 +1251,9 @@ class Strategy:
         return position_data
 
     def calculate_next_update_time(self):
-        """Returns the time for the next TP update, which is 6 minutes from the current time."""
+        """Returns the time for the next TP update, which is 30 seconds from the current time."""
         now = datetime.now()
-        next_update_time = now + timedelta(minutes=1)
+        next_update_time = now + timedelta(seconds=30)
         return next_update_time.replace(microsecond=0)
 
     def calculate_short_take_profit_bybit(self, short_pos_price, symbol):
