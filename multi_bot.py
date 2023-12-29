@@ -348,6 +348,8 @@ if __name__ == '__main__':
         # Calculate available slots for new symbols AFTER accommodating open positions
         available_new_symbol_slots = max(0, symbols_allowed - len(thread_to_symbol.values()))
 
+        logging.info(f"Available new symbol slots: {available_new_symbol_slots}")
+
         # Start threads for new rotator symbols within the available slots
         new_symbols = [s for s in rotator_symbols_standardized if s not in thread_to_symbol.values()][:available_new_symbol_slots]
         for symbol in new_symbols:
