@@ -111,6 +111,7 @@ class BybitMFIRSIQuickScalp(Strategy):
         upnl_profit_pct = self.config.upnl_profit_pct
         stoploss_enabled = self.config.stoploss_enabled
         stoploss_upnl_pct = self.config.stoploss_upnl_pct
+        user_risk_level = self.config.user_risk_level
 
         MaxAbsFundingRate = self.config.MaxAbsFundingRate
         

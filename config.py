@@ -85,6 +85,12 @@ class Bot(BaseModel):
             raise ValueError("test_orders_enabled must be a boolean")
         return v
 
+    @validator('user_risk_level')
+    def check_user_risk_level(cls, v):
+        if v < 0.1 or v > 10.0:
+            raise ValueError("user_risk_level must be between 0.1 and 10.0")
+        return v
+
 class Exchange(BaseModel):
     name: str
     account_name: str
