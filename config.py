@@ -35,7 +35,7 @@ class Bot(BaseModel):
     min_distance: float = 0.15
     min_distance_largecap: float = 0.085
     min_volume: int = 15000
-    user_risk_level: float = 1.0
+    user_risk_level: float = 2.0
     upnl_profit_pct: float = 0.003
     stoploss_enabled: bool = False
     stoploss_upnl_pct: float = 0.070
