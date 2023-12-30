@@ -4426,32 +4426,29 @@ class Strategy:
         current_best_ask = order_book['asks'][0][0] if 'asks' in order_book and order_book['asks'] else None
 
         # Determine the new TP price based on the current market price
-        # Only update if the market price has moved past the original TP target
         new_tp_price = None
         if order_side == "sell" and current_best_bid > original_long_tp:
             new_tp_price = current_best_bid
         elif order_side == "buy" and current_best_ask < original_short_tp:
             new_tp_price = current_best_ask
 
-        # If no need to update the TP, return the next update time
-        if new_tp_price is None:
-            return self.calculate_next_update_time()
-
         # Check if there's a need to update the TP orders
         relevant_tp_orders = long_tp_orders if order_side == "sell" else short_tp_orders
         orders_to_cancel = [order for order in relevant_tp_orders if order['qty'] != pos_qty or float(order['price']) != new_tp_price]
 
-        # Cancel mismatched or incorrectly priced TP orders if any
-        for order in orders_to_cancel:
-            try:
-                self.exchange.cancel_order_by_id(order['id'], symbol)
-                logging.info(f"Cancelled TP order {order['id']} for update.")
-                time.sleep(0.05)
-            except Exception as e:
-                logging.error(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
-
         now = datetime.now()
-        if now >= next_tp_update or orders_to_cancel:
+        update_now = now >= next_tp_update or orders_to_cancel
+
+        if update_now and new_tp_price is not None:
+            # Cancel mismatched or incorrectly priced TP orders if any
+            for order in orders_to_cancel:
+                try:
+                    self.exchange.cancel_order_by_id(order['id'], symbol)
+                    logging.info(f"Cancelled TP order {order['id']} for update.")
+                    time.sleep(0.05)  # Delay to ensure orders are cancelled
+                except Exception as e:
+                    logging.error(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
+
             # Set new TP order at the updated market price
             try:
                 self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, new_tp_price, positionIdx=positionIdx, reduce_only=True)
@@ -4462,7 +4459,7 @@ class Strategy:
             # Calculate and return the next update time
             return self.calculate_next_update_time()
         else:
-            logging.info(f"Waiting for the next update time for TP orders.")
+            logging.info(f"No immediate update needed for TP orders. Next update at: {next_tp_update}")
             return next_tp_update
 
 
@@ -4470,15 +4467,32 @@ class Strategy:
     #     # Fetch the current open TP orders for the symbol
     #     long_tp_orders, short_tp_orders = self.exchange.bybit.get_open_tp_orders(symbol)
 
-    #     # Calculate the TP values using quickscalp method
-    #     new_short_tp = self.calculate_quickscalp_short_take_profit(short_pos_price, symbol, upnl_profit_pct)
-    #     new_long_tp = self.calculate_quickscalp_long_take_profit(long_pos_price, symbol, upnl_profit_pct)
+    #     logging.info(f"{symbol} Long TP orders {long_tp_orders}, Short TP orders {short_tp_orders}")
 
-    #     # Determine the relevant TP orders based on the order side
+    #     # Calculate the original TP values using quickscalp method
+    #     original_short_tp = self.calculate_quickscalp_short_take_profit(short_pos_price, symbol, upnl_profit_pct)
+    #     original_long_tp = self.calculate_quickscalp_long_take_profit(long_pos_price, symbol, upnl_profit_pct)
+
+    #     # Fetch the current best bid and ask prices
+    #     order_book = self.exchange.get_orderbook(symbol)
+    #     current_best_bid = order_book['bids'][0][0] if 'bids' in order_book and order_book['bids'] else None
+    #     current_best_ask = order_book['asks'][0][0] if 'asks' in order_book and order_book['asks'] else None
+
+    #     # Determine the new TP price based on the current market price
+    #     # Only update if the market price has moved past the original TP target
+    #     new_tp_price = None
+    #     if order_side == "sell" and current_best_bid > original_long_tp:
+    #         new_tp_price = current_best_bid
+    #     elif order_side == "buy" and current_best_ask < original_short_tp:
+    #         new_tp_price = current_best_ask
+
+    #     # If no need to update the TP, return the next update time
+    #     if new_tp_price is None:
+    #         return self.calculate_next_update_time()
+
+    #     # Check if there's a need to update the TP orders
     #     relevant_tp_orders = long_tp_orders if order_side == "sell" else short_tp_orders
-
-    #     # Check for TP orders with mismatched quantity or incorrect price
-    #     orders_to_cancel = [order for order in relevant_tp_orders if order['qty'] != pos_qty or (order_side == "sell" and float(order['price']) != new_long_tp) or (order_side == "buy" and float(order['price']) != new_short_tp)]
+    #     orders_to_cancel = [order for order in relevant_tp_orders if order['qty'] != pos_qty or float(order['price']) != new_tp_price]
 
     #     # Cancel mismatched or incorrectly priced TP orders if any
     #     for order in orders_to_cancel:
@@ -4491,8 +4505,7 @@ class Strategy:
 
     #     now = datetime.now()
     #     if now >= next_tp_update or orders_to_cancel:
-    #         # Set new TP orders with updated quickscalp prices
-    #         new_tp_price = new_long_tp if order_side == "sell" else new_short_tp
+    #         # Set new TP order at the updated market price
     #         try:
     #             self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, new_tp_price, positionIdx=positionIdx, reduce_only=True)
     #             logging.info(f"New {order_side.capitalize()} TP set at {new_tp_price}")
