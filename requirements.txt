@@ -1,5 +1,5 @@
 colorama
-ccxt==4.1.95
+ccxt==4.2.1
 pandas
 pydantic
 python-pidfile
