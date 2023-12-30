@@ -31,8 +31,6 @@ from directionalscalper.core.strategies.logger import Logger
 
 thread_to_symbol = {}
 thread_to_symbol_lock = threading.Lock()
-active_symbols = set()
-active_threads = []
 
 
 logging = Logger(logger_name="MultiBot", filename="MultiBot.log", stream=True)
@@ -212,21 +210,26 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         logging.info(f"Thread for symbol {symbol} has completed.")
 
 def start_thread_for_symbol(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized):
-    if symbol in active_symbols:
-        logging.info(f"Symbol {symbol} is already being processed by another thread.")
-        return
-
     thread = threading.Thread(target=run_bot, args=(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized))
     thread.start()
     active_threads.append(thread)
-    thread_to_symbol[thread] = symbol  # Associate the thread with the symbol
-    active_symbols.add(symbol)  # Mark the symbol as active
     logging.info(f"Started thread for symbol: {symbol}")
-
 
 def start_threads_for_new_symbols(new_symbols, args, manager, account_name, symbols_allowed, rotator_symbols_standardized):
     for symbol in new_symbols:
         start_thread_for_symbol(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized)
+
+
+def start_threads_for_symbols(symbols, args, manager, account_name, symbols_allowed, rotator_symbols_standardized):
+    active_threads = []
+    for symbol in symbols:
+        with thread_to_symbol_lock:
+            if symbol not in thread_to_symbol.values() and len(active_threads) < symbols_allowed:
+                thread = threading.Thread(target=run_bot, args=(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized))
+                thread.start()
+                active_threads.append(thread)
+                logging.info(f"Started thread for symbol: {symbol}")
+    return active_threads
 
 if __name__ == '__main__':
     # ASCII Art and Text
@@ -326,41 +329,29 @@ if __name__ == '__main__':
 
     print(f"Symbols to trade: {symbols_to_trade}")
 
-    while True:
-        # Update active threads and symbols
-        completed_threads = [t for t in active_threads if not t.is_alive()]
-        for t in completed_threads:
-            symbol = thread_to_symbol.pop(t, None)
-            if symbol:
-                active_symbols.remove(symbol)
-            active_threads.remove(t)
+    active_threads = start_threads_for_symbols(symbols_to_trade, args, manager, args.account_name, symbols_allowed, all_symbols_standardized)
 
-        # Fetch updated symbols list
+    while True:
+        active_threads = [t for t in active_threads if t is not None and t.is_alive()]
         rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, max_usd_value=max_usd_value)]
+
         open_position_data = market_maker.exchange.get_all_open_positions_bybit()
         open_positions_symbols = [standardize_symbol(position['symbol']) for position in open_position_data]
 
-        logging.info(f"Open positions symbols: {open_positions_symbols}")
-
-        # Check for symbols with active threads but no open positions
-        for symbol in list(active_symbols):
-            if symbol not in open_positions_symbols:
-                # This symbol no longer has open positions, consider it completed
-                active_symbols.remove(symbol)
-                # Optional: Signal the corresponding thread to terminate, if necessary
+        logging.info(f"Open positions symbols : {open_positions_symbols}")
 
         # Start or maintain threads for all open positions
         for symbol in open_positions_symbols:
-            if symbol not in active_symbols:
+            if symbol not in thread_to_symbol.values():
                 start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
 
-        # Calculate available new symbol slots
-        available_new_symbol_slots = max(0, symbols_allowed - len(active_symbols))
+        # Calculate available slots for new symbols AFTER accommodating open positions
+        available_new_symbol_slots = max(0, symbols_allowed - len(thread_to_symbol.values()))
 
         logging.info(f"Available new symbol slots: {available_new_symbol_slots}")
 
         # Start threads for new rotator symbols within the available slots
-        new_symbols = [s for s in rotator_symbols_standardized if s not in active_symbols][:available_new_symbol_slots]
+        new_symbols = [s for s in rotator_symbols_standardized if s not in thread_to_symbol.values()][:available_new_symbol_slots]
         for symbol in new_symbols:
             if available_new_symbol_slots > 0:
                 start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
