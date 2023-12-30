@@ -318,6 +318,8 @@ class BybitMFIRSIQuickScalp(Strategy):
                 # short_liq_price = position_data["short"]["liq_price"]
                 # long_liq_price = position_data["long"]["liq_price"]
 
+                self.adjust_risk_parameters()
+
                 # Initialize the symbol and quantities if not done yet
                 self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
 
@@ -568,7 +570,7 @@ class BybitMFIRSIQuickScalp(Strategy):
                     logging.info(f"New position allowed {symbol}")
 
                     self.adjust_risk_parameters()
-                    
+
                     self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
 
                     with self.initialized_symbols_lock:
