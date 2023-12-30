@@ -106,12 +106,24 @@ class Strategy:
         scale = (self.user_risk_level - self.MIN_RISK_LEVEL) / (self.MAX_RISK_LEVEL - self.MIN_RISK_LEVEL)
 
         # Adjust the parameters
-        self.MAX_PCT_EQUITY = 0.05 + (scale * (0.5 - 0.05))  # Adjusted range: 5% to 50%
+        self.MAX_PCT_EQUITY = 0.05 + (scale * (1.0 - 0.05))  # Adjusted range: 5% to 100%
         self.LEVERAGE_STEP = 0.002 + (scale * (0.01 - 0.002))  # Example: 0.002 to 0.01
         self.MAX_LEVERAGE = 0.1 + (scale * (1.0 - 0.1))  # Example: 0.1 to 1.0
 
         # Adjust the initial dynamic amount multiplier
         self.dynamic_amount_multiplier = 0.0005 + (scale * (0.005 - 0.0005))  # Adjusted range
+
+    # def adjust_risk_parameters(self):
+    #     # Scale the parameters between their min and max values based on user risk level
+    #     scale = (self.user_risk_level - self.MIN_RISK_LEVEL) / (self.MAX_RISK_LEVEL - self.MIN_RISK_LEVEL)
+
+    #     # Adjust the parameters
+    #     self.MAX_PCT_EQUITY = 0.05 + (scale * (0.5 - 0.05))  # Adjusted range: 5% to 50%
+    #     self.LEVERAGE_STEP = 0.002 + (scale * (0.01 - 0.002))  # Example: 0.002 to 0.01
+    #     self.MAX_LEVERAGE = 0.1 + (scale * (1.0 - 0.1))  # Example: 0.1 to 1.0
+
+    #     # Adjust the initial dynamic amount multiplier
+    #     self.dynamic_amount_multiplier = 0.0005 + (scale * (0.005 - 0.0005))  # Adjusted range
 
     class OrderBookAnalyzer:
         def __init__(self, exchange, symbol, depth=10):
