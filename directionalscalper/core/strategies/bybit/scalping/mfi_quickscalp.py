@@ -40,6 +40,8 @@ class BybitMFIRSIQuickScalp(Strategy):
             self.upnl_profit_pct = self.config.upnl_profit_pct
             self.stoploss_enabled = self.config.stoploss_enabled
             self.stoploss_upnl_pct = self.config.stoploss_upnl_pct
+            self.user_risk_level = self.config.user_risk_level
+            self.adjust_risk_parameters()
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
 
@@ -247,6 +249,8 @@ class BybitMFIRSIQuickScalp(Strategy):
             trading_allowed = self.can_trade_new_symbol(open_symbols, self.symbols_allowed, symbol)
             logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
             logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
+
+            self.adjust_risk_parameters()
 
             self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
 

@@ -81,6 +81,9 @@ class Strategy:
         self.order_ids = {}
         self.hedged_symbols = {}
         self.hedged_positions = {}
+        self.user_risk_level = self.config.user_risk_level
+        self.MIN_RISK_LEVEL = 1
+        self.MAX_RISK_LEVEL = 10
 
         self.bybit = self.Bybit(self)
 
@@ -97,7 +100,19 @@ class Strategy:
             else:
                 logging.info(f"{symbol} is already initialized.")
                 return False
-            
+
+    def adjust_risk_parameters(self):
+        # Scale the parameters between their min and max values based on user risk level
+        scale = (self.user_risk_level - self.MIN_RISK_LEVEL) / (self.MAX_RISK_LEVEL - self.MIN_RISK_LEVEL)
+
+        # Adjust the parameters
+        self.MAX_PCT_EQUITY = 0.01 + (scale * (0.1 - 0.01))  # Example: 1% to 10%
+        self.LEVERAGE_STEP = 0.002 + (scale * (0.01 - 0.002))  # Example: 0.002 to 0.01
+        self.MAX_LEVERAGE = 0.1 + (scale * (1.0 - 0.1))  # Example: 0.1 to 1.0
+
+        # Adjust the initial dynamic amount multiplier
+        self.dynamic_amount_multiplier = 0.0001 + (scale * (0.001 - 0.0001))  # E
+
     class OrderBookAnalyzer:
         def __init__(self, exchange, symbol, depth=10):
             self.exchange = exchange
