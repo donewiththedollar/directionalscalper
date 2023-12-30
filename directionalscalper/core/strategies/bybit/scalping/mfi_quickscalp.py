@@ -567,6 +567,8 @@ class BybitMFIRSIQuickScalp(Strategy):
                 if trading_allowed:
                     logging.info(f"New position allowed {symbol}")
 
+                    self.adjust_risk_parameters()
+                    
                     self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
 
                     with self.initialized_symbols_lock:
