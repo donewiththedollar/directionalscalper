@@ -571,8 +571,11 @@ class Strategy:
 
         logging.info(f"Min qty for {symbol} : {min_qty}")
 
-        long_dynamic_amount = 0.0001 * total_equity
-        short_dynamic_amount = 0.0001 * total_equity
+        long_dynamic_amount = self.dynamic_amount_multiplier * total_equity
+        short_dynamic_amount = self.dynamic_amount_multiplier * total_equity
+
+        # long_dynamic_amount = 0.0001 * total_equity
+        # short_dynamic_amount = 0.0001 * total_equity
 
         # long_dynamic_amount = 0.001 * self.initial_max_long_trade_qty_per_symbol[symbol]
         # short_dynamic_amount = 0.001 * self.initial_max_short_trade_qty_per_symbol[symbol]
