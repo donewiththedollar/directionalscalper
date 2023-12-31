@@ -4500,6 +4500,45 @@ class Strategy:
             logging.info(f"Exception caught in update TP: {e}")
             return last_tp_update  # Return the last update time in case of exception
 
+    def update_quickscalp_tp(self, symbol, pos_qty, upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, max_retries=10):
+        # Fetch the current open TP orders for the symbol
+        long_tp_orders, short_tp_orders = self.exchange.bybit.get_open_tp_orders(symbol)
+
+        # Calculate the new TP values using quickscalp method
+        new_short_tp = self.calculate_quickscalp_short_take_profit(short_pos_price, symbol, upnl_profit_pct)
+        new_long_tp = self.calculate_quickscalp_long_take_profit(long_pos_price, symbol, upnl_profit_pct)
+
+        # Determine the relevant TP orders based on the order side
+        relevant_tp_orders = long_tp_orders if order_side == "sell" else short_tp_orders
+
+        # Check if there's an existing TP order with a mismatched quantity
+        mismatched_qty_orders = [order for order in relevant_tp_orders if order['qty'] != pos_qty]
+
+        # Cancel mismatched TP orders if any
+        for order in mismatched_qty_orders:
+            try:
+                self.exchange.cancel_order_by_id(order['id'], symbol)
+                logging.info(f"Cancelled TP order {order['id']} for update.")
+                time.sleep(0.05)
+            except Exception as e:
+                logging.error(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
+
+        now = datetime.now()
+        if now >= last_tp_update or mismatched_qty_orders:
+            # Set new TP order with updated prices
+            new_tp_price = new_long_tp if order_side == "sell" else new_short_tp
+            try:
+                self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, new_tp_price, positionIdx=positionIdx, reduce_only=True)
+                logging.info(f"New {order_side.capitalize()} TP set at {new_tp_price}")
+            except Exception as e:
+                logging.error(f"Failed to set new {order_side} TP for {symbol}. Error: {e}")
+
+            # Calculate and return the next update time
+            return self.calculate_next_update_time()
+        else:
+            logging.info(f"No immediate update needed for TP orders for {symbol}. Last update at: {last_tp_update}")
+            return last_tp_update
+        
     # def update_quickscalp_take_profit_bybit(self, symbol, pos_qty, upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, next_tp_update, max_retries=10):
     #     try:
     #         # Fetch the current open TP orders for the symbol

@@ -28,8 +28,6 @@ class BybitMFIRSIQuickScalp(Strategy):
         self.last_short_tp_update = datetime.now()
         self.next_long_tp_update = datetime.now() - timedelta(seconds=1)
         self.next_short_tp_update = datetime.now() - timedelta(seconds=1)
-        # self.next_long_tp_update = self.calculate_next_update_time()
-        # self.next_short_tp_update = self.calculate_next_update_time()
         self.last_cancel_time = 0
         self.spoofing_active = False
         self.spoofing_wall_size = 5
@@ -504,42 +502,76 @@ class BybitMFIRSIQuickScalp(Strategy):
                 if short_pos_qty > 0 and short_take_profit is not None and tp_order_counts['short_tp_count'] == 0:
                     logging.info(f"Placing short TP order for {symbol} with {short_take_profit}")
                     self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
-                    
+
                 current_latest_time = datetime.now()
-                
+                logging.info(f"Current time: {current_latest_time}")
+                logging.info(f"Next long TP update time: {self.next_long_tp_update}")
+                logging.info(f"Next short TP update time: {self.next_short_tp_update}")
+
                 # Check for long positions
                 if long_pos_qty > 0:
-                    try:
-                        if current_latest_time >= self.next_long_tp_update and long_take_profit is not None:
-                            self.next_long_tp_update = self.update_quickscalp_take_profit_bybit(
-                                symbol=symbol, 
-                                pos_qty=long_pos_qty, 
-                                upnl_profit_pct=upnl_profit_pct,  # Add the quickscalp percentage
-                                short_pos_price=short_pos_price,
-                                long_pos_price=long_pos_price,
-                                positionIdx=1, 
-                                order_side="sell", 
-                                last_tp_update=self.next_long_tp_update  # Changed parameter name
-                            )
-                    except Exception as e:
-                        logging.info(f"Exception caught in updating TP {e}")
+                    if current_latest_time >= self.next_long_tp_update:
+                        self.next_long_tp_update = self.update_quickscalp_tp(
+                            symbol=symbol, 
+                            pos_qty=long_pos_qty, 
+                            upnl_profit_pct=upnl_profit_pct,  # Add the quickscalp percentage
+                            short_pos_price=short_pos_price,
+                            long_pos_price=long_pos_price,
+                            positionIdx=1, 
+                            order_side="sell", 
+                            last_tp_update=self.next_long_tp_update
+                        )
 
                 # Check for short positions
                 if short_pos_qty > 0:
-                    try:
-                        if current_latest_time >= self.next_short_tp_update and short_take_profit is not None:
-                            self.next_short_tp_update = self.update_quickscalp_take_profit_bybit(
-                                symbol=symbol, 
-                                pos_qty=short_pos_qty, 
-                                upnl_profit_pct=upnl_profit_pct,  # Add the quickscalp percentage
-                                short_pos_price=short_pos_price,
-                                long_pos_price=long_pos_price,
-                                positionIdx=2, 
-                                order_side="buy", 
-                                last_tp_update=self.next_short_tp_update  # Changed parameter name
-                            )
-                    except Exception as e:
-                        logging.info(f"Exception caught in updating TP {e}")
+                    if current_latest_time >= self.next_short_tp_update:
+                        self.next_short_tp_update = self.update_quickscalp_tp(
+                            symbol=symbol, 
+                            pos_qty=short_pos_qty, 
+                            upnl_profit_pct=upnl_profit_pct,  # Add the quickscalp percentage
+                            short_pos_price=short_pos_price,
+                            long_pos_price=long_pos_price,
+                            positionIdx=2, 
+                            order_side="buy", 
+                            last_tp_update=self.next_short_tp_update
+                        )
+
+
+                # current_latest_time = datetime.now()
+                
+                # # Check for long positions
+                # if long_pos_qty > 0:
+                #     try:
+                #         if current_latest_time >= self.next_long_tp_update and long_take_profit is not None:
+                #             self.next_long_tp_update = self.update_quickscalp_take_profit_bybit(
+                #                 symbol=symbol, 
+                #                 pos_qty=long_pos_qty, 
+                #                 upnl_profit_pct=upnl_profit_pct,  # Add the quickscalp percentage
+                #                 short_pos_price=short_pos_price,
+                #                 long_pos_price=long_pos_price,
+                #                 positionIdx=1, 
+                #                 order_side="sell", 
+                #                 last_tp_update=self.next_long_tp_update  # Changed parameter name
+                #             )
+                #     except Exception as e:
+                #         logging.info(f"Exception caught in updating TP {e}")
+
+                # # Check for short positions
+                # if short_pos_qty > 0:
+                #     try:
+                #         if current_latest_time >= self.next_short_tp_update and short_take_profit is not None:
+                #             self.next_short_tp_update = self.update_quickscalp_take_profit_bybit(
+                #                 symbol=symbol, 
+                #                 pos_qty=short_pos_qty, 
+                #                 upnl_profit_pct=upnl_profit_pct,  # Add the quickscalp percentage
+                #                 short_pos_price=short_pos_price,
+                #                 long_pos_price=long_pos_price,
+                #                 positionIdx=2, 
+                #                 order_side="buy", 
+                #                 last_tp_update=self.next_short_tp_update  # Changed parameter name
+                #             )
+                #     except Exception as e:
+                #         logging.info(f"Exception caught in updating TP {e}")
 
                 self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
                 # self.cancel_stale_orders_bybit(symbol)
