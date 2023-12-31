@@ -339,25 +339,34 @@ if __name__ == '__main__':
         open_position_data = market_maker.exchange.get_all_open_positions_bybit()
         unique_open_position_symbols = {standardize_symbol(position['symbol']) for position in open_position_data}
 
-        # Update the active symbols set
-        active_symbols.intersection_update(unique_open_position_symbols.union(thread_to_symbol.values()))
-
-        # Determine available slots for new symbols
-        available_new_symbol_slots = symbols_allowed - len(active_symbols)
+        logging.info(f"Unique open position symbols: {unique_open_position_symbols}")
 
         # Fetch and standardize rotator symbols
         rotator_symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, max_usd_value=max_usd_value)
         rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in rotator_symbols]
 
-        # Start new threads for symbols within available slots
+        # Start or maintain threads for all unique open position symbols
+        for symbol in unique_open_position_symbols:
+            if symbol not in active_symbols:
+                start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
+                active_symbols.add(symbol)
+
+        # Determine available slots for new symbols from rotator list
+        available_new_symbol_slots = max(0, symbols_allowed - len(active_symbols))
+
+        logging.info(f"Available new slots for rotator symbols: {available_new_symbol_slots}")
+
+        # Start new threads for additional symbols within available slots
         for symbol in rotator_symbols_standardized:
             if symbol not in active_symbols and available_new_symbol_slots > 0:
                 start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
+                #start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed)
                 active_symbols.add(symbol)
                 available_new_symbol_slots -= 1
 
-        logging.info(f"Available new symbol slots: {available_new_symbol_slots}")
+        logging.info(f"Total active symbols: {len(active_symbols)}")
         time.sleep(60)
+
 
 
 
