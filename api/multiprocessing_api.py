@@ -12,6 +12,8 @@ import pidfile
 import ta
 import numpy as np
 
+from decimal import Decimal, ROUND_HALF_UP
+
 from datetime import datetime
 
 sys.path.append(".")
@@ -48,41 +50,6 @@ class CombinedScraper:
         if "top_volume" in self.filters:
             self.volumes = self.exchange.get_futures_volumes()
             self.symbols = self.filter_volume(symbols=self.symbols, volumes=self.volumes, limit=self.filters["top_volume"])
-
-    @staticmethod
-    def combine_and_save_rotator_data(data_binance: pd.DataFrame, data_bybit: pd.DataFrame, filename: str):
-        # List of volume columns to be summed
-        volume_columns = ["1m 1x Volume (USDT)", "5m 1x Volume (USDT)", "30m 1x Volume (USDT)", "1h 1x Volume (USDT)"]
-        
-        # Merge dataframes on the "Asset" column
-        combined_data = pd.merge(data_bybit, data_binance, on="Asset", how="outer", suffixes=('_bybit', '_binance'))
-        
-        # For the symbols that appear in both exchanges, sum the volume
-        for col in volume_columns:
-            combined_data[col] = combined_data[col + '_bybit'].fillna(0) + combined_data[col + '_binance'].fillna(0)
-        
-        # Drop the temporary columns created during the merge
-        combined_data.drop(columns=[col + '_bybit' for col in volume_columns], inplace=True)
-        combined_data.drop(columns=[col + '_binance' for col in volume_columns], inplace=True)
-        
-        # If a symbol was only on Bybit and not on Binance, fill the missing columns with Bybit data (and vice-versa)
-        for col in combined_data.columns:
-            if col.endswith('_bybit'):
-                combined_data[col.replace('_bybit', '')] = combined_data[col]
-        for col in combined_data.columns:
-            if col.endswith('_binance'):
-                combined_data[col.replace('_binance', '')] = combined_data[col]
-        
-        # Drop any remaining temporary columns
-        combined_data.drop(columns=[col for col in combined_data.columns if col.endswith('_bybit') or col.endswith('_binance')], inplace=True)
-        
-        # Save combined data to JSON
-        try:
-            log.info(f"Attempting to save combined data to {filename}")
-            combined_data.to_json(filename, orient="records", date_format='iso')
-            log.info(f"Successfully saved combined data to {filename}")
-        except Exception as e:
-            log.error(f"Error during saving combined data to {filename}: {e}")
 
     def get_all_historical_volume(self, exchange_name: str, interval: str, limit: int) -> dict:
         all_volume = {}
@@ -319,8 +286,166 @@ class CombinedScraper:
         tr = data[["high-low", "high-pc", "low-pc"]].max(axis=1)
         return tr
 
+    def calculate_advanced_eri(self, symbol, timeframe, len_slow_ma=64, len_power_ema=13, limit=128):
+        """
+        Calculate an Elder-ray Index (ERI) similar to RustyC's approach, using VWMA followed by EMA.
+
+        :param symbol: Trading pair symbol.
+        :param timeframe: Timeframe for candlestick data.
+        :param len_slow_ma: Length for slow moving average (VWMA followed by EMA).
+        :param len_power_ema: Length for EMA of bull and bear power.
+        :param limit: Number of candlesticks to fetch.
+        :return: A dictionary containing ERI trend, bull power, and bear power.
+        """
+        # Fetching data
+        data = self.exchange.get_futures_kline(symbol=symbol, interval=timeframe, limit=limit)
+
+        # Create a DataFrame from the data
+        df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+        df[['open', 'high', 'low', 'close', 'volume']] = df[['open', 'high', 'low', 'close', 'volume']].apply(pd.to_numeric)
+
+        # Calculate VWMA (Volume Weighted Moving Average)
+        vwma = ((df['close'] * df['volume']).rolling(window=len_slow_ma).sum() / df['volume'].rolling(window=len_slow_ma).sum())
+
+        # Calculate EMA of VWMA
+        slow_vwma_ema = vwma.ewm(span=len_slow_ma, adjust=False).mean()
+
+        # Determine the trend
+        last_price = df['close'].values[-1]
+        eri_trend = "bullish" if last_price > slow_vwma_ema.values[-1] else "bearish"
+
+        # Calculate bull power and bear power
+        bull_power = df['high'] - slow_vwma_ema
+        bear_power = df['low'] - slow_vwma_ema
+
+        # Smooth the power values using EMA
+        bull_power_smoothed = bull_power.ewm(span=len_power_ema, adjust=False).mean()
+        bear_power_smoothed = bear_power.ewm(span=len_power_ema, adjust=False).mean()
+
+        # Prepare results
+        result = {
+            "ERI Trend": eri_trend,
+            "ERI Bull Power": bull_power_smoothed.values[-1],
+            "ERI Bear Power": bear_power_smoothed.values[-1]
+        }
+
+        return result
+
+
+    def calculate_original_eri(self, symbol, timeframe, len_slow_ma=64, len_power_ema=13, limit=128):
+        """
+        Calculate the original Elder-ray Index (ERI) using EMA of closing prices.
+
+        :param symbol: Trading pair symbol.
+        :param timeframe: Timeframe for candlestick data.
+        :param len_slow_ma: Length for slow moving average.
+        :param len_power_ema: Length for EMA of bull and bear power.
+        :param limit: Number of candlesticks to fetch.
+        :return: A dictionary containing ERI trend, bull power, and bear power.
+        """
+        # Fetching data
+        data = self.exchange.get_futures_kline(symbol=symbol, interval=timeframe, limit=limit)
+
+        # Create a DataFrame from the data
+        df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+        df[['open', 'high', 'low', 'close', 'volume']] = df[['open', 'high', 'low', 'close', 'volume']].apply(pd.to_numeric)
+
+        # Calculate slow EMA of closing prices
+        slow_ma = df['close'].ewm(span=len_slow_ma, adjust=False).mean()
+
+        # Determine the trend
+        last_price = df['close'].values[-1]
+        eri_trend = "bullish" if last_price > slow_ma.values[-1] else "bearish"
+
+        # Calculate bull power and bear power
+        bull_power = df['high'] - slow_ma
+        bear_power = df['low'] - slow_ma
+
+        # Smooth the power values using EMA
+        bull_power_smoothed = bull_power.ewm(span=len_power_ema, adjust=False).mean()
+        bear_power_smoothed = bear_power.ewm(span=len_power_ema, adjust=False).mean()
+
+        # Prepare results
+        result = {
+            "ERI Trend": eri_trend,
+            "ERI Bull Power": bull_power_smoothed.values[-1],
+            "ERI Bear Power": bear_power_smoothed.values[-1]
+        }
+
+        return result
+        
+    def calculate_enhanced_eri(data, len_slow_ma=64, len_power_ema=13):
+        """
+        Calculate an enhanced Elder-ray Index (ERI) incorporating both volume-weighted and exponential moving averages.
+
+        :param data: DataFrame with OHLCV data.
+        :param len_slow_ma: Length for slow moving average.
+        :param len_power_ema: Length for EMA of bull and bear power.
+        :return: A dictionary containing ERI trend, bull power, and bear power.
+        """
+        df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+        df[['open', 'high', 'low', 'close', 'volume']] = df[['open', 'high', 'low', 'close', 'volume']].apply(pd.to_numeric)
+
+        # Calculate VWMA (Volume Weighted Moving Average)
+        df['vwma'] = ((df['close'] * df['volume']).rolling(window=len_slow_ma).sum() / 
+                    df['volume'].rolling(window=len_slow_ma).sum())
+
+        # Calculate EMA of VWMA
+        slow_vwma_ema = df['vwma'].ewm(span=len_slow_ma, adjust=False).mean()
+
+        # Determine the trend
+        last_price = df['close'].values[-1]
+        eri_trend = "bullish" if last_price > slow_vwma_ema.values[-1] else "bearish"
+
+        # Calculate bull power and bear power
+        bull_power = df['high'] - slow_vwma_ema
+        bear_power = df['low'] - slow_vwma_ema
+
+        # Smooth the power values using EMA
+        bull_power_smoothed = bull_power.ewm(span=len_power_ema, adjust=False).mean()
+        bear_power_smoothed = bear_power.ewm(span=len_power_ema, adjust=False).mean()
+
+        # Prepare results
+        result = {
+            "ERI Trend": eri_trend,
+            "ERI Bull Power": bull_power_smoothed.values[-1],
+            "ERI Bear Power": bear_power_smoothed.values[-1]
+        }
+
+        return result
+
+    def calculate_eri(data, len_slow_ma=64, len_power_ema=13):
+        """
+        Calculate the Elder-ray Index (ERI) for a given dataset.
+
+        :param data: DataFrame with OHLCV data.
+        :param len_slow_ma: Length for slow moving average.
+        :param len_power_ema: Length for EMA of bull and bear power.
+        :return: A tuple containing ERI trend, bull power, and bear power.
+        """
+
+        df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+        df[['open', 'high', 'low', 'close', 'volume']] = df[['open', 'high', 'low', 'close', 'volume']].apply(pd.to_numeric)
+
+        # Calculate slow EMA of closing prices
+        slow_ma = df['close'].ewm(span=len_slow_ma, adjust=False).mean()
+
+        # Determine the trend
+        last_price = df['close'].values[-1]
+        eri_trend = "bullish" if last_price > slow_ma.values[-1] else "bearish"
+
+        # Calculate bull power and bear power
+        bull_power = df['high'] - slow_ma
+        bear_power = df['low'] - slow_ma
+
+        # Smooth the power values using EMA
+        bull_power_smoothed = bull_power.ewm(span=len_power_ema, adjust=False).mean()
+        bear_power_smoothed = bear_power.ewm(span=len_power_ema, adjust=False).mean()
+
+        return eri_trend, bull_power_smoothed.values[-1], bear_power_smoothed.values[-1]
+
     # Get MFIRSI
-    def get_mfi(self, symbol: str, interval: str, limit: int) -> str:
+    def get_mfi(self, symbol: str, interval: str, limit: int, lookback: int = 30) -> str:
         bars = self.exchange.get_futures_kline(symbol=symbol, interval=interval, limit=limit)
         df = pd.DataFrame(bars, columns=["timestamp", "open", "high", "low", "close", "volume"])
 
@@ -336,18 +461,116 @@ class CombinedScraper:
         df['rsi'] = ta.momentum.rsi(df['close'], window=14)
         df['open_less_close'] = (df['open'] < df['close']).astype(int)
         
-        # Calculate conditions for the most recent bar
-        most_recent_bar = df.iloc[-1]
-        buy_condition = (most_recent_bar['mfi'] < 20) & (most_recent_bar['rsi'] < 35) & (most_recent_bar['open_less_close'] == 1)
-        sell_condition = (most_recent_bar['mfi'] > 80) & (most_recent_bar['rsi'] > 65) & (most_recent_bar['open_less_close'] == 0)
+        # Calculate conditions
 
-        # Return the current signal
-        if buy_condition:
-            return 'long'
-        elif sell_condition:
-            return 'short'
+        # Using more extreme thresholds for MFIRSI signals
+
+        df['buy_condition'] = ((df['mfi'] < 30) & (df['rsi'] < 40) & (df['open_less_close'] == 1)).astype(int)
+        df['sell_condition'] = ((df['mfi'] > 80) & (df['rsi'] > 70) & (df['open_less_close'] == 0)).astype(int)
+
+        # Look for conditions in the last `lookback` bars
+        last_conditions = df.iloc[-lookback:][['buy_condition', 'sell_condition']].values
+
+        # Check the last conditions and return accordingly
+        for buy, sell in reversed(last_conditions):
+            if buy:
+                return 'long'
+            elif sell:
+                return 'short'
         
         return 'neutral'
+
+        # df['buy_condition'] = ((df['mfi'] < 20) & (df['rsi'] < 30) & (df['open_less_close'] == 1)).astype(int)
+        # df['sell_condition'] = ((df['mfi'] > 85) & (df['rsi'] > 70) & (df['open_less_close'] == 0)).astype(int)
+
+        # df['buy_condition'] = ((df['mfi'] < 25) & (df['rsi'] < 40) & (df['open_less_close'] == 1)).astype(int)
+        # df['sell_condition'] = ((df['mfi'] > 85) & (df['rsi'] > 70) & (df['open_less_close'] == 0)).astype(int)
+
+        # df['buy_condition'] = ((df['mfi'] < 20) & (df['rsi'] < 35) & (df['open_less_close'] == 1)).astype(int)
+        # df['sell_condition'] = ((df['mfi'] > 80) & (df['rsi'] > 65) & (df['open_less_close'] == 0)).astype(int)
+
+
+    def calculate_wvf(self, data, pd_tb):
+        highest_close = data['close'].rolling(window=pd_tb).max()
+        wvf = ((highest_close - data['low']) / highest_close) * 100
+        return wvf
+
+    def detect_signals(self, data, pd_tb, ph_tb, pl_tb):
+        wvf = self.calculate_wvf(data, pd_tb)
+        rangeHigh_tb = wvf.rolling(window=pd_tb).max() * ph_tb
+        rangeLow_tb = wvf.rolling(window=pd_tb).min() * pl_tb
+        data['topSignal'] = wvf >= rangeHigh_tb
+        data['bottomSignal'] = wvf <= rangeLow_tb
+        return data
+
+    def detect_top_bottom_signals_1m(self, symbol: str):
+        # Fetching 1-minute kline data
+        data_1m = self.exchange.get_futures_kline(symbol=symbol, interval="1m", limit=240)
+        df_1m = pd.DataFrame(data_1m, columns=["timestamp", "open", "high", "low", "close", "volume"])
+        df_1m[['open', 'high', 'low', 'close', 'volume']] = df_1m[['open', 'high', 'low', 'close', 'volume']].apply(pd.to_numeric)
+
+        # Parameters for Top & Bottom Detection
+        pd_tb = 22
+        ph_tb = 0.90
+        pl_tb = 1.10
+
+        # Williams' Vix Fix Calculation
+        df_1m['highest_close'] = df_1m['close'].rolling(window=pd_tb).max()
+        df_1m['wvf'] = (df_1m['highest_close'] - df_1m['low']) / df_1m['highest_close'] * 100
+
+        # Range Calculation
+        df_1m['range_high_tb'] = df_1m['wvf'].rolling(window=pd_tb).max() * ph_tb
+        df_1m['range_low_tb'] = df_1m['wvf'].rolling(window=pd_tb).min() * pl_tb
+
+        # Signal Detection
+        df_1m['top_signal'] = df_1m['wvf'] >= df_1m['range_high_tb']
+        df_1m['bottom_signal'] = df_1m['wvf'] <= df_1m['range_low_tb']
+
+        # Return the latest signals
+        return df_1m['top_signal'].iloc[-1], df_1m['bottom_signal'].iloc[-1]
+    
+    def detect_top_bottom_signals_5m(self, symbol: str):
+        # Fetching 1-minute kline data
+        data_1m = self.exchange.get_futures_kline(symbol=symbol, interval="5m", limit=240)
+        df_1m = pd.DataFrame(data_1m, columns=["timestamp", "open", "high", "low", "close", "volume"])
+        df_1m[['open', 'high', 'low', 'close', 'volume']] = df_1m[['open', 'high', 'low', 'close', 'volume']].apply(pd.to_numeric)
+
+        # Parameters for Top & Bottom Detection
+        pd_tb = 22
+        ph_tb = 0.90
+        pl_tb = 1.10
+
+        # Williams' Vix Fix Calculation
+        df_1m['highest_close'] = df_1m['close'].rolling(window=pd_tb).max()
+        df_1m['wvf'] = (df_1m['highest_close'] - df_1m['low']) / df_1m['highest_close'] * 100
+
+        # Range Calculation
+        df_1m['range_high_tb'] = df_1m['wvf'].rolling(window=pd_tb).max() * ph_tb
+        df_1m['range_low_tb'] = df_1m['wvf'].rolling(window=pd_tb).min() * pl_tb
+
+        # Signal Detection
+        df_1m['top_signal'] = df_1m['wvf'] >= df_1m['range_high_tb']
+        df_1m['bottom_signal'] = df_1m['wvf'] <= df_1m['range_low_tb']
+
+        # Return the latest signals
+        return df_1m['top_signal'].iloc[-1], df_1m['bottom_signal'].iloc[-1]
+
+    def detect_top_bottom_signals_1m(self, symbol: str):
+        # Fetching 1-minute kline data for the last 240 minutes
+        data_1m = self.exchange.get_futures_kline(symbol=symbol, interval="1m", limit=240)
+        df_1m = pd.DataFrame(data_1m, columns=["timestamp", "open", "high", "low", "close", "volume"])
+        df_1m[['open', 'high', 'low', 'close', 'volume']] = df_1m[['open', 'high', 'low', 'close', 'volume']].apply(pd.to_numeric)
+
+        # Parameters for Top & Bottom Detection
+        pd_tb = 22
+        ph_tb = 0.90
+        pl_tb = 1.10
+
+        # Detecting signals using the 1-minute data
+        df_with_signals_1m = self.detect_signals(df_1m, pd_tb, ph_tb, pl_tb)
+
+        # Return the latest signals
+        return df_with_signals_1m['topSignal'].iloc[-1], df_with_signals_1m['bottomSignal'].iloc[-1]
 
     # Top or bottom
     def top_or_bottom(self, df: pd.DataFrame, pd_val: int = 14, bbl: int = 20, mult: float = 2.0, 
@@ -479,33 +702,31 @@ class CombinedScraper:
 
         # Get MFI
         #mfi = self.get_mfi(symbol=symbol, interval="1m", limit=200, lookback=200)
-        mfi = self.get_mfi(symbol=symbol, interval="1m", limit=200)
+        # mfi = self.get_mfi(symbol=symbol, interval="1m", limit=200)
+        #mfi = self.get_mfi(symbol=symbol, interval="1m", limit=50, lookback=30)
+        #mfi = self.get_mfi(symbol=symbol, interval="1m", limit=200, lookback=100)
+        # Most recent: 
+        #mfi = self.get_mfi(symbol=symbol, interval="5m", limit=200, lookback=100)
+
+        mfi = self.get_mfi(symbol=symbol, interval="1m", limit=200, lookback=30)
+
+
+        # mfi = self.get_mfi(symbol=symbol, interval="1m", limit=200, lookback=100)
+
+        # mfi = self.get_mfi(symbol=symbol, interval="1m", limit=500, short_lookback=200, long_lookback=500)
         values["MFI"] = mfi
 
         # Get ERI
-        df["close"] = pd.to_numeric(df["close"])
-        df["high"] = pd.to_numeric(df["high"])
-        df["low"] = pd.to_numeric(df["low"])
 
-        # Calculate slow EMA of closing prices
-        slow_ma = df['close'].ewm(span=len_slow_ma, adjust=False).mean()
+        # Use '60' instead of '1h' for the 1-hour interval
+        eri_timeframe = "15m"  # 60 minutes for 1 hour
 
-        # Determine the trend
-        last_price = df['close'].values[-1]
-        eri_trend = "bullish" if last_price > slow_ma.values[-1] else "bearish"
+        # Calculating ERI
+        eri_result = self.calculate_advanced_eri(symbol, eri_timeframe)
+        # eri_result = self.calculate_original_eri(symbol, eri_timeframe)
 
-        # Calculate bull power and bear power
-        bull_power = df['high'] - slow_ma
-        bear_power = df['low'] - slow_ma
-
-        # Smooth the power values using EMA
-        bull_power_smoothed = bull_power.ewm(span=len_power_ema, adjust=False).mean()
-        bear_power_smoothed = bear_power.ewm(span=len_power_ema, adjust=False).mean()
-
-        # Add to the values dict
-        values["ERI Bull Power"] = bull_power_smoothed.values[-1]
-        values["ERI Bear Power"] = bear_power_smoothed.values[-1]
-        values["ERI Trend"] = eri_trend
+        # Adding ERI values to the dictionary
+        values.update(eri_result)
 
         # Calculate HMA trend
         hma_order_pct = self.get_hma(symbol=symbol, interval="1m", limit=30, column="close", window=14)
@@ -518,7 +739,55 @@ class CombinedScraper:
         else:
             values["HMA Trend"] = "long"
 
+
+        # # Call the new function for top and bottom signal detection
+        # top_signal_1m, bottom_signal_1m = self.detect_top_bottom_signals_1m(symbol)
+
+        # # Add the signals to the values dictionary
+        # values["Top Signal 1m"] = top_signal_1m
+        # values["Bottom Signal 1m"] = bottom_signal_1m
+
+        top_signal_5m, bottom_signal_5m = self.detect_top_bottom_signals_5m(symbol)
+
+        values["Top Signal 5m"] = top_signal_5m
+        values["Bottom Signal 5m"] = bottom_signal_5m
+
+        top_signal_1m, bottom_signal_1m = self.detect_top_bottom_signals_1m(symbol)
+
+        values["Top Signal 1m"] = top_signal_1m
+        values["Bottom Signal 1m"] = bottom_signal_1m
+
+        significant_levels = self.lin_peaks_troughs_highlow_algo(symbol, '4h')
+
+        #print(f"Significant levels for {symbol} : {significant_levels}")
+        log.info(f"Significant levels for {symbol} : {significant_levels}")
+
+
         return values
+
+        # df["close"] = pd.to_numeric(df["close"])
+        # df["high"] = pd.to_numeric(df["high"])
+        # df["low"] = pd.to_numeric(df["low"])
+
+        # # Calculate slow EMA of closing prices
+        # slow_ma = df['close'].ewm(span=len_slow_ma, adjust=False).mean()
+
+        # # Determine the trend
+        # last_price = df['close'].values[-1]
+        # eri_trend = "bullish" if last_price > slow_ma.values[-1] else "bearish"
+
+        # # Calculate bull power and bear power
+        # bull_power = df['high'] - slow_ma
+        # bear_power = df['low'] - slow_ma
+
+        # # Smooth the power values using EMA
+        # bull_power_smoothed = bull_power.ewm(span=len_power_ema, adjust=False).mean()
+        # bear_power_smoothed = bear_power.ewm(span=len_power_ema, adjust=False).mean()
+
+        # # Add to the values dict
+        # values["ERI Bull Power"] = bull_power_smoothed.values[-1]
+        # values["ERI Bear Power"] = bear_power_smoothed.values[-1]
+        # values["ERI Trend"] = eri_trend
 
     def retry_analyse_symbol(self, symbol: str, retry_limit: int):
         retry_count = 0
@@ -531,6 +800,52 @@ class CombinedScraper:
                 time.sleep(1)  # Optional: delay before retrying
 
         raise Exception(f"Failed to analyse {symbol} after {retry_limit} attempts.")
+
+    def detect_peaks_and_troughs(self, prices):
+        peaks = []
+        troughs = []
+        for i in range(1, len(prices) - 1):
+            if prices[i-1] < prices[i] > prices[i+1]:
+                peaks.append(i)
+            elif prices[i-1] > prices[i] < prices[i+1]:
+                troughs.append(i)
+        return peaks, troughs
+
+    def linear_regression(self, prices):
+        x = np.arange(len(prices))
+        y = np.array(prices)
+        A = np.vstack([x, np.ones(len(x))]).T
+        m, c = np.linalg.lstsq(A, y, rcond=None)[0]
+        return m, c  # Slope and intercept
+    
+    def calculate_distance_from_line(self, price, slope, intercept, index):
+        """Calculate the vertical distance of a price from the linear regression line."""
+        line_price = (slope * index) + intercept
+        return abs(line_price - price)
+
+    def lin_peaks_troughs_highlow_algo(self, symbol, interval, threshold_percentage=0.05):
+        data = self.exchange.get_futures_kline(symbol, interval)
+        close_prices = [candle['close'] for candle in data]
+
+        peaks, troughs = self.detect_peaks_and_troughs(close_prices)
+        slope, intercept = self.linear_regression(close_prices)
+
+        significant_levels = []
+
+        # Check each peak and trough
+        for peak in peaks:
+            distance = self.calculate_distance_from_line(close_prices[peak], slope, intercept, peak)
+            if (distance / close_prices[peak]) < threshold_percentage:
+                significant_levels.append(close_prices[peak])
+
+        for trough in troughs:
+            distance = self.calculate_distance_from_line(close_prices[trough], slope, intercept, trough)
+            if (distance / close_prices[trough]) < threshold_percentage:
+                significant_levels.append(close_prices[trough])
+
+        return sorted(set(significant_levels))  # Return unique sorted levels
+
+
 
     def analyse_symbol_wrapper(self, args):
         # This wrapper will be used to pass multiple arguments to the function used with Pool
@@ -572,57 +887,15 @@ class CombinedScraper:
                 "ERI Bull Power",
                 "ERI Bear Power",
                 "ERI Trend",
+                "Top Signal 5m",
+                "Bottom Signal 5m",
+                "Top Signal 1m",
+                "Bottom Signal 1m"
             ],
         )
         # Sort the DataFrame as required
         df.sort_values(by=["1m 1x Volume (USDT)", "5m Spread"], inplace=True, ascending=[False, False])
         return df
-
-    # def analyse_all_symbols(self, retry_limit: int = 5):
-    #     data = []
-
-    #     for symbol in self.symbols:
-    #         try:
-    #             symbol_data_result = self.retry_analyse_symbol(symbol, retry_limit)
-    #             data.append(symbol_data_result)
-    #         except Exception as e:
-    #             log.error(f"{symbol} generated an exception: {e}")
-
-    #     df = pd.DataFrame(
-    #         data,
-    #         columns=[
-    #             "Asset",
-    #             "Min qty",
-    #             "Price",
-    #             "1m 1x Volume (USDT)",
-    #             "5m 1x Volume (USDT)",
-    #             "30m 1x Volume (USDT)",
-    #             "1h 1x Volume (USDT)",
-    #             "1m Spread",
-    #             "5m Spread",
-    #             "30m Spread",
-    #             "1h Spread",
-    #             "4h Spread",
-    #             "trend%",
-    #             "Trend",
-    #             "HMA Trend",
-    #             "5m MA6 high",
-    #             "5m MA6 low",
-    #             "Funding",
-    #             "Timestamp",
-    #             "MFI", #OR MFIRSI
-    #             "ERI Bull Power",
-    #             "ERI Bear Power",
-    #             "ERI Trend",
-    #         ],
-    #     )
-    #     df.sort_values(
-    #         by=["1m 1x Volume (USDT)", "5m Spread"],
-    #         inplace=True,
-    #         ascending=[False, False],
-    #     )
-    #     return df
-
 
 def run_scraper_for_exchange(exchange_name: str):
     log.info(f"Starting scraper for {exchange_name}")
@@ -686,13 +959,15 @@ def run_scraper_for_exchange(exchange_name: str):
                 # Filter and save 'rotator_symbols' data
                 rotator_symbols = scraper.filter_df(
                     dataframe=df,
-                    filter_col="5m 1x Volume (USDT)",
+                    filter_col="1m 1x Volume (USDT)",
                     operator=">",
                     value=15000,
                 )
 
                 # Sorting rotator_symbols
-                rotator_symbols = rotator_symbols.sort_values(by=["5m 1x Volume (USDT)", "5m Spread"], ascending=[False, False])
+                rotator_symbols = rotator_symbols.sort_values(by="1m 1x Volume (USDT)", ascending=False)
+
+                #rotator_symbols = rotator_symbols.sort_values(by=["1m 1x Volume (USDT)", "5m Spread"], ascending=[False, False])
 
                 # Define the main path and temporary path for the JSON file
                 main_path = f"/var/www/api/data/rotatorsymbols_{exchange_name}.json"
@@ -753,7 +1028,7 @@ def run_scraper_for_exchange(exchange_name: str):
         finally:
             elapsed_time = time.time() - start_time  # Compute the elapsed time
             log.info(f"{exchange_name} scraper iteration completed in {elapsed_time:.2f} seconds. Waiting for the next run.")
-            time.sleep(10) 
+            time.sleep(10)  # Wait for 60 seconds before the next run
 
 def scraper_and_notifier(exchange):
     while True:
