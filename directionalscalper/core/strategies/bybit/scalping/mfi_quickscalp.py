@@ -26,8 +26,10 @@ class BybitMFIRSIQuickScalp(Strategy):
         self.health_check_interval = 600
         self.last_long_tp_update = datetime.now()
         self.last_short_tp_update = datetime.now()
-        self.next_long_tp_update = self.calculate_next_update_time()
-        self.next_short_tp_update = self.calculate_next_update_time()
+        self.next_long_tp_update = datetime.now() - timedelta(seconds=1)
+        self.next_short_tp_update = datetime.now() - timedelta(seconds=1)
+        # self.next_long_tp_update = self.calculate_next_update_time()
+        # self.next_short_tp_update = self.calculate_next_update_time()
         self.last_cancel_time = 0
         self.spoofing_active = False
         self.spoofing_wall_size = 5
@@ -503,12 +505,12 @@ class BybitMFIRSIQuickScalp(Strategy):
                     logging.info(f"Placing short TP order for {symbol} with {short_take_profit}")
                     self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
                     
-                current_time = datetime.now()
+                current_latest_time = datetime.now()
                 
                 # Check for long positions
                 if long_pos_qty > 0:
                     try:
-                        if current_time >= self.next_long_tp_update and long_take_profit is not None:
+                        if current_latest_time >= self.next_long_tp_update and long_take_profit is not None:
                             self.next_long_tp_update = self.update_quickscalp_take_profit_bybit(
                                 symbol=symbol, 
                                 pos_qty=long_pos_qty, 
@@ -517,7 +519,7 @@ class BybitMFIRSIQuickScalp(Strategy):
                                 long_pos_price=long_pos_price,
                                 positionIdx=1, 
                                 order_side="sell", 
-                                next_tp_update=self.next_long_tp_update
+                                last_tp_update=self.next_long_tp_update  # Changed parameter name
                             )
                     except Exception as e:
                         logging.info(f"Exception caught in updating TP {e}")
@@ -525,7 +527,7 @@ class BybitMFIRSIQuickScalp(Strategy):
                 # Check for short positions
                 if short_pos_qty > 0:
                     try:
-                        if current_time >= self.next_short_tp_update and short_take_profit is not None:
+                        if current_latest_time >= self.next_short_tp_update and short_take_profit is not None:
                             self.next_short_tp_update = self.update_quickscalp_take_profit_bybit(
                                 symbol=symbol, 
                                 pos_qty=short_pos_qty, 
@@ -534,7 +536,7 @@ class BybitMFIRSIQuickScalp(Strategy):
                                 long_pos_price=long_pos_price,
                                 positionIdx=2, 
                                 order_side="buy", 
-                                next_tp_update=self.next_short_tp_update
+                                last_tp_update=self.next_short_tp_update  # Changed parameter name
                             )
                     except Exception as e:
                         logging.info(f"Exception caught in updating TP {e}")
