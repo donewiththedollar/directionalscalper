@@ -37,6 +37,7 @@ class BybitMFIRSIERIOBImbalance(Strategy):
             self.test_orders_enabled = self.config.test_orders_enabled
             self.stoploss_enabled = self.config.stoploss_enabled
             self.stoploss_upnl_pct = self.config.stoploss_upnl_pct
+            self.adjust_risk_parameters()
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
 
@@ -242,6 +243,8 @@ class BybitMFIRSIERIOBImbalance(Strategy):
             logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
             logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
 
+            self.adjust_risk_parameters()
+
             self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
 
             with self.initialized_symbols_lock:
@@ -304,6 +307,7 @@ class BybitMFIRSIERIOBImbalance(Strategy):
                 # short_liq_price = position_data["short"]["liq_price"]
                 # long_liq_price = position_data["long"]["liq_price"]
 
+                self.adjust_risk_parameters()
                 # Initialize the symbol and quantities if not done yet
                 self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
 
@@ -549,6 +553,8 @@ class BybitMFIRSIERIOBImbalance(Strategy):
 
                 if trading_allowed:
                     logging.info(f"New position allowed {symbol}")
+
+                    self.adjust_risk_parameters()
 
                     self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
 

@@ -39,6 +39,7 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
             self.stoploss_upnl_pct = self.config.stoploss_upnl_pct
             self.blacklist = self.config.blacklist
             self.test_orders_enabled = self.config.test_orders_enabled
+            self.adjust_risk_parameters()
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
 
@@ -245,6 +246,8 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
             logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
             logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
 
+            self.adjust_risk_parameters()
+
             self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
 
             with self.initialized_symbols_lock:
@@ -309,6 +312,8 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
 
                 # short_liq_price = position_data["short"]["liq_price"]
                 # long_liq_price = position_data["long"]["liq_price"]
+
+                self.adjust_risk_parameters()
 
                 # Initialize the symbol and quantities if not done yet
                 self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
@@ -560,6 +565,8 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
 
                 if trading_allowed:
                     logging.info(f"New position allowed {symbol}")
+
+                    self.adjust_risk_parameters()
 
                     self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
 
