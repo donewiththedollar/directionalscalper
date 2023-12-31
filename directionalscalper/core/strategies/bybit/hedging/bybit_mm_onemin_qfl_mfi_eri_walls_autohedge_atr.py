@@ -36,6 +36,8 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
             self.max_usd_value = self.config.max_usd_value
             self.blacklist = self.config.blacklist
             self.test_orders_enabled = self.config.test_orders_enabled
+            self.stoploss_upnl_pct = self.config.stoploss_upnl_pct
+            self.stoploss_enabled = self.config.stoploss_enabled
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
 
@@ -103,6 +105,9 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
         min_dist = self.config.min_distance
         min_vol = self.config.min_volume
         MaxAbsFundingRate = self.config.MaxAbsFundingRate
+
+        stoploss_enabled = self.config.stoploss_enabled
+        stoploss_upnl_pct = self.config.stoploss_upnl_pct
         
         hedge_ratio = self.config.hedge_ratio
 
@@ -346,6 +351,39 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
 
                 short_take_profit = None
                 long_take_profit = None
+
+                initial_short_stop_loss = None
+                initial_long_stop_loss = None
+
+                if stoploss_enabled:
+                    try:
+                        # Initial stop loss calculation
+                        initial_short_stop_loss = self.calculate_quickscalp_short_stop_loss(short_pos_price, symbol, stoploss_upnl_pct) if short_pos_price else None
+                        initial_long_stop_loss = self.calculate_quickscalp_long_stop_loss(long_pos_price, symbol, stoploss_upnl_pct) if long_pos_price else None
+
+                        current_price = self.exchange.get_current_price(symbol)
+                        order_book = self.exchange.get_orderbook(symbol)
+                        current_bid_price = order_book['bids'][0][0] if 'bids' in order_book and order_book['bids'] else None
+                        current_ask_price = order_book['asks'][0][0] if 'asks' in order_book and order_book['asks'] else None
+
+                        # Calculate and set stop loss for long positions
+                        if long_pos_qty > 0 and long_pos_price and initial_long_stop_loss:
+                            threshold_for_long = long_pos_price - (long_pos_price - initial_long_stop_loss) * 0.1
+                            if current_price <= threshold_for_long:
+                                adjusted_long_stop_loss = initial_long_stop_loss if current_price > initial_long_stop_loss else current_bid_price
+                                logging.info(f"Setting long stop loss for {symbol} at {adjusted_long_stop_loss}")
+                                self.postonly_limit_order_bybit_nolimit(symbol, "sell", long_pos_qty, adjusted_long_stop_loss, positionIdx=1, reduceOnly=True)
+
+                        # Calculate and set stop loss for short positions
+                        if short_pos_qty > 0 and short_pos_price and initial_short_stop_loss:
+                            threshold_for_short = short_pos_price + (initial_short_stop_loss - short_pos_price) * 0.1
+                            if current_price >= threshold_for_short:
+                                adjusted_short_stop_loss = initial_short_stop_loss if current_price < initial_short_stop_loss else current_ask_price
+                                logging.info(f"Setting short stop loss for {symbol} at {adjusted_short_stop_loss}")
+                                self.postonly_limit_order_bybit_nolimit(symbol, "buy", short_pos_qty, adjusted_short_stop_loss, positionIdx=2, reduceOnly=True)
+                    except Exception as e:
+                        logging.info(f"Exception caught in stop loss functionality: {e}")
+
 
                 short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, one_minute_distance, previous_one_minute_distance, short_take_profit, long_take_profit)
                 #short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
