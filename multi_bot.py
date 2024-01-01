@@ -341,6 +341,9 @@ if __name__ == '__main__':
 
         logging.info(f"Unique open position symbols: {unique_open_position_symbols}")
 
+        # Update the active symbols set based on unique open position symbols
+        active_symbols = active_symbols.intersection(unique_open_position_symbols)
+
         # Fetch and standardize rotator symbols
         rotator_symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, max_usd_value=max_usd_value)
         rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in rotator_symbols]
@@ -360,7 +363,6 @@ if __name__ == '__main__':
         for symbol in rotator_symbols_standardized:
             if symbol not in active_symbols and available_new_symbol_slots > 0:
                 start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
-                #start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed)
                 active_symbols.add(symbol)
                 available_new_symbol_slots -= 1
 
