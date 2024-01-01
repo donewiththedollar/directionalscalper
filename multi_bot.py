@@ -338,6 +338,7 @@ if __name__ == '__main__':
         # Fetch and process open position data
         open_position_data = market_maker.exchange.get_all_open_positions_bybit()
         unique_open_position_symbols = {standardize_symbol(position['symbol']) for position in open_position_data}
+
         logging.info(f"Unique open position symbols: {unique_open_position_symbols}")
 
         # Update the active symbols set based on unique open position symbols
@@ -349,12 +350,13 @@ if __name__ == '__main__':
 
         # Start or maintain threads for all unique open position symbols
         for symbol in unique_open_position_symbols:
-            if symbol not in active_symbols and len(active_symbols) < symbols_allowed:
+            if symbol not in active_symbols:
                 start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
                 active_symbols.add(symbol)
 
-        # Recalculate available new symbol slots after updating active_symbols
+        # Determine available slots for new symbols from rotator list
         available_new_symbol_slots = max(0, symbols_allowed - len(active_symbols))
+
         logging.info(f"Available new slots for rotator symbols: {available_new_symbol_slots}")
 
         # Start new threads for additional symbols within available slots
@@ -362,11 +364,11 @@ if __name__ == '__main__':
             if symbol not in active_symbols and available_new_symbol_slots > 0:
                 start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
                 active_symbols.add(symbol)
-                available_new_symbol_slots = max(0, symbols_allowed - len(active_symbols))  # Recalculate after each addition
+                available_new_symbol_slots -= 1
 
         logging.info(f"Total active symbols: {len(active_symbols)}")
         time.sleep(60)
-        
+
     # while True:
     #     # Update active threads and symbols
     #     completed_threads = [t for t in active_threads if not t.is_alive()]
@@ -379,7 +381,6 @@ if __name__ == '__main__':
     #     # Fetch and process open position data
     #     open_position_data = market_maker.exchange.get_all_open_positions_bybit()
     #     unique_open_position_symbols = {standardize_symbol(position['symbol']) for position in open_position_data}
-
     #     logging.info(f"Unique open position symbols: {unique_open_position_symbols}")
 
     #     # Update the active symbols set based on unique open position symbols
@@ -391,13 +392,12 @@ if __name__ == '__main__':
 
     #     # Start or maintain threads for all unique open position symbols
     #     for symbol in unique_open_position_symbols:
-    #         if symbol not in active_symbols:
+    #         if symbol not in active_symbols and len(active_symbols) < symbols_allowed:
     #             start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
     #             active_symbols.add(symbol)
 
-    #     # Determine available slots for new symbols from rotator list
+    #     # Recalculate available new symbol slots after updating active_symbols
     #     available_new_symbol_slots = max(0, symbols_allowed - len(active_symbols))
-
     #     logging.info(f"Available new slots for rotator symbols: {available_new_symbol_slots}")
 
     #     # Start new threads for additional symbols within available slots
@@ -405,7 +405,7 @@ if __name__ == '__main__':
     #         if symbol not in active_symbols and available_new_symbol_slots > 0:
     #             start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
     #             active_symbols.add(symbol)
-    #             available_new_symbol_slots -= 1
+    #             available_new_symbol_slots = max(0, symbols_allowed - len(active_symbols))  # Recalculate after each addition
 
     #     logging.info(f"Total active symbols: {len(active_symbols)}")
     #     time.sleep(60)
