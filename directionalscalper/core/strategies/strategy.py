@@ -1893,7 +1893,7 @@ class Strategy:
         symbols = [pos.get('symbol').split(':')[0] for pos in positions if isinstance(pos, dict) and pos.get('symbol')]
         return symbols
 
-    def retry_api_call(self, function, *args, max_retries=5, base_delay=5, max_delay=60, **kwargs):
+    def retry_api_call(self, function, *args, max_retries=100, base_delay=10, max_delay=60, **kwargs):
         retries = 0
         while retries < max_retries:
             try:
