@@ -366,6 +366,63 @@ if __name__ == '__main__':
         logging.info(f"Total active symbols: {len(active_symbols)}")
         time.sleep(60)
 
+        # Outside the while loop
+        symbol_start_time = {}
+
+        while True:
+            # Update active threads and symbols
+            completed_threads = [t for t in active_threads if not t.is_alive()]
+            for t in completed_threads:
+                symbol = thread_to_symbol.pop(t, None)
+                if symbol:
+                    active_symbols.discard(symbol)  # Remove symbol if present
+                    if symbol in symbol_start_time:
+                        del symbol_start_time[symbol]  # Remove the start time tracking
+                active_threads.remove(t)
+
+            current_time = time.time()
+            rotation_threshold = 60  # 1 minute threshold
+
+            # Fetch and process open position data
+            open_position_data = market_maker.exchange.get_all_open_positions_bybit()
+            unique_open_position_symbols = {standardize_symbol(position['symbol']) for position in open_position_data}
+            logging.info(f"Unique open position symbols: {unique_open_position_symbols}")
+
+            # Fetch and standardize rotator symbols
+            rotator_symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, max_usd_value=max_usd_value)
+            rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in rotator_symbols]
+
+            # Rotate out symbols not being traded
+            for symbol in list(active_symbols):
+                if symbol not in unique_open_position_symbols and symbol in symbol_start_time:
+                    if current_time - symbol_start_time[symbol] > rotation_threshold:
+                        active_symbols.discard(symbol)
+                        del symbol_start_time[symbol]
+                        logging.info(f"Rotated out symbol: {symbol}")
+
+            # Start or maintain threads for all unique open position symbols
+            for symbol in unique_open_position_symbols:
+                if symbol not in active_symbols and len(active_symbols) < symbols_allowed:
+                    start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
+                    active_symbols.add(symbol)
+                    symbol_start_time[symbol] = current_time  # Track start time
+
+            # Update available new symbol slots considering open positions
+            available_new_symbol_slots = max(0, symbols_allowed - len(active_symbols))
+
+            logging.info(f"Active symbols: {active_symbols}")
+            logging.info(f"Available new slots for rotator symbols: {available_new_symbol_slots}")
+
+            # Start new threads for additional symbols within available slots
+            for symbol in rotator_symbols_standardized:
+                if symbol not in active_symbols and symbol not in unique_open_position_symbols and available_new_symbol_slots > 0:
+                    start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
+                    active_symbols.add(symbol)
+                    symbol_start_time[symbol] = current_time  # Track start time
+                    available_new_symbol_slots = max(0, symbols_allowed - len(active_symbols))  # Recalculate after each addition
+
+            logging.info(f"Total active symbols: {len(active_symbols)}")
+            time.sleep(60)
 
     # while True:
     #     # Update active threads and symbols
