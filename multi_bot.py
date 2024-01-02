@@ -326,74 +326,119 @@ if __name__ == '__main__':
 
     print(f"Symbols to trade: {symbols_to_trade}")
 
-    symbol_start_time = {}
-    symbol_lock = threading.Lock()
-
-    TIMEOUT_THRESHOLD = 120  # 2 minutes in seconds
-
     while True:
-        current_time = time.time()
+        # Update active threads and symbols
+        completed_threads = [t for t in active_threads if not t.is_alive()]
+        for t in completed_threads:
+            symbol = thread_to_symbol.pop(t, None)
+            if symbol:
+                active_symbols.discard(symbol)  # Remove symbol if present
+            active_threads.remove(t)
 
-        with symbol_lock:
-            # Fetch unique open position symbols
-            open_position_data = market_maker.exchange.get_all_open_positions_bybit()
-            unique_open_position_symbols = {standardize_symbol(position['symbol']) for position in open_position_data}
-            logging.info(f"Unique open position symbols: {unique_open_position_symbols}")
+        # Fetch and process open position data
+        open_position_data = market_maker.exchange.get_all_open_positions_bybit()
+        unique_open_position_symbols = {standardize_symbol(position['symbol']) for position in open_position_data}
 
-            # Handle completed and timed-out threads
-            for t in list(active_threads):
-                symbol = thread_to_symbol.get(t)
-                if symbol:
-                    elapsed_time = current_time - symbol_start_time.get(symbol, 0)
-                    if not t.is_alive() or (elapsed_time > TIMEOUT_THRESHOLD and symbol not in unique_open_position_symbols):
-                        active_symbols.discard(symbol)
-                        thread_to_symbol.pop(t, None)
-                        active_threads.remove(t)
-                        symbol_start_time.pop(symbol, None)
-                        reason = "Completed" if not t.is_alive() else "Timeout and not in open positions"
-                        logging.info(f"Thread removed for symbol {symbol}. Reason: {reason}")
+        logging.info(f"Unique open position symbols: {unique_open_position_symbols}")
 
-            # Fetch rotator symbols
-            rotator_symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, max_usd_value=max_usd_value)
-            rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in rotator_symbols]
-            logging.info(f"Rotator symbols: {rotator_symbols_standardized}")
+        # Update the active symbols set based on unique open position symbols
+        active_symbols = active_symbols.intersection(unique_open_position_symbols)
 
-            # Start or maintain threads for all unique open position symbols
-            for symbol in unique_open_position_symbols:
-                if symbol not in active_symbols:
-                    start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
-                    active_symbols.add(symbol)
-                    symbol_start_time[symbol] = current_time
-                    logging.info(f"Started thread for open position symbol: {symbol}")
+        # Fetch and standardize rotator symbols
+        rotator_symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, max_usd_value=max_usd_value)
+        rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in rotator_symbols]
 
-            # Discard excess symbols if over the limit
-            symbols_discarded = 0
-            while len(active_symbols) > symbols_allowed:
-                symbol_to_discard = next((s for s in active_symbols if s not in unique_open_position_symbols), None)
-                if symbol_to_discard:
-                    active_symbols.discard(symbol_to_discard)
-                    symbols_discarded += 1
-                    logging.info(f"Discarded thread for symbol: {symbol_to_discard} to maintain limit")
-                else:
-                    break
-            if symbols_discarded > 0:
-                logging.info(f"Discarded {symbols_discarded} symbols to maintain the limit of {symbols_allowed}")
+        # Start or maintain threads for all unique open position symbols
+        for symbol in unique_open_position_symbols:
+            if symbol not in active_symbols:
+                start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
+                active_symbols.add(symbol)
 
-            # Start new threads for additional symbols within available slots
-            available_new_symbol_slots = max(0, symbols_allowed - len(active_symbols))
-            logging.info(f"Attempting to start new threads for symbols. Available slots: {available_new_symbol_slots}")
-            for symbol in rotator_symbols_standardized:
-                if symbol not in active_symbols and available_new_symbol_slots > 0:
-                    start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
-                    active_symbols.add(symbol)
-                    symbol_start_time[symbol] = current_time
-                    logging.info(f"Started thread for new symbol within limit: {symbol}")
-                    available_new_symbol_slots -= 1
+        # Determine available slots for new symbols from rotator list
+        available_new_symbol_slots = max(0, symbols_allowed - len(active_symbols))
 
-        logging.info(f"Actively managing threads for {active_symbols}")
-        logging.info(f"Total active symbols currently managed: {len(active_symbols)}")
+        logging.info(f"Available new slots for rotator symbols: {available_new_symbol_slots}")
 
+        # Start new threads for additional symbols within available slots
+        for symbol in rotator_symbols_standardized:
+            if symbol not in active_symbols and available_new_symbol_slots > 0:
+                start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
+                active_symbols.add(symbol)
+                available_new_symbol_slots -= 1
+
+        logging.info(f"Open symbols: {unique_open_position_symbols}")
+        logging.info(f"Active symbols: {active_symbols}")
+        logging.info(f"Total active symbols: {len(active_symbols)}")
         time.sleep(60)
+        
+    # symbol_start_time = {}
+    # symbol_lock = threading.Lock()
+
+    # TIMEOUT_THRESHOLD = 120  # 2 minutes in seconds
+
+    # while True:
+    #     current_time = time.time()
+
+    #     with symbol_lock:
+    #         # Fetch unique open position symbols
+    #         open_position_data = market_maker.exchange.get_all_open_positions_bybit()
+    #         unique_open_position_symbols = {standardize_symbol(position['symbol']) for position in open_position_data}
+    #         logging.info(f"Unique open position symbols: {unique_open_position_symbols}")
+
+    #         # Handle completed and timed-out threads
+    #         for t in list(active_threads):
+    #             symbol = thread_to_symbol.get(t)
+    #             if symbol:
+    #                 elapsed_time = current_time - symbol_start_time.get(symbol, 0)
+    #                 if not t.is_alive() or (elapsed_time > TIMEOUT_THRESHOLD and symbol not in unique_open_position_symbols):
+    #                     active_symbols.discard(symbol)
+    #                     thread_to_symbol.pop(t, None)
+    #                     active_threads.remove(t)
+    #                     symbol_start_time.pop(symbol, None)
+    #                     reason = "Completed" if not t.is_alive() else "Timeout and not in open positions"
+    #                     logging.info(f"Thread removed for symbol {symbol}. Reason: {reason}")
+
+    #         # Fetch rotator symbols
+    #         rotator_symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, max_usd_value=max_usd_value)
+    #         rotator_symbols_standardized = [standardize_symbol(symbol) for symbol in rotator_symbols]
+    #         logging.info(f"Rotator symbols: {rotator_symbols_standardized}")
+
+    #         # Start or maintain threads for all unique open position symbols
+    #         for symbol in unique_open_position_symbols:
+    #             if symbol not in active_symbols:
+    #                 start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
+    #                 active_symbols.add(symbol)
+    #                 symbol_start_time[symbol] = current_time
+    #                 logging.info(f"Started thread for open position symbol: {symbol}")
+
+    #         # Discard excess symbols if over the limit
+    #         symbols_discarded = 0
+    #         while len(active_symbols) > symbols_allowed:
+    #             symbol_to_discard = next((s for s in active_symbols if s not in unique_open_position_symbols), None)
+    #             if symbol_to_discard:
+    #                 active_symbols.discard(symbol_to_discard)
+    #                 symbols_discarded += 1
+    #                 logging.info(f"Discarded thread for symbol: {symbol_to_discard} to maintain limit")
+    #             else:
+    #                 break
+    #         if symbols_discarded > 0:
+    #             logging.info(f"Discarded {symbols_discarded} symbols to maintain the limit of {symbols_allowed}")
+
+    #         # Start new threads for additional symbols within available slots
+    #         available_new_symbol_slots = max(0, symbols_allowed - len(active_symbols))
+    #         logging.info(f"Attempting to start new threads for symbols. Available slots: {available_new_symbol_slots}")
+    #         for symbol in rotator_symbols_standardized:
+    #             if symbol not in active_symbols and available_new_symbol_slots > 0:
+    #                 start_thread_for_symbol(symbol, args, manager, args.account_name, symbols_allowed, rotator_symbols_standardized)
+    #                 active_symbols.add(symbol)
+    #                 symbol_start_time[symbol] = current_time
+    #                 logging.info(f"Started thread for new symbol within limit: {symbol}")
+    #                 available_new_symbol_slots -= 1
+
+    #     logging.info(f"Actively managing threads for {active_symbols}")
+    #     logging.info(f"Total active symbols currently managed: {len(active_symbols)}")
+
+    #     time.sleep(60)
 
 
     # symbol_start_time = {}
