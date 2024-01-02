@@ -3392,7 +3392,7 @@ class Strategy:
 
             time.sleep(5)
 
-    def bybit_initial_entry_quickscalp(self, open_orders: list, symbol: str, trend: str, mfi: str, eri_trend: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, should_long: bool, should_short: bool, fivemin_top_signal: bool, fivemin_bottom_signal: bool):
+    def bybit_initial_entry_quickscalp(self, open_orders: list, symbol: str, mfi: str, one_minute_volume: float, min_vol: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float):
 
         if symbol not in self.symbol_locks:
             self.symbol_locks[symbol] = threading.Lock()
@@ -3422,19 +3422,13 @@ class Strategy:
                 best_bid_price = self.last_known_bid.get(symbol)
                 
             # Trend and MFI Signal Checks
-            trend_aligned_long = (eri_trend == "bullish" or trend.lower() == "long") and mfi.lower() == "long"
-            trend_aligned_short = (eri_trend == "bearish" or trend.lower() == "short") and mfi.lower() == "short"
-
-            eri_trend_aligned_long = eri_trend == "bullish"
-            eri_trend_aligned_short = eri_trend == "bearish"
-
             mfi_signal_long = mfi.lower() == "long"
             mfi_signal_short = mfi.lower() == "short"
             mfi_signal_neutral = mfi.lower() == "neutral"
 
             if one_minute_volume > min_vol:
                 # Long Entry Logic
-                if should_long and long_pos_qty == 0 and mfi_signal_long:
+                if long_pos_qty == 0 and mfi_signal_long:
                     if not self.entry_order_exists(open_orders, "buy"):
                         logging.info(f"Placing initial long entry for {symbol}")
                         entry_price = largest_bid_wall[0] if largest_bid_wall else best_bid_price
@@ -3442,7 +3436,7 @@ class Strategy:
                         time.sleep(5)
 
                 # Short Entry Logic
-                if should_short and short_pos_qty == 0 and mfi_signal_short:
+                if short_pos_qty == 0 and mfi_signal_short:
                     if not self.entry_order_exists(open_orders, "sell"):
                         logging.info(f"Placing initial short entry for {symbol}")
                         entry_price = largest_ask_wall[0] if largest_ask_wall else best_ask_price

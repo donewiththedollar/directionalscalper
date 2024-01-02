@@ -590,7 +590,7 @@ class BybitMFIRSIQuickScalp(Strategy):
                     should_short = self.short_trade_condition(best_ask_price, moving_averages["ma_3_high"])
                     should_long = self.long_trade_condition(best_bid_price, moving_averages["ma_3_low"])
 
-                    self.bybit_initial_entry_quickscalp(open_orders, symbol, trend, mfirsi_signal, eri_trend, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short, fivemin_top_signal=fivemin_top_signal, fivemin_bottom_signal=fivemin_bottom_signal)
+                    self.bybit_initial_entry_quickscalp(open_orders, symbol, mfirsi_signal, one_minute_volume, min_vol, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty)
                     
                     time.sleep(5)
                 else:
