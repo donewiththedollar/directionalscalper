@@ -1283,7 +1283,7 @@ class Strategy:
     def calculate_next_update_time(self):
         """Returns the time for the next TP update, which is 30 seconds from the current time."""
         now = datetime.now()
-        next_update_time = now + timedelta(seconds=30)
+        next_update_time = now + timedelta(seconds=10)
         return next_update_time.replace(microsecond=0)
 
     def calculate_short_take_profit_bybit(self, short_pos_price, symbol):
