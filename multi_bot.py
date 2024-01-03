@@ -212,6 +212,7 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         logging.info(f"Thread for symbol {symbol} has completed.")
 
 def start_thread_for_symbol(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized):
+    time.sleep(1)
     if symbol in active_symbols:
         logging.info(f"Symbol {symbol} is already being processed by another thread.")
         return
@@ -226,6 +227,7 @@ def start_thread_for_symbol(symbol, args, manager, account_name, symbols_allowed
 
 def start_threads_for_new_symbols(new_symbols, args, manager, account_name, symbols_allowed, rotator_symbols_standardized):
     for symbol in new_symbols:
+        time.sleep(1)
         start_thread_for_symbol(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized)
 
 if __name__ == '__main__':
