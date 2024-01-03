@@ -24,7 +24,7 @@
     "long_liq_pct": 0.05,
     "short_liq_pct": 0.05,
     "MaxAbsFundingRate": 0.0002,
-    "blacklist": ["BTCUSDT", "ETHUSDT", "1000LADYSUSDT", "BCHUSDT", "LUNA2USDT", "1000BONKUSDT", "1000000VINUUSDT", "10000LADYSUSDT", "10000SATSUSDT", "CTCUSDT", "1000PEPEUSDT", "USTUSDT", "TRBUSDT", "BSVUSDT"],
+    "blacklist": ["1000*", "BTCUSDT", "ETHUSDT", "1000LADYSUSDT", "BCHUSDT", "LUNA2USDT", "1000BONKUSDT", "1000000VINUUSDT", "10000LADYSUSDT", "10000SATSUSDT", "CTCUSDT", "1000PEPEUSDT", "USTUSDT", "TRBUSDT", "BSVUSDT"],
     "dashboard_enabled": false,
     "shared_data_path": "data/"
   },
