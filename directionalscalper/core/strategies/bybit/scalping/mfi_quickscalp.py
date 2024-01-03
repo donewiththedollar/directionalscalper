@@ -283,7 +283,7 @@ class BybitMFIRSIQuickScalp(Strategy):
 
             # self.check_for_inactivity(long_pos_qty, short_pos_qty)
 
-            time.sleep(10)
+            time.sleep(5)
 
             logging.info(f"Rotator symbols standardized: {rotator_symbols_standardized}")
 
@@ -440,13 +440,6 @@ class BybitMFIRSIQuickScalp(Strategy):
 
                 logging.info(f"Open TP order count {open_tp_order_count}")
 
-                if self.test_orders_enabled and current_time - self.last_cancel_time >= self.spoofing_interval:
-                    if symbol in open_symbols:
-                        self.spoofing_active = True
-                        self.helperv2(symbol, short_dynamic_amount, long_dynamic_amount)
-                    else:
-                        logging.info(f"Skipping test orders for {symbol} as it's not in open symbols list.")
-                
                 logging.info(f"Five minute volume for {symbol} : {five_minute_volume}")
                     
                 historical_data = self.fetch_historical_data(
@@ -556,6 +549,14 @@ class BybitMFIRSIQuickScalp(Strategy):
                             last_tp_update=self.next_short_tp_update
                         )
 
+                if self.test_orders_enabled and current_time - self.last_cancel_time >= self.spoofing_interval:
+                    if symbol in open_symbols:
+                        self.spoofing_active = True
+                        self.helperv2(symbol, short_dynamic_amount, long_dynamic_amount)
+                    else:
+                        logging.info(f"Skipping test orders for {symbol} as it's not in open symbols list.")
+                
+
                 self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
                 # self.cancel_stale_orders_bybit(symbol)
 
@@ -588,4 +589,4 @@ class BybitMFIRSIQuickScalp(Strategy):
                     json.dump(data_to_save, f)
                 self.update_shared_data(symbol_data, open_position_data, len(open_symbols))
 
-            time.sleep(10)
+            time.sleep(5)
