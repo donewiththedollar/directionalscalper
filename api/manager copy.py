@@ -1,7 +1,6 @@
 from __future__ import annotations
 from threading import Thread, Lock
 
-import fnmatch
 import time
 import json
 import logging
@@ -204,7 +203,8 @@ class Manager:
                         
                         logging.info(f"Processing symbol {symbol} with min_qty {min_qty} and USD price {usd_price}")
 
-                        if blacklist and any(fnmatch.fnmatch(symbol, pattern) for pattern in blacklist):
+                        # Exclude symbols that are in the blacklist
+                        if blacklist and symbol in blacklist:
                             logging.info(f"Skipping {symbol} as it's in blacklist")
                             continue
 
