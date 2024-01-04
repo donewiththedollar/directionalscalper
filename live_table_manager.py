@@ -35,10 +35,10 @@ class LiveTableManager:
         current_time = datetime.datetime.now().strftime('%H:%M:%S %d-%m-%Y')
         last_symbol_data = list(shared_symbols_data.values())[-1] if shared_symbols_data else None
         if last_symbol_data:
-            balance = "{:.4f}".format(float(last_symbol_data.get('balance', 0)))
-            available_bal = "{:.4f}".format(float(last_symbol_data.get('available_bal', 0)))
-            total_upnl = "{:.4f}".format(sum(symbol_data.get('long_upnl', 0) + symbol_data.get('short_upnl', 0) for symbol_data in shared_symbols_data.values()))
-            #styling
+            balance = "{:.4f}".format(float(last_symbol_data.get('balance') or 0))
+            available_bal = "{:.4f}".format(float(last_symbol_data.get('available_bal') or 0))
+            total_upnl = "{:.4f}".format(sum((symbol_data.get('long_upnl') or 0) + (symbol_data.get('short_upnl') or 0) for symbol_data in shared_symbols_data.values()))
+            # Styling
             upnl_value = float(total_upnl)
             upnl_style = "[italic]" if upnl_value > 9 or upnl_value < -9.5 else "[bold]" if upnl_value > 3.5 or upnl_value < -3.5 else ""
             upnl_color = "[green]" if upnl_value > 1 else "[red]" if upnl_value < -1 else "[grey]"
