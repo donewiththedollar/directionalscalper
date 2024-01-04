@@ -93,6 +93,18 @@ class Bot(BaseModel):
             raise ValueError("user_risk_level must be between 0.1 and 10.0")
         return v
 
+    @validator('liq_stoploss_enabled')
+    def check_liq_stoploss_enabled_is_bool(cls, v):
+        if not isinstance(v, bool):
+            raise ValueError("liq_stoploss_enabled must be a boolean")
+        return v
+
+    @validator('liq_price_stop_pct')
+    def validate_liq_price_stop_pct(cls, v):
+        if v < 0.0 or v > 1.0:
+            raise ValueError("liq_price_stop_pct must be between 0.0 and 1.0")
+        return v
+
 class Exchange(BaseModel):
     name: str
     account_name: str
