@@ -233,7 +233,7 @@ def start_threads_for_new_symbols(new_symbols, args, manager, account_name, symb
 def rotate_inactive_symbols(active_symbols, rotator_symbols_standardized, symbol_last_activity_time, rotation_threshold=120):
     """
     Rotate inactive symbols with new ones from the rotator list.
-    
+
     :param active_symbols: Set of currently active symbols.
     :param rotator_symbols_standardized: List of symbols from the rotator, updated regularly.
     :param symbol_last_activity_time: Dictionary tracking the last activity time of each symbol.
@@ -248,7 +248,9 @@ def rotate_inactive_symbols(active_symbols, rotator_symbols_standardized, symbol
         if current_time - symbol_last_activity_time.get(symbol, 0) > rotation_threshold:
             # Symbol is inactive, remove it
             active_symbols.remove(symbol)
-            del symbol_last_activity_time[symbol]
+            # Ensure the symbol exists in the dictionary before deleting
+            if symbol in symbol_last_activity_time:
+                del symbol_last_activity_time[symbol]
             rotated_out_symbols.append(symbol)
 
             # Try to replace it with a new symbol from the rotator list
@@ -266,6 +268,7 @@ def rotate_inactive_symbols(active_symbols, rotator_symbols_standardized, symbol
         logging.info(f"Added new symbols: {added_symbols}")
 
     return active_symbols, symbol_last_activity_time
+
 
 if __name__ == '__main__':
     # ASCII Art and Text
