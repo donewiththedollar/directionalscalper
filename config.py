@@ -39,6 +39,8 @@ class Bot(BaseModel):
     upnl_profit_pct: float = 0.003
     stoploss_enabled: bool = False
     stoploss_upnl_pct: float = 0.070
+    liq_stoploss_enabled: bool = False
+    liq_price_stop_pct: float = 0.50
     hedge_ratio: float = 0.26
     hedge_price_difference_threshold: float = 0.15
     min_qty_threshold: float = 0

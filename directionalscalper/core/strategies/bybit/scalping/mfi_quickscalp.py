@@ -7,8 +7,6 @@ import threading
 from threading import Thread, Lock
 from datetime import datetime, timedelta
 
-# from ...strategy import Strategy
-# from ...logger import Logger
 from directionalscalper.core.strategies.strategy import Strategy
 from directionalscalper.core.strategies.logger import Logger
 from live_table_manager import shared_symbols_data
@@ -40,6 +38,8 @@ class BybitMFIRSIQuickScalp(Strategy):
             self.upnl_profit_pct = self.config.upnl_profit_pct
             self.stoploss_enabled = self.config.stoploss_enabled
             self.stoploss_upnl_pct = self.config.stoploss_upnl_pct
+            self.liq_stoploss_enabled = self.config.liq_stoploss_enabled
+            self.liq_price_stop_pct = self.config.liq_price_stop_pct
             self.user_risk_level = self.config.user_risk_level
             self.adjust_risk_parameters()
         except AttributeError as e:
@@ -109,9 +109,12 @@ class BybitMFIRSIQuickScalp(Strategy):
         min_dist = self.config.min_distance
         min_vol = self.config.min_volume
         upnl_profit_pct = self.config.upnl_profit_pct
+        # Stop loss
         stoploss_enabled = self.config.stoploss_enabled
         stoploss_upnl_pct = self.config.stoploss_upnl_pct
-        user_risk_level = self.config.user_risk_level
+        # Liq based stop loss
+        liq_stoploss_enabled = self.config.liq_stoploss_enabled
+        liq_price_stop_pct = self.config.liq_price_stop_pct
 
         MaxAbsFundingRate = self.config.MaxAbsFundingRate
         
@@ -385,6 +388,26 @@ class BybitMFIRSIQuickScalp(Strategy):
 
                 initial_short_stop_loss = None
                 initial_long_stop_loss = None
+
+                if liq_stoploss_enabled:
+                    try:
+                        if long_pos_qty > 0:
+                            long_stop_loss_price = self.calculate_long_stop_loss_based_on_liq_price(
+                                long_pos_price, long_liquidation_price, liq_price_stop_pct)
+                            if current_price <= long_stop_loss_price:
+                                # Place stop loss order for long position
+                                logging.info(f"Placing long stop loss order for {symbol} at {long_stop_loss_price}")
+                                self.postonly_limit_order_bybit_nolimit(symbol, "sell", long_pos_qty, long_stop_loss_price, positionIdx=1, reduceOnly=True)
+
+                        if short_pos_qty > 0:
+                            short_stop_loss_price = self.calculate_short_stop_loss_based_on_liq_price(
+                                short_pos_price, short_liquidation_price, liq_price_stop_pct)
+                            if current_price >= short_stop_loss_price:
+                                # Place stop loss order for short position
+                                logging.info(f"Placing short stop loss order for {symbol} at {short_stop_loss_price}")
+                                self.postonly_limit_order_bybit_nolimit(symbol, "buy", short_pos_qty, short_stop_loss_price, positionIdx=2, reduceOnly=True)
+                    except Exception as e:
+                        logging.info(f"Exception caught in liquidation stop loss logic: {e}")
 
                 if stoploss_enabled:
                     try:
