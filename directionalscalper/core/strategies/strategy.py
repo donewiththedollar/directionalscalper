@@ -3000,7 +3000,7 @@ class Strategy:
             else:
                 logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
 
-    def calculate_long_stop_loss_based_on_liq_price(long_pos_price, long_liq_price, liq_price_stop_pct):
+    def calculate_long_stop_loss_based_on_liq_price(self, long_pos_price, long_liq_price, liq_price_stop_pct):
         if long_pos_price is None or long_liq_price is None:
             return None
 
@@ -3008,9 +3008,11 @@ class Strategy:
         stop_loss_distance = (long_liq_price - long_pos_price) * liq_price_stop_pct
         stop_loss_price = long_pos_price + stop_loss_distance
 
+        logging.info(f"Stop loss distance: {stop_loss_distance}")
+        logging.info(f"Stop loss price: {stop_loss_price}")
         return stop_loss_price
 
-    def calculate_short_stop_loss_based_on_liq_price(short_pos_price, short_liq_price, liq_price_stop_pct):
+    def calculate_short_stop_loss_based_on_liq_price(self, short_pos_price, short_liq_price, liq_price_stop_pct):
         if short_pos_price is None or short_liq_price is None:
             return None
 
@@ -3018,6 +3020,8 @@ class Strategy:
         stop_loss_distance = (short_pos_price - short_liq_price) * liq_price_stop_pct
         stop_loss_price = short_pos_price - stop_loss_distance
 
+        logging.info(f"Stop loss distance: {stop_loss_distance}")
+        logging.info(f"Stop loss price: {stop_loss_price}")
         return stop_loss_price
 
     def calculate_quickscalp_long_stop_loss(self, long_pos_price, symbol, stoploss_upnl_pct):
