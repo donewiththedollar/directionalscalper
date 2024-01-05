@@ -3000,6 +3000,68 @@ class Strategy:
             else:
                 logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
 
+
+    def get_mfirsi(self, symbol: str, limit: int = 100, lookback: int = 5) -> str:
+        # Fetch OHLCV data using CCXT
+        ohlcv_data = self.exchange.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
+        df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+
+        # Calculate volatility (standard deviation of close prices)
+        df['volatility'] = df['close'].rolling(window=14).std()
+
+        # Determine MFI and RSI windows based on volatility
+        high_volatility_threshold = 0.05
+        mfi_window = 10 if df['volatility'].iloc[-1] > high_volatility_threshold else 20
+        rsi_window = 10 if df['volatility'].iloc[-1] > high_volatility_threshold else 20
+
+        # Calculate MFI and RSI with adaptive windows
+        df['mfi'] = ta.volume.MFIIndicator(high=df['high'], low=df['low'], close=df['close'], volume=df['volume'], window=mfi_window, fillna=False).money_flow_index()
+        df['rsi'] = ta.momentum.rsi(df['close'], window=rsi_window)
+        df['open_less_close'] = (df['open'] < df['close']).astype(int)
+
+        # Adaptive thresholds based on volatility
+        mfi_buy_threshold = 30 if df['volatility'].iloc[-1] > high_volatility_threshold else 40
+        mfi_sell_threshold = 80 if df['volatility'].iloc[-1] > high_volatility_threshold else 70
+        rsi_buy_threshold = 40 if df['volatility'].iloc[-1] > high_volatility_threshold else 50
+        rsi_sell_threshold = 70 if df['volatility'].iloc[-1] > high_volatility_threshold else 60
+
+        # Calculate conditions with adaptive thresholds
+        df['buy_condition'] = ((df['mfi'] < mfi_buy_threshold) & (df['rsi'] < rsi_buy_threshold) & (df['open_less_close'] == 1)).astype(int)
+        df['sell_condition'] = ((df['mfi'] > mfi_sell_threshold) & (df['rsi'] > rsi_sell_threshold) & (df['open_less_close'] == 0)).astype(int)
+
+        # Evaluate conditions over the lookback period
+        recent_conditions = df.iloc[-lookback:]
+        if recent_conditions['buy_condition'].any():
+            return 'long'
+        elif recent_conditions['sell_condition'].any():
+            return 'short'
+        else:
+            return 'neutral'
+
+
+    def get_mfirsi_v1(self, symbol: str, limit: int = 100, lookback: int = 5) -> str:
+        # Fetch OHLCV data using CCXT
+        ohlcv_data = self.exchange.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
+        df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+
+        # Calculate MFI and RSI
+        df['mfi'] = ta.volume.MFIIndicator(high=df['high'], low=df['low'], close=df['close'], volume=df['volume'], window=14, fillna=False).money_flow_index()
+        df['rsi'] = ta.momentum.rsi(df['close'], window=14)
+        df['open_less_close'] = (df['open'] < df['close']).astype(int)
+
+        # Calculate conditions
+        df['buy_condition'] = ((df['mfi'] < 30) & (df['rsi'] < 40) & (df['open_less_close'] == 1)).astype(int)
+        df['sell_condition'] = ((df['mfi'] > 80) & (df['rsi'] > 70) & (df['open_less_close'] == 0)).astype(int)
+
+        # Evaluate conditions over the lookback period
+        recent_conditions = df.iloc[-lookback:]
+        if recent_conditions['buy_condition'].any():
+            return 'long'
+        elif recent_conditions['sell_condition'].any():
+            return 'short'
+        else:
+            return 'neutral'
+        
     def calculate_long_stop_loss_based_on_liq_price(self, long_pos_price, long_liq_price, liq_price_stop_pct):
         if long_pos_price is None or long_liq_price is None:
             return None
