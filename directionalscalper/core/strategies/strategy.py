@@ -84,6 +84,7 @@ class Strategy:
         self.user_risk_level = self.config.user_risk_level
         self.MIN_RISK_LEVEL = 1
         self.MAX_RISK_LEVEL = 10
+        self.auto_reduce_start_pct = self.config.auto_reduce_start_pct
 
         self.bybit = self.Bybit(self)
 

@@ -41,6 +41,8 @@ class Bot(BaseModel):
     stoploss_upnl_pct: float = 0.070
     liq_stoploss_enabled: bool = False
     liq_price_stop_pct: float = 0.50
+    auto_reduce_enabled: bool = False
+    auto_reduce_start_pct: float = 0.098
     hedge_ratio: float = 0.26
     hedge_price_difference_threshold: float = 0.15
     min_qty_threshold: float = 0
@@ -86,6 +88,12 @@ class Bot(BaseModel):
         if not isinstance(v, bool):
             raise ValueError("test_orders_enabled must be a boolean")
         return v
+    
+    @validator('auto_reduce_enabled')
+    def check_auto_reduce_enabled_is_bool(cls, v):
+        if not isinstance(v, bool):
+            raise ValueError("auto_reduce_enabled must be a boolean")
+        return v
 
     @validator('user_risk_level')
     def check_user_risk_level(cls, v):
@@ -105,6 +113,12 @@ class Bot(BaseModel):
             raise ValueError("liq_price_stop_pct must be between 0.0 and 1.0")
         return v
 
+    @validator('auto_reduce_start_pct')
+    def validate_auto_reduce_start_pct(cls, v):
+        if v < 0.0 or v > 1.0:
+            raise ValueError("auto_reduce_start_pct must be between 0.0 and 1.0")
+        return v
+    
 class Exchange(BaseModel):
     name: str
     account_name: str
