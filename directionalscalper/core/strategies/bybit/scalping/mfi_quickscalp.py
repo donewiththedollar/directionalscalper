@@ -306,7 +306,7 @@ class BybitMFIRSIQuickScalp(Strategy):
                 five_minute_distance = metrics['5mSpread']
                 trend = metrics['Trend']
                 #mfirsi_signal = metrics['MFI']
-                mfirsi_signal = self.get_mfirsi(symbol, limit=100, lookback=5)
+                mfirsi_signal = self.get_mfi_atr(symbol, limit=100, lookback=5)
                 funding_rate = metrics['Funding']
                 hma_trend = metrics['HMA Trend']
                 eri_trend = metrics['ERI Trend']
