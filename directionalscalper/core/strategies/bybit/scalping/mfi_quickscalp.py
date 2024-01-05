@@ -67,6 +67,8 @@ class BybitMFIRSIQuickScalp(Strategy):
         logging.info(f"Starting to process symbol: {symbol}")
         logging.info(f"Initializing default values for symbol: {symbol}")
 
+        position_inactive_threshold = 120
+
         min_qty = None
         current_price = None
         total_equity = None
@@ -213,6 +215,19 @@ class BybitMFIRSIQuickScalp(Strategy):
             open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
             logging.info(f"Open symbols: {open_symbols}")
             open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+
+            if symbol not in open_symbols:
+                # If the symbol is no longer in open positions, check the time elapsed
+                if not hasattr(self, 'position_closed_time'):
+                    self.position_closed_time = current_time
+                elif current_time - self.position_closed_time > position_inactive_threshold:
+                    logging.info(f"Position for {symbol} has been closed for more than {position_inactive_threshold} seconds. Stopping strategy.")
+                    break
+            else:
+                # Reset the timer if the position is found open again
+                if hasattr(self, 'position_closed_time'):
+                    del self.position_closed_time
+
 
             # position_last_update_time = self.get_position_update_time(symbol)
 
