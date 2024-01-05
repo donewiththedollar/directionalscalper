@@ -3022,8 +3022,8 @@ class Strategy:
         volatility_threshold = df_hour['atr'].quantile(0.75)
 
         # Determine MFI and RSI windows based on ATR-based volatility
-        mfi_window = 10 if latest_atr_value > volatility_threshold else 20
-        rsi_window = 10 if latest_atr_value > volatility_threshold else 20
+        mfi_window = 14 if latest_atr_value > volatility_threshold else 14
+        rsi_window = 14 if latest_atr_value > volatility_threshold else 14
 
         # Calculate MFI and RSI with adaptive windows on 1-minute data
         df_min['mfi'] = ta.volume.MFIIndicator(high=df_min['high'], low=df_min['low'], close=df_min['close'], volume=df_min['volume'], window=mfi_window, fillna=False).money_flow_index()
@@ -3035,7 +3035,7 @@ class Strategy:
         mfi_sell_threshold = 85 if latest_atr_value > volatility_threshold else 80
         rsi_buy_threshold = 35 if latest_atr_value > volatility_threshold else 40
         rsi_sell_threshold = 75 if latest_atr_value > volatility_threshold else 70
-
+        
         # Calculate conditions with adaptive thresholds
         df_min['buy_condition'] = ((df_min['mfi'] < mfi_buy_threshold) & (df_min['rsi'] < rsi_buy_threshold) & (df_min['open_less_close'] == 1)).astype(int)
         df_min['sell_condition'] = ((df_min['mfi'] > mfi_sell_threshold) & (df_min['rsi'] > rsi_sell_threshold) & (df_min['open_less_close'] == 0)).astype(int)
