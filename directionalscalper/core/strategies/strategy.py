@@ -3110,6 +3110,50 @@ class Strategy:
         else:
             return 'neutral'
         
+
+    def auto_reduce_long(self, symbol, long_pos_price, long_dynamic_amount, auto_reduce_start_pct):
+        if long_pos_price is None:
+            return
+
+        price_precision = int(self.exchange.get_price_precision(symbol))
+        price_diff_start = Decimal(long_pos_price) * Decimal(auto_reduce_start_pct)
+        price_diff_max = Decimal(long_pos_price) * Decimal(self.max_loss_pct)
+
+        # Define reduction steps and calculate
+        reduction_steps = 3
+        price_diff_per_step = (price_diff_max - price_diff_start) / reduction_steps
+        reduction_amount_per_step = long_dynamic_amount / reduction_steps
+
+        for i in range(1, reduction_steps + 1):
+            stop_loss_price = Decimal(long_pos_price) - (price_diff_start + price_diff_per_step * i)
+            stop_loss_price = stop_loss_price.quantize(Decimal('1e-{}'.format(price_precision)), rounding=ROUND_HALF_DOWN)
+            
+            # Place the stop loss order with the reduced amount
+            self.exchange.create_order(symbol, 'limit', 'sell', reduction_amount_per_step, float(stop_loss_price), reduce_only=True)
+            logging.info(f"Placed auto-reduce long order for {symbol} at {stop_loss_price} with amount {reduction_amount_per_step}")
+
+    def auto_reduce_short(self, symbol, short_pos_price, short_dynamic_amount, auto_reduce_start_pct):
+        if short_pos_price is None:
+            return
+
+        price_precision = int(self.exchange.get_price_precision(symbol))
+        price_diff_start = Decimal(short_pos_price) * Decimal(auto_reduce_start_pct)
+        price_diff_max = Decimal(short_pos_price) * Decimal(self.max_loss_pct)
+
+        # Define reduction steps and calculate
+        reduction_steps = 3
+        price_diff_per_step = (price_diff_max - price_diff_start) / reduction_steps
+        reduction_amount_per_step = short_dynamic_amount / reduction_steps
+
+        for i in range(1, reduction_steps + 1):
+            stop_loss_price = Decimal(short_pos_price) + (price_diff_start + price_diff_per_step * i)
+            stop_loss_price = stop_loss_price.quantize(Decimal('1e-{}'.format(price_precision)), rounding=ROUND_HALF_DOWN)
+
+            # Place the stop loss order with the reduced amount
+            self.exchange.create_order(symbol, 'limit', 'buy', reduction_amount_per_step, float(stop_loss_price), reduce_only=True)
+            logging.info(f"Placed auto-reduce short order for {symbol} at {stop_loss_price} with amount {reduction_amount_per_step}")
+
+
     def calculate_long_stop_loss_based_on_liq_price(self, long_pos_price, long_liq_price, liq_price_stop_pct):
         if long_pos_price is None or long_liq_price is None:
             return None
