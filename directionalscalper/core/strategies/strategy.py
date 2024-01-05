@@ -3031,9 +3031,9 @@ class Strategy:
         df_min['open_less_close'] = (df_min['open'] < df_min['close']).astype(int)
 
         # Adaptive thresholds based on volatility
-        mfi_buy_threshold = 25 if latest_atr_value > volatility_threshold else 35
-        mfi_sell_threshold = 85 if latest_atr_value > volatility_threshold else 75
-        rsi_buy_threshold = 35 if latest_atr_value > volatility_threshold else 45
+        mfi_buy_threshold = 25 if latest_atr_value > volatility_threshold else 30
+        mfi_sell_threshold = 85 if latest_atr_value > volatility_threshold else 80
+        rsi_buy_threshold = 30 if latest_atr_value > volatility_threshold else 35
         rsi_sell_threshold = 75 if latest_atr_value > volatility_threshold else 65
 
         # Calculate conditions with adaptive thresholds
@@ -3068,9 +3068,9 @@ class Strategy:
         df['open_less_close'] = (df['open'] < df['close']).astype(int)
 
         # Adaptive thresholds based on volatility
-        mfi_buy_threshold = 25 if df['volatility'].iloc[-1] > high_volatility_threshold else 35
-        mfi_sell_threshold = 85 if df['volatility'].iloc[-1] > high_volatility_threshold else 75
-        rsi_buy_threshold = 35 if df['volatility'].iloc[-1] > high_volatility_threshold else 45
+        mfi_buy_threshold = 25 if df['volatility'].iloc[-1] > high_volatility_threshold else 30
+        mfi_sell_threshold = 85 if df['volatility'].iloc[-1] > high_volatility_threshold else 85
+        rsi_buy_threshold = 30 if df['volatility'].iloc[-1] > high_volatility_threshold else 35
         rsi_sell_threshold = 75 if df['volatility'].iloc[-1] > high_volatility_threshold else 65
 
         # Calculate conditions with adaptive thresholds
