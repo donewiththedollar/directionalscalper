@@ -64,7 +64,7 @@ class BybitMFIRSIERIOBImbalance(Strategy):
         logging.info(f"Initializing default values for symbol: {symbol}")
 
         position_inactive_threshold = 120
-        
+
         min_qty = None
         current_price = None
         total_equity = None
@@ -190,12 +190,15 @@ class BybitMFIRSIERIOBImbalance(Strategy):
                 if not hasattr(self, 'position_closed_time'):
                     self.position_closed_time = current_time
                 elif current_time - self.position_closed_time > position_inactive_threshold:
-                    logging.info(f"Position for {symbol} has been closed for more than {position_inactive_threshold} seconds. Stopping strategy.")
+                    logging.info(f"Position for {symbol} has been closed for more than {position_inactive_threshold} seconds. Cancelling all orders and stopping strategy.")
+                    # Cancel all orders for this symbol before stopping the strategy
+                    self.exchange.cancel_all_orders_for_symbol_bybit(symbol)
                     break
             else:
                 # Reset the timer if the position is found open again
                 if hasattr(self, 'position_closed_time'):
                     del self.position_closed_time
+
 
             # position_last_update_time = self.get_position_update_time(symbol)
 
