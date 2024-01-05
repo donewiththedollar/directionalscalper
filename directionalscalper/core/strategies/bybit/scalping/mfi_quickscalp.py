@@ -41,6 +41,8 @@ class BybitMFIRSIQuickScalp(Strategy):
             self.liq_stoploss_enabled = self.config.liq_stoploss_enabled
             self.liq_price_stop_pct = self.config.liq_price_stop_pct
             self.user_risk_level = self.config.user_risk_level
+            self.auto_reduce_enabled = self.config.auto_reduce_enabled
+            self.auto_reduce_start_pct = self.config.auto_reduce_start_pct
             self.adjust_risk_parameters()
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
