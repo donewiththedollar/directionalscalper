@@ -3144,48 +3144,59 @@ class Strategy:
 
         return max_levels, price_interval
 
+    def auto_reduce_long(self, symbol, long_pos_price, long_dynamic_amount, step_price):
+        # Place the stop loss order with the reduced amount
+        self.postonly_limit_order_bybit_nolimit(symbol, 'sell', long_dynamic_amount, float(step_price), positionIdx=1, reduceOnly=True)
+        logging.info(f"Placed auto-reduce long order for {symbol} at {step_price} with amount {long_dynamic_amount}")
 
-    def auto_reduce_long(self, symbol, long_pos_price, long_pos_qty, long_dynamic_amount):
-        # Calculate auto-reduce levels and intervals
-        max_levels, price_interval = self.calculate_auto_reduce_levels_long(
-            long_pos_price, 
-            long_pos_qty, 
-            long_dynamic_amount, 
-            self.auto_reduce_start_pct, 
-            self.auto_reduce_maxloss_pct
-        )
+    def auto_reduce_short(self, symbol, short_pos_price, short_dynamic_amount, step_price):
+        # Place the stop loss order with the reduced amount
+        self.postonly_limit_order_bybit_nolimit(symbol, 'buy', short_dynamic_amount, float(step_price), positionIdx=2, reduceOnly=True)
+        logging.info(f"Placed auto-reduce short order for {symbol} at {step_price} with amount {short_dynamic_amount}")
 
-        price_precision = int(self.exchange.get_price_precision(symbol))
 
-        for i in range(1, max_levels + 1):
-            # Calculate the price for this step
-            step_price = long_pos_price - (price_interval * i)
-            step_price = Decimal(step_price).quantize(Decimal('1e-{}'.format(price_precision)), rounding=ROUND_HALF_DOWN)
 
-            # Place the stop loss order with the reduced amount
-            self.postonly_limit_order_bybit_nolimit(symbol, 'sell', long_dynamic_amount, float(step_price), positionIdx=1, reduceOnly=True)
-            logging.info(f"Placed auto-reduce long order for {symbol} at {step_price} with amount {long_dynamic_amount}")
+    # def auto_reduce_long(self, symbol, long_pos_price, long_pos_qty, long_dynamic_amount):
+    #     # Calculate auto-reduce levels and intervals
+    #     max_levels, price_interval = self.calculate_auto_reduce_levels_long(
+    #         long_pos_price, 
+    #         long_pos_qty, 
+    #         long_dynamic_amount, 
+    #         self.auto_reduce_start_pct, 
+    #         self.auto_reduce_maxloss_pct
+    #     )
 
-    def auto_reduce_short(self, symbol, short_pos_price, short_pos_qty, short_dynamic_amount):
-        # Calculate auto-reduce levels and intervals
-        max_levels, price_interval = self.calculate_auto_reduce_levels_short(
-            short_pos_price, 
-            short_pos_qty, 
-            short_dynamic_amount, 
-            self.auto_reduce_start_pct, 
-            self.auto_reduce_maxloss_pct
-        )
+    #     price_precision = int(self.exchange.get_price_precision(symbol))
 
-        price_precision = int(self.exchange.get_price_precision(symbol))
+    #     for i in range(1, max_levels + 1):
+    #         # Calculate the price for this step
+    #         step_price = long_pos_price - (price_interval * i)
+    #         step_price = Decimal(step_price).quantize(Decimal('1e-{}'.format(price_precision)), rounding=ROUND_HALF_DOWN)
 
-        for i in range(1, max_levels + 1):
-            # Calculate the price for this step
-            step_price = short_pos_price + (price_interval * i)
-            step_price = Decimal(step_price).quantize(Decimal('1e-{}'.format(price_precision)), rounding=ROUND_HALF_DOWN)
+    #         # Place the stop loss order with the reduced amount
+    #         self.postonly_limit_order_bybit_nolimit(symbol, 'sell', long_dynamic_amount, float(step_price), positionIdx=1, reduceOnly=True)
+    #         logging.info(f"Placed auto-reduce long order for {symbol} at {step_price} with amount {long_dynamic_amount}")
 
-            # Place the stop loss order with the reduced amount
-            self.postonly_limit_order_bybit_nolimit(symbol, 'buy', short_dynamic_amount, float(step_price), positionIdx=2, reduceOnly=True)
-            logging.info(f"Placed auto-reduce short order for {symbol} at {step_price} with amount {short_dynamic_amount}")
+    # def auto_reduce_short(self, symbol, short_pos_price, short_pos_qty, short_dynamic_amount):
+    #     # Calculate auto-reduce levels and intervals
+    #     max_levels, price_interval = self.calculate_auto_reduce_levels_short(
+    #         short_pos_price, 
+    #         short_pos_qty, 
+    #         short_dynamic_amount, 
+    #         self.auto_reduce_start_pct, 
+    #         self.auto_reduce_maxloss_pct
+    #     )
+
+    #     price_precision = int(self.exchange.get_price_precision(symbol))
+
+    #     for i in range(1, max_levels + 1):
+    #         # Calculate the price for this step
+    #         step_price = short_pos_price + (price_interval * i)
+    #         step_price = Decimal(step_price).quantize(Decimal('1e-{}'.format(price_precision)), rounding=ROUND_HALF_DOWN)
+
+    #         # Place the stop loss order with the reduced amount
+    #         self.postonly_limit_order_bybit_nolimit(symbol, 'buy', short_dynamic_amount, float(step_price), positionIdx=2, reduceOnly=True)
+    #         logging.info(f"Placed auto-reduce short order for {symbol} at {step_price} with amount {short_dynamic_amount}")
 
 
     def calculate_long_stop_loss_based_on_liq_price(self, long_pos_price, long_liq_price, liq_price_stop_pct):

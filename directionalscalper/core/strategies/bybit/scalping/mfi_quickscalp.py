@@ -477,11 +477,45 @@ class BybitMFIRSIQuickScalp(Strategy):
 
                 if auto_reduce_enabled:
                     try:
+                        current_market_price = self.exchange.get_current_price(symbol)
+                        
                         if long_pos_qty > 0 and long_pos_price:
-                            self.auto_reduce_long(symbol, long_pos_price, long_pos_qty, long_dynamic_amount)
+                            max_levels, price_interval = self.calculate_auto_reduce_levels_long(
+                                long_pos_price, long_pos_qty, long_dynamic_amount, 
+                                self.auto_reduce_start_pct, self.auto_reduce_maxloss_pct
+                            )
+                            
+                            # Find levels closest to current market price for long positions
+                            closest_levels = []
+                            for i in range(1, max_levels + 1):
+                                step_price = long_pos_price - (price_interval * i)
+                                if current_market_price <= step_price:
+                                    closest_levels.append(step_price)
+                                    if len(closest_levels) >= 3:  # Limit to 3 closest levels
+                                        break
+                            
+                            # Place orders for closest levels
+                            for level in closest_levels:
+                                self.auto_reduce_long(symbol, long_pos_price, long_dynamic_amount, level)
 
                         if short_pos_qty > 0 and short_pos_price:
-                            self.auto_reduce_short(symbol, short_pos_price, short_pos_qty, short_dynamic_amount)
+                            max_levels, price_interval = self.calculate_auto_reduce_levels_short(
+                                short_pos_price, short_pos_qty, short_dynamic_amount, 
+                                self.auto_reduce_start_pct, self.auto_reduce_maxloss_pct
+                            )
+
+                            # Find levels closest to current market price for short positions
+                            closest_levels = []
+                            for i in range(1, max_levels + 1):
+                                step_price = short_pos_price + (price_interval * i)
+                                if current_market_price >= step_price:
+                                    closest_levels.append(step_price)
+                                    if len(closest_levels) >= 3:  # Limit to 3 closest levels
+                                        break
+                            
+                            # Place orders for closest levels
+                            for level in closest_levels:
+                                self.auto_reduce_short(symbol, short_pos_price, short_dynamic_amount, level)
 
                     except Exception as e:
                         logging.info(f"{symbol} Exception caught in auto reduce {e}")
