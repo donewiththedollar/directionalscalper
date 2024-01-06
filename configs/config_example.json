@@ -19,6 +19,7 @@
     "liq_price_stop_pct": 0.50,
     "auto_reduce_enabled": false,
     "auto_reduce_start_pct": 0.098,
+    "auto_reduce_maxloss_pct": 0.50,
     "hedge_ratio": 0.20,
     "hedge_price_difference_threshold": 0.15,
     "wallet_exposure": 1.00,

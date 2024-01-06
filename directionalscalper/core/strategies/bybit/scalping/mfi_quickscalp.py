@@ -105,14 +105,16 @@ class BybitMFIRSIQuickScalp(Strategy):
 
         logging.info(f"Running for symbol (inside run_single_symbol method): {symbol}")
 
-        # Important definitions
+        # Definitions
         quote_currency = "USDT"
         max_retries = 5
         retry_delay = 5
         wallet_exposure = self.config.wallet_exposure
         min_dist = self.config.min_distance
         min_vol = self.config.min_volume
+
         upnl_profit_pct = self.config.upnl_profit_pct
+
         # Stop loss
         stoploss_enabled = self.config.stoploss_enabled
         stoploss_upnl_pct = self.config.stoploss_upnl_pct
@@ -120,10 +122,16 @@ class BybitMFIRSIQuickScalp(Strategy):
         liq_stoploss_enabled = self.config.liq_stoploss_enabled
         liq_price_stop_pct = self.config.liq_price_stop_pct
 
+        # Auto reduce
+        auto_reduce_enabled = self.config.auto_reduce_enabled
+
+        # Funding
         MaxAbsFundingRate = self.config.MaxAbsFundingRate
         
+        # Hedge ratio
         hedge_ratio = self.config.hedge_ratio
 
+        # Hedge price diff
         price_difference_threshold = self.config.hedge_price_difference_threshold
 
         if self.config.dashboard_enabled:
@@ -453,7 +461,7 @@ class BybitMFIRSIQuickScalp(Strategy):
                             threshold_for_long = long_pos_price - (long_pos_price - initial_long_stop_loss) * 0.1
                             if current_price <= threshold_for_long:
                                 adjusted_long_stop_loss = initial_long_stop_loss if current_price > initial_long_stop_loss else current_bid_price
-                                logging.info(f"Setting long stop loss for {symbol} at {adjusted_long_stop_loss}")
+                                logging.info(f"{symbol} Setting long stop loss for {symbol} at {adjusted_long_stop_loss}")
                                 self.postonly_limit_order_bybit_nolimit(symbol, "sell", long_pos_qty, adjusted_long_stop_loss, positionIdx=1, reduceOnly=True)
 
                         # Calculate and set stop loss for short positions
@@ -464,7 +472,18 @@ class BybitMFIRSIQuickScalp(Strategy):
                                 logging.info(f"Setting short stop loss for {symbol} at {adjusted_short_stop_loss}")
                                 self.postonly_limit_order_bybit_nolimit(symbol, "buy", short_pos_qty, adjusted_short_stop_loss, positionIdx=2, reduceOnly=True)
                     except Exception as e:
-                        logging.info(f"Exception caught in stop loss functionality: {e}")
+                        logging.info(f"{symbol} Exception caught in stop loss functionality: {e}")
+
+                if auto_reduce_enabled:
+                    try:
+                        if long_pos_qty > 0:
+                            self.auto_reduce_long(symbol, long_pos_price, long_dynamic_amount, self.auto_reduce_start_pct)
+
+                        if short_pos_qty > 0:
+                            self.auto_reduce_short(symbol, short_pos_price, short_dynamic_amount, self.auto_reduce_start_pct)
+
+                    except Exception as e:
+                        logging.info(f"{symbol} Exception caught in auto reduce {e}")
 
                 # short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, one_minute_distance, previous_one_minute_distance, short_take_profit, long_take_profit)
                 #short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)

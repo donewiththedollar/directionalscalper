@@ -43,6 +43,7 @@ class Bot(BaseModel):
     liq_price_stop_pct: float = 0.50
     auto_reduce_enabled: bool = False
     auto_reduce_start_pct: float = 0.098
+    auto_reduce_maxloss_pct: float = 0.50
     hedge_ratio: float = 0.26
     hedge_price_difference_threshold: float = 0.15
     min_qty_threshold: float = 0
@@ -117,6 +118,12 @@ class Bot(BaseModel):
     def validate_auto_reduce_start_pct(cls, v):
         if v < 0.0 or v > 1.0:
             raise ValueError("auto_reduce_start_pct must be between 0.0 and 1.0")
+        return v
+    
+    @validator('auto_reduce_maxloss_pct')
+    def validate_auto_reduce_maxloss_pct(cls, v):
+        if v < 0.0 or v > 1.0:
+            raise ValueError("auto_reduce_maxloss_pct must be between 0.0 and 1.0")
         return v
     
 class Exchange(BaseModel):

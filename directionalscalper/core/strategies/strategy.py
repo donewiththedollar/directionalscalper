@@ -85,6 +85,7 @@ class Strategy:
         self.MIN_RISK_LEVEL = 1
         self.MAX_RISK_LEVEL = 10
         self.auto_reduce_start_pct = self.config.auto_reduce_start_pct
+        self.auto_reduce_maxloss_pct = self.config.auto_reduce_maxloss_pct
 
         self.bybit = self.Bybit(self)
 
@@ -3118,7 +3119,7 @@ class Strategy:
 
         price_precision = int(self.exchange.get_price_precision(symbol))
         price_diff_start = Decimal(long_pos_price) * Decimal(auto_reduce_start_pct)
-        price_diff_max = Decimal(long_pos_price) * Decimal(self.max_loss_pct)
+        price_diff_max = Decimal(long_pos_price) * Decimal(self.auto_reduce_maxloss_pct)
 
         # Define reduction steps and calculate
         reduction_steps = 3
@@ -3139,7 +3140,7 @@ class Strategy:
 
         price_precision = int(self.exchange.get_price_precision(symbol))
         price_diff_start = Decimal(short_pos_price) * Decimal(auto_reduce_start_pct)
-        price_diff_max = Decimal(short_pos_price) * Decimal(self.max_loss_pct)
+        price_diff_max = Decimal(short_pos_price) * Decimal(self.auto_reduce_maxloss_pct)
 
         # Define reduction steps and calculate
         reduction_steps = 3
