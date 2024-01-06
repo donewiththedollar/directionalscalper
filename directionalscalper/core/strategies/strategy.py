@@ -3152,7 +3152,7 @@ class Strategy:
             long_pos_qty, 
             long_dynamic_amount, 
             self.auto_reduce_start_pct, 
-            self.auto_reduce_max_loss_pct
+            self.auto_reduce_maxloss_pct
         )
 
         price_precision = int(self.exchange.get_price_precision(symbol))
@@ -3173,7 +3173,7 @@ class Strategy:
             short_pos_qty, 
             short_dynamic_amount, 
             self.auto_reduce_start_pct, 
-            self.auto_reduce_max_loss_pct
+            self.auto_reduce_maxloss_pct
         )
 
         price_precision = int(self.exchange.get_price_precision(symbol))

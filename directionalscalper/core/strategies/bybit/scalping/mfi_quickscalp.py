@@ -478,10 +478,10 @@ class BybitMFIRSIQuickScalp(Strategy):
                 if auto_reduce_enabled:
                     try:
                         if long_pos_qty > 0 and long_pos_price:
-                            self.auto_reduce_long(symbol, long_pos_price, long_pos_qty, long_dynamic_amount, auto_reduce_start_pct)
+                            self.auto_reduce_long(symbol, long_pos_price, long_pos_qty, long_dynamic_amount)
 
                         if short_pos_qty > 0 and short_pos_price:
-                            self.auto_reduce_short(symbol, short_pos_price, short_pos_qty, short_dynamic_amount, auto_reduce_start_pct)
+                            self.auto_reduce_short(symbol, short_pos_price, short_pos_qty, short_dynamic_amount)
 
                     except Exception as e:
                         logging.info(f"{symbol} Exception caught in auto reduce {e}")
