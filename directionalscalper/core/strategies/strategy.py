@@ -3145,14 +3145,26 @@ class Strategy:
         return max_levels, price_interval
 
     def auto_reduce_long(self, symbol, long_pos_price, long_dynamic_amount, step_price):
-        # Place the stop loss order with the reduced amount
-        self.postonly_limit_order_bybit_nolimit(symbol, 'sell', long_dynamic_amount, float(step_price), positionIdx=1, reduceOnly=True)
+        order = self.postonly_limit_order_bybit_nolimit(symbol, 'sell', long_dynamic_amount, float(step_price), positionIdx=1, reduceOnly=True)
+        logging.info(f"Autoreduce order long: {order}")
         logging.info(f"Placed auto-reduce long order for {symbol} at {step_price} with amount {long_dynamic_amount}")
+        return order['id']
 
     def auto_reduce_short(self, symbol, short_pos_price, short_dynamic_amount, step_price):
-        # Place the stop loss order with the reduced amount
-        self.postonly_limit_order_bybit_nolimit(symbol, 'buy', short_dynamic_amount, float(step_price), positionIdx=2, reduceOnly=True)
+        order = self.postonly_limit_order_bybit_nolimit(symbol, 'buy', short_dynamic_amount, float(step_price), positionIdx=2, reduceOnly=True)
+        logging.info(f"Autoreduce order short: {order}")
         logging.info(f"Placed auto-reduce short order for {symbol} at {step_price} with amount {short_dynamic_amount}")
+        return order['id']
+        
+    # def auto_reduce_long(self, symbol, long_pos_price, long_dynamic_amount, step_price):
+    #     # Place the stop loss order with the reduced amount
+    #     self.postonly_limit_order_bybit_nolimit(symbol, 'sell', long_dynamic_amount, float(step_price), positionIdx=1, reduceOnly=True)
+    #     logging.info(f"Placed auto-reduce long order for {symbol} at {step_price} with amount {long_dynamic_amount}")
+
+    # def auto_reduce_short(self, symbol, short_pos_price, short_dynamic_amount, step_price):
+    #     # Place the stop loss order with the reduced amount
+    #     self.postonly_limit_order_bybit_nolimit(symbol, 'buy', short_dynamic_amount, float(step_price), positionIdx=2, reduceOnly=True)
+    #     logging.info(f"Placed auto-reduce short order for {symbol} at {step_price} with amount {short_dynamic_amount}")
 
 
 
