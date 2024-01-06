@@ -281,107 +281,107 @@ def update_rotator_queue(rotator_queue, latest_symbols):
 
 
 if __name__ == '__main__':
-    try:
-        # ASCII Art and Text
-        sword = "====||====>"
+    # ASCII Art and Text
+    sword = "====||====>"
 
-        print("\n" + "=" * 50)
-        print(f"DirectionalScalper {VERSION}".center(50))
-        print(f"Developed by Tyler Simpson and contributors at TradeSimple".center(50))
-        print("=" * 50 + "\n")
+    print("\n" + "=" * 50)
+    print(f"DirectionalScalper {VERSION}".center(50))
+    print(f"Developed by Tyler Simpson and contributors at TradeSimple".center(50))
+    print("=" * 50 + "\n")
 
-        print("Initializing", end="")
-        # Loading animation
-        for i in range(3):
-            time.sleep(0.5)
-            print(".", end="", flush=True)
-        print("\n")
+    print("Initializing", end="")
+    # Loading animation
+    for i in range(3):
+        time.sleep(0.5)
+        print(".", end="", flush=True)
+    print("\n")
 
-        # Display the ASCII art
-        print("Battle-Ready Algorithm".center(50))
-        print(sword.center(50) + "\n")
+    # Display the ASCII art
+    print("Battle-Ready Algorithm".center(50))
+    print(sword.center(50) + "\n")
 
-        parser = argparse.ArgumentParser(description='DirectionalScalper')
-        parser.add_argument('--config', type=str, default='configs/config.json', help='Path to the configuration file')
-        parser.add_argument('--account_name', type=str, help='The name of the account to use')
-        parser.add_argument('--exchange', type=str, help='The name of the exchange to use')
-        parser.add_argument('--strategy', type=str, help='The name of the strategy to use')
-        parser.add_argument('--symbol', type=str, help='The trading symbol to use')
-        parser.add_argument('--amount', type=str, help='The size to use')
+    parser = argparse.ArgumentParser(description='DirectionalScalper')
+    parser.add_argument('--config', type=str, default='configs/config.json', help='Path to the configuration file')
+    parser.add_argument('--account_name', type=str, help='The name of the account to use')
+    parser.add_argument('--exchange', type=str, help='The name of the exchange to use')
+    parser.add_argument('--strategy', type=str, help='The name of the strategy to use')
+    parser.add_argument('--symbol', type=str, help='The trading symbol to use')
+    parser.add_argument('--amount', type=str, help='The size to use')
 
-        args = parser.parse_args()
+    args = parser.parse_args()
 
-        args = ask_for_missing_arguments(args)
+    args = ask_for_missing_arguments(args)
 
-        print(f"DirectionalScalper {VERSION} Initialized Successfully!".center(50))
-        print("=" * 50 + "\n")
+    print(f"DirectionalScalper {VERSION} Initialized Successfully!".center(50))
+    print("=" * 50 + "\n")
 
-        # Correct the path for the configuration file
-        if not args.config.startswith('configs/'):
-            config_file_path = Path('configs/' + args.config)
-        else:
-            config_file_path = Path(args.config)
+    # Correct the path for the configuration file
+    if not args.config.startswith('configs/'):
+        config_file_path = Path('configs/' + args.config)
+    else:
+        config_file_path = Path(args.config)
 
-        config = load_config(config_file_path)
+    config = load_config(config_file_path)
 
-        # config_file_path = Path('configs/' + args.config)
-        # config = load_config(config_file_path)
+    # config_file_path = Path('configs/' + args.config)
+    # config = load_config(config_file_path)
 
-        exchange_name = args.exchange  # Now it will have a value
-        market_maker = DirectionalMarketMaker(config, exchange_name, args.account_name)
+    exchange_name = args.exchange  # Now it will have a value
+    market_maker = DirectionalMarketMaker(config, exchange_name, args.account_name)
 
-        manager = Manager(
-            market_maker.exchange, 
-            exchange_name=args.exchange, 
-            data_source_exchange=config.api.data_source_exchange,
-            api=config.api.mode, 
-            path=Path("data", config.api.filename), 
-            url=f"{config.api.url}{config.api.filename}"
-        )
+    manager = Manager(
+        market_maker.exchange, 
+        exchange_name=args.exchange, 
+        data_source_exchange=config.api.data_source_exchange,
+        api=config.api.mode, 
+        path=Path("data", config.api.filename), 
+        url=f"{config.api.url}{config.api.filename}"
+    )
 
-        print(f"Using exchange {config.api.data_source_exchange} for API data")
+    print(f"Using exchange {config.api.data_source_exchange} for API data")
 
-        # whitelist = config.bot.whitelist
-        blacklist = config.bot.blacklist
-        max_usd_value = config.bot.max_usd_value
+    # whitelist = config.bot.whitelist
+    blacklist = config.bot.blacklist
+    max_usd_value = config.bot.max_usd_value
 
-        # symbols_allowed = config.bot.symbols_allowed
-    
-        # Loop through the exchanges to find the correct exchange and account name
-        for exch in config.exchanges:
-            if exch.name == exchange_name and exch.account_name == args.account_name:
-                logging.info(f"Symbols allowed changed to symbols_allowed from config")
-                symbols_allowed = exch.symbols_allowed
-                break
-        else:
-            # Default to a reasonable value if symbols_allowed is None
-            logging.info(f"Symbols allowed defaulted to 10")
-            symbols_allowed = 10  # You can choose an appropriate default value
+    # symbols_allowed = config.bot.symbols_allowed
 
-        ### ILAY ###
-        table_manager = LiveTableManager()
-        display_thread = threading.Thread(target=table_manager.display_table)
-        display_thread.daemon = True
-        display_thread.start()
-        ### ILAY ###
+    # Loop through the exchanges to find the correct exchange and account name
+    for exch in config.exchanges:
+        if exch.name == exchange_name and exch.account_name == args.account_name:
+            logging.info(f"Symbols allowed changed to symbols_allowed from config")
+            symbols_allowed = exch.symbols_allowed
+            break
+    else:
+        # Default to a reasonable value if symbols_allowed is None
+        logging.info(f"Symbols allowed defaulted to 10")
+        symbols_allowed = 10  # You can choose an appropriate default value
 
-        # Fetch all symbols that meet your criteria and standardize them
-        all_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, max_usd_value=max_usd_value)]
+    ### ILAY ###
+    table_manager = LiveTableManager()
+    display_thread = threading.Thread(target=table_manager.display_table)
+    display_thread.daemon = True
+    display_thread.start()
+    ### ILAY ###
 
-        # Get symbols with open positions and standardize them
-        open_position_data = market_maker.exchange.get_all_open_positions_bybit()
-        open_positions_symbols = [standardize_symbol(position['symbol']) for position in open_position_data]
+    # Fetch all symbols that meet your criteria and standardize them
+    all_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, max_usd_value=max_usd_value)]
 
-        print(f"Open positions symbols: {open_positions_symbols}")
+    # Get symbols with open positions and standardize them
+    open_position_data = market_maker.exchange.get_all_open_positions_bybit()
+    open_positions_symbols = [standardize_symbol(position['symbol']) for position in open_position_data]
 
-        # Combine open positions symbols with potential new symbols
-        symbols_to_trade = list(set(open_positions_symbols + all_symbols_standardized[:symbols_allowed]))
+    print(f"Open positions symbols: {open_positions_symbols}")
 
-        print(f"Symbols to trade: {symbols_to_trade}")
+    # Combine open positions symbols with potential new symbols
+    symbols_to_trade = list(set(open_positions_symbols + all_symbols_standardized[:symbols_allowed]))
 
-        rotation_threshold = 120  # Adjust as necessary
+    print(f"Symbols to trade: {symbols_to_trade}")
 
-        while True:
+    rotation_threshold = 120  # Adjust as necessary
+
+    while True:
+        try:
             open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_bybit()}
             logging.info(f"Open position symbols: {open_position_symbols}")
 
@@ -456,8 +456,8 @@ if __name__ == '__main__':
             logging.info(f"Total active symbols: {len(active_symbols)}")
 
             time.sleep(30)
-    except Exception as e:
-        logging.info(f"Exception caught in main loop: {e}")
+        except Exception as e:
+            logging.info(f"Exception caught in main loop")
 
     # rotator_symbols = deque(standardize_symbol(sym) for sym in manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, max_usd_value=max_usd_value))
 
