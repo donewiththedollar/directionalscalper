@@ -483,7 +483,11 @@ class BybitMFIRSIQuickScalp(Strategy):
                         auto_reduce_start_price_long = long_pos_price * (1 - self.auto_reduce_start_pct)
                         auto_reduce_start_price_short = short_pos_price * (1 + self.auto_reduce_start_pct)
 
+                        logging.info(f"Auto reduce start price long: {auto_reduce_start_price_long}")
+                        logging.info(f"Auto reduce start price short: {auto_reduce_start_price_short}")
+
                         if long_pos_qty > 0 and long_pos_price:
+                            # Proceed with auto-reduce if market price is below the start price, stop if above
                             if current_market_price <= auto_reduce_start_price_long:
                                 max_levels, price_interval = self.calculate_auto_reduce_levels_long(
                                     long_pos_price, long_pos_qty, long_dynamic_amount, 
@@ -498,8 +502,11 @@ class BybitMFIRSIQuickScalp(Strategy):
                                         logging.info(f"Auto reduce order for {symbol} for long set at {step_price}")
                                         if i >= 3:  # Limit to 3 closest levels
                                             break
+                            else:
+                                logging.info(f"{symbol} Market price is above auto-reduce start level for long position. Halting auto-reduction.")
 
                         if short_pos_qty > 0 and short_pos_price:
+                            # Proceed with auto-reduce if market price is above the start price, stop if below
                             if current_market_price >= auto_reduce_start_price_short:
                                 max_levels, price_interval = self.calculate_auto_reduce_levels_short(
                                     short_pos_price, short_pos_qty, short_dynamic_amount, 
@@ -514,9 +521,12 @@ class BybitMFIRSIQuickScalp(Strategy):
                                         logging.info(f"Auto reduce order for {symbol} for short set at {step_price}")
                                         if i >= 3:  # Limit to 3 closest levels
                                             break
+                            else:
+                                logging.info(f"{symbol} Market price is below auto-reduce start level for short position. Halting auto-reduction.")
 
                     except Exception as e:
                         logging.info(f"{symbol} Exception caught in auto reduce {e}")
+
 
 
                 # short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, one_minute_distance, previous_one_minute_distance, short_take_profit, long_take_profit)
