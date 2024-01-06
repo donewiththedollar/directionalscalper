@@ -489,12 +489,12 @@ class BybitMFIRSIQuickScalp(Strategy):
 
                     if auto_reduce_enabled:
                         try:
-                            current_market_price = self.retry_api_call(self.get_current_price, symbol)
-                            # Initialize order tracking for the symbol
+                            current_market_price = self.exchange.get_current_price(symbol)
+                            logging.info(f"Current market price for {symbol}: {current_market_price}")
+
                             if symbol not in auto_reduce_orders:
                                 auto_reduce_orders[symbol] = []
 
-                            # Check and replace canceled auto-reduce orders
                             active_auto_reduce_orders = []
                             for order_id in auto_reduce_orders[symbol]:
                                 order_status = self.exchange.get_order_status(order_id, symbol)
@@ -503,7 +503,7 @@ class BybitMFIRSIQuickScalp(Strategy):
                                 else:
                                     logging.info(f"Auto-reduce order {order_id} for {symbol} was canceled. Replacing it.")
 
-                            auto_reduce_orders[symbol] = active_auto_reduce_orders  # Update active orders
+                            auto_reduce_orders[symbol] = active_auto_reduce_orders
 
                             if long_pos_qty > 0 and long_pos_price is not None:
                                 auto_reduce_start_price_long = long_pos_price * (1 - auto_reduce_start_pct)
@@ -514,16 +514,17 @@ class BybitMFIRSIQuickScalp(Strategy):
                                         long_pos_price, long_pos_qty, long_dynamic_amount, 
                                         auto_reduce_start_pct, auto_reduce_maxloss_pct
                                     )
+                                    logging.info(f"Max levels for long auto-reduce: {max_levels}, Price interval: {price_interval}")
 
                                     for i in range(1, max_levels + 1):
                                         step_price = long_pos_price - (price_interval * i)
+                                        logging.info(f"Checking long auto-reduce level {i} for {symbol} at price {step_price}")
                                         if step_price <= current_market_price and len(active_auto_reduce_orders) < 3:
                                             order_id = self.auto_reduce_long(symbol, long_pos_price, long_dynamic_amount, step_price)
                                             auto_reduce_orders[symbol].append(order_id)
-                                            logging.info(f"Auto reduce order for {symbol} for long set at {step_price}")
-
+                                            logging.info(f"Auto reduce order placed for {symbol} for long at level {i}, price {step_price}")
                                 else:
-                                    logging.info(f"{symbol} Market price is above auto-reduce start level for long position. Halting auto-reduction.")
+                                    logging.info(f"{symbol} Market price above auto-reduce start level for long position. Halting auto-reduction.")
 
                             if short_pos_qty > 0 and short_pos_price is not None:
                                 auto_reduce_start_price_short = short_pos_price * (1 + auto_reduce_start_pct)
@@ -534,19 +535,19 @@ class BybitMFIRSIQuickScalp(Strategy):
                                         short_pos_price, short_pos_qty, short_dynamic_amount, 
                                         auto_reduce_start_pct, auto_reduce_maxloss_pct
                                     )
+                                    logging.info(f"Max levels for short auto-reduce: {max_levels}, Price interval: {price_interval}")
 
                                     for i in range(1, max_levels + 1):
                                         step_price = short_pos_price + (price_interval * i)
+                                        logging.info(f"Checking short auto-reduce level {i} for {symbol} at price {step_price}")
                                         if step_price >= current_market_price and len(active_auto_reduce_orders) < 3:
                                             order_id = self.auto_reduce_short(symbol, short_pos_price, short_dynamic_amount, step_price)
                                             auto_reduce_orders[symbol].append(order_id)
-                                            logging.info(f"Auto reduce order for {symbol} for short set at {step_price}")
-
+                                            logging.info(f"Auto reduce order placed for {symbol} for short at level {i}, price {step_price}")
                                 else:
-                                    logging.info(f"{symbol} Market price is below auto-reduce start level for short position. Halting auto-reduction.")
-
+                                    logging.info(f"{symbol} Market price below auto-reduce start level for short position. Halting auto-reduction.")
                         except Exception as e:
-                            logging.info(f"Exception caught in auto reduce {e}")
+                            logging.error(f"{symbol} Exception caught in auto reduce: {e}")
 
 
 
