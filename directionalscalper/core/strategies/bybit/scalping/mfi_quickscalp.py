@@ -497,6 +497,7 @@ class BybitMFIRSIQuickScalp(Strategy):
                             # Place orders for closest levels
                             for level in closest_levels:
                                 self.auto_reduce_long(symbol, long_pos_price, long_dynamic_amount, level)
+                                logging.info(f"Auto reduce orders for {symbol} for long set at {level}")
 
                         if short_pos_qty > 0 and short_pos_price:
                             max_levels, price_interval = self.calculate_auto_reduce_levels_short(
@@ -516,7 +517,7 @@ class BybitMFIRSIQuickScalp(Strategy):
                             # Place orders for closest levels
                             for level in closest_levels:
                                 self.auto_reduce_short(symbol, short_pos_price, short_dynamic_amount, level)
-
+                                logging.info(f"Auto reduce orders for {symbol} for short set at {level}")
                     except Exception as e:
                         logging.info(f"{symbol} Exception caught in auto reduce {e}")
 
