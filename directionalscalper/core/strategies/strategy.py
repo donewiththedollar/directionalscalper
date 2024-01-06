@@ -3163,7 +3163,7 @@ class Strategy:
             step_price = Decimal(step_price).quantize(Decimal('1e-{}'.format(price_precision)), rounding=ROUND_HALF_DOWN)
 
             # Place the stop loss order with the reduced amount
-            self.postonly_limit_order_bybit_nolimit(symbol, 'sell', long_dynamic_amount, float(step_price), positionIdx=1, reduce_only=True)
+            self.postonly_limit_order_bybit_nolimit(symbol, 'sell', long_dynamic_amount, float(step_price), positionIdx=1, reduceOnly=True)
             logging.info(f"Placed auto-reduce long order for {symbol} at {step_price} with amount {long_dynamic_amount}")
 
     def auto_reduce_short(self, symbol, short_pos_price, short_pos_qty, short_dynamic_amount):
@@ -3184,7 +3184,7 @@ class Strategy:
             step_price = Decimal(step_price).quantize(Decimal('1e-{}'.format(price_precision)), rounding=ROUND_HALF_DOWN)
 
             # Place the stop loss order with the reduced amount
-            self.postonly_limit_order_bybit_nolimit(symbol, 'buy', short_dynamic_amount, float(step_price), positionIdx=2, reduce_only=True)
+            self.postonly_limit_order_bybit_nolimit(symbol, 'buy', short_dynamic_amount, float(step_price), positionIdx=2, reduceOnly=True)
             logging.info(f"Placed auto-reduce short order for {symbol} at {step_price} with amount {short_dynamic_amount}")
 
 
