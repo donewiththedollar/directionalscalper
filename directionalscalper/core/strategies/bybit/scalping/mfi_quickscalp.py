@@ -479,14 +479,9 @@ class BybitMFIRSIQuickScalp(Strategy):
                     try:
                         current_market_price = self.exchange.get_current_price(symbol)
 
-                        # Calculate the price at which auto-reduction should start
-                        auto_reduce_start_price_long = long_pos_price * (1 - self.auto_reduce_start_pct)
-                        auto_reduce_start_price_short = short_pos_price * (1 + self.auto_reduce_start_pct)
-
-                        logging.info(f"Auto reduce start price long: {auto_reduce_start_price_long}")
-                        logging.info(f"Auto reduce start price short: {auto_reduce_start_price_short}")
-
                         if long_pos_qty > 0 and long_pos_price:
+                            auto_reduce_start_price_long = long_pos_price * (1 - self.auto_reduce_start_pct)
+                            logging.info(f"Auto reduce start price long: {auto_reduce_start_price_long}")
                             # Proceed with auto-reduce if market price is below the start price, stop if above
                             if current_market_price <= auto_reduce_start_price_long:
                                 max_levels, price_interval = self.calculate_auto_reduce_levels_long(
@@ -497,6 +492,7 @@ class BybitMFIRSIQuickScalp(Strategy):
                                 # Place orders at levels below the auto-reduce start price
                                 for i in range(1, max_levels + 1):
                                     step_price = long_pos_price - (price_interval * i)
+                                    logging.info(f"Long step price for {symbol} {step_price}")
                                     if step_price <= current_market_price:
                                         self.auto_reduce_long(symbol, long_pos_price, long_dynamic_amount, step_price)
                                         logging.info(f"Auto reduce order for {symbol} for long set at {step_price}")
@@ -506,6 +502,8 @@ class BybitMFIRSIQuickScalp(Strategy):
                                 logging.info(f"{symbol} Market price is above auto-reduce start level for long position. Halting auto-reduction.")
 
                         if short_pos_qty > 0 and short_pos_price:
+                            auto_reduce_start_price_short = short_pos_price * (1 + self.auto_reduce_start_pct)
+                            logging.info(f"Auto reduce start price short: {auto_reduce_start_price_short}")
                             # Proceed with auto-reduce if market price is above the start price, stop if below
                             if current_market_price >= auto_reduce_start_price_short:
                                 max_levels, price_interval = self.calculate_auto_reduce_levels_short(
@@ -516,6 +514,7 @@ class BybitMFIRSIQuickScalp(Strategy):
                                 # Place orders at levels above the auto-reduce start price
                                 for i in range(1, max_levels + 1):
                                     step_price = short_pos_price + (price_interval * i)
+                                    logging.info(f"Short step price for {symbol} {step_price}")
                                     if step_price >= current_market_price:
                                         self.auto_reduce_short(symbol, short_pos_price, short_dynamic_amount, step_price)
                                         logging.info(f"Auto reduce order for {symbol} for short set at {step_price}")
