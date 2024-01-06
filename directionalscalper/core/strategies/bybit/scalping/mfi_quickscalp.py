@@ -521,6 +521,7 @@ class BybitMFIRSIQuickScalp(Strategy):
                                         logging.info(f"Checking long auto-reduce level {i} for {symbol} at price {step_price}")
                                         if step_price <= current_market_price and len(active_auto_reduce_orders) < 3:
                                             order_id = self.auto_reduce_long(symbol, long_pos_price, long_dynamic_amount, step_price)
+                                            logging.info(f"Auto reduce order id {order_id} for {symbol}")
                                             auto_reduce_orders[symbol].append(order_id)
                                             logging.info(f"Auto reduce order placed for {symbol} for long at level {i}, price {step_price}")
                                 else:
@@ -542,6 +543,7 @@ class BybitMFIRSIQuickScalp(Strategy):
                                         logging.info(f"Checking short auto-reduce level {i} for {symbol} at price {step_price}")
                                         if step_price >= current_market_price and len(active_auto_reduce_orders) < 3:
                                             order_id = self.auto_reduce_short(symbol, short_pos_price, short_dynamic_amount, step_price)
+                                            logging.info(f"Auto reduce order id {order_id} for {symbol}")
                                             auto_reduce_orders[symbol].append(order_id)
                                             logging.info(f"Auto reduce order placed for {symbol} for short at level {i}, price {step_price}")
                                 else:
