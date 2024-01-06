@@ -481,7 +481,7 @@ class BybitMFIRSIQuickScalp(Strategy):
 
                         if long_pos_qty > 0 and long_pos_price:
                             auto_reduce_start_price_long = long_pos_price * (1 - self.auto_reduce_start_pct)
-                            logging.info(f"Auto reduce start price long: {auto_reduce_start_price_long}")
+                            logging.info(f"Auto reduce start price long for {symbol}: {auto_reduce_start_price_long}")
                             # Proceed with auto-reduce if market price is below the start price, stop if above
                             if current_market_price <= auto_reduce_start_price_long:
                                 max_levels, price_interval = self.calculate_auto_reduce_levels_long(
@@ -503,7 +503,7 @@ class BybitMFIRSIQuickScalp(Strategy):
 
                         if short_pos_qty > 0 and short_pos_price:
                             auto_reduce_start_price_short = short_pos_price * (1 + self.auto_reduce_start_pct)
-                            logging.info(f"Auto reduce start price short: {auto_reduce_start_price_short}")
+                            logging.info(f"Auto reduce start price short for {symbol}: {auto_reduce_start_price_short}")
                             # Proceed with auto-reduce if market price is above the start price, stop if below
                             if current_market_price >= auto_reduce_start_price_short:
                                 max_levels, price_interval = self.calculate_auto_reduce_levels_short(
