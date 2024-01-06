@@ -49,22 +49,25 @@ class BybitMFIRSIQuickScalp(Strategy):
             logging.error(f"Failed to initialize attributes from config: {e}")
 
     def run(self, symbol, rotator_symbols_standardized=None):
-        standardized_symbol = symbol.upper()  # Standardize the symbol name
-        logging.info(f"Standardized symbol: {standardized_symbol}")
-        current_thread_id = threading.get_ident()
+        try:
+            standardized_symbol = symbol.upper()  # Standardize the symbol name
+            logging.info(f"Standardized symbol: {standardized_symbol}")
+            current_thread_id = threading.get_ident()
 
-        if standardized_symbol not in symbol_locks:
-            symbol_locks[standardized_symbol] = threading.Lock()
+            if standardized_symbol not in symbol_locks:
+                symbol_locks[standardized_symbol] = threading.Lock()
 
-        if symbol_locks[standardized_symbol].acquire(blocking=False):
-            logging.info(f"Lock acquired for symbol {standardized_symbol} by thread {current_thread_id}")
-            try:
-                self.run_single_symbol(standardized_symbol, rotator_symbols_standardized)
-            finally:
-                symbol_locks[standardized_symbol].release()
-                logging.info(f"Lock released for symbol {standardized_symbol} by thread {current_thread_id}")
-        else:
-            logging.info(f"Failed to acquire lock for symbol: {standardized_symbol}")
+            if symbol_locks[standardized_symbol].acquire(blocking=False):
+                logging.info(f"Lock acquired for symbol {standardized_symbol} by thread {current_thread_id}")
+                try:
+                    self.run_single_symbol(standardized_symbol, rotator_symbols_standardized)
+                finally:
+                    symbol_locks[standardized_symbol].release()
+                    logging.info(f"Lock released for symbol {standardized_symbol} by thread {current_thread_id}")
+            else:
+                logging.info(f"Failed to acquire lock for symbol: {standardized_symbol}")
+        except Exception as e:
+            logging.info(f"Exception in run function {e}")
 
     def run_single_symbol(self, symbol, rotator_symbols_standardized=None):
         try:
@@ -480,14 +483,13 @@ class BybitMFIRSIQuickScalp(Strategy):
                                     logging.info(f"Setting short stop loss for {symbol} at {adjusted_short_stop_loss}")
                                     self.postonly_limit_order_bybit_nolimit(symbol, "buy", short_pos_qty, adjusted_short_stop_loss, positionIdx=2, reduceOnly=True)
                         except Exception as e:
-                            logging.info(f"{symbol} Exception caught in stop loss functionality: {e}")
+                            logging.info(f"Exception caught in stop loss functionality: {e}")
 
                     auto_reduce_orders = {}  # Dictionary to track auto-reduce orders for each symbol
 
                     if auto_reduce_enabled:
                         try:
-                            current_market_price = self.exchange.get_current_price(symbol)
-
+                            current_market_price = self.retry_api_call(self.get_current_price, symbol)
                             # Initialize order tracking for the symbol
                             if symbol not in auto_reduce_orders:
                                 auto_reduce_orders[symbol] = []
@@ -544,7 +546,7 @@ class BybitMFIRSIQuickScalp(Strategy):
                                     logging.info(f"{symbol} Market price is below auto-reduce start level for short position. Halting auto-reduction.")
 
                         except Exception as e:
-                            logging.info(f"{symbol} Exception caught in auto reduce {e}")
+                            logging.info(f"Exception caught in auto reduce {e}")
 
 
 

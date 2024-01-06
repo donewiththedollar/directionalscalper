@@ -1917,15 +1917,14 @@ class Exchange:
 
     # Universal
     def get_current_price(self, symbol: str) -> float:
-        current_price = 0.0
         try:
             ticker = self.exchange.fetch_ticker(symbol)
             if "bid" in ticker and "ask" in ticker:
-                current_price = (ticker["bid"] + ticker["ask"]) / 2
+                return (ticker["bid"] + ticker["ask"]) / 2
         except Exception as e:
-            logging.info(f"An unknown error occurred in get_positions(): {e}")
-        return current_price
-
+            logging.error(f"An error occurred in get_current_price() for {symbol}: {e}")
+            return None
+        
     # Binance
     def get_current_price_binance(self, symbol: str) -> float:
         current_price = 0.0
