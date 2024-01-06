@@ -188,7 +188,6 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
             open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
             logging.info(f"Open symbols: {open_symbols}")
-            
             if symbol not in open_symbols:
                 # If the symbol is no longer in open positions, check the time elapsed
                 if not hasattr(self, 'position_closed_time'):
