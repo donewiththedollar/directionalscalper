@@ -63,7 +63,7 @@ class BybitMFIRSIERIOBImbalance(Strategy):
         logging.info(f"Starting to process symbol: {symbol}")
         logging.info(f"Initializing default values for symbol: {symbol}")
 
-        position_inactive_threshold = 120
+        position_inactive_threshold = 60
 
         min_qty = None
         current_price = None
