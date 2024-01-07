@@ -362,6 +362,9 @@ class Manager:
     def get_api_data(self, symbol):
         api_data_url = f"http://apiv3.tradesimple.xyz/data/quantdatav2_{self.data_source_exchange}.json"
         data = self.fetch_data_from_url(api_data_url)
+
+        symbols = [asset.get("Asset", "") for asset in data if "Asset" in asset]
+        
         api_data = {
             '1mVol': self.get_asset_value(symbol, data, "1mVol"),
             '5mVol': self.get_asset_value(symbol, data, "5mVol"),
@@ -376,13 +379,38 @@ class Manager:
             'MFI': self.get_asset_value(symbol, data, "MFI"),
             'ERI Trend': self.get_asset_value(symbol, data, "ERI Trend"),
             'Funding': self.get_asset_value(symbol, data, "Funding"),
-            'Symbols': self.get_symbols(),
+            'Symbols': symbols,
             'Top Signal 5m': self.get_asset_value(symbol, data, "Top Signal 5m"),
             'Bottom Signal 5m': self.get_asset_value(symbol, data, "Bottom Signal 5m"),
             'Top Signal 1m': self.get_asset_value(symbol, data, "Top Signal 1m"),
             'Bottom Signal 1m': self.get_asset_value(symbol, data, "Bottom Signal 1m")
         }
         return api_data
+
+    # def get_api_data(self, symbol):
+    #     api_data_url = f"http://apiv3.tradesimple.xyz/data/quantdatav2_{self.data_source_exchange}.json"
+    #     data = self.fetch_data_from_url(api_data_url)
+    #     api_data = {
+    #         '1mVol': self.get_asset_value(symbol, data, "1mVol"),
+    #         '5mVol': self.get_asset_value(symbol, data, "5mVol"),
+    #         '1hVol': self.get_asset_value(symbol, data, "1hVol"),
+    #         '1mSpread': self.get_asset_value(symbol, data, "1mSpread"),
+    #         '5mSpread': self.get_asset_value(symbol, data, "5mSpread"),
+    #         '30mSpread': self.get_asset_value(symbol, data, "30mSpread"),
+    #         '1hSpread': self.get_asset_value(symbol, data, "1hSpread"),
+    #         '4hSpread': self.get_asset_value(symbol, data, "4hSpread"),
+    #         'Trend': self.get_asset_value(symbol, data, "Trend"),
+    #         'HMA Trend': self.get_asset_value(symbol, data, "HMA Trend"),
+    #         'MFI': self.get_asset_value(symbol, data, "MFI"),
+    #         'ERI Trend': self.get_asset_value(symbol, data, "ERI Trend"),
+    #         'Funding': self.get_asset_value(symbol, data, "Funding"),
+    #         'Symbols': self.get_symbols(),
+    #         'Top Signal 5m': self.get_asset_value(symbol, data, "Top Signal 5m"),
+    #         'Bottom Signal 5m': self.get_asset_value(symbol, data, "Bottom Signal 5m"),
+    #         'Top Signal 1m': self.get_asset_value(symbol, data, "Top Signal 1m"),
+    #         'Bottom Signal 1m': self.get_asset_value(symbol, data, "Bottom Signal 1m")
+    #     }
+    #     return api_data
 
     def extract_metrics(self, api_data, symbol):
         try:
