@@ -523,7 +523,10 @@ class BybitMFIRSIQuickScalp(Strategy):
                                         auto_reduce_orders[symbol].append(order_id)
 
                                 else:
-                                    logging.info(f"{symbol} Market price above auto-reduce start level for long position. Halting auto-reduction.")
+                                    logging.info(f"{symbol} Market price above auto-reduce start level for long position. Halting auto-reduction and canceling orders.")
+                                    for order_id in active_auto_reduce_orders:
+                                        self.exchange.cancel_order(order_id, symbol)
+                                    auto_reduce_orders[symbol].clear()
 
                             if short_pos_qty > 0 and short_pos_price is not None:
                                 auto_reduce_start_price_short = short_pos_price * (1 + auto_reduce_start_pct)
@@ -543,65 +546,13 @@ class BybitMFIRSIQuickScalp(Strategy):
                                         auto_reduce_orders[symbol].append(order_id)
 
                                 else:
-                                    logging.info(f"{symbol} Market price below auto-reduce start level for short position. Halting auto-reduction.")
+                                    logging.info(f"{symbol} Market price below auto-reduce start level for short position. Halting auto-reduction and canceling orders.")
+                                    for order_id in active_auto_reduce_orders:
+                                        self.exchange.cancel_order(order_id, symbol)
+                                    auto_reduce_orders[symbol].clear()
+
                         except Exception as e:
                             logging.error(f"{symbol} Exception caught in auto reduce: {e}")
-
-
-
-
-                    # if auto_reduce_enabled:
-                    #     try:
-                    #         current_market_price = self.exchange.get_current_price(symbol)
-
-                    #         if long_pos_qty > 0 and long_pos_price:
-                    #             auto_reduce_start_price_long = long_pos_price * (1 - self.auto_reduce_start_pct)
-                    #             logging.info(f"Auto reduce start price long for {symbol}: {auto_reduce_start_price_long}")
-                    #             # Proceed with auto-reduce if market price is below the start price, stop if above
-                    #             if current_market_price <= auto_reduce_start_price_long:
-                    #                 max_levels, price_interval = self.calculate_auto_reduce_levels_long(
-                    #                     long_pos_price, long_pos_qty, long_dynamic_amount, 
-                    #                     self.auto_reduce_start_pct, self.auto_reduce_maxloss_pct
-                    #                 )
-
-                    #                 # Place orders at levels below the auto-reduce start price
-                    #                 for i in range(1, max_levels + 1):
-                    #                     step_price = long_pos_price - (price_interval * i)
-                    #                     logging.info(f"Long step price for {symbol} {step_price}")
-                    #                     if step_price <= current_market_price:
-                    #                         self.auto_reduce_long(symbol, long_pos_price, long_dynamic_amount, step_price)
-                    #                         logging.info(f"Auto reduce order for {symbol} for long set at {step_price}")
-                    #                         if i >= 3:  # Limit to 3 closest levels
-                    #                             break
-                    #             else:
-                    #                 logging.info(f"{symbol} Market price is above auto-reduce start level for long position. Halting auto-reduction.")
-
-                    #         if short_pos_qty > 0 and short_pos_price:
-                    #             auto_reduce_start_price_short = short_pos_price * (1 + self.auto_reduce_start_pct)
-                    #             logging.info(f"Auto reduce start price short for {symbol}: {auto_reduce_start_price_short}")
-                    #             # Proceed with auto-reduce if market price is above the start price, stop if below
-                    #             if current_market_price >= auto_reduce_start_price_short:
-                    #                 max_levels, price_interval = self.calculate_auto_reduce_levels_short(
-                    #                     short_pos_price, short_pos_qty, short_dynamic_amount, 
-                    #                     self.auto_reduce_start_pct, self.auto_reduce_maxloss_pct
-                    #                 )
-
-                    #                 # Place orders at levels above the auto-reduce start price
-                    #                 for i in range(1, max_levels + 1):
-                    #                     step_price = short_pos_price + (price_interval * i)
-                    #                     logging.info(f"Short step price for {symbol} {step_price}")
-                    #                     if step_price >= current_market_price:
-                    #                         self.auto_reduce_short(symbol, short_pos_price, short_dynamic_amount, step_price)
-                    #                         logging.info(f"Auto reduce order for {symbol} for short set at {step_price}")
-                    #                         if i >= 3:  # Limit to 3 closest levels
-                    #                             break
-                    #             else:
-                    #                 logging.info(f"{symbol} Market price is below auto-reduce start level for short position. Halting auto-reduction.")
-
-                    #     except Exception as e:
-                    #         logging.info(f"{symbol} Exception caught in auto reduce {e}")
-
-
 
                     # short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, one_minute_distance, previous_one_minute_distance, short_take_profit, long_take_profit)
                     #short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
