@@ -186,7 +186,7 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         strategy_name = args.strategy
         account_name = args.account_name  # Get the account_name from args
 
-        print(f"Symbol: {symbol}")
+        print(f"Trading symbol: {symbol}")
         print(f"Exchange name: {exchange_name}")
         print(f"Strategy name: {strategy_name}")
         print(f"Account name: {account_name}") 
@@ -200,16 +200,16 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
 
         quote = "USDT"
         current_time = time.time()
-        if current_time - last_balance_fetch_time > BALANCE_REFRESH_INTERVAL or not cached_balance:
-            if exchange_name.lower() == 'huobi':
-                print(f"Loading huobi strategy..")
-            elif exchange_name.lower() == 'mexc':
-                cached_balance = market_maker.get_balance(quote, type='swap')
-                print(f"Futures balance: {cached_balance}")
-            else:
-                cached_balance = market_maker.get_balance(quote)
-                print(f"Futures balance: {cached_balance}")
-            last_balance_fetch_time = current_time
+        # if current_time - last_balance_fetch_time > BALANCE_REFRESH_INTERVAL or not cached_balance:
+        #     if exchange_name.lower() == 'huobi':
+        #         print(f"Loading huobi strategy..")
+        #     elif exchange_name.lower() == 'mexc':
+        #         cached_balance = market_maker.get_balance(quote, type='swap')
+        #         print(f"Futures balance: {cached_balance}")
+        #     else:
+        #         cached_balance = market_maker.get_balance(quote)
+        #         print(f"Futures balance: {cached_balance}")
+        #     last_balance_fetch_time = current_time
     except Exception as e:
         logging.error(f"An error occurred in run_bot for symbol {symbol}: {e}")
 
