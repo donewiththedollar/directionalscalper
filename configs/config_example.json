@@ -1,6 +1,6 @@
 {
   "api": {
-    "filename": "quantdatav2.json",
+    "filename": "quantdatav2_bybit.json",
     "mode": "remote",
     "url": "http://apiv3.tradesimple.xyz/data/",
     "data_source_exchange": "bybit"
