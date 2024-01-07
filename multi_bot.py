@@ -378,7 +378,7 @@ if __name__ == '__main__':
 
     print(f"Symbols to trade: {symbols_to_trade}")
 
-    rotation_threshold = 120  # Adjust as necessary
+    rotation_threshold = 60  # Adjust as necessary
 
     while True:
         try:
