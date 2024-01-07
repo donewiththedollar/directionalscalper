@@ -10,7 +10,7 @@
     "symbol": "BTCUSDT",
     "min_distance": 0.15,
     "min_distance_largecap": 0.085,
-    "min_volume": 15000,
+    "min_volume": 10000,
     "user_risk_level": 2.0,
     "upnl_profit_pct": 0.003,
     "stoploss_enabled": false,
