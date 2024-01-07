@@ -186,6 +186,9 @@ class BybitMFIRSIQuickScalp(Strategy):
 
             while True:
                 current_time = time.time()
+
+                iteration_start_time = time.time()
+
                 logging.info(f"Max USD value: {self.max_usd_value}")
 
                 # Log which thread is running this part of the code
@@ -727,6 +730,10 @@ class BybitMFIRSIQuickScalp(Strategy):
                     with open(dashboard_path, "w") as f:
                         json.dump(data_to_save, f)
                     self.update_shared_data(symbol_data, open_position_data, len(open_symbols))
+
+                iteration_end_time = time.time()  # Record the end time of the iteration
+                iteration_duration = iteration_end_time - iteration_start_time
+                logging.info(f"Iteration for symbol {symbol} took {iteration_duration:.2f} seconds")
 
                 time.sleep(5)
         except Exception as e:
