@@ -340,7 +340,7 @@ if __name__ == '__main__':
 
     print(f"Using exchange {config.api.data_source_exchange} for API data")
 
-    # whitelist = config.bot.whitelist
+    whitelist = config.bot.whitelist
     blacklist = config.bot.blacklist
     max_usd_value = config.bot.max_usd_value
 
@@ -382,13 +382,21 @@ if __name__ == '__main__':
 
     while True:
         try:
+            # Fetching symbols from the config
+            whitelist = config.bot.whitelist
+            blacklist = config.bot.blacklist
+            max_usd_value = config.bot.max_usd_value
+
+            # Fetching open position symbols and standardizing them
             open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_bybit()}
             logging.info(f"Open position symbols: {open_position_symbols}")
 
-            latest_rotator_symbols = set(standardize_symbol(sym) for sym in manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, max_usd_value=max_usd_value))
+            # Fetching potential symbols from manager
+            potential_symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+            latest_rotator_symbols = set(standardize_symbol(sym) for sym in potential_symbols)
             logging.info(f"Latest rotator symbols: {latest_rotator_symbols}")
 
-            # Remove finished threads and log running threads
+            # Thread management
             running_threads_info = []
             for symbol, thread in list(threads.items()):
                 if thread.is_alive():
@@ -397,10 +405,9 @@ if __name__ == '__main__':
                     active_symbols.discard(symbol)
                     del threads[symbol]
                     thread_start_time.pop(symbol, None)
-
             logging.info(f"Currently running threads for symbols: {running_threads_info}")
 
-            # Start threads for open position symbols
+            # Start threads for symbols with open positions
             for symbol in open_position_symbols:
                 if symbol not in active_symbols and len(active_symbols) < symbols_allowed:
                     logging.info(f"Starting thread for open position symbol: {symbol}")
@@ -420,34 +427,26 @@ if __name__ == '__main__':
                     active_symbols.add(symbol)
                     thread_start_time[symbol] = time.time()
 
-            # Rotate out boring symbols and replace with random symbols from latest_rotator_symbols
+            # Rotate out inactive symbols and replace with new ones
             current_time = time.time()
             for symbol in list(active_symbols):
                 if symbol not in open_position_symbols and current_time - thread_start_time.get(symbol, 0) > rotation_threshold:
-                    if len(latest_rotator_symbols) > 0:
-                        # Select a random symbol that is not in active_symbols
+                    if latest_rotator_symbols:
                         available_symbols = latest_rotator_symbols - active_symbols
                         if available_symbols:
                             random_symbol = random.choice(list(available_symbols))
-                            logging.info(f"Rotating out boring symbol {symbol} for new symbol {random_symbol}")
-
-                            # Stop the thread for the old symbol, if needed
+                            logging.info(f"Rotating out inactive symbol {symbol} for new symbol {random_symbol}")
+                            # Thread management for rotation
                             if threads.get(symbol):
                                 threads[symbol].join()
                                 del threads[symbol]
-
-                            # Remove the old symbol and add the new symbol
                             active_symbols.discard(symbol)
                             active_symbols.add(random_symbol)
                             thread_start_time.pop(symbol, None)
-
-                            # Start a new thread for the new symbol
                             thread = threading.Thread(target=run_bot, args=(random_symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols))
                             thread.start()
                             threads[random_symbol] = thread
                             thread_start_time[random_symbol] = time.time()
-
-                            # Update the latest_rotator_symbols to remove the selected symbol
                             latest_rotator_symbols.discard(random_symbol)
                         else:
                             logging.info(f"No available new symbols to replace {symbol}")
@@ -457,4 +456,4 @@ if __name__ == '__main__':
 
             time.sleep(30)
         except Exception as e:
-            logging.info(f"Exception caught in main loop")
+            logging.info(f"Exception caught in main loop: {e}")

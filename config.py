@@ -55,6 +55,7 @@ class Bot(BaseModel):
     test_orders_enabled: bool = False
     max_usd_value: Optional[float] = None
     blacklist: List[str] = []
+    whitelist: List[str] = []
     dashboard_enabled: bool = False
     shared_data_path: Optional[str] = None
     # shared_data_path: Optional[DirectoryPath] = None
