@@ -179,7 +179,7 @@ class Manager:
         logging.warning(f"Couldn't fetch symbols after {max_retries} attempts.")
         return []
 
-    def get_auto_rotate_symbols(self, min_qty_threshold: float = None, blacklist: list = None, max_usd_value: float = None, max_retries: int = 5):
+    def get_auto_rotate_symbols(self, min_qty_threshold: float = None, blacklist: list = None, whitelist: list = None, max_usd_value: float = None, max_retries: int = 5):
         if self.rotator_symbols_cache and not self.is_cache_expired():
             return self.rotator_symbols_cache
 
@@ -206,6 +206,10 @@ class Manager:
 
                         if blacklist and any(fnmatch.fnmatch(symbol, pattern) for pattern in blacklist):
                             logging.info(f"Skipping {symbol} as it's in blacklist")
+                            continue
+
+                        if whitelist and symbol not in whitelist:
+                            logging.info(f"Skipping {symbol} as it's not in whitelist")
                             continue
 
                         # Check against the max_usd_value, if provided
@@ -242,6 +246,7 @@ class Manager:
         # Return cached symbols if all retries fail
         logging.warning(f"Couldn't fetch rotator symbols after {max_retries} attempts. Using cached symbols.")
         return self.rotator_symbols_cache or []
+
     
     def get_symbols(self):
         url = f"http://apiv3.tradesimple.xyz/data/quantdatav2_bybit.json"
