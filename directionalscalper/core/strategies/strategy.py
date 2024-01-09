@@ -3332,7 +3332,7 @@ class Strategy:
 
         return float(target_profit_price)
 
-    def handle_long_positions(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, long_dynamic_amount: float, long_pos_qty: float, long_pos_price: float):
+    def quickscalp_mfi_handle_long_positions(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, long_dynamic_amount: float, long_pos_qty: float, long_pos_price: float):
         if symbol not in self.symbol_locks:
             self.symbol_locks[symbol] = threading.Lock()
 
@@ -3362,7 +3362,7 @@ class Strategy:
 
             time.sleep(5)
 
-    def handle_short_positions(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, short_dynamic_amount: float, short_pos_qty: float, short_pos_price: float):
+    def quickscalp_mfi_handle_short_positions(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, short_dynamic_amount: float, short_pos_qty: float, short_pos_price: float):
         if symbol not in self.symbol_locks:
             self.symbol_locks[symbol] = threading.Lock()
 

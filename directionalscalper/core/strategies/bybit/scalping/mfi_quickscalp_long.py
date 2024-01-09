@@ -611,23 +611,15 @@ class BybitMFIRSIQuickScalpLong(Strategy):
                         except Exception as e:
                             logging.info(f"Exception fetching Short UPNL for {symbol}: {e}")
 
-                    self.bybit_1m_mfi_quickscalp(
+                    self.quickscalp_mfi_handle_long_positions(
                         open_orders,
                         symbol,
                         min_vol,
                         one_minute_volume,
                         mfirsi_signal,
-                        eri_trend,
                         long_dynamic_amount,
-                        short_dynamic_amount,
                         long_pos_qty,
-                        short_pos_qty,
                         long_pos_price,
-                        short_pos_price,
-                        should_long,
-                        should_short,
-                        should_add_to_long,
-                        should_add_to_short,
                         upnl_profit_pct
                     )
                     
