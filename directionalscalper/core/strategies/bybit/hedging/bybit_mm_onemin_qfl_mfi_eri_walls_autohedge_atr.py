@@ -260,8 +260,8 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
 
             time.sleep(5)
 
-            self.print_trade_quantities_once_bybit(symbol)
-
+            self.print_trade_quantities_once_bybit(symbol, total_equity, self.max_leverage)
+            
             # self.check_for_inactivity(long_pos_qty, short_pos_qty)
 
             logging.info(f"Rotator symbols standardized: {rotator_symbols_standardized}")

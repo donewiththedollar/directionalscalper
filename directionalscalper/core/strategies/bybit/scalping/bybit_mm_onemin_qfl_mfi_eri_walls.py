@@ -274,7 +274,7 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
 
                 time.sleep(5)
 
-                self.print_trade_quantities_once_bybit(symbol)
+                self.print_trade_quantities_once_bybit(symbol, total_equity, self.max_leverage)
 
                 logging.info(f"Rotator symbols standardized: {rotator_symbols_standardized}")
 

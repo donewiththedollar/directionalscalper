@@ -267,7 +267,7 @@ class BybitMFIRSIERIOBImbalance(Strategy):
 
                 time.sleep(5)
 
-                self.print_trade_quantities_once_bybit(symbol)
+                self.print_trade_quantities_once_bybit(symbol, total_equity, self.max_leverage)
 
 
                 moving_averages = self.get_all_moving_averages(symbol)
