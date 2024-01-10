@@ -145,6 +145,13 @@ class BybitMFIRSIERIOBImbalance(Strategy):
                 thread_id = threading.get_ident()
                 logging.info(f"[Thread ID: {thread_id}] In while true loop {symbol}")
 
+                iteration_start_time = time.time()
+
+                # Check if the symbol should terminate
+                if self.should_terminate(symbol, current_time):
+                    self.cleanup_before_termination(symbol)
+                    break  # Exit the while loop, thus ending the thread
+                
                 # Fetch open symbols every loop
                 open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
 
