@@ -186,8 +186,6 @@ class BybitMFIRSIQuickScalpLong(Strategy):
             while True:
                 current_time = time.time()
 
-                iteration_start_time = time.time()
-
                 logging.info(f"Max USD value: {self.max_usd_value}")
 
                 iteration_start_time = time.time()
@@ -196,7 +194,7 @@ class BybitMFIRSIQuickScalpLong(Strategy):
                 if self.should_terminate(symbol, current_time):
                     self.cleanup_before_termination(symbol)
                     break  # Exit the while loop, thus ending the thread
-                
+
                 # Log which thread is running this part of the code
                 thread_id = threading.get_ident()
                 logging.info(f"[Thread ID: {thread_id}] In while true loop {symbol}")

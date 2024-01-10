@@ -151,7 +151,7 @@ class BybitMFIRSIERIOBImbalance(Strategy):
                 if self.should_terminate(symbol, current_time):
                     self.cleanup_before_termination(symbol)
                     break  # Exit the while loop, thus ending the thread
-                
+
                 # Fetch open symbols every loop
                 open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
 
@@ -195,21 +195,7 @@ class BybitMFIRSIERIOBImbalance(Strategy):
                 open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
                 logging.info(f"Open symbols: {open_symbols}")
-                
-                # if symbol not in open_symbols:
-                #     # If the symbol is no longer in open positions, check the time elapsed
-                #     if not hasattr(self, 'position_closed_time'):
-                #         self.position_closed_time = current_time
-                #     elif current_time - self.position_closed_time > position_inactive_threshold:
-                #         logging.info(f"Position for {symbol} has been closed for more than {position_inactive_threshold} seconds. Cancelling all orders and stopping strategy.")
-                #         # Cancel all orders for this symbol before stopping the strategy
-                #         self.exchange.cancel_all_orders_for_symbol_bybit(symbol)
-                #         break
-                # else:
-                #     # Reset the timer if the position is found open again
-                #     if hasattr(self, 'position_closed_time'):
-                #         del self.position_closed_time
-
+            
                 # position_last_update_time = self.get_position_update_time(symbol)
 
                 # logging.info(f"{symbol} last update time: {position_last_update_time}")
