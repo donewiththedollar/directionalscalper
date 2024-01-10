@@ -1295,7 +1295,7 @@ class Strategy:
         else:
             logging.info(f"Positions for {symbol} are currently safe from liquidation.")
 
-    def print_trade_quantities_once_bybit(self, symbol):
+    def print_trade_quantities_once_bybit(self, symbol, total_equity, max_leverage):
         # Ensure symbol is initialized
         if symbol not in self.initialized_symbols:
             if not self.initialize_symbol(symbol, total_equity, best_ask_price, max_leverage):
