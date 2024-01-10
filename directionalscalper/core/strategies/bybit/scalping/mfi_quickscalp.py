@@ -4,6 +4,7 @@ import os
 import copy
 import pytz
 import threading
+import traceback
 from threading import Thread, Lock
 from datetime import datetime, timedelta
 
@@ -293,7 +294,7 @@ class BybitMFIRSIQuickScalp(Strategy):
                     best_bid_price = self.last_known_bid.get(symbol)  # Use last known bid price
                                 
                 moving_averages = self.get_all_moving_averages(symbol)
-                
+
                 logging.info(f"Open symbols: {open_symbols}")
                 logging.info(f"Current rotator symbols: {rotator_symbols_standardized}")
                 symbols_to_manage = [s for s in open_symbols if s not in rotator_symbols_standardized]
@@ -716,4 +717,5 @@ class BybitMFIRSIQuickScalp(Strategy):
 
                 time.sleep(5)
         except Exception as e:
-            logging.info(f"Exception caught in quickscalp strategy {e}")
+            traceback_info = traceback.format_exc()  # Get the full traceback
+            logging.error(f"Exception caught in quickscalp strategy '{symbol}': {e}\nTraceback:\n{traceback_info}")
