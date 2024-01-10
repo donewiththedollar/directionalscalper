@@ -234,6 +234,8 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
             else:
                 best_bid_price = self.last_known_bid.get(symbol)  # Use last known bid price
                             
+            moving_averages = self.get_all_moving_averages(symbol)
+
             logging.info(f"Open symbols: {open_symbols}")
             logging.info(f"Current rotator symbols: {rotator_symbols_standardized}")
             symbols_to_manage = [s for s in open_symbols if s not in rotator_symbols_standardized]
@@ -251,15 +253,16 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
 
             self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
 
-            with self.initialized_symbols_lock:
-                logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
-
-
-            moving_averages = self.get_all_moving_averages(symbol)
+            # Log the currently initialized symbols
+            logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
 
             # self.check_for_inactivity(long_pos_qty, short_pos_qty)
 
-            time.sleep(10)
+            time.sleep(5)
+
+            self.print_trade_quantities_once_bybit(symbol)
+
+            # self.check_for_inactivity(long_pos_qty, short_pos_qty)
 
             logging.info(f"Rotator symbols standardized: {rotator_symbols_standardized}")
 
@@ -319,14 +322,6 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
                 # long_liq_price = position_data["long"]["liq_price"]
 
                 self.adjust_risk_parameters()
-
-                # Initialize the symbol and quantities if not done yet
-                self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
-
-                with self.initialized_symbols_lock:
-                    logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
-
-                self.print_trade_quantities_once_bybit(symbol)
 
                 self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
                 self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
