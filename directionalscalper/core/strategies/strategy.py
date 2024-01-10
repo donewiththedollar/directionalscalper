@@ -104,16 +104,36 @@ class Strategy:
                 return False
 
     def adjust_risk_parameters(self):
-        # Scale the parameters between their min and max values based on user risk level
-        scale = (self.user_risk_level - self.MIN_RISK_LEVEL) / (self.MAX_RISK_LEVEL - self.MIN_RISK_LEVEL)
+        # Ensure user_risk_level is within the expected range
+        user_risk_level = max(self.MIN_RISK_LEVEL, min(self.user_risk_level, self.MAX_RISK_LEVEL))
 
-        # Adjust the parameters
-        self.MAX_PCT_EQUITY = 0.05 + (scale * (1.0 - 0.05))  # Adjusted range: 5% to 100%
-        self.LEVERAGE_STEP = 0.002 + (scale * (0.01 - 0.002))  # Example: 0.002 to 0.01
-        self.MAX_LEVERAGE = 0.1 + (scale * (1.0 - 0.1))  # Example: 0.1 to 1.0
+        # Convert risk level to a scale factor between 0 and 1
+        scale = (user_risk_level - self.MIN_RISK_LEVEL) / (self.MAX_RISK_LEVEL - self.MIN_RISK_LEVEL)
 
-        # Adjust the initial dynamic amount multiplier
-        self.dynamic_amount_multiplier = 0.0005 + (scale * (0.005 - 0.0005))  # Adjusted range
+        # Calculate the percentage of total equity to be used based on user risk level
+        # For example, Level 1 = 1% of total equity, Level 10 = 10% of total equity
+        self.wallet_exposure = user_risk_level / 100.0  # Converts risk level to a percentage
+
+        # Adjust the other parameters as originally intended
+        self.LEVERAGE_STEP = 0.002 + (scale * (0.01 - 0.002))  # Adjusted based on the scale
+        self.MAX_LEVERAGE = 0.1 + (scale * (1.0 - 0.1))  # Adjusted based on the scale
+        self.dynamic_amount_multiplier = 0.0005 + (scale * (0.005 - 0.0005))  # Adjusted based on the scale
+
+        # Log the adjusted parameters for verification
+        logging.info(f"Adjusted parameters for risk level {self.user_risk_level}: Wallet Exposure: {self.wallet_exposure}, Leverage Step: {self.LEVERAGE_STEP}, Max Leverage: {self.MAX_LEVERAGE}, Dynamic Amount Multiplier: {self.dynamic_amount_multiplier}")
+
+    # Not proper
+    # def adjust_risk_parameters(self):
+    #     # Scale the parameters between their min and max values based on user risk level
+    #     scale = (self.user_risk_level - self.MIN_RISK_LEVEL) / (self.MAX_RISK_LEVEL - self.MIN_RISK_LEVEL)
+
+    #     # Adjust the parameters
+    #     self.MAX_PCT_EQUITY = 0.05 + (scale * (1.0 - 0.05))  # Adjusted range: 5% to 100%
+    #     self.LEVERAGE_STEP = 0.002 + (scale * (0.01 - 0.002))  # Example: 0.002 to 0.01
+    #     self.MAX_LEVERAGE = 0.1 + (scale * (1.0 - 0.1))  # Example: 0.1 to 1.0
+
+    #     # Adjust the initial dynamic amount multiplier
+    #     self.dynamic_amount_multiplier = 0.0005 + (scale * (0.005 - 0.0005))  # Adjusted range
 
     # def adjust_risk_parameters(self):
     #     # Scale the parameters between their min and max values based on user risk level
@@ -163,6 +183,33 @@ class Strategy:
                 return "sell_wall"
             else:
                 return "neutral"
+
+    def get_open_symbols(self):
+        open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
+        position_symbols = set()
+        for position in open_position_data:
+            info = position.get('info', {})
+            position_symbol = info.get('symbol', '').split(':')[0]
+            if 'size' in info and 'side' in info:
+                position_symbols.add(position_symbol.replace("/", ""))
+        return position_symbols
+
+    def should_terminate(self, symbol, current_time):
+        open_symbols = self.get_open_symbols()  # Fetch open symbols
+        if symbol not in open_symbols:
+            if not hasattr(self, 'position_closed_time'):
+                self.position_closed_time = current_time
+            elif current_time - self.position_closed_time > self.position_inactive_threshold:
+                logging.info(f"Position for {symbol} has been inactive for more than {self.position_inactive_threshold} seconds.")
+                return True
+        else:
+            if hasattr(self, 'position_closed_time'):
+                del self.position_closed_time
+        return False
+
+    def cleanup_before_termination(self, symbol):
+        # Cancel all orders for the symbol and perform any other cleanup needed
+        self.exchange.cancel_all_orders_for_symbol_bybit(symbol)
 
     def detect_order_book_walls(self, symbol, threshold=5.0):
         order_book = self.exchange.get_orderbook(symbol)
@@ -2727,8 +2774,13 @@ class Strategy:
         atr_multiplier = 1
 
         # Check and calculate dynamic thresholds based on ATR and the multiplier
-        dynamic_threshold_long = (atr * atr_multiplier) / long_pos_price if long_pos_price != 0 else float('inf')
-        dynamic_threshold_short = (atr * atr_multiplier) / short_pos_price if short_pos_price != 0 else float('inf')
+        dynamic_threshold_long = (atr * atr_multiplier) / long_pos_price if long_pos_price and long_pos_price != 0 else float('inf')
+        dynamic_threshold_short = (atr * atr_multiplier) / short_pos_price if short_pos_price and short_pos_price != 0 else float('inf')
+
+
+        # # Check and calculate dynamic thresholds based on ATR and the multiplier
+        # dynamic_threshold_long = (atr * atr_multiplier) / long_pos_price if long_pos_price != 0 else float('inf')
+        # dynamic_threshold_short = (atr * atr_multiplier) / short_pos_price if short_pos_price != 0 else float('inf')
 
         # Auto-hedging logic for long position
         if long_pos_qty > 0:

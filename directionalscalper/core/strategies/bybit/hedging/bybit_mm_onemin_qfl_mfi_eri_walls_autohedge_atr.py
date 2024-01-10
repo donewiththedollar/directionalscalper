@@ -32,6 +32,7 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
         self.spoofing_wall_size = 5
         self.spoofing_duration = 5
         self.spoofing_interval = 1
+        self.position_inactive_threshold = 120
         try:
             self.max_usd_value = self.config.max_usd_value
             self.blacklist = self.config.blacklist
@@ -529,63 +530,6 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
                 # self.cancel_stale_orders_bybit(symbol)
 
                 time.sleep(30)
-
-            elif symbol in rotator_symbols_standardized and symbol not in open_symbols and trading_allowed:
-
-                # Fetch the API data
-                api_data = self.manager.get_api_data(symbol)
-
-                # Extract the required metrics using the new implementation
-                metrics = self.manager.extract_metrics(api_data, symbol)
-
-                # Assign the metrics to the respective variables
-                one_minute_volume = metrics['1mVol']
-                five_minute_volume = metrics['5mVol']
-                one_minute_distance = metrics['1mSpread']
-                five_minute_distance = metrics['5mSpread']
-                trend = metrics['Trend']
-                mfirsi_signal = metrics['MFI']
-                funding_rate = metrics['Funding']
-                hma_trend = metrics['HMA Trend']
-
-                fivemin_top_signal = metrics['Top Signal 5m']
-                fivemin_bottom_signal = metrics['Bottom Signal 5m']
-
-                logging.info(f"Managing new rotator symbol {symbol} not in open symbols")
-
-                if trading_allowed:
-                    logging.info(f"New position allowed {symbol}")
-
-                    self.adjust_risk_parameters()
-                    
-                    self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
-
-                    with self.initialized_symbols_lock:
-                        logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
-
-                    self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
-                    self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
-
-                    # Update dynamic amounts based on max trade quantities
-                    self.update_dynamic_amounts(symbol, total_equity, best_ask_price)
-
-                    long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v2(symbol, total_equity, best_ask_price, self.max_leverage)
-
-                    position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
-
-                    long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
-                    short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
-
-
-                    should_short = self.short_trade_condition(best_ask_price, moving_averages["ma_3_high"])
-                    should_long = self.long_trade_condition(best_bid_price, moving_averages["ma_3_low"])
-
-                    self.bybit_initial_entry_with_qfl_mfi_and_eri(open_orders, symbol, trend, hma_trend, mfirsi_signal, eri_trend, one_minute_volume, five_minute_distance, min_vol, min_dist, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, should_long, should_short, fivemin_top_signal, fivemin_bottom_signal)
-                    
-                    time.sleep(10)
-                else:
-                    logging.warning(f"Potential trade for {symbol} skipped as max symbol limit reached.")
-
 
             symbol_data = {
                 'symbol': symbol,

@@ -33,6 +33,7 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
         self.spoofing_wall_size = 5
         self.spoofing_duration = 5
         self.spoofing_interval = 1
+        self.position_inactive_threshold = 120
         try:
             self.max_usd_value = self.config.max_usd_value
             self.stoploss_enabled = self.config.stoploss_enabled
@@ -66,8 +67,6 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
 
             logging.info(f"Starting to process symbol: {symbol}")
             logging.info(f"Initializing default values for symbol: {symbol}")
-
-            position_inactive_threshold = 60
 
             min_qty = None
             current_price = None
@@ -190,19 +189,20 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                 open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
                 logging.info(f"Open symbols: {open_symbols}")
-                if symbol not in open_symbols:
-                    # If the symbol is no longer in open positions, check the time elapsed
-                    if not hasattr(self, 'position_closed_time'):
-                        self.position_closed_time = current_time
-                    elif current_time - self.position_closed_time > position_inactive_threshold:
-                        logging.info(f"Position for {symbol} has been closed for more than {position_inactive_threshold} seconds. Cancelling all orders and stopping strategy.")
-                        # Cancel all orders for this symbol before stopping the strategy
-                        self.exchange.cancel_all_orders_for_symbol_bybit(symbol)
-                        break
-                else:
-                    # Reset the timer if the position is found open again
-                    if hasattr(self, 'position_closed_time'):
-                        del self.position_closed_time
+
+                # if symbol not in open_symbols:
+                #     # If the symbol is no longer in open positions, check the time elapsed
+                #     if not hasattr(self, 'position_closed_time'):
+                #         self.position_closed_time = current_time
+                #     elif current_time - self.position_closed_time > position_inactive_threshold:
+                #         logging.info(f"Position for {symbol} has been closed for more than {position_inactive_threshold} seconds. Cancelling all orders and stopping strategy.")
+                #         # Cancel all orders for this symbol before stopping the strategy
+                #         self.exchange.cancel_all_orders_for_symbol_bybit(symbol)
+                #         break
+                # else:
+                #     # Reset the timer if the position is found open again
+                #     if hasattr(self, 'position_closed_time'):
+                #         del self.position_closed_time
 
                 # position_last_update_time = self.get_position_update_time(symbol)
 

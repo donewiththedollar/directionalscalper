@@ -31,6 +31,7 @@ class BybitMFIRSIQuickScalpLong(Strategy):
         self.spoofing_wall_size = 5
         self.spoofing_duration = 5
         self.spoofing_interval = 1
+        self.position_inactive_threshold = 120
         try:
             self.max_usd_value = self.config.max_usd_value
             self.blacklist = self.config.blacklist
@@ -73,8 +74,6 @@ class BybitMFIRSIQuickScalpLong(Strategy):
         try:
             logging.info(f"Starting to process symbol: {symbol}")
             logging.info(f"Initializing default values for symbol: {symbol}")
-
-            position_inactive_threshold = 60
 
             min_qty = None
             current_price = None
