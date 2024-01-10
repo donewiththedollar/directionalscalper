@@ -1296,6 +1296,14 @@ class Strategy:
             logging.info(f"Positions for {symbol} are currently safe from liquidation.")
 
     def print_trade_quantities_once_bybit(self, symbol, total_equity, max_leverage):
+        # Fetch the best ask price
+        order_book = self.exchange.get_orderbook(symbol)
+        if 'asks' in order_book and order_book['asks']:
+            best_ask_price = order_book['asks'][0][0]
+        else:
+            logging.warning(f"No ask orders available for {symbol}.")
+            return
+
         # Ensure symbol is initialized
         if symbol not in self.initialized_symbols:
             if not self.initialize_symbol(symbol, total_equity, best_ask_price, max_leverage):
@@ -1304,15 +1312,14 @@ class Strategy:
 
         if not self.printed_trade_quantities:
             wallet_exposure = self.config.wallet_exposure
-            best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
             self.exchange.print_trade_quantities_bybit(
-                self.max_long_trade_qty_per_symbol[symbol], 
+                self.max_long_trade_qty_per_symbol.get(symbol, 0), 
                 [0.001, 0.01, 0.1, 1, 2.5, 5], 
                 wallet_exposure, 
                 best_ask_price
             )
             self.printed_trade_quantities = True
-            
+
     def print_trade_quantities_once_huobi(self, max_trade_qty, symbol):
         if not self.printed_trade_quantities:
             wallet_exposure = self.config.wallet_exposure
