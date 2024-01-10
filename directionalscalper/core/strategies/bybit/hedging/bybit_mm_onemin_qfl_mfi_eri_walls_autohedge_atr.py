@@ -326,6 +326,8 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
                 with self.initialized_symbols_lock:
                     logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
 
+                self.print_trade_quantities_once_bybit(symbol)
+
                 self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
                 self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
 
@@ -337,15 +339,6 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
 
                 logging.info(f"Long dynamic amount: {long_dynamic_amount} for {symbol}")
                 logging.info(f"Short dynamic amount: {short_dynamic_amount} for {symbol}")
-
-
-                self.print_trade_quantities_once_bybit(symbol)
-
-                logging.info(f"Tried to print trade quantities")
-
-                with self.initialized_symbols_lock:
-                    logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
-
 
                 short_upnl = position_data["short"]["upnl"]
                 long_upnl = position_data["long"]["upnl"]
