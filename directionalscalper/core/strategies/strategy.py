@@ -942,6 +942,20 @@ class Strategy:
 
         return order
 
+    def limit_order_bybit_reduce_nolimit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
+        params = {"reduceOnly": reduceOnly}
+        logging.info(f"Placing {side} limit order for {symbol} at {price} with qty {amount} and params {params}...")
+        try:
+            order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
+            logging.info(f"Order result: {order}")
+            if order is None:
+                logging.warning(f"Order result is None for {side} limit order on {symbol}")
+            return order
+        except Exception as e:
+            logging.error(f"Error placing order: {str(e)}")
+            logging.exception("Stack trace for error in placing order:")
+            return None
+            
     def postonly_limit_order_bybit_nolimit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
         params = {"reduceOnly": reduceOnly, "postOnly": True}
         logging.info(f"Placing {side} limit order for {symbol} at {price} with qty {amount} and params {params}...")
@@ -3207,23 +3221,43 @@ class Strategy:
 
     def auto_reduce_long(self, symbol, long_pos_price, long_dynamic_amount, step_price):
         try:
-            order = self.postonly_limit_order_bybit_nolimit(symbol, 'sell', long_dynamic_amount, float(step_price), positionIdx=1, reduceOnly=True)
-            logging.info(f"Autoreduce order long: {order}")
-            logging.info(f"Placed auto-reduce long order for {symbol} at {step_price} with amount {long_dynamic_amount}")
-            return order['id']
+            order = self.limit_order_bybit_reduce_nolimit(symbol, 'sell', long_dynamic_amount, float(step_price), positionIdx=1, reduceOnly=True)
+            logging.info(f"Auto-reduce long order placed for {symbol} at {step_price} with amount {long_dynamic_amount}")
+            return order.get('id', None) if order else None
         except Exception as e:
-            logging.error(f"Error in placing auto-reduce long order for {symbol}: {e}")
+            logging.error(f"Error in auto-reduce long order for {symbol}: {e}")
             return None
 
     def auto_reduce_short(self, symbol, short_pos_price, short_dynamic_amount, step_price):
         try:
-            order = self.postonly_limit_order_bybit_nolimit(symbol, 'buy', short_dynamic_amount, float(step_price), positionIdx=2, reduceOnly=True)
-            logging.info(f"Autoreduce order short: {order}")
-            logging.info(f"Placed auto-reduce short order for {symbol} at {step_price} with amount {short_dynamic_amount}")
-            return order['id']
+            order = self.limit_order_bybit_reduce_nolimit(symbol, 'buy', short_dynamic_amount, float(step_price), positionIdx=2, reduceOnly=True)
+            logging.info(f"Auto-reduce short order placed for {symbol} at {step_price} with amount {short_dynamic_amount}")
+            return order.get('id', None) if order else None
         except Exception as e:
-            logging.error(f"Error in placing auto-reduce short order for {symbol}: {e}")
+            logging.error(f"Error in auto-reduce short order for {symbol}: {e}")
             return None
+
+
+    # Post onlys, maybe not reasonable
+    # def auto_reduce_long(self, symbol, long_pos_price, long_dynamic_amount, step_price):
+    #     try:
+    #         order = self.postonly_limit_order_bybit_nolimit(symbol, 'sell', long_dynamic_amount, float(step_price), positionIdx=1, reduceOnly=True)
+    #         logging.info(f"Autoreduce order long: {order}")
+    #         logging.info(f"Placed auto-reduce long order for {symbol} at {step_price} with amount {long_dynamic_amount}")
+    #         return order['id']
+    #     except Exception as e:
+    #         logging.error(f"Error in placing auto-reduce long order for {symbol}: {e}")
+    #         return None
+
+    # def auto_reduce_short(self, symbol, short_pos_price, short_dynamic_amount, step_price):
+    #     try:
+    #         order = self.postonly_limit_order_bybit_nolimit(symbol, 'buy', short_dynamic_amount, float(step_price), positionIdx=2, reduceOnly=True)
+    #         logging.info(f"Autoreduce order short: {order}")
+    #         logging.info(f"Placed auto-reduce short order for {symbol} at {step_price} with amount {short_dynamic_amount}")
+    #         return order['id']
+    #     except Exception as e:
+    #         logging.error(f"Error in placing auto-reduce short order for {symbol}: {e}")
+    #         return None
 
         
     # def auto_reduce_long(self, symbol, long_pos_price, long_dynamic_amount, step_price):
