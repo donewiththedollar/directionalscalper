@@ -3186,13 +3186,13 @@ class Strategy:
             return 'short'
         else:
             return 'neutral'
-        
-    def calculate_auto_reduce_levels_long(self, long_pos_price, long_pos_qty, min_order_size, auto_reduce_start_pct, max_loss_pct):
+
+    def calculate_auto_reduce_levels_long(self, long_pos_price, long_pos_qty, min_order_size, auto_reduce_start_pct, max_loss_pct, reduction_range_factor=0.5):
         price_diff_start = long_pos_price - (long_pos_price * auto_reduce_start_pct)
         price_diff_max = long_pos_price - (long_pos_price * max_loss_pct)
 
-        # Calculate total price range for reduction
-        total_price_range = price_diff_start - price_diff_max
+        # Use a fraction of the total price range for reduction
+        total_price_range = (price_diff_start - price_diff_max) * reduction_range_factor
 
         # Calculate the maximum number of reduction levels
         max_levels = long_pos_qty / min_order_size
@@ -3203,12 +3203,12 @@ class Strategy:
 
         return max_levels, price_interval
 
-    def calculate_auto_reduce_levels_short(self, short_pos_price, short_pos_qty, min_order_size, auto_reduce_start_pct, max_loss_pct):
+    def calculate_auto_reduce_levels_short(self, short_pos_price, short_pos_qty, min_order_size, auto_reduce_start_pct, max_loss_pct, reduction_range_factor=0.5):
         price_diff_start = short_pos_price + (short_pos_price * auto_reduce_start_pct)
         price_diff_max = short_pos_price + (short_pos_price * max_loss_pct)
 
-        # Calculate total price range for reduction
-        total_price_range = price_diff_max - price_diff_start
+        # Use a fraction of the total price range for reduction
+        total_price_range = (price_diff_max - price_diff_start) * reduction_range_factor
 
         # Calculate the maximum number of reduction levels
         max_levels = short_pos_qty / min_order_size
@@ -3218,6 +3218,39 @@ class Strategy:
         price_interval = total_price_range / max_levels if max_levels > 0 else total_price_range
 
         return max_levels, price_interval
+
+
+    # def calculate_auto_reduce_levels_long(self, long_pos_price, long_pos_qty, min_order_size, auto_reduce_start_pct, max_loss_pct):
+    #     price_diff_start = long_pos_price - (long_pos_price * auto_reduce_start_pct)
+    #     price_diff_max = long_pos_price - (long_pos_price * max_loss_pct)
+
+    #     # Calculate total price range for reduction
+    #     total_price_range = price_diff_start - price_diff_max
+
+    #     # Calculate the maximum number of reduction levels
+    #     max_levels = long_pos_qty / min_order_size
+    #     max_levels = int(max_levels)
+
+    #     # Adjust the price interval
+    #     price_interval = total_price_range / max_levels if max_levels > 0 else total_price_range
+
+    #     return max_levels, price_interval
+
+    # def calculate_auto_reduce_levels_short(self, short_pos_price, short_pos_qty, min_order_size, auto_reduce_start_pct, max_loss_pct):
+    #     price_diff_start = short_pos_price + (short_pos_price * auto_reduce_start_pct)
+    #     price_diff_max = short_pos_price + (short_pos_price * max_loss_pct)
+
+    #     # Calculate total price range for reduction
+    #     total_price_range = price_diff_max - price_diff_start
+
+    #     # Calculate the maximum number of reduction levels
+    #     max_levels = short_pos_qty / min_order_size
+    #     max_levels = int(max_levels)
+
+    #     # Adjust the price interval
+    #     price_interval = total_price_range / max_levels if max_levels > 0 else total_price_range
+
+    #     return max_levels, price_interval
 
     def auto_reduce_long(self, symbol, long_pos_price, long_dynamic_amount, step_price):
         try:
