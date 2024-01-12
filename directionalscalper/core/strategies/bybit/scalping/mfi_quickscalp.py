@@ -524,7 +524,6 @@ class BybitMFIRSIQuickScalp(Strategy):
                         except Exception as e:
                             logging.error(f"{symbol} Exception caught in auto reduce: {e}")
 
-
                     if auto_reduce_marginbased_enabled:
                         try:
                             current_market_price = self.exchange.get_current_price(symbol)
@@ -545,10 +544,24 @@ class BybitMFIRSIQuickScalp(Strategy):
 
                             # Fetch open position data
                             open_position_data = self.exchange.get_all_open_positions_bybit()
-                            
-                            # Calculate used equity for long and short separately
-                            long_used_equity = sum(info['initialMargin'] for info in open_position_data if info['symbol'].split(':')[0] == symbol and info['side'] == 'Buy')
-                            short_used_equity = sum(info['initialMargin'] for info in open_position_data if info['symbol'].split(':')[0] == symbol and info['side'] == 'Sell')
+
+                            # Initialize variables for used equity
+                            long_used_equity = 0
+                            short_used_equity = 0
+
+                            # Iterate through each position and calculate used equity
+                            for position in open_position_data:
+                                info = position.get('info', {})
+
+                                symbol_from_position = info.get('symbol', '').split(':')[0]
+                                side_from_position = info.get('side', '')
+                                position_balance = float(info.get('positionBalance', 0))
+
+                                if symbol_from_position == symbol:
+                                    if side_from_position == 'Buy':
+                                        long_used_equity += position_balance
+                                    elif side_from_position == 'Sell':
+                                        short_used_equity += position_balance
 
                             logging.info(f"Long used equity for {symbol} : {long_used_equity}")
                             logging.info(f"Short used equity for {symbol} : {short_used_equity}")
@@ -557,8 +570,8 @@ class BybitMFIRSIQuickScalp(Strategy):
                             auto_reduce_triggered_long = long_used_equity > total_equity * auto_reduce_wallet_exposure_pct
                             auto_reduce_triggered_short = short_used_equity > total_equity * auto_reduce_wallet_exposure_pct
 
-                            logging.info(f"Auto reduce trigger long: {auto_reduce_triggered_long}")
-                            logging.info(f"Auto reduce trigger short: {auto_reduce_triggered_short}")
+                            logging.info(f"Auto reduce trigger long for {symbol}: {auto_reduce_triggered_long}")
+                            logging.info(f"Auto reduce trigger short for {symbol}: {auto_reduce_triggered_short}")
 
                             if long_pos_qty > 0 and long_pos_price is not None:
                                 self.auto_reduce_active_long[symbol] = auto_reduce_triggered_long
