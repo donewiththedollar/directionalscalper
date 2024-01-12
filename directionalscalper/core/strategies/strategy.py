@@ -68,8 +68,6 @@ class Strategy:
         self.spoofing_interval = 1  # Time interval between spoofing actions
         self.spoofing_duration = 5  # Spoofing duration in seconds
         #self.whitelist = self.config.whitelist
-        self.blacklist = self.config.blacklist
-        self.max_usd_value = self.config.max_usd_value
         self.LEVERAGE_STEP = 0.002  # The step at which to increase leverage
         self.MAX_LEVERAGE = 0.1 #0.3  # The maximum allowable leverage
         self.QTY_INCREMENT = 0.01 # How much your position size increases
@@ -81,11 +79,15 @@ class Strategy:
         self.order_ids = {}
         self.hedged_symbols = {}
         self.hedged_positions = {}
+        self.blacklist = self.config.blacklist
+        self.max_usd_value = self.config.max_usd_value
+        self.auto_reduce_start_pct = self.config.auto_reduce_start_pct
+        self.auto_reduce_maxloss_pct = self.config.auto_reduce_maxloss_pct
         self.user_risk_level = self.config.user_risk_level
         self.MIN_RISK_LEVEL = 1
         self.MAX_RISK_LEVEL = 10
-        self.auto_reduce_start_pct = self.config.auto_reduce_start_pct
-        self.auto_reduce_maxloss_pct = self.config.auto_reduce_maxloss_pct
+        self.auto_reduce_active_long = {}
+        self.auto_reduce_active_short = {}
 
         self.bybit = self.Bybit(self)
 
@@ -3519,6 +3521,43 @@ class Strategy:
                 logging.info(f"Volume conditions not met for short position in {symbol}, skipping entry.")
 
             time.sleep(5)
+
+    def bybit_1m_mfi_quickscalp_autoreduce(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, entry_during_autoreduce: bool):
+        if symbol not in self.symbol_locks:
+            self.symbol_locks[symbol] = threading.Lock()
+
+        with self.symbol_locks[symbol]:
+            current_price = self.exchange.get_current_price(symbol)
+            logging.info(f"Current price for {symbol}: {current_price}")
+
+            order_book = self.exchange.get_orderbook(symbol)
+            best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol)
+            best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol)
+            
+            mfi_signal_long = mfirsi.lower() == "long"
+            mfi_signal_short = mfirsi.lower() == "short"
+
+            if one_minute_volume > min_vol:
+                if entry_during_autoreduce or not self.auto_reduce_active_long.get(symbol, False):
+                    if long_pos_qty == 0 and mfi_signal_long and not self.entry_order_exists(open_orders, "buy"):
+                        self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                        time.sleep(1)
+                    elif long_pos_qty > 0 and mfi_signal_long and current_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
+                        self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                        time.sleep(1)
+
+                if entry_during_autoreduce or not self.auto_reduce_active_short.get(symbol, False):
+                    if short_pos_qty == 0 and mfi_signal_short and not self.entry_order_exists(open_orders, "sell"):
+                        self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                        time.sleep(1)
+                    elif short_pos_qty > 0 and mfi_signal_short and current_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
+                        self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                        time.sleep(1)
+            else:
+                logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
+
+            time.sleep(5)
+
 
     def bybit_1m_mfi_quickscalp(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, eri_trend: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool, uPNL_threshold: float):
         if symbol not in self.symbol_locks:
