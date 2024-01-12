@@ -143,7 +143,7 @@ class Bot(BaseModel):
         return v
 
     @validator('auto_reduce_wallet_exposure_pct')
-    def validate_auto_reduce_start_pct(cls, v):
+    def validate_auto_reduce_wallet_exposure_pct(cls, v):
         if v < 0.0 or v > 1.0:
             raise ValueError("auto_reduce_wallet_exposure_pct must be between 0.0 and 1.0")
         return v
