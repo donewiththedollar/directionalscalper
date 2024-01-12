@@ -44,6 +44,8 @@ class Bot(BaseModel):
     auto_reduce_enabled: bool = False
     auto_reduce_start_pct: float = 0.098
     auto_reduce_maxloss_pct: float = 0.50
+    auto_reduce_marginbased_enabled: bool = False
+    auto_reduce_wallet_exposure_pct: float = 0.10
     entry_during_autoreduce: bool = True
     hedge_ratio: float = 0.26
     hedge_price_difference_threshold: float = 0.15
@@ -132,6 +134,18 @@ class Bot(BaseModel):
     def check_entry_during_autoreduce_is_bool(cls, v):
         if not isinstance(v, bool):
             raise ValueError("entry_during_autoreduce must be a boolean")
+        return v
+
+    @validator('auto_reduce_marginbased_enabled')
+    def check_auto_reduce_marginbased_enabled_is_bool(cls, v):
+        if not isinstance(v, bool):
+            raise ValueError("auto_reduce_marginbased_enabled must be a boolean")
+        return v
+
+    @validator('auto_reduce_wallet_exposure_pct')
+    def validate_auto_reduce_start_pct(cls, v):
+        if v < 0.0 or v > 1.0:
+            raise ValueError("auto_reduce_wallet_exposure_pct must be between 0.0 and 1.0")
         return v
     
 class Exchange(BaseModel):

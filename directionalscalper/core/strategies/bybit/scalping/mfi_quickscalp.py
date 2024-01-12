@@ -47,6 +47,8 @@ class BybitMFIRSIQuickScalp(Strategy):
             self.auto_reduce_start_pct = self.config.auto_reduce_start_pct
             self.auto_reduce_maxloss_pct = self.config.auto_reduce_maxloss_pct
             self.entry_during_autoreduce = self.config.entry_during_autoreduce
+            self.auto_reduce_marginbased_enabled = self.config.auto_reduce_marginbased_enabled
+            self.auto_reduce_wallet_exposure_pct = self.config.auto_reduce_wallet_exposure_pct
             self.adjust_risk_parameters()
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
@@ -137,6 +139,10 @@ class BybitMFIRSIQuickScalp(Strategy):
             auto_reduce_maxloss_pct = self.config.auto_reduce_maxloss_pct
 
             entry_during_autoreduce = self.config.entry_during_autoreduce
+
+            auto_reduce_marginbased_enabled = self.config.auto_reduce_marginbased_enabled
+
+            auto_reduce_wallet_exposure_pct = self.config.auto_reduce_wallet_exposure_pct
 
             # Funding
             MaxAbsFundingRate = self.config.MaxAbsFundingRate
@@ -517,6 +523,70 @@ class BybitMFIRSIQuickScalp(Strategy):
 
                         except Exception as e:
                             logging.error(f"{symbol} Exception caught in auto reduce: {e}")
+
+
+                    if auto_reduce_marginbased_enabled:
+                        try:
+                            current_market_price = self.exchange.get_current_price(symbol)
+                            logging.info(f"Current market price for {symbol}: {current_market_price}")
+
+                            if symbol not in auto_reduce_orders:
+                                auto_reduce_orders[symbol] = []
+
+                            active_auto_reduce_orders = []
+                            for order_id in auto_reduce_orders[symbol]:
+                                order_status = self.exchange.get_order_status(order_id, symbol)
+                                if order_status != 'canceled':
+                                    active_auto_reduce_orders.append(order_id)
+                                else:
+                                    logging.info(f"Auto-reduce order {order_id} for {symbol} was canceled. Replacing it.")
+
+                            auto_reduce_orders[symbol] = active_auto_reduce_orders
+
+                            # Fetch open position data
+                            open_position_data = self.exchange.get_all_open_positions_bybit()
+                            
+                            # Calculate used equity for long and short separately
+                            long_used_equity = sum(info['initialMargin'] for info in open_position_data if info['symbol'].split(':')[0] == symbol and info['side'] == 'Buy')
+                            short_used_equity = sum(info['initialMargin'] for info in open_position_data if info['symbol'].split(':')[0] == symbol and info['side'] == 'Sell')
+
+                            logging.info(f"Long used equity for {symbol} : {long_used_equity}")
+                            logging.info(f"Short used equity for {symbol} : {short_used_equity}")
+
+                            # Check if used equity exceeds the threshold for each side
+                            auto_reduce_triggered_long = long_used_equity > total_equity * auto_reduce_wallet_exposure_pct
+                            auto_reduce_triggered_short = short_used_equity > total_equity * auto_reduce_wallet_exposure_pct
+
+                            logging.info(f"Auto reduce trigger long: {auto_reduce_triggered_long}")
+                            logging.info(f"Auto reduce trigger short: {auto_reduce_triggered_short}")
+
+                            if long_pos_qty > 0 and long_pos_price is not None:
+                                self.auto_reduce_active_long[symbol] = auto_reduce_triggered_long
+                                if self.auto_reduce_active_long[symbol]:
+                                    max_levels, price_interval = self.calculate_auto_reduce_levels_long(
+                                        current_market_price, long_pos_qty, long_dynamic_amount, 
+                                        auto_reduce_start_pct, auto_reduce_maxloss_pct
+                                    )
+                                    for i in range(1, min(max_levels, 3) + 1):
+                                        step_price = current_market_price - (price_interval * i)
+                                        order_id = self.auto_reduce_long(symbol, long_pos_price, long_dynamic_amount, step_price)
+                                        auto_reduce_orders[symbol].append(order_id)
+
+                            if short_pos_qty > 0 and short_pos_price is not None:
+                                self.auto_reduce_active_short[symbol] = auto_reduce_triggered_short
+                                if self.auto_reduce_active_short[symbol]:
+                                    max_levels, price_interval = self.calculate_auto_reduce_levels_short(
+                                        current_market_price, short_pos_qty, short_dynamic_amount, 
+                                        auto_reduce_start_pct, auto_reduce_maxloss_pct
+                                    )
+                                    for i in range(1, min(max_levels, 3) + 1):
+                                        step_price = current_market_price + (price_interval * i)
+                                        order_id = self.auto_reduce_short(symbol, short_pos_price, short_dynamic_amount, step_price)
+                                        auto_reduce_orders[symbol].append(order_id)
+
+                        except Exception as e:
+                            logging.error(f"{symbol} Exception caught in auto reduce: {e}")
+
 
                     # short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, one_minute_distance, previous_one_minute_distance, short_take_profit, long_take_profit)
                     #short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
