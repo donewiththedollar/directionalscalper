@@ -3080,6 +3080,32 @@ class Strategy:
                 logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
 
     def get_mfirsi_ema(self, symbol: str, limit: int = 100, lookback: int = 5, ema_period: int = 5) -> str:
+        # Fetch OHLCV data
+        ohlcv_data = self.exchange.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
+        df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+
+        # Calculate MFI and RSI
+        df['mfi'] = ta.volume.MFIIndicator(high=df['high'], low=df['low'], close=df['close'], volume=df['volume'], window=14, fillna=False).money_flow_index()
+        df['rsi'] = ta.momentum.rsi(df['close'], window=14)
+
+        # Calculate EMAs for MFI and RSI
+        df['mfi_ema'] = df['mfi'].ewm(span=ema_period, adjust=False).mean()
+        df['rsi_ema'] = df['rsi'].ewm(span=ema_period, adjust=False).mean()
+
+        # Determine conditions using EMAs
+        df['buy_condition'] = ((df['mfi_ema'] < 30) & (df['rsi_ema'] < 40) & (df['open'] < df['close'])).astype(int)
+        df['sell_condition'] = ((df['mfi_ema'] > 80) & (df['rsi_ema'] > 70) & (df['open'] > df['close'])).astype(int)
+
+        # Evaluate conditions over the lookback period
+        recent_conditions = df.iloc[-lookback:]
+        if recent_conditions['buy_condition'].any():
+            return 'long'
+        elif recent_conditions['sell_condition'].any():
+            return 'short'
+        else:
+            return 'neutral'
+        
+    def get_mfirsi_volatility_ema(self, symbol: str, limit: int = 100, lookback: int = 5, ema_period: int = 5) -> str:
         # Fetch OHLCV data using CCXT
         ohlcv_data = self.exchange.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
         df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
@@ -3554,6 +3580,42 @@ class Strategy:
 
             else:
                 logging.info(f"Volume conditions not met for short position in {symbol}, skipping entry.")
+
+            time.sleep(5)
+
+    def bybit_1m_mfi_trend_quickscalp_autoreduce(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, entry_during_autoreduce: bool):
+        if symbol not in self.symbol_locks:
+            self.symbol_locks[symbol] = threading.Lock()
+
+        with self.symbol_locks[symbol]:
+            current_price = self.exchange.get_current_price(symbol)
+            logging.info(f"Current price for {symbol}: {current_price}")
+
+            order_book = self.exchange.get_orderbook(symbol)
+            best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol)
+            best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol)
+            
+            mfi_signal_long = mfirsi.lower() == "long"
+            mfi_signal_short = mfirsi.lower() == "short"
+
+            if one_minute_volume > min_vol:
+                if entry_during_autoreduce or not self.auto_reduce_active_long.get(symbol, False):
+                    if long_pos_qty == 0 and mfi_signal_long and not self.entry_order_exists(open_orders, "buy"):
+                        self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                        time.sleep(1)
+                    elif long_pos_qty > 0 and mfi_signal_long and current_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
+                        self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                        time.sleep(1)
+
+                if entry_during_autoreduce or not self.auto_reduce_active_short.get(symbol, False):
+                    if short_pos_qty == 0 and mfi_signal_short and not self.entry_order_exists(open_orders, "sell"):
+                        self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                        time.sleep(1)
+                    elif short_pos_qty > 0 and mfi_signal_short and current_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
+                        self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                        time.sleep(1)
+            else:
+                logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
 
             time.sleep(5)
 
