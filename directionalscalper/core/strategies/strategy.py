@@ -3079,6 +3079,41 @@ class Strategy:
             else:
                 logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
 
+    def get_mfirsi_ema(self, symbol: str, limit: int = 100, lookback: int = 5, ema_period: int = 5) -> str:
+        # Fetch OHLCV data using CCXT
+        ohlcv_data = self.exchange.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
+        df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+
+        # Calculate volatility (standard deviation of close prices)
+        df['volatility'] = df['close'].rolling(window=14).std()
+
+        # Determine MFI and RSI windows based on volatility
+        high_volatility_threshold = 0.05
+        mfi_window = 10 if df['volatility'].iloc[-1] > high_volatility_threshold else 20
+        rsi_window = 10 if df['volatility'].iloc[-1] > high_volatility_threshold else 20
+
+        # Calculate MFI and RSI with adaptive windows
+        df['mfi'] = ta.volume.MFIIndicator(high=df['high'], low=df['low'], close=df['close'], volume=df['volume'], window=mfi_window, fillna=False).money_flow_index()
+        df['rsi'] = ta.momentum.rsi(df['close'], window=rsi_window)
+        
+        # Calculate EMAs for MFI and RSI
+        df['mfi_ema'] = df['mfi'].ewm(span=ema_period, adjust=False).mean()
+        df['rsi_ema'] = df['rsi'].ewm(span=ema_period, adjust=False).mean()
+
+        # Determine conditions using EMAs
+        df['buy_condition'] = (df['mfi_ema'].diff() > 0) & (df['rsi_ema'].diff() > 0) & (df['open'] < df['close'])
+        df['sell_condition'] = (df['mfi_ema'].diff() < 0) & (df['rsi_ema'].diff() < 0) & (df['open'] > df['close'])
+
+        # Evaluate conditions over the lookback period
+        recent_conditions = df.iloc[-lookback:]
+        if recent_conditions['buy_condition'].any():
+            return 'long'
+        elif recent_conditions['sell_condition'].any():
+            return 'short'
+        else:
+            return 'neutral'
+
+
     def get_mfi_atr(self, symbol: str, limit: int = 100, lookback: int = 5) -> str:
         # Fetch 1-minute OHLCV data
         ohlcv_data_min = self.exchange.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
