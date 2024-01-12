@@ -55,7 +55,7 @@ def get_available_strategies():
         'bybit_1m_qfl_mfi_eri_autohedge_walls_atr',
         'bybit_mfirsi_imbalance',
         'bybit_mfirsi_quickscalp',
-        'BybitQuickScalpTrend'
+        'qstrend'
     ]
 
 def choose_strategy():
@@ -133,7 +133,7 @@ class DirectionalMarketMaker:
         elif strategy_name.lower() == 'bybit_mfirsi_quickscalp':
             strategy = bybit_scalping.BybitMFIRSIQuickScalp(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'BybitQuickScalpTrend':
+        elif strategy_name.lower() == 'qstrend':
             strategy = bybit_scalping.BybitQuickScalpTrend(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
             
