@@ -25,8 +25,8 @@ class BybitMFIERILongShortTrend(Strategy):
         self.health_check_interval = 600
         self.last_long_tp_update = datetime.now()
         self.last_short_tp_update = datetime.now()
-        self.next_long_tp_update = datetime.now() - timedelta(seconds=1)
-        self.next_short_tp_update = datetime.now() - timedelta(seconds=1)
+        self.next_long_tp_update = self.calculate_next_update_time()
+        self.next_short_tp_update = self.calculate_next_update_time()
         self.last_cancel_time = 0
         self.spoofing_active = False
         self.spoofing_wall_size = 5
@@ -54,32 +54,28 @@ class BybitMFIERILongShortTrend(Strategy):
             logging.error(f"Failed to initialize attributes from config: {e}")
 
     def run(self, symbol, rotator_symbols_standardized=None):
-        try:
-            standardized_symbol = symbol.upper()  # Standardize the symbol name
-            logging.info(f"Standardized symbol: {standardized_symbol}")
-            current_thread_id = threading.get_ident()
+        standardized_symbol = symbol.upper()  # Standardize the symbol name
+        logging.info(f"Standardized symbol: {standardized_symbol}")
+        current_thread_id = threading.get_ident()
 
-            if standardized_symbol not in symbol_locks:
-                symbol_locks[standardized_symbol] = threading.Lock()
+        if standardized_symbol not in symbol_locks:
+            symbol_locks[standardized_symbol] = threading.Lock()
 
-            if symbol_locks[standardized_symbol].acquire(blocking=False):
-                logging.info(f"Lock acquired for symbol {standardized_symbol} by thread {current_thread_id}")
-                try:
-                    self.run_single_symbol(standardized_symbol, rotator_symbols_standardized)
-                finally:
-                    symbol_locks[standardized_symbol].release()
-                    logging.info(f"Lock released for symbol {standardized_symbol} by thread {current_thread_id}")
-            else:
-                logging.info(f"Failed to acquire lock for symbol: {standardized_symbol}")
-        except Exception as e:
-            logging.info(f"Exception in run function {e}")
+        if symbol_locks[standardized_symbol].acquire(blocking=False):
+            logging.info(f"Lock acquired for symbol {standardized_symbol} by thread {current_thread_id}")
+            try:
+                self.run_single_symbol(standardized_symbol, rotator_symbols_standardized)
+            finally:
+                symbol_locks[standardized_symbol].release()
+                logging.info(f"Lock released for symbol {standardized_symbol} by thread {current_thread_id}")
+        else:
+            logging.info(f"Failed to acquire lock for symbol: {standardized_symbol}")
 
     def run_single_symbol(self, symbol, rotator_symbols_standardized=None):
         try:
+
             logging.info(f"Starting to process symbol: {symbol}")
             logging.info(f"Initializing default values for symbol: {symbol}")
-
-            # position_inactive_threshold = 60
 
             min_qty = None
             current_price = None
@@ -115,14 +111,12 @@ class BybitMFIERILongShortTrend(Strategy):
 
             logging.info(f"Running for symbol (inside run_single_symbol method): {symbol}")
 
-            # Definitions
             quote_currency = "USDT"
             max_retries = 5
             retry_delay = 5
             wallet_exposure = self.config.wallet_exposure
             min_dist = self.config.min_distance
             min_vol = self.config.min_volume
-
             upnl_profit_pct = self.config.upnl_profit_pct
 
             # Stop loss
@@ -144,36 +138,9 @@ class BybitMFIERILongShortTrend(Strategy):
 
             auto_reduce_wallet_exposure_pct = self.config.auto_reduce_wallet_exposure_pct
 
-            # Funding
-            MaxAbsFundingRate = self.config.MaxAbsFundingRate
-            
-            # Hedge ratio
-            hedge_ratio = self.config.hedge_ratio
-
-            # Hedge price diff
-            price_difference_threshold = self.config.hedge_price_difference_threshold
-
             if self.config.dashboard_enabled:
-                try:
-                    dashboard_path = os.path.join(self.config.shared_data_path, "shared_data.json")
+                dashboard_path = os.path.join(self.config.shared_data_path, "shared_data.json")
 
-                    # Ensure the directory exists
-                    os.makedirs(os.path.dirname(dashboard_path), exist_ok=True)
-
-                    with open(dashboard_path, "r") as file:
-                        # Read or process file data
-                        data = json.load(file)
-
-                except FileNotFoundError:
-                    logging.error(f"File not found: {dashboard_path}")
-                    # Handle the absence of the file, e.g., by creating it or using default data
-                except IOError as e:
-                    logging.error(f"I/O error occurred: {e}")
-                    # Handle other I/O errors
-                except Exception as e:
-                    logging.error(f"An unexpected error occurred: {e}")
-
-                    
             logging.info("Setting up exchange")
             self.exchange.setup_exchange_bybit(symbol)
 
@@ -195,10 +162,9 @@ class BybitMFIERILongShortTrend(Strategy):
 
             while True:
                 current_time = time.time()
+                logging.info(f"Max USD value: {self.max_usd_value}")
 
                 iteration_start_time = time.time()
-
-                logging.info(f"Max USD value: {self.max_usd_value}")
 
                 # Check if the symbol should terminate
                 if self.should_terminate(symbol, current_time):
@@ -248,7 +214,6 @@ class BybitMFIERILongShortTrend(Strategy):
 
                 open_symbols = self.extract_symbols_from_positions_bybit(open_position_data)
                 open_symbols = [symbol.replace("/", "") for symbol in open_symbols]
-                logging.info(f"Open symbols: {open_symbols}")
                 open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
                 logging.info(f"Open symbols: {open_symbols}")
@@ -300,8 +265,6 @@ class BybitMFIERILongShortTrend(Strategy):
                 else:
                     best_bid_price = self.last_known_bid.get(symbol)  # Use last known bid price
                                 
-                moving_averages = self.get_all_moving_averages(symbol)
-
                 logging.info(f"Open symbols: {open_symbols}")
                 logging.info(f"Current rotator symbols: {rotator_symbols_standardized}")
                 symbols_to_manage = [s for s in open_symbols if s not in rotator_symbols_standardized]
@@ -314,6 +277,12 @@ class BybitMFIERILongShortTrend(Strategy):
                 trading_allowed = self.can_trade_new_symbol(open_symbols, self.symbols_allowed, symbol)
                 logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
                 logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
+
+                moving_averages = self.get_all_moving_averages(symbol)
+
+                # self.check_for_inactivity(long_pos_qty, short_pos_qty)
+
+                logging.info(f"Rotator symbols standardized: {rotator_symbols_standardized}")
 
                 self.adjust_risk_parameters()
 
@@ -345,13 +314,11 @@ class BybitMFIERILongShortTrend(Strategy):
                     one_minute_distance = metrics['1mSpread']
                     five_minute_distance = metrics['5mSpread']
                     trend = metrics['Trend']
-                    #mfirsi_signal = metrics['MFI']
-                    mfirsi_signal = self.get_mfirsi_ema(symbol, limit=100, lookback=5)
+                    # mfirsi_signal = metrics['MFI']
+                    mfirsi_signal = self.get_mfirsi(symbol, limit=100, lookback=5)
                     funding_rate = metrics['Funding']
                     hma_trend = metrics['HMA Trend']
                     eri_trend = metrics['ERI Trend']
-
-                    logging.info(f"{symbol} MFIRSI Signal: {mfirsi_signal}")
 
                     fivemin_top_signal = metrics['Top Signal 5m']
                     fivemin_bottom_signal = metrics['Bottom Signal 5m']
@@ -408,43 +375,8 @@ class BybitMFIERILongShortTrend(Strategy):
                     short_take_profit = None
                     long_take_profit = None
 
-                    # Calculate take profit for short and long positions using quickscalp method
-                    short_take_profit = self.calculate_quickscalp_short_take_profit(short_pos_price, symbol, upnl_profit_pct)
-                    long_take_profit = self.calculate_quickscalp_long_take_profit(long_pos_price, symbol, upnl_profit_pct)
-
-                    short_stop_loss = None
-                    long_stop_loss = None
-
                     initial_short_stop_loss = None
                     initial_long_stop_loss = None
-
-                    if liq_stoploss_enabled:
-                        try:
-                            if long_pos_qty > 0 and long_liquidation_price:
-                                # Convert to float if it's not None or empty string
-                                long_liquidation_price = float(long_liquidation_price) if long_liquidation_price else None
-
-                                if long_liquidation_price:
-                                    long_stop_loss_price = self.calculate_long_stop_loss_based_on_liq_price(
-                                        long_pos_price, long_liquidation_price, liq_price_stop_pct)
-                                    if long_stop_loss_price and current_price <= long_stop_loss_price:
-                                        # Place stop loss order for long position
-                                        logging.info(f"Placing long stop loss order for {symbol} at {long_stop_loss_price}")
-                                        self.postonly_limit_order_bybit_nolimit(symbol, "sell", long_pos_qty, long_stop_loss_price, positionIdx=1, reduceOnly=True)
-
-                            if short_pos_qty > 0 and short_liquidation_price:
-                                # Convert to float if it's not None or empty string
-                                short_liquidation_price = float(short_liquidation_price) if short_liquidation_price else None
-
-                                if short_liquidation_price:
-                                    short_stop_loss_price = self.calculate_short_stop_loss_based_on_liq_price(
-                                        short_pos_price, short_liquidation_price, liq_price_stop_pct)
-                                    if short_stop_loss_price and current_price >= short_stop_loss_price:
-                                        # Place stop loss order for short position
-                                        logging.info(f"Placing short stop loss order for {symbol} at {short_stop_loss_price}")
-                                        self.postonly_limit_order_bybit_nolimit(symbol, "buy", short_pos_qty, short_stop_loss_price, positionIdx=2, reduceOnly=True)
-                        except Exception as e:
-                            logging.info(f"Exception caught in liquidation stop loss logic: {e}")
 
                     if stoploss_enabled:
                         try:
@@ -601,7 +533,7 @@ class BybitMFIERILongShortTrend(Strategy):
                             logging.error(f"{symbol} Exception caught in auto reduce: {e}")
 
 
-                    # short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, one_minute_distance, previous_one_minute_distance, short_take_profit, long_take_profit)
+                    short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, one_minute_distance, previous_one_minute_distance, short_take_profit, long_take_profit)
                     #short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
                     previous_five_minute_distance = five_minute_distance
 
@@ -626,6 +558,13 @@ class BybitMFIERILongShortTrend(Strategy):
 
                     logging.info(f"Open TP order count {open_tp_order_count}")
 
+                    if self.test_orders_enabled and current_time - self.last_cancel_time >= self.spoofing_interval:
+                        if symbol in open_symbols:
+                            self.spoofing_active = True
+                            self.helperv2(symbol, short_dynamic_amount, long_dynamic_amount)
+                        else:
+                            logging.info(f"Skipping test orders for {symbol} as it's not in open symbols list.")
+                    
                     logging.info(f"Five minute volume for {symbol} : {five_minute_volume}")
                         
                     historical_data = self.fetch_historical_data(
@@ -655,19 +594,29 @@ class BybitMFIERILongShortTrend(Strategy):
                         except Exception as e:
                             logging.info(f"Exception fetching Short UPNL for {symbol}: {e}")
 
-                    self.bybit_1m_mfi_quickscalp_autoreduce(
+                    self.bybit_1m_mfi_eri_walls(
                         open_orders,
                         symbol,
-                        min_vol,
-                        one_minute_volume,
+                        trend,
+                        hma_trend,
                         mfirsi_signal,
+                        eri_trend,
+                        one_minute_volume,
+                        one_minute_distance,
+                        min_vol,
+                        min_dist,
                         long_dynamic_amount,
                         short_dynamic_amount,
                         long_pos_qty,
                         short_pos_qty,
                         long_pos_price,
                         short_pos_price,
-                        entry_during_autoreduce
+                        should_long,
+                        should_short,
+                        should_add_to_long,
+                        should_add_to_short,
+                        fivemin_top_signal=fivemin_top_signal,
+                        fivemin_bottom_signal=fivemin_bottom_signal
                     )
                     
                     tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
@@ -696,52 +645,50 @@ class BybitMFIERILongShortTrend(Strategy):
                     if short_pos_qty > 0 and short_take_profit is not None and tp_order_counts['short_tp_count'] == 0:
                         logging.info(f"Placing short TP order for {symbol} with {short_take_profit}")
                         self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
-
-                    current_latest_time = datetime.now()
-                    logging.info(f"Current time: {current_latest_time}")
-                    logging.info(f"Next long TP update time: {self.next_long_tp_update}")
-                    logging.info(f"Next short TP update time: {self.next_short_tp_update}")
+                        
+                    current_time = datetime.now()
 
                     # Check for long positions
                     if long_pos_qty > 0:
-                        if current_latest_time >= self.next_long_tp_update:
-                            self.next_long_tp_update = self.update_quickscalp_tp(
+                        if current_time >= self.next_long_tp_update and long_take_profit is not None:
+                            self.next_long_tp_update = self.update_take_profit_spread_bybit(
                                 symbol=symbol, 
                                 pos_qty=long_pos_qty, 
-                                upnl_profit_pct=upnl_profit_pct,  # Add the quickscalp percentage
+                                long_take_profit=long_take_profit,
+                                short_take_profit=short_take_profit,
                                 short_pos_price=short_pos_price,
                                 long_pos_price=long_pos_price,
                                 positionIdx=1, 
                                 order_side="sell", 
-                                last_tp_update=self.next_long_tp_update
+                                next_tp_update=self.next_long_tp_update,
+                                #five_minute_distance=five_minute_distance, 
+                                five_minute_distance=one_minute_distance,
+                                previous_five_minute_distance=previous_five_minute_distance
                             )
 
                     # Check for short positions
                     if short_pos_qty > 0:
-                        if current_latest_time >= self.next_short_tp_update:
-                            self.next_short_tp_update = self.update_quickscalp_tp(
+                        if current_time >= self.next_short_tp_update and short_take_profit is not None:
+                            self.next_short_tp_update = self.update_take_profit_spread_bybit(
                                 symbol=symbol, 
                                 pos_qty=short_pos_qty, 
-                                upnl_profit_pct=upnl_profit_pct,  # Add the quickscalp percentage
                                 short_pos_price=short_pos_price,
                                 long_pos_price=long_pos_price,
+                                short_take_profit=short_take_profit,
+                                long_take_profit=long_take_profit,
                                 positionIdx=2, 
                                 order_side="buy", 
-                                last_tp_update=self.next_short_tp_update
+                                next_tp_update=self.next_short_tp_update,
+                                # five_minute_distance=five_minute_distance, 
+                                five_minute_distance=one_minute_distance,
+                                previous_five_minute_distance=previous_five_minute_distance
                             )
 
-                    if self.test_orders_enabled and current_time - self.last_cancel_time >= self.spoofing_interval:
-                        if symbol in open_symbols:
-                            self.spoofing_active = True
-                            self.helperv2(symbol, short_dynamic_amount, long_dynamic_amount)
-                        else:
-                            logging.info(f"Skipping test orders for {symbol} as it's not in open symbols list.")
-                    
 
                     self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
                     # self.cancel_stale_orders_bybit(symbol)
 
-                    time.sleep(5)
+                    time.sleep(30)
 
                 symbol_data = {
                     'symbol': symbol,
@@ -770,11 +717,6 @@ class BybitMFIERILongShortTrend(Strategy):
                         json.dump(data_to_save, f)
                     self.update_shared_data(symbol_data, open_position_data, len(open_symbols))
 
-                iteration_end_time = time.time()  # Record the end time of the iteration
-                iteration_duration = iteration_end_time - iteration_start_time
-                logging.info(f"Iteration for symbol {symbol} took {iteration_duration:.2f} seconds")
-
-                time.sleep(5)
+                time.sleep(30)
         except Exception as e:
-            traceback_info = traceback.format_exc()  # Get the full traceback
-            logging.error(f"Exception caught in quickscalp strategy '{symbol}': {e}\nTraceback:\n{traceback_info}")
+            logging.info(f"Exception caught in mm onemin strategy {e}")
