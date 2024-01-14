@@ -3319,27 +3319,20 @@ class Strategy:
             except Exception as e:
                 logging.info(f"{symbol} Exception caught in auto reduce: {e}")
                             
-
-
-    def calculate_auto_reduce_levels_long(self, symbol, current_market_price, long_pos_qty, long_dynamic_amount, auto_reduce_start_pct, max_loss_pct, leverage):
+    def calculate_auto_reduce_levels_long(symbol, current_market_price, long_pos_qty, long_dynamic_amount, auto_reduce_start_pct, max_loss_pct):
         try:
-            # Ensure dynamic amount is positive
             if long_dynamic_amount <= 0:
                 raise ValueError("Dynamic amount for long positions must be greater than zero.")
 
-            # Adjust the start and max loss percentages based on leverage
-            adjusted_start_pct = auto_reduce_start_pct / leverage
-            adjusted_max_loss_pct = max_loss_pct / leverage
-
-            # Calculate the number of levels
+            # Calculate the number of levels, ensuring at least one level
             max_levels = max(int(long_pos_qty / long_dynamic_amount), 1)
 
-            # Calculate the price range for auto-reduce
-            price_diff_start = current_market_price * (1 - adjusted_start_pct)
-            price_diff_max = current_market_price * (1 - adjusted_max_loss_pct)
+            # Calculate the price difference for auto-reduce start and max loss
+            price_diff_start = current_market_price * (1 - auto_reduce_start_pct)
+            price_diff_max = current_market_price * (1 - max_loss_pct)
             total_price_range = price_diff_max - price_diff_start
 
-            # Ensure there's at least one level
+            # Calculate the price interval between auto-reduce levels
             price_interval = total_price_range / max_levels if max_levels > 1 else total_price_range
 
             logging.info(f"Long Auto-Reduce for {symbol}: Price Start: {price_diff_start}, Price Max: {price_diff_max}, Total Range: {total_price_range}, Max Levels: {max_levels}, Price Interval: {price_interval}")
@@ -3348,6 +3341,7 @@ class Strategy:
         except Exception as e:
             logging.error(f"Error calculating auto-reduce levels for long position in {symbol}: {e}")
             return None, None
+
 
     def calculate_auto_reduce_levels_short(self, symbol, current_market_price, short_pos_qty, short_dynamic_amount, auto_reduce_start_pct, max_loss_pct, leverage):
         try:
@@ -3376,6 +3370,63 @@ class Strategy:
         except Exception as e:
             logging.error(f"Error calculating auto-reduce levels for short position in {symbol}: {e}")
             return None, None
+
+
+    # def calculate_auto_reduce_levels_long(self, symbol, current_market_price, long_pos_qty, long_dynamic_amount, auto_reduce_start_pct, max_loss_pct, leverage):
+    #     try:
+    #         # Ensure dynamic amount is positive
+    #         if long_dynamic_amount <= 0:
+    #             raise ValueError("Dynamic amount for long positions must be greater than zero.")
+
+    #         # Adjust the start and max loss percentages based on leverage
+    #         adjusted_start_pct = auto_reduce_start_pct / leverage
+    #         adjusted_max_loss_pct = max_loss_pct / leverage
+
+    #         # Calculate the number of levels
+    #         max_levels = max(int(long_pos_qty / long_dynamic_amount), 1)
+
+    #         # Calculate the price range for auto-reduce
+    #         price_diff_start = current_market_price * (1 - adjusted_start_pct)
+    #         price_diff_max = current_market_price * (1 - adjusted_max_loss_pct)
+    #         total_price_range = price_diff_max - price_diff_start
+
+    #         # Ensure there's at least one level
+    #         price_interval = total_price_range / max_levels if max_levels > 1 else total_price_range
+
+    #         logging.info(f"Long Auto-Reduce for {symbol}: Price Start: {price_diff_start}, Price Max: {price_diff_max}, Total Range: {total_price_range}, Max Levels: {max_levels}, Price Interval: {price_interval}")
+
+    #         return max_levels, price_interval
+    #     except Exception as e:
+    #         logging.error(f"Error calculating auto-reduce levels for long position in {symbol}: {e}")
+    #         return None, None
+
+    # def calculate_auto_reduce_levels_short(self, symbol, current_market_price, short_pos_qty, short_dynamic_amount, auto_reduce_start_pct, max_loss_pct, leverage):
+    #     try:
+    #         # Ensure dynamic amount is positive
+    #         if short_dynamic_amount <= 0:
+    #             raise ValueError("Dynamic amount for short positions must be greater than zero.")
+
+    #         # Adjust the start and max loss percentages based on leverage
+    #         adjusted_start_pct = auto_reduce_start_pct / leverage
+    #         adjusted_max_loss_pct = max_loss_pct / leverage
+
+    #         # Calculate the number of levels
+    #         max_levels = max(int(short_pos_qty / short_dynamic_amount), 1)
+
+    #         # Calculate the price range for auto-reduce
+    #         price_diff_start = current_market_price * (1 + adjusted_start_pct)
+    #         price_diff_max = current_market_price * (1 + adjusted_max_loss_pct)
+    #         total_price_range = price_diff_max - price_diff_start
+
+    #         # Ensure there's at least one level
+    #         price_interval = total_price_range / max_levels if max_levels > 1 else total_price_range
+
+    #         logging.info(f"Short Auto-Reduce for {symbol}: Price Start: {price_diff_start}, Price Max: {price_diff_max}, Total Range: {total_price_range}, Max Levels: {max_levels}, Price Interval: {price_interval}")
+
+    #         return max_levels, price_interval
+    #     except Exception as e:
+    #         logging.error(f"Error calculating auto-reduce levels for short position in {symbol}: {e}")
+    #         return None, None
 
 
     # def calculate_auto_reduce_levels_long(self, symbol, current_market_price, long_pos_qty, long_dynamic_amount, auto_reduce_start_pct, max_loss_pct):
