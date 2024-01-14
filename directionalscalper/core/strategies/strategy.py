@@ -3397,48 +3397,41 @@ class Strategy:
     def auto_reduce_logic(self, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, auto_reduce_enabled, symbol, total_equity, auto_reduce_wallet_exposure_pct, open_position_data, current_market_price, long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct, auto_reduce_maxloss_pct):
         if auto_reduce_enabled:
             try:
-                # Initialize variables for used equity and leverage
+                # Initialize variables for used equity
                 long_used_equity = 0
                 short_used_equity = 0
-                long_leverage = 0
-                short_leverage = 0
 
-                # Iterate through each position and calculate used equity and leverage
+                # Iterate through each position and calculate used equity
                 for position in open_position_data:
                     info = position.get('info', {})
                     symbol_from_position = info.get('symbol', '').split(':')[0]
                     side_from_position = info.get('side', '')
                     position_balance = float(info.get('positionBalance', 0))
-                    leverage = float(info.get('leverage', 1))
 
                     if symbol_from_position == symbol:
                         if side_from_position == 'Buy':
                             long_used_equity += position_balance
-                            long_leverage = leverage
                         elif side_from_position == 'Sell':
                             short_used_equity += position_balance
-                            short_leverage = leverage
 
                 # Check if used equity exceeds the threshold for each side
                 target_equity = total_equity * auto_reduce_wallet_exposure_pct
                 auto_reduce_triggered_long = long_used_equity > target_equity
                 auto_reduce_triggered_short = short_used_equity > target_equity
 
-                # Calculate the additional margin and position size required to reach the margin threshold
-                additional_long_margin_needed = max(target_equity - long_used_equity, 0)
-                additional_short_margin_needed = max(target_equity - short_used_equity, 0)
-                additional_long_qty_needed = (additional_long_margin_needed / current_market_price) * long_leverage if long_leverage > 0 and current_market_price > 0 else 0
-                additional_short_qty_needed = (additional_short_margin_needed / current_market_price) * short_leverage if short_leverage > 0 and current_market_price > 0 else 0
+                # Calculate the additional position size required to reach the margin threshold
+                additional_long_position_needed = max(target_equity - long_used_equity, 0) / current_market_price if current_market_price > 0 else 0
+                additional_short_position_needed = max(target_equity - short_used_equity, 0) / current_market_price if current_market_price > 0 else 0
 
-                logging.info(f"Additional long margin needed for {symbol}: {additional_long_margin_needed}, equivalent position qty: {additional_long_qty_needed}")
-                logging.info(f"Additional short margin needed for {symbol}: {additional_short_margin_needed}, equivalent position qty: {additional_short_qty_needed}")
+                logging.info(f"Additional long position needed for {symbol}: {additional_long_position_needed}")
+                logging.info(f"Additional short position needed for {symbol}: {additional_short_position_needed}")
 
                 # Long position auto-reduce check
                 if long_pos_qty > 0 and long_pos_price is not None and auto_reduce_triggered_long:
                     if current_market_price >= long_pos_price * (1 + auto_reduce_start_pct):  # Position price threshold check
                         max_levels, price_interval = self.calculate_auto_reduce_levels_long(
                             symbol, current_market_price, long_pos_qty, long_dynamic_amount, 
-                            auto_reduce_start_pct, auto_reduce_maxloss_pct, long_leverage
+                            auto_reduce_start_pct, auto_reduce_maxloss_pct
                         )
                         for i in range(1, min(max_levels, 3) + 1):
                             step_price = current_market_price - (price_interval * i)
@@ -3449,15 +3442,83 @@ class Strategy:
                 if short_pos_qty > 0 and short_pos_price is not None and auto_reduce_triggered_short:
                     if current_market_price <= short_pos_price * (1 - auto_reduce_start_pct):  # Position price threshold check
                         max_levels, price_interval = self.calculate_auto_reduce_levels_short(
-                            symbol, current_market_price, short_pos_qty, short_dynamic_amount,
-                            auto_reduce_start_pct, auto_reduce_maxloss_pct, short_leverage
+                            symbol, current_market_price, short_pos_qty, short_dynamic_amount, 
+                            auto_reduce_start_pct, auto_reduce_maxloss_pct
                         )
                         for i in range(1, min(max_levels, 3) + 1):
                             step_price = current_market_price + (price_interval * i)
                             order_id = self.auto_reduce_short(symbol, short_pos_price, short_dynamic_amount, step_price)
                             self.auto_reduce_orders[symbol].append(order_id)
+
             except Exception as e:
-                logging.info(f"{symbol} Exception caught in margin and pct start auto reduce: {e}")
+                logging.info(f"{symbol} Exception caught in auto reduce: {e}")
+
+
+    # Works well but is using max leverage
+    # def auto_reduce_logic(self, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, auto_reduce_enabled, symbol, total_equity, auto_reduce_wallet_exposure_pct, open_position_data, current_market_price, long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct, auto_reduce_maxloss_pct):
+    #     if auto_reduce_enabled:
+    #         try:
+    #             # Initialize variables for used equity and leverage
+    #             long_used_equity = 0
+    #             short_used_equity = 0
+    #             long_leverage = 0
+    #             short_leverage = 0
+
+    #             # Iterate through each position and calculate used equity and leverage
+    #             for position in open_position_data:
+    #                 info = position.get('info', {})
+    #                 symbol_from_position = info.get('symbol', '').split(':')[0]
+    #                 side_from_position = info.get('side', '')
+    #                 position_balance = float(info.get('positionBalance', 0))
+    #                 leverage = float(info.get('leverage', 1))
+
+    #                 if symbol_from_position == symbol:
+    #                     if side_from_position == 'Buy':
+    #                         long_used_equity += position_balance
+    #                         long_leverage = leverage
+    #                     elif side_from_position == 'Sell':
+    #                         short_used_equity += position_balance
+    #                         short_leverage = leverage
+
+    #             # Check if used equity exceeds the threshold for each side
+    #             target_equity = total_equity * auto_reduce_wallet_exposure_pct
+    #             auto_reduce_triggered_long = long_used_equity > target_equity
+    #             auto_reduce_triggered_short = short_used_equity > target_equity
+
+    #             # Calculate the additional margin and position size required to reach the margin threshold
+    #             additional_long_margin_needed = max(target_equity - long_used_equity, 0)
+    #             additional_short_margin_needed = max(target_equity - short_used_equity, 0)
+    #             additional_long_qty_needed = (additional_long_margin_needed / current_market_price) * long_leverage if long_leverage > 0 and current_market_price > 0 else 0
+    #             additional_short_qty_needed = (additional_short_margin_needed / current_market_price) * short_leverage if short_leverage > 0 and current_market_price > 0 else 0
+
+    #             logging.info(f"Additional long margin needed for {symbol}: {additional_long_margin_needed}, equivalent position qty: {additional_long_qty_needed}")
+    #             logging.info(f"Additional short margin needed for {symbol}: {additional_short_margin_needed}, equivalent position qty: {additional_short_qty_needed}")
+
+    #             # Long position auto-reduce check
+    #             if long_pos_qty > 0 and long_pos_price is not None and auto_reduce_triggered_long:
+    #                 if current_market_price >= long_pos_price * (1 + auto_reduce_start_pct):  # Position price threshold check
+    #                     max_levels, price_interval = self.calculate_auto_reduce_levels_long(
+    #                         symbol, current_market_price, long_pos_qty, long_dynamic_amount, 
+    #                         auto_reduce_start_pct, auto_reduce_maxloss_pct, long_leverage
+    #                     )
+    #                     for i in range(1, min(max_levels, 3) + 1):
+    #                         step_price = current_market_price - (price_interval * i)
+    #                         order_id = self.auto_reduce_long(symbol, long_pos_price, long_dynamic_amount, step_price)
+    #                         self.auto_reduce_orders[symbol].append(order_id)
+
+    #             # Short position auto-reduce check
+    #             if short_pos_qty > 0 and short_pos_price is not None and auto_reduce_triggered_short:
+    #                 if current_market_price <= short_pos_price * (1 - auto_reduce_start_pct):  # Position price threshold check
+    #                     max_levels, price_interval = self.calculate_auto_reduce_levels_short(
+    #                         symbol, current_market_price, short_pos_qty, short_dynamic_amount,
+    #                         auto_reduce_start_pct, auto_reduce_maxloss_pct, short_leverage
+    #                     )
+    #                     for i in range(1, min(max_levels, 3) + 1):
+    #                         step_price = current_market_price + (price_interval * i)
+    #                         order_id = self.auto_reduce_short(symbol, short_pos_price, short_dynamic_amount, step_price)
+    #                         self.auto_reduce_orders[symbol].append(order_id)
+    #         except Exception as e:
+    #             logging.info(f"{symbol} Exception caught in margin and pct start auto reduce: {e}")
                      
 
     # def auto_reduce_logic(self, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, auto_reduce_enabled, symbol, total_equity, auto_reduce_wallet_exposure_pct, open_position_data, current_market_price, long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct, auto_reduce_maxloss_pct):
