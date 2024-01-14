@@ -3414,8 +3414,12 @@ class Strategy:
                         elif side_from_position == 'Sell':
                             short_used_equity += position_balance
 
-                # Check if used equity exceeds the threshold for each side
+                # Calculate the target equity and the percentage of equity used
                 target_equity = total_equity * auto_reduce_wallet_exposure_pct
+                long_percentage_used = (long_used_equity / total_equity) * 100
+                short_percentage_used = (short_used_equity / total_equity) * 100
+
+                # Check if used equity exceeds the threshold for each side
                 auto_reduce_triggered_long = long_used_equity > target_equity
                 auto_reduce_triggered_short = short_used_equity > target_equity
 
@@ -3423,8 +3427,9 @@ class Strategy:
                 additional_long_position_needed = max(target_equity - long_used_equity, 0) / current_market_price if current_market_price > 0 else 0
                 additional_short_position_needed = max(target_equity - short_used_equity, 0) / current_market_price if current_market_price > 0 else 0
 
-                logging.info(f"Additional long position needed for {symbol}: {additional_long_position_needed}")
-                logging.info(f"Additional short position needed for {symbol}: {additional_short_position_needed}")
+                # Log the current percentage used and the additional amount needed
+                logging.info(f"{symbol} Long position: {long_percentage_used:.2f}% used, additional position needed: {additional_long_position_needed}")
+                logging.info(f"{symbol} Short position: {short_percentage_used:.2f}% used, additional position needed: {additional_short_position_needed}")
 
                 # Long position auto-reduce check
                 if long_pos_qty > 0 and long_pos_price is not None and auto_reduce_triggered_long:
