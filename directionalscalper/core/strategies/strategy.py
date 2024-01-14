@@ -3294,7 +3294,7 @@ class Strategy:
                 if long_pos_qty > 0 and long_pos_price is not None and auto_reduce_triggered_long:
                     max_levels, price_interval = self.calculate_auto_reduce_levels_long(
                         symbol, current_market_price, long_pos_qty, long_dynamic_amount, 
-                        auto_reduce_start_pct, auto_reduce_maxloss_pct
+                        auto_reduce_start_pct, auto_reduce_maxloss_pct, leverage
                     )
                     for i in range(1, min(max_levels, 3) + 1):
                         step_price = current_market_price - (price_interval * i)
@@ -3304,7 +3304,7 @@ class Strategy:
                 if short_pos_qty > 0 and short_pos_price is not None and auto_reduce_triggered_short:
                     max_levels, price_interval = self.calculate_auto_reduce_levels_short(
                         symbol, current_market_price, short_pos_qty, short_dynamic_amount, 
-                        auto_reduce_start_pct, auto_reduce_maxloss_pct
+                        auto_reduce_start_pct, auto_reduce_maxloss_pct, leverage
                     )
                     for i in range(1, min(max_levels, 3) + 1):
                         step_price = current_market_price + (price_interval * i)
