@@ -3605,6 +3605,32 @@ class Strategy:
 
             time.sleep(5)
 
+    def bybit_long_only_strategy(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, long_dynamic_amount: float, long_pos_qty: float, long_pos_price: float, entry_during_autoreduce: bool):
+        if symbol not in self.symbol_locks:
+            self.symbol_locks[symbol] = threading.Lock()
+
+        with self.symbol_locks[symbol]:
+            current_price = self.exchange.get_current_price(symbol)
+            logging.info(f"Current price for {symbol}: {current_price}")
+
+            order_book = self.exchange.get_orderbook(symbol)
+            best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol)
+
+            mfi_signal_long = mfirsi.lower() == "long"
+
+            if one_minute_volume > min_vol:
+                if entry_during_autoreduce or not self.auto_reduce_active_long.get(symbol, False):
+                    if long_pos_qty == 0 and mfi_signal_long and not self.entry_order_exists(open_orders, "buy"):
+                        self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                        time.sleep(1)
+                    elif long_pos_qty > 0 and mfi_signal_long and current_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
+                        self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                        time.sleep(1)
+            else:
+                logging.info(f"Volume conditions not met for {symbol}, skipping entry.")
+
+            time.sleep(5)
+
     def bybit_1m_mfi_quickscalp_autoreduce(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, entry_during_autoreduce: bool):
         if symbol not in self.symbol_locks:
             self.symbol_locks[symbol] = threading.Lock()
@@ -4982,6 +5008,42 @@ class Strategy:
         except Exception as e:
             logging.info(f"Exception caught in update TP: {e}")
             return last_tp_update  # Return the last update time in case of exception
+
+    def update_mfirsi_tp(self, symbol, pos_qty, mfirsi, current_market_price, positionIdx, last_tp_update):
+        if mfirsi.lower() != 'short' or pos_qty <= 0:
+            logging.info(f"No update needed for TP for {symbol} as mfirsi is not 'short' or no open long position.")
+            return last_tp_update
+
+        # Fetch current open TP orders for the symbol
+        long_tp_orders, _ = self.exchange.bybit.get_open_tp_orders(symbol)
+
+        # Check if there's an existing TP order with a mismatched quantity or price
+        mismatched_qty_orders = [order for order in long_tp_orders if order['qty'] != pos_qty or order['price'] != current_market_price]
+
+        # Cancel mismatched TP orders if any
+        for order in mismatched_qty_orders:
+            try:
+                self.exchange.cancel_order_by_id(order['id'], symbol)
+                logging.info(f"Cancelled TP order {order['id']} for update.")
+                time.sleep(0.05)
+            except Exception as e:
+                logging.error(f"Error in cancelling TP order {order['id']}. Error: {e}")
+
+        now = datetime.now()
+        if now >= last_tp_update or mismatched_qty_orders:
+            # Place a new TP order with the current market price
+            try:
+                self.exchange.create_take_profit_order_bybit(symbol, "limit", "sell", pos_qty, current_market_price, positionIdx=positionIdx, reduce_only=True)
+                logging.info(f"New sell TP set at current market price {current_market_price} for {symbol}")
+            except Exception as e:
+                logging.error(f"Failed to set new sell TP for {symbol}. Error: {e}")
+
+            return datetime.now()
+        else:
+            logging.info(f"No immediate update needed for TP orders for {symbol}. Last update at: {last_tp_update}")
+            return last_tp_update
+
+
 
     def update_quickscalp_tp(self, symbol, pos_qty, upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, max_retries=10):
         # Fetch the current open TP orders for the symbol

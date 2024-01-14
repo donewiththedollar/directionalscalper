@@ -56,7 +56,8 @@ def get_available_strategies():
         'bybit_mfirsi_imbalance',
         'bybit_mfirsi_quickscalp',
         'qstrend',
-        'mfieritrend'
+        'mfieritrend',
+        'qstrendlongonly'
     ]
 
 def choose_strategy():
@@ -139,6 +140,9 @@ class DirectionalMarketMaker:
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'mfieritrend':
             strategy = bybit_scalping.BybitMFIERILongShortTrend(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
+        elif strategy_name.lower() == 'qstrendlongonly':
+            strategy = bybit_scalping.BybitMFIRSIQuickScalpLong(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
             
     def get_balance(self, quote, market_type=None, sub_type=None):

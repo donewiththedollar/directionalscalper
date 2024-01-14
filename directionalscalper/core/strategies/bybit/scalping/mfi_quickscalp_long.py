@@ -4,6 +4,7 @@ import os
 import copy
 import pytz
 import threading
+import traceback
 from threading import Thread, Lock
 from datetime import datetime, timedelta
 
@@ -45,6 +46,9 @@ class BybitMFIRSIQuickScalpLong(Strategy):
             self.auto_reduce_enabled = self.config.auto_reduce_enabled
             self.auto_reduce_start_pct = self.config.auto_reduce_start_pct
             self.auto_reduce_maxloss_pct = self.config.auto_reduce_maxloss_pct
+            self.entry_during_autoreduce = self.config.entry_during_autoreduce
+            self.auto_reduce_marginbased_enabled = self.config.auto_reduce_marginbased_enabled
+            self.auto_reduce_wallet_exposure_pct = self.config.auto_reduce_wallet_exposure_pct
             self.adjust_risk_parameters()
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
@@ -74,6 +78,8 @@ class BybitMFIRSIQuickScalpLong(Strategy):
         try:
             logging.info(f"Starting to process symbol: {symbol}")
             logging.info(f"Initializing default values for symbol: {symbol}")
+
+            # position_inactive_threshold = 60
 
             min_qty = None
             current_price = None
@@ -132,6 +138,12 @@ class BybitMFIRSIQuickScalpLong(Strategy):
 
             auto_reduce_maxloss_pct = self.config.auto_reduce_maxloss_pct
 
+            entry_during_autoreduce = self.config.entry_during_autoreduce
+
+            auto_reduce_marginbased_enabled = self.config.auto_reduce_marginbased_enabled
+
+            auto_reduce_wallet_exposure_pct = self.config.auto_reduce_wallet_exposure_pct
+
             # Funding
             MaxAbsFundingRate = self.config.MaxAbsFundingRate
             
@@ -148,8 +160,6 @@ class BybitMFIRSIQuickScalpLong(Strategy):
                     # Ensure the directory exists
                     os.makedirs(os.path.dirname(dashboard_path), exist_ok=True)
 
-                    # Your code for working with the file goes here
-                    # For example, reading from or writing to the file
                     with open(dashboard_path, "r") as file:
                         # Read or process file data
                         data = json.load(file)
@@ -186,9 +196,9 @@ class BybitMFIRSIQuickScalpLong(Strategy):
             while True:
                 current_time = time.time()
 
-                logging.info(f"Max USD value: {self.max_usd_value}")
-
                 iteration_start_time = time.time()
+
+                logging.info(f"Max USD value: {self.max_usd_value}")
 
                 # Check if the symbol should terminate
                 if self.should_terminate(symbol, current_time):
@@ -242,20 +252,6 @@ class BybitMFIRSIQuickScalpLong(Strategy):
                 open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
                 logging.info(f"Open symbols: {open_symbols}")
-                if symbol not in open_symbols:
-                    # If the symbol is no longer in open positions, check the time elapsed
-                    if not hasattr(self, 'position_closed_time'):
-                        self.position_closed_time = current_time
-                    elif current_time - self.position_closed_time > position_inactive_threshold:
-                        logging.info(f"Position for {symbol} has been closed for more than {position_inactive_threshold} seconds. Cancelling all orders and stopping strategy.")
-                        # Cancel all orders for this symbol before stopping the strategy
-                        self.exchange.cancel_all_orders_for_symbol_bybit(symbol)
-                        break
-                else:
-                    # Reset the timer if the position is found open again
-                    if hasattr(self, 'position_closed_time'):
-                        del self.position_closed_time
-
 
                 # position_last_update_time = self.get_position_update_time(symbol)
 
@@ -304,6 +300,8 @@ class BybitMFIRSIQuickScalpLong(Strategy):
                 else:
                     best_bid_price = self.last_known_bid.get(symbol)  # Use last known bid price
                                 
+                moving_averages = self.get_all_moving_averages(symbol)
+
                 logging.info(f"Open symbols: {open_symbols}")
                 logging.info(f"Current rotator symbols: {rotator_symbols_standardized}")
                 symbols_to_manage = [s for s in open_symbols if s not in rotator_symbols_standardized]
@@ -321,15 +319,14 @@ class BybitMFIRSIQuickScalpLong(Strategy):
 
                 self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
 
-                with self.initialized_symbols_lock:
-                    logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
-
-
-                moving_averages = self.get_all_moving_averages(symbol)
+                # Log the currently initialized symbols
+                logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
 
                 # self.check_for_inactivity(long_pos_qty, short_pos_qty)
 
                 time.sleep(5)
+
+                self.print_trade_quantities_once_bybit(symbol, total_equity, self.max_leverage)
 
                 logging.info(f"Rotator symbols standardized: {rotator_symbols_standardized}")
 
@@ -349,7 +346,7 @@ class BybitMFIRSIQuickScalpLong(Strategy):
                     five_minute_distance = metrics['5mSpread']
                     trend = metrics['Trend']
                     #mfirsi_signal = metrics['MFI']
-                    mfirsi_signal = self.get_mfi_atr(symbol, limit=200, lookback=5)
+                    mfirsi_signal = self.get_mfirsi_ema(symbol, limit=100, lookback=5, ema_period=5)
                     funding_rate = metrics['Funding']
                     hma_trend = metrics['HMA Trend']
                     eri_trend = metrics['ERI Trend']
@@ -389,12 +386,6 @@ class BybitMFIRSIQuickScalpLong(Strategy):
 
                     self.adjust_risk_parameters()
 
-                    # Initialize the symbol and quantities if not done yet
-                    self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
-
-
-                    self.print_trade_quantities_once_bybit(symbol, total_equity, self.max_leverage)
-
                     self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
                     self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
 
@@ -402,6 +393,7 @@ class BybitMFIRSIQuickScalpLong(Strategy):
                     self.update_dynamic_amounts(symbol, total_equity, best_ask_price)
 
                     long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v2(symbol, total_equity, best_ask_price, self.max_leverage)
+
 
                     logging.info(f"Long dynamic amount: {long_dynamic_amount} for {symbol}")
                     logging.info(f"Short dynamic amount: {short_dynamic_amount} for {symbol}")
@@ -505,52 +497,109 @@ class BybitMFIRSIQuickScalpLong(Strategy):
 
                             if long_pos_qty > 0 and long_pos_price is not None:
                                 auto_reduce_start_price_long = long_pos_price * (1 - auto_reduce_start_pct)
-                                logging.info(f"Auto reduce start price long for {symbol}: {auto_reduce_start_price_long}")
-
-                                if current_market_price <= auto_reduce_start_price_long:
+                                self.auto_reduce_active_long[symbol] = current_market_price <= auto_reduce_start_price_long
+                                if self.auto_reduce_active_long[symbol]:
                                     max_levels, price_interval = self.calculate_auto_reduce_levels_long(
                                         current_market_price, long_pos_qty, long_dynamic_amount, 
                                         auto_reduce_start_pct, auto_reduce_maxloss_pct
                                     )
-                                    logging.info(f"Max levels for long auto-reduce: {max_levels}, Price interval: {price_interval}")
-
                                     for i in range(1, min(max_levels, 3) + 1):
                                         step_price = current_market_price - (price_interval * i)
-                                        logging.info(f"Placing long auto-reduce order for {symbol} at level {i}, price {step_price}")
                                         order_id = self.auto_reduce_long(symbol, long_pos_price, long_dynamic_amount, step_price)
                                         auto_reduce_orders[symbol].append(order_id)
 
-                                else:
-                                    logging.info(f"{symbol} Market price above auto-reduce start level for long position. Halting auto-reduction and canceling orders.")
-                                    for order_id in active_auto_reduce_orders:
-                                        self.exchange.cancel_order(order_id, symbol)
-                                    auto_reduce_orders[symbol].clear()
-
                             if short_pos_qty > 0 and short_pos_price is not None:
                                 auto_reduce_start_price_short = short_pos_price * (1 + auto_reduce_start_pct)
-                                logging.info(f"Auto reduce start price short for {symbol}: {auto_reduce_start_price_short}")
-
-                                if current_market_price >= auto_reduce_start_price_short:
+                                self.auto_reduce_active_short[symbol] = current_market_price >= auto_reduce_start_price_short
+                                if self.auto_reduce_active_short[symbol]:
                                     max_levels, price_interval = self.calculate_auto_reduce_levels_short(
                                         current_market_price, short_pos_qty, short_dynamic_amount, 
                                         auto_reduce_start_pct, auto_reduce_maxloss_pct
                                     )
-                                    logging.info(f"Max levels for short auto-reduce: {max_levels}, Price interval: {price_interval}")
-
                                     for i in range(1, min(max_levels, 3) + 1):
                                         step_price = current_market_price + (price_interval * i)
-                                        logging.info(f"Placing short auto-reduce order for {symbol} at level {i}, price {step_price}")
                                         order_id = self.auto_reduce_short(symbol, short_pos_price, short_dynamic_amount, step_price)
                                         auto_reduce_orders[symbol].append(order_id)
 
+                        except Exception as e:
+                            logging.error(f"{symbol} Exception caught in auto reduce: {e}")
+
+                    if auto_reduce_marginbased_enabled:
+                        try:
+                            current_market_price = self.exchange.get_current_price(symbol)
+                            logging.info(f"Current market price for {symbol}: {current_market_price}")
+
+                            if symbol not in auto_reduce_orders:
+                                auto_reduce_orders[symbol] = []
+
+                            active_auto_reduce_orders = []
+                            for order_id in auto_reduce_orders[symbol]:
+                                order_status = self.exchange.get_order_status(order_id, symbol)
+                                if order_status != 'canceled':
+                                    active_auto_reduce_orders.append(order_id)
                                 else:
-                                    logging.info(f"{symbol} Market price below auto-reduce start level for short position. Halting auto-reduction and canceling orders.")
-                                    for order_id in active_auto_reduce_orders:
-                                        self.exchange.cancel_order(order_id, symbol)
-                                    auto_reduce_orders[symbol].clear()
+                                    logging.info(f"Auto-reduce order {order_id} for {symbol} was canceled. Replacing it.")
+
+                            auto_reduce_orders[symbol] = active_auto_reduce_orders
+
+                            # Fetch open position data
+                            open_position_data = self.exchange.get_all_open_positions_bybit()
+
+                            # Initialize variables for used equity
+                            long_used_equity = 0
+                            short_used_equity = 0
+
+                            # Iterate through each position and calculate used equity
+                            for position in open_position_data:
+                                info = position.get('info', {})
+
+                                symbol_from_position = info.get('symbol', '').split(':')[0]
+                                side_from_position = info.get('side', '')
+                                position_balance = float(info.get('positionBalance', 0))
+
+                                if symbol_from_position == symbol:
+                                    if side_from_position == 'Buy':
+                                        long_used_equity += position_balance
+                                    elif side_from_position == 'Sell':
+                                        short_used_equity += position_balance
+
+                            logging.info(f"Long used equity for {symbol} : {long_used_equity}")
+                            logging.info(f"Short used equity for {symbol} : {short_used_equity}")
+
+                            # Check if used equity exceeds the threshold for each side
+                            auto_reduce_triggered_long = long_used_equity > total_equity * auto_reduce_wallet_exposure_pct
+                            auto_reduce_triggered_short = short_used_equity > total_equity * auto_reduce_wallet_exposure_pct
+
+                            logging.info(f"Auto reduce trigger long for {symbol}: {auto_reduce_triggered_long}")
+                            logging.info(f"Auto reduce trigger short for {symbol}: {auto_reduce_triggered_short}")
+
+                            if long_pos_qty > 0 and long_pos_price is not None:
+                                self.auto_reduce_active_long[symbol] = auto_reduce_triggered_long
+                                if self.auto_reduce_active_long[symbol]:
+                                    max_levels, price_interval = self.calculate_auto_reduce_levels_long(
+                                        current_market_price, long_pos_qty, long_dynamic_amount, 
+                                        auto_reduce_start_pct, auto_reduce_maxloss_pct
+                                    )
+                                    for i in range(1, min(max_levels, 3) + 1):
+                                        step_price = current_market_price - (price_interval * i)
+                                        order_id = self.auto_reduce_long(symbol, long_pos_price, long_dynamic_amount, step_price)
+                                        auto_reduce_orders[symbol].append(order_id)
+
+                            if short_pos_qty > 0 and short_pos_price is not None:
+                                self.auto_reduce_active_short[symbol] = auto_reduce_triggered_short
+                                if self.auto_reduce_active_short[symbol]:
+                                    max_levels, price_interval = self.calculate_auto_reduce_levels_short(
+                                        current_market_price, short_pos_qty, short_dynamic_amount, 
+                                        auto_reduce_start_pct, auto_reduce_maxloss_pct
+                                    )
+                                    for i in range(1, min(max_levels, 3) + 1):
+                                        step_price = current_market_price + (price_interval * i)
+                                        order_id = self.auto_reduce_short(symbol, short_pos_price, short_dynamic_amount, step_price)
+                                        auto_reduce_orders[symbol].append(order_id)
 
                         except Exception as e:
                             logging.error(f"{symbol} Exception caught in auto reduce: {e}")
+
 
                     # short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, one_minute_distance, previous_one_minute_distance, short_take_profit, long_take_profit)
                     #short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
@@ -606,7 +655,7 @@ class BybitMFIRSIQuickScalpLong(Strategy):
                         except Exception as e:
                             logging.info(f"Exception fetching Short UPNL for {symbol}: {e}")
 
-                    self.quickscalp_mfi_handle_long_positions(
+                    self.bybit_long_only_strategy(
                         open_orders,
                         symbol,
                         min_vol,
@@ -614,8 +663,8 @@ class BybitMFIRSIQuickScalpLong(Strategy):
                         mfirsi_signal,
                         long_dynamic_amount,
                         long_pos_qty,
-                        long_pos_price,
-                        upnl_profit_pct
+                        short_pos_price,
+                        entry_during_autoreduce
                     )
                     
                     tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
@@ -635,15 +684,10 @@ class BybitMFIRSIQuickScalpLong(Strategy):
                     logging.info(f"Long TP order count for {symbol} is {tp_order_counts['long_tp_count']}")
                     logging.info(f"Short TP order count for {symbol} is {tp_order_counts['short_tp_count']}")
 
-                    # Place long TP order if there are no existing long TP orders
-                    if long_pos_qty > 0 and long_take_profit is not None and tp_order_counts['long_tp_count'] == 0:
-                        logging.info(f"Placing long TP order for {symbol} with {long_take_profit}")
-                        self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
-
-                    # Place short TP order if there are no existing short TP orders
-                    if short_pos_qty > 0 and short_take_profit is not None and tp_order_counts['short_tp_count'] == 0:
-                        logging.info(f"Placing short TP order for {symbol} with {short_take_profit}")
-                        self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
+                    # # Place long TP order if there are no existing long TP orders
+                    # if long_pos_qty > 0 and long_take_profit is not None and tp_order_counts['long_tp_count'] == 0:
+                    #     logging.info(f"Placing long TP order for {symbol} with {long_take_profit}")
+                    #     self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
 
                     current_latest_time = datetime.now()
                     logging.info(f"Current time: {current_latest_time}")
@@ -653,29 +697,14 @@ class BybitMFIRSIQuickScalpLong(Strategy):
                     # Check for long positions
                     if long_pos_qty > 0:
                         if current_latest_time >= self.next_long_tp_update:
-                            self.next_long_tp_update = self.update_quickscalp_tp(
-                                symbol=symbol, 
-                                pos_qty=long_pos_qty, 
-                                upnl_profit_pct=upnl_profit_pct,  # Add the quickscalp percentage
-                                short_pos_price=short_pos_price,
-                                long_pos_price=long_pos_price,
-                                positionIdx=1, 
-                                order_side="sell", 
+                            # Update the TP for long positions based on MFIRSI signal
+                            self.next_long_tp_update = self.update_mfirsi_tp(
+                                symbol=symbol,
+                                pos_qty=long_pos_qty,
+                                mfirsi=mfirsi_signal,
+                                current_market_price=best_ask_price,
+                                positionIdx=1,
                                 last_tp_update=self.next_long_tp_update
-                            )
-
-                    # Check for short positions
-                    if short_pos_qty > 0:
-                        if current_latest_time >= self.next_short_tp_update:
-                            self.next_short_tp_update = self.update_quickscalp_tp(
-                                symbol=symbol, 
-                                pos_qty=short_pos_qty, 
-                                upnl_profit_pct=upnl_profit_pct,  # Add the quickscalp percentage
-                                short_pos_price=short_pos_price,
-                                long_pos_price=long_pos_price,
-                                positionIdx=2, 
-                                order_side="buy", 
-                                last_tp_update=self.next_short_tp_update
                             )
 
                     if self.test_orders_enabled and current_time - self.last_cancel_time >= self.spoofing_interval:
@@ -724,4 +753,5 @@ class BybitMFIRSIQuickScalpLong(Strategy):
 
                 time.sleep(5)
         except Exception as e:
-            logging.info(f"Exception caught in quickscalp strategy {e}")
+            traceback_info = traceback.format_exc()  # Get the full traceback
+            logging.error(f"Exception caught in quickscalp strategy '{symbol}': {e}\nTraceback:\n{traceback_info}")
