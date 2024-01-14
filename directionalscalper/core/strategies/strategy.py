@@ -3250,27 +3250,50 @@ class Strategy:
         else:
             return 'neutral'
 
-    def calculate_auto_reduce_levels_long(self, symbol, long_pos_price, long_pos_qty, min_order_size, auto_reduce_start_pct, max_loss_pct, reduction_range_factor=0.5):
-        price_diff_start = long_pos_price - (long_pos_price * auto_reduce_start_pct)
-        price_diff_max = long_pos_price - (long_pos_price * max_loss_pct)
-        total_price_range = (price_diff_start - price_diff_max) * reduction_range_factor
-        max_levels = int(long_pos_qty / min_order_size)
-        price_interval = total_price_range / max_levels if max_levels > 0 else total_price_range
+    def calculate_auto_reduce_levels_long(self, symbol, current_market_price, long_pos_qty, long_dynamic_amount, auto_reduce_start_pct, max_loss_pct):
+        max_levels = int(long_pos_qty / long_dynamic_amount)
+        price_diff_start = current_market_price * (1 - auto_reduce_start_pct)
+        price_diff_max = current_market_price * (1 - max_loss_pct)
+        total_price_range = price_diff_max - price_diff_start
+        price_interval = total_price_range / max_levels
 
         logging.info(f"Long Auto-Reduce for {symbol}: Price Start: {price_diff_start}, Price Max: {price_diff_max}, Total Range: {total_price_range}, Max Levels: {max_levels}, Price Interval: {price_interval}")
 
         return max_levels, price_interval
 
-    def calculate_auto_reduce_levels_short(self, symbol, short_pos_price, short_pos_qty, min_order_size, auto_reduce_start_pct, max_loss_pct, reduction_range_factor=0.5):
-        price_diff_start = short_pos_price + (short_pos_price * auto_reduce_start_pct)
-        price_diff_max = short_pos_price + (short_pos_price * max_loss_pct)
-        total_price_range = (price_diff_max - price_diff_start) * reduction_range_factor
-        max_levels = int(short_pos_qty / min_order_size)
-        price_interval = total_price_range / max_levels if max_levels > 0 else price_diff_max
+    def calculate_auto_reduce_levels_short(self, symbol, current_market_price, short_pos_qty, short_dynamic_amount, auto_reduce_start_pct, max_loss_pct):
+        max_levels = int(short_pos_qty / short_dynamic_amount)
+        price_diff_start = current_market_price * (1 + auto_reduce_start_pct)
+        price_diff_max = current_market_price * (1 + max_loss_pct)
+        total_price_range = price_diff_max - price_diff_start
+        price_interval = total_price_range / max_levels
 
         logging.info(f"Short Auto-Reduce for {symbol}: Price Start: {price_diff_start}, Price Max: {price_diff_max}, Total Range: {total_price_range}, Max Levels: {max_levels}, Price Interval: {price_interval}")
 
         return max_levels, price_interval
+
+
+    # def calculate_auto_reduce_levels_long(self, symbol, long_pos_price, long_pos_qty, min_order_size, auto_reduce_start_pct, max_loss_pct, reduction_range_factor=0.5):
+    #     price_diff_start = long_pos_price - (long_pos_price * auto_reduce_start_pct)
+    #     price_diff_max = long_pos_price - (long_pos_price * max_loss_pct)
+    #     total_price_range = (price_diff_start - price_diff_max) * reduction_range_factor
+    #     max_levels = int(long_pos_qty / min_order_size)
+    #     price_interval = total_price_range / max_levels if max_levels > 0 else total_price_range
+
+    #     logging.info(f"Long Auto-Reduce for {symbol}: Price Start: {price_diff_start}, Price Max: {price_diff_max}, Total Range: {total_price_range}, Max Levels: {max_levels}, Price Interval: {price_interval}")
+
+    #     return max_levels, price_interval
+
+    # def calculate_auto_reduce_levels_short(self, symbol, short_pos_price, short_pos_qty, min_order_size, auto_reduce_start_pct, max_loss_pct, reduction_range_factor=0.5):
+    #     price_diff_start = short_pos_price + (short_pos_price * auto_reduce_start_pct)
+    #     price_diff_max = short_pos_price + (short_pos_price * max_loss_pct)
+    #     total_price_range = (price_diff_max - price_diff_start) * reduction_range_factor
+    #     max_levels = int(short_pos_qty / min_order_size)
+    #     price_interval = total_price_range / max_levels if max_levels > 0 else price_diff_max
+
+    #     logging.info(f"Short Auto-Reduce for {symbol}: Price Start: {price_diff_start}, Price Max: {price_diff_max}, Total Range: {total_price_range}, Max Levels: {max_levels}, Price Interval: {price_interval}")
+
+    #     return max_levels, price_interval
 
     # def calculate_auto_reduce_levels_long(self, long_pos_price, long_pos_qty, min_order_size, auto_reduce_start_pct, max_loss_pct, reduction_range_factor=0.5):
     #     price_diff_start = long_pos_price - (long_pos_price * auto_reduce_start_pct)
@@ -3354,84 +3377,6 @@ class Strategy:
         except Exception as e:
             logging.error(f"Error in auto-reduce short order for {symbol}: {e}")
             return None
-
-
-    # Post onlys, maybe not reasonable
-    # def auto_reduce_long(self, symbol, long_pos_price, long_dynamic_amount, step_price):
-    #     try:
-    #         order = self.postonly_limit_order_bybit_nolimit(symbol, 'sell', long_dynamic_amount, float(step_price), positionIdx=1, reduceOnly=True)
-    #         logging.info(f"Autoreduce order long: {order}")
-    #         logging.info(f"Placed auto-reduce long order for {symbol} at {step_price} with amount {long_dynamic_amount}")
-    #         return order['id']
-    #     except Exception as e:
-    #         logging.error(f"Error in placing auto-reduce long order for {symbol}: {e}")
-    #         return None
-
-    # def auto_reduce_short(self, symbol, short_pos_price, short_dynamic_amount, step_price):
-    #     try:
-    #         order = self.postonly_limit_order_bybit_nolimit(symbol, 'buy', short_dynamic_amount, float(step_price), positionIdx=2, reduceOnly=True)
-    #         logging.info(f"Autoreduce order short: {order}")
-    #         logging.info(f"Placed auto-reduce short order for {symbol} at {step_price} with amount {short_dynamic_amount}")
-    #         return order['id']
-    #     except Exception as e:
-    #         logging.error(f"Error in placing auto-reduce short order for {symbol}: {e}")
-    #         return None
-
-        
-    # def auto_reduce_long(self, symbol, long_pos_price, long_dynamic_amount, step_price):
-    #     # Place the stop loss order with the reduced amount
-    #     self.postonly_limit_order_bybit_nolimit(symbol, 'sell', long_dynamic_amount, float(step_price), positionIdx=1, reduceOnly=True)
-    #     logging.info(f"Placed auto-reduce long order for {symbol} at {step_price} with amount {long_dynamic_amount}")
-
-    # def auto_reduce_short(self, symbol, short_pos_price, short_dynamic_amount, step_price):
-    #     # Place the stop loss order with the reduced amount
-    #     self.postonly_limit_order_bybit_nolimit(symbol, 'buy', short_dynamic_amount, float(step_price), positionIdx=2, reduceOnly=True)
-    #     logging.info(f"Placed auto-reduce short order for {symbol} at {step_price} with amount {short_dynamic_amount}")
-
-
-
-    # def auto_reduce_long(self, symbol, long_pos_price, long_pos_qty, long_dynamic_amount):
-    #     # Calculate auto-reduce levels and intervals
-    #     max_levels, price_interval = self.calculate_auto_reduce_levels_long(
-    #         long_pos_price, 
-    #         long_pos_qty, 
-    #         long_dynamic_amount, 
-    #         self.auto_reduce_start_pct, 
-    #         self.auto_reduce_maxloss_pct
-    #     )
-
-    #     price_precision = int(self.exchange.get_price_precision(symbol))
-
-    #     for i in range(1, max_levels + 1):
-    #         # Calculate the price for this step
-    #         step_price = long_pos_price - (price_interval * i)
-    #         step_price = Decimal(step_price).quantize(Decimal('1e-{}'.format(price_precision)), rounding=ROUND_HALF_DOWN)
-
-    #         # Place the stop loss order with the reduced amount
-    #         self.postonly_limit_order_bybit_nolimit(symbol, 'sell', long_dynamic_amount, float(step_price), positionIdx=1, reduceOnly=True)
-    #         logging.info(f"Placed auto-reduce long order for {symbol} at {step_price} with amount {long_dynamic_amount}")
-
-    # def auto_reduce_short(self, symbol, short_pos_price, short_pos_qty, short_dynamic_amount):
-    #     # Calculate auto-reduce levels and intervals
-    #     max_levels, price_interval = self.calculate_auto_reduce_levels_short(
-    #         short_pos_price, 
-    #         short_pos_qty, 
-    #         short_dynamic_amount, 
-    #         self.auto_reduce_start_pct, 
-    #         self.auto_reduce_maxloss_pct
-    #     )
-
-    #     price_precision = int(self.exchange.get_price_precision(symbol))
-
-    #     for i in range(1, max_levels + 1):
-    #         # Calculate the price for this step
-    #         step_price = short_pos_price + (price_interval * i)
-    #         step_price = Decimal(step_price).quantize(Decimal('1e-{}'.format(price_precision)), rounding=ROUND_HALF_DOWN)
-
-    #         # Place the stop loss order with the reduced amount
-    #         self.postonly_limit_order_bybit_nolimit(symbol, 'buy', short_dynamic_amount, float(step_price), positionIdx=2, reduceOnly=True)
-    #         logging.info(f"Placed auto-reduce short order for {symbol} at {step_price} with amount {short_dynamic_amount}")
-
 
     def calculate_long_stop_loss_based_on_liq_price(self, long_pos_price, long_liq_price, liq_price_stop_pct):
         if long_pos_price is None or long_liq_price is None:
