@@ -489,6 +489,7 @@ class BybitQuickScalpTrend(Strategy):
                         current_price,
                         long_dynamic_amount,
                         short_dynamic_amount,
+                        auto_reduce_start_pct,
                         auto_reduce_maxloss_pct
                     )
 
