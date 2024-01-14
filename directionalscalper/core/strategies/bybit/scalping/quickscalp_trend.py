@@ -512,8 +512,13 @@ class BybitQuickScalpTrend(Strategy):
                                     elif side_from_position == 'Sell':
                                         short_used_equity += position_balance
 
+                            logging.info(f"Long used equity for {symbol} : {long_used_equity}")
+                            logging.info(f"Short used equity for {symbol} : {short_used_equity}")
+
                             # Calculating the target equity for auto-reduce activation
                             target_equity = total_equity * auto_reduce_wallet_exposure_pct
+
+                            logging.info(f"Target equity for symbol: {target_equity}")
 
                             # Check if used equity exceeds the threshold for each side
                             auto_reduce_triggered_long = long_used_equity > target_equity
