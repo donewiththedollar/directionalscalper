@@ -3268,6 +3268,8 @@ class Strategy:
                     position_balance = float(info.get('positionBalance', 0))
                     leverage = float(info.get('leverage', 1))
 
+                    logging.info(f"Leverage for {symbol} : {leverage}")
+
                     if symbol_from_position == symbol:
                         if side_from_position == 'Buy':
                             long_used_equity += position_balance
@@ -3284,8 +3286,11 @@ class Strategy:
                 # Calculate the additional margin and position size required to reach the margin threshold
                 additional_long_margin_needed = target_equity - long_used_equity if auto_reduce_triggered_long else 0
                 additional_short_margin_needed = target_equity - short_used_equity if auto_reduce_triggered_short else 0
-                additional_long_qty_needed = (additional_long_margin_needed / current_market_price) * long_leverage if long_leverage > 0 else 0
-                additional_short_qty_needed = (additional_short_margin_needed / current_market_price) * short_leverage if short_leverage > 0 else 0
+
+                # Correctly calculate the additional position quantity required
+                # You multiply the additional margin needed by the leverage to get the position size
+                additional_long_qty_needed = additional_long_margin_needed * long_leverage if long_leverage > 0 else 0
+                additional_short_qty_needed = additional_short_margin_needed * short_leverage if short_leverage > 0 else 0
 
                 # Log the required additional margin and position quantity
                 logging.info(f"Additional long margin needed for {symbol}: {additional_long_margin_needed}, equivalent position qty: {additional_long_qty_needed}")
