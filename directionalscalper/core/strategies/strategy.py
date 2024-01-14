@@ -5009,9 +5009,9 @@ class Strategy:
             logging.info(f"Exception caught in update TP: {e}")
             return last_tp_update  # Return the last update time in case of exception
 
-    def update_mfirsi_tp(self, symbol, pos_qty, mfirsi, current_market_price, positionIdx, last_tp_update):
-        if mfirsi.lower() != 'short' or pos_qty <= 0:
-            logging.info(f"No update needed for TP for {symbol} as mfirsi is not 'short' or no open long position.")
+    def update_mfirsi_tp(self, symbol, pos_qty, mfirsi, current_market_price, positionIdx, last_tp_update, long_upnl):
+        if mfirsi.lower() != 'short' or pos_qty <= 0 or long_upnl <= 0:
+            logging.info(f"No update needed for TP for {symbol} as mfirsi is not 'short', no open long position, or position not in profit.")
             return last_tp_update
 
         # Fetch current open TP orders for the symbol
