@@ -3420,7 +3420,7 @@ class Strategy:
 
                 # Determine how much more is needed to exceed the limit
                 long_pnl_excess_needed = auto_reduce_wallet_exposure_pct - long_pnl_percentage
-                short_pnl_excess_needed = auto_reduce_wallet_exposure_pct - short_pnl_percentage
+                short_pnl_excess_needed = auto_reduce_wallet_exposure_pct + abs(short_pnl_percentage) if short_pnl_percentage < 0 else auto_reduce_wallet_exposure_pct - short_pnl_percentage
 
                 # Log the unrealized PnL percentage and excess needed
                 logging.info(f"{symbol} Long unrealized PnL: {long_pnl_percentage:.2f}%, Excess needed to auto-reduce: {long_pnl_excess_needed:.2f}%")
