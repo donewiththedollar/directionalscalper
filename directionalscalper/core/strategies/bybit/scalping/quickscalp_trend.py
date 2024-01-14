@@ -519,6 +519,12 @@ class BybitQuickScalpTrend(Strategy):
                             auto_reduce_triggered_long = long_used_equity > target_equity
                             auto_reduce_triggered_short = short_used_equity > target_equity
 
+                            # Logging the additional position size required to reach the margin threshold
+                            additional_long_needed = (target_equity - long_used_equity) if long_used_equity < target_equity else 0
+                            additional_short_needed = (target_equity - short_used_equity) if short_used_equity < target_equity else 0
+                            logging.info(f"Additional long position needed to reach margin threshold for {symbol}: {additional_long_needed}")
+                            logging.info(f"Additional short position needed to reach margin threshold for {symbol}: {additional_short_needed}")
+
                             if long_pos_qty > 0 and long_pos_price is not None and auto_reduce_triggered_long:
                                 max_levels, price_interval = self.calculate_auto_reduce_levels_long(
                                     symbol, current_market_price, long_pos_qty, long_dynamic_amount, 
