@@ -502,6 +502,7 @@ class BybitQuickScalpTrend(Strategy):
                             # Iterate through each position and calculate used equity
                             for position in open_position_data:
                                 info = position.get('info', {})
+                                logging.info(f"{symbol} info {info}")
                                 symbol_from_position = info.get('symbol', '').split(':')[0]
                                 side_from_position = info.get('side', '')
                                 position_balance = float(info.get('positionBalance', 0))
