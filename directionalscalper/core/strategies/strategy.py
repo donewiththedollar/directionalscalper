@@ -3397,40 +3397,38 @@ class Strategy:
     def auto_reduce_logic(self, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, auto_reduce_enabled, symbol, total_equity, auto_reduce_wallet_exposure_pct, open_position_data, current_market_price, long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct, auto_reduce_maxloss_pct):
         if auto_reduce_enabled:
             try:
-                # Initialize variables for used equity
-                long_used_equity = 0
-                short_used_equity = 0
+                # Initialize variables for unrealized PnL
+                long_unrealised_pnl = 0
+                short_unrealised_pnl = 0
 
-                # Iterate through each position and calculate used equity
+                # Iterate through each position and calculate unrealized PnL
                 for position in open_position_data:
                     info = position.get('info', {})
-                    logging.info(f"Info for {symbol} {info}")
                     symbol_from_position = info.get('symbol', '').split(':')[0]
                     side_from_position = info.get('side', '')
-                    position_balance = float(info.get('positionBalance', 0))
+                    unrealised_pnl = float(info.get('unrealisedPnl', 0))
 
                     if symbol_from_position == symbol:
                         if side_from_position == 'Buy':
-                            long_used_equity += position_balance
+                            long_unrealised_pnl += unrealised_pnl
                         elif side_from_position == 'Sell':
-                            short_used_equity += position_balance
+                            short_unrealised_pnl += unrealised_pnl
 
-                # Calculate the target equity and the percentage of equity used
-                target_equity = total_equity * auto_reduce_wallet_exposure_pct
-                long_percentage_used = (long_used_equity / total_equity) * 100
-                short_percentage_used = (short_used_equity / total_equity) * 100
+                # Calculate PnL as a percentage of total equity
+                long_pnl_percentage = (long_unrealised_pnl / total_equity) * 100
+                short_pnl_percentage = (short_unrealised_pnl / total_equity) * 100
 
-                # Check if used equity exceeds the threshold for each side
-                auto_reduce_triggered_long = long_used_equity > target_equity
-                auto_reduce_triggered_short = short_used_equity > target_equity
+                # Determine how much more is needed to exceed the limit
+                long_pnl_excess_needed = auto_reduce_wallet_exposure_pct - long_pnl_percentage
+                short_pnl_excess_needed = auto_reduce_wallet_exposure_pct - short_pnl_percentage
 
-                # Calculate the additional position size required to reach the margin threshold
-                additional_long_position_needed = max(target_equity - long_used_equity, 0) / current_market_price if current_market_price > 0 else 0
-                additional_short_position_needed = max(target_equity - short_used_equity, 0) / current_market_price if current_market_price > 0 else 0
+                # Log the unrealized PnL percentage and excess needed
+                logging.info(f"{symbol} Long unrealized PnL: {long_pnl_percentage:.2f}%, Excess needed to auto-reduce: {long_pnl_excess_needed:.2f}%")
+                logging.info(f"{symbol} Short unrealized PnL: {short_pnl_percentage:.2f}%, Excess needed to auto-reduce: {short_pnl_excess_needed:.2f}%")
 
-                # Log the current percentage used and the additional amount needed
-                logging.info(f"{symbol} Long position: {long_percentage_used:.2f}% used, additional position needed: {additional_long_position_needed}")
-                logging.info(f"{symbol} Short position: {short_percentage_used:.2f}% used, additional position needed: {additional_short_position_needed}")
+                # Check if unrealized PnL exceeds the threshold for each side
+                auto_reduce_triggered_long = long_pnl_percentage > auto_reduce_wallet_exposure_pct
+                auto_reduce_triggered_short = short_pnl_percentage > auto_reduce_wallet_exposure_pct
 
                 # Long position auto-reduce check
                 if long_pos_qty > 0 and long_pos_price is not None and auto_reduce_triggered_long:
@@ -3458,6 +3456,73 @@ class Strategy:
 
             except Exception as e:
                 logging.info(f"{symbol} Exception caught in auto reduce: {e}")
+
+
+    # works well but still not quite what I want
+    # def auto_reduce_logic(self, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, auto_reduce_enabled, symbol, total_equity, auto_reduce_wallet_exposure_pct, open_position_data, current_market_price, long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct, auto_reduce_maxloss_pct):
+    #     if auto_reduce_enabled:
+    #         try:
+    #             # Initialize variables for used equity
+    #             long_used_equity = 0
+    #             short_used_equity = 0
+
+    #             # Iterate through each position and calculate used equity
+    #             for position in open_position_data:
+    #                 info = position.get('info', {})
+    #                 logging.info(f"Info for {symbol} {info}")
+    #                 symbol_from_position = info.get('symbol', '').split(':')[0]
+    #                 side_from_position = info.get('side', '')
+    #                 position_balance = float(info.get('positionBalance', 0))
+
+    #                 if symbol_from_position == symbol:
+    #                     if side_from_position == 'Buy':
+    #                         long_used_equity += position_balance
+    #                     elif side_from_position == 'Sell':
+    #                         short_used_equity += position_balance
+
+    #             # Calculate the target equity and the percentage of equity used
+    #             target_equity = total_equity * auto_reduce_wallet_exposure_pct
+    #             long_percentage_used = (long_used_equity / total_equity) * 100
+    #             short_percentage_used = (short_used_equity / total_equity) * 100
+
+    #             # Check if used equity exceeds the threshold for each side
+    #             auto_reduce_triggered_long = long_used_equity > target_equity
+    #             auto_reduce_triggered_short = short_used_equity > target_equity
+
+    #             # Calculate the additional position size required to reach the margin threshold
+    #             additional_long_position_needed = max(target_equity - long_used_equity, 0) / current_market_price if current_market_price > 0 else 0
+    #             additional_short_position_needed = max(target_equity - short_used_equity, 0) / current_market_price if current_market_price > 0 else 0
+
+    #             # Log the current percentage used and the additional amount needed
+    #             logging.info(f"{symbol} Long position: {long_percentage_used:.2f}% used, additional position needed: {additional_long_position_needed}")
+    #             logging.info(f"{symbol} Short position: {short_percentage_used:.2f}% used, additional position needed: {additional_short_position_needed}")
+
+            #     # Long position auto-reduce check
+            #     if long_pos_qty > 0 and long_pos_price is not None and auto_reduce_triggered_long:
+            #         if current_market_price >= long_pos_price * (1 + auto_reduce_start_pct):  # Position price threshold check
+            #             max_levels, price_interval = self.calculate_auto_reduce_levels_long(
+            #                 symbol, current_market_price, long_pos_qty, long_dynamic_amount, 
+            #                 auto_reduce_start_pct, auto_reduce_maxloss_pct
+            #             )
+            #             for i in range(1, min(max_levels, 3) + 1):
+            #                 step_price = current_market_price - (price_interval * i)
+            #                 order_id = self.auto_reduce_long(symbol, long_pos_price, long_dynamic_amount, step_price)
+            #                 self.auto_reduce_orders[symbol].append(order_id)
+
+            #     # Short position auto-reduce check
+            #     if short_pos_qty > 0 and short_pos_price is not None and auto_reduce_triggered_short:
+            #         if current_market_price <= short_pos_price * (1 - auto_reduce_start_pct):  # Position price threshold check
+            #             max_levels, price_interval = self.calculate_auto_reduce_levels_short(
+            #                 symbol, current_market_price, short_pos_qty, short_dynamic_amount, 
+            #                 auto_reduce_start_pct, auto_reduce_maxloss_pct
+            #             )
+            #             for i in range(1, min(max_levels, 3) + 1):
+            #                 step_price = current_market_price + (price_interval * i)
+            #                 order_id = self.auto_reduce_short(symbol, short_pos_price, short_dynamic_amount, step_price)
+            #                 self.auto_reduce_orders[symbol].append(order_id)
+
+            # except Exception as e:
+            #     logging.info(f"{symbol} Exception caught in auto reduce: {e}")
 
 
     # Works well but is using max leverage
