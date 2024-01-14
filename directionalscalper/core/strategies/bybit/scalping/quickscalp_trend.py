@@ -495,13 +495,13 @@ class BybitQuickScalpTrend(Strategy):
 
                             auto_reduce_orders[symbol] = active_auto_reduce_orders
 
-                            # Initialize variables for used equity
+                            # Initialize variables for used equity and leverage
                             long_used_equity = 0
                             short_used_equity = 0
                             long_leverage = 0
                             short_leverage = 0
 
-                            # Iterate through each position and calculate used equity
+                            # Iterate through each position and calculate used equity and leverage
                             for position in open_position_data:
                                 info = position.get('info', {})
                                 logging.info(f"{symbol} info {info}")
@@ -533,17 +533,11 @@ class BybitQuickScalpTrend(Strategy):
                             # Calculating the additional margin and position size required to reach the margin threshold
                             additional_long_margin_needed = max(target_equity - long_used_equity, 0)
                             additional_short_margin_needed = max(target_equity - short_used_equity, 0)
-                            additional_long_qty_needed = additional_long_margin_needed * long_leverage
-                            additional_short_qty_needed = additional_short_margin_needed * short_leverage
+                            additional_long_qty_needed = additional_long_margin_needed * long_leverage if long_leverage > 0 else 0
+                            additional_short_qty_needed = additional_short_margin_needed * short_leverage if short_leverage > 0 else 0
+
                             logging.info(f"Additional long margin needed for {symbol}: {additional_long_margin_needed}, equivalent position qty: {additional_long_qty_needed}")
                             logging.info(f"Additional short margin needed for {symbol}: {additional_short_margin_needed}, equivalent position qty: {additional_short_qty_needed}")
-
-
-                            # # Logging the additional position size required to reach the margin threshold
-                            # additional_long_needed = (target_equity - long_used_equity) if long_used_equity < target_equity else 0
-                            # additional_short_needed = (target_equity - short_used_equity) if short_used_equity < target_equity else 0
-                            # logging.info(f"Additional long position needed to reach margin threshold for {symbol}: {additional_long_needed}")
-                            # logging.info(f"Additional short position needed to reach margin threshold for {symbol}: {additional_short_needed}")
 
                             if long_pos_qty > 0 and long_pos_price is not None and auto_reduce_triggered_long:
                                 max_levels, price_interval = self.calculate_auto_reduce_levels_long(
@@ -566,7 +560,91 @@ class BybitQuickScalpTrend(Strategy):
                                     auto_reduce_orders[symbol].append(order_id)
 
                         except Exception as e:
-                            logging.error(f"{symbol} Exception caught in auto reduce: {e}")
+                            logging.info(f"{symbol} Exception caught in auto reduce: {e}")
+                                                                      
+                    # if auto_reduce_enabled:
+                    #     try:
+                    #         current_market_price = self.exchange.get_current_price(symbol)
+                    #         logging.info(f"Current market price for {symbol}: {current_market_price}")
+
+                    #         if symbol not in auto_reduce_orders:
+                    #             auto_reduce_orders[symbol] = []
+
+                    #         active_auto_reduce_orders = []
+                    #         for order_id in auto_reduce_orders[symbol]:
+                    #             order_status = self.exchange.get_order_status(order_id, symbol)
+                    #             if order_status != 'canceled':
+                    #                 active_auto_reduce_orders.append(order_id)
+                    #             else:
+                    #                 logging.info(f"Auto-reduce order {order_id} for {symbol} was canceled. Replacing it.")
+
+                    #         auto_reduce_orders[symbol] = active_auto_reduce_orders
+
+                    #         # Initialize variables for used equity
+                    #         long_used_equity = 0
+                    #         short_used_equity = 0
+                    #         long_leverage = 0
+                    #         short_leverage = 0
+
+                    #         # Iterate through each position and calculate used equity
+                    #         for position in open_position_data:
+                    #             info = position.get('info', {})
+                    #             logging.info(f"{symbol} info {info}")
+                    #             symbol_from_position = info.get('symbol', '').split(':')[0]
+                    #             side_from_position = info.get('side', '')
+                    #             position_balance = float(info.get('positionBalance', 0))
+                    #             leverage = float(info.get('leverage', 1))
+
+                    #             if symbol_from_position == symbol:
+                    #                 if side_from_position == 'Buy':
+                    #                     long_used_equity += position_balance
+                    #                     long_leverage = leverage
+                    #                 elif side_from_position == 'Sell':
+                    #                     short_used_equity += position_balance
+                    #                     short_leverage = leverage
+
+                    #         logging.info(f"Long used equity for {symbol} : {long_used_equity}")
+                    #         logging.info(f"Short used equity for {symbol} : {short_used_equity}")
+
+                    #         # Calculating the target equity for auto-reduce activation
+                    #         target_equity = total_equity * auto_reduce_wallet_exposure_pct
+
+                    #         logging.info(f"Target equity for symbol: {target_equity}")
+
+                    #         # Check if used equity exceeds the threshold for each side
+                    #         auto_reduce_triggered_long = long_used_equity > target_equity
+                    #         auto_reduce_triggered_short = short_used_equity > target_equity
+
+                    #         # Calculating the additional margin and position size required to reach the margin threshold
+                    #         additional_long_margin_needed = max(target_equity - long_used_equity, 0)
+                    #         additional_short_margin_needed = max(target_equity - short_used_equity, 0)
+                    #         additional_long_qty_needed = additional_long_margin_needed * long_leverage
+                    #         additional_short_qty_needed = additional_short_margin_needed * short_leverage
+                    #         logging.info(f"Additional long margin needed for {symbol}: {additional_long_margin_needed}, equivalent position qty: {additional_long_qty_needed}")
+                    #         logging.info(f"Additional short margin needed for {symbol}: {additional_short_margin_needed}, equivalent position qty: {additional_short_qty_needed}")
+
+                    #         if long_pos_qty > 0 and long_pos_price is not None and auto_reduce_triggered_long:
+                    #             max_levels, price_interval = self.calculate_auto_reduce_levels_long(
+                    #                 symbol, current_market_price, long_pos_qty, long_dynamic_amount, 
+                    #                 auto_reduce_start_pct, auto_reduce_maxloss_pct
+                    #             )
+                    #             for i in range(1, min(max_levels, 3) + 1):
+                    #                 step_price = current_market_price - (price_interval * i)
+                    #                 order_id = self.auto_reduce_long(symbol, long_pos_price, long_dynamic_amount, step_price)
+                    #                 auto_reduce_orders[symbol].append(order_id)
+
+                    #         if short_pos_qty > 0 and short_pos_price is not None and auto_reduce_triggered_short:
+                    #             max_levels, price_interval = self.calculate_auto_reduce_levels_short(
+                    #                 symbol, current_market_price, short_pos_qty, short_dynamic_amount, 
+                    #                 auto_reduce_start_pct, auto_reduce_maxloss_pct
+                    #             )
+                    #             for i in range(1, min(max_levels, 3) + 1):
+                    #                 step_price = current_market_price + (price_interval * i)
+                    #                 order_id = self.auto_reduce_short(symbol, short_pos_price, short_dynamic_amount, step_price)
+                    #                 auto_reduce_orders[symbol].append(order_id)
+
+                    #     except Exception as e:
+                    #         logging.error(f"{symbol} Exception caught in auto reduce: {e}")
                             
                     # if auto_reduce_enabled:
                     #     try:
