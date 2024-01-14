@@ -432,6 +432,7 @@ class BybitMFIERILongShortTrend(Strategy):
                                 self.auto_reduce_active_long[symbol] = current_market_price <= auto_reduce_start_price_long
                                 if self.auto_reduce_active_long[symbol]:
                                     max_levels, price_interval = self.calculate_auto_reduce_levels_long(
+                                        symbol,
                                         current_market_price, long_pos_qty, long_dynamic_amount, 
                                         auto_reduce_start_pct, auto_reduce_maxloss_pct
                                     )
@@ -445,6 +446,7 @@ class BybitMFIERILongShortTrend(Strategy):
                                 self.auto_reduce_active_short[symbol] = current_market_price >= auto_reduce_start_price_short
                                 if self.auto_reduce_active_short[symbol]:
                                     max_levels, price_interval = self.calculate_auto_reduce_levels_short(
+                                        symbol,
                                         current_market_price, short_pos_qty, short_dynamic_amount, 
                                         auto_reduce_start_pct, auto_reduce_maxloss_pct
                                     )
@@ -509,6 +511,7 @@ class BybitMFIERILongShortTrend(Strategy):
                                 self.auto_reduce_active_long[symbol] = auto_reduce_triggered_long
                                 if self.auto_reduce_active_long[symbol]:
                                     max_levels, price_interval = self.calculate_auto_reduce_levels_long(
+                                        symbol,
                                         current_market_price, long_pos_qty, long_dynamic_amount, 
                                         auto_reduce_start_pct, auto_reduce_maxloss_pct
                                     )
@@ -521,6 +524,7 @@ class BybitMFIERILongShortTrend(Strategy):
                                 self.auto_reduce_active_short[symbol] = auto_reduce_triggered_short
                                 if self.auto_reduce_active_short[symbol]:
                                     max_levels, price_interval = self.calculate_auto_reduce_levels_short(
+                                        symbol,
                                         current_market_price, short_pos_qty, short_dynamic_amount, 
                                         auto_reduce_start_pct, auto_reduce_maxloss_pct
                                     )

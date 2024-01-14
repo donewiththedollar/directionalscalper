@@ -3250,25 +3250,25 @@ class Strategy:
         else:
             return 'neutral'
 
-    def calculate_auto_reduce_levels_long(self, long_pos_price, long_pos_qty, min_order_size, auto_reduce_start_pct, max_loss_pct, reduction_range_factor=0.5):
+    def calculate_auto_reduce_levels_long(self, symbol, long_pos_price, long_pos_qty, min_order_size, auto_reduce_start_pct, max_loss_pct, reduction_range_factor=0.5):
         price_diff_start = long_pos_price - (long_pos_price * auto_reduce_start_pct)
         price_diff_max = long_pos_price - (long_pos_price * max_loss_pct)
         total_price_range = (price_diff_start - price_diff_max) * reduction_range_factor
         max_levels = int(long_pos_qty / min_order_size)
         price_interval = total_price_range / max_levels if max_levels > 0 else total_price_range
 
-        logging.info(f"Long Auto-Reduce: Price Start: {price_diff_start}, Price Max: {price_diff_max}, Total Range: {total_price_range}, Max Levels: {max_levels}, Price Interval: {price_interval}")
+        logging.info(f"Long Auto-Reduce for {symbol}: Price Start: {price_diff_start}, Price Max: {price_diff_max}, Total Range: {total_price_range}, Max Levels: {max_levels}, Price Interval: {price_interval}")
 
         return max_levels, price_interval
 
-    def calculate_auto_reduce_levels_short(self, short_pos_price, short_pos_qty, min_order_size, auto_reduce_start_pct, max_loss_pct, reduction_range_factor=0.5):
+    def calculate_auto_reduce_levels_short(self, symbol, short_pos_price, short_pos_qty, min_order_size, auto_reduce_start_pct, max_loss_pct, reduction_range_factor=0.5):
         price_diff_start = short_pos_price + (short_pos_price * auto_reduce_start_pct)
         price_diff_max = short_pos_price + (short_pos_price * max_loss_pct)
         total_price_range = (price_diff_max - price_diff_start) * reduction_range_factor
         max_levels = int(short_pos_qty / min_order_size)
         price_interval = total_price_range / max_levels if max_levels > 0 else price_diff_max
 
-        logging.info(f"Short Auto-Reduce: Price Start: {price_diff_start}, Price Max: {price_diff_max}, Total Range: {total_price_range}, Max Levels: {max_levels}, Price Interval: {price_interval}")
+        logging.info(f"Short Auto-Reduce for {symbol}: Price Start: {price_diff_start}, Price Max: {price_diff_max}, Total Range: {total_price_range}, Max Levels: {max_levels}, Price Interval: {price_interval}")
 
         return max_levels, price_interval
 
