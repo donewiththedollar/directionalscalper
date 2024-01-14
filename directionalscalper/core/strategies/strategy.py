@@ -3449,15 +3449,16 @@ class Strategy:
                 if short_pos_qty > 0 and short_pos_price is not None and auto_reduce_triggered_short:
                     if current_market_price <= short_pos_price * (1 - auto_reduce_start_pct):  # Position price threshold check
                         max_levels, price_interval = self.calculate_auto_reduce_levels_short(
-                            symbol, current_market_price, short_pos_qty, short_dynamic_amount,auto_reduce_start_pct, auto_reduce_maxloss_pct, short_leverage
+                            symbol, current_market_price, short_pos_qty, short_dynamic_amount,
+                            auto_reduce_start_pct, auto_reduce_maxloss_pct, short_leverage
                         )
                         for i in range(1, min(max_levels, 3) + 1):
                             step_price = current_market_price + (price_interval * i)
                             order_id = self.auto_reduce_short(symbol, short_pos_price, short_dynamic_amount, step_price)
                             self.auto_reduce_orders[symbol].append(order_id)
-
             except Exception as e:
                 logging.info(f"{symbol} Exception caught in margin and pct start auto reduce: {e}")
+                     
 
     # def auto_reduce_logic(self, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, auto_reduce_enabled, symbol, total_equity, auto_reduce_wallet_exposure_pct, open_position_data, current_market_price, long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct, auto_reduce_maxloss_pct):
     #     if auto_reduce_enabled:
@@ -3522,8 +3523,8 @@ class Strategy:
     #                     order_id = self.auto_reduce_short(symbol, short_pos_price, short_dynamic_amount, step_price)
     #                     self.auto_reduce_orders[symbol].append(order_id)
 
-    #         except Exception as e:
-    #             logging.info(f"{symbol} Exception caught in margin and pct start auto reduce: {e}")
+            # except Exception as e:
+            #     logging.info(f"{symbol} Exception caught in margin and pct start auto reduce: {e}")
                             
     def calculate_auto_reduce_levels_long(symbol, current_market_price, long_pos_qty, long_dynamic_amount, auto_reduce_start_pct, max_loss_pct):
         try:
