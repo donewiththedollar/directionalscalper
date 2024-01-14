@@ -486,7 +486,7 @@ class BybitQuickScalpTrend(Strategy):
                         total_equity,
                         auto_reduce_wallet_exposure_pct,
                         open_position_data,
-                        current_market_price,
+                        current_price,
                         long_dynamic_amount,
                         short_dynamic_amount,
                         auto_reduce_maxloss_pct
