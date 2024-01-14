@@ -3251,6 +3251,40 @@ class Strategy:
         else:
             return 'neutral'
 
+    def liq_stop_loss_logic(self, long_pos_qty, long_pos_price, long_liquidation_price, short_pos_qty, short_pos_price, short_liquidation_price, liq_stoploss_enabled, symbol, liq_price_stop_pct):
+        if liq_stoploss_enabled:
+            try:
+                current_price = self.exchange.get_current_price(symbol)
+
+                # Stop loss logic for long positions
+                if long_pos_qty > 0 and long_liquidation_price:
+                    # Convert to float if it's not None or empty string
+                    long_liquidation_price = float(long_liquidation_price) if long_liquidation_price else None
+
+                    if long_liquidation_price:
+                        long_stop_loss_price = self.calculate_long_stop_loss_based_on_liq_price(
+                            long_pos_price, long_liquidation_price, liq_price_stop_pct)
+                        if long_stop_loss_price and current_price <= long_stop_loss_price:
+                            # Place stop loss order for long position
+                            logging.info(f"Placing long stop loss order for {symbol} at {long_stop_loss_price}")
+                            self.postonly_limit_order_bybit_nolimit(symbol, "sell", long_pos_qty, long_stop_loss_price, positionIdx=1, reduceOnly=True)
+
+                # Stop loss logic for short positions
+                if short_pos_qty > 0 and short_liquidation_price:
+                    # Convert to float if it's not None or empty string
+                    short_liquidation_price = float(short_liquidation_price) if short_liquidation_price else None
+
+                    if short_liquidation_price:
+                        short_stop_loss_price = self.calculate_short_stop_loss_based_on_liq_price(
+                            short_pos_price, short_liquidation_price, liq_price_stop_pct)
+                        if short_stop_loss_price and current_price >= short_stop_loss_price:
+                            # Place stop loss order for short position
+                            logging.info(f"Placing short stop loss order for {symbol} at {short_stop_loss_price}")
+                            self.postonly_limit_order_bybit_nolimit(symbol, "buy", short_pos_qty, short_stop_loss_price, positionIdx=2, reduceOnly=True)
+            except Exception as e:
+                logging.error(f"Exception caught in liquidation stop loss logic for {symbol}: {e}")
+
+
     def stop_loss_logic(self, long_pos_qty, long_pos_price, short_pos_qty, short_pos_price, stoploss_enabled, symbol, stoploss_upnl_pct):
         if stoploss_enabled:
             try:
