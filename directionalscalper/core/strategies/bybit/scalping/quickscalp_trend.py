@@ -510,6 +510,8 @@ class BybitQuickScalpTrend(Strategy):
                                 position_balance = float(info.get('positionBalance', 0))
                                 leverage = float(info.get('leverage', 1))
 
+                                logging.info(f"Leverage for {symbol} : {leverage}")
+
                                 if symbol_from_position == symbol:
                                     if side_from_position == 'Buy':
                                         long_used_equity += position_balance
