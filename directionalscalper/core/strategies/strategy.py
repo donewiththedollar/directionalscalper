@@ -5787,7 +5787,7 @@ class Strategy:
 
             self.last_cancel_time = current_time
 
-    def clear_stale_positions(self, rotator_symbols, max_time_without_volume=3600): # default time is 1 hour
+    def clear_stale_positions(self, open_orders, rotator_symbols, max_time_without_volume=3600): # default time is 1 hour
         open_positions = self.exchange.get_open_positions()
         
         for position in open_positions:
