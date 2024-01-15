@@ -49,6 +49,7 @@ class BybitQuickScalpTrend(Strategy):
             self.entry_during_autoreduce = self.config.entry_during_autoreduce
             self.auto_reduce_marginbased_enabled = self.config.auto_reduce_marginbased_enabled
             self.auto_reduce_wallet_exposure_pct = self.config.auto_reduce_wallet_exposure_pct
+            self.percentile_auto_reduce_enabled = self.config.percentile_auto_reduce_enabled
             self.adjust_risk_parameters()
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
@@ -144,6 +145,8 @@ class BybitQuickScalpTrend(Strategy):
 
             auto_reduce_wallet_exposure_pct = self.config.auto_reduce_wallet_exposure_pct
 
+            percentile_auto_reduce_enabled = self.config.percentile_auto_reduce_enabled
+        
             # Funding
             MaxAbsFundingRate = self.config.MaxAbsFundingRate
             
@@ -418,6 +421,19 @@ class BybitQuickScalpTrend(Strategy):
                     initial_short_stop_loss = None
                     initial_long_stop_loss = None
 
+
+                    self.auto_reduce_percentile_logic(
+                        symbol,
+                        long_pos_qty,
+                        long_pos_price,
+                        short_pos_qty,
+                        short_pos_price,
+                        percentile_auto_reduce_enabled,
+                        auto_reduce_start_pct,
+                        auto_reduce_maxloss_pct,
+                        long_dynamic_amount,
+                        short_dynamic_amount
+                    )
 
                     self.liq_stop_loss_logic(
                         long_pos_qty,

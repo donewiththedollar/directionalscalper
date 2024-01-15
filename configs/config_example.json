@@ -17,6 +17,7 @@
     "stoploss_upnl_pct": 0.05,
     "liq_stoploss_enabled": false,
     "liq_price_stop_pct": 0.50,
+    "percentile_auto_reduce_enabled": false,
     "auto_reduce_enabled": false,
     "auto_reduce_start_pct": 0.098,
     "auto_reduce_maxloss_pct": 0.20,

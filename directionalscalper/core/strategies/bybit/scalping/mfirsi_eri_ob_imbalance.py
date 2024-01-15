@@ -36,8 +36,20 @@ class BybitMFIRSIERIOBImbalance(Strategy):
             self.max_usd_value = self.config.max_usd_value
             self.blacklist = self.config.blacklist
             self.test_orders_enabled = self.config.test_orders_enabled
+            self.upnl_profit_pct = self.config.upnl_profit_pct
             self.stoploss_enabled = self.config.stoploss_enabled
             self.stoploss_upnl_pct = self.config.stoploss_upnl_pct
+            self.liq_stoploss_enabled = self.config.liq_stoploss_enabled
+            self.liq_price_stop_pct = self.config.liq_price_stop_pct
+            self.user_risk_level = self.config.user_risk_level
+            self.auto_reduce_enabled = self.config.auto_reduce_enabled
+            self.auto_reduce_start_pct = self.config.auto_reduce_start_pct
+            self.auto_reduce_maxloss_pct = self.config.auto_reduce_maxloss_pct
+            self.entry_during_autoreduce = self.config.entry_during_autoreduce
+            self.auto_reduce_marginbased_enabled = self.config.auto_reduce_marginbased_enabled
+            self.auto_reduce_wallet_exposure_pct = self.config.auto_reduce_wallet_exposure_pct
+            self.percentile_auto_reduce_enabled = self.config.percentile_auto_reduce_enabled
+            self.adjust_risk_parameters()
             self.adjust_risk_parameters()
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
@@ -100,16 +112,45 @@ class BybitMFIRSIERIOBImbalance(Strategy):
 
             logging.info(f"Running for symbol (inside run_single_symbol method): {symbol}")
 
+            # Definitions
             quote_currency = "USDT"
             max_retries = 5
             retry_delay = 5
             wallet_exposure = self.config.wallet_exposure
             min_dist = self.config.min_distance
             min_vol = self.config.min_volume
+
+            upnl_profit_pct = self.config.upnl_profit_pct
+
+            # Stop loss
+            stoploss_enabled = self.config.stoploss_enabled
+            stoploss_upnl_pct = self.config.stoploss_upnl_pct
+            # Liq based stop loss
+            liq_stoploss_enabled = self.config.liq_stoploss_enabled
+            liq_price_stop_pct = self.config.liq_price_stop_pct
+
+            # Auto reduce
+            auto_reduce_enabled = self.config.auto_reduce_enabled
+            auto_reduce_start_pct = self.config.auto_reduce_start_pct
+
+            auto_reduce_maxloss_pct = self.config.auto_reduce_maxloss_pct
+
+            entry_during_autoreduce = self.config.entry_during_autoreduce
+
+            auto_reduce_marginbased_enabled = self.config.auto_reduce_marginbased_enabled
+
+            auto_reduce_wallet_exposure_pct = self.config.auto_reduce_wallet_exposure_pct
+
+            percentile_auto_reduce_enabled = self.config.percentile_auto_reduce_enabled
+            
+            
+            # Funding
             MaxAbsFundingRate = self.config.MaxAbsFundingRate
             
+            # Hedge ratio
             hedge_ratio = self.config.hedge_ratio
 
+            # Hedge price diff
             price_difference_threshold = self.config.hedge_price_difference_threshold
 
             stoploss_enabled = self.config.stoploss_enabled

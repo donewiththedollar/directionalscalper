@@ -41,6 +41,7 @@ class Bot(BaseModel):
     stoploss_upnl_pct: float = 0.070
     liq_stoploss_enabled: bool = False
     liq_price_stop_pct: float = 0.50
+    percentile_auto_reduce_enabled: bool = False
     auto_reduce_enabled: bool = False
     auto_reduce_start_pct: float = 0.098
     auto_reduce_maxloss_pct: float = 0.50
@@ -146,6 +147,12 @@ class Bot(BaseModel):
     def validate_auto_reduce_wallet_exposure_pct(cls, v):
         if v < 0.0 or v > 1.0:
             raise ValueError("auto_reduce_wallet_exposure_pct must be between 0.0 and 1.0")
+        return v
+
+    @validator('percentile_auto_reduce_enabled')
+    def check_percentile_auto_reduce_enabled_is_bool(cls, v):
+        if not isinstance(v, bool):
+            raise ValueError("percentile_auto_reduce_enabled must be a boolean")
         return v
     
 class Exchange(BaseModel):

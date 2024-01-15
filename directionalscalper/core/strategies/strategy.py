@@ -3394,6 +3394,55 @@ class Strategy:
             except Exception as e:
                 logging.error(f"{symbol} Exception caught in margin auto reduce: {e}")
 
+    def auto_reduce_percentile_logic(self, symbol, long_pos_qty, long_pos_price, short_pos_qty, short_pos_price, percentile_auto_reduce_enabled, auto_reduce_start_pct, auto_reduce_maxloss_pct, long_dynamic_amount, short_dynamic_amount):
+        if percentile_auto_reduce_enabled:
+            try:
+                current_market_price = self.exchange.get_current_price(symbol)
+                logging.info(f"Current market price for {symbol}: {current_market_price}")
+
+                if symbol not in self.auto_reduce_orders:
+                    self.auto_reduce_orders[symbol] = []
+
+                active_auto_reduce_orders = []
+                for order_id in self.auto_reduce_orders[symbol]:
+                    order_status = self.exchange.get_order_status(order_id, symbol)
+                    if order_status != 'canceled':
+                        active_auto_reduce_orders.append(order_id)
+                    else:
+                        logging.info(f"Auto-reduce order {order_id} for {symbol} was canceled. Replacing it.")
+
+                self.auto_reduce_orders[symbol] = active_auto_reduce_orders
+
+                if long_pos_qty > 0 and long_pos_price is not None:
+                    auto_reduce_start_price_long = long_pos_price * (1 - auto_reduce_start_pct)
+                    self.auto_reduce_active_long[symbol] = current_market_price <= auto_reduce_start_price_long
+                    if self.auto_reduce_active_long[symbol]:
+                        max_levels, price_interval = self.calculate_auto_reduce_levels_long(
+                            current_market_price, long_pos_qty, long_dynamic_amount, 
+                            auto_reduce_start_pct, auto_reduce_maxloss_pct
+                        )
+                        for i in range(1, min(max_levels, 3) + 1):
+                            step_price = current_market_price - (price_interval * i)
+                            order_id = self.auto_reduce_long(symbol, long_pos_price, long_dynamic_amount, step_price)
+                            self.auto_reduce_orders[symbol].append(order_id)
+
+                if short_pos_qty > 0 and short_pos_price is not None:
+                    auto_reduce_start_price_short = short_pos_price * (1 + auto_reduce_start_pct)
+                    self.auto_reduce_active_short[symbol] = current_market_price >= auto_reduce_start_price_short
+                    if self.auto_reduce_active_short[symbol]:
+                        max_levels, price_interval = self.calculate_auto_reduce_levels_short(
+                            current_market_price, short_pos_qty, short_dynamic_amount, 
+                            auto_reduce_start_pct, auto_reduce_maxloss_pct
+                        )
+                        for i in range(1, min(max_levels, 3) + 1):
+                            step_price= current_market_price + (price_interval * i)
+                            order_id = self.auto_reduce_short(symbol, short_pos_price, short_dynamic_amount, step_price)
+                            self.auto_reduce_orders[symbol].append(order_id)
+            except Exception as e:
+                logging.error(f"{symbol} Exception caught in auto reduce: {e}")
+
+
+
     def auto_reduce_logic(self, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, auto_reduce_enabled, symbol, total_equity, auto_reduce_wallet_exposure_pct, open_position_data, current_market_price, long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct, auto_reduce_maxloss_pct):
         if auto_reduce_enabled:
             try:

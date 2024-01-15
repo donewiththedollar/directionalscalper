@@ -36,10 +36,21 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
         self.position_inactive_threshold = 120
         try:
             self.max_usd_value = self.config.max_usd_value
-            self.stoploss_enabled = self.config.stoploss_enabled
-            self.stoploss_upnl_pct = self.config.stoploss_upnl_pct
             self.blacklist = self.config.blacklist
             self.test_orders_enabled = self.config.test_orders_enabled
+            self.upnl_profit_pct = self.config.upnl_profit_pct
+            self.stoploss_enabled = self.config.stoploss_enabled
+            self.stoploss_upnl_pct = self.config.stoploss_upnl_pct
+            self.liq_stoploss_enabled = self.config.liq_stoploss_enabled
+            self.liq_price_stop_pct = self.config.liq_price_stop_pct
+            self.user_risk_level = self.config.user_risk_level
+            self.auto_reduce_enabled = self.config.auto_reduce_enabled
+            self.auto_reduce_start_pct = self.config.auto_reduce_start_pct
+            self.auto_reduce_maxloss_pct = self.config.auto_reduce_maxloss_pct
+            self.entry_during_autoreduce = self.config.entry_during_autoreduce
+            self.auto_reduce_marginbased_enabled = self.config.auto_reduce_marginbased_enabled
+            self.auto_reduce_wallet_exposure_pct = self.config.auto_reduce_wallet_exposure_pct
+            self.percentile_auto_reduce_enabled = self.config.percentile_auto_reduce_enabled
             self.adjust_risk_parameters()
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
@@ -102,16 +113,45 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
 
             logging.info(f"Running for symbol (inside run_single_symbol method): {symbol}")
 
+            # Definitions
             quote_currency = "USDT"
             max_retries = 5
             retry_delay = 5
             wallet_exposure = self.config.wallet_exposure
             min_dist = self.config.min_distance
             min_vol = self.config.min_volume
+
+            upnl_profit_pct = self.config.upnl_profit_pct
+
+            # Stop loss
+            stoploss_enabled = self.config.stoploss_enabled
+            stoploss_upnl_pct = self.config.stoploss_upnl_pct
+            # Liq based stop loss
+            liq_stoploss_enabled = self.config.liq_stoploss_enabled
+            liq_price_stop_pct = self.config.liq_price_stop_pct
+
+            # Auto reduce
+            auto_reduce_enabled = self.config.auto_reduce_enabled
+            auto_reduce_start_pct = self.config.auto_reduce_start_pct
+
+            auto_reduce_maxloss_pct = self.config.auto_reduce_maxloss_pct
+
+            entry_during_autoreduce = self.config.entry_during_autoreduce
+
+            auto_reduce_marginbased_enabled = self.config.auto_reduce_marginbased_enabled
+
+            auto_reduce_wallet_exposure_pct = self.config.auto_reduce_wallet_exposure_pct
+
+            percentile_auto_reduce_enabled = self.config.percentile_auto_reduce_enabled
+            
+        
+            # Funding
             MaxAbsFundingRate = self.config.MaxAbsFundingRate
             
+            # Hedge ratio
             hedge_ratio = self.config.hedge_ratio
 
+            # Hedge price diff
             price_difference_threshold = self.config.hedge_price_difference_threshold
 
             stoploss_enabled = self.config.stoploss_enabled
@@ -357,35 +397,74 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                     initial_short_stop_loss = None
                     initial_long_stop_loss = None
 
-                    if stoploss_enabled:
-                        try:
-                            # Initial stop loss calculation
-                            initial_short_stop_loss = self.calculate_quickscalp_short_stop_loss(short_pos_price, symbol, stoploss_upnl_pct) if short_pos_price else None
-                            initial_long_stop_loss = self.calculate_quickscalp_long_stop_loss(long_pos_price, symbol, stoploss_upnl_pct) if long_pos_price else None
+                    self.auto_reduce_percentile_logic(
+                        symbol,
+                        long_pos_qty,
+                        long_pos_price,
+                        short_pos_qty,
+                        short_pos_price,
+                        percentile_auto_reduce_enabled,
+                        auto_reduce_start_pct,
+                        auto_reduce_maxloss_pct,
+                        long_dynamic_amount,
+                        short_dynamic_amount
+                    )
 
-                            current_price = self.exchange.get_current_price(symbol)
-                            order_book = self.exchange.get_orderbook(symbol)
-                            current_bid_price = order_book['bids'][0][0] if 'bids' in order_book and order_book['bids'] else None
-                            current_ask_price = order_book['asks'][0][0] if 'asks' in order_book and order_book['asks'] else None
+                    self.liq_stop_loss_logic(
+                        long_pos_qty,
+                        long_pos_price,
+                        long_liquidation_price,
+                        short_pos_qty,
+                        short_pos_price,
+                        short_liquidation_price,
+                        liq_stoploss_enabled,
+                        symbol,
+                        liq_price_stop_pct
+                    )
 
-                            # Calculate and set stop loss for long positions
-                            if long_pos_qty > 0 and long_pos_price and initial_long_stop_loss:
-                                threshold_for_long = long_pos_price - (long_pos_price - initial_long_stop_loss) * 0.1
-                                if current_price <= threshold_for_long:
-                                    adjusted_long_stop_loss = initial_long_stop_loss if current_price > initial_long_stop_loss else current_bid_price
-                                    logging.info(f"Setting long stop loss for {symbol} at {adjusted_long_stop_loss}")
-                                    self.postonly_limit_order_bybit_nolimit(symbol, "sell", long_pos_qty, adjusted_long_stop_loss, positionIdx=1, reduceOnly=True)
+                    self.stop_loss_logic(
+                        long_pos_qty,
+                        long_pos_price,
+                        short_pos_qty,
+                        short_pos_price,
+                        stoploss_enabled,
+                        symbol,
+                        stoploss_upnl_pct
+                    )
 
-                            # Calculate and set stop loss for short positions
-                            if short_pos_qty > 0 and short_pos_price and initial_short_stop_loss:
-                                threshold_for_short = short_pos_price + (initial_short_stop_loss - short_pos_price) * 0.1
-                                if current_price >= threshold_for_short:
-                                    adjusted_short_stop_loss = initial_short_stop_loss if current_price < initial_short_stop_loss else current_ask_price
-                                    logging.info(f"Setting short stop loss for {symbol} at {adjusted_short_stop_loss}")
-                                    self.postonly_limit_order_bybit_nolimit(symbol, "buy", short_pos_qty, adjusted_short_stop_loss, positionIdx=2, reduceOnly=True)
-                        except Exception as e:
-                            logging.info(f"Exception caught in stop loss functionality: {e}")
+                    self.auto_reduce_logic(
+                        long_pos_qty,
+                        short_pos_qty,
+                        long_pos_price,
+                        short_pos_price,
+                        auto_reduce_enabled,
+                        symbol,
+                        total_equity,
+                        auto_reduce_wallet_exposure_pct,
+                        open_position_data,
+                        current_price,
+                        long_dynamic_amount,
+                        short_dynamic_amount,
+                        auto_reduce_start_pct,
+                        auto_reduce_maxloss_pct
+                    )
 
+                    self.auto_reduce_marginbased_logic(
+                        auto_reduce_marginbased_enabled,
+                        long_pos_qty,
+                        short_pos_qty,
+                        long_pos_price,
+                        short_pos_price,
+                        symbol,
+                        total_equity,
+                        auto_reduce_wallet_exposure_pct,
+                        open_position_data,
+                        current_price,
+                        long_dynamic_amount,
+                        short_dynamic_amount,
+                        auto_reduce_start_pct,
+                        auto_reduce_maxloss_pct
+                    )
 
                     short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, one_minute_distance, previous_one_minute_distance, short_take_profit, long_take_profit)
                     #short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)

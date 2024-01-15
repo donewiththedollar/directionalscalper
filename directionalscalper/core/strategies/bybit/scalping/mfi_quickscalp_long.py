@@ -49,6 +49,7 @@ class BybitMFIRSIQuickScalpLong(Strategy):
             self.entry_during_autoreduce = self.config.entry_during_autoreduce
             self.auto_reduce_marginbased_enabled = self.config.auto_reduce_marginbased_enabled
             self.auto_reduce_wallet_exposure_pct = self.config.auto_reduce_wallet_exposure_pct
+            self.percentile_auto_reduce_enabled = self.config.percentile_auto_reduce_enabled
             self.adjust_risk_parameters()
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
@@ -144,6 +145,9 @@ class BybitMFIRSIQuickScalpLong(Strategy):
 
             auto_reduce_wallet_exposure_pct = self.config.auto_reduce_wallet_exposure_pct
 
+            percentile_auto_reduce_enabled = self.config.percentile_auto_reduce_enabled
+            
+            
             # Funding
             MaxAbsFundingRate = self.config.MaxAbsFundingRate
             
@@ -418,192 +422,75 @@ class BybitMFIRSIQuickScalpLong(Strategy):
                     initial_short_stop_loss = None
                     initial_long_stop_loss = None
 
-                    if liq_stoploss_enabled:
-                        try:
-                            if long_pos_qty > 0 and long_liquidation_price:
-                                # Convert to float if it's not None or empty string
-                                long_liquidation_price = float(long_liquidation_price) if long_liquidation_price else None
+                    self.auto_reduce_percentile_logic(
+                        symbol,
+                        long_pos_qty,
+                        long_pos_price,
+                        short_pos_qty,
+                        short_pos_price,
+                        percentile_auto_reduce_enabled,
+                        auto_reduce_start_pct,
+                        auto_reduce_maxloss_pct,
+                        long_dynamic_amount,
+                        short_dynamic_amount
+                    )
 
-                                if long_liquidation_price:
-                                    long_stop_loss_price = self.calculate_long_stop_loss_based_on_liq_price(
-                                        long_pos_price, long_liquidation_price, liq_price_stop_pct)
-                                    if long_stop_loss_price and current_price <= long_stop_loss_price:
-                                        # Place stop loss order for long position
-                                        logging.info(f"Placing long stop loss order for {symbol} at {long_stop_loss_price}")
-                                        self.postonly_limit_order_bybit_nolimit(symbol, "sell", long_pos_qty, long_stop_loss_price, positionIdx=1, reduceOnly=True)
+                    self.liq_stop_loss_logic(
+                        long_pos_qty,
+                        long_pos_price,
+                        long_liquidation_price,
+                        short_pos_qty,
+                        short_pos_price,
+                        short_liquidation_price,
+                        liq_stoploss_enabled,
+                        symbol,
+                        liq_price_stop_pct
+                    )
 
-                            if short_pos_qty > 0 and short_liquidation_price:
-                                # Convert to float if it's not None or empty string
-                                short_liquidation_price = float(short_liquidation_price) if short_liquidation_price else None
+                    self.stop_loss_logic(
+                        long_pos_qty,
+                        long_pos_price,
+                        short_pos_qty,
+                        short_pos_price,
+                        stoploss_enabled,
+                        symbol,
+                        stoploss_upnl_pct
+                    )
 
-                                if short_liquidation_price:
-                                    short_stop_loss_price = self.calculate_short_stop_loss_based_on_liq_price(
-                                        short_pos_price, short_liquidation_price, liq_price_stop_pct)
-                                    if short_stop_loss_price and current_price >= short_stop_loss_price:
-                                        # Place stop loss order for short position
-                                        logging.info(f"Placing short stop loss order for {symbol} at {short_stop_loss_price}")
-                                        self.postonly_limit_order_bybit_nolimit(symbol, "buy", short_pos_qty, short_stop_loss_price, positionIdx=2, reduceOnly=True)
-                        except Exception as e:
-                            logging.info(f"Exception caught in liquidation stop loss logic: {e}")
+                    self.auto_reduce_logic(
+                        long_pos_qty,
+                        short_pos_qty,
+                        long_pos_price,
+                        short_pos_price,
+                        auto_reduce_enabled,
+                        symbol,
+                        total_equity,
+                        auto_reduce_wallet_exposure_pct,
+                        open_position_data,
+                        current_price,
+                        long_dynamic_amount,
+                        short_dynamic_amount,
+                        auto_reduce_start_pct,
+                        auto_reduce_maxloss_pct
+                    )
 
-                    if stoploss_enabled:
-                        try:
-                            # Initial stop loss calculation
-                            initial_short_stop_loss = self.calculate_quickscalp_short_stop_loss(short_pos_price, symbol, stoploss_upnl_pct) if short_pos_price else None
-                            initial_long_stop_loss = self.calculate_quickscalp_long_stop_loss(long_pos_price, symbol, stoploss_upnl_pct) if long_pos_price else None
-
-                            current_price = self.exchange.get_current_price(symbol)
-                            order_book = self.exchange.get_orderbook(symbol)
-                            current_bid_price = order_book['bids'][0][0] if 'bids' in order_book and order_book['bids'] else None
-                            current_ask_price = order_book['asks'][0][0] if 'asks' in order_book and order_book['asks'] else None
-
-                            # Calculate and set stop loss for long positions
-                            if long_pos_qty > 0 and long_pos_price and initial_long_stop_loss:
-                                threshold_for_long = long_pos_price - (long_pos_price - initial_long_stop_loss) * 0.1
-                                if current_price <= threshold_for_long:
-                                    adjusted_long_stop_loss = initial_long_stop_loss if current_price > initial_long_stop_loss else current_bid_price
-                                    logging.info(f"{symbol} Setting long stop loss for {symbol} at {adjusted_long_stop_loss}")
-                                    self.postonly_limit_order_bybit_nolimit(symbol, "sell", long_pos_qty, adjusted_long_stop_loss, positionIdx=1, reduceOnly=True)
-
-                            # Calculate and set stop loss for short positions
-                            if short_pos_qty > 0 and short_pos_price and initial_short_stop_loss:
-                                threshold_for_short = short_pos_price + (initial_short_stop_loss - short_pos_price) * 0.1
-                                if current_price >= threshold_for_short:
-                                    adjusted_short_stop_loss = initial_short_stop_loss if current_price < initial_short_stop_loss else current_ask_price
-                                    logging.info(f"Setting short stop loss for {symbol} at {adjusted_short_stop_loss}")
-                                    self.postonly_limit_order_bybit_nolimit(symbol, "buy", short_pos_qty, adjusted_short_stop_loss, positionIdx=2, reduceOnly=True)
-                        except Exception as e:
-                            logging.info(f"Exception caught in stop loss functionality: {e}")
-
-                    auto_reduce_orders = {}  # Dictionary to track auto-reduce orders for each symbol
-
-                    if auto_reduce_enabled:
-                        try:
-                            current_market_price = self.exchange.get_current_price(symbol)
-                            logging.info(f"Current market price for {symbol}: {current_market_price}")
-
-                            if symbol not in auto_reduce_orders:
-                                auto_reduce_orders[symbol] = []
-
-                            active_auto_reduce_orders = []
-                            for order_id in auto_reduce_orders[symbol]:
-                                order_status = self.exchange.get_order_status(order_id, symbol)
-                                if order_status != 'canceled':
-                                    active_auto_reduce_orders.append(order_id)
-                                else:
-                                    logging.info(f"Auto-reduce order {order_id} for {symbol} was canceled. Replacing it.")
-
-                            auto_reduce_orders[symbol] = active_auto_reduce_orders
-
-                            if long_pos_qty > 0 and long_pos_price is not None:
-                                auto_reduce_start_price_long = long_pos_price * (1 - auto_reduce_start_pct)
-                                self.auto_reduce_active_long[symbol] = current_market_price <= auto_reduce_start_price_long
-                                if self.auto_reduce_active_long[symbol]:
-                                    max_levels, price_interval = self.calculate_auto_reduce_levels_long(
-                                        symbol,
-                                        current_market_price, long_pos_qty, long_dynamic_amount, 
-                                        auto_reduce_start_pct, auto_reduce_maxloss_pct
-                                    )
-                                    for i in range(1, min(max_levels, 3) + 1):
-                                        step_price = current_market_price - (price_interval * i)
-                                        order_id = self.auto_reduce_long(symbol, long_pos_price, long_dynamic_amount, step_price)
-                                        auto_reduce_orders[symbol].append(order_id)
-
-                            if short_pos_qty > 0 and short_pos_price is not None:
-                                auto_reduce_start_price_short = short_pos_price * (1 + auto_reduce_start_pct)
-                                self.auto_reduce_active_short[symbol] = current_market_price >= auto_reduce_start_price_short
-                                if self.auto_reduce_active_short[symbol]:
-                                    max_levels, price_interval = self.calculate_auto_reduce_levels_short(
-                                        symbol,
-                                        current_market_price, short_pos_qty, short_dynamic_amount, 
-                                        auto_reduce_start_pct, auto_reduce_maxloss_pct
-                                    )
-                                    for i in range(1, min(max_levels, 3) + 1):
-                                        step_price = current_market_price + (price_interval * i)
-                                        order_id = self.auto_reduce_short(symbol, short_pos_price, short_dynamic_amount, step_price)
-                                        auto_reduce_orders[symbol].append(order_id)
-
-                        except Exception as e:
-                            logging.error(f"{symbol} Exception caught in auto reduce: {e}")
-
-                    if auto_reduce_marginbased_enabled:
-                        try:
-                            current_market_price = self.exchange.get_current_price(symbol)
-                            logging.info(f"Current market price for {symbol}: {current_market_price}")
-
-                            if symbol not in auto_reduce_orders:
-                                auto_reduce_orders[symbol] = []
-
-                            active_auto_reduce_orders = []
-                            for order_id in auto_reduce_orders[symbol]:
-                                order_status = self.exchange.get_order_status(order_id, symbol)
-                                if order_status != 'canceled':
-                                    active_auto_reduce_orders.append(order_id)
-                                else:
-                                    logging.info(f"Auto-reduce order {order_id} for {symbol} was canceled. Replacing it.")
-
-                            auto_reduce_orders[symbol] = active_auto_reduce_orders
-
-                            # Fetch open position data
-                            open_position_data = self.exchange.get_all_open_positions_bybit()
-
-                            # Initialize variables for used equity
-                            long_used_equity = 0
-                            short_used_equity = 0
-
-                            # Iterate through each position and calculate used equity
-                            for position in open_position_data:
-                                info = position.get('info', {})
-
-                                symbol_from_position = info.get('symbol', '').split(':')[0]
-                                side_from_position = info.get('side', '')
-                                position_balance = float(info.get('positionBalance', 0))
-
-                                if symbol_from_position == symbol:
-                                    if side_from_position == 'Buy':
-                                        long_used_equity += position_balance
-                                    elif side_from_position == 'Sell':
-                                        short_used_equity += position_balance
-
-                            logging.info(f"Long used equity for {symbol} : {long_used_equity}")
-                            logging.info(f"Short used equity for {symbol} : {short_used_equity}")
-
-                            # Check if used equity exceeds the threshold for each side
-                            auto_reduce_triggered_long = long_used_equity > total_equity * auto_reduce_wallet_exposure_pct
-                            auto_reduce_triggered_short = short_used_equity > total_equity * auto_reduce_wallet_exposure_pct
-
-                            logging.info(f"Auto reduce trigger long for {symbol}: {auto_reduce_triggered_long}")
-                            logging.info(f"Auto reduce trigger short for {symbol}: {auto_reduce_triggered_short}")
-
-                            if long_pos_qty > 0 and long_pos_price is not None:
-                                self.auto_reduce_active_long[symbol] = auto_reduce_triggered_long
-                                if self.auto_reduce_active_long[symbol]:
-                                    max_levels, price_interval = self.calculate_auto_reduce_levels_long(
-                                        symbol,
-                                        current_market_price, long_pos_qty, long_dynamic_amount, 
-                                        auto_reduce_start_pct, auto_reduce_maxloss_pct
-                                    )
-                                    for i in range(1, min(max_levels, 3) + 1):
-                                        step_price = current_market_price - (price_interval * i)
-                                        order_id = self.auto_reduce_long(symbol, long_pos_price, long_dynamic_amount, step_price)
-                                        auto_reduce_orders[symbol].append(order_id)
-
-                            if short_pos_qty > 0 and short_pos_price is not None:
-                                self.auto_reduce_active_short[symbol] = auto_reduce_triggered_short
-                                if self.auto_reduce_active_short[symbol]:
-                                    max_levels, price_interval = self.calculate_auto_reduce_levels_short(
-                                        symbol,
-                                        current_market_price, short_pos_qty, short_dynamic_amount, 
-                                        auto_reduce_start_pct, auto_reduce_maxloss_pct
-                                    )
-                                    for i in range(1, min(max_levels, 3) + 1):
-                                        step_price = current_market_price + (price_interval * i)
-                                        order_id = self.auto_reduce_short(symbol, short_pos_price, short_dynamic_amount, step_price)
-                                        auto_reduce_orders[symbol].append(order_id)
-
-                        except Exception as e:
-                            logging.error(f"{symbol} Exception caught in auto reduce: {e}")
-
+                    self.auto_reduce_marginbased_logic(
+                        auto_reduce_marginbased_enabled,
+                        long_pos_qty,
+                        short_pos_qty,
+                        long_pos_price,
+                        short_pos_price,
+                        symbol,
+                        total_equity,
+                        auto_reduce_wallet_exposure_pct,
+                        open_position_data,
+                        current_price,
+                        long_dynamic_amount,
+                        short_dynamic_amount,
+                        auto_reduce_start_pct,
+                        auto_reduce_maxloss_pct
+                    )
+            
 
                     # short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, one_minute_distance, previous_one_minute_distance, short_take_profit, long_take_profit)
                     #short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
