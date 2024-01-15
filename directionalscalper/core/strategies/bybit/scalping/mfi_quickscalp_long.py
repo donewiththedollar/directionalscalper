@@ -147,7 +147,7 @@ class BybitMFIRSIQuickScalpLong(Strategy):
 
             percentile_auto_reduce_enabled = self.config.percentile_auto_reduce_enabled
             
-            
+
             # Funding
             MaxAbsFundingRate = self.config.MaxAbsFundingRate
             
@@ -490,7 +490,7 @@ class BybitMFIRSIQuickScalpLong(Strategy):
                         auto_reduce_start_pct,
                         auto_reduce_maxloss_pct
                     )
-            
+
 
                     # short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, one_minute_distance, previous_one_minute_distance, short_take_profit, long_take_profit)
                     #short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
