@@ -422,6 +422,18 @@ if __name__ == '__main__':
                     logging.info(f"Thread for symbol {symbol} has been removed.")
             logging.info(f"Currently running threads for symbols: {running_threads_info}")
 
+            # New functionality
+            # Check to ensure a thread exists for each open position symbol
+            for open_pos_symbol in open_position_symbols:
+                if open_pos_symbol not in threads or not threads[open_pos_symbol].is_alive():
+                    logging.warning(f"No active thread for open position symbol: {open_pos_symbol}. Starting a new thread.")
+                    # Start a new thread for this symbol
+                    new_thread = threading.Thread(target=run_bot, args=(open_pos_symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols))
+                    new_thread.start()
+                    threads[open_pos_symbol] = new_thread
+                    active_symbols.add(open_pos_symbol)
+                    thread_start_time[open_pos_symbol] = time.time()
+                    
             # Start threads for symbols with open positions
             for symbol in open_position_symbols:
                 if symbol not in active_symbols and len(active_symbols) < symbols_allowed:
@@ -441,18 +453,6 @@ if __name__ == '__main__':
                     threads[symbol] = thread
                     active_symbols.add(symbol)
                     thread_start_time[symbol] = time.time()
-
-            # New functionality
-            # Check to ensure a thread exists for each open position symbol
-            for open_pos_symbol in open_position_symbols:
-                if open_pos_symbol not in threads or not threads[open_pos_symbol].is_alive():
-                    logging.warning(f"No active thread for open position symbol: {open_pos_symbol}. Starting a new thread.")
-                    # Start a new thread for this symbol
-                    new_thread = threading.Thread(target=run_bot, args=(open_pos_symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols))
-                    new_thread.start()
-                    threads[open_pos_symbol] = new_thread
-                    active_symbols.add(open_pos_symbol)
-                    thread_start_time[open_pos_symbol] = time.time()
 
             # Rotate out inactive symbols and replace with new ones
             current_time = time.time()
