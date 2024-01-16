@@ -4541,7 +4541,7 @@ class Strategy:
             time.sleep(5)
 
 
-    def bybit_1m_mfi_eri_walls_atr(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, eri_trend: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool, hedge_ratio: float, atr: float, fivemin_top_signal: bool, fivemin_bottom_signal: bool):
+    def bybit_1m_mfi_eri_walls_atr(self, min_qty, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, eri_trend: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool, hedge_ratio: float, atr: float, fivemin_top_signal: bool, fivemin_bottom_signal: bool):
         if symbol not in self.symbol_locks:
             self.symbol_locks[symbol] = threading.Lock()
 
@@ -4558,10 +4558,8 @@ class Strategy:
             best_ask_price = order_book['asks'][0][0] if 'asks' in order_book and order_book['asks'] else self.last_known_ask.get(symbol)
             best_bid_price = order_book['bids'][0][0] if 'bids' in order_book and order_book['bids'] else self.last_known_bid.get(symbol)
             
-            min_order_size = 1
-
             # Call to your auto hedging function
-            self.auto_hedge_orders_bybit_atr(symbol, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, best_ask_price, best_bid_price, hedge_ratio, atr, min_order_size)
+            self.auto_hedge_orders_bybit_atr(symbol, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, best_ask_price, best_bid_price, hedge_ratio, atr, min_order_size=min_qty)
             
             # Trend Alignment Checks based on ERI trend
             eri_trend_aligned_long = eri_trend == "bullish"

@@ -506,6 +506,7 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
 
 
                     self.bybit_1m_mfi_eri_walls_atr(
+                        min_qty,
                         open_orders,
                         symbol,
                         trend,
