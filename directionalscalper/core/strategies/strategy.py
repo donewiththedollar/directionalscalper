@@ -627,8 +627,6 @@ class Strategy:
 
     def calculate_dynamic_amount_v2(self, symbol, total_equity, best_ask_price, max_leverage):
 
-        # self.initialize_trade_quantities(symbol, total_equity, best_ask_price, max_leverage)
-
         market_data = self.get_market_data_with_retry(symbol, max_retries = 100, retry_delay = 5)
 
         min_qty = float(market_data["min_qty"])
@@ -637,12 +635,6 @@ class Strategy:
 
         long_dynamic_amount = self.dynamic_amount_multiplier * total_equity
         short_dynamic_amount = self.dynamic_amount_multiplier * total_equity
-
-        # long_dynamic_amount = 0.0001 * total_equity
-        # short_dynamic_amount = 0.0001 * total_equity
-
-        # long_dynamic_amount = 0.001 * self.initial_max_long_trade_qty_per_symbol[symbol]
-        # short_dynamic_amount = 0.001 * self.initial_max_short_trade_qty_per_symbol[symbol]
 
         logging.info(f"Initial long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 

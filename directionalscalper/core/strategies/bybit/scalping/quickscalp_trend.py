@@ -333,6 +333,10 @@ class BybitQuickScalpTrend(Strategy):
 
                 logging.info(f"Rotator symbols standardized: {rotator_symbols_standardized}")
 
+                symbol_precision = self.exchange.get_symbol_precision_bybit(symbol)
+
+                logging.info(f"Symbol precision for {symbol} : {symbol_precision}")
+
                 # If the symbol is in rotator_symbols and either it's already being traded or trading is allowed.
                 if symbol in rotator_symbols_standardized or (symbol in open_symbols or trading_allowed): # and instead of or
 
