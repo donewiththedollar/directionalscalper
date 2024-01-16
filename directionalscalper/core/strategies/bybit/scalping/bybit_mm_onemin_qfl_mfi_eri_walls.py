@@ -596,7 +596,8 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                                 next_tp_update=self.next_long_tp_update,
                                 #five_minute_distance=five_minute_distance, 
                                 five_minute_distance=one_minute_distance,
-                                previous_five_minute_distance=previous_five_minute_distance
+                                previous_five_minute_distance=previous_five_minute_distance,
+                                tp_order_counts=tp_order_counts
                             )
 
                     # Check for short positions
@@ -614,7 +615,8 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                                 next_tp_update=self.next_short_tp_update,
                                 # five_minute_distance=five_minute_distance, 
                                 five_minute_distance=one_minute_distance,
-                                previous_five_minute_distance=previous_five_minute_distance
+                                previous_five_minute_distance=previous_five_minute_distance,
+                                tp_order_counts=tp_order_counts
                             )
 
 
