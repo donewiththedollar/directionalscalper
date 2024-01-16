@@ -552,12 +552,12 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
 
                     # Place long TP order if there are no existing long TP orders
                     if long_pos_qty > 0 and long_take_profit is not None and tp_order_counts['long_tp_count'] == 0:
-                        logging.info(f"Placing long TP order for {symbol} with {long_take_profit}")
+                        logging.info(f"Placing long TP order for {symbol} at {long_take_profit} with {long_pos_qty}")
                         self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
 
                     # Place short TP order if there are no existing short TP orders
                     if short_pos_qty > 0 and short_take_profit is not None and tp_order_counts['short_tp_count'] == 0:
-                        logging.info(f"Placing short TP order for {symbol} with {short_take_profit}")
+                        logging.info(f"Placing short TP order for {symbol} at {short_take_profit} with {short_pos_qty}")
                         self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
                         
                     current_time = datetime.now()
