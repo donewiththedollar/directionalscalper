@@ -3884,9 +3884,14 @@ class Strategy:
 
         return float(stop_loss_price)
 
+# price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
+
     def calculate_dynamic_long_take_profit(self, long_pos_price, symbol, upnl_profit_pct):
         if long_pos_price is None:
             return None
+
+        # Retrieve price and quantity precision for the symbol
+        price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
 
         # Basic TP calculation based on desired profit percentage
         initial_tp = long_pos_price * (1 + upnl_profit_pct)
@@ -3898,17 +3903,19 @@ class Strategy:
         for price, size in ask_walls:
             if price > initial_tp:
                 # Extend TP to just before the significant ask wall
-                extended_tp = price - self.get_minimum_price_increment(symbol)
+                extended_tp = price - price_precision
                 initial_tp = max(initial_tp, extended_tp)
                 break
 
-        # Ensure TP is quantized correctly
-        price_precision = self.get_price_precision(symbol)
-        return self.quantize_price(initial_tp, price_precision)
+        # Quantize the TP price correctly
+        return round(initial_tp, len(str(price_precision).split('.')[-1]))
 
     def calculate_dynamic_short_take_profit(self, short_pos_price, symbol, upnl_profit_pct):
         if short_pos_price is None:
             return None
+
+        # Retrieve price and quantity precision for the symbol
+        price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
 
         # Basic TP calculation based on desired profit percentage
         initial_tp = short_pos_price * (1 - upnl_profit_pct)
@@ -3920,13 +3927,12 @@ class Strategy:
         for price, size in bid_walls:
             if price < initial_tp:
                 # Extend TP to just before the significant bid wall
-                extended_tp = price + self.get_minimum_price_increment(symbol)
+                extended_tp = price + price_precision
                 initial_tp = min(initial_tp, extended_tp)
                 break
 
-        # Ensure TP is quantized correctly
-        price_precision = self.get_price_precision(symbol)
-        return self.quantize_price(initial_tp, price_precision)
+        # Quantize the TP price correctly
+        return round(initial_tp, len(str(price_precision).split('.')[-1]))
 
     def calculate_quickscalp_long_take_profit(self, long_pos_price, symbol, upnl_profit_pct):
         if long_pos_price is None:
