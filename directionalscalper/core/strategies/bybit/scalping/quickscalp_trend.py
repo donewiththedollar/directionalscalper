@@ -396,7 +396,11 @@ class BybitQuickScalpTrend(Strategy):
                     # Update dynamic amounts based on max trade quantities
                     self.update_dynamic_amounts(symbol, total_equity, best_ask_price)
 
-                    long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v2(symbol, total_equity, best_ask_price, self.max_leverage)
+                    long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v3(
+                        symbol,
+                        total_equity
+                    )
+                    # long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v2(symbol, total_equity, best_ask_price, self.max_leverage)
 
 
                     logging.info(f"Long dynamic amount: {long_dynamic_amount} for {symbol}")
