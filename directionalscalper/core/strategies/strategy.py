@@ -3928,9 +3928,14 @@ class Strategy:
         for price, size in ask_walls:
             if price > initial_tp:
                 extended_tp = price - price_precision
-                initial_tp = max(initial_tp, extended_tp)
-                logging.info(f"Adjusted long TP for {symbol} based on ask wall: {initial_tp}")
+                if extended_tp > 0:
+                    initial_tp = max(initial_tp, extended_tp)
+                    logging.info(f"Adjusted long TP for {symbol} based on ask wall: {initial_tp}")
                 break
+
+        if initial_tp <= 0:
+            initial_tp = long_pos_price * (1 + upnl_profit_pct)  # Fallback to original TP calculation
+            logging.info(f"Adjusted TP was too low, using original TP calculation: {initial_tp}")
 
         rounded_tp = round(initial_tp, len(str(price_precision).split('.')[-1]))
         logging.info(f"Final rounded long TP for {symbol}: {rounded_tp}")
@@ -3954,13 +3959,19 @@ class Strategy:
         for price, size in bid_walls:
             if price < initial_tp:
                 extended_tp = price + price_precision
-                initial_tp = min(initial_tp, extended_tp)
-                logging.info(f"Adjusted short TP for {symbol} based on bid wall: {initial_tp}")
+                if extended_tp > 0:
+                    initial_tp = min(initial_tp, extended_tp)
+                    logging.info(f"Adjusted short TP for {symbol} based on bid wall: {initial_tp}")
                 break
+
+        if initial_tp <= 0:
+            initial_tp = short_pos_price * (1 - upnl_profit_pct)  # Fallback to original TP calculation
+            logging.info(f"Adjusted TP was too low, using original TP calculation: {initial_tp}")
 
         rounded_tp = round(initial_tp, len(str(price_precision).split('.')[-1]))
         logging.info(f"Final rounded short TP for {symbol}: {rounded_tp}")
         return rounded_tp
+
 
     # def calculate_dynamic_long_take_profit(self, long_pos_price, symbol, upnl_profit_pct):
     #     if long_pos_price is None:
