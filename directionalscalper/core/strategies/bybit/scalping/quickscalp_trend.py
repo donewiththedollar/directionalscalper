@@ -366,9 +366,6 @@ class BybitQuickScalpTrend(Strategy):
                     onemin_top_signal = metrics['Top Signal 1m']
                     onemin_bottom_signal = metrics['Bottom Signal 1m']
 
-                    logging.info(f"Fivemin top signal: {fivemin_top_signal}")
-                    logging.info(f"Fivemin bottom signal: {fivemin_bottom_signal}")
-
                     position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
 
                     long_liquidation_price = position_details.get(symbol, {}).get('long', {}).get('liq_price')
