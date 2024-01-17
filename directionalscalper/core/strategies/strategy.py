@@ -3912,51 +3912,103 @@ class Strategy:
 
     def calculate_dynamic_long_take_profit(self, long_pos_price, symbol, upnl_profit_pct):
         if long_pos_price is None:
+            logging.error("Long position price is None for symbol: " + symbol)
             return None
 
-        # Retrieve price and quantity precision for the symbol
         price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
+        logging.info(f"Price precision for {symbol}: {price_precision}, Quantity precision: {qty_precision}")
 
-        # Basic TP calculation based on desired profit percentage
         initial_tp = long_pos_price * (1 + upnl_profit_pct)
+        logging.info(f"Initial long TP for {symbol}: {initial_tp}")
 
-        # Fetch order book walls
         bid_walls, ask_walls = self.detect_significant_order_book_walls(symbol)
+        if not ask_walls:
+            logging.info(f"No significant ask walls found for {symbol}")
 
-        # Adjust TP based on ask walls (for long positions)
         for price, size in ask_walls:
             if price > initial_tp:
-                # Extend TP to just before the significant ask wall
                 extended_tp = price - price_precision
                 initial_tp = max(initial_tp, extended_tp)
+                logging.info(f"Adjusted long TP for {symbol} based on ask wall: {initial_tp}")
                 break
 
-        # Quantize the TP price correctly
-        return round(initial_tp, len(str(price_precision).split('.')[-1]))
+        rounded_tp = round(initial_tp, len(str(price_precision).split('.')[-1]))
+        logging.info(f"Final rounded long TP for {symbol}: {rounded_tp}")
+        return rounded_tp
 
     def calculate_dynamic_short_take_profit(self, short_pos_price, symbol, upnl_profit_pct):
         if short_pos_price is None:
+            logging.error("Short position price is None for symbol: " + symbol)
             return None
 
-        # Retrieve price and quantity precision for the symbol
         price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
+        logging.info(f"Price precision for {symbol}: {price_precision}, Quantity precision: {qty_precision}")
 
-        # Basic TP calculation based on desired profit percentage
         initial_tp = short_pos_price * (1 - upnl_profit_pct)
+        logging.info(f"Initial short TP for {symbol}: {initial_tp}")
 
-        # Fetch order book walls
         bid_walls, ask_walls = self.detect_significant_order_book_walls(symbol)
+        if not bid_walls:
+            logging.info(f"No significant bid walls found for {symbol}")
 
-        # Adjust TP based on bid walls (for short positions)
         for price, size in bid_walls:
             if price < initial_tp:
-                # Extend TP to just before the significant bid wall
                 extended_tp = price + price_precision
                 initial_tp = min(initial_tp, extended_tp)
+                logging.info(f"Adjusted short TP for {symbol} based on bid wall: {initial_tp}")
                 break
 
-        # Quantize the TP price correctly
-        return round(initial_tp, len(str(price_precision).split('.')[-1]))
+        rounded_tp = round(initial_tp, len(str(price_precision).split('.')[-1]))
+        logging.info(f"Final rounded short TP for {symbol}: {rounded_tp}")
+        return rounded_tp
+
+    # def calculate_dynamic_long_take_profit(self, long_pos_price, symbol, upnl_profit_pct):
+    #     if long_pos_price is None:
+    #         return None
+
+    #     # Retrieve price and quantity precision for the symbol
+    #     price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
+
+    #     # Basic TP calculation based on desired profit percentage
+    #     initial_tp = long_pos_price * (1 + upnl_profit_pct)
+
+    #     # Fetch order book walls
+    #     bid_walls, ask_walls = self.detect_significant_order_book_walls(symbol)
+
+    #     # Adjust TP based on ask walls (for long positions)
+    #     for price, size in ask_walls:
+    #         if price > initial_tp:
+    #             # Extend TP to just before the significant ask wall
+    #             extended_tp = price - price_precision
+    #             initial_tp = max(initial_tp, extended_tp)
+    #             break
+
+    #     # Quantize the TP price correctly
+    #     return round(initial_tp, len(str(price_precision).split('.')[-1]))
+
+    # def calculate_dynamic_short_take_profit(self, short_pos_price, symbol, upnl_profit_pct):
+    #     if short_pos_price is None:
+    #         return None
+
+    #     # Retrieve price and quantity precision for the symbol
+    #     price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
+
+    #     # Basic TP calculation based on desired profit percentage
+    #     initial_tp = short_pos_price * (1 - upnl_profit_pct)
+
+    #     # Fetch order book walls
+    #     bid_walls, ask_walls = self.detect_significant_order_book_walls(symbol)
+
+    #     # Adjust TP based on bid walls (for short positions)
+    #     for price, size in bid_walls:
+    #         if price < initial_tp:
+    #             # Extend TP to just before the significant bid wall
+    #             extended_tp = price + price_precision
+    #             initial_tp = min(initial_tp, extended_tp)
+    #             break
+
+    #     # Quantize the TP price correctly
+    #     return round(initial_tp, len(str(price_precision).split('.')[-1]))
 
     def calculate_quickscalp_long_take_profit(self, long_pos_price, symbol, upnl_profit_pct):
         if long_pos_price is None:
