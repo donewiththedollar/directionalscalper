@@ -125,31 +125,6 @@ class Strategy:
         # Log the adjusted parameters for verification
         logging.info(f"Adjusted parameters for risk level {self.user_risk_level}: Wallet Exposure: {self.wallet_exposure}, Leverage Step: {self.LEVERAGE_STEP}, Max Leverage: {self.MAX_LEVERAGE}, Dynamic Amount Multiplier: {self.dynamic_amount_multiplier}")
 
-    # Not proper
-    # def adjust_risk_parameters(self):
-    #     # Scale the parameters between their min and max values based on user risk level
-    #     scale = (self.user_risk_level - self.MIN_RISK_LEVEL) / (self.MAX_RISK_LEVEL - self.MIN_RISK_LEVEL)
-
-    #     # Adjust the parameters
-    #     self.MAX_PCT_EQUITY = 0.05 + (scale * (1.0 - 0.05))  # Adjusted range: 5% to 100%
-    #     self.LEVERAGE_STEP = 0.002 + (scale * (0.01 - 0.002))  # Example: 0.002 to 0.01
-    #     self.MAX_LEVERAGE = 0.1 + (scale * (1.0 - 0.1))  # Example: 0.1 to 1.0
-
-    #     # Adjust the initial dynamic amount multiplier
-    #     self.dynamic_amount_multiplier = 0.0005 + (scale * (0.005 - 0.0005))  # Adjusted range
-
-    # def adjust_risk_parameters(self):
-    #     # Scale the parameters between their min and max values based on user risk level
-    #     scale = (self.user_risk_level - self.MIN_RISK_LEVEL) / (self.MAX_RISK_LEVEL - self.MIN_RISK_LEVEL)
-
-    #     # Adjust the parameters
-    #     self.MAX_PCT_EQUITY = 0.05 + (scale * (0.5 - 0.05))  # Adjusted range: 5% to 50%
-    #     self.LEVERAGE_STEP = 0.002 + (scale * (0.01 - 0.002))  # Example: 0.002 to 0.01
-    #     self.MAX_LEVERAGE = 0.1 + (scale * (1.0 - 0.1))  # Example: 0.1 to 1.0
-
-    #     # Adjust the initial dynamic amount multiplier
-    #     self.dynamic_amount_multiplier = 0.0005 + (scale * (0.005 - 0.0005))  # Adjusted range
-
     class OrderBookAnalyzer:
         def __init__(self, exchange, symbol, depth=10):
             self.exchange = exchange
@@ -236,6 +211,11 @@ class Strategy:
         order_book = self.exchange.get_orderbook(symbol)
         bids, asks = order_book['bids'], order_book['asks']
 
+        # Ensure there are enough orders to perform analysis
+        if len(bids) < 20 or len(asks) < 20:
+            logging.info("Not enough data in the order book to detect walls.")
+            return [], []
+
         # Calculate ATR for market volatility
         historical_data = self.fetch_historical_data(symbol, timeframe)
         atr = self.calculate_atr(historical_data)
@@ -243,9 +223,10 @@ class Strategy:
         # Calculate dynamic threshold based on ATR
         dynamic_threshold = base_threshold_factor * atr
 
-        # Calculate average order size for the top 10 orders
-        avg_bid_size = sum([bid[1] for bid in bids[:10]]) / 10
-        avg_ask_size = sum([ask[1] for ask in asks[:10]]) / 10
+        # Calculate average order size for a larger sample of orders
+        sample_size = 20  # Increased sample size
+        avg_bid_size = sum([bid[1] for bid in bids[:sample_size]]) / sample_size
+        avg_ask_size = sum([ask[1] for ask in asks[:sample_size]]) / sample_size
 
         # Current market price
         current_price = self.exchange.get_current_price(symbol)
@@ -265,6 +246,41 @@ class Strategy:
         logging.info(f"Significant ask walls: {significant_ask_walls} for {symbol}")
 
         return significant_bid_walls, significant_ask_walls
+
+
+    # def detect_significant_order_book_walls(self, symbol, timeframe='1h', base_threshold_factor=5.0, atr_proximity_percentage=10.0):
+    #     order_book = self.exchange.get_orderbook(symbol)
+    #     bids, asks = order_book['bids'], order_book['asks']
+
+    #     # Calculate ATR for market volatility
+    #     historical_data = self.fetch_historical_data(symbol, timeframe)
+    #     atr = self.calculate_atr(historical_data)
+        
+    #     # Calculate dynamic threshold based on ATR
+    #     dynamic_threshold = base_threshold_factor * atr
+
+    #     # Calculate average order size for the top 10 orders
+    #     avg_bid_size = sum([bid[1] for bid in bids[:10]]) / 10
+    #     avg_ask_size = sum([ask[1] for ask in asks[:10]]) / 10
+
+    #     # Current market price
+    #     current_price = self.exchange.get_current_price(symbol)
+
+    #     # Calculate proximity threshold as a percentage of the current price
+    #     proximity_threshold = (atr_proximity_percentage / 100) * current_price
+
+    #     # Function to check wall significance
+    #     def is_wall_significant(price, size, threshold, avg_size):
+    #         return size > max(threshold, avg_size * base_threshold_factor) and abs(price - current_price) <= proximity_threshold
+
+    #     # Detect significant bid and ask walls
+    #     significant_bid_walls = [(price, size) for price, size in bids if is_wall_significant(price, size, dynamic_threshold, avg_bid_size)]
+    #     significant_ask_walls = [(price, size) for price, size in asks if is_wall_significant(price, size, dynamic_threshold, avg_ask_size)]
+
+    #     logging.info(f"Significant bid walls: {significant_bid_walls} for {symbol}")
+    #     logging.info(f"Significant ask walls: {significant_ask_walls} for {symbol}")
+
+    #     return significant_bid_walls, significant_ask_walls
 
     def is_price_approaching_wall(self, current_price, wall_price, wall_type):
         # Define a relative proximity threshold, e.g., 0.5%
