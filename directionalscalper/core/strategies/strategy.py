@@ -5650,8 +5650,8 @@ class Strategy:
     def update_dynamic_quickscalp_tp(self, symbol, pos_qty, upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, tp_order_counts, max_retries=10):
         try:
             order_book = self.exchange.get_orderbook(symbol)
-            best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol)
-            best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol)
+            best_ask_price = float(order_book['asks'][0][0]) if 'asks' in order_book else float(self.last_known_ask.get(symbol, 0))
+            best_bid_price = float(order_book['bids'][0][0]) if 'bids' in order_book else float(self.last_known_bid.get(symbol, 0))
             
             # Fetch the current open TP orders and TP order counts for the symbol
             long_tp_orders, short_tp_orders = self.exchange.bybit.get_open_tp_orders(symbol)
@@ -5659,8 +5659,8 @@ class Strategy:
             short_tp_count = tp_order_counts['short_tp_count']
 
             # Calculate the new TP values using quickscalp method w/ dynamic
-            new_short_tp = self.calculate_dynamic_short_take_profit(short_pos_price, symbol, upnl_profit_pct)
-            new_long_tp = self.calculate_dynamic_long_take_profit(long_pos_price, symbol, upnl_profit_pct)
+            new_short_tp = float(self.calculate_dynamic_short_take_profit(short_pos_price, symbol, upnl_profit_pct))
+            new_long_tp = float(self.calculate_dynamic_long_take_profit(long_pos_price, symbol, upnl_profit_pct))
 
             # Adjust TP based on current market price
             if order_side == "sell" and long_pos_price >= new_long_tp:
@@ -5703,6 +5703,64 @@ class Strategy:
                 return last_tp_update
         except Exception as e:
             logging.error(f"Exception caught in updating dynamic TP for {symbol}: {e}")
+
+
+    # def update_dynamic_quickscalp_tp(self, symbol, pos_qty, upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, tp_order_counts, max_retries=10):
+    #     try:
+    #         order_book = self.exchange.get_orderbook(symbol)
+    #         best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol)
+    #         best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol)
+            
+    #         # Fetch the current open TP orders and TP order counts for the symbol
+    #         long_tp_orders, short_tp_orders = self.exchange.bybit.get_open_tp_orders(symbol)
+    #         long_tp_count = tp_order_counts['long_tp_count']
+    #         short_tp_count = tp_order_counts['short_tp_count']
+
+    #         # Calculate the new TP values using quickscalp method w/ dynamic
+    #         new_short_tp = self.calculate_dynamic_short_take_profit(short_pos_price, symbol, upnl_profit_pct)
+    #         new_long_tp = self.calculate_dynamic_long_take_profit(long_pos_price, symbol, upnl_profit_pct)
+
+    #         # Adjust TP based on current market price
+    #         if order_side == "sell" and long_pos_price >= new_long_tp:
+    #             new_long_tp = best_bid_price
+    #         elif order_side == "buy" and short_pos_price <= new_short_tp:
+    #             new_short_tp = best_ask_price
+
+    #         # Determine the relevant TP orders based on the order side
+    #         relevant_tp_orders = long_tp_orders if order_side == "sell" else short_tp_orders
+
+    #         # Check and cancel mismatched TP orders
+    #         mismatched_qty_orders = [order for order in relevant_tp_orders if order['qty'] != pos_qty]
+    #         for order in mismatched_qty_orders:
+    #             try:
+    #                 self.exchange.cancel_order_by_id(order['id'], symbol)
+    #                 logging.info(f"Cancelled TP order {order['id']} for update.")
+    #                 time.sleep(0.05)
+    #             except Exception as e:
+    #                 logging.error(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
+
+    #         now = datetime.now()
+    #         if now >= last_tp_update or mismatched_qty_orders:
+    #             # Check if a TP order already exists
+    #             tp_order_exists = (order_side == "sell" and long_tp_count > 0) or (order_side == "buy" and short_tp_count > 0)
+
+    #             # Set new TP order with updated prices only if no TP order exists
+    #             if not tp_order_exists:
+    #                 new_tp_price = new_long_tp if order_side == "sell" else new_short_tp
+    #                 try:
+    #                     self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, new_tp_price, positionIdx=positionIdx, reduce_only=True)
+    #                     logging.info(f"New {order_side.capitalize()} TP set at {new_tp_price}")
+    #                 except Exception as e:
+    #                     logging.error(f"Failed to set new {order_side} TP for {symbol}. Error: {e}")
+    #             else:
+    #                 logging.info(f"Skipping TP update as a TP order already exists for {symbol}")
+
+    #             return self.calculate_next_update_time()
+    #         else:
+    #             logging.info(f"No immediate update needed for TP orders for {symbol}. Last update at: {last_tp_update}")
+    #             return last_tp_update
+    #     except Exception as e:
+    #         logging.error(f"Exception caught in updating dynamic TP for {symbol}: {e}")
 
 
     def update_quickscalp_tp(self, symbol, pos_qty, upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, tp_order_counts, max_retries=10):
