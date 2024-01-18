@@ -648,6 +648,8 @@ class Strategy:
         price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
         qty_precision_level = -int(math.log10(qty_precision))
 
+        logging.info(f"Qty precision level: {qty_precision_level}")
+
         market_data = self.get_market_data_with_retry(symbol, max_retries = 100, retry_delay = 5)
 
         min_qty = float(market_data["min_qty"])
