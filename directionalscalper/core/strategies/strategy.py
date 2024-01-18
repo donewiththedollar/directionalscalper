@@ -4070,44 +4070,34 @@ class Strategy:
     def place_long_tp_order(self, symbol, best_ask_price, long_pos_price, long_pos_qty, long_take_profit, open_orders):
         try:
             tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
+            logging.info(f"Long TP order counts for {symbol}: {tp_order_counts}")
 
-            logging.info(f"Long TP order counts for {symbol} : {tp_order_counts}")
-
-            # Only proceed if there are no existing long TP orders
             if tp_order_counts['long_tp_count'] == 0:
-                # Check if current bid price is already higher than the take profit target
-                if long_pos_price >= long_take_profit:
-                    # Adjust TP to current bid price
+                if long_pos_price is not None and best_ask_price is not None and long_pos_price >= long_take_profit:
                     long_take_profit = best_ask_price
                     logging.info(f"Adjusted long TP to current bid price for {symbol}: {long_take_profit}")
 
-                # Place long TP order
                 if long_pos_qty > 0 and long_take_profit is not None:
                     logging.info(f"Placing long TP order for {symbol} at {long_take_profit} with {long_pos_qty}")
                     self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
         except Exception as e:
-            logging.info(f"Exception caught in placing long TP order {e}")
+            logging.error(f"Exception caught in placing long TP order for {symbol}: {e}")
 
     def place_short_tp_order(self, symbol, best_bid_price, short_pos_price, short_pos_qty, short_take_profit, open_orders):
         try:
             tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
-
             logging.info(f"Short TP order counts for {symbol}: {tp_order_counts}")
 
-            # Only proceed if there are no existing short TP orders
             if tp_order_counts['short_tp_count'] == 0:
-                # Check if current ask price is already lower than the take profit target
-                if short_pos_price <= short_take_profit:
-                    # Adjust TP to current ask price
+                if short_pos_price is not None and best_bid_price is not None and short_pos_price <= short_take_profit:
                     short_take_profit = best_bid_price
                     logging.info(f"Adjusted short TP to current ask price for {symbol}: {short_take_profit}")
 
-                # Place short TP order
                 if short_pos_qty > 0 and short_take_profit is not None:
                     logging.info(f"Placing short TP order for {symbol} at {short_take_profit} with {short_pos_qty}")
                     self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
         except Exception as e:
-            logging.info(f"Exception gaught in placing short TP order {e}")
+            logging.error(f"Exception caught in placing short TP order for {symbol}: {e}")
 
     def quickscalp_mfi_handle_long_positions(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, long_dynamic_amount: float, long_pos_qty: float, long_pos_price: float):
         if symbol not in self.symbol_locks:
