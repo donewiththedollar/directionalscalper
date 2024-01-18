@@ -644,47 +644,51 @@ class Strategy:
         logging.info(f"Updated dynamic amounts for {symbol}. New long_dynamic_amount: {self.long_dynamic_amount[symbol]}, New short_dynamic_amount: {self.short_dynamic_amount[symbol]}")
 
     def calculate_dynamic_amount_v3(self, symbol, total_equity):
-        # Fetch symbol precision for price and quantity
-        qty_precision, _ = self.exchange.get_symbol_precision_bybit(symbol)
+        try:
+            # Fetch symbol precision for price and quantity
+            qty_precision, _ = self.exchange.get_symbol_precision_bybit(symbol)
 
-        if qty_precision is None:
-            logging.error(f"Failed to fetch quantity precision for {symbol}")
-            return None, None, None
+            logging.info(f"Qty precision for {symbol}: {qty_precision}")
 
-        market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
+            if qty_precision is None:
+                logging.error(f"Failed to fetch quantity precision for {symbol}")
+                return None, None, None
 
-        min_qty = float(market_data["min_qty"])
-        logging.info(f"Min qty for {symbol}: {min_qty}")
+            market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
 
-        long_dynamic_amount = self.dynamic_amount_multiplier * total_equity
-        short_dynamic_amount = self.dynamic_amount_multiplier * total_equity
-        logging.info(f"Initial long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+            min_qty = float(market_data["min_qty"])
+            logging.info(f"Min qty for {symbol}: {min_qty}")
 
-        max_allowed_dynamic_amount = (self.MAX_PCT_EQUITY / 100) * total_equity
-        logging.info(f"Max allowed dynamic amount for {symbol}: {max_allowed_dynamic_amount}")
+            long_dynamic_amount = self.dynamic_amount_multiplier * total_equity
+            short_dynamic_amount = self.dynamic_amount_multiplier * total_equity
+            logging.info(f"Initial long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 
-        # Round the dynamic amounts based on quantity precision
-        long_dynamic_amount = round(long_dynamic_amount / qty_precision) * qty_precision
-        short_dynamic_amount = round(short_dynamic_amount / qty_precision) * qty_precision
-        logging.info(f"Rounded long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+            max_allowed_dynamic_amount = (self.MAX_PCT_EQUITY / 100) * total_equity
+            logging.info(f"Max allowed dynamic amount for {symbol}: {max_allowed_dynamic_amount}")
 
-        long_dynamic_amount = min(long_dynamic_amount, max_allowed_dynamic_amount)
-        short_dynamic_amount = min(short_dynamic_amount, max_allowed_dynamic_amount)
+            # Round the dynamic amounts based on quantity precision
+            long_dynamic_amount = round(long_dynamic_amount / qty_precision) * qty_precision
+            short_dynamic_amount = round(short_dynamic_amount / qty_precision) * qty_precision
+            logging.info(f"Rounded long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 
-        self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
-        self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
+            long_dynamic_amount = min(long_dynamic_amount, max_allowed_dynamic_amount)
+            short_dynamic_amount = min(short_dynamic_amount, max_allowed_dynamic_amount)
 
-        if long_dynamic_amount < min_qty:
-            logging.info(f"Dynamic amount too small for 0.001x, using min_qty for long_dynamic_amount")
-            long_dynamic_amount = min_qty
-        if short_dynamic_amount < min_qty:
-            logging.info(f"Dynamic amount too small for 0.001x, using min_qty for short_dynamic_amount")
-            short_dynamic_amount = min_qty
+            self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
+            self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
 
-        logging.info(f"Symbol: {symbol} Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+            if long_dynamic_amount < min_qty:
+                logging.info(f"Dynamic amount too small for 0.001x, using min_qty for long_dynamic_amount")
+                long_dynamic_amount = min_qty
+            if short_dynamic_amount < min_qty:
+                logging.info(f"Dynamic amount too small for 0.001x, using min_qty for short_dynamic_amount")
+                short_dynamic_amount = min_qty
 
-        return long_dynamic_amount, short_dynamic_amount, min_qty
+            logging.info(f"Symbol: {symbol} Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 
+            return long_dynamic_amount, short_dynamic_amount, min_qty
+        except Exception as e:
+            logging.info(f"Exception caught in calculate dynamic amount v3 {e}")
 
     # def calculate_dynamic_amount_v3(self, symbol, total_equity):
     #     # Fetch symbol precision for price and quantity
