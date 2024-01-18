@@ -89,6 +89,8 @@ class Strategy:
         self.auto_reduce_active_long = {}
         self.auto_reduce_active_short = {}
         self.auto_reduce_orders = {}
+        self.last_known_ask = {}
+        self.last_known_bid = {} 
 
         self.bybit = self.Bybit(self)
 
@@ -5605,10 +5607,10 @@ class Strategy:
 
     def update_dynamic_quickscalp_tp(self, symbol, pos_qty, upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, tp_order_counts, max_retries=10):
         try:
-            # Fetch current bid and ask prices
-            current_bid_price = self.exchange.get_current_bid_price(symbol)
-            current_ask_price = self.exchange.get_current_ask_price(symbol)
-
+            order_book = self.exchange.get_orderbook(symbol)
+            best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol)
+            best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol)
+            
             # Fetch the current open TP orders and TP order counts for the symbol
             long_tp_orders, short_tp_orders = self.exchange.bybit.get_open_tp_orders(symbol)
             long_tp_count = tp_order_counts['long_tp_count']
