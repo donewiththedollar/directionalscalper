@@ -4067,7 +4067,7 @@ class Strategy:
 
         return float(target_profit_price)
 
-    def place_long_tp_order(self, symbol, long_pos_price, long_pos_qty, long_take_profit, open_orders):
+    def place_long_tp_order(self, symbol, best_ask_price, long_pos_price, long_pos_qty, long_take_profit, open_orders):
         try:
             tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
 
@@ -4078,7 +4078,7 @@ class Strategy:
                 # Check if current bid price is already higher than the take profit target
                 if long_pos_price >= long_take_profit:
                     # Adjust TP to current bid price
-                    long_take_profit = long_pos_price
+                    long_take_profit = best_ask_price
                     logging.info(f"Adjusted long TP to current bid price for {symbol}: {long_take_profit}")
 
                 # Place long TP order
@@ -4088,7 +4088,7 @@ class Strategy:
         except Exception as e:
             logging.info(f"Exception caught in placing long TP order {e}")
 
-    def place_short_tp_order(self, symbol, short_pos_price, short_pos_qty, short_take_profit, open_orders):
+    def place_short_tp_order(self, symbol, best_bid_price, short_pos_price, short_pos_qty, short_take_profit, open_orders):
         try:
             tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
 
@@ -4099,7 +4099,7 @@ class Strategy:
                 # Check if current ask price is already lower than the take profit target
                 if short_pos_price <= short_take_profit:
                     # Adjust TP to current ask price
-                    short_take_profit = short_pos_price
+                    short_take_profit = best_bid_price
                     logging.info(f"Adjusted short TP to current ask price for {symbol}: {short_take_profit}")
 
                 # Place short TP order
@@ -5621,10 +5621,10 @@ class Strategy:
             new_long_tp = self.calculate_dynamic_long_take_profit(long_pos_price, symbol, upnl_profit_pct)
 
             # Adjust TP based on current market price
-            if order_side == "sell" and current_bid_price and current_bid_price >= new_long_tp:
-                new_long_tp = current_bid_price
-            elif order_side == "buy" and current_ask_price and current_ask_price <= new_short_tp:
-                new_short_tp = current_ask_price
+            if order_side == "sell" and long_pos_price >= new_long_tp:
+                new_long_tp = best_bid_price
+            elif order_side == "buy" and short_pos_price <= new_short_tp:
+                new_short_tp = best_ask_price
 
             # Determine the relevant TP orders based on the order side
             relevant_tp_orders = long_tp_orders if order_side == "sell" else short_tp_orders
