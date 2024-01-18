@@ -89,8 +89,6 @@ class Strategy:
         self.auto_reduce_active_long = {}
         self.auto_reduce_active_short = {}
         self.auto_reduce_orders = {}
-        self.last_known_ask = {}
-        self.last_known_bid = {} 
 
         self.bybit = self.Bybit(self)
 
@@ -624,26 +622,6 @@ class Strategy:
 
         return long_dynamic_amount, short_dynamic_amount, min_qty
 
-    def update_dynamic_amountsv3(self, symbol, total_equity, best_ask_price):
-        if symbol not in self.long_dynamic_amount or symbol not in self.short_dynamic_amount:
-            long_dynamic_amount, short_dynamic_amount, _ = self.calculate_dynamic_amount_v3(symbol, total_equity)
-            self.long_dynamic_amount[symbol] = long_dynamic_amount
-            self.short_dynamic_amount[symbol] = short_dynamic_amount
-
-        if symbol in self.max_long_trade_qty_per_symbol:
-            self.long_dynamic_amount[symbol] = min(
-                self.long_dynamic_amount[symbol], 
-                self.max_long_trade_qty_per_symbol[symbol]
-            )
-        if symbol in self.max_short_trade_qty_per_symbol:
-            self.short_dynamic_amount[symbol] = min(
-                self.short_dynamic_amount[symbol], 
-                self.max_short_trade_qty_per_symbol[symbol]
-            )
-
-        logging.info(f"Updated dynamic amounts for {symbol}. New long_dynamic_amount: {self.long_dynamic_amount[symbol]}, New short_dynamic_amount: {self.short_dynamic_amount[symbol]}")
-
-
     def update_dynamic_amounts(self, symbol, total_equity, best_ask_price):
         if symbol not in self.long_dynamic_amount or symbol not in self.short_dynamic_amount:
             long_dynamic_amount, short_dynamic_amount, _ = self.calculate_dynamic_amount_v2(symbol, total_equity, best_ask_price, self.max_leverage)
@@ -663,143 +641,44 @@ class Strategy:
 
         logging.info(f"Updated dynamic amounts for {symbol}. New long_dynamic_amount: {self.long_dynamic_amount[symbol]}, New short_dynamic_amount: {self.short_dynamic_amount[symbol]}")
 
-    # def calculate_dynamic_amount_v3(self, symbol, total_equity):
-    #     try:
-    #         # Fetch symbol precision for price and quantity
-    #         qty_precision, _ = self.exchange.get_symbol_precision_bybit(symbol)
-
-    #         logging.info(f"Qty precision for {symbol}: {qty_precision}")
-
-    #         if qty_precision is None:
-    #             logging.error(f"Failed to fetch quantity precision for {symbol}")
-    #             return None, None, None
-
-    #         # Convert qty_precision to a float for calculations
-    #         qty_precision = float(qty_precision)
-
-    #         market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
-
-    #         min_qty = float(market_data["min_qty"])
-    #         logging.info(f"Min qty for {symbol}: {min_qty}")
-
-    #         long_dynamic_amount = self.dynamic_amount_multiplier * total_equity
-    #         short_dynamic_amount = self.dynamic_amount_multiplier * total_equity
-    #         logging.info(f"Initial long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
-
-    #         max_allowed_dynamic_amount = (self.MAX_PCT_EQUITY / 100) * total_equity
-    #         logging.info(f"Max allowed dynamic amount for {symbol}: {max_allowed_dynamic_amount}")
-
-    #         # Round the dynamic amounts based on quantity precision
-    #         long_dynamic_amount = round(long_dynamic_amount / qty_precision) * qty_precision
-    #         short_dynamic_amount = round(short_dynamic_amount / qty_precision) * qty_precision
-    #         logging.info(f"Rounded long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
-
-    #         long_dynamic_amount = min(long_dynamic_amount, max_allowed_dynamic_amount)
-    #         short_dynamic_amount = min(short_dynamic_amount, max_allowed_dynamic_amount)
-
-    #         self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
-    #         self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
-
-    #         if long_dynamic_amount < min_qty:
-    #             logging.info(f"Dynamic amount too small for 0.001x, using min_qty for long_dynamic_amount")
-    #             long_dynamic_amount = min_qty
-    #         if short_dynamic_amount < min_qty:
-    #             logging.info(f"Dynamic amount too small for 0.001x, using min_qty for short_dynamic_amount")
-    #             short_dynamic_amount = min_qty
-
-    #         logging.info(f"Symbol: {symbol} Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
-
-    #         return long_dynamic_amount, short_dynamic_amount, min_qty
-    #     except Exception as e:
-    #         logging.error(f"Exception caught in calculate_dynamic_amount_v3 for {symbol}: {e}")
-
-    # def calculate_dynamic_amount_v3(self, symbol, total_equity):
-    #     # Fetch symbol precision for price and quantity
-    #     price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
-    #     qty_precision_level = -int(math.log10(qty_precision))
-
-    #     logging.info(f"Qty precision level: {qty_precision_level}")
-
-    #     market_data = self.get_market_data_with_retry(symbol, max_retries = 100, retry_delay = 5)
-
-    #     min_qty = float(market_data["min_qty"])
-    #     logging.info(f"Min qty for {symbol} : {min_qty}")
-
-    #     long_dynamic_amount = self.dynamic_amount_multiplier * total_equity
-    #     short_dynamic_amount = self.dynamic_amount_multiplier * total_equity
-    #     logging.info(f"Initial long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
-
-    #     max_allowed_dynamic_amount = (self.MAX_PCT_EQUITY / 100) * total_equity
-    #     logging.info(f"Max allowed dynamic amount for {symbol} : {max_allowed_dynamic_amount}")
-
-    #     # Round the dynamic amounts based on quantity precision level
-    #     long_dynamic_amount = round(long_dynamic_amount, qty_precision_level)
-    #     short_dynamic_amount = round(short_dynamic_amount, qty_precision_level)
-    #     logging.info(f"Rounded long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
-
-    #     long_dynamic_amount = min(long_dynamic_amount, max_allowed_dynamic_amount)
-    #     short_dynamic_amount = min(short_dynamic_amount, max_allowed_dynamic_amount)
-
-    #     self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
-    #     self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
-
-    #     if long_dynamic_amount < min_qty:
-    #         logging.info(f"Dynamic amount too small for 0.001x, using min_qty for long_dynamic_amount")
-    #         long_dynamic_amount = min_qty
-    #     if short_dynamic_amount < min_qty:
-    #         logging.info(f"Dynamic amount too small for 0.001x, using min_qty for short_dynamic_amount")
-    #         short_dynamic_amount = min_qty
-
-    #     logging.info(f"Symbol: {symbol} Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
-
-    #     return long_dynamic_amount, short_dynamic_amount, min_qty
-
     def calculate_dynamic_amount_v3(self, symbol, total_equity):
-        try:
-            # Fetch symbol precision for quantity
-            qty_precision, _ = self.exchange.get_symbol_precision_bybit(symbol)
+        # Fetch symbol precision for price and quantity
+        price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
+        qty_precision_level = -int(math.log10(qty_precision))
 
-            if qty_precision is None:
-                logging.error(f"Failed to fetch quantity precision for {symbol}")
-                return None, None, None
+        market_data = self.get_market_data_with_retry(symbol, max_retries = 100, retry_delay = 5)
 
-            # Convert qty_precision to a float for calculations
-            qty_precision = float(qty_precision)
+        min_qty = float(market_data["min_qty"])
+        logging.info(f"Min qty for {symbol} : {min_qty}")
 
-            market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
-            min_qty = float(market_data["min_qty"])
-            logging.info(f"Min qty for {symbol}: {min_qty}")
+        long_dynamic_amount = self.dynamic_amount_multiplier * total_equity
+        short_dynamic_amount = self.dynamic_amount_multiplier * total_equity
+        logging.info(f"Initial long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 
-            long_dynamic_amount = self.dynamic_amount_multiplier * total_equity
-            short_dynamic_amount = self.dynamic_amount_multiplier * total_equity
-            logging.info(f"Initial long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+        max_allowed_dynamic_amount = (self.MAX_PCT_EQUITY / 100) * total_equity
+        logging.info(f"Max allowed dynamic amount for {symbol} : {max_allowed_dynamic_amount}")
 
-            max_allowed_dynamic_amount = (self.MAX_PCT_EQUITY / 100) * total_equity
-            logging.info(f"Max allowed dynamic amount for {symbol}: {max_allowed_dynamic_amount}")
+        # Round the dynamic amounts based on quantity precision level
+        long_dynamic_amount = round(long_dynamic_amount, qty_precision_level)
+        short_dynamic_amount = round(short_dynamic_amount, qty_precision_level)
+        logging.info(f"Rounded long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 
-            # Round the dynamic amounts based on quantity precision
-            long_dynamic_amount = round(long_dynamic_amount / qty_precision) * qty_precision
-            short_dynamic_amount = round(short_dynamic_amount / qty_precision) * qty_precision
-            logging.info(f"Rounded long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+        long_dynamic_amount = min(long_dynamic_amount, max_allowed_dynamic_amount)
+        short_dynamic_amount = min(short_dynamic_amount, max_allowed_dynamic_amount)
 
-            long_dynamic_amount = min(long_dynamic_amount, max_allowed_dynamic_amount)
-            short_dynamic_amount = min(short_dynamic_amount, max_allowed_dynamic_amount)
+        self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
+        self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
 
-            self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
-            self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
+        if long_dynamic_amount < min_qty:
+            logging.info(f"Dynamic amount too small for 0.001x, using min_qty for long_dynamic_amount")
+            long_dynamic_amount = min_qty
+        if short_dynamic_amount < min_qty:
+            logging.info(f"Dynamic amount too small for 0.001x, using min_qty for short_dynamic_amount")
+            short_dynamic_amount = min_qty
 
-            if long_dynamic_amount < min_qty:
-                logging.info(f"Dynamic amount too small for 0.001x, using min_qty for long_dynamic_amount")
-                long_dynamic_amount = min_qty
-            if short_dynamic_amount < min_qty:
-                logging.info(f"Dynamic amount too small for 0.001x, using min_qty for short_dynamic_amount")
-                short_dynamic_amount = min_qty
+        logging.info(f"Symbol: {symbol} Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 
-            logging.info(f"Symbol: {symbol} Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
-            return long_dynamic_amount, short_dynamic_amount, min_qty
-        except Exception as e:
-            logging.error(f"Exception caught in calculate_dynamic_amount_v3 for {symbol}: {e}")
-
+        return long_dynamic_amount, short_dynamic_amount, min_qty
 
 
     def calculate_dynamic_amount_v2(self, symbol, total_equity, best_ask_price, max_leverage):
@@ -1529,6 +1408,38 @@ class Strategy:
         now = datetime.now()
         next_update_time = now + timedelta(seconds=10)
         return next_update_time.replace(microsecond=0)
+
+    def place_long_tp_order(self, symbol, best_ask_price, long_pos_price, long_pos_qty, long_take_profit, open_orders):
+        try:
+            tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
+            logging.info(f"Long TP order counts for {symbol}: {tp_order_counts}")
+
+            if tp_order_counts['long_tp_count'] == 0:
+                if long_pos_price is not None and best_ask_price is not None and long_pos_price >= long_take_profit:
+                    long_take_profit = best_ask_price
+                    logging.info(f"Adjusted long TP to current bid price for {symbol}: {long_take_profit}")
+
+                if long_pos_qty > 0 and long_take_profit is not None:
+                    logging.info(f"Placing long TP order for {symbol} at {long_take_profit} with {long_pos_qty}")
+                    self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
+        except Exception as e:
+            logging.error(f"Exception caught in placing long TP order for {symbol}: {e}")
+
+    def place_short_tp_order(self, symbol, best_bid_price, short_pos_price, short_pos_qty, short_take_profit, open_orders):
+        try:
+            tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
+            logging.info(f"Short TP order counts for {symbol}: {tp_order_counts}")
+
+            if tp_order_counts['short_tp_count'] == 0:
+                if short_pos_price is not None and best_bid_price is not None and short_pos_price <= short_take_profit:
+                    short_take_profit = best_bid_price
+                    logging.info(f"Adjusted short TP to current ask price for {symbol}: {short_take_profit}")
+
+                if short_pos_qty > 0 and short_take_profit is not None:
+                    logging.info(f"Placing short TP order for {symbol} at {short_take_profit} with {short_pos_qty}")
+                    self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
+        except Exception as e:
+            logging.error(f"Exception caught in placing short TP order for {symbol}: {e}")
 
     def calculate_short_take_profit_bybit(self, short_pos_price, symbol):
         if short_pos_price is None:
@@ -4096,72 +4007,7 @@ class Strategy:
         rounded_tp = round(initial_tp, len(str(price_precision).split('.')[-1]))
         logging.info(f"Final rounded short TP for {symbol}: {rounded_tp}")
         return rounded_tp
-
-
-
-    # def calculate_dynamic_long_take_profit(self, long_pos_price, symbol, upnl_profit_pct):
-    #     if long_pos_price is None:
-    #         #logging.error("Long position price is None for symbol: " + symbol)
-    #         return None
-
-    #     price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
-    #     logging.info(f"Price precision for {symbol}: {price_precision}, Quantity precision: {qty_precision}")
-
-    #     initial_tp = long_pos_price * (1 + upnl_profit_pct)
-    #     logging.info(f"Initial long TP for {symbol}: {initial_tp}")
-
-    #     bid_walls, ask_walls = self.detect_significant_order_book_walls(symbol)
-    #     if not ask_walls:
-    #         logging.info(f"No significant ask walls found for {symbol}")
-
-    #     for price, size in ask_walls:
-    #         if price > initial_tp:
-    #             extended_tp = price - price_precision
-    #             if extended_tp > 0:
-    #                 initial_tp = max(initial_tp, extended_tp)
-    #                 logging.info(f"Adjusted long TP for {symbol} based on ask wall: {initial_tp}")
-    #             break
-
-    #     if initial_tp <= 0:
-    #         initial_tp = long_pos_price * (1 + upnl_profit_pct)  # Fallback to original TP calculation
-    #         logging.info(f"Adjusted TP was too low, using original TP calculation: {initial_tp}")
-
-    #     rounded_tp = round(initial_tp, len(str(price_precision).split('.')[-1]))
-    #     logging.info(f"Final rounded long TP for {symbol}: {rounded_tp}")
-    #     return rounded_tp
-
-    # def calculate_dynamic_short_take_profit(self, short_pos_price, symbol, upnl_profit_pct):
-    #     if short_pos_price is None:
-    #         #logging.error("Short position price is None for symbol: " + symbol)
-    #         return None
-
-    #     price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
-    #     logging.info(f"Price precision for {symbol}: {price_precision}, Quantity precision: {qty_precision}")
-
-    #     initial_tp = short_pos_price * (1 - upnl_profit_pct)
-    #     logging.info(f"Initial short TP for {symbol}: {initial_tp}")
-
-    #     bid_walls, ask_walls = self.detect_significant_order_book_walls(symbol)
-    #     if not bid_walls:
-    #         logging.info(f"No significant bid walls found for {symbol}")
-
-    #     for price, size in bid_walls:
-    #         if price < initial_tp:
-    #             extended_tp = price + price_precision
-    #             if extended_tp > 0:
-    #                 initial_tp = min(initial_tp, extended_tp)
-    #                 logging.info(f"Adjusted short TP for {symbol} based on bid wall: {initial_tp}")
-    #             break
-
-    #     if initial_tp <= 0:
-    #         initial_tp = short_pos_price * (1 - upnl_profit_pct)  # Fallback to original TP calculation
-    #         logging.info(f"Adjusted TP was too low, using original TP calculation: {initial_tp}")
-
-    #     rounded_tp = round(initial_tp, len(str(price_precision).split('.')[-1]))
-    #     logging.info(f"Final rounded short TP for {symbol}: {rounded_tp}")
-    #     return rounded_tp
-
-
+    
     # def calculate_dynamic_long_take_profit(self, long_pos_price, symbol, upnl_profit_pct):
     #     if long_pos_price is None:
     #         return None
@@ -4253,38 +4099,6 @@ class Strategy:
             return None
 
         return float(target_profit_price)
-
-    def place_long_tp_order(self, symbol, best_ask_price, long_pos_price, long_pos_qty, long_take_profit, open_orders):
-        try:
-            tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
-            logging.info(f"Long TP order counts for {symbol}: {tp_order_counts}")
-
-            if tp_order_counts['long_tp_count'] == 0:
-                if long_pos_price is not None and best_ask_price is not None and long_pos_price >= long_take_profit:
-                    long_take_profit = best_ask_price
-                    logging.info(f"Adjusted long TP to current bid price for {symbol}: {long_take_profit}")
-
-                if long_pos_qty > 0 and long_take_profit is not None:
-                    logging.info(f"Placing long TP order for {symbol} at {long_take_profit} with {long_pos_qty}")
-                    self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
-        except Exception as e:
-            logging.error(f"Exception caught in placing long TP order for {symbol}: {e}")
-
-    def place_short_tp_order(self, symbol, best_bid_price, short_pos_price, short_pos_qty, short_take_profit, open_orders):
-        try:
-            tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
-            logging.info(f"Short TP order counts for {symbol}: {tp_order_counts}")
-
-            if tp_order_counts['short_tp_count'] == 0:
-                if short_pos_price is not None and best_bid_price is not None and short_pos_price <= short_take_profit:
-                    short_take_profit = best_bid_price
-                    logging.info(f"Adjusted short TP to current ask price for {symbol}: {short_take_profit}")
-
-                if short_pos_qty > 0 and short_take_profit is not None:
-                    logging.info(f"Placing short TP order for {symbol} at {short_take_profit} with {short_pos_qty}")
-                    self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
-        except Exception as e:
-            logging.error(f"Exception caught in placing short TP order for {symbol}: {e}")
 
     def quickscalp_mfi_handle_long_positions(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, long_dynamic_amount: float, long_pos_qty: float, long_pos_price: float):
         if symbol not in self.symbol_locks:
@@ -5783,119 +5597,61 @@ class Strategy:
             return last_tp_update
 
     def update_dynamic_quickscalp_tp(self, symbol, pos_qty, upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, tp_order_counts, max_retries=10):
-        try:
-            order_book = self.exchange.get_orderbook(symbol)
-            best_ask_price = float(order_book['asks'][0][0]) if 'asks' in order_book else float(self.last_known_ask.get(symbol, 0))
-            best_bid_price = float(order_book['bids'][0][0]) if 'bids' in order_book else float(self.last_known_bid.get(symbol, 0))
-            
-            # Fetch the current open TP orders and TP order counts for the symbol
-            long_tp_orders, short_tp_orders = self.exchange.bybit.get_open_tp_orders(symbol)
-            long_tp_count = tp_order_counts['long_tp_count']
-            short_tp_count = tp_order_counts['short_tp_count']
+        # Fetch the current open TP orders and TP order counts for the symbol
+        long_tp_orders, short_tp_orders = self.exchange.bybit.get_open_tp_orders(symbol)
 
-            # Calculate the new TP values using quickscalp method w/ dynamic
-            new_short_tp = float(self.calculate_dynamic_short_take_profit(short_pos_price, symbol, upnl_profit_pct))
-            new_long_tp = float(self.calculate_dynamic_long_take_profit(long_pos_price, symbol, upnl_profit_pct))
+        long_tp_count = tp_order_counts['long_tp_count']
+        short_tp_count = tp_order_counts['short_tp_count']
 
-            # Adjust TP based on current market price
-            if order_side == "sell" and long_pos_price >= new_long_tp:
-                new_long_tp = best_bid_price
-            elif order_side == "buy" and short_pos_price <= new_short_tp:
-                new_short_tp = best_ask_price
+        # Calculate the new TP values using quickscalp method w/ dynamic
+        new_short_tp = self.calculate_dynamic_short_take_profit(
+            short_pos_price,
+            symbol,
+            upnl_profit_pct
+        )
 
-            # Determine the relevant TP orders based on the order side
-            relevant_tp_orders = long_tp_orders if order_side == "sell" else short_tp_orders
+        new_long_tp = self.calculate_dynamic_long_take_profit(
+            long_pos_price,
+            symbol,
+            upnl_profit_pct
+        )
 
-            # Check and cancel mismatched TP orders
-            mismatched_qty_orders = [order for order in relevant_tp_orders if order['qty'] != pos_qty]
-            for order in mismatched_qty_orders:
+        # Determine the relevant TP orders based on the order side
+        relevant_tp_orders = long_tp_orders if order_side == "sell" else short_tp_orders
+
+        # Check if there's an existing TP order with a mismatched quantity
+        mismatched_qty_orders = [order for order in relevant_tp_orders if order['qty'] != pos_qty]
+
+        # Cancel mismatched TP orders if any
+        for order in mismatched_qty_orders:
+            try:
+                self.exchange.cancel_order_by_id(order['id'], symbol)
+                logging.info(f"Cancelled TP order {order['id']} for update.")
+                time.sleep(0.05)
+            except Exception as e:
+                logging.error(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
+
+        now = datetime.now()
+        if now >= last_tp_update or mismatched_qty_orders:
+            # Check if a TP order already exists
+            tp_order_exists = (order_side == "sell" and long_tp_count > 0) or (order_side == "buy" and short_tp_count > 0)
+
+            # Set new TP order with updated prices only if no TP order exists
+            if not tp_order_exists:
+                new_tp_price = new_long_tp if order_side == "sell" else new_short_tp
                 try:
-                    self.exchange.cancel_order_by_id(order['id'], symbol)
-                    logging.info(f"Cancelled TP order {order['id']} for update.")
-                    time.sleep(0.05)
+                    self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, new_tp_price, positionIdx=positionIdx, reduce_only=True)
+                    logging.info(f"New {order_side.capitalize()} TP set at {new_tp_price}")
                 except Exception as e:
-                    logging.error(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
-
-            now = datetime.now()
-            if now >= last_tp_update or mismatched_qty_orders:
-                # Check if a TP order already exists
-                tp_order_exists = (order_side == "sell" and long_tp_count > 0) or (order_side == "buy" and short_tp_count > 0)
-
-                # Set new TP order with updated prices only if no TP order exists
-                if not tp_order_exists:
-                    new_tp_price = new_long_tp if order_side == "sell" else new_short_tp
-                    try:
-                        self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, new_tp_price, positionIdx=positionIdx, reduce_only=True)
-                        logging.info(f"New {order_side.capitalize()} TP set at {new_tp_price}")
-                    except Exception as e:
-                        logging.error(f"Failed to set new {order_side} TP for {symbol}. Error: {e}")
-                else:
-                    logging.info(f"Skipping TP update as a TP order already exists for {symbol}")
-
-                return self.calculate_next_update_time()
+                    logging.error(f"Failed to set new {order_side} TP for {symbol}. Error: {e}")
             else:
-                logging.info(f"No immediate update needed for TP orders for {symbol}. Last update at: {last_tp_update}")
-                return last_tp_update
-        except Exception as e:
-            logging.error(f"Exception caught in updating dynamic TP for {symbol}: {e}")
+                logging.info(f"Skipping TP update as a TP order already exists for {symbol}")
 
-
-    # def update_dynamic_quickscalp_tp(self, symbol, pos_qty, upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, tp_order_counts, max_retries=10):
-    #     try:
-    #         order_book = self.exchange.get_orderbook(symbol)
-    #         best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol)
-    #         best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol)
-            
-    #         # Fetch the current open TP orders and TP order counts for the symbol
-    #         long_tp_orders, short_tp_orders = self.exchange.bybit.get_open_tp_orders(symbol)
-    #         long_tp_count = tp_order_counts['long_tp_count']
-    #         short_tp_count = tp_order_counts['short_tp_count']
-
-    #         # Calculate the new TP values using quickscalp method w/ dynamic
-    #         new_short_tp = self.calculate_dynamic_short_take_profit(short_pos_price, symbol, upnl_profit_pct)
-    #         new_long_tp = self.calculate_dynamic_long_take_profit(long_pos_price, symbol, upnl_profit_pct)
-
-    #         # Adjust TP based on current market price
-    #         if order_side == "sell" and long_pos_price >= new_long_tp:
-    #             new_long_tp = best_bid_price
-    #         elif order_side == "buy" and short_pos_price <= new_short_tp:
-    #             new_short_tp = best_ask_price
-
-    #         # Determine the relevant TP orders based on the order side
-    #         relevant_tp_orders = long_tp_orders if order_side == "sell" else short_tp_orders
-
-    #         # Check and cancel mismatched TP orders
-    #         mismatched_qty_orders = [order for order in relevant_tp_orders if order['qty'] != pos_qty]
-    #         for order in mismatched_qty_orders:
-    #             try:
-    #                 self.exchange.cancel_order_by_id(order['id'], symbol)
-    #                 logging.info(f"Cancelled TP order {order['id']} for update.")
-    #                 time.sleep(0.05)
-    #             except Exception as e:
-    #                 logging.error(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
-
-    #         now = datetime.now()
-    #         if now >= last_tp_update or mismatched_qty_orders:
-    #             # Check if a TP order already exists
-    #             tp_order_exists = (order_side == "sell" and long_tp_count > 0) or (order_side == "buy" and short_tp_count > 0)
-
-    #             # Set new TP order with updated prices only if no TP order exists
-    #             if not tp_order_exists:
-    #                 new_tp_price = new_long_tp if order_side == "sell" else new_short_tp
-    #                 try:
-    #                     self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, new_tp_price, positionIdx=positionIdx, reduce_only=True)
-    #                     logging.info(f"New {order_side.capitalize()} TP set at {new_tp_price}")
-    #                 except Exception as e:
-    #                     logging.error(f"Failed to set new {order_side} TP for {symbol}. Error: {e}")
-    #             else:
-    #                 logging.info(f"Skipping TP update as a TP order already exists for {symbol}")
-
-    #             return self.calculate_next_update_time()
-    #         else:
-    #             logging.info(f"No immediate update needed for TP orders for {symbol}. Last update at: {last_tp_update}")
-    #             return last_tp_update
-    #     except Exception as e:
-    #         logging.error(f"Exception caught in updating dynamic TP for {symbol}: {e}")
+            # Calculate and return the next update time
+            return self.calculate_next_update_time()
+        else:
+            logging.info(f"No immediate update needed for TP orders for {symbol}. Last update at: {last_tp_update}")
+            return last_tp_update
 
 
     def update_quickscalp_tp(self, symbol, pos_qty, upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, tp_order_counts, max_retries=10):
