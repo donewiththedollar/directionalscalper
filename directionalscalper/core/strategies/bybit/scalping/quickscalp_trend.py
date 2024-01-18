@@ -582,15 +582,29 @@ class BybitQuickScalpTrend(Strategy):
                     logging.info(f"Long TP order count for {symbol} is {tp_order_counts['long_tp_count']}")
                     logging.info(f"Short TP order count for {symbol} is {tp_order_counts['short_tp_count']}")
 
-                    # Place long TP order if there are no existing long TP orders
-                    if long_pos_qty > 0 and long_take_profit is not None and tp_order_counts['long_tp_count'] == 0:
-                        logging.info(f"Placing long TP order for {symbol} at {long_take_profit} with {long_pos_qty}")
-                        self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
+                    self.place_long_tp_order(
+                        symbol,
+                        long_pos_qty,
+                        long_take_profit,
+                        open_orders
+                    )
 
-                    # Place short TP order if there are no existing short TP orders
-                    if short_pos_qty > 0 and short_take_profit is not None and tp_order_counts['short_tp_count'] == 0:
-                        logging.info(f"Placing short TP order for {symbol} at {short_take_profit} with {short_pos_qty}")
-                        self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
+                    self.place_short_tp_order(
+                        symbol,
+                        short_pos_qty,
+                        short_take_profit,
+                        open_orders
+                    )
+
+                    # # Place long TP order if there are no existing long TP orders
+                    # if long_pos_qty > 0 and long_take_profit is not None and tp_order_counts['long_tp_count'] == 0:
+                    #     logging.info(f"Placing long TP order for {symbol} at {long_take_profit} with {long_pos_qty}")
+                    #     self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
+
+                    # # Place short TP order if there are no existing short TP orders
+                    # if short_pos_qty > 0 and short_take_profit is not None and tp_order_counts['short_tp_count'] == 0:
+                    #     logging.info(f"Placing short TP order for {symbol} at {short_take_profit} with {short_pos_qty}")
+                    #     self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
 
                     current_latest_time = datetime.now()
                     logging.info(f"Current time: {current_latest_time}")
