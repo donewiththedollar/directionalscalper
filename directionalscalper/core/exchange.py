@@ -7,6 +7,7 @@ import json
 import requests, hmac, hashlib
 import urllib.parse
 import threading
+import math
 import traceback
 from typing import Optional, Tuple, List
 from ccxt.base.errors import RateLimitExceeded
@@ -335,6 +336,31 @@ class Exchange:
 
         return None, None, None
 
+    def get_symbol_precision_bybit(self, symbol):
+        try:
+            # Use fetch_markets to retrieve data for all markets
+            all_markets = self.exchange.fetch_markets()
+
+            # Find the market data for the specific symbol
+            market_data = next((market for market in all_markets if market['id'] == symbol), None)
+
+            if market_data:
+                # Extract precision data
+                amount_precision = market_data['precision']['amount']
+                price_precision = market_data['precision']['price']
+
+                # Calculate qty precision level
+                qty_precision_level = -int(math.log10(amount_precision))
+
+                logging.info(f"Extracted precision for {symbol}: Price precision: {price_precision}, Amount precision: {amount_precision}, Qty precision level: {qty_precision_level}")
+                return qty_precision_level, price_precision
+            else:
+                logging.error(f"Market data not found for {symbol}")
+                return None, None
+        except Exception as e:
+            logging.error(f"An error occurred: {e}")
+            return None, None
+
     # def get_symbol_precision_bybit(self, symbol):
     #     try:
     #         # Use fetch_markets to retrieve data for all markets
@@ -358,30 +384,30 @@ class Exchange:
     #         logging.error(f"An error occurred while fetching symbol precision for {symbol}: {e}")
     #         return None, None
 
-    def get_symbol_precision_bybit(self, symbol):
-        try:
-            # Use fetch_markets to retrieve data for all markets
-            all_markets = self.exchange.fetch_markets()
+    # def get_symbol_precision_bybit(self, symbol):
+    #     try:
+    #         # Use fetch_markets to retrieve data for all markets
+    #         all_markets = self.exchange.fetch_markets()
 
-            # Find the market data for the specific symbol
-            market_data = next((market for market in all_markets if market['id'] == symbol), None)
+    #         # Find the market data for the specific symbol
+    #         market_data = next((market for market in all_markets if market['id'] == symbol), None)
 
-            if market_data:
-                # Log the entire market data for inspection
-                logging.info(f"Market data for {symbol}: {market_data}")
+    #         if market_data:
+    #             # Log the entire market data for inspection
+    #             logging.info(f"Market data for {symbol}: {market_data}")
 
-                # Extract precision data
-                amount_precision = market_data['precision']['amount']
-                price_precision = market_data['precision']['price']
+    #             # Extract precision data
+    #             amount_precision = market_data['precision']['amount']
+    #             price_precision = market_data['precision']['price']
 
-                logging.info(f"Amount precision for {symbol}: {amount_precision} and price precision {price_precision}")
-                return amount_precision, price_precision
-            else:
-                print(f"Market data not found for {symbol}")
-                return None, None
-        except Exception as e:
-            print(f"An error occurred: {e}")
-            return None, None
+    #             logging.info(f"Amount precision for {symbol}: {amount_precision} and price precision {price_precision}")
+    #             return amount_precision, price_precision
+    #         else:
+    #             print(f"Market data not found for {symbol}")
+    #             return None, None
+    #     except Exception as e:
+    #         print(f"An error occurred: {e}")
+    #         return None, None
 
     # def get_symbol_precision_bybit(self, symbol):
     #     try:

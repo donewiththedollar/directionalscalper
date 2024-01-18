@@ -713,46 +713,93 @@ class Strategy:
     #     except Exception as e:
     #         logging.error(f"Exception caught in calculate_dynamic_amount_v3 for {symbol}: {e}")
 
+    # def calculate_dynamic_amount_v3(self, symbol, total_equity):
+    #     # Fetch symbol precision for price and quantity
+    #     price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
+    #     qty_precision_level = -int(math.log10(qty_precision))
+
+    #     logging.info(f"Qty precision level: {qty_precision_level}")
+
+    #     market_data = self.get_market_data_with_retry(symbol, max_retries = 100, retry_delay = 5)
+
+    #     min_qty = float(market_data["min_qty"])
+    #     logging.info(f"Min qty for {symbol} : {min_qty}")
+
+    #     long_dynamic_amount = self.dynamic_amount_multiplier * total_equity
+    #     short_dynamic_amount = self.dynamic_amount_multiplier * total_equity
+    #     logging.info(f"Initial long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+
+    #     max_allowed_dynamic_amount = (self.MAX_PCT_EQUITY / 100) * total_equity
+    #     logging.info(f"Max allowed dynamic amount for {symbol} : {max_allowed_dynamic_amount}")
+
+    #     # Round the dynamic amounts based on quantity precision level
+    #     long_dynamic_amount = round(long_dynamic_amount, qty_precision_level)
+    #     short_dynamic_amount = round(short_dynamic_amount, qty_precision_level)
+    #     logging.info(f"Rounded long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+
+    #     long_dynamic_amount = min(long_dynamic_amount, max_allowed_dynamic_amount)
+    #     short_dynamic_amount = min(short_dynamic_amount, max_allowed_dynamic_amount)
+
+    #     self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
+    #     self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
+
+    #     if long_dynamic_amount < min_qty:
+    #         logging.info(f"Dynamic amount too small for 0.001x, using min_qty for long_dynamic_amount")
+    #         long_dynamic_amount = min_qty
+    #     if short_dynamic_amount < min_qty:
+    #         logging.info(f"Dynamic amount too small for 0.001x, using min_qty for short_dynamic_amount")
+    #         short_dynamic_amount = min_qty
+
+    #     logging.info(f"Symbol: {symbol} Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+
+    #     return long_dynamic_amount, short_dynamic_amount, min_qty
+
     def calculate_dynamic_amount_v3(self, symbol, total_equity):
-        # Fetch symbol precision for price and quantity
-        price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
-        qty_precision_level = -int(math.log10(qty_precision))
+        try:
+            # Fetch symbol precision for quantity
+            qty_precision, _ = self.exchange.get_symbol_precision_bybit(symbol)
 
-        logging.info(f"Qty precision level: {qty_precision_level}")
+            if qty_precision is None:
+                logging.error(f"Failed to fetch quantity precision for {symbol}")
+                return None, None, None
 
-        market_data = self.get_market_data_with_retry(symbol, max_retries = 100, retry_delay = 5)
+            # Convert qty_precision to a float for calculations
+            qty_precision = float(qty_precision)
 
-        min_qty = float(market_data["min_qty"])
-        logging.info(f"Min qty for {symbol} : {min_qty}")
+            market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
+            min_qty = float(market_data["min_qty"])
+            logging.info(f"Min qty for {symbol}: {min_qty}")
 
-        long_dynamic_amount = self.dynamic_amount_multiplier * total_equity
-        short_dynamic_amount = self.dynamic_amount_multiplier * total_equity
-        logging.info(f"Initial long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+            long_dynamic_amount = self.dynamic_amount_multiplier * total_equity
+            short_dynamic_amount = self.dynamic_amount_multiplier * total_equity
+            logging.info(f"Initial long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 
-        max_allowed_dynamic_amount = (self.MAX_PCT_EQUITY / 100) * total_equity
-        logging.info(f"Max allowed dynamic amount for {symbol} : {max_allowed_dynamic_amount}")
+            max_allowed_dynamic_amount = (self.MAX_PCT_EQUITY / 100) * total_equity
+            logging.info(f"Max allowed dynamic amount for {symbol}: {max_allowed_dynamic_amount}")
 
-        # Round the dynamic amounts based on quantity precision level
-        long_dynamic_amount = round(long_dynamic_amount, qty_precision_level)
-        short_dynamic_amount = round(short_dynamic_amount, qty_precision_level)
-        logging.info(f"Rounded long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+            # Round the dynamic amounts based on quantity precision
+            long_dynamic_amount = round(long_dynamic_amount / qty_precision) * qty_precision
+            short_dynamic_amount = round(short_dynamic_amount / qty_precision) * qty_precision
+            logging.info(f"Rounded long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 
-        long_dynamic_amount = min(long_dynamic_amount, max_allowed_dynamic_amount)
-        short_dynamic_amount = min(short_dynamic_amount, max_allowed_dynamic_amount)
+            long_dynamic_amount = min(long_dynamic_amount, max_allowed_dynamic_amount)
+            short_dynamic_amount = min(short_dynamic_amount, max_allowed_dynamic_amount)
 
-        self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
-        self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
+            self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
+            self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
 
-        if long_dynamic_amount < min_qty:
-            logging.info(f"Dynamic amount too small for 0.001x, using min_qty for long_dynamic_amount")
-            long_dynamic_amount = min_qty
-        if short_dynamic_amount < min_qty:
-            logging.info(f"Dynamic amount too small for 0.001x, using min_qty for short_dynamic_amount")
-            short_dynamic_amount = min_qty
+            if long_dynamic_amount < min_qty:
+                logging.info(f"Dynamic amount too small for 0.001x, using min_qty for long_dynamic_amount")
+                long_dynamic_amount = min_qty
+            if short_dynamic_amount < min_qty:
+                logging.info(f"Dynamic amount too small for 0.001x, using min_qty for short_dynamic_amount")
+                short_dynamic_amount = min_qty
 
-        logging.info(f"Symbol: {symbol} Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+            logging.info(f"Symbol: {symbol} Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+            return long_dynamic_amount, short_dynamic_amount, min_qty
+        except Exception as e:
+            logging.error(f"Exception caught in calculate_dynamic_amount_v3 for {symbol}: {e}")
 
-        return long_dynamic_amount, short_dynamic_amount, min_qty
 
 
     def calculate_dynamic_amount_v2(self, symbol, total_equity, best_ask_price, max_leverage):
@@ -3986,11 +4033,12 @@ class Strategy:
 
     def calculate_dynamic_long_take_profit(self, long_pos_price, symbol, upnl_profit_pct):
         if long_pos_price is None:
-            #logging.error("Long position price is None for symbol: " + symbol)
+            logging.error("Long position price is None for symbol: " + symbol)
             return None
 
-        price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
-        logging.info(f"Price precision for {symbol}: {price_precision}, Quantity precision: {qty_precision}")
+        # Fetch the correct precision values
+        _, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
+        logging.info(f"Price precision for {symbol}: {price_precision}")
 
         initial_tp = long_pos_price * (1 + upnl_profit_pct)
         logging.info(f"Initial long TP for {symbol}: {initial_tp}")
@@ -4001,7 +4049,7 @@ class Strategy:
 
         for price, size in ask_walls:
             if price > initial_tp:
-                extended_tp = price - price_precision
+                extended_tp = price - float(price_precision)
                 if extended_tp > 0:
                     initial_tp = max(initial_tp, extended_tp)
                     logging.info(f"Adjusted long TP for {symbol} based on ask wall: {initial_tp}")
@@ -4011,17 +4059,19 @@ class Strategy:
             initial_tp = long_pos_price * (1 + upnl_profit_pct)  # Fallback to original TP calculation
             logging.info(f"Adjusted TP was too low, using original TP calculation: {initial_tp}")
 
+        # Ensure the TP is rounded correctly
         rounded_tp = round(initial_tp, len(str(price_precision).split('.')[-1]))
         logging.info(f"Final rounded long TP for {symbol}: {rounded_tp}")
         return rounded_tp
 
     def calculate_dynamic_short_take_profit(self, short_pos_price, symbol, upnl_profit_pct):
         if short_pos_price is None:
-            #logging.error("Short position price is None for symbol: " + symbol)
+            logging.error("Short position price is None for symbol: " + symbol)
             return None
 
-        price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
-        logging.info(f"Price precision for {symbol}: {price_precision}, Quantity precision: {qty_precision}")
+        # Fetch the correct precision values
+        _, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
+        logging.info(f"Price precision for {symbol}: {price_precision}")
 
         initial_tp = short_pos_price * (1 - upnl_profit_pct)
         logging.info(f"Initial short TP for {symbol}: {initial_tp}")
@@ -4032,7 +4082,7 @@ class Strategy:
 
         for price, size in bid_walls:
             if price < initial_tp:
-                extended_tp = price + price_precision
+                extended_tp = price + float(price_precision)
                 if extended_tp > 0:
                     initial_tp = min(initial_tp, extended_tp)
                     logging.info(f"Adjusted short TP for {symbol} based on bid wall: {initial_tp}")
@@ -4042,9 +4092,74 @@ class Strategy:
             initial_tp = short_pos_price * (1 - upnl_profit_pct)  # Fallback to original TP calculation
             logging.info(f"Adjusted TP was too low, using original TP calculation: {initial_tp}")
 
+        # Ensure the TP is rounded correctly
         rounded_tp = round(initial_tp, len(str(price_precision).split('.')[-1]))
         logging.info(f"Final rounded short TP for {symbol}: {rounded_tp}")
         return rounded_tp
+
+
+
+    # def calculate_dynamic_long_take_profit(self, long_pos_price, symbol, upnl_profit_pct):
+    #     if long_pos_price is None:
+    #         #logging.error("Long position price is None for symbol: " + symbol)
+    #         return None
+
+    #     price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
+    #     logging.info(f"Price precision for {symbol}: {price_precision}, Quantity precision: {qty_precision}")
+
+    #     initial_tp = long_pos_price * (1 + upnl_profit_pct)
+    #     logging.info(f"Initial long TP for {symbol}: {initial_tp}")
+
+    #     bid_walls, ask_walls = self.detect_significant_order_book_walls(symbol)
+    #     if not ask_walls:
+    #         logging.info(f"No significant ask walls found for {symbol}")
+
+    #     for price, size in ask_walls:
+    #         if price > initial_tp:
+    #             extended_tp = price - price_precision
+    #             if extended_tp > 0:
+    #                 initial_tp = max(initial_tp, extended_tp)
+    #                 logging.info(f"Adjusted long TP for {symbol} based on ask wall: {initial_tp}")
+    #             break
+
+    #     if initial_tp <= 0:
+    #         initial_tp = long_pos_price * (1 + upnl_profit_pct)  # Fallback to original TP calculation
+    #         logging.info(f"Adjusted TP was too low, using original TP calculation: {initial_tp}")
+
+    #     rounded_tp = round(initial_tp, len(str(price_precision).split('.')[-1]))
+    #     logging.info(f"Final rounded long TP for {symbol}: {rounded_tp}")
+    #     return rounded_tp
+
+    # def calculate_dynamic_short_take_profit(self, short_pos_price, symbol, upnl_profit_pct):
+    #     if short_pos_price is None:
+    #         #logging.error("Short position price is None for symbol: " + symbol)
+    #         return None
+
+    #     price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
+    #     logging.info(f"Price precision for {symbol}: {price_precision}, Quantity precision: {qty_precision}")
+
+    #     initial_tp = short_pos_price * (1 - upnl_profit_pct)
+    #     logging.info(f"Initial short TP for {symbol}: {initial_tp}")
+
+    #     bid_walls, ask_walls = self.detect_significant_order_book_walls(symbol)
+    #     if not bid_walls:
+    #         logging.info(f"No significant bid walls found for {symbol}")
+
+    #     for price, size in bid_walls:
+    #         if price < initial_tp:
+    #             extended_tp = price + price_precision
+    #             if extended_tp > 0:
+    #                 initial_tp = min(initial_tp, extended_tp)
+    #                 logging.info(f"Adjusted short TP for {symbol} based on bid wall: {initial_tp}")
+    #             break
+
+    #     if initial_tp <= 0:
+    #         initial_tp = short_pos_price * (1 - upnl_profit_pct)  # Fallback to original TP calculation
+    #         logging.info(f"Adjusted TP was too low, using original TP calculation: {initial_tp}")
+
+    #     rounded_tp = round(initial_tp, len(str(price_precision).split('.')[-1]))
+    #     logging.info(f"Final rounded short TP for {symbol}: {rounded_tp}")
+    #     return rounded_tp
 
 
     # def calculate_dynamic_long_take_profit(self, long_pos_price, symbol, upnl_profit_pct):
