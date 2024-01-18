@@ -335,30 +335,6 @@ class Exchange:
 
         return None, None, None
 
-    def get_symbol_precision_bybit(self, symbol):
-        try:
-            # Use fetch_markets to retrieve data for all markets
-            all_markets = self.exchange.fetch_markets()
-
-            # Find the market data for the specific symbol
-            market_data = next((market for market in all_markets if market['id'] == symbol), None)
-            logging.info(f"Market data for {symbol} : {market_data}")
-            
-            if market_data:
-                # Extract the relevant precision data from market filters
-                price_precision = market_data['info']['priceFilter']['tickSize']
-                amount_precision = market_data['info']['lotSizeFilter']['qtyStep']
-
-                logging.info(f"Extracted precision for {symbol}: Price precision: {price_precision}, Amount precision: {amount_precision}")
-                return amount_precision, price_precision
-            else:
-                logging.error(f"Market data not found for {symbol}")
-                return None, None
-        except Exception as e:
-            logging.error(f"An error occurred while fetching symbol precision for {symbol}: {e}")
-            return None, None
-
-
     # def get_symbol_precision_bybit(self, symbol):
     #     try:
     #         # Use fetch_markets to retrieve data for all markets
@@ -366,21 +342,46 @@ class Exchange:
 
     #         # Find the market data for the specific symbol
     #         market_data = next((market for market in all_markets if market['id'] == symbol), None)
+    #         logging.info(f"Market data for {symbol} : {market_data}")
 
     #         if market_data:
-    #             # Log the entire market data for inspection
-    #             logging.info(f"Market data for {symbol}: {market_data}")
+    #             # Extract the relevant precision data from market filters
+    #             price_precision = market_data['info']['priceFilter']['tickSize']
+    #             amount_precision = market_data['info']['lotSizeFilter']['qtyStep']
 
-    #             # Extract precision data
-    #             amount_precision = market_data['precision']['amount']
-    #             price_precision = market_data['precision']['price']
+    #             logging.info(f"Extracted precision for {symbol}: Price precision: {price_precision}, Amount precision: {amount_precision}")
     #             return amount_precision, price_precision
     #         else:
-    #             print(f"Market data not found for {symbol}")
+    #             logging.error(f"Market data not found for {symbol}")
     #             return None, None
     #     except Exception as e:
-    #         print(f"An error occurred: {e}")
+    #         logging.error(f"An error occurred while fetching symbol precision for {symbol}: {e}")
     #         return None, None
+
+    def get_symbol_precision_bybit(self, symbol):
+        try:
+            # Use fetch_markets to retrieve data for all markets
+            all_markets = self.exchange.fetch_markets()
+
+            # Find the market data for the specific symbol
+            market_data = next((market for market in all_markets if market['id'] == symbol), None)
+
+            if market_data:
+                # Log the entire market data for inspection
+                logging.info(f"Market data for {symbol}: {market_data}")
+
+                # Extract precision data
+                amount_precision = market_data['precision']['amount']
+                price_precision = market_data['precision']['price']
+
+                logging.info(f"Amount precision for {symbol}: {amount_precision} and price precision {price_precision}")
+                return amount_precision, price_precision
+            else:
+                print(f"Market data not found for {symbol}")
+                return None, None
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return None, None
 
     # def get_symbol_precision_bybit(self, symbol):
     #     try:
