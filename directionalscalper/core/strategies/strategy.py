@@ -3912,7 +3912,7 @@ class Strategy:
 
     def calculate_dynamic_long_take_profit(self, long_pos_price, symbol, upnl_profit_pct):
         if long_pos_price is None:
-            logging.error("Long position price is None for symbol: " + symbol)
+            #logging.error("Long position price is None for symbol: " + symbol)
             return None
 
         price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
@@ -3943,7 +3943,7 @@ class Strategy:
 
     def calculate_dynamic_short_take_profit(self, short_pos_price, symbol, upnl_profit_pct):
         if short_pos_price is None:
-            logging.error("Short position price is None for symbol: " + symbol)
+            #logging.error("Short position price is None for symbol: " + symbol)
             return None
 
         price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
@@ -5605,32 +5605,30 @@ class Strategy:
 
     def update_dynamic_quickscalp_tp(self, symbol, pos_qty, upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, tp_order_counts, max_retries=10):
         try:
+            # Fetch current bid and ask prices
+            current_bid_price = self.exchange.get_current_bid_price(symbol)
+            current_ask_price = self.exchange.get_current_ask_price(symbol)
+
             # Fetch the current open TP orders and TP order counts for the symbol
             long_tp_orders, short_tp_orders = self.exchange.bybit.get_open_tp_orders(symbol)
-
             long_tp_count = tp_order_counts['long_tp_count']
             short_tp_count = tp_order_counts['short_tp_count']
 
             # Calculate the new TP values using quickscalp method w/ dynamic
-            new_short_tp = self.calculate_dynamic_short_take_profit(
-                short_pos_price,
-                symbol,
-                upnl_profit_pct
-            )
+            new_short_tp = self.calculate_dynamic_short_take_profit(short_pos_price, symbol, upnl_profit_pct)
+            new_long_tp = self.calculate_dynamic_long_take_profit(long_pos_price, symbol, upnl_profit_pct)
 
-            new_long_tp = self.calculate_dynamic_long_take_profit(
-                long_pos_price,
-                symbol,
-                upnl_profit_pct
-            )
+            # Adjust TP based on current market price
+            if order_side == "sell" and current_bid_price and current_bid_price >= new_long_tp:
+                new_long_tp = current_bid_price
+            elif order_side == "buy" and current_ask_price and current_ask_price <= new_short_tp:
+                new_short_tp = current_ask_price
 
             # Determine the relevant TP orders based on the order side
             relevant_tp_orders = long_tp_orders if order_side == "sell" else short_tp_orders
 
-            # Check if there's an existing TP order with a mismatched quantity
+            # Check and cancel mismatched TP orders
             mismatched_qty_orders = [order for order in relevant_tp_orders if order['qty'] != pos_qty]
-
-            # Cancel mismatched TP orders if any
             for order in mismatched_qty_orders:
                 try:
                     self.exchange.cancel_order_by_id(order['id'], symbol)
@@ -5655,13 +5653,12 @@ class Strategy:
                 else:
                     logging.info(f"Skipping TP update as a TP order already exists for {symbol}")
 
-                # Calculate and return the next update time
                 return self.calculate_next_update_time()
             else:
                 logging.info(f"No immediate update needed for TP orders for {symbol}. Last update at: {last_tp_update}")
                 return last_tp_update
         except Exception as e:
-            logging.info(f"Exception caught in updating dynamic TP {e}")
+            logging.error(f"Exception caught in updating dynamic TP for {symbol}: {e}")
 
 
     def update_quickscalp_tp(self, symbol, pos_qty, upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, tp_order_counts, max_retries=10):

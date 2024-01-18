@@ -416,18 +416,19 @@ class BybitQuickScalpTrendOB(Strategy):
                     short_take_profit = None
                     long_take_profit = None
 
-                    # Calculate take profit for short and long positions using quickscalp method
-                    long_take_profit = self.calculate_dynamic_long_take_profit(
-                        long_pos_price,
-                        symbol,
-                        upnl_profit_pct
-                    )
+                    if long_pos_price is not None:
+                        long_take_profit = self.calculate_dynamic_long_take_profit(
+                            long_pos_price,
+                            symbol,
+                            upnl_profit_pct
+                        )
 
-                    short_take_profit = self.calculate_dynamic_short_take_profit(
-                        short_pos_price,
-                        symbol,
-                        upnl_profit_pct
-                    )
+                    if short_pos_price is not None:
+                        short_take_profit = self.calculate_dynamic_short_take_profit(
+                            short_pos_price,
+                            symbol,
+                            upnl_profit_pct
+                        )
 
                     short_stop_loss = None
                     long_stop_loss = None
