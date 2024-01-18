@@ -654,6 +654,9 @@ class Strategy:
                 logging.error(f"Failed to fetch quantity precision for {symbol}")
                 return None, None, None
 
+            # Convert qty_precision to a float for calculations
+            qty_precision = float(qty_precision)
+
             market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
 
             min_qty = float(market_data["min_qty"])
@@ -688,7 +691,7 @@ class Strategy:
 
             return long_dynamic_amount, short_dynamic_amount, min_qty
         except Exception as e:
-            logging.info(f"Exception caught in calculate dynamic amount v3 {e}")
+            logging.error(f"Exception caught in calculate_dynamic_amount_v3 for {symbol}: {e}")
 
     # def calculate_dynamic_amount_v3(self, symbol, total_equity):
     #     # Fetch symbol precision for price and quantity
