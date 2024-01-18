@@ -342,7 +342,8 @@ class Exchange:
 
             # Find the market data for the specific symbol
             market_data = next((market for market in all_markets if market['id'] == symbol), None)
-
+            logging.info(f"Market data for {symbol} : {market_data}")
+            
             if market_data:
                 # Extract the relevant precision data from market filters
                 price_precision = market_data['info']['priceFilter']['tickSize']
