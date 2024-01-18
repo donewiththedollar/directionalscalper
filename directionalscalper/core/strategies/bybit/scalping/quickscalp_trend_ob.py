@@ -594,7 +594,7 @@ class BybitQuickScalpTrendOB(Strategy):
 
                     self.place_long_tp_order(
                         symbol,
-                        best_bid_price,
+                        long_pos_price,
                         long_pos_qty,
                         long_take_profit,
                         open_orders
@@ -602,7 +602,7 @@ class BybitQuickScalpTrendOB(Strategy):
 
                     self.place_short_tp_order(
                         symbol,
-                        best_ask_price,
+                        short_pos_price,
                         short_pos_qty,
                         short_take_profit,
                         open_orders
