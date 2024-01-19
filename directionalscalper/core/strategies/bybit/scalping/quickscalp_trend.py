@@ -254,6 +254,8 @@ class BybitQuickScalpTrend(Strategy):
 
                 logging.info(f"Open symbols: {open_symbols}")
 
+                logging.info(f"Open orders: {open_orders}")
+
                 # position_last_update_time = self.get_position_update_time(symbol)
 
                 # logging.info(f"{symbol} last update time: {position_last_update_time}")
