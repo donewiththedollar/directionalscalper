@@ -1379,6 +1379,7 @@ class Strategy:
 
         if not self.printed_trade_quantities:
             wallet_exposure = self.config.wallet_exposure
+            print(f"Printing trade QTYs for {symbol}")
             self.exchange.print_trade_quantities_bybit(
                 self.max_long_trade_qty_per_symbol.get(symbol, 0), 
                 [0.001, 0.01, 0.1, 1, 2.5, 5], 
