@@ -2040,6 +2040,20 @@ class Exchange:
         
         return values
 
+    def get_order_status(self, order_id, symbol):
+        try:
+            # Fetch the order details from the exchange using the order ID
+            order_details = self.fetch_order(order_id, symbol)
+
+            logging.info(f"Order details for {symbol}: {order_details}")
+
+            # Extract and return the order status
+            return order_details['status']
+        except Exception as e:
+            logging.error(f"An error occurred fetching order status for {order_id} on {symbol}: {e}")
+            return None
+
+
     def get_open_orders(self, symbol: str) -> list:
         open_orders_list = []
         try:
