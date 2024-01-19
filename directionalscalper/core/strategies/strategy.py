@@ -624,9 +624,9 @@ class Strategy:
 
         return long_dynamic_amount, short_dynamic_amount, min_qty
 
-    def update_dynamic_amounts(self, symbol, total_equity, best_ask_price):
+    def update_dynamic_amounts(self, symbol, total_equity):
         if symbol not in self.long_dynamic_amount or symbol not in self.short_dynamic_amount:
-            long_dynamic_amount, short_dynamic_amount, _ = self.calculate_dynamic_amount_v2(symbol, total_equity, best_ask_price, self.max_leverage)
+            long_dynamic_amount, short_dynamic_amount, _ = self.calculate_dynamic_amount_v3(symbol, total_equity)
             self.long_dynamic_amount[symbol] = long_dynamic_amount
             self.short_dynamic_amount[symbol] = short_dynamic_amount
 
@@ -642,6 +642,27 @@ class Strategy:
             )
 
         logging.info(f"Updated dynamic amounts for {symbol}. New long_dynamic_amount: {self.long_dynamic_amount[symbol]}, New short_dynamic_amount: {self.short_dynamic_amount[symbol]}")
+
+
+
+    # def update_dynamic_amounts(self, symbol, total_equity, best_ask_price):
+    #     if symbol not in self.long_dynamic_amount or symbol not in self.short_dynamic_amount:
+    #         long_dynamic_amount, short_dynamic_amount, _ = self.calculate_dynamic_amount_v2(symbol, total_equity, best_ask_price, self.max_leverage)
+    #         self.long_dynamic_amount[symbol] = long_dynamic_amount
+    #         self.short_dynamic_amount[symbol] = short_dynamic_amount
+
+    #     if symbol in self.max_long_trade_qty_per_symbol:
+    #         self.long_dynamic_amount[symbol] = min(
+    #             self.long_dynamic_amount[symbol], 
+    #             self.max_long_trade_qty_per_symbol[symbol]
+    #         )
+    #     if symbol in self.max_short_trade_qty_per_symbol:
+    #         self.short_dynamic_amount[symbol] = min(
+    #             self.short_dynamic_amount[symbol], 
+    #             self.max_short_trade_qty_per_symbol[symbol]
+    #         )
+
+    #     logging.info(f"Updated dynamic amounts for {symbol}. New long_dynamic_amount: {self.long_dynamic_amount[symbol]}, New short_dynamic_amount: {self.short_dynamic_amount[symbol]}")
 
     def calculate_dynamic_amount_v3(self, symbol, total_equity):
         # Fetch symbol precision for price and quantity
