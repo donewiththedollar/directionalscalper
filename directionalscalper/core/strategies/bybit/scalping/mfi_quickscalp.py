@@ -19,8 +19,6 @@ class BybitMFIRSIQuickScalp(Strategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
         self.is_order_history_populated = False
-        self.last_known_ask = {}  # Dictionary to store last known ask prices for each symbol
-        self.last_known_bid = {} 
         self.last_health_check_time = time.time()
         self.health_check_interval = 600
         self.last_long_tp_update = datetime.now()
