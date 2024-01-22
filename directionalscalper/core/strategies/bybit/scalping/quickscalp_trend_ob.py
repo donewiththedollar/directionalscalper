@@ -622,6 +622,8 @@ class BybitQuickScalpTrendOB(Strategy):
                     if long_pos_qty > 0:
                         if current_latest_time >= self.next_long_tp_update:
                             self.next_long_tp_update = self.update_dynamic_quickscalp_tp(
+                                best_ask_price=best_ask_price,
+                                best_bid_price=best_bid_price,
                                 symbol=symbol, 
                                 pos_qty=long_pos_qty, 
                                 upnl_profit_pct=upnl_profit_pct,  # Add the quickscalp percentage
@@ -637,6 +639,8 @@ class BybitQuickScalpTrendOB(Strategy):
                     if short_pos_qty > 0:
                         if current_latest_time >= self.next_short_tp_update:
                             self.next_short_tp_update = self.update_dynamic_quickscalp_tp(
+                                best_ask_price=best_ask_price,
+                                best_bid_price=best_bid_price,
                                 symbol=symbol, 
                                 pos_qty=short_pos_qty, 
                                 upnl_profit_pct=upnl_profit_pct,  # Add the quickscalp percentage

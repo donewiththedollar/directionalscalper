@@ -5709,7 +5709,7 @@ class Strategy:
             logging.info(f"No immediate update needed for TP orders for {symbol}. Last update at: {last_tp_update}")
             return last_tp_update
 
-    def update_dynamic_quickscalp_tp(self, symbol, pos_qty, upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, tp_order_counts, max_retries=10):
+    def update_dynamic_quickscalp_tp(self, symbol, best_ask_price, best_bid_price, upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, tp_order_counts, max_retries=10):
         # Fetch the current open TP orders and TP order counts for the symbol
         long_tp_orders, short_tp_orders = self.exchange.bybit.get_open_tp_orders(symbol)
 
@@ -5718,12 +5718,14 @@ class Strategy:
 
         # Calculate the new TP values using quickscalp method w/ dynamic
         new_short_tp = self.calculate_dynamic_short_take_profit(
+            best_ask_price,
             short_pos_price,
             symbol,
             upnl_profit_pct
         )
 
         new_long_tp = self.calculate_dynamic_long_take_profit(
+            best_bid_price,
             long_pos_price,
             symbol,
             upnl_profit_pct
