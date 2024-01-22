@@ -164,6 +164,29 @@ class Strategy:
             else:
                 return "neutral"
 
+    def analyze_order_book(self, symbol, depth=50):
+        order_book = self.exchange.get_orderbook(symbol)
+        bids = order_book['bids']
+        asks = order_book['asks']
+
+        # Calculate VWAP for bids and asks
+        total_bid_volume, total_ask_volume = 0, 0
+        bid_vwap, ask_vwap = 0, 0
+
+        for price, volume in bids:
+            total_bid_volume += volume
+            bid_vwap += price * volume
+
+        for price, volume in asks:
+            total_ask_volume += volume
+            ask_vwap += price * volume
+
+        bid_vwap /= total_bid_volume
+        ask_vwap /= total_ask_volume
+
+        return bid_vwap, ask_vwap, bids, asks
+
+
     def get_open_symbols(self):
         open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
         position_symbols = set()

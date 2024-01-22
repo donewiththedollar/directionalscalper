@@ -69,33 +69,6 @@ class Exchange:
             logging.error(f"Failed to fetch TP orders for {symbol} after {self.max_retries} retries.")
             return long_tp_orders, short_tp_orders
         
-        # def get_open_tp_orders(self, symbol):
-        #     long_tp_orders = []
-        #     short_tp_orders = []
-        #     for _ in range(self.max_retries):
-        #         try:
-        #             all_open_orders = self.parent.exchange.fetch_open_orders(symbol)
-        #             logging.info(f"All open orders for {symbol}: {all_open_orders}")
-                    
-        #             for order in all_open_orders:
-        #                 order_details = {
-        #                     'id': order['id'],
-        #                     'qty': float(order['info']['qty'])
-        #                 }
-                        
-        #                 if order['info'].get('reduceOnly', False):
-        #                     if order['side'] == 'sell':
-        #                         long_tp_orders.append(order_details)
-        #                     elif order['side'] == 'buy':
-        #                         short_tp_orders.append(order_details)
-                    
-        #             return long_tp_orders, short_tp_orders
-        #         except ccxt.RateLimitExceeded:
-        #             logging.warning(f"Rate limit exceeded when fetching TP orders for {symbol}. Retrying in {self.retry_wait} seconds...")
-        #             time.sleep(self.retry_wait)
-        #     logging.error(f"Failed to fetch TP orders for {symbol} after {self.max_retries} retries.")
-        #     return long_tp_orders, short_tp_orders
-
         def get_open_tp_order_count(self, symbol):
             """
             Fetches the count of open take profit (TP) orders for the given symbol.
@@ -129,6 +102,33 @@ class Exchange:
             # If necessary, you can further parse the orders here using self.parse_order or similar methods
             
             return tp_orders
+
+        # def get_open_tp_orders(self, symbol):
+        #     long_tp_orders = []
+        #     short_tp_orders = []
+        #     for _ in range(self.max_retries):
+        #         try:
+        #             all_open_orders = self.parent.exchange.fetch_open_orders(symbol)
+        #             logging.info(f"All open orders for {symbol}: {all_open_orders}")
+                    
+        #             for order in all_open_orders:
+        #                 order_details = {
+        #                     'id': order['id'],
+        #                     'qty': float(order['info']['qty'])
+        #                 }
+                        
+        #                 if order['info'].get('reduceOnly', False):
+        #                     if order['side'] == 'sell':
+        #                         long_tp_orders.append(order_details)
+        #                     elif order['side'] == 'buy':
+        #                         short_tp_orders.append(order_details)
+                    
+        #             return long_tp_orders, short_tp_orders
+        #         except ccxt.RateLimitExceeded:
+        #             logging.warning(f"Rate limit exceeded when fetching TP orders for {symbol}. Retrying in {self.retry_wait} seconds...")
+        #             time.sleep(self.retry_wait)
+        #     logging.error(f"Failed to fetch TP orders for {symbol} after {self.max_retries} retries.")
+        #     return long_tp_orders, short_tp_orders
 
 
     def __init__(self, exchange_id, api_key, secret_key, passphrase=None, market_type='swap'):

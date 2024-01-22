@@ -419,6 +419,7 @@ class BybitQuickScalpTrendOB(Strategy):
 
                     if long_pos_price is not None:
                         long_take_profit = self.calculate_dynamic_long_take_profit(
+                            best_bid_price,
                             long_pos_price,
                             symbol,
                             upnl_profit_pct
@@ -426,6 +427,7 @@ class BybitQuickScalpTrendOB(Strategy):
 
                     if short_pos_price is not None:
                         short_take_profit = self.calculate_dynamic_short_take_profit(
+                            best_ask_price,
                             short_pos_price,
                             symbol,
                             upnl_profit_pct
