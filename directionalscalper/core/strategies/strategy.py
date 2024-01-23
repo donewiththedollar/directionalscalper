@@ -3681,7 +3681,7 @@ class Strategy:
             try:
                 long_unrealised_pnl, short_unrealised_pnl = 0, 0
                 for position in open_position_data:
-                    # logging.info(f"Open position data: {open_position_data}")
+                    logging.info(f"Open position data: {open_position_data}")
                     # logging.info(f"Position: {position}")
                     info = position.get('info', {})
                     # logging.info(f"Info for {symbol}: {info}")
