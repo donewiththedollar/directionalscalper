@@ -445,19 +445,22 @@ class BybitQuickScalpTrend(Strategy):
                     #     auto_reduce_maxloss_pct
                     # )
 
-                    self.auto_reduce_logic_simple(
-                        long_pos_qty,
-                        short_pos_qty,
-                        auto_reduce_enabled,
-                        symbol,
-                        total_equity,
-                        auto_reduce_wallet_exposure_pct,
-                        open_position_data,
-                        current_price,
-                        long_dynamic_amount,
-                        short_dynamic_amount,
-                        auto_reduce_start_pct
-                    )
+                    try:
+                        self.auto_reduce_logic_simple(
+                            long_pos_qty,
+                            short_pos_qty,
+                            auto_reduce_enabled,
+                            symbol,
+                            total_equity,
+                            auto_reduce_wallet_exposure_pct,
+                            open_position_data,
+                            current_price,
+                            long_dynamic_amount,
+                            short_dynamic_amount,
+                            auto_reduce_start_pct
+                        )
+                    except Exception as e:
+                        logging.info(f"Exception caught in autoreduce: {e}")
 
                     self.auto_reduce_percentile_logic(
                         symbol,

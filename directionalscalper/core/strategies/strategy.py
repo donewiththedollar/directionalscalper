@@ -3683,6 +3683,7 @@ class Strategy:
                 long_unrealised_pnl, short_unrealised_pnl = 0, 0
                 for position in open_position_data:
                     info = position.get('info', {})
+                    logging.info(f"Position info for {symbol}: {info}")
                     if info.get('symbol', '').split(':')[0] == symbol:
                         pnl = float(info.get('unrealisedPnl', 0))
                         if info.get('side', '') == 'Buy':
@@ -3700,7 +3701,7 @@ class Strategy:
                     self.execute_auto_reduce('short', symbol, short_pos_qty, short_dynamic_amount, current_market_price, auto_reduce_start_pct, total_equity)
 
             except Exception as e:
-                logging.error(f"{symbol} Auto-reduce error: {e}")
+                logging.error(f"{symbol} Auto-reduce error: Type: {type(e).__name__}, Message: {e}")
 
     # This worked until it does not. The max_loss_pct is used to calculate the grid and causes issues giving you further AR entries
     def auto_reduce_logic(self, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, auto_reduce_enabled, symbol, total_equity, auto_reduce_wallet_exposure_pct, open_position_data, current_market_price, long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct, auto_reduce_maxloss_pct):
