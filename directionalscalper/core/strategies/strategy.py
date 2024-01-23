@@ -3681,16 +3681,15 @@ class Strategy:
             try:
                 long_unrealised_pnl, short_unrealised_pnl = 0, 0
                 for position in open_position_data:
-                    logging.info(f"Open position data: {open_position_data}")
-                    # logging.info(f"Position: {position}")
+                    logging.info(f"Position data: {position}")
                     info = position.get('info', {})
-                    # logging.info(f"Info for {symbol}: {info}")
+                    logging.info(f"Info extracted from position: {info}")
+
                     symbol_from_position = info.get('symbol', '').split(':')[0]
-                    # logging.info(f"Symbol from position: {symbol_from_position}")
                     side_from_position = info.get('side', '')
-                    # logging.info(f"Side from position: {side_from_position}")
                     unrealised_pnl = float(info.get('unrealisedPnl', 0))
-                    # logging.info(f"Unrealised pnl: {unrealised_pnl}")
+
+                    logging.info(f"Extracted symbol: {symbol_from_position}, side: {side_from_position}, unrealised PnL: {unrealised_pnl}")
 
                     if symbol_from_position == symbol:
                         if side_from_position == 'Buy':
@@ -3701,6 +3700,8 @@ class Strategy:
                 long_pnl_percentage = (long_unrealised_pnl / total_equity) * 100
                 short_pnl_percentage = (short_unrealised_pnl / total_equity) * 100
 
+                logging.info(f"Long PnL %: {long_pnl_percentage}, Short PnL %: {short_pnl_percentage}")
+
                 if long_pos_qty > 0 and long_pnl_percentage < -auto_reduce_wallet_exposure_pct:
                     self.execute_auto_reduce('long', symbol, long_pos_qty, long_dynamic_amount, current_market_price, auto_reduce_start_pct, total_equity)
 
@@ -3709,7 +3710,6 @@ class Strategy:
 
             except Exception as e:
                 logging.error(f"{symbol} Auto-reduce error: Type: {type(e).__name__}, Message: {e}")
-
 
     # def auto_reduce_logic_simple(self, long_pos_qty, short_pos_qty, auto_reduce_enabled, symbol, total_equity, auto_reduce_wallet_exposure_pct, open_position_data, current_market_price, long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct):
     #     if auto_reduce_enabled:
