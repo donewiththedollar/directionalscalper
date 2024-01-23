@@ -3523,7 +3523,7 @@ class Strategy:
                         )
                         for i in range(1, min(max_levels, 3) + 1):
                             step_price = current_market_price - (price_interval * i)
-                            order_id = self.auto_reduce_long(symbol, long_pos_price, long_dynamic_amount, step_price)
+                            order_id = self.auto_reduce_long(symbol, long_dynamic_amount, step_price)
                             self.auto_reduce_orders[symbol].append(order_id)
 
                 if short_pos_qty > 0 and short_pos_price is not None:
@@ -3536,7 +3536,7 @@ class Strategy:
                         )
                         for i in range(1, min(max_levels, 3) + 1):
                             step_price = current_market_price + (price_interval * i)
-                            order_id = self.auto_reduce_short(symbol, short_pos_price, short_dynamic_amount, step_price)
+                            order_id = self.auto_reduce_short(symbol, short_dynamic_amount, step_price)
                             self.auto_reduce_orders[symbol].append(order_id)
 
             except Exception as e:
@@ -3571,7 +3571,7 @@ class Strategy:
                         )
                         for i in range(1, min(max_levels, 3) + 1):
                             step_price = current_market_price - (price_interval * i)
-                            order_id = self.auto_reduce_long(symbol, long_pos_price, long_dynamic_amount, step_price)
+                            order_id = self.auto_reduce_long(symbol, long_dynamic_amount, step_price)
                             self.auto_reduce_orders[symbol].append(order_id)
 
                 if short_pos_qty > 0 and short_pos_price is not None:
@@ -3584,7 +3584,7 @@ class Strategy:
                         )
                         for i in range(1, min(max_levels, 3) + 1):
                             step_price= current_market_price + (price_interval * i)
-                            order_id = self.auto_reduce_short(symbol, short_pos_price, short_dynamic_amount, step_price)
+                            order_id = self.auto_reduce_short(symbol, short_dynamic_amount, step_price)
                             self.auto_reduce_orders[symbol].append(order_id)
             except Exception as e:
                 logging.error(f"{symbol} Exception caught in auto reduce: {e}")
@@ -3748,7 +3748,7 @@ class Strategy:
                         )
                         for i in range(1, min(max_levels, 3) + 1):
                             step_price = current_market_price - (price_interval * i)
-                            order_id = self.auto_reduce_long(symbol, long_pos_price, long_dynamic_amount, step_price)
+                            order_id = self.auto_reduce_long(symbol, long_dynamic_amount, step_price)
                             self.auto_reduce_orders[symbol].append(order_id)
 
                 # Short position auto-reduce check
@@ -3760,7 +3760,7 @@ class Strategy:
                         )
                         for i in range(1, min(max_levels, 3) + 1):
                             step_price = current_market_price + (price_interval * i)
-                            order_id = self.auto_reduce_short(symbol, short_pos_price, short_dynamic_amount, step_price)
+                            order_id = self.auto_reduce_short(symbol, short_dynamic_amount, step_price)
                             self.auto_reduce_orders[symbol].append(order_id)
 
             except Exception as e:
@@ -4034,7 +4034,7 @@ class Strategy:
     #         logging.error(f"Error calculating auto-reduce levels for short position in {symbol}: {e}")
     #         return None, None
 
-    def auto_reduce_long(self, symbol, long_pos_price, long_dynamic_amount, step_price):
+    def auto_reduce_long(self, symbol, long_dynamic_amount, step_price):
         try:
             order = self.limit_order_bybit_reduce_nolimit(symbol, 'sell', long_dynamic_amount, float(step_price), positionIdx=1, reduceOnly=True)
             logging.info(f"Auto-reduce long order placed for {symbol} at {step_price} with amount {long_dynamic_amount}")
@@ -4043,7 +4043,7 @@ class Strategy:
             logging.error(f"Error in auto-reduce long order for {symbol}: {e}")
             return None
 
-    def auto_reduce_short(self, symbol, short_pos_price, short_dynamic_amount, step_price):
+    def auto_reduce_short(self, symbol, short_dynamic_amount, step_price):
         try:
             order = self.limit_order_bybit_reduce_nolimit(symbol, 'buy', short_dynamic_amount, float(step_price), positionIdx=2, reduceOnly=True)
             logging.info(f"Auto-reduce short order placed for {symbol} at {step_price} with amount {short_dynamic_amount}")
