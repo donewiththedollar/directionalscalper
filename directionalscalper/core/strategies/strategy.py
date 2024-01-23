@@ -3676,20 +3676,21 @@ class Strategy:
         except Exception as e:
             logging.warning(f"An unknown error occurred in cancel_all_auto_reduce_orders_bybit(): {e}")
 
-
     def auto_reduce_logic_simple(self, long_pos_qty, short_pos_qty, auto_reduce_enabled, symbol, total_equity, auto_reduce_wallet_exposure_pct, open_position_data, current_market_price, long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct):
         if auto_reduce_enabled:
             try:
                 long_unrealised_pnl, short_unrealised_pnl = 0, 0
                 for position in open_position_data:
                     info = position.get('info', {})
-                    logging.info(f"Position info for {symbol}: {info}")
-                    if info.get('symbol', '').split(':')[0] == symbol:
-                        pnl = float(info.get('unrealisedPnl', 0))
-                        if info.get('side', '') == 'Buy':
-                            long_unrealised_pnl += pnl
-                        elif info.get('side', '') == 'Sell':
-                            short_unrealised_pnl += pnl
+                    symbol_from_position = info.get('symbol', '').split(':')[0]
+                    side_from_position = info.get('side', '')
+                    unrealised_pnl = float(info.get('unrealisedPnl', 0))
+
+                    if symbol_from_position == symbol:
+                        if side_from_position == 'Buy':
+                            long_unrealised_pnl += unrealised_pnl
+                        elif side_from_position == 'Sell':
+                            short_unrealised_pnl += unrealised_pnl
 
                 long_pnl_percentage = (long_unrealised_pnl / total_equity) * 100
                 short_pnl_percentage = (short_unrealised_pnl / total_equity) * 100
@@ -3703,18 +3704,44 @@ class Strategy:
             except Exception as e:
                 logging.error(f"{symbol} Auto-reduce error: Type: {type(e).__name__}, Message: {e}")
 
+
+    # def auto_reduce_logic_simple(self, long_pos_qty, short_pos_qty, auto_reduce_enabled, symbol, total_equity, auto_reduce_wallet_exposure_pct, open_position_data, current_market_price, long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct):
+    #     if auto_reduce_enabled:
+    #         try:
+    #             long_unrealised_pnl, short_unrealised_pnl = 0, 0
+    #             for position in open_position_data:
+    #                 info = position.get('info', {})
+    #                 logging.info(f"Position info for {symbol}: {info}")
+    #                 if info.get('symbol', '').split(':')[0] == symbol:
+    #                     pnl = float(info.get('unrealisedPnl', 0))
+    #                     if info.get('side', '') == 'Buy':
+    #                         long_unrealised_pnl += pnl
+    #                     elif info.get('side', '') == 'Sell':
+    #                         short_unrealised_pnl += pnl
+
+    #             long_pnl_percentage = (long_unrealised_pnl / total_equity) * 100
+    #             short_pnl_percentage = (short_unrealised_pnl / total_equity) * 100
+
+    #             if long_pos_qty > 0 and long_pnl_percentage < -auto_reduce_wallet_exposure_pct:
+    #                 self.execute_auto_reduce('long', symbol, long_pos_qty, long_dynamic_amount, current_market_price, auto_reduce_start_pct, total_equity)
+
+    #             if short_pos_qty > 0 and short_pnl_percentage < -auto_reduce_wallet_exposure_pct:
+    #                 self.execute_auto_reduce('short', symbol, short_pos_qty, short_dynamic_amount, current_market_price, auto_reduce_start_pct, total_equity)
+
+    #         except Exception as e:
+    #             logging.error(f"{symbol} Auto-reduce error: Type: {type(e).__name__}, Message: {e}")
+
     # This worked until it does not. The max_loss_pct is used to calculate the grid and causes issues giving you further AR entries
     def auto_reduce_logic(self, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, auto_reduce_enabled, symbol, total_equity, auto_reduce_wallet_exposure_pct, open_position_data, current_market_price, long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct, auto_reduce_maxloss_pct):
         if auto_reduce_enabled:
             try:
+                # Initialize variables for unrealized PnL
+                long_unrealised_pnl = 0
+                short_unrealised_pnl = 0
 
-                long_unrealised_pnl, short_unrealised_pnl = 0, 0
-                
+                # Iterate through each position and calculate unrealized PnL
                 for position in open_position_data:
                     info = position.get('info', {})
-                    if not isinstance(info, dict):  # Ensure info is a dictionary
-                        continue  # Skip if not a dictionary
-
                     symbol_from_position = info.get('symbol', '').split(':')[0]
                     side_from_position = info.get('side', '')
                     unrealised_pnl = float(info.get('unrealisedPnl', 0))
