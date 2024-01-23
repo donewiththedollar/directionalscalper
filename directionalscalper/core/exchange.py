@@ -2293,47 +2293,6 @@ class Exchange:
                 logging.error(f"Error occurred while canceling orders: {ex}")
                 raise ex
 
-
-    # def cancel_all_open_orders_bybit(self, derivatives: bool = False, params={}):
-    #     """
-    #     Cancel all open orders for all symbols.
-        
-    #     :param bool derivatives: Whether to cancel derivative orders.
-    #     :param dict params: Additional parameters for the API call.
-    #     :return: A list of canceled orders.
-    #     """
-    #     max_retries = 10  # Maximum number of retries
-    #     retry_delay = 5  # Delay (in seconds) between retries
-
-    #     for retry in range(max_retries):
-    #         try:
-    #             if derivatives:
-    #                 return self.exchange.cancel_all_derivatives_orders(None, params)
-    #             else:
-    #                 return self.exchange.cancel_all_orders(None, params)
-    #         except ccxt.RateLimitExceeded as e:
-    #             # If rate limit error and not the last retry, then wait and try again
-    #             if retry < max_retries - 1:
-    #                 logging.warning(f"Rate limit exceeded. Retrying in {retry_delay} seconds...")
-    #                 time.sleep(retry_delay)
-    #                 continue
-    #             else:  # If it's the last retry, raise the error
-    #                 logging.error(f"Rate limit exceeded after {max_retries} retries.")
-    #                 raise e
-
-    # def cancel_all_open_orders_bybit(self, derivatives: bool = False, params={}):
-    #     """
-    #     Cancel all open orders for all symbols.
-        
-    #     :param bool derivatives: Whether to cancel derivative orders.
-    #     :param dict params: Additional parameters for the API call.
-    #     :return: A list of canceled orders.
-    #     """
-    #     if derivatives:
-    #         return self.exchange.cancel_all_derivatives_orders(None, params)
-    #     else:
-    #         return self.exchange.cancel_all_orders(None, params)
-
     def health_check(self, interval_seconds=300):
         """
         Periodically checks the health of the exchange and cancels all open orders.
@@ -2354,55 +2313,40 @@ class Exchange:
                 
             time.sleep(interval_seconds)
 
-    #def cancel_all_entries_bybit(selfl, symbol: str, open_orders: list) -> None:        
-    # def cancel_all_entries_bybit(self, symbol: str) -> None:
+    # def cancel_all_auto_reduce_orders_bybit(self, symbol: str, auto_reduce_order_ids: List[str]):
     #     try:
-    #         orders = self.exchange.fetch_open_orders(symbol)
-    #         logging.info(f"Fetched orders: {orders}")  # Debugging line
+    #         orders = self.fetch_open_orders(symbol)
+    #         logging.info(f"[Thread ID: {threading.get_ident()}] cancel_all_auto_reduce_orders function in exchange class accessed")
+    #         logging.info(f"Fetched orders: {orders}")
 
-    #         long_orders = 0
-    #         short_orders = 0
-
-    #         # Count the number of open long and short orders
     #         for order in orders:
-    #             order_info = order["info"]
-    #             logging.info(f"Order info: {order_info}")  # Debugging line
-
-    #             order_status = order_info["orderStatus"]
-    #             order_side = order_info["side"]
-    #             reduce_only = order_info["reduceOnly"]
-    #             position_idx = int(order_info["positionIdx"])
-
-    #             if order_status != "Filled" and order_status != "Cancelled" and not reduce_only:
-    #                 if position_idx == 1 and order_side == "Buy":
-    #                     long_orders += 1
-    #                 elif position_idx == 2 and order_side == "Sell":
-    #                     short_orders += 1
-
-    #         logging.info(f"Number of long orders: {long_orders}, Number of short orders: {short_orders}")  # Debugging line
-
-    #         # Cancel extra long or short orders
-    #         if long_orders > 0 or short_orders > 0:
-    #             for order in orders:
-    #                 order_info = order["info"]
-    #                 order_id = order_info["orderId"]
-    #                 order_status = order_info["orderStatus"]
-    #                 order_side = order_info["side"]
-    #                 reduce_only = order_info["reduceOnly"]
-    #                 position_idx = int(order_info["positionIdx"])
-
-    #                 if (
-    #                     order_status != "Filled"
-    #                     and order_status != "Cancelled"
-    #                     and not reduce_only
-    #                 ):
-    #                     self.exchange.cancel_order(symbol=symbol, id=order_id)
-    #                     logging.info(f"Cancelling order: {order_id}")  # Debugging line
-    #         else:
-    #             logging.info("No orders to cancel.")  # Debugging line
+    #             if order['status'] in ['open', 'partially_filled']:
+    #                 order_id = order['id']
+    #                 # Check if the order ID is in the list of auto-reduce orders
+    #                 if order_id in auto_reduce_order_ids:
+    #                     self.cancel_order(order_id, symbol)
+    #                     logging.info(f"Cancelling auto-reduce order: {order_id}")
 
     #     except Exception as e:
-    #         logging.warning(f"An unknown error occurred in cancel_all_entries_bybit(): {e}")  # Debugging line
+    #         logging.warning(f"An unknown error occurred in cancel_all_auto_reduce_orders_bybit(): {e}")
+
+    #v5 
+    def cancel_all_reduce_only_orders_bybit(self, symbol: str) -> None:
+        try:
+            orders = self.exchange.fetch_open_orders(symbol)
+            logging.info(f"[Thread ID: {threading.get_ident()}] cancel_all_reduce_only_orders_bybit function accessed")
+            logging.info(f"Fetched orders: {orders}")
+
+            for order in orders:
+                if order['status'] in ['open', 'partially_filled']:
+                    # Check if the order is a reduce-only order
+                    if order['reduceOnly']:
+                        order_id = order['id']
+                        self.exchange.cancel_order(order_id, symbol)
+                        logging.info(f"Cancelling reduce-only order: {order_id}")
+
+        except Exception as e:
+            logging.warning(f"An error occurred in cancel_all_reduce_only_orders_bybit(): {e}")
 
     # v5
     def cancel_all_entries_bybit(self, symbol: str) -> None:
@@ -2421,46 +2365,6 @@ class Exchange:
 
         except Exception as e:
             logging.warning(f"An unknown error occurred in cancel_all_entries_bybit(): {e}")
-
-    # def cancel_all_entries_bybit(self, symbol: str) -> None:
-    #     try:
-    #         orders = self.exchange.fetch_open_orders(symbol)
-    #         long_orders = 0
-    #         short_orders = 0
-
-    #         # Count the number of open long and short orders
-    #         for order in orders:
-    #             order_info = order["info"]
-    #             order_status = order_info["orderStatus"]
-    #             order_side = order_info["side"]
-    #             reduce_only = order_info["reduceOnly"]
-    #             position_idx = int(order_info["positionIdx"])
-
-    #             if order_status != "Filled" and order_status != "Cancelled" and not reduce_only:
-    #                 if position_idx == 1 and order_side == "Buy":
-    #                     long_orders += 1
-    #                 elif position_idx == 2 and order_side == "Sell":
-    #                     short_orders += 1
-
-    #         # Cancel extra long or short orders
-    #         if long_orders > 0 or short_orders > 0:
-    #             for order in orders:
-    #                 order_info = order["info"]
-    #                 order_id = order_info["orderId"]
-    #                 order_status = order_info["orderStatus"]
-    #                 order_side = order_info["side"]
-    #                 reduce_only = order_info["reduceOnly"]
-    #                 position_idx = int(order_info["positionIdx"])
-
-    #                 if (
-    #                     order_status != "Filled"
-    #                     and order_status != "Cancelled"
-    #                     and not reduce_only
-    #                 ):
-    #                     self.exchange.cancel_order(symbol=symbol, id=order_id)
-    #                     logging.info(f"Cancelling order: {order_id}")
-    #     except Exception as e:
-    #         logging.warning(f"An unknown error occurred in cancel_all_entries_bybit(): {e}")
 
     def cancel_all_entries_huobi(self, symbol: str) -> None:
         try:

@@ -3378,6 +3378,27 @@ class Strategy:
         else:
             return 'neutral'
 
+    def calculate_volatility_metric(self, symbol, timeframe='1h', period=14, limit=15):
+        """
+        Calculate a volatility metric based on the Average True Range (ATR).
+        :param symbol: Symbol for which to calculate the metric.
+        :param timeframe: Timeframe for the historical data.
+        :param period: Period for the ATR calculation.
+        :param limit: Number of data points to fetch for the calculation.
+        :return: A volatility metric.
+        """
+        # Fetch historical data
+        df = self.fetch_historical_data(symbol, timeframe, limit)
+
+        # Calculate ATR
+        atr = self.calculate_atr(df, period)
+
+        # Normalize or adjust the ATR to create a volatility metric
+        # This could be as simple as using the ATR directly, or scaling it in some way
+        volatility_metric = atr / df['close'].iloc[-1]  # Example: normalized by the latest closing price
+
+        return volatility_metric
+
     def liq_stop_loss_logic(self, long_pos_qty, long_pos_price, long_liquidation_price, short_pos_qty, short_pos_price, short_liquidation_price, liq_stoploss_enabled, symbol, liq_price_stop_pct):
         if liq_stoploss_enabled:
             try:
@@ -3568,8 +3589,102 @@ class Strategy:
             except Exception as e:
                 logging.error(f"{symbol} Exception caught in auto reduce: {e}")
 
+    def cancel_auto_reduce_orders_bybit(self, symbol, long_unrealised_pnl, short_unrealised_pnl, total_equity, auto_reduce_wallet_exposure_pct):
+        try:
+            long_pnl_percentage = (long_unrealised_pnl / total_equity) * 100
+            short_pnl_percentage = (short_unrealised_pnl / total_equity) * 100
+
+            # Cancel long auto-reduce orders if long PnL is above the negative threshold
+            if long_pnl_percentage >= -auto_reduce_wallet_exposure_pct and symbol in self.auto_reduce_orders:
+                for order_id in self.auto_reduce_orders[symbol]:
+                    try:
+                        self.exchange.cancel_order(order_id, symbol)
+                        logging.info(f"Cancelling long auto-reduce order: {order_id}")
+                    except Exception as e:
+                        logging.warning(f"An error occurred while cancelling auto-reduce order {order_id}: {e}")
+                self.auto_reduce_orders[symbol].clear()  # Clear the list after cancellation
+
+            # Cancel short auto-reduce orders if short PnL is above the negative threshold
+            if short_pnl_percentage >= -auto_reduce_wallet_exposure_pct and symbol in self.auto_reduce_orders:
+                for order_id in self.auto_reduce_orders[symbol]:
+                    try:
+                        self.exchange.cancel_order(order_id, symbol)
+                        logging.info(f"Cancelling short auto-reduce order: {order_id}")
+                    except Exception as e:
+                        logging.warning(f"An error occurred while cancelling auto-reduce order {order_id}: {e}")
+                self.auto_reduce_orders[symbol].clear()  # Clear the list after cancellation
+
+        except Exception as e:
+            logging.error(f"An error occurred while canceling auto-reduce orders for {symbol}: {e}")
+
+    def calculate_dynamic_auto_reduce_levels(self, symbol, pos_qty, dynamic_amount, market_price, start_pct, total_equity):
+        volatility_metric = self.calculate_volatility_metric(symbol)
+        risk_factor = abs(pos_qty / total_equity)  # Example risk factor calculation
+
+        base_levels = 10  # Minimum number of levels
+        volatility_adjustment = int(volatility_metric * 5)
+        risk_adjustment = int(risk_factor * 10)
+
+        max_levels = base_levels + volatility_adjustment + risk_adjustment
+        max_levels = min(max(max_levels, 5), 30)  # Ensure levels are within a reasonable range
+
+        price_diff_start = start_pct * 100
+        total_price_range = price_diff_start
+        price_interval = total_price_range / max_levels if max_levels > 1 else total_price_range
+
+        return max_levels, price_interval
+    
+    def execute_auto_reduce(self, position_type, symbol, pos_qty, dynamic_amount, market_price, start_pct, total_equity):
+        max_levels, price_interval = self.calculate_dynamic_auto_reduce_levels(symbol, pos_qty, dynamic_amount, market_price, start_pct, total_equity)
+        for i in range(1, max_levels + 1):
+            step_price = (market_price + (price_interval * i)) if position_type == 'long' else (market_price - (price_interval * i))
+            order_id = self.place_auto_reduce_order(symbol, step_price, dynamic_amount, position_type)
+            self.auto_reduce_orders[symbol].append(order_id)
+            logging.info(f"{symbol} {position_type.capitalize()} Auto-Reduce Order Placed at {step_price} (Level {i})")
+
+    def cancel_all_auto_reduce_orders_bybit(self, symbol: str) -> None:
+        try:
+            if symbol in self.auto_reduce_orders:
+                for order_id in self.auto_reduce_orders[symbol]:
+                    try:
+                        self.exchange.cancel_order(order_id, symbol)
+                        logging.info(f"Cancelling auto-reduce order: {order_id}")
+                    except Exception as e:
+                        logging.warning(f"An error occurred while cancelling auto-reduce order {order_id}: {e}")
+                self.auto_reduce_orders[symbol].clear()  # Clear the list after cancellation
+            else:
+                logging.info(f"No auto-reduce orders found for {symbol}")
+
+        except Exception as e:
+            logging.warning(f"An unknown error occurred in cancel_all_auto_reduce_orders_bybit(): {e}")
 
 
+    def auto_reduce_logic_simple(self, long_pos_qty, short_pos_qty, auto_reduce_enabled, symbol, total_equity, auto_reduce_wallet_exposure_pct, open_position_data, current_market_price, long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct):
+        if auto_reduce_enabled:
+            try:
+                long_unrealised_pnl, short_unrealised_pnl = 0, 0
+                for position in open_position_data:
+                    info = position.get('info', {})
+                    if info.get('symbol', '').split(':')[0] == symbol:
+                        pnl = float(info.get('unrealisedPnl', 0))
+                        if info.get('side', '') == 'Buy':
+                            long_unrealised_pnl += pnl
+                        elif info.get('side', '') == 'Sell':
+                            short_unrealised_pnl += pnl
+
+                long_pnl_percentage = (long_unrealised_pnl / total_equity) * 100
+                short_pnl_percentage = (short_unrealised_pnl / total_equity) * 100
+
+                if long_pos_qty > 0 and long_pnl_percentage < -auto_reduce_wallet_exposure_pct:
+                    self.execute_auto_reduce('long', symbol, long_pos_qty, long_dynamic_amount, current_market_price, auto_reduce_start_pct, total_equity)
+
+                if short_pos_qty > 0 and short_pnl_percentage < -auto_reduce_wallet_exposure_pct:
+                    self.execute_auto_reduce('short', symbol, short_pos_qty, short_dynamic_amount, current_market_price, auto_reduce_start_pct, total_equity)
+
+            except Exception as e:
+                logging.error(f"{symbol} Auto-reduce error: {e}")
+
+    # This worked until it does not. The max_loss_pct is used to calculate the grid and causes issues giving you further AR entries
     def auto_reduce_logic(self, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, auto_reduce_enabled, symbol, total_equity, auto_reduce_wallet_exposure_pct, open_position_data, current_market_price, long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct, auto_reduce_maxloss_pct):
         if auto_reduce_enabled:
             try:
@@ -4315,7 +4430,8 @@ class Strategy:
             mfi_signal_short = mfirsi.lower() == "short"
 
             if one_minute_volume > min_vol:
-                if entry_during_autoreduce or not self.auto_reduce_active_long.get(symbol, False):
+                if not self.auto_reduce_active_long.get(symbol, False):
+                # if entry_during_autoreduce or not self.auto_reduce_active_long.get(symbol, False):
                     if long_pos_qty == 0 and mfi_signal_long and not self.entry_order_exists(open_orders, "buy"):
                         self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
                         time.sleep(1)
@@ -4323,7 +4439,8 @@ class Strategy:
                         self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
                         time.sleep(1)
 
-                if entry_during_autoreduce or not self.auto_reduce_active_short.get(symbol, False):
+                if not self.auto_reduce_active_short.get(symbol, False):
+                # if entry_during_autoreduce or not self.auto_reduce_active_short.get(symbol, False):
                     if short_pos_qty == 0 and mfi_signal_short and not self.entry_order_exists(open_orders, "sell"):
                         self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
                         time.sleep(1)
