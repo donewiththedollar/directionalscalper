@@ -3681,16 +3681,16 @@ class Strategy:
             try:
                 long_unrealised_pnl, short_unrealised_pnl = 0, 0
                 for position in open_position_data:
-                    logging.info(f"Open position data: {open_position_data}")
-                    logging.info(f"Position: {position}")
+                    # logging.info(f"Open position data: {open_position_data}")
+                    # logging.info(f"Position: {position}")
                     info = position.get('info', {})
-                    logging.info(f"Info for {symbol}: {info}")
+                    # logging.info(f"Info for {symbol}: {info}")
                     symbol_from_position = info.get('symbol', '').split(':')[0]
-                    logging.info(f"Symbol from position: {symbol_from_position}")
+                    # logging.info(f"Symbol from position: {symbol_from_position}")
                     side_from_position = info.get('side', '')
-                    logging.info(f"Side from position: {side_from_position}")
+                    # logging.info(f"Side from position: {side_from_position}")
                     unrealised_pnl = float(info.get('unrealisedPnl', 0))
-                    logging.info(f"Unrealised pnl: {unrealised_pnl}")
+                    # logging.info(f"Unrealised pnl: {unrealised_pnl}")
 
                     if symbol_from_position == symbol:
                         if side_from_position == 'Buy':
@@ -6144,3 +6144,575 @@ class Strategy:
                 elif should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price:
                     logging.info(f"Placing additional short entry for {symbol}")
                     self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+
+    # Bybit cancel all entries
+    def cancel_entries_bybit(self, symbol, best_ask_price, ma_1m_3_high, ma_5m_3_high):
+        # Cancel entries
+        current_time = time.time()
+        if current_time - self.last_cancel_time >= 60: #60 # Execute this block every 1 minute
+            try:
+                if best_ask_price < ma_1m_3_high or best_ask_price < ma_5m_3_high:
+                    self.exchange.cancel_all_entries_bybit(symbol)
+                    logging.info(f"Canceled entry orders for {symbol}")
+                    time.sleep(0.05)
+            except Exception as e:
+                logging.info(f"An error occurred while canceling entry orders: {e}")
+
+            self.last_cancel_time = current_time
+
+    def clear_stale_positions(self, open_orders, rotator_symbols, max_time_without_volume=3600): # default time is 1 hour
+        open_positions = self.exchange.get_open_positions()
+        
+        for position in open_positions:
+            symbol = position['symbol']
+            
+            # Check if the symbol is not in the rotator list
+            if symbol not in rotator_symbols:
+                
+                # Check how long the position has been open
+                position_open_time = position.get('timestamp', None)  # assuming your position has a 'timestamp' field
+                current_time = time.time()
+                time_elapsed = current_time - position_open_time
+                
+                # Fetch volume for the coin
+                volume = self.exchange.get_24hr_volume(symbol)
+                
+                # Check if the volume is low and position has been open for too long
+                if volume < self.MIN_VOLUME_THRESHOLD and time_elapsed > max_time_without_volume:
+                    
+                    # Place take profit order at the current price
+                    current_price = self.exchange.get_current_price(symbol)
+                    amount = position['amount']  # assuming your position has an 'amount' field
+                    
+                    # Determine if it's a buy or sell based on position type
+                    order_type = "sell" if position['side'] == 'long' else "buy"
+                    self.bybit_hedge_placetp_maker(symbol, amount, current_price, positionIdx=1, order_side="sell", open_orders=open_orders)
+                    #self.exchange.place_order(symbol, order_type, amount, current_price, take_profit=True)
+                    
+                    logging.info(f"Placed take profit order for stale position: {symbol} at price: {current_price}")
+
+
+    def cancel_stale_orders_bybit(self, symbol):
+        current_time = time.time()
+        if current_time - self.last_stale_order_check_time < 3720:  # 3720 seconds = 1 hour 12 minutes
+            return  # Skip the rest of the function if it's been less than 1 hour 12 minutes
+
+        # Directly cancel orders for the given symbol
+        self.exchange.cancel_all_open_orders_bybit(symbol)
+        logging.info(f"Stale orders for {symbol} canceled")
+
+        self.last_stale_order_check_time = current_time  # Update the last check time
+
+    def cancel_all_orders_for_symbol_bybit(self, symbol):
+        try:
+            self.exchange.cancel_all_open_orders_bybit(symbol)
+            logging.info(f"All orders for {symbol} canceled")
+        except Exception as e:
+            logging.error(f"An error occurred while canceling all orders for {symbol}: {e}")
+
+    def get_all_open_orders_bybit(self):
+        """
+        Fetch all open orders for all symbols from the Bybit API.
+        
+        :return: A list of open orders for all symbols.
+        """
+        try:
+            # Call fetch_open_orders with no symbol to get orders for all symbols
+            all_open_orders = self.exchange.fetch_open_orders()
+            return all_open_orders
+        except Exception as e:
+            print(f"An error occurred while fetching all open orders: {e}")
+            return []
+
+    def cancel_old_entries_bybit(self, symbol):        
+        # Cancel entries
+        try:
+            self.exchange.cancel_all_entries_bybit(symbol)
+            logging.info(f"Canceled entry orders for {symbol}")
+            time.sleep(0.05)
+        except Exception as e:
+            logging.info(f"An error occurred while canceling entry orders: {e}")
+
+
+# Bybit cancel all entries
+    def cancel_entries_binance(self, symbol, best_ask_price, ma_1m_3_high, ma_5m_3_high):
+        # Cancel entries
+        current_time = time.time()
+        if current_time - self.last_cancel_time >= 60:  # Execute this block every 1 minute
+            try:
+                if best_ask_price < ma_1m_3_high or best_ask_price < ma_5m_3_high:
+                    self.exchange.cancel_all_entries_binance(symbol)
+                    logging.info(f"Canceled entry orders for {symbol}")
+                    time.sleep(0.05)
+            except Exception as e:
+                logging.info(f"An error occurred while canceling entry orders: {e}")
+
+            self.last_cancel_time = current_time
+
+# Bybit MFI ERI Trend entry logic
+
+    def bybit_hedge_entry_maker_mfirsitrenderi(self, symbol, data, min_vol, min_dist, one_minute_volume, five_minute_distance, 
+                                           eri_trend, open_orders, long_pos_qty, should_add_to_long, 
+                                           max_long_trade_qty, best_bid_price, long_pos_price, long_dynamic_amount,
+                                           short_pos_qty, should_add_to_short, max_short_trade_qty, 
+                                           best_ask_price, short_pos_price, short_dynamic_amount):
+
+        if one_minute_volume is not None and five_minute_distance is not None:
+            if one_minute_volume > min_vol and five_minute_distance > min_dist:
+                mfi = self.manager.get_asset_value(symbol, data, "MFI")
+                trend = self.manager.get_asset_value(symbol, data, "Trend")
+
+                if mfi is not None and isinstance(mfi, str):
+                    if mfi.lower() == "neutral":
+                        mfi = trend
+
+                    # Place long orders when MFI is long and ERI trend is bearish
+                    if (mfi.lower() == "long" and eri_trend.lower() == "bearish") or (mfi.lower() == "long" and trend.lower() == "long"):
+                        existing_order = next((o for o in open_orders if o['side'] == 'Buy' and o['position_idx'] == 1), None)
+                        if long_pos_qty == 0 or (should_add_to_long and long_pos_qty < max_long_trade_qty and best_bid_price < long_pos_price):
+                            if existing_order is None or existing_order['price'] != best_bid_price:
+                                if existing_order is not None:
+                                    self.exchange.cancel_order_by_id(existing_order['id'], symbol)
+                                logging.info(f"Placing long entry")
+                                self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                                logging.info(f"Placed long entry")
+
+                    # Place short orders when MFI is short and ERI trend is bullish
+                    if (mfi.lower() == "short" and eri_trend.lower() == "bullish") or (mfi.lower() == "short" and trend.lower() == "short"):
+                        existing_order = next((o for o in open_orders if o['side'] == 'Sell' and o['position_idx'] == 2), None)
+                        if short_pos_qty == 0 or (should_add_to_short and short_pos_qty < max_short_trade_qty and best_ask_price > short_pos_price):
+                            if existing_order is None or existing_order['price'] != best_ask_price:
+                                if existing_order is not None:
+                                    self.exchange.cancel_order_by_id(existing_order['id'], symbol)
+                                logging.info(f"Placing short entry")
+                                self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                                logging.info(f"Placed short entry")
+
+    def bybit_hedge_entry_maker_mfirsitrend(self, symbol, data, min_vol, min_dist, one_minute_volume, five_minute_distance, 
+                                            open_orders, long_pos_qty, should_add_to_long, 
+                                           max_long_trade_qty, best_bid_price, long_pos_price, long_dynamic_amount,
+                                           short_pos_qty, should_long: bool, should_short: bool, should_add_to_short, max_short_trade_qty, 
+                                           best_ask_price, short_pos_price, short_dynamic_amount):
+
+        if one_minute_volume is not None and five_minute_distance is not None:
+            if one_minute_volume > min_vol and five_minute_distance > min_dist:
+                mfi = self.manager.get_asset_value(symbol, data, "MFI")
+                trend = self.manager.get_asset_value(symbol, data, "Trend")
+
+                if mfi is not None and isinstance(mfi, str):
+                    if mfi.lower() == "neutral":
+                        mfi = trend
+
+                    # Place long orders when MFI is long and ERI trend is bearish
+                    if (mfi.lower() == "long" and trend.lower() == "long"):
+                        existing_order = next((o for o in open_orders if o['side'] == 'Buy' and o['position_idx'] == 1), None)
+                        if (should_long and long_pos_qty == 0) or (should_add_to_long and long_pos_qty < max_long_trade_qty and best_bid_price < long_pos_price):
+                            if existing_order is None or existing_order['price'] != best_bid_price:
+                                if existing_order is not None:
+                                    self.exchange.cancel_order_by_id(existing_order['id'], symbol)
+                                logging.info(f"Placing long entry")
+                                self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                                logging.info(f"Placed long entry")
+
+                    # Place short orders when MFI is short and ERI trend is bullish
+                    if (mfi.lower() == "short" and trend.lower() == "short"):
+                        existing_order = next((o for o in open_orders if o['side'] == 'Sell' and o['position_idx'] == 2), None)
+                        if (should_short and short_pos_qty == 0) or (should_add_to_short and short_pos_qty < max_short_trade_qty and best_ask_price > short_pos_price):
+                            if existing_order is None or existing_order['price'] != best_ask_price:
+                                if existing_order is not None:
+                                    self.exchange.cancel_order_by_id(existing_order['id'], symbol)
+                                logging.info(f"Placing short entry")
+                                self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                                logging.info(f"Placed short entry")
+
+# Bybit MFIRSI only entry logic
+
+    def bybit_hedge_entry_maker_mfirsi(self, symbol, data, min_vol, min_dist, one_minute_volume, five_minute_distance, 
+                                       long_pos_qty, max_long_trade_qty, best_bid_price, long_pos_price, long_dynamic_amount,
+                                       short_pos_qty, max_short_trade_qty, best_ask_price, short_pos_price, short_dynamic_amount):
+        if one_minute_volume is not None and five_minute_distance is not None:
+            if one_minute_volume > min_vol and five_minute_distance > min_dist:
+                mfi = self.manager.get_asset_value(symbol, data, "MFI")
+
+                max_long_trade_qty_for_symbol = self.max_long_trade_qty_per_symbol.get(symbol, 0)  # Get value for symbol or default to 0
+                max_short_trade_qty_for_symbol = self.max_short_trade_qty_per_symbol.get(symbol, 0)  # Get value for symbol or default to 0
+
+
+                if mfi is not None and isinstance(mfi, str):
+                    if mfi.lower() == "long" and long_pos_qty == 0:
+                        logging.info(f"Placing initial long entry with post-only order")
+                        self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1)
+                        logging.info(f"Placed initial long entry with post-only order")
+                    elif mfi.lower() == "long" and long_pos_qty < max_long_trade_qty_for_symbol and best_bid_price < long_pos_price:
+                        logging.info(f"Placing additional long entry with post-only order")
+                        self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1)
+                    elif mfi.lower() == "short" and short_pos_qty == 0:
+                        logging.info(f"Placing initial short entry with post-only order")
+                        self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2)
+                        logging.info(f"Placed initial short entry with post-only order")
+                    elif mfi.lower() == "short" and short_pos_qty < max_short_trade_qty_for_symbol and best_ask_price > short_pos_price:
+                        logging.info(f"Placing additional short entry with post-only order")
+                        self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2)
+
+    def adjust_leverage_and_qty(self, symbol, current_qty, current_leverage, max_leverage, increase=True):
+        logging.info(f"Symbol: {symbol}")
+        logging.info(f"Max leverage: {max_leverage}")
+        logging.info(f"Current leverage: {current_leverage}")
+        logging.info(f"Current qty: {current_qty}")
+
+        if increase:
+            new_leverage = min(current_leverage + self.LEVERAGE_STEP, max_leverage, self.MAX_LEVERAGE)
+            new_qty = current_qty * (1 + self.QTY_INCREMENT)
+            logging.info(f"Increasing position. New qty: {new_qty}, New leverage: {new_leverage}")
+        else:
+            new_leverage = max(1.0, current_leverage - self.LEVERAGE_STEP)
+            new_qty = max(self.MINIMUM_TRADE_QTY, current_qty * (1 - self.QTY_DECREMENT))
+            logging.info(f"Decreasing position. New qty: {new_qty}, New leverage: {new_leverage}")
+
+        return new_qty, new_leverage
+
+    def set_position_leverage_long_bybit(self, symbol, long_pos_qty, total_equity, best_ask_price, max_leverage):
+        # Ensure a lock exists for this symbol
+        if symbol not in self.symbol_locks:
+            self.symbol_locks[symbol] = threading.Lock()
+
+        with self.symbol_locks[symbol]:
+            if symbol not in self.initial_max_long_trade_qty_per_symbol:
+                logging.warning(f"Symbol {symbol} not initialized in initial_max_long_trade_qty_per_symbol. Initializing now...")
+                self.initial_max_long_trade_qty_per_symbol[symbol] = self.calc_max_trade_qty(symbol, total_equity, best_ask_price, max_leverage)
+
+            if symbol not in self.long_pos_leverage_per_symbol:
+                logging.warning(f"Symbol {symbol} not initialized in long_pos_leverage_per_symbol. Initializing now...")
+                self.long_pos_leverage_per_symbol[symbol] = 0.001  # starting leverage
+                logging.info(f"Long leverage set to {self.long_pos_leverage_per_symbol[symbol]} for {symbol}")
+
+            if long_pos_qty >= self.initial_max_long_trade_qty_per_symbol[symbol] and self.long_pos_leverage_per_symbol[symbol] < self.MAX_LEVERAGE:
+                self.max_long_trade_qty_per_symbol[symbol], self.long_pos_leverage_per_symbol[symbol] = self.adjust_leverage_and_qty(
+                    symbol,
+                    long_pos_qty,
+                    self.long_pos_leverage_per_symbol[symbol], 
+                    max_leverage, 
+                    increase=True
+                )
+                logging.info(f"Long leverage for {symbol} temporarily increased to {self.long_pos_leverage_per_symbol[symbol]}x")
+
+            elif long_pos_qty < (self.max_long_trade_qty_per_symbol.get(symbol, 0) / 2) and self.long_pos_leverage_per_symbol.get(symbol, 0) > 1.0:
+                self.max_long_trade_qty_per_symbol[symbol], self.long_pos_leverage_per_symbol[symbol] = self.adjust_leverage_and_qty(
+                    symbol,
+                    long_pos_qty,
+                    self.long_pos_leverage_per_symbol[symbol], 
+                    max_leverage, 
+                    increase=False
+                )
+                logging.info(f"Long leverage for {symbol} returned to normal {self.long_pos_leverage_per_symbol[symbol]}x")
+
+    def set_position_leverage_short_bybit(self, symbol, short_pos_qty, total_equity, best_ask_price, max_leverage):
+        # Ensure a lock exists for this symbol
+        if symbol not in self.symbol_locks:
+            self.symbol_locks[symbol] = threading.Lock()
+
+        with self.symbol_locks[symbol]:
+            if symbol not in self.initial_max_short_trade_qty_per_symbol:
+                logging.warning(f"Symbol {symbol} not initialized in initial_max_short_trade_qty_per_symbol. Initializing now...")
+                self.initial_max_short_trade_qty_per_symbol[symbol] = self.calc_max_trade_qty(symbol, total_equity, best_ask_price, max_leverage)
+
+            if symbol not in self.short_pos_leverage_per_symbol:
+                logging.warning(f"Symbol {symbol} not initialized in short_pos_leverage_per_symbol. Initializing now...")
+                self.short_pos_leverage_per_symbol[symbol] = 0.001  # starting leverage
+
+            if short_pos_qty >= self.initial_max_short_trade_qty_per_symbol[symbol] and self.short_pos_leverage_per_symbol[symbol] < self.MAX_LEVERAGE:
+                self.max_short_trade_qty_per_symbol[symbol], self.short_pos_leverage_per_symbol[symbol] = self.adjust_leverage_and_qty(
+                    symbol,
+                    short_pos_qty,
+                    self.short_pos_leverage_per_symbol[symbol], 
+                    max_leverage, 
+                    increase=True
+                )
+                logging.info(f"Short leverage for {symbol} temporarily increased to {self.short_pos_leverage_per_symbol[symbol]}x")
+
+            elif short_pos_qty < (self.max_short_trade_qty_per_symbol.get(symbol, 0) / 2) and self.short_pos_leverage_per_symbol.get(symbol, 0) > 1.0:
+                self.max_short_trade_qty_per_symbol[symbol], self.short_pos_leverage_per_symbol[symbol] = self.adjust_leverage_and_qty(
+                    symbol,
+                    short_pos_qty,
+                    self.short_pos_leverage_per_symbol[symbol], 
+                    max_leverage, 
+                    increase=False
+                )
+                logging.info(f"Short leverage for {symbol} returned to normal {self.short_pos_leverage_per_symbol[symbol]}x")
+
+# Bybit position leverage management
+
+    def bybit_reset_position_leverage_long(self, symbol, long_pos_qty, total_equity, best_ask_price, max_leverage):
+        # Leverage increase logic for long positions
+        if long_pos_qty >= self.initial_max_long_trade_qty and self.long_pos_leverage <= 1.0:
+            self.max_long_trade_qty = 2 * self.initial_max_long_trade_qty  # double the maximum long trade quantity
+            self.long_leverage_increased = True
+            self.long_pos_leverage = 2.0
+            logging.info(f"Long leverage for temporarily increased to {self.long_pos_leverage}x")
+        elif long_pos_qty >= 2 * self.initial_max_long_trade_qty and self.long_pos_leverage <= 2.0:
+            self.max_long_trade_qty = 3 * self.initial_max_long_trade_qty  # triple the maximum long trade quantity
+            self.long_pos_leverage = 3.0
+            logging.info(f"Long leverage temporarily increased to {self.long_pos_leverage}x")
+        elif long_pos_qty < (self.max_long_trade_qty / 2) and self.long_pos_leverage > 1.0:
+            max_trade_qty = self.calc_max_trade_qty(symbol, total_equity, best_ask_price, max_leverage)
+            if isinstance(max_trade_qty, float):
+                self.max_long_trade_qty = max_trade_qty
+            else:
+                logging.error(f"Expected max_trade_qty to be float, got {type(max_trade_qty)}")
+            self.long_leverage_increased = False
+            self.long_pos_leverage = 1.0
+            logging.info(f"Long leverage returned to normal {self.long_pos_leverage}x")
+
+    def bybit_reset_position_leverage_short(self, symbol, short_pos_qty, total_equity, best_ask_price, max_leverage):
+        # Leverage increase logic for short positions
+        if short_pos_qty >= self.initial_max_short_trade_qty and self.short_pos_leverage <= 1.0:
+            self.max_short_trade_qty = 2 * self.initial_max_short_trade_qty  # double the maximum short trade quantity
+            self.short_leverage_increased = True
+            self.short_pos_leverage = 2.0
+            logging.info(f"Short leverage temporarily increased to {self.short_pos_leverage}x")
+        elif short_pos_qty >= 2 * self.initial_max_short_trade_qty and self.short_pos_leverage <= 2.0:
+            self.max_short_trade_qty = 3 * self.initial_max_short_trade_qty  # triple the maximum short trade quantity
+            self.short_pos_leverage = 3.0
+            logging.info(f"Short leverage temporarily increased to {self.short_pos_leverage}x")
+        elif short_pos_qty < (self.max_short_trade_qty / 2) and self.short_pos_leverage > 1.0:
+            max_trade_qty = self.calc_max_trade_qty(symbol, total_equity, best_ask_price, max_leverage)
+            if isinstance(max_trade_qty, float):
+                self.max_short_trade_qty = max_trade_qty
+            else:
+                logging.error(f"Expected max_trade_qty to be float, got {type(max_trade_qty)}")
+            self.short_leverage_increased = False
+            self.short_pos_leverage = 1.0
+            logging.info(f"Short leverage returned to normal {self.short_pos_leverage}x")
+
+    def binance_auto_hedge_entry(self, trend, one_minute_volume, five_minute_distance, min_vol, min_dist,
+                                should_long, long_pos_qty, long_dynamic_amount, best_bid_price, long_pos_price,
+                                should_add_to_long, max_long_trade_qty, 
+                                should_short, short_pos_qty, short_dynamic_amount, best_ask_price, short_pos_price,
+                                should_add_to_short, max_short_trade_qty, symbol):
+
+        if trend is not None and isinstance(trend, str):
+            if one_minute_volume is not None and five_minute_distance is not None:
+                if one_minute_volume > min_vol and five_minute_distance > min_dist:
+
+                    if trend.lower() == "long" and should_long and long_pos_qty == 0:
+                        print(f"Placing initial long entry")
+                        self.exchange.binance_create_limit_order(symbol, "buy", long_dynamic_amount, best_bid_price)
+                        print(f"Placed initial long entry")
+                    elif trend.lower() == "long" and should_add_to_long and long_pos_qty < max_long_trade_qty and best_bid_price < long_pos_price:
+                        print(f"Placing additional long entry")
+                        self.exchange.binance_create_limit_order(symbol, "buy", long_dynamic_amount, best_bid_price)
+
+                    if trend.lower() == "short" and should_short and short_pos_qty == 0:
+                        print(f"Placing initial short entry")
+                        self.exchange.binance_create_limit_order(symbol, "sell", short_dynamic_amount, best_ask_price)
+                        print("Placed initial short entry")
+                    elif trend.lower() == "short" and should_add_to_short and short_pos_qty < max_short_trade_qty and best_ask_price > short_pos_price:
+                        print(f"Placing additional short entry")
+                        self.exchange.binance_create_limit_order(symbol, "sell", short_dynamic_amount, best_ask_price)
+
+    def binance_auto_hedge_entry_maker(self, trend, one_minute_volume, five_minute_distance, min_vol, min_dist,
+                                should_long, long_pos_qty, long_dynamic_amount, best_bid_price, long_pos_price,
+                                should_add_to_long, max_long_trade_qty, 
+                                should_short, short_pos_qty, short_dynamic_amount, best_ask_price, short_pos_price,
+                                should_add_to_short, max_short_trade_qty, symbol):
+
+        if trend is not None and isinstance(trend, str):
+            if one_minute_volume is not None and five_minute_distance is not None:
+                if one_minute_volume > min_vol and five_minute_distance > min_dist:
+
+                    if trend.lower() == "long" and should_long and long_pos_qty == 0:
+                        print(f"Placing initial long entry")
+                        self.exchange.binance_create_limit_order_with_time_in_force(symbol, "buy", long_dynamic_amount, best_bid_price, "GTC")
+                        print(f"Placed initial long entry")
+                    elif trend.lower() == "long" and should_add_to_long and long_pos_qty < max_long_trade_qty and best_bid_price < long_pos_price:
+                        print(f"Placing additional long entry")
+                        self.exchange.binance_create_limit_order_with_time_in_force(symbol, "buy", long_dynamic_amount, best_bid_price, "GTC")
+
+                    if trend.lower() == "short" and should_short and short_pos_qty == 0:
+                        print(f"Placing initial short entry")
+                        self.exchange.binance_create_limit_order_with_time_in_force(symbol, "sell", short_dynamic_amount, best_ask_price, "GTC")
+                        print("Placed initial short entry")
+                    elif trend.lower() == "short" and should_add_to_short and short_pos_qty < max_short_trade_qty and best_ask_price > short_pos_price:
+                        print(f"Placing additional short entry")
+                        self.exchange.binance_create_limit_order_with_time_in_force(symbol, "sell", short_dynamic_amount, best_ask_price, "GTC")
+
+    def binance_hedge_placetp_maker(self, symbol, pos_qty, take_profit_price, position_side, open_orders):
+        order_side = 'SELL' if position_side == 'LONG' else 'BUY'
+        existing_tps = self.get_open_take_profit_order_quantities_binance(open_orders, order_side)
+
+        print(f"Existing TP IDs: {[order_id for _, order_id in existing_tps]}")
+        print(f"Existing {order_side} TPs: {existing_tps}")
+
+        # Cancel all TP orders if there is more than one existing TP order for the side
+        if len(existing_tps) > 1:
+            logging.info(f"More than one existing TP order found. Cancelling all {order_side} TP orders.")
+            for qty, existing_tp_id in existing_tps:
+                try:
+                    self.exchange.cancel_order_by_id_binance(existing_tp_id, symbol)
+                    logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
+                    time.sleep(0.05)
+                except Exception as e:
+                    raise Exception(f"Error in cancelling {order_side} TP orders: {e}") from e
+
+        # If there is exactly one TP order for the side, and its quantity doesn't match the position quantity, cancel it
+        elif len(existing_tps) == 1 and not math.isclose(existing_tps[0][0], pos_qty):
+            logging.info(f"Existing TP qty {existing_tps[0][0]} and position qty {pos_qty} not close. Cancelling the TP order.")
+            try:
+                self.exchange.cancel_order_by_id_binance(existing_tps[0][1], symbol)
+                logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
+                time.sleep(0.05)
+            except Exception as e:
+                raise Exception(f"Error in cancelling {order_side} TP orders: {e}") from e
+
+        # Re-check the status of TP orders for the side
+        existing_tps = self.get_open_take_profit_order_quantities_binance(self.exchange.get_open_orders(symbol), order_side)
+
+        # Create a new TP order if no TP orders exist for the side or if all existing TP orders have been cancelled
+        if not existing_tps:
+            logging.info(f"No existing TP orders. Attempting to create new TP order.")
+            try:
+                new_order_id = f"tp_{position_side[:1]}_{uuid.uuid4().hex[:10]}"
+                self.exchange.create_normal_take_profit_order_binance(symbol, order_side, pos_qty, take_profit_price, take_profit_price)#, {'newClientOrderId': new_order_id, 'reduceOnly': True})
+                logging.info(f"{position_side} take profit set at {take_profit_price}")
+                time.sleep(0.05)
+            except Exception as e:
+                raise Exception(f"Error in placing {position_side} TP: {e}") from e
+        else:
+            logging.info(f"Existing TP orders found. Not creating new TP order.")
+
+#    def create_normal_take_profit_order_binance(self, symbol, side, quantity, price, stopPrice):
+
+    # def binance_hedge_placetp_maker(self, symbol, pos_qty, take_profit_price, position_side, open_orders):
+    #     order_side = 'sell' if position_side == 'LONG' else 'buy'
+    #     existing_tps = self.get_open_take_profit_limit_order_quantities_binance(open_orders, order_side)
+
+    #     print(f"Existing TP IDs: {[order_id for _, order_id in existing_tps]}")
+    #     print(f"Existing {order_side} TPs: {existing_tps}")
+
+    #     # Cancel all TP orders if there is more than one existing TP order for the side
+    #     if len(existing_tps) > 1:
+    #         logging.info(f"More than one existing TP order found. Cancelling all {order_side} TP orders.")
+    #         for qty, existing_tp_id in existing_tps:
+    #             try:
+    #                 self.exchange.cancel_order_by_id_binance(existing_tp_id, symbol)
+    #                 logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
+    #                 time.sleep(0.05)
+    #             except Exception as e:
+    #                 raise Exception(f"Error in cancelling {order_side} TP orders: {e}") from e
+    #     # If there is exactly one TP order for the side, and its quantity doesn't match the position quantity, cancel it
+    #     elif len(existing_tps) == 1 and not math.isclose(existing_tps[0][0], pos_qty):
+    #         logging.info(f"Existing TP qty {existing_tps[0][0]} and position qty {pos_qty} not close. Cancelling the TP order.")
+    #         try:
+    #             self.exchange.cancel_order_by_id_binance(existing_tps[0][1], symbol)
+    #             logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
+    #             time.sleep(0.05)
+    #         except Exception as e:
+    #             raise Exception(f"Error in cancelling {order_side} TP orders: {e}") from e
+
+    #     # Re-check the status of TP orders for the side
+    #     existing_tps = self.get_open_take_profit_limit_order_quantities_binance(self.exchange.get_open_orders(symbol), order_side)
+    #     # Create a new TP order if no TP orders exist for the side or if all existing TP orders have been cancelled
+    #     if not existing_tps:
+    #         logging.info(f"No existing TP orders. Attempting to create new TP order.")
+    #         try:
+    #             self.exchange.binance_create_reduce_only_limit_order(symbol, order_side, pos_qty, take_profit_price)
+    #             logging.info(f"{position_side} take profit set at {take_profit_price}")
+    #             time.sleep(0.05)
+    #         except Exception as e:
+    #             raise Exception(f"Error in placing {position_side} TP: {e}") from e
+    #     else:
+    #         logging.info(f"Existing TP orders found. Not creating new TP order.")
+
+
+    #MARKET ORDER THOUGH
+    def binance_hedge_placetp_market(self, symbol, pos_qty, take_profit_price, position_side, open_orders):
+        order_side = 'sell' if position_side == 'LONG' else 'buy'
+        existing_tps = self.get_open_take_profit_order_quantities_binance(open_orders, order_side)
+
+        print(f"Existing TP IDs: {[order_id for _, order_id in existing_tps]}")
+        print(f"Existing {order_side} TPs: {existing_tps}")
+
+        # Cancel all TP orders if there is more than one existing TP order for the side
+        if len(existing_tps) > 1:
+            logging.info(f"More than one existing TP order found. Cancelling all {order_side} TP orders.")
+            for qty, existing_tp_id in existing_tps:
+                try:
+                    self.exchange.cancel_order_by_id_binance(existing_tp_id, symbol)
+                    logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
+                    time.sleep(0.05)
+                except Exception as e:
+                    raise Exception(f"Error in cancelling {order_side} TP orders: {e}") from e
+        # If there is exactly one TP order for the side, and its quantity doesn't match the position quantity, cancel it
+        elif len(existing_tps) == 1 and not math.isclose(existing_tps[0][0], pos_qty):
+            logging.info(f"Existing TP qty {existing_tps[0][0]} and position qty {pos_qty} not close. Cancelling the TP order.")
+            try:
+                existing_tp_id = existing_tps[0][1]
+                self.exchange.cancel_order_by_id_binance(existing_tp_id, symbol)
+                logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
+                time.sleep(0.05)
+            except Exception as e:
+                raise Exception(f"Error in cancelling {order_side} TP orders: {e}") from e
+
+        # elif len(existing_tps) == 1 and not math.isclose(existing_tps[0][0], pos_qty):
+        #     logging.info(f"Existing TP qty {existing_tps[0][0]} and position qty {pos_qty} not close. Cancelling the TP order.")
+        #     try:
+        #         self.exchange.cancel_order_by_id_binance(existing_tps[0][1], symbol)
+        #         logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
+        #         time.sleep(0.05)
+        #     except Exception as e:
+        #         raise Exception(f"Error in cancelling {order_side} TP orders: {e}") from e
+
+        # Re-check the status of TP orders for the side
+        existing_tps = self.get_open_take_profit_order_quantities_binance(self.exchange.get_open_orders(symbol), order_side)
+        # Create a new TP order if no TP orders exist for the side or if all existing TP orders have been cancelled
+        if not existing_tps:
+            logging.info(f"No existing TP orders. Attempting to create new TP order.")
+            try:
+                new_order_id = f"tp_{position_side[:1]}_{uuid.uuid4().hex[:10]}"
+                self.exchange.binance_create_take_profit_order(symbol, order_side, position_side, pos_qty, take_profit_price, {'stopPrice': take_profit_price, 'newClientOrderId': new_order_id})
+                logging.info(f"{position_side} take profit set at {take_profit_price}")
+                time.sleep(0.05)
+            except Exception as e:
+                raise Exception(f"Error in placing {position_side} TP: {e}") from e
+        else:
+            logging.info(f"Existing TP orders found. Not creating new TP order.")
+
+    # def binance_hedge_placetp_maker(self, symbol, pos_qty, take_profit_price, position_side, open_orders):
+    #     order_side = 'sell' if position_side == 'LONG' else 'buy'
+    #     existing_tps = self.get_open_take_profit_order_quantities_binance(open_orders, order_side)
+
+    #     print(f"Existing TP IDs: {[order_id for _, order_id in existing_tps]}")
+    #     print(f"Existing {order_side} TPs: {existing_tps}")
+
+    #     # Cancel all TP orders if there is more than one existing TP order for the side
+    #     if len(existing_tps) > 1:
+    #         logging.info(f"More than one existing TP order found. Cancelling all {order_side} TP orders.")
+    #         for qty, existing_tp_id in existing_tps:
+    #             try:
+    #                 self.exchange.cancel_order_by_id_binance(existing_tp_id, symbol)
+    #                 logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
+    #                 time.sleep(0.05)
+    #             except Exception as e:
+    #                 raise Exception(f"Error in cancelling {order_side} TP orders: {e}") from e
+    #     # If there is exactly one TP order for the side, and its quantity doesn't match the position quantity, cancel it
+    #     elif len(existing_tps) == 1 and not math.isclose(existing_tps[0][0], pos_qty):
+    #         logging.info(f"Existing TP qty {existing_tps[0][0]} and position qty {pos_qty} not close. Cancelling the TP order.")
+    #         try:
+    #             self.exchange.cancel_order_by_id_binance(existing_tps[0][1], symbol)
+    #             logging.info(f"{order_side.capitalize()} take profit {existing_tps[0][1]} canceled")
+    #             time.sleep(0.05)
+    #         except Exception as e:
+    #             raise Exception(f"Error in cancelling {order_side} TP orders: {e}") from e
+
+    #     # Create a new TP order if no TP orders exist for the side or if all existing TP orders have been cancelled
+    #     if not self.get_open_take_profit_order_quantities_binance(self.exchange.get_open_orders(symbol), order_side):
+    #         logging.info(f"No existing TP orders. Attempting to create new TP order.")
+    #         try:
+    #             new_order_id = f"tp_{position_side[:1]}_{uuid.uuid4().hex[:10]}"
+    #             self.exchange.binance_create_take_profit_order(symbol, order_side, position_side, pos_qty, take_profit_price, {'stopPrice': take_profit_price, 'newClientOrderId': new_order_id})
+    #             logging.info(f"{position_side} take profit set at {take_profit_price}")
+    #             time.sleep(0.05)
+    #         except Exception as e:
+    #             raise Exception(f"Error in placing {position_side} TP: {e}") from e
+    #     else:
+    #         logging.info(f"Existing TP orders found. Not creating new TP order.")
