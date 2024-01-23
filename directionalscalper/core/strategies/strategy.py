@@ -3707,13 +3707,14 @@ class Strategy:
     def auto_reduce_logic(self, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, auto_reduce_enabled, symbol, total_equity, auto_reduce_wallet_exposure_pct, open_position_data, current_market_price, long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct, auto_reduce_maxloss_pct):
         if auto_reduce_enabled:
             try:
-                # Initialize variables for unrealized PnL
-                long_unrealised_pnl = 0
-                short_unrealised_pnl = 0
 
-                # Iterate through each position and calculate unrealized PnL
+                long_unrealised_pnl, short_unrealised_pnl = 0, 0
+                
                 for position in open_position_data:
                     info = position.get('info', {})
+                    if not isinstance(info, dict):  # Ensure info is a dictionary
+                        continue  # Skip if not a dictionary
+
                     symbol_from_position = info.get('symbol', '').split(':')[0]
                     side_from_position = info.get('side', '')
                     unrealised_pnl = float(info.get('unrealisedPnl', 0))
