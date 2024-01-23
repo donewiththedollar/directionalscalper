@@ -3634,6 +3634,24 @@ class Strategy:
 
         return max_levels, price_interval
     
+    def place_auto_reduce_order(self, symbol, step_price, dynamic_amount, position_type):
+        try:
+            if position_type == 'long':
+                # Place a reduce-only sell order for long positions
+                order = self.auto_reduce_long(symbol, step_price, dynamic_amount)
+            elif position_type == 'short':
+                # Place a reduce-only buy order for short positions
+                order = self.auto_reduce_short(symbol, step_price, dynamic_amount)
+            else:
+                raise ValueError(f"Invalid position type: {position_type}")
+
+            order_id = order.get('id', None) if order else None
+            logging.info(f"Auto-reduce {position_type} order placed for {symbol} at {step_price} with amount {dynamic_amount}")
+            return order_id
+        except Exception as e:
+            logging.error(f"Error in placing auto-reduce {position_type} order for {symbol}: {e}")
+            return None
+
     def execute_auto_reduce(self, position_type, symbol, pos_qty, dynamic_amount, market_price, start_pct, total_equity):
         max_levels, price_interval = self.calculate_dynamic_auto_reduce_levels(symbol, pos_qty, dynamic_amount, market_price, start_pct, total_equity)
         for i in range(1, max_levels + 1):
