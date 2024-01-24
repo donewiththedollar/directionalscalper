@@ -3810,9 +3810,9 @@ class Strategy:
                 position_balances = {}
 
                 for position in open_position_data:
-                    logging.info(f"Position data: {position}")
+                   # logging.info(f"Position data: {position}")
                     info = position.get('info', {})
-                    logging.info(f"Info extracted from position: {info}")
+                   # logging.info(f"Info extracted from position: {info}")
 
                     symbol_from_position = info.get('symbol', '').split(':')[0]
                     side_from_position = info.get('side', '')
