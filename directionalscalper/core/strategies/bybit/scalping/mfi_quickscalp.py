@@ -48,6 +48,7 @@ class BybitMFIRSIQuickScalp(Strategy):
             self.auto_reduce_marginbased_enabled = self.config.auto_reduce_marginbased_enabled
             self.auto_reduce_wallet_exposure_pct = self.config.auto_reduce_wallet_exposure_pct
             self.percentile_auto_reduce_enabled = self.config.percentile_auto_reduce_enabled
+            self.max_pos_balance_pct = self.config.max_pos_balance_pct
             self.adjust_risk_parameters()
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
@@ -145,6 +146,7 @@ class BybitMFIRSIQuickScalp(Strategy):
 
             percentile_auto_reduce_enabled = self.config.percentile_auto_reduce_enabled
             
+            max_pos_balance_pct = self.config.max_pos_balance_pct
             
             # Funding
             MaxAbsFundingRate = self.config.MaxAbsFundingRate
@@ -422,6 +424,26 @@ class BybitMFIRSIQuickScalp(Strategy):
                     initial_short_stop_loss = None
                     initial_long_stop_loss = None
 
+                    try:
+                        self.auto_reduce_logic_simple(
+                            min_qty,
+                            long_pos_price,
+                            short_pos_price,
+                            long_pos_qty,
+                            short_pos_qty,
+                            auto_reduce_enabled,
+                            symbol,
+                            total_equity,
+                            open_position_data,
+                            current_price,
+                            long_dynamic_amount,
+                            short_dynamic_amount,
+                            auto_reduce_start_pct,
+                            max_pos_balance_pct
+                        )
+                    except Exception as e:
+                        logging.info(f"Exception caught in autoreduce: {e}")
+
                     self.auto_reduce_percentile_logic(
                         symbol,
                         long_pos_qty,
@@ -457,23 +479,6 @@ class BybitMFIRSIQuickScalp(Strategy):
                         stoploss_upnl_pct
                     )
 
-                    self.auto_reduce_logic(
-                        long_pos_qty,
-                        short_pos_qty,
-                        long_pos_price,
-                        short_pos_price,
-                        auto_reduce_enabled,
-                        symbol,
-                        total_equity,
-                        auto_reduce_wallet_exposure_pct,
-                        open_position_data,
-                        current_price,
-                        long_dynamic_amount,
-                        short_dynamic_amount,
-                        auto_reduce_start_pct,
-                        auto_reduce_maxloss_pct
-                    )
-
                     self.auto_reduce_marginbased_logic(
                         auto_reduce_marginbased_enabled,
                         long_pos_qty,
@@ -489,6 +494,13 @@ class BybitMFIRSIQuickScalp(Strategy):
                         short_dynamic_amount,
                         auto_reduce_start_pct,
                         auto_reduce_maxloss_pct
+                    )
+
+                    self.cancel_auto_reduce_orders_bybit(
+                        symbol,
+                        total_equity,
+                        max_pos_balance_pct,
+                        open_position_data
                     )
 
                     # short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, one_minute_distance, previous_one_minute_distance, short_take_profit, long_take_profit)
