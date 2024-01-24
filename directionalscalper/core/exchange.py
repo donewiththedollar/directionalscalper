@@ -103,33 +103,6 @@ class Exchange:
             
             return tp_orders
 
-        # def get_open_tp_orders(self, symbol):
-        #     long_tp_orders = []
-        #     short_tp_orders = []
-        #     for _ in range(self.max_retries):
-        #         try:
-        #             all_open_orders = self.parent.exchange.fetch_open_orders(symbol)
-        #             logging.info(f"All open orders for {symbol}: {all_open_orders}")
-                    
-        #             for order in all_open_orders:
-        #                 order_details = {
-        #                     'id': order['id'],
-        #                     'qty': float(order['info']['qty'])
-        #                 }
-                        
-        #                 if order['info'].get('reduceOnly', False):
-        #                     if order['side'] == 'sell':
-        #                         long_tp_orders.append(order_details)
-        #                     elif order['side'] == 'buy':
-        #                         short_tp_orders.append(order_details)
-                    
-        #             return long_tp_orders, short_tp_orders
-        #         except ccxt.RateLimitExceeded:
-        #             logging.warning(f"Rate limit exceeded when fetching TP orders for {symbol}. Retrying in {self.retry_wait} seconds...")
-        #             time.sleep(self.retry_wait)
-        #     logging.error(f"Failed to fetch TP orders for {symbol} after {self.max_retries} retries.")
-        #     return long_tp_orders, short_tp_orders
-
 
     def __init__(self, exchange_id, api_key, secret_key, passphrase=None, market_type='swap'):
         self.order_timestamps = None
@@ -320,6 +293,24 @@ class Exchange:
         
         return None
 
+    def cancel_order_bybit(self, order_id, symbol):
+        """
+        Wrapper function to cancel an order on the exchange using the CCXT instance.
+
+        :param order_id: The ID of the order to cancel.
+        :param symbol: The trading symbol of the market the order was made in.
+        :return: The response from the exchange after attempting to cancel the order.
+        """
+        try:
+            # Call the cancel_order method of the ccxt instance
+            response = self.exchange.cancel_order(order_id, symbol)
+            logging.info(f"Order {order_id} for {symbol} cancelled successfully.")
+            return response
+        except Exception as e:
+            logging.error(f"An error occurred while cancelling order {order_id} for {symbol}: {str(e)}")
+            # Handle the exception as needed (e.g., retry, raise, etc.)
+            return None
+        
     def get_precision_and_limits_bybit(self, symbol):
         # Fetch the market data
         markets = self.exchange.fetch_markets()
@@ -1159,41 +1150,6 @@ class Exchange:
 
         return values
     
-    # def get_orderbook(self, symbol, max_retries=3, retry_delay=5) -> dict:
-    #     values = {"bids": [], "asks": []}
-        
-    #     for i in range(max_retries):
-    #         try:
-    #             data = self.exchange.fetch_order_book(symbol)
-    #             if "bids" in data and "asks" in data:
-    #                 if len(data["bids"]) > 0 and len(data["asks"]) > 0:
-    #                     if len(data["bids"][0]) > 0 and len(data["asks"][0]) > 0:
-    #                         values["bids"] = data["bids"]
-    #                         values["asks"] = data["asks"]
-    #             break  # if the fetch was successful, break out of the loop
-    #         except Exception as e:
-    #             if i < max_retries - 1:  # if not the last attempt
-    #                 logging.info(f"An unknown error occurred in get_orderbook(): {e}. Retrying in {retry_delay} seconds...")
-    #                 time.sleep(retry_delay)
-    #             else:
-    #                 logging.info(f"Failed to fetch order book after {max_retries} attempts: {e}")
-    #                 raise e  # If it's still failing after max_retries, re-raise the exception.
-        
-    #     return values
-
-    # def get_orderbook(self, symbol) -> dict:
-    #     values = {"bids": [], "asks": []}
-    #     try:
-    #         data = self.exchange.fetch_order_book(symbol)
-    #         if "bids" in data and "asks" in data:
-    #             if len(data["bids"]) > 0 and len(data["asks"]) > 0:
-    #                 if len(data["bids"][0]) > 0 and len(data["asks"][0]) > 0:
-    #                     values["bids"] = data["bids"]
-    #                     values["asks"] = data["asks"]
-    #     except Exception as e:
-    #         log.warning(f"An unknown error occurred in get_orderbook(): {e}")
-    #     return values
-
     # Bitget
     def get_positions_bitget(self, symbol) -> dict:
         values = {
@@ -1249,192 +1205,6 @@ class Exchange:
             best_bid_price = None
 
         return best_bid_price, best_ask_price
-
-    # # Bybit regular and unified
-    # def get_positions_bybit(self, symbol, max_retries=100, retry_delay=5) -> dict:
-    #     values = {
-    #         "long": {
-    #             "qty": 0.0,
-    #             "price": 0.0,
-    #             "realised": 0,
-    #             "cum_realised": 0,
-    #             "upnl": 0,
-    #             "upnl_pct": 0,
-    #             "liq_price": 0,
-    #             "entry_price": 0,
-    #         },
-    #         "short": {
-    #             "qty": 0.0,
-    #             "price": 0.0,
-    #             "realised": 0,
-    #             "cum_realised": 0,
-    #             "upnl": 0,
-    #             "upnl_pct": 0,
-    #             "liq_price": 0,
-    #             "entry_price": 0,
-    #         },
-    #     }
-
-    #     for i in range(max_retries):
-    #         try:
-    #             data = self.exchange.fetch_positions(symbol)
-                
-    #             # Check for the unified structure
-    #             if data and isinstance(data, list) and 'contracts' in data[0]:
-    #                 for position in data:
-    #                     side = 'long' if float(position.get('contracts', 0)) > 0 else 'short'
-    #                     for key, dest_key in [
-    #                         ("contracts", "qty"),
-    #                         ("entryPrice", "price"),
-    #                         ("unrealisedPnl", "realised"),
-    #                         ("cumRealisedPnl", "cum_realised"),
-    #                         ("unrealisedPnl", "upnl"),
-    #                         ("percentage", "upnl_pct"),
-    #                         ("liquidationPrice", "liq_price"),
-    #                         ("entryPrice", "entry_price"),
-    #                     ]:
-    #                         try:
-    #                             value = position.get(key)
-    #                             if value is None:
-    #                                 value = 0
-    #                             if key == "contracts":
-    #                                 values[side][dest_key] = abs(float(value))
-    #                             else:
-    #                                 values[side][dest_key] = float(value)
-    #                         except Exception as e:
-    #                             print(f"Failed to convert key '{key}' with value '{value}' to float.")
-    #                             raise e
-
-    #             # Check for the regular structure
-    #             elif 'info' in data and 'result' in data['info'] and 'list' in data['info']['result']:
-    #                 for position in data['info']['result']['list']:
-    #                     if position['coin'] == symbol:
-    #                         side = 'long' if float(position['contracts']) > 0 else 'short'
-    #                         values[side]["qty"] = abs(float(position["contracts"]))
-    #                         values[side]["price"] = float(position["entryPrice"] or 0)
-    #                         values[side]["realised"] = round(float(position["info"]["unrealisedPnl"] or 0), 4)
-    #                         values[side]["cum_realised"] = round(float(position["info"]["cumRealisedPnl"] or 0), 4)
-    #                         values[side]["upnl"] = round(float(position["info"]["unrealisedPnl"] or 0), 4)
-    #                         values[side]["upnl_pct"] = round(float(position["percentage"] or 0), 4)
-    #                         values[side]["liq_price"] = float(position["liquidationPrice"] or 0)
-    #                         values[side]["entry_price"] = float(position["entryPrice"] or 0)
-
-    #             else:
-    #                 raise ValueError("Unexpected data format.")
-                
-    #             break
-
-    #         except Exception as e:
-    #             if i < max_retries - 1:  # If not the last attempt
-    #                 logging.info(f"An unknown error occurred in get_positions_bybit(): {e}. Retrying in {retry_delay} seconds...")
-    #                 time.sleep(retry_delay)
-    #             else:
-    #                 logging.info(f"Failed to fetch positions after {max_retries} attempts: {e}")
-    #                 raise e  # If it's still failing after max_retries, re-raise the exception.
-
-    #     return values
-
-    # def get_position_details(self, symbol):
-    #     try:
-    #         # Fetch position information for the given symbol
-    #         position = self.exchange.fetch_position(symbol)
-            
-    #         # Log the raw API response for debugging
-    #         logging.info(f"Raw API response for {symbol}: {position}")
-
-    #         details = {
-    #             'symbol': position.get('symbol', ''),
-    #             'leverage': position.get('leverage', 0),
-    #             'avgPrice': position.get('avgPrice', 0),
-    #             'liqPrice': position.get('liqPrice', 0),
-    #             'positionValue': position.get('positionValue', 0),
-    #             'unrealisedPnl': position.get('unrealisedPnl', 0),
-    #             'markPrice': position.get('markPrice', 0),
-    #             'cumRealisedPnl': position.get('cumRealisedPnl', 0),
-    #             'positionStatus': position.get('positionStatus', ''),
-    #             'size': position.get('size', 0),
-    #             'side': position.get('side', '').lower()
-    #         }
-
-    #         long_qty = 0
-    #         short_qty = 0
-
-    #         if details['side'] == 'buy':
-    #             long_qty = details['size']
-    #         elif details['side'] == 'sell':
-    #             short_qty = details['size']
-
-    #         return {
-    #             'long': {'qty': long_qty},
-    #             'short': {'qty': short_qty}
-    #         }
-
-    #     except Exception as e:
-    #         logging.error(f"Error fetching position details for {symbol}: {e}")
-    #         return {'long': {'qty': 0}, 'short': {'qty': 0}}
-
-
-    # def get_position_details(self, open_position_data):
-    #     position_details = {}
-
-    #     for position in open_position_data:
-    #         info = position.get('info', {})
-    #         symbol = info.get('symbol', '').split(':')[0]  # Splitting to get the base symbol
-
-    #         # Ensure 'size', 'side', and 'avgPrice' keys exist in the info dictionary
-    #         if 'size' in info and 'side' in info and 'avgPrice' in info:
-    #             size = float(info['size'])
-    #             side = info['side'].lower()
-    #             avg_price = float(info['avgPrice'])
-
-    #             # Initialize the nested dictionary if the symbol is not already in position_details
-    #             if symbol not in position_details:
-    #                 position_details[symbol] = {'long': {'qty': 0, 'avg_price': None}, 'short': {'qty': 0, 'avg_price': None}}
-
-    #             # Update the quantities and average prices based on the side of the position
-    #             if side == 'buy':
-    #                 position_details[symbol]['long']['qty'] += size
-    #                 position_details[symbol]['long']['avg_price'] = avg_price
-    #             elif side == 'sell':
-    #                 position_details[symbol]['short']['qty'] += size
-    #                 position_details[symbol]['short']['avg_price'] = avg_price
-
-    #     return position_details
-    
-    # def get_position_details(self, symbol):
-    #     try:
-    #         # Fetch position information for the given symbol
-    #         position = self.exchange.fetch_position(symbol)
-    #         details = {
-    #             'symbol': position.get('symbol', ''),
-    #             'leverage': position.get('leverage', 0),
-    #             'avgPrice': position.get('avgPrice', 0),
-    #             'liqPrice': position.get('liqPrice', 0),
-    #             'positionValue': position.get('positionValue', 0),
-    #             'unrealisedPnl': position.get('unrealisedPnl', 0),
-    #             'markPrice': position.get('markPrice', 0),
-    #             'cumRealisedPnl': position.get('cumRealisedPnl', 0),
-    #             'positionStatus': position.get('positionStatus', ''),
-    #             'size': position.get('size', 0),
-    #             'side': position.get('side', '').lower()
-    #         }
-
-    #         # Determine if the position is long or short and extract the quantity
-    #         if details['side'] == 'buy':
-    #             details['longQty'] = details['size']
-    #             details['shortQty'] = 0
-    #         elif details['side'] == 'sell':
-    #             details['shortQty'] = details['size']
-    #             details['longQty'] = 0
-    #         else:
-    #             details['longQty'] = 0
-    #             details['shortQty'] = 0
-
-    #         return details
-
-    #     except Exception as e:
-    #         return f"Error fetching position details: {e}"
-        
 
     # Bybit 
     def get_positions_bybit(self, symbol, max_retries=100, retry_delay=5) -> dict:
@@ -1535,37 +1305,6 @@ class Exchange:
                         logging.error(f"Error fetching open positions: {e}")
                         return []
 
-    # def get_all_open_positions_bybit(self, retries=10, delay_factor=10, max_delay=60) -> List[dict]:
-    #     now = datetime.now()
-
-    #     # Check if the cache is still valid
-    #     cache_duration = timedelta(seconds=30)  # Increased to 30 seconds
-    #     if self.open_positions_cache and self.last_open_positions_time and now - self.last_open_positions_time < cache_duration:
-    #         return self.open_positions_cache
-
-    #     for attempt in range(retries):
-    #         try:
-    #             # No symbol is passed to fetch_positions to get positions for all symbols.
-    #             all_positions = self.exchange.fetch_positions() 
-    #             open_positions = [position for position in all_positions if float(position.get('contracts', 0)) != 0] 
-
-    #             # Update the cache with the new data
-    #             self.open_positions_cache = open_positions
-    #             self.last_open_positions_time = now
-
-    #             return open_positions
-    #         except Exception as e:
-    #             # Check for rate limit by HTTP status code (if available) or by error message
-    #             is_rate_limit_error = "Too many visits" in str(e) or (hasattr(e, 'response') and e.response.status_code == 403)
-                
-    #             if is_rate_limit_error and attempt < retries - 1:
-    #                 delay = min(delay_factor * (attempt + 1), max_delay)  # Exponential delay with a cap
-    #                 logging.info(f"Rate limit on get_all_open_positions_bybit hit, waiting for {delay} seconds before retrying...")
-    #                 time.sleep(delay)
-    #                 continue
-    #             else:
-    #                 print(f"Error fetching open positions: {e}")
-    #                 return []
 
     def print_positions_structure_binance(self):
         try:

@@ -44,6 +44,7 @@ class Bot(BaseModel):
     percentile_auto_reduce_enabled: bool = False
     auto_reduce_enabled: bool = False
     auto_reduce_start_pct: float = 0.098
+    max_pos_balance_pct: float = 0.20
     auto_reduce_maxloss_pct: float = 0.50
     auto_reduce_marginbased_enabled: bool = False
     auto_reduce_wallet_exposure_pct: float = 0.10
@@ -153,6 +154,12 @@ class Bot(BaseModel):
     def check_percentile_auto_reduce_enabled_is_bool(cls, v):
         if not isinstance(v, bool):
             raise ValueError("percentile_auto_reduce_enabled must be a boolean")
+        return v
+
+    @validator('max_pos_balance_pct')
+    def validate_max_pos_balance_pct(cls, v):
+        if v < 0.0:
+            raise ValueError("max_pos_balance_pct must be between 0.0 and 1.0")
         return v
     
 class Exchange(BaseModel):
