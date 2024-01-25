@@ -382,7 +382,7 @@ if __name__ == '__main__':
     ### ILAY ###
 
     # Fetch all symbols that meet your criteria and standardize them
-    all_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, max_usd_value=max_usd_value)]
+    all_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)]
 
     # Get symbols with open positions and standardize them
     open_position_data = market_maker.exchange.get_all_open_positions_bybit()
@@ -410,6 +410,7 @@ if __name__ == '__main__':
 
             # Fetching potential symbols from manager
             potential_symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+            logging.info(f"Potential symbols: {potential_symbols}")
             latest_rotator_symbols = set(standardize_symbol(sym) for sym in potential_symbols)
             logging.info(f"Latest rotator symbols: {latest_rotator_symbols}")
 
