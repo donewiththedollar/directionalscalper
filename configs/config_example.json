@@ -27,6 +27,7 @@
     "entry_during_autoreduce": true,
     "hedge_ratio": 0.10,
     "hedge_price_difference_threshold": 0.10,
+    "auto_leverage_upscale": false,
     "wallet_exposure": 1.00,
     "test_orders_enabled": true,
     "max_usd_value": 100,

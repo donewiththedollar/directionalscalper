@@ -51,6 +51,7 @@ class Bot(BaseModel):
     entry_during_autoreduce: bool = True
     hedge_ratio: float = 0.26
     hedge_price_difference_threshold: float = 0.15
+    auto_leverage_upscale: bool = False
     min_qty_threshold: float = 0
     symbol: str
     long_liq_pct: float = 0.05
@@ -160,6 +161,12 @@ class Bot(BaseModel):
     def validate_max_pos_balance_pct(cls, v):
         if v < 0.0:
             raise ValueError("max_pos_balance_pct must be between 0.0 and 1.0")
+        return v
+
+    @validator('auto_leverage_upscale')
+    def check_auto_leverage_upscale_is_bool(cls, v):
+        if not isinstance(v, bool):
+            raise ValueError("auto_leverage_upscale must be a boolean")
         return v
     
 class Exchange(BaseModel):

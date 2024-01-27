@@ -49,6 +49,7 @@ class BybitQuickScalpTrend(Strategy):
             self.auto_reduce_wallet_exposure_pct = self.config.auto_reduce_wallet_exposure_pct
             self.percentile_auto_reduce_enabled = self.config.percentile_auto_reduce_enabled
             self.max_pos_balance_pct = self.config.max_pos_balance_pct
+            self.auto_leverage_upscale = self.config.auto_leverage_upscale
             self.adjust_risk_parameters()
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
@@ -147,6 +148,8 @@ class BybitQuickScalpTrend(Strategy):
             percentile_auto_reduce_enabled = self.config.percentile_auto_reduce_enabled
         
             max_pos_balance_pct = self.config.max_pos_balance_pct
+
+            auto_leverage_upscale = self.config.auto_leverage_upscale
 
             # Funding
             MaxAbsFundingRate = self.config.MaxAbsFundingRate
@@ -394,8 +397,8 @@ class BybitQuickScalpTrend(Strategy):
 
                     self.adjust_risk_parameters()
 
-                    self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
-                    self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
+                    self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage, auto_leverage_upscale)
+                    self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage, auto_leverage_upscale)
 
                     # Update dynamic amounts based on max trade quantities
                     self.update_dynamic_amounts(symbol, total_equity)
