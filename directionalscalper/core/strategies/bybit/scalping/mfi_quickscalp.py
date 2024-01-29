@@ -635,13 +635,12 @@ class BybitMFIRSIQuickScalp(Strategy):
                                 tp_order_counts=tp_order_counts
                             )
 
-                    if self.test_orders_enabled and current_time - self.last_cancel_time >= self.spoofing_interval:
+                    if self.test_orders_enabled and current_time - self.last_cancel_time >= self.helper_interval:
                         if symbol in open_symbols:
                             self.helper_active = True
                             self.helperv2(symbol, short_dynamic_amount, long_dynamic_amount)
                         else:
                             logging.info(f"Skipping test orders for {symbol} as it's not in open symbols list.")
-                    
 
                     self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
                     # self.cancel_stale_orders_bybit(symbol)

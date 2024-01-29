@@ -681,7 +681,7 @@ class BybitQuickScalpTrend(Strategy):
                                 tp_order_counts=tp_order_counts
                             )
 
-                    if self.test_orders_enabled and current_time - self.last_cancel_time >= self.spoofing_interval:
+                    if self.test_orders_enabled and current_time - self.last_cancel_time >= self.helper_interval:
                         if symbol in open_symbols:
                             self.helper_active = True
                             self.helperv2(symbol, short_dynamic_amount, long_dynamic_amount)
