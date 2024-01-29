@@ -87,6 +87,12 @@ class Strategy:
         self.auto_reduce_order_ids = {}
         self.previous_levels = {}
         self.auto_leverage_upscale = self.config.auto_leverage_upscale
+        self.max_long_trade_qty_per_symbol = {}
+        self.max_short_trade_qty_per_symbol = {}
+        self.initial_max_long_trade_qty_per_symbol = {}
+        self.initial_max_short_trade_qty_per_symbol = {}
+        self.long_pos_leverage_per_symbol = {}
+        self.short_pos_leverage_per_symbol = {}
 
         self.bybit = self.Bybit(self)
         
