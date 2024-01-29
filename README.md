@@ -12,22 +12,9 @@ A hedge scalping strategy based on directional analysis using a quantitative app
 * Dashboard: https://tradesimple.xyz
 * APIv3 (BYBIT): http://apiv3.tradesimple.xyz/data/quantdatav2_bybit.json
 
-### Contributions / Donations
-* Contribution / Donation addresses: (Used for API server costs, other overhead costs (who knows what) or "buying me a cup of coffee")
-
-* USDT (ERC20): 0xb40b2842d4ce93e31CFC8DC2629E2Bd426e4b87E
-
-* DOGE: DAZid4pETjmrgGkYvgN5rZZtCaBpYtiK8E
-
-* BTC: bc1q9hyvvtcsm0k39svz59hjgz4f6dr6c2k4wlrxmc
-
-### Affiliate links
-## Bybit https://partner.bybit.com/b/tradesimple
-
 Directional Scalper        |  API Scraper               |  Dashboard                | Directional Scalper Multi | Menu GUI
 :-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:
 ![](https://github.com/donewiththedollar/directional-scalper/blob/main/directional-scalper.gif)  |  ![](https://github.com/donewiththedollar/directional-scalper/blob/main/scraper.gif)  |  ![](https://github.com/donewiththedollar/directional-scalper/blob/main/dashboardimg.gif)  |  ![](https://github.com/donewiththedollar/directionalscalper/blob/main/directionalscalpermulti.gif)  |  ![](https://github.com/donewiththedollar/directional-scalper/blob/main/menugui.gif)
-
 
 ## Quickstart
 - Clone the repo `git clone https://github.com/donewiththedollar/directionalscalper.git`
@@ -51,6 +38,16 @@ Directional Scalper        |  API Scraper               |  Dashboard            
 - Inside the tmux session, ensure you are in project directory and `streamlit run dashboard.py`
 - If you are having issues, you may have not ran `pip3.11 install -r requirements.txt` again as requirements have changed in recent revisions.
 
+
+### Contributions / Donations
+* USDT (ERC20): 0xb40b2842d4ce93e31CFC8DC2629E2Bd426e4b87E
+
+* DOGE: DAZid4pETjmrgGkYvgN5rZZtCaBpYtiK8E
+
+* BTC: bc1q9hyvvtcsm0k39svz59hjgz4f6dr6c2k4wlrxmc
+
+### Affiliate links
+## Bybit https://partner.bybit.com/b/tradesimple
 
 ### Full installation instructions
 Steps to set up Directionalscalper v2
