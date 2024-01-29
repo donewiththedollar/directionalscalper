@@ -24,13 +24,13 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
         self.health_check_interval = 600
         self.last_long_tp_update = datetime.now()
         self.last_short_tp_update = datetime.now()
-        self.next_long_tp_update = self.calculate_next_update_time()
-        self.next_short_tp_update = self.calculate_next_update_time()
+        self.next_long_tp_update = datetime.now() - timedelta(seconds=1)
+        self.next_short_tp_update = datetime.now() - timedelta(seconds=1)
         self.last_cancel_time = 0
-        self.spoofing_active = False
-        self.spoofing_wall_size = 5
-        self.spoofing_duration = 5
-        self.spoofing_interval = 1
+        self.helper_active = False
+        self.helper_wall_size = 5
+        self.helper_duration = 5
+        self.helper_interval = 1
         self.position_inactive_threshold = 120
         try:
             self.max_usd_value = self.config.max_usd_value

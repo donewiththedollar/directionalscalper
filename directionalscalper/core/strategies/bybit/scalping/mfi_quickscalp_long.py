@@ -26,10 +26,10 @@ class BybitMFIRSIQuickScalpLong(Strategy):
         self.next_long_tp_update = datetime.now() - timedelta(seconds=1)
         self.next_short_tp_update = datetime.now() - timedelta(seconds=1)
         self.last_cancel_time = 0
-        self.spoofing_active = False
-        self.spoofing_wall_size = 5
-        self.spoofing_duration = 5
-        self.spoofing_interval = 1
+        self.helper_active = False
+        self.helper_wall_size = 5
+        self.helper_duration = 5
+        self.helper_interval = 1
         self.position_inactive_threshold = 120
         try:
             self.max_usd_value = self.config.max_usd_value
@@ -49,6 +49,7 @@ class BybitMFIRSIQuickScalpLong(Strategy):
             self.auto_reduce_wallet_exposure_pct = self.config.auto_reduce_wallet_exposure_pct
             self.percentile_auto_reduce_enabled = self.config.percentile_auto_reduce_enabled
             self.max_pos_balance_pct = self.config.max_pos_balance_pct
+            self.auto_leverage_upscale = self.config.auto_leverage_upscale
             self.adjust_risk_parameters()
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
@@ -613,7 +614,7 @@ class BybitMFIRSIQuickScalpLong(Strategy):
 
                     if self.test_orders_enabled and current_time - self.last_cancel_time >= self.spoofing_interval:
                         if symbol in open_symbols:
-                            self.spoofing_active = True
+                            self.helper_active = True
                             self.helperv2(symbol, short_dynamic_amount, long_dynamic_amount)
                         else:
                             logging.info(f"Skipping test orders for {symbol} as it's not in open symbols list.")

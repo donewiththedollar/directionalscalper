@@ -35,7 +35,6 @@ class Strategy:
             self.parent = parent
 
     def __init__(self, exchange, config, manager, symbols_allowed=None):
-    # def __init__(self, exchange, config, manager):
         self.exchange = exchange
         self.config = config
         self.manager = manager
@@ -47,7 +46,7 @@ class Strategy:
         self.short_dynamic_amount = {}
         self.printed_trade_quantities = False
         self.last_mfirsi_signal = None
-        self.TAKER_FEE_RATE = Decimal("0.00055")  # 0.055%
+        self.TAKER_FEE_RATE = Decimal("0.00055")
         self.taker_fee_rate = 0.055 / 100
         self.max_long_trade_qty = None
         self.max_short_trade_qty = None
@@ -57,28 +56,19 @@ class Strategy:
         self.short_leverage_increased = False
         self.open_symbols_count = 0
         self.last_stale_order_check_time = time.time()
-        self.should_spoof = True
-        self.max_long_trade_qty_per_symbol = {}
-        self.max_short_trade_qty_per_symbol = {}
-        self.initial_max_long_trade_qty_per_symbol = {}
-        self.initial_max_short_trade_qty_per_symbol = {}
-        self.long_pos_leverage_per_symbol = {}
-        self.short_pos_leverage_per_symbol = {}
-        self.last_cancel_time = 0
-        self.spoofing_active = False
-        self.spoofing_wall_size = 5
-        self.spoofing_interval = 1  # Time interval between spoofing actions
-        self.spoofing_duration = 5  # Spoofing duration in seconds
-        #self.whitelist = self.config.whitelist
-        self.LEVERAGE_STEP = 0.002  # The step at which to increase leverage
-        self.MAX_LEVERAGE = 0.1 #0.3  # The maximum allowable leverage
-        self.QTY_INCREMENT = 0.01 # How much your position size increases
+        self.helper_active = False
+        self.helper_wall_size = 5
+        self.helper_interval = 1  # Time interval between helper actions
+        self.helper_duration = 5  # Helper duration in seconds
+        self.LEVERAGE_STEP = 0.002
+        self.MAX_LEVERAGE = 0.1
+        self.QTY_INCREMENT = 0.01
         self.MAX_PCT_EQUITY = 0.1
         self.ORDER_BOOK_DEPTH = 10
-        self.lock = threading.Lock()  # Create a lock
-        self.last_known_ask = {}  # Dictionary to store last known ask prices for each symbol
-        self.last_known_bid = {} 
-        self.last_order_time = {}  # 
+        self.lock = threading.Lock()
+        self.last_known_ask = {}
+        self.last_known_bid = {}
+        self.last_order_time = {}
         self.symbol_locks = {}
         self.order_ids = {}
         self.hedged_symbols = {}
@@ -96,9 +86,10 @@ class Strategy:
         self.auto_reduce_orders = {}
         self.auto_reduce_order_ids = {}
         self.previous_levels = {}
+        self.auto_leverage_upscale = self.config.auto_leverage_upscale
 
         self.bybit = self.Bybit(self)
-
+        
     def update_hedged_status(self, symbol, is_hedged):
         self.hedged_positions[symbol] = is_hedged
 
@@ -2228,7 +2219,7 @@ class Strategy:
             return 0
 
     def helperv2(self, symbol, short_dynamic_amount, long_dynamic_amount):
-        if self.spoofing_active:
+        if self.helper_active:
             # Fetch orderbook and positions
             orderbook = self.exchange.get_orderbook(symbol)
             best_bid_price = Decimal(orderbook['bids'][0][0])
@@ -2241,53 +2232,53 @@ class Strategy:
             short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
         
             if short_pos_qty is None and long_pos_qty is None:
-                logging.warning(f"Could not fetch position quantities for {symbol}. Skipping spoofing.")
+                logging.warning(f"Could not fetch position quantities for {symbol}. Skipping helper process.")
                 return
 
             # Determine which position is larger
             larger_position = "long" if long_pos_qty > short_pos_qty else "short"
 
-            # Adjust spoofing_wall_size based on the larger position
-            base_spoofing_wall_size = self.spoofing_wall_size
-            adjusted_spoofing_wall_size = base_spoofing_wall_size + 5
+            # Adjust helper_wall_size based on the larger position
+            base_helper_wall_size = self.helper_wall_size
+            adjusted_helper_wall_size = base_helper_wall_size + 5
 
             # Initialize variables
-            spoofing_orders = []
+            helper_orders = []
 
             # Dynamic safety_margin and base_gap based on asset's price
             safety_margin = best_ask_price * Decimal('0.0060')  # 0.0030 # 0.10% of current price
             base_gap = best_ask_price * Decimal('0.0060') #0.0030  # 0.10% of current price
 
-            for i in range(adjusted_spoofing_wall_size):
+            for i in range(adjusted_helper_wall_size):
                 gap = base_gap + Decimal(i) * Decimal('0.002')  # Increasing gap for each subsequent order
 
                 if larger_position == "long":
-                    # Calculate long spoof price based on best ask price (top of the order book)
-                    spoof_price_long = best_ask_price + gap + safety_margin
-                    spoof_price_long = spoof_price_long.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
-                    spoof_order_long = self.limit_order_bybit(symbol, "sell", long_dynamic_amount * 1.5, spoof_price_long, positionIdx=2, reduceOnly=False)
-                    spoofing_orders.append(spoof_order_long)
+                    # Calculate long helper price based on best ask price
+                    helper_price_long = best_ask_price + gap + safety_margin
+                    helper_price_long = helper_price_long.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
+                    helper_order_long = self.limit_order_bybit(symbol, "sell", long_dynamic_amount * 1.5, helper_price_long, positionIdx=2, reduceOnly=False)
+                    helper_orders.append(helper_order_long)
 
                 if larger_position == "short":
-                    # Calculate short spoof price based on best bid price (top of the order book)
-                    spoof_price_short = best_bid_price - gap - safety_margin
-                    spoof_price_short = spoof_price_short.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
-                    spoof_order_short = self.limit_order_bybit(symbol, "buy", short_dynamic_amount * 1.5, spoof_price_short, positionIdx=1, reduceOnly=False)
-                    spoofing_orders.append(spoof_order_short)
+                    # Calculate short helper price based on best bid price
+                    helper_price_short = best_bid_price - gap - safety_margin
+                    helper_price_short = helper_price_short.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
+                    helper_order_short = self.limit_order_bybit(symbol, "buy", short_dynamic_amount * 1.5, helper_price_short, positionIdx=1, reduceOnly=False)
+                    helper_orders.append(helper_order_short)
 
-            # Sleep for the spoofing duration and then cancel all placed orders
-            time.sleep(self.spoofing_duration)
+            # Sleep for the helper duration and then cancel all placed orders
+            time.sleep(self.helper_duration)
 
             # Cancel orders and handle errors
-            for order in spoofing_orders:
+            for order in helper_orders:
                 if 'id' in order:
-                    logging.info(f"Spoofing order for {symbol}: {order}")
+                    logging.info(f"Helper order for {symbol}: {order}")
                     self.exchange.cancel_order_by_id(order['id'], symbol)
                 else:
-                    logging.warning(f"Could not place spoofing order for {symbol}: {order.get('error', 'Unknown error')}")
+                    logging.warning(f"Could not place helper order for {symbol}: {order.get('error', 'Unknown error')}")
 
-            # Deactivate spoofing for the next cycle
-            self.spoofing_active = False
+            # Deactivate helper for the next cycle
+            self.helper_active = False
 
     def calculate_qfl_levels(self, symbol: str, timeframe='5m', lookback_period=12):
         # Fetch historical candle data
