@@ -502,13 +502,13 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
 
                     logging.info(f"Open TP order count {open_tp_order_count}")
 
-                    if self.test_orders_enabled and current_time - self.last_cancel_time >= self.spoofing_interval:
+                    if self.test_orders_enabled and current_time - self.last_cancel_time >= self.helper_interval:
                         if symbol in open_symbols:
                             self.helper_active = True
                             self.helperv2(symbol, short_dynamic_amount, long_dynamic_amount)
                         else:
                             logging.info(f"Skipping test orders for {symbol} as it's not in open symbols list.")
-                    
+
                     logging.info(f"Five minute volume for {symbol} : {five_minute_volume}")
                         
                     historical_data = self.fetch_historical_data(
