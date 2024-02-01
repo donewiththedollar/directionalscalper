@@ -35,7 +35,8 @@ class Bot(BaseModel):
     min_distance: float = 0.15
     min_distance_largecap: float = 0.085
     min_volume: int = 15000
-    user_risk_level: float = 2.0
+    max_leverage: float = 1.0
+    user_risk_level: float = 0.01
     upnl_profit_pct: float = 0.003
     stoploss_enabled: bool = False
     stoploss_upnl_pct: float = 0.070
@@ -105,7 +106,7 @@ class Bot(BaseModel):
 
     @validator('user_risk_level')
     def check_user_risk_level(cls, v):
-        if v < 0.1 or v > 10.0:
+        if v < 0.0001 or v > 10.0:
             raise ValueError("user_risk_level must be between 0.1 and 10.0")
         return v
 

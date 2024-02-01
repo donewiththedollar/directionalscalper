@@ -61,7 +61,8 @@ class Strategy:
         self.helper_interval = 1  # Time interval between helper actions
         self.helper_duration = 5  # Helper duration in seconds
         self.LEVERAGE_STEP = 0.002
-        self.MAX_LEVERAGE = 0.1
+        #self.MAX_LEVERAGE = 0.1
+        self.MAX_LEVERAGE = self.config.max_leverage
         self.QTY_INCREMENT = 0.01
         self.MAX_PCT_EQUITY = 0.1
         self.ORDER_BOOK_DEPTH = 10
@@ -79,7 +80,7 @@ class Strategy:
         self.auto_reduce_maxloss_pct = self.config.auto_reduce_maxloss_pct
         self.user_risk_level = self.config.user_risk_level
         self.max_pos_balance_pct = self.config.max_pos_balance_pct
-        self.MIN_RISK_LEVEL = 1
+        self.MIN_RISK_LEVEL = 0.001
         self.MAX_RISK_LEVEL = 10
         self.auto_reduce_active_long = {}
         self.auto_reduce_active_short = {}
@@ -93,6 +94,8 @@ class Strategy:
         self.initial_max_short_trade_qty_per_symbol = {}
         self.long_pos_leverage_per_symbol = {}
         self.short_pos_leverage_per_symbol = {}
+        self.dynamic_amount_per_symbol = {}
+        self.max_trade_qty_per_symbol = {}
 
         self.bybit = self.Bybit(self)
         
@@ -110,24 +113,117 @@ class Strategy:
                 logging.info(f"{symbol} is already initialized.")
                 return False
 
+    # Adjust risk parameters based on user risk level
     def adjust_risk_parameters(self):
-        # Ensure user_risk_level is within the expected range
-        user_risk_level = max(self.MIN_RISK_LEVEL, min(self.user_risk_level, self.MAX_RISK_LEVEL))
+        self.user_risk_level = max(self.MIN_RISK_LEVEL, min(self.user_risk_level, self.MAX_RISK_LEVEL))
+        self.dynamic_amount_multiplier = self.user_risk_level / 100.0
+        logging.info(f"Risk level adjusted: User Risk Level: {self.user_risk_level}, Dynamic Amount Multiplier: {self.dynamic_amount_multiplier}")
 
-        # Convert risk level to a scale factor between 0 and 1
-        scale = (user_risk_level - self.MIN_RISK_LEVEL) / (self.MAX_RISK_LEVEL - self.MIN_RISK_LEVEL)
+    # Calculate the dynamic amount for a symbol
+    def calculate_dynamic_amount(self, symbol, total_equity, best_ask_price):
+        # Fetch symbol precision for price and quantity
+        price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
+        qty_precision_level = -int(math.log10(qty_precision))
+        logging.info(f"Symbol: {symbol}, Price Precision: {price_precision}, Qty Precision: {qty_precision}, Qty Precision Level: {qty_precision_level}")
 
-        # Calculate the percentage of total equity to be used based on user risk level
-        # For example, Level 1 = 1% of total equity, Level 10 = 10% of total equity
-        self.wallet_exposure = user_risk_level / 100.0  # Converts risk level to a percentage
+        # Fetch market data with retries
+        market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
+        min_qty = float(market_data["min_qty"])
+        logging.info(f"Symbol: {symbol}, Market Data: {market_data}, Min Qty: {min_qty}")
 
-        # Adjust the other parameters as originally intended
-        self.LEVERAGE_STEP = 0.002 + (scale * (0.01 - 0.002))  # Adjusted based on the scale
-        self.MAX_LEVERAGE = 0.1 + (scale * (1.0 - 0.1))  # Adjusted based on the scale
-        self.dynamic_amount_multiplier = 0.0005 + (scale * (0.005 - 0.0005))  # Adjusted based on the scale
+        # Calculate the base amount in USD that we are willing to risk per trade
+        base_amount_usd = (self.user_risk_level / 100.0) * total_equity
+        logging.info(f"Symbol: {symbol}, Base Amount in USD to Risk Per Trade: {base_amount_usd}")
 
-        # Log the adjusted parameters for verification
-        logging.info(f"Adjusted parameters for risk level {self.user_risk_level}: Wallet Exposure: {self.wallet_exposure}, Leverage Step: {self.LEVERAGE_STEP}, Max Leverage: {self.MAX_LEVERAGE}, Dynamic Amount Multiplier: {self.dynamic_amount_multiplier}")
+        # Convert this base amount into the coin amount based on the current best ask price
+        base_amount_coin = base_amount_usd / best_ask_price
+        logging.info(f"Symbol: {symbol}, Base Amount in Coin to Risk Per Trade (Before Leverage): {base_amount_coin}")
+
+        # Apply leverage to this base coin amount
+        leveraged_amount_coin = base_amount_coin * self.MAX_LEVERAGE
+        logging.info(f"Symbol: {symbol}, Leveraged Amount in Coin: {leveraged_amount_coin}")
+
+        # Ensure that the final quantity respects the minimum quantity requirement
+        adjusted_dynamic_amount = max(leveraged_amount_coin, min_qty)
+        logging.info(f"Symbol: {symbol}, Adjusted Dynamic Amount (After Min Qty Check): {adjusted_dynamic_amount}")
+
+        # Round the final quantity based on the quantity precision
+        dynamic_amount = round(adjusted_dynamic_amount, qty_precision_level)
+        logging.info(f"Symbol: {symbol}, Final Dynamic Amount (After Rounding): {dynamic_amount}")
+
+        return dynamic_amount
+
+    # Handle the calculation of trade quantities per symbol
+    def handle_trade_quantities(self, symbol, total_equity, best_ask_price):
+        if symbol not in self.initialized_symbols:
+            max_trade_qty = self.calculate_max_trade_qty(symbol, total_equity, best_ask_price)
+            self.max_trade_qty_per_symbol[symbol] = max_trade_qty
+            self.initialized_symbols.add(symbol)
+            logging.info(f"Symbol {symbol} initialization: Max Trade Qty: {max_trade_qty}, Total Equity: {total_equity}, Best Ask Price: {best_ask_price}")
+
+        dynamic_amount = self.calculate_dynamic_amount(symbol, total_equity, best_ask_price)
+        self.dynamic_amount_per_symbol[symbol] = dynamic_amount
+        logging.info(f"Dynamic Amount Updated: Symbol: {symbol}, Dynamic Amount: {dynamic_amount}")
+
+    # Calculate maximum trade quantity for a symbol
+    def calculate_max_trade_qty(self, symbol, total_equity, best_ask_price):
+        leveraged_equity = total_equity * self.MAX_LEVERAGE
+        max_trade_qty = (self.dynamic_amount_multiplier * leveraged_equity) / best_ask_price
+        logging.info(f"Calculating Max Trade Qty: Symbol: {symbol}, Leveraged Equity: {leveraged_equity}, Max Trade Qty: {max_trade_qty}")
+        return max_trade_qty
+
+    # # Adjust risk parameters based on user risk level
+    # def adjust_risk_parameters(self):
+    #     self.user_risk_level = max(self.MIN_RISK_LEVEL, min(self.user_risk_level, self.MAX_RISK_LEVEL))
+    #     self.dynamic_amount_multiplier = self.user_risk_level / 100.0
+    #     logging.info(f"Risk level adjusted: {self.user_risk_level}, Dynamic Amount Multiplier: {self.dynamic_amount_multiplier}")
+
+    # def calculate_dynamic_amount(self, symbol, total_equity, best_ask_price):
+    #     # Fetch symbol precision for price and quantity
+    #     price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
+    #     qty_precision_level = -int(math.log10(qty_precision))
+
+    #     logging.info(f"Qty precision level: {qty_precision_level}")
+
+    #     # Fetch market data with retries
+    #     market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
+    #     min_qty = float(market_data["min_qty"])
+        
+    #     # Calculate the base amount in USD that we are willing to risk per trade
+    #     base_amount_usd = (self.user_risk_level / 100.0) * total_equity
+
+    #     # Convert this base amount into the coin amount based on the current best ask price
+    #     base_amount_coin = base_amount_usd / best_ask_price
+
+    #     # Apply leverage to this base coin amount
+    #     leveraged_amount_coin = base_amount_coin * self.MAX_LEVERAGE
+
+    #     # Ensure that the final quantity respects the minimum quantity requirement
+    #     adjusted_dynamic_amount = max(leveraged_amount_coin, min_qty)
+
+    #     # Round the final quantity based on the quantity precision
+    #     dynamic_amount = round(adjusted_dynamic_amount, qty_precision_level)
+
+    #     logging.info(f"Symbol: {symbol}, Dynamic Coin Amount: {dynamic_amount} (based on best ask price: {best_ask_price})")
+    #     return dynamic_amount
+
+
+    # # Handle the calculation of trade quantities per symbol
+    # def handle_trade_quantities(self, symbol, total_equity, best_ask_price):
+    #     if symbol not in self.initialized_symbols:
+    #         max_trade_qty = self.calculate_max_trade_qty(symbol, total_equity, best_ask_price)
+    #         self.max_trade_qty_per_symbol[symbol] = max_trade_qty
+    #         self.initialized_symbols.add(symbol)
+    #         logging.info(f"Symbol {symbol} initialized with max trade qty: {max_trade_qty}")
+
+    #     dynamic_amount = self.calculate_dynamic_amount(symbol, total_equity, best_ask_price)
+    #     self.dynamic_amount_per_symbol[symbol] = dynamic_amount
+
+    # # Calculate maximum trade quantity for a symbol
+    # def calculate_max_trade_qty(self, symbol, total_equity, best_ask_price):
+    #     leveraged_equity = total_equity * self.MAX_LEVERAGE
+    #     max_trade_qty = (self.dynamic_amount_multiplier * leveraged_equity) / best_ask_price
+    #     return max_trade_qty
 
     class OrderBookAnalyzer:
         def __init__(self, exchange, symbol, depth=10):
@@ -585,35 +681,52 @@ class Strategy:
 
         return result
 
+    # def initialize_trade_quantities(self, symbol, total_equity, best_ask_price, max_leverage):
+    #     # Check if the symbol has been initialized before
+    #     if symbol in self.initialized_symbols:
+    #         return
+
+    #     # Calculate the max trade quantity if it hasn't been initialized for long or short trades
+    #     if symbol not in self.max_long_trade_qty_per_symbol or symbol not in self.max_short_trade_qty_per_symbol:
+    #         try:
+    #             max_trade_qty = self.calc_max_trade_qty(symbol, total_equity, best_ask_price, max_leverage)
+    #         except Exception as e:
+    #             logging.error(f"Error calculating max trade quantity for {symbol}: {e}")
+    #             return  # Exit the function if there's an error
+
+    #         self.max_long_trade_qty_per_symbol.setdefault(symbol, max_trade_qty)
+    #         self.max_short_trade_qty_per_symbol.setdefault(symbol, max_trade_qty)
+
+    #         logging.info(f"For symbol {symbol} Calculated max_long_trade_qty: {max_trade_qty}, max_short_trade_qty: {max_trade_qty}")
+
+    #     # Initialize the initial max trade quantities if not set
+    #     if symbol not in self.initial_max_long_trade_qty_per_symbol:
+    #         self.initial_max_long_trade_qty_per_symbol[symbol] = self.max_long_trade_qty_per_symbol[symbol]
+    #         logging.info(f"Initial max long trade qty set for {symbol} to {self.initial_max_long_trade_qty_per_symbol[symbol]}")
+
+    #     if symbol not in self.initial_max_short_trade_qty_per_symbol:
+    #         self.initial_max_short_trade_qty_per_symbol[symbol] = self.max_short_trade_qty_per_symbol[symbol]
+    #         logging.info(f"Initial max short trade qty set for {symbol} to {self.initial_max_short_trade_qty_per_symbol[symbol]}")
+
+    #     # Add the symbol to the initialized symbols set
+    #     self.initialized_symbols.add(symbol)
+
     def initialize_trade_quantities(self, symbol, total_equity, best_ask_price, max_leverage):
-        # Check if the symbol has been initialized before
         if symbol in self.initialized_symbols:
             return
 
-        # Calculate the max trade quantity if it hasn't been initialized for long or short trades
-        if symbol not in self.max_long_trade_qty_per_symbol or symbol not in self.max_short_trade_qty_per_symbol:
-            try:
-                max_trade_qty = self.calc_max_trade_qty(symbol, total_equity, best_ask_price, max_leverage)
-            except Exception as e:
-                logging.error(f"Error calculating max trade quantity for {symbol}: {e}")
-                return  # Exit the function if there's an error
+        try:
+            max_trade_qty = self.calc_max_trade_qty(symbol, total_equity, best_ask_price, max_leverage)
+        except Exception as e:
+            logging.error(f"Error calculating max trade quantity for {symbol}: {e}")
+            return
 
-            self.max_long_trade_qty_per_symbol.setdefault(symbol, max_trade_qty)
-            self.max_short_trade_qty_per_symbol.setdefault(symbol, max_trade_qty)
+        self.max_long_trade_qty_per_symbol[symbol] = max_trade_qty
+        self.max_short_trade_qty_per_symbol[symbol] = max_trade_qty
 
-            logging.info(f"For symbol {symbol} Calculated max_long_trade_qty: {max_trade_qty}, max_short_trade_qty: {max_trade_qty}")
-
-        # Initialize the initial max trade quantities if not set
-        if symbol not in self.initial_max_long_trade_qty_per_symbol:
-            self.initial_max_long_trade_qty_per_symbol[symbol] = self.max_long_trade_qty_per_symbol[symbol]
-            logging.info(f"Initial max long trade qty set for {symbol} to {self.initial_max_long_trade_qty_per_symbol[symbol]}")
-
-        if symbol not in self.initial_max_short_trade_qty_per_symbol:
-            self.initial_max_short_trade_qty_per_symbol[symbol] = self.max_short_trade_qty_per_symbol[symbol]
-            logging.info(f"Initial max short trade qty set for {symbol} to {self.initial_max_short_trade_qty_per_symbol[symbol]}")
-
-        # Add the symbol to the initialized symbols set
+        logging.info(f"For symbol {symbol} Calculated max_long_trade_qty: {max_trade_qty}, max_short_trade_qty: {max_trade_qty}")
         self.initialized_symbols.add(symbol)
+
 
     def calculate_dynamic_amount_obstrength(self, symbol, total_equity, best_ask_price, max_leverage):
         self.initialize_trade_quantities(symbol, total_equity, best_ask_price, max_leverage)
@@ -673,9 +786,9 @@ class Strategy:
 
         return long_dynamic_amount, short_dynamic_amount, min_qty
 
-    def update_dynamic_amounts(self, symbol, total_equity):
+    def update_dynamic_amounts(self, symbol, total_equity, best_ask_price):
         if symbol not in self.long_dynamic_amount or symbol not in self.short_dynamic_amount:
-            long_dynamic_amount, short_dynamic_amount, _ = self.calculate_dynamic_amount_v3(symbol, total_equity)
+            long_dynamic_amount, short_dynamic_amount, _ = self.calculate_dynamic_amount_v3(symbol, total_equity, best_ask_price)
             self.long_dynamic_amount[symbol] = long_dynamic_amount
             self.short_dynamic_amount[symbol] = short_dynamic_amount
 
@@ -713,44 +826,123 @@ class Strategy:
 
     #     logging.info(f"Updated dynamic amounts for {symbol}. New long_dynamic_amount: {self.long_dynamic_amount[symbol]}, New short_dynamic_amount: {self.short_dynamic_amount[symbol]}")
 
-    def calculate_dynamic_amount_v3(self, symbol, total_equity):
-        # Fetch symbol precision for price and quantity
+    # def calculate_dynamic_amount_v3(self, symbol, total_equity):
+    #     # Fetch symbol precision for price and quantity
+    #     price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
+    #     qty_precision_level = -int(math.log10(qty_precision))
+
+        # market_data = self.get_market_data_with_retry(symbol, max_retries = 100, retry_delay = 5)
+
+    #     min_qty = float(market_data["min_qty"])
+    #     logging.info(f"Min qty for {symbol} : {min_qty}")
+
+    #     long_dynamic_amount = self.dynamic_amount_multiplier * total_equity
+    #     short_dynamic_amount = self.dynamic_amount_multiplier * total_equity
+    #     logging.info(f"Initial long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+
+    #     max_allowed_dynamic_amount = (self.MAX_PCT_EQUITY / 100) * total_equity
+    #     logging.info(f"Max allowed dynamic amount for {symbol} : {max_allowed_dynamic_amount}")
+
+    #     # Round the dynamic amounts based on quantity precision level
+    #     long_dynamic_amount = round(long_dynamic_amount, qty_precision_level)
+    #     short_dynamic_amount = round(short_dynamic_amount, qty_precision_level)
+    #     logging.info(f"Rounded long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+
+    #     long_dynamic_amount = min(long_dynamic_amount, max_allowed_dynamic_amount)
+    #     short_dynamic_amount = min(short_dynamic_amount, max_allowed_dynamic_amount)
+
+    #     self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
+    #     self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
+
+    #     if long_dynamic_amount < min_qty:
+    #         logging.info(f"Dynamic amount too small for 0.001x, using min_qty for long_dynamic_amount")
+    #         long_dynamic_amount = min_qty
+    #     if short_dynamic_amount < min_qty:
+    #         logging.info(f"Dynamic amount too small for 0.001x, using min_qty for short_dynamic_amount")
+    #         short_dynamic_amount = min_qty
+
+    #     logging.info(f"Symbol: {symbol} Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+
+    #     return long_dynamic_amount, short_dynamic_amount, min_qty
+
+    # def calculate_dynamic_amount_v3(self, symbol, total_equity):
+    #     price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
+    #     qty_precision_level = -int(math.log10(qty_precision))
+
+    #     # Fetch market data with retries
+    #     market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
+    #     min_qty = float(market_data["min_qty"])  # Assuming 'min_qty' is in the market data
+
+    #     # Calculate dynamic amounts considering the leverage
+    #     dynamic_amount = self.dynamic_amount_multiplier * total_equity * self.MAX_LEVERAGE
+    #     long_dynamic_amount = min(dynamic_amount, self.max_long_trade_qty_per_symbol.get(symbol, dynamic_amount))
+    #     short_dynamic_amount = min(dynamic_amount, self.max_short_trade_qty_per_symbol.get(symbol, dynamic_amount))
+
+    #     # Round the amounts
+    #     long_dynamic_amount = round(long_dynamic_amount, qty_precision_level)
+    #     short_dynamic_amount = round(short_dynamic_amount, qty_precision_level)
+
+    #     # Ensure amounts are not below the minimum quantity
+    #     long_dynamic_amount = max(long_dynamic_amount, min_qty)
+    #     short_dynamic_amount = max(short_dynamic_amount, min_qty)
+
+    #     logging.info(f"Symbol: {symbol} Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+    #     return long_dynamic_amount, short_dynamic_amount, min_qty
+
+    def calculate_dynamic_amount_v3(self, symbol, total_equity, best_ask_price):
         price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
         qty_precision_level = -int(math.log10(qty_precision))
 
-        market_data = self.get_market_data_with_retry(symbol, max_retries = 100, retry_delay = 5)
-
+        market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
         min_qty = float(market_data["min_qty"])
-        logging.info(f"Min qty for {symbol} : {min_qty}")
 
-        long_dynamic_amount = self.dynamic_amount_multiplier * total_equity
-        short_dynamic_amount = self.dynamic_amount_multiplier * total_equity
-        logging.info(f"Initial long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+        logging.info(f"Min qty for {symbol} {min_qty}")
 
-        max_allowed_dynamic_amount = (self.MAX_PCT_EQUITY / 100) * total_equity
-        logging.info(f"Max allowed dynamic amount for {symbol} : {max_allowed_dynamic_amount}")
+        # Calculate dynamic amounts considering the leverage and symbol's best ask price
+        dynamic_amount = (self.dynamic_amount_multiplier * total_equity * self.MAX_LEVERAGE) / best_ask_price
+        long_dynamic_amount = min(dynamic_amount, self.max_long_trade_qty_per_symbol.get(symbol, dynamic_amount))
+        short_dynamic_amount = min(dynamic_amount, self.max_short_trade_qty_per_symbol.get(symbol, dynamic_amount))
 
-        # Round the dynamic amounts based on quantity precision level
         long_dynamic_amount = round(long_dynamic_amount, qty_precision_level)
         short_dynamic_amount = round(short_dynamic_amount, qty_precision_level)
-        logging.info(f"Rounded long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 
-        long_dynamic_amount = min(long_dynamic_amount, max_allowed_dynamic_amount)
-        short_dynamic_amount = min(short_dynamic_amount, max_allowed_dynamic_amount)
-
-        self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
-        self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
-
-        if long_dynamic_amount < min_qty:
-            logging.info(f"Dynamic amount too small for 0.001x, using min_qty for long_dynamic_amount")
-            long_dynamic_amount = min_qty
-        if short_dynamic_amount < min_qty:
-            logging.info(f"Dynamic amount too small for 0.001x, using min_qty for short_dynamic_amount")
-            short_dynamic_amount = min_qty
+        long_dynamic_amount = max(long_dynamic_amount, min_qty)
+        short_dynamic_amount = max(short_dynamic_amount, min_qty)
 
         logging.info(f"Symbol: {symbol} Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
-
         return long_dynamic_amount, short_dynamic_amount, min_qty
+
+
+
+    # def calculate_dynamic_amount_v3(self, symbol, total_equity):
+    #     # Fetch symbol precision for price and quantity
+    #     price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
+    #     qty_precision_level = -int(math.log10(qty_precision))
+
+    #     market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
+    #     min_qty = float(market_data["min_qty"])
+    #     logging.info(f"Min qty for {symbol}: {min_qty}")
+
+    #     # Calculate dynamic amounts based on total equity and multiplier
+    #     long_dynamic_amount = self.dynamic_amount_multiplier * total_equity
+    #     short_dynamic_amount = self.dynamic_amount_multiplier * total_equity
+
+    #     # Round the dynamic amounts based on quantity precision level
+    #     long_dynamic_amount = round(long_dynamic_amount, qty_precision_level)
+    #     short_dynamic_amount = round(short_dynamic_amount, qty_precision_level)
+
+    #     # Ensure dynamic amounts do not exceed the maximum allowed
+    #     max_allowed_dynamic_amount = (self.MAX_PCT_EQUITY / 100) * total_equity
+    #     long_dynamic_amount = min(long_dynamic_amount, max_allowed_dynamic_amount, self.max_long_trade_qty_per_symbol.get(symbol, float('inf')))
+    #     short_dynamic_amount = min(short_dynamic_amount, max_allowed_dynamic_amount, self.max_short_trade_qty_per_symbol.get(symbol, float('inf')))
+
+    #     # Ensure dynamic amounts are not below the minimum quantity
+    #     long_dynamic_amount = max(long_dynamic_amount, min_qty)
+    #     short_dynamic_amount = max(short_dynamic_amount, min_qty)
+
+    #     logging.info(f"Symbol: {symbol} Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+    #     return long_dynamic_amount, short_dynamic_amount, min_qty
+
 
 
     def calculate_dynamic_amount_v2(self, symbol, total_equity, best_ask_price, max_leverage):
@@ -800,54 +992,54 @@ class Strategy:
 
         return long_dynamic_amount, short_dynamic_amount, min_qty
 
-    def calculate_dynamic_amount(self, symbol, total_equity, best_ask_price, max_leverage):
+    # def calculate_dynamic_amount(self, symbol, total_equity, best_ask_price, max_leverage):
 
-        self.initialize_trade_quantities(symbol, total_equity, best_ask_price, max_leverage)
+    #     self.initialize_trade_quantities(symbol, total_equity, best_ask_price, max_leverage)
 
-        market_data = self.get_market_data_with_retry(symbol, max_retries = 100, retry_delay = 5)
+    #     market_data = self.get_market_data_with_retry(symbol, max_retries = 100, retry_delay = 5)
 
-        long_dynamic_amount = 0.001 * self.initial_max_long_trade_qty_per_symbol[symbol]
-        short_dynamic_amount = 0.001 * self.initial_max_short_trade_qty_per_symbol[symbol]
+    #     long_dynamic_amount = 0.001 * self.initial_max_long_trade_qty_per_symbol[symbol]
+    #     short_dynamic_amount = 0.001 * self.initial_max_short_trade_qty_per_symbol[symbol]
 
-        logging.info(f"Initial long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+    #     logging.info(f"Initial long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 
-        # Cap the dynamic amount if it exceeds the maximum allowed
-        max_allowed_dynamic_amount = (self.MAX_PCT_EQUITY / 100) * total_equity
-        logging.info(f"Max allowed dynamic amount for {symbol} : {max_allowed_dynamic_amount}")
+    #     # Cap the dynamic amount if it exceeds the maximum allowed
+    #     max_allowed_dynamic_amount = (self.MAX_PCT_EQUITY / 100) * total_equity
+    #     logging.info(f"Max allowed dynamic amount for {symbol} : {max_allowed_dynamic_amount}")
 
-        min_qty = float(market_data["min_qty"])
+    #     min_qty = float(market_data["min_qty"])
 
-        logging.info(f"Min qty for {symbol} : {min_qty}")
+    #     logging.info(f"Min qty for {symbol} : {min_qty}")
         
-        # Determine precision level directly
-        precision_level = len(str(min_qty).split('.')[-1]) if '.' in str(min_qty) else 0
-        logging.info(f"min_qty: {min_qty}, precision_level: {precision_level}")
+    #     # Determine precision level directly
+    #     precision_level = len(str(min_qty).split('.')[-1]) if '.' in str(min_qty) else 0
+    #     logging.info(f"min_qty: {min_qty}, precision_level: {precision_level}")
 
-        # Round the dynamic amounts based on precision level
-        long_dynamic_amount = round(long_dynamic_amount, precision_level)
-        short_dynamic_amount = round(short_dynamic_amount, precision_level)
+    #     # Round the dynamic amounts based on precision level
+    #     long_dynamic_amount = round(long_dynamic_amount, precision_level)
+    #     short_dynamic_amount = round(short_dynamic_amount, precision_level)
 
-        logging.info(f"Rounded long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+    #     logging.info(f"Rounded long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 
-        long_dynamic_amount = min(long_dynamic_amount, max_allowed_dynamic_amount)
-        short_dynamic_amount = min(short_dynamic_amount, max_allowed_dynamic_amount)
+    #     long_dynamic_amount = min(long_dynamic_amount, max_allowed_dynamic_amount)
+    #     short_dynamic_amount = min(short_dynamic_amount, max_allowed_dynamic_amount)
 
-        logging.info(f"Forced min qty long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+    #     logging.info(f"Forced min qty long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 
-        self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
-        self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
+    #     self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
+    #     self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
 
-        # Using min_qty if dynamic amount is too small
-        if long_dynamic_amount < min_qty:
-            logging.info(f"Dynamic amount too small for 0.001x, using min_qty for long_dynamic_amount")
-            long_dynamic_amount = min_qty
-        if short_dynamic_amount < min_qty:
-            logging.info(f"Dynamic amount too small for 0.001x, using min_qty for short_dynamic_amount")
-            short_dynamic_amount = min_qty
+    #     # Using min_qty if dynamic amount is too small
+    #     if long_dynamic_amount < min_qty:
+    #         logging.info(f"Dynamic amount too small for 0.001x, using min_qty for long_dynamic_amount")
+    #         long_dynamic_amount = min_qty
+    #     if short_dynamic_amount < min_qty:
+    #         logging.info(f"Dynamic amount too small for 0.001x, using min_qty for short_dynamic_amount")
+    #         short_dynamic_amount = min_qty
 
-        logging.info(f"Symbol: {symbol} Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+    #     logging.info(f"Symbol: {symbol} Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 
-        return long_dynamic_amount, short_dynamic_amount, min_qty
+    #     return long_dynamic_amount, short_dynamic_amount, min_qty
 
     def get_all_moving_averages(self, symbol, max_retries=3, delay=5):
         for _ in range(max_retries):
@@ -1247,31 +1439,49 @@ class Strategy:
                     time.sleep(retry_delay)
                 else:
                     raise e
-
+                
     def calc_max_trade_qty(self, symbol, total_equity, best_ask_price, max_leverage, max_retries=5, retry_delay=5):
         wallet_exposure = self.config.wallet_exposure
-        for i in range(max_retries):
+        for _ in range(max_retries):
             try:
-                market_data = self.get_market_data_with_retry(symbol, max_retries = 5, retry_delay = 5)
+                market_data = self.get_market_data_with_retry(symbol, max_retries, retry_delay)
                 max_trade_qty = round(
-                    (float(total_equity) * wallet_exposure / float(best_ask_price))
-                    / (100 / max_leverage),
-                    int(float(market_data["min_qty"])),
+                    (total_equity * wallet_exposure * max_leverage) / best_ask_price,
+                    int(float(market_data["min_qty"]))
                 )
-
-                logging.info(f"Max trade qty for {symbol} calculated: {max_trade_qty} ")
-                
+                logging.info(f"Max trade qty for {symbol} calculated: {max_trade_qty}")
                 return max_trade_qty
-            except TypeError as e:
-                if total_equity is None:
-                    print(f"Error: total_equity is None. Retrying in {retry_delay} seconds...")
-                if best_ask_price is None:
-                    print(f"Error: best_ask_price is None. Retrying in {retry_delay} seconds...")
             except Exception as e:
-                print(f"An unexpected error occurred: {e}. Retrying in {retry_delay} seconds...")
-            time.sleep(retry_delay)
+                logging.error(f"An error occurred in calc_max_trade_qty: {e}. Retrying...")
+                time.sleep(retry_delay)
 
         raise Exception("Failed to calculate maximum trade quantity after maximum retries.")
+
+
+    # def calc_max_trade_qty(self, symbol, total_equity, best_ask_price, max_leverage, max_retries=5, retry_delay=5):
+    #     wallet_exposure = self.config.wallet_exposure
+    #     for i in range(max_retries):
+    #         try:
+    #             market_data = self.get_market_data_with_retry(symbol, max_retries = 5, retry_delay = 5)
+    #             max_trade_qty = round(
+    #                 (float(total_equity) * wallet_exposure / float(best_ask_price))
+    #                 / (100 / max_leverage),
+    #                 int(float(market_data["min_qty"])),
+    #             )
+
+    #             logging.info(f"Max trade qty for {symbol} calculated: {max_trade_qty} ")
+                
+    #             return max_trade_qty
+    #         except TypeError as e:
+    #             if total_equity is None:
+    #                 print(f"Error: total_equity is None. Retrying in {retry_delay} seconds...")
+    #             if best_ask_price is None:
+    #                 print(f"Error: best_ask_price is None. Retrying in {retry_delay} seconds...")
+    #         except Exception as e:
+    #             print(f"An unexpected error occurred: {e}. Retrying in {retry_delay} seconds...")
+    #         time.sleep(retry_delay)
+
+    #     raise Exception("Failed to calculate maximum trade quantity after maximum retries.")
 
     def calc_max_trade_qty_multiv2(self, symbol, total_equity, best_ask_price, max_leverage, long_pos_qty_open_symbol, short_pos_qty_open_symbol, max_retries=5, retry_delay=5):
         wallet_exposure = self.config.wallet_exposure
@@ -1432,7 +1642,7 @@ class Strategy:
         else:
             logging.info(f"Positions for {symbol} are currently safe from liquidation.")
 
-    def print_trade_quantities_once_bybit(self, symbol, total_equity, max_leverage):
+    def print_trade_quantities_once_bybit(self, symbol, total_equity, best_ask_price):
         # Fetch the best ask price
         order_book = self.exchange.get_orderbook(symbol)
         if 'asks' in order_book and order_book['asks']:
@@ -1443,20 +1653,49 @@ class Strategy:
 
         # Ensure symbol is initialized
         if symbol not in self.initialized_symbols:
-            if not self.initialize_symbol(symbol, total_equity, best_ask_price, max_leverage):
-                logging.warning(f"Initialization failed or not required for {symbol}.")
-                return
+            max_trade_qty = self.calculate_max_trade_qty(symbol, total_equity, best_ask_price)
+            self.max_trade_qty_per_symbol[symbol] = max_trade_qty
+            self.initialized_symbols.add(symbol)
 
         if not self.printed_trade_quantities:
-            wallet_exposure = self.config.wallet_exposure
-            print(f"Printing trade QTYs for {symbol}")
-            self.exchange.print_trade_quantities_bybit(
-                self.max_long_trade_qty_per_symbol.get(symbol, 0), 
-                [0.001, 0.01, 0.1, 1, 2.5, 5], 
-                wallet_exposure, 
-                best_ask_price
-            )
+            print(f"Printing trade quantities for {symbol} at different leverage levels")
+            for leverage in [0.001, 0.01, 0.1, 1, 2.5, 5]:
+                # Temporarily set MAX_LEVERAGE to the current level for calculation
+                original_max_leverage = self.MAX_LEVERAGE
+                self.MAX_LEVERAGE = leverage
+                dynamic_amount = self.calculate_dynamic_amount(symbol, total_equity, best_ask_price)
+                print(f"Leverage {leverage}x: Trade Quantity = {dynamic_amount}")
+                # Reset MAX_LEVERAGE to original
+                self.MAX_LEVERAGE = original_max_leverage
+
             self.printed_trade_quantities = True
+
+
+    # def print_trade_quantities_once_bybit(self, symbol, total_equity, max_leverage):
+    #     # Fetch the best ask price
+    #     order_book = self.exchange.get_orderbook(symbol)
+    #     if 'asks' in order_book and order_book['asks']:
+    #         best_ask_price = order_book['asks'][0][0]
+    #     else:
+    #         logging.warning(f"No ask orders available for {symbol}.")
+    #         return
+
+    #     # Ensure symbol is initialized
+    #     if symbol not in self.initialized_symbols:
+    #         if not self.initialize_symbol(symbol, total_equity, best_ask_price, max_leverage):
+    #             logging.warning(f"Initialization failed or not required for {symbol}.")
+    #             return
+
+    #     if not self.printed_trade_quantities:
+    #         wallet_exposure = self.config.wallet_exposure
+    #         print(f"Printing trade QTYs for {symbol}")
+    #         self.exchange.print_trade_quantities_bybit(
+    #             self.max_long_trade_qty_per_symbol.get(symbol, 0), 
+    #             [0.001, 0.01, 0.1, 1, 2.5, 5], 
+    #             wallet_exposure, 
+    #             best_ask_price
+    #         )
+    #         self.printed_trade_quantities = True
 
     def print_trade_quantities_once_huobi(self, max_trade_qty, symbol):
         if not self.printed_trade_quantities:

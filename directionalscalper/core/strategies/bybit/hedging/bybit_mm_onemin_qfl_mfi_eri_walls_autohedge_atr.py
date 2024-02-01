@@ -297,7 +297,7 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
 
                 self.adjust_risk_parameters()
 
-                self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
+                # self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
 
                 # Log the currently initialized symbols
                 logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")

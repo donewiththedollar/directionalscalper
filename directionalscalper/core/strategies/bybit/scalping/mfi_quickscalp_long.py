@@ -322,7 +322,7 @@ class BybitMFIRSIQuickScalpLong(Strategy):
 
                 self.adjust_risk_parameters()
 
-                self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
+                # self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
 
                 # Log the currently initialized symbols
                 logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
@@ -391,16 +391,18 @@ class BybitMFIRSIQuickScalpLong(Strategy):
 
                     self.adjust_risk_parameters()
 
-                    self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage)
-                    self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage)
+                    self.handle_trade_quantities(symbol,
+                                                 total_equity,
+                                                 best_ask_price)
+                    
+                    # Retrieve the dynamic amount for the current symbol
+                    dynamic_amount = self.dynamic_amount_per_symbol.get(symbol, None)
 
-                    # Update dynamic amounts based on max trade quantities
-                    self.update_dynamic_amounts(symbol, total_equity)
+                    if dynamic_amount:
+                        # Use the dynamic amount for both long and short positions
+                        long_dynamic_amount = dynamic_amount
+                        short_dynamic_amount = dynamic_amount
 
-                    long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v3(
-                        symbol,
-                        total_equity
-                    )
 
                     logging.info(f"Long dynamic amount: {long_dynamic_amount} for {symbol}")
                     logging.info(f"Short dynamic amount: {short_dynamic_amount} for {symbol}")

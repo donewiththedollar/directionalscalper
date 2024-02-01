@@ -328,7 +328,7 @@ class BybitQuickScalpTrend(Strategy):
 
                 self.adjust_risk_parameters()
 
-                self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
+                # self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
 
                 # Log the currently initialized symbols
                 logging.info(f"Initialized symbols: {list(self.initialized_symbols)}")
@@ -337,7 +337,7 @@ class BybitQuickScalpTrend(Strategy):
 
                 time.sleep(5)
 
-                self.print_trade_quantities_once_bybit(symbol, total_equity, self.max_leverage)
+                self.print_trade_quantities_once_bybit(symbol, total_equity, best_ask_price)
 
                 logging.info(f"Rotator symbols standardized: {rotator_symbols_standardized}")
 
@@ -398,17 +398,25 @@ class BybitQuickScalpTrend(Strategy):
 
                     self.adjust_risk_parameters()
 
-                    self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage, auto_leverage_upscale)
-                    self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage, auto_leverage_upscale)
+                    self.handle_trade_quantities(symbol,
+                                                 total_equity,
+                                                 best_ask_price)
+                    
+                    # Retrieve the dynamic amount for the current symbol
+                    dynamic_amount = self.dynamic_amount_per_symbol.get(symbol, None)
 
-                    # Update dynamic amounts based on max trade quantities
-                    self.update_dynamic_amounts(symbol, total_equity)
+                    if dynamic_amount:
+                        # Use the dynamic amount for both long and short positions
+                        long_dynamic_amount = dynamic_amount
+                        short_dynamic_amount = dynamic_amount
 
+                        
 
-                    long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v3(
-                        symbol,
-                        total_equity
-                    )
+                    # long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v3(
+                    #     symbol,
+                    #     total_equity,
+                    #     best_ask_price
+                    # )
                     # long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v2(symbol, total_equity, best_ask_price, self.max_leverage)
 
 
