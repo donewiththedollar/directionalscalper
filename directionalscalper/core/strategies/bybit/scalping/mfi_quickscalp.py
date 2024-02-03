@@ -258,6 +258,10 @@ class BybitMFIRSIQuickScalp(Strategy):
 
                 logging.info(f"Open symbols: {open_symbols}")
 
+                market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
+                min_qty = float(market_data["min_qty"])
+
+
                 # position_last_update_time = self.get_position_update_time(symbol)
 
                 # logging.info(f"{symbol} last update time: {position_last_update_time}")
