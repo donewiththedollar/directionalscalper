@@ -1,6 +1,6 @@
 <h1 align="center">Directional Scalper Multi Exchange</h1>
 <p align="center">
-A hedge scalping strategy based on directional analysis using a quantitative approach<br>
+An algorithmic trading bot built using CCXT for multiple exchanges<br>
 </p>
 <p align="center">
 <img alt="GitHub Pipenv locked Python version" src="https://img.shields.io/github/pipenv/locked/python-version/donewiththedollar/directionalscalper"> 
@@ -11,6 +11,7 @@ A hedge scalping strategy based on directional analysis using a quantitative app
 ### Links
 * Dashboard: https://tradesimple.xyz
 * APIv3 (BYBIT): http://apiv3.tradesimple.xyz/data/quantdatav2_bybit.json
+* Discord: https://discord.gg/4GvHqPxfud
 
 Directional Scalper        |  API Scraper               |  Dashboard                | Directional Scalper Multi | Menu GUI
 :-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:
@@ -24,8 +25,8 @@ Directional Scalper        |  API Scraper               |  Dashboard            
 
   OR via command line parameters
   
-- Multi bot auto symbol rotator strategy example: `python3.11 multi_bot.py --exchange bybit --account_name account_1 --strategy bybit_1m_qfl_mfi_eri_walls --config config.json`
-- Old single coin strategy example: `python3.11 bot.py --exchange bybit --symbol DOGEUSDT --strategy bybit_1m_qfl_mfi_eri_walls --config config.json`
+- Multi bot auto symbol rotator strategy example: `python3.11 multi_bot.py --exchange bybit --account_name account_1 --strategy qstrend --config config.json`
+- Old single coin strategy example: `python3.11 bot.py --exchange bybit --symbol DOGEUSDT --strategy qstrendob --config config.json`
 
 ## Working Exchanges
 >  Bybit, Binance, Bitget, Huobi
