@@ -50,7 +50,6 @@ class BybitQuickScalpTrend(Strategy):
             self.percentile_auto_reduce_enabled = self.config.percentile_auto_reduce_enabled
             self.max_pos_balance_pct = self.config.max_pos_balance_pct
             self.auto_leverage_upscale = self.config.auto_leverage_upscale
-            self.adjust_risk_parameters()
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
 
@@ -112,6 +111,10 @@ class BybitQuickScalpTrend(Strategy):
             self.current_leverage = self.exchange.get_current_max_leverage_bybit(symbol)
             self.max_leverage = self.exchange.get_current_max_leverage_bybit(symbol)
 
+            logging.info(f"Max leverage for {symbol}: {self.max_leverage}")
+
+            self.adjust_risk_parameters(exchange_max_leverage=self.max_leverage)
+
             self.exchange.set_leverage_bybit(self.max_leverage, symbol)
             self.exchange.set_symbol_to_cross_margin(symbol, self.max_leverage)
 
@@ -121,7 +124,7 @@ class BybitQuickScalpTrend(Strategy):
             quote_currency = "USDT"
             max_retries = 5
             retry_delay = 5
-            wallet_exposure = self.config.wallet_exposure
+            
             min_dist = self.config.min_distance
             min_vol = self.config.min_volume
 
@@ -205,6 +208,14 @@ class BybitQuickScalpTrend(Strategy):
                 current_time = time.time()
 
                 iteration_start_time = time.time()
+
+                leverage_tiers = self.exchange.fetch_leverage_tiers(symbol)
+
+                if leverage_tiers:
+                    logging.info(f"Leverage tiers for {symbol}: {leverage_tiers}")
+                else:
+                    logging.error(f"Failed to fetch leverage tiers for {symbol}.")
+
 
                 logging.info(f"Max USD value: {self.max_usd_value}")
 
@@ -329,7 +340,7 @@ class BybitQuickScalpTrend(Strategy):
                 logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
                 logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
 
-                self.adjust_risk_parameters()
+                # self.adjust_risk_parameters()
 
                 # self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
 
@@ -340,7 +351,7 @@ class BybitQuickScalpTrend(Strategy):
 
                 time.sleep(5)
 
-                self.print_trade_quantities_once_bybit(symbol, total_equity, best_ask_price)
+                # self.print_trade_quantities_once_bybit(symbol, total_equity, best_ask_price)
 
                 logging.info(f"Rotator symbols standardized: {rotator_symbols_standardized}")
 
@@ -399,29 +410,34 @@ class BybitQuickScalpTrend(Strategy):
                     # short_liq_price = position_data["short"]["liq_price"]
                     # long_liq_price = position_data["long"]["liq_price"]
 
-                    self.adjust_risk_parameters()
 
-                    self.handle_trade_quantities(symbol,
-                                                 total_equity,
-                                                 best_ask_price)
+                    # Adjust risk parameters based on the maximum leverage allowed by the exchange
+                    self.adjust_risk_parameters(exchange_max_leverage=self.max_leverage)
+
+                    # Calculate dynamic entry sizes for long and short positions
+                    long_dynamic_amount, short_dynamic_amount = self.calculate_dynamic_amounts(
+                        symbol=symbol,
+                        total_equity=total_equity,
+                        best_ask_price=best_ask_price,
+                        best_bid_price=best_bid_price
+                    )
+
+# OLD LOGIC
+                    # self.adjust_risk_parameters()
+
+                    # self.handle_trade_quantities(symbol,
+                    #                              total_equity,
+                    #                              best_ask_price)
                     
-                    # Retrieve the dynamic amount for the current symbol
-                    dynamic_amount = self.dynamic_amount_per_symbol.get(symbol, None)
+                    # # Retrieve the dynamic amount for the current symbol
+                    # dynamic_amount = self.dynamic_amount_per_symbol.get(symbol, None)
 
-                    if dynamic_amount:
-                        # Use the dynamic amount for both long and short positions
-                        long_dynamic_amount = dynamic_amount
-                        short_dynamic_amount = dynamic_amount
-
+                    # if dynamic_amount:
+                    #     # Use the dynamic amount for both long and short positions
+                    #     long_dynamic_amount = dynamic_amount
+                    #     short_dynamic_amount = dynamic_amount
+# OLD LOGIC END 
                         
-
-                    # long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v3(
-                    #     symbol,
-                    #     total_equity,
-                    #     best_ask_price
-                    # )
-                    # long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v2(symbol, total_equity, best_ask_price, self.max_leverage)
-
 
                     logging.info(f"Long dynamic amount: {long_dynamic_amount} for {symbol}")
                     logging.info(f"Short dynamic amount: {short_dynamic_amount} for {symbol}")

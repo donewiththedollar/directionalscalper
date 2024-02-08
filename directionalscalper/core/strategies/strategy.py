@@ -80,6 +80,9 @@ class Strategy:
         self.auto_reduce_maxloss_pct = self.config.auto_reduce_maxloss_pct
         self.user_risk_level = self.config.user_risk_level
         self.max_pos_balance_pct = self.config.max_pos_balance_pct
+        self.wallet_exposure_limit = self.config.wallet_exposure_limit
+        self.user_defined_leverage_long = self.config.user_defined_leverage_long
+        self.user_defined_leverage_short = self.config.user_defined_leverage_short
         self.MIN_RISK_LEVEL = 0.001
         self.MAX_RISK_LEVEL = 10
         self.auto_reduce_active_long = {}
@@ -113,45 +116,106 @@ class Strategy:
                 logging.info(f"{symbol} is already initialized.")
                 return False
 
-    # Adjust risk parameters based on user risk level
-    def adjust_risk_parameters(self):
-        self.user_risk_level = max(self.MIN_RISK_LEVEL, min(self.user_risk_level, self.MAX_RISK_LEVEL))
-        self.dynamic_amount_multiplier = self.user_risk_level / 100.0
-        logging.info(f"Risk level adjusted: User Risk Level: {self.user_risk_level}, Dynamic Amount Multiplier: {self.dynamic_amount_multiplier}")
+    def adjust_risk_parameters(self, exchange_max_leverage):
+        """
+        Adjust risk parameters based on user preferences.
+        
+        :param exchange_max_leverage: The maximum leverage allowed by the exchange.
+        """
+        # Ensure the wallet exposure limit is within a practical range (1% to 100%)
+        self.wallet_exposure_limit = max(0.01, min(self.wallet_exposure_limit, 1.0))
+        
+        # Adjust user-defined leverage for long and short positions to not exceed exchange maximum
+        self.user_defined_leverage_long = max(1, min(self.user_defined_leverage_long, exchange_max_leverage))
+        self.user_defined_leverage_short = max(1, min(self.user_defined_leverage_short, exchange_max_leverage))
+        
+        logging.info(f"Wallet exposure limit set to {self.wallet_exposure_limit*100}%")
+        logging.info(f"User-defined leverage for long positions set to {self.user_defined_leverage_long}x")
+        logging.info(f"User-defined leverage for short positions set to {self.user_defined_leverage_short}x")
 
-    # Calculate the dynamic amount for a symbol
-    def calculate_dynamic_amount(self, symbol, total_equity, best_ask_price):
-        # Fetch symbol precision for price and quantity
-        price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
-        qty_precision_level = -int(math.log10(qty_precision))
-        logging.info(f"Symbol: {symbol}, Price Precision: {price_precision}, Qty Precision: {qty_precision}, Qty Precision Level: {qty_precision_level}")
 
-        # Fetch market data with retries
+    def calculate_dynamic_amounts(self, symbol, total_equity, best_ask_price, best_bid_price):
+        """
+        Calculate the dynamic entry sizes for both long and short positions based on wallet exposure limit and user-defined leverage,
+        ensuring compliance with the exchange's minimum trade quantity in USD value.
+        
+        :param symbol: Trading symbol.
+        :param total_equity: Total equity in the wallet.
+        :param best_ask_price: Current best ask price of the symbol for buying (long entry).
+        :param best_bid_price: Current best bid price of the symbol for selling (short entry).
+        :return: A tuple containing entry sizes for long and short trades.
+        """
+        # Fetch market data to get the minimum trade quantity for the symbol
         market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
         min_qty = float(market_data["min_qty"])
-        logging.info(f"Symbol: {symbol}, Market Data: {market_data}, Min Qty: {min_qty}")
+        # Simplify by using best_ask_price for min_qty in USD value calculation
+        min_qty_usd_value = min_qty * best_ask_price
 
-        # Calculate the base amount in USD that we are willing to risk per trade
-        base_amount_usd = (self.user_risk_level / 100.0) * total_equity
-        logging.info(f"Symbol: {symbol}, Base Amount in USD to Risk Per Trade: {base_amount_usd}")
+        # Calculate dynamic entry sizes based on risk parameters
+        max_equity_for_long_trade = total_equity * self.wallet_exposure_limit
+        max_long_position_value = max_equity_for_long_trade * self.user_defined_leverage_long
 
-        # Convert this base amount into the coin amount based on the current best ask price
-        base_amount_coin = base_amount_usd / best_ask_price
-        logging.info(f"Symbol: {symbol}, Base Amount in Coin to Risk Per Trade (Before Leverage): {base_amount_coin}")
+        logging.info(f"Max long pos value for {symbol} : {max_long_position_value}")
 
-        # Apply leverage to this base coin amount
-        leveraged_amount_coin = base_amount_coin * self.MAX_LEVERAGE
-        logging.info(f"Symbol: {symbol}, Leveraged Amount in Coin: {leveraged_amount_coin}")
+        long_entry_size = max(max_long_position_value / best_ask_price, min_qty_usd_value / best_ask_price)
 
-        # Ensure that the final quantity respects the minimum quantity requirement
-        adjusted_dynamic_amount = max(leveraged_amount_coin, min_qty)
-        logging.info(f"Symbol: {symbol}, Adjusted Dynamic Amount (After Min Qty Check): {adjusted_dynamic_amount}")
+        max_equity_for_short_trade = total_equity * self.wallet_exposure_limit
+        max_short_position_value = max_equity_for_short_trade * self.user_defined_leverage_short
 
-        # Round the final quantity based on the quantity precision
-        dynamic_amount = round(adjusted_dynamic_amount, qty_precision_level)
-        logging.info(f"Symbol: {symbol}, Final Dynamic Amount (After Rounding): {dynamic_amount}")
+        logging.info(f"Max short pos value for {symbol} : {max_short_position_value}")
+        
+        short_entry_size = max(max_short_position_value / best_bid_price, min_qty_usd_value / best_bid_price)
 
-        return dynamic_amount
+        # Adjusting entry sizes based on the symbol's minimum quantity precision
+        qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
+        long_entry_size_adjusted = round(long_entry_size, -int(math.log10(qty_precision)))
+        short_entry_size_adjusted = round(short_entry_size, -int(math.log10(qty_precision)))
+
+        logging.info(f"Calculated long entry size for {symbol}: {long_entry_size_adjusted} units")
+        logging.info(f"Calculated short entry size for {symbol}: {short_entry_size_adjusted} units")
+
+        return long_entry_size_adjusted, short_entry_size_adjusted
+
+
+    # # Adjust risk parameters based on user risk level
+    # def adjust_risk_parameters(self):
+    #     self.user_risk_level = max(self.MIN_RISK_LEVEL, min(self.user_risk_level, self.MAX_RISK_LEVEL))
+    #     self.dynamic_amount_multiplier = self.user_risk_level / 100.0
+    #     logging.info(f"Risk level adjusted: User Risk Level: {self.user_risk_level}, Dynamic Amount Multiplier: {self.dynamic_amount_multiplier}")
+
+    # # Calculate the dynamic amount for a symbol
+    # def calculate_dynamic_amount(self, symbol, total_equity, best_ask_price):
+    #     # Fetch symbol precision for price and quantity
+    #     price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
+    #     qty_precision_level = -int(math.log10(qty_precision))
+    #     logging.info(f"Symbol: {symbol}, Price Precision: {price_precision}, Qty Precision: {qty_precision}, Qty Precision Level: {qty_precision_level}")
+
+    #     # Fetch market data with retries
+    #     market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
+    #     min_qty = float(market_data["min_qty"])
+    #     logging.info(f"Symbol: {symbol}, Market Data: {market_data}, Min Qty: {min_qty}")
+
+    #     # Calculate the base amount in USD that we are willing to risk per trade
+    #     base_amount_usd = (self.user_risk_level / 100.0) * total_equity
+    #     logging.info(f"Symbol: {symbol}, Base Amount in USD to Risk Per Trade: {base_amount_usd}")
+
+    #     # Convert this base amount into the coin amount based on the current best ask price
+    #     base_amount_coin = base_amount_usd / best_ask_price
+    #     logging.info(f"Symbol: {symbol}, Base Amount in Coin to Risk Per Trade (Before Leverage): {base_amount_coin}")
+
+    #     # Apply leverage to this base coin amount
+    #     leveraged_amount_coin = base_amount_coin * self.MAX_LEVERAGE
+    #     logging.info(f"Symbol: {symbol}, Leveraged Amount in Coin: {leveraged_amount_coin}")
+
+    #     # Ensure that the final quantity respects the minimum quantity requirement
+    #     adjusted_dynamic_amount = max(leveraged_amount_coin, min_qty)
+    #     logging.info(f"Symbol: {symbol}, Adjusted Dynamic Amount (After Min Qty Check): {adjusted_dynamic_amount}")
+
+    #     # Round the final quantity based on the quantity precision
+    #     dynamic_amount = round(adjusted_dynamic_amount, qty_precision_level)
+    #     logging.info(f"Symbol: {symbol}, Final Dynamic Amount (After Rounding): {dynamic_amount}")
+
+    #     return dynamic_amount
 
     # Handle the calculation of trade quantities per symbol
     def handle_trade_quantities(self, symbol, total_equity, best_ask_price):
