@@ -119,7 +119,7 @@ class BybitQuickScalpTrendOB(Strategy):
             quote_currency = "USDT"
             max_retries = 5
             retry_delay = 5
-            
+
             min_dist = self.config.min_distance
             min_vol = self.config.min_volume
 
@@ -334,7 +334,7 @@ class BybitQuickScalpTrendOB(Strategy):
 
                 time.sleep(5)
 
-                self.print_trade_quantities_once_bybit(symbol, total_equity, self.max_leverage)
+                # self.print_trade_quantities_once_bybit(symbol, total_equity, self.max_leverage)
 
                 logging.info(f"Rotator symbols standardized: {rotator_symbols_standardized}")
 
