@@ -293,6 +293,21 @@ class Exchange:
         
         return None
 
+    def fetch_leverage_tiers(self, symbol: str) -> dict:
+        """
+        Fetch leverage tiers for a given symbol using CCXT's fetch_market_leverage_tiers method.
+
+        :param symbol: The trading symbol to fetch leverage tiers for.
+        :return: A dictionary containing leverage tiers information if successful, None otherwise.
+        """
+        try:
+            params = {'category': 'linear'}  # Adjust parameters based on the specific needs and API documentation
+            leverage_tiers = self.exchange.fetch_derivatives_market_leverage_tiers(symbol, params)
+            return leverage_tiers
+        except Exception as e:
+            logging.error(f"Error fetching leverage tiers for {symbol}: {e}")
+            return None
+        
     def cancel_order_bybit(self, order_id, symbol):
         """
         Wrapper function to cancel an order on the exchange using the CCXT instance.
