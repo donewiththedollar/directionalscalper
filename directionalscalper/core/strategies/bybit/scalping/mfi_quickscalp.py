@@ -119,7 +119,7 @@ class BybitMFIRSIQuickScalp(Strategy):
             quote_currency = "USDT"
             max_retries = 5
             retry_delay = 5
-            wallet_exposure = self.config.wallet_exposure
+            
             min_dist = self.config.min_distance
             min_vol = self.config.min_volume
 
