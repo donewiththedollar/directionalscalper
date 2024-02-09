@@ -50,7 +50,6 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
             self.percentile_auto_reduce_enabled = self.config.percentile_auto_reduce_enabled
             self.max_pos_balance_pct = self.config.max_pos_balance_pct
             self.auto_leverage_upscale = self.config.auto_leverage_upscale
-            self.adjust_risk_parameters()
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
 
@@ -299,8 +298,6 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
                 logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
                 logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
 
-                self.adjust_risk_parameters()
-
                 # self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
 
                 # Log the currently initialized symbols
@@ -310,7 +307,7 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
 
                 time.sleep(5)
 
-                self.print_trade_quantities_once_bybit(symbol, total_equity, self.max_leverage)
+                # self.print_trade_quantities_once_bybit(symbol, total_equity, self.max_leverage)
                 
                 # self.check_for_inactivity(long_pos_qty, short_pos_qty)
 
@@ -372,17 +369,15 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
                     # short_liq_price = position_data["short"]["liq_price"]
                     # long_liq_price = position_data["long"]["liq_price"]
 
-                    self.adjust_risk_parameters()
+                    # Adjust risk parameters based on the maximum leverage allowed by the exchange
+                    self.adjust_risk_parameters(exchange_max_leverage=self.max_leverage)
 
-                    self.set_position_leverage_long_bybit(symbol, long_pos_qty, total_equity, best_ask_price, self.max_leverage,auto_leverage_upscale)
-                    self.set_position_leverage_short_bybit(symbol, short_pos_qty, total_equity, best_ask_price, self.max_leverage, auto_leverage_upscale)
-
-                    # Update dynamic amounts based on max trade quantities
-                    self.update_dynamic_amounts(symbol, total_equity)
-
-                    long_dynamic_amount, short_dynamic_amount, min_qty = self.calculate_dynamic_amount_v3(
-                        symbol,
-                        total_equity
+                    # Calculate dynamic entry sizes for long and short positions
+                    long_dynamic_amount, short_dynamic_amount = self.calculate_dynamic_amounts(
+                        symbol=symbol,
+                        total_equity=total_equity,
+                        best_ask_price=best_ask_price,
+                        best_bid_price=best_bid_price
                     )
 
                     logging.info(f"Long dynamic amount: {long_dynamic_amount} for {symbol}")
