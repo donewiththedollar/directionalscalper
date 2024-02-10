@@ -422,23 +422,6 @@ class BybitQuickScalpTrend(Strategy):
                         best_bid_price=best_bid_price
                     )
 
-# OLD LOGIC
-                    # self.adjust_risk_parameters()
-
-                    # self.handle_trade_quantities(symbol,
-                    #                              total_equity,
-                    #                              best_ask_price)
-                    
-                    # # Retrieve the dynamic amount for the current symbol
-                    # dynamic_amount = self.dynamic_amount_per_symbol.get(symbol, None)
-
-                    # if dynamic_amount:
-                    #     # Use the dynamic amount for both long and short positions
-                    #     long_dynamic_amount = dynamic_amount
-                    #     short_dynamic_amount = dynamic_amount
-# OLD LOGIC END 
-                        
-
                     logging.info(f"Long dynamic amount: {long_dynamic_amount} for {symbol}")
                     logging.info(f"Short dynamic amount: {short_dynamic_amount} for {symbol}")
 
@@ -461,24 +444,6 @@ class BybitQuickScalpTrend(Strategy):
 
                     initial_short_stop_loss = None
                     initial_long_stop_loss = None
-
-
-                    # self.auto_reduce_logic(
-                    #     long_pos_qty,
-                    #     short_pos_qty,
-                    #     long_pos_price,
-                    #     short_pos_price,
-                    #     auto_reduce_enabled,
-                    #     symbol,
-                    #     total_equity,
-                    #     auto_reduce_wallet_exposure_pct,
-                    #     open_position_data,
-                    #     current_price,
-                    #     long_dynamic_amount,
-                    #     short_dynamic_amount,
-                    #     auto_reduce_start_pct,
-                    #     auto_reduce_maxloss_pct
-                    # )
 
                     try:
                         self.auto_reduce_logic_simple(
@@ -662,17 +627,7 @@ class BybitQuickScalpTrend(Strategy):
                         short_take_profit,
                         open_orders
                     )
-
-                    # # Place long TP order if there are no existing long TP orders
-                    # if long_pos_qty > 0 and long_take_profit is not None and tp_order_counts['long_tp_count'] == 0:
-                    #     logging.info(f"Placing long TP order for {symbol} at {long_take_profit} with {long_pos_qty}")
-                    #     self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
-
-                    # # Place short TP order if there are no existing short TP orders
-                    # if short_pos_qty > 0 and short_take_profit is not None and tp_order_counts['short_tp_count'] == 0:
-                    #     logging.info(f"Placing short TP order for {symbol} at {short_take_profit} with {short_pos_qty}")
-                    #     self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
-
+                    
                     current_latest_time = datetime.now()
                     logging.info(f"Current time: {current_latest_time}")
                     logging.info(f"Next long TP update time: {self.next_long_tp_update}")
