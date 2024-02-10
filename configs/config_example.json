@@ -15,7 +15,6 @@
     "wallet_exposure_limit": 0.001,
     "user_defined_leverage_long": 1.0,
     "user_defined_leverage_short": 1.0,
-    "user_risk_level": 0.001,
     "upnl_profit_pct": 0.0029,
     "stoploss_enabled": false,
     "stoploss_upnl_pct": 0.05,

@@ -40,7 +40,6 @@ class BybitQuickScalpTrend(Strategy):
             self.stoploss_upnl_pct = self.config.stoploss_upnl_pct
             self.liq_stoploss_enabled = self.config.liq_stoploss_enabled
             self.liq_price_stop_pct = self.config.liq_price_stop_pct
-            self.user_risk_level = self.config.user_risk_level
             self.auto_reduce_enabled = self.config.auto_reduce_enabled
             self.auto_reduce_start_pct = self.config.auto_reduce_start_pct
             self.auto_reduce_maxloss_pct = self.config.auto_reduce_maxloss_pct
@@ -627,7 +626,7 @@ class BybitQuickScalpTrend(Strategy):
                         short_take_profit,
                         open_orders
                     )
-                    
+
                     current_latest_time = datetime.now()
                     logging.info(f"Current time: {current_latest_time}")
                     logging.info(f"Next long TP update time: {self.next_long_tp_update}")

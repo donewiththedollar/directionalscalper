@@ -39,7 +39,6 @@ class Bot(BaseModel):
     user_defined_leverage_long: float = 2
     user_defined_leverage_short: float = 2
     max_leverage: float = 1.0
-    user_risk_level: float = 0.01
     upnl_profit_pct: float = 0.003
     stoploss_enabled: bool = False
     stoploss_upnl_pct: float = 0.070
@@ -105,12 +104,6 @@ class Bot(BaseModel):
     def check_auto_reduce_enabled_is_bool(cls, v):
         if not isinstance(v, bool):
             raise ValueError("auto_reduce_enabled must be a boolean")
-        return v
-
-    @validator('user_risk_level')
-    def check_user_risk_level(cls, v):
-        if v < 0.0001 or v > 10.0:
-            raise ValueError("user_risk_level must be between 0.1 and 10.0")
         return v
 
     @validator('liq_stoploss_enabled')
