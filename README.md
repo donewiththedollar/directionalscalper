@@ -9,8 +9,8 @@ An algorithmic trading bot built using CCXT for multiple exchanges<br>
 </p>
 
 ### Links
-* Dashboard: https://tradesimple.xyz
-* APIv3 (BYBIT): http://apiv3.tradesimple.xyz/data/quantdatav2_bybit.json
+* Website: https://quantvoid.org
+* API (BYBIT): http://api.quantvoid.org/data/quantdatav2_bybit.json
 * Discord: https://discord.gg/4GvHqPxfud
 
 Directional Scalper        |  API Scraper               |  Dashboard                | Directional Scalper Multi | Menu GUI
