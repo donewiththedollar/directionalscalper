@@ -35,7 +35,7 @@ class Bot(BaseModel):
     min_distance: float = 0.15
     min_distance_largecap: float = 0.085
     min_volume: int = 15000
-    wallet_exposure_limit: float = 0.01
+    wallet_exposure_limit: float = 0.0001
     user_defined_leverage_long: float = 2
     user_defined_leverage_short: float = 2
     max_leverage: float = 1.0
