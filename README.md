@@ -1,6 +1,6 @@
 <h1 align="center">Directional Scalper Multi Exchange</h1>
 <p align="center">
-An algorithmic trading bot built using CCXT for multiple exchanges<br>
+An algorithmic trading framework built using CCXT for multiple exchanges<br>
 </p>
 <p align="center">
 <img alt="GitHub Pipenv locked Python version" src="https://img.shields.io/github/pipenv/locked/python-version/donewiththedollar/directionalscalper"> 
@@ -29,9 +29,11 @@ Directional Scalper        |  API Scraper               |  Dashboard            
 - Old single coin strategy example: `python3.11 bot.py --exchange bybit --symbol DOGEUSDT --strategy qstrendob --config config.json`
 
 ## Working Exchanges
->  Bybit, Binance, Bitget, Huobi
+> Bybit, Bybit Unified (per strategy)
+
+> Easily compatible with any exchange that cooperates with CCXT, some functions are slightly different per exchange.
  
->  Exchanges that are WIP: MEXC, Phemex
+> Exchanges that are WIP: Huobi, Okx, Binance, Bitget, MEXC (There is still no futures API), Phemex
 
 ## Dashboard setup
 - Run multi_bot `python3.11 multi_bot.py` or with arguments `python3.11 multi_bot.py --exchange bybit --strategy bybit_mfirsi_trend_rotator --config config.json`
@@ -41,6 +43,9 @@ Directional Scalper        |  API Scraper               |  Dashboard            
 
 
 ### Contributions / Donations
+
+* USDT (TRC20): TMnCyGsd6BtFRi9yHJ5avtpVGuGzRu3cRb
+  
 * USDT (ERC20): 0xb40b2842d4ce93e31CFC8DC2629E2Bd426e4b87E
 
 * DOGE: DAZid4pETjmrgGkYvgN5rZZtCaBpYtiK8E
@@ -114,8 +119,11 @@ Make sure you are in the directory directionalscalper
 ### Starting the bot using arguments
 
 > python3.11 multi_bot.py (no params opens menu)
-> python3.11 multi_bot.py --exchange bybit --strategy bybit_mfirsi_trend_rotator --config config_name.json
-> python3.11 multi_bot.py --exchange bybit --strategy bybit_rotator_aggressive --config config_name.json
+> python3.11 multi_bot.py --exchange bybit --account_name account_1 --strategy qstrend --config config.json
+> python3.11 multi_bot.py --exchange bybit --account_name account_2 --strategy qstrendob --config config.json
+
+
+### Old bot params (likely outdated)
 
 > python3.11 bot.py --exchange bybit --symbol SUIUSDT --strategy bybit_hedge_mfirsi_maker --config config_bybit_sub1.json
 
@@ -128,13 +136,19 @@ Make sure you are in the directory directionalscalper
 > python3.11 bot.py --exchange bitget --symbol XRPUSDT_UMCBL --strategy bitget_hedge_dynamic --config config_main.json
 
 ### Current strategies
-## Binance
+## Binance - strategies need to be updated
 * binance_auto_hedge
   
 ## Bybit multi
-* bybit_mm_fivemin
+* bybit_1m_qfl_mfi_eri_walls
+* bybit_1m_qfl_mfi_eri_autohedge_walls_atr
+* bybit_mfirsi_imbalance
+* bybit_mfirsi_quickscalp
+* qstrend
+* qstrendob
+* qstrendlongonly
 
-## Bybit single coin
+## Bybit single coin (Outdated)
 * bybit_hedge
 * bybit_auto_hedge - Dynamic entry, take profit distance, position leverage per side. Table included.
 * bybit_auto_hedge_maker
@@ -145,13 +159,13 @@ Make sure you are in the directory directionalscalper
 * bybit_longonly_dynamic_leverage
 * bybit_shortonly_dynamic_leverage
  
-## Bitget 
+## Bitget - strategies need to be updated
 * bitget_hedge
 * bitget_hedge_dynamic
 * bitget_longonly_dynamic
 * bitget_shortonly_dynamic
  
-## Huobi
+## Huobi - strategies need to be updated
 * huobi_hedge
 * huobi_auto_hedge
  
@@ -178,7 +192,7 @@ $ export HTTP_PROXY="http://10.10.1.10:3128"  # these proxies won't work for you
 $ export HTTPS_PROXY="http://10.10.1.10:1080"
 ```
 
-### Setting up Telegram alerts
+### Setting up Telegram alerts (not used currently)
 1. Get token from botfather after creating new bot, send a message to your new bot
 2. Go to https://api.telegram.org/bot<bot_token>/getUpdates
 3. Replacing <bot_token> with your token from the botfather after creating new bot
