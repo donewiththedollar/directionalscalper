@@ -62,7 +62,7 @@ class Strategy:
         self.helper_duration = 5  # Helper duration in seconds
         self.LEVERAGE_STEP = 0.002
         #self.MAX_LEVERAGE = 0.1
-        self.MAX_LEVERAGE = self.config.max_leverage
+        self.MAX_LEVERAGE = None
         self.QTY_INCREMENT = 0.01
         self.MAX_PCT_EQUITY = 0.1
         self.ORDER_BOOK_DEPTH = 10
@@ -191,8 +191,8 @@ class Strategy:
         logging.info(f"Dynamic Amount Updated: Symbol: {symbol}, Dynamic Amount: {dynamic_amount}")
 
     # Calculate maximum trade quantity for a symbol
-    def calculate_max_trade_qty(self, symbol, total_equity, best_ask_price):
-        leveraged_equity = total_equity * self.MAX_LEVERAGE
+    def calculate_max_trade_qty(self, symbol, total_equity, best_ask_price, max_leverage):
+        leveraged_equity = total_equity * max_leverage
         max_trade_qty = (self.dynamic_amount_multiplier * leveraged_equity) / best_ask_price
         logging.info(f"Calculating Max Trade Qty: Symbol: {symbol}, Leveraged Equity: {leveraged_equity}, Max Trade Qty: {max_trade_qty}")
         return max_trade_qty
@@ -742,7 +742,7 @@ class Strategy:
 
         logging.info(f"Updated dynamic amounts for {symbol}. New long_dynamic_amount: {self.long_dynamic_amount[symbol]}, New short_dynamic_amount: {self.short_dynamic_amount[symbol]}")
 
-    def calculate_dynamic_amount_v3(self, symbol, total_equity, best_ask_price):
+    def calculate_dynamic_amount_v3(self, symbol, total_equity, best_ask_price, max_leverage):
         price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
         qty_precision_level = -int(math.log10(qty_precision))
 
@@ -752,7 +752,7 @@ class Strategy:
         logging.info(f"Min qty for {symbol} {min_qty}")
 
         # Calculate dynamic amounts considering the leverage and symbol's best ask price
-        dynamic_amount = (self.dynamic_amount_multiplier * total_equity * self.MAX_LEVERAGE) / best_ask_price
+        dynamic_amount = (self.dynamic_amount_multiplier * total_equity * max_leverage) / best_ask_price
         long_dynamic_amount = min(dynamic_amount, self.max_long_trade_qty_per_symbol.get(symbol, dynamic_amount))
         short_dynamic_amount = min(dynamic_amount, self.max_short_trade_qty_per_symbol.get(symbol, dynamic_amount))
 
@@ -1495,7 +1495,7 @@ class Strategy:
         else:
             logging.info(f"Positions for {symbol} are currently safe from liquidation.")
 
-    def print_trade_quantities_once_bybit(self, symbol, total_equity, best_ask_price):
+    def print_trade_quantities_once_bybit(self, symbol, total_equity, best_ask_price, max_leverage):
         # Fetch the best ask price
         order_book = self.exchange.get_orderbook(symbol)
         if 'asks' in order_book and order_book['asks']:
@@ -1514,7 +1514,7 @@ class Strategy:
             print(f"Printing trade quantities for {symbol} at different leverage levels")
             for leverage in [0.001, 0.01, 0.1, 1, 2.5, 5]:
                 # Temporarily set MAX_LEVERAGE to the current level for calculation
-                original_max_leverage = self.MAX_LEVERAGE
+                original_max_leverage = max_leverage
                 self.MAX_LEVERAGE = leverage
                 dynamic_amount = self.calculate_dynamic_amount(symbol, total_equity, best_ask_price)
                 print(f"Leverage {leverage}x: Trade Quantity = {dynamic_amount}")
@@ -1522,33 +1522,6 @@ class Strategy:
                 self.MAX_LEVERAGE = original_max_leverage
 
             self.printed_trade_quantities = True
-
-
-    # def print_trade_quantities_once_bybit(self, symbol, total_equity, max_leverage):
-    #     # Fetch the best ask price
-    #     order_book = self.exchange.get_orderbook(symbol)
-    #     if 'asks' in order_book and order_book['asks']:
-    #         best_ask_price = order_book['asks'][0][0]
-    #     else:
-    #         logging.warning(f"No ask orders available for {symbol}.")
-    #         return
-
-    #     # Ensure symbol is initialized
-    #     if symbol not in self.initialized_symbols:
-    #         if not self.initialize_symbol(symbol, total_equity, best_ask_price, max_leverage):
-    #             logging.warning(f"Initialization failed or not required for {symbol}.")
-    #             return
-
-    #     if not self.printed_trade_quantities:
-    #         wallet_exposure = self.config.wallet_exposure
-    #         print(f"Printing trade QTYs for {symbol}")
-    #         self.exchange.print_trade_quantities_bybit(
-    #             self.max_long_trade_qty_per_symbol.get(symbol, 0), 
-    #             [0.001, 0.01, 0.1, 1, 2.5, 5], 
-    #             wallet_exposure, 
-    #             best_ask_price
-    #         )
-    #         self.printed_trade_quantities = True
 
     def print_trade_quantities_once_huobi(self, max_trade_qty, symbol):
         if not self.printed_trade_quantities:

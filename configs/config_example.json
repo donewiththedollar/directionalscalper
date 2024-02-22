@@ -11,7 +11,6 @@
     "min_distance": 0.15,
     "min_distance_largecap": 0.085,
     "min_volume": 10000,
-    "max_leverage": 1.0,
     "wallet_exposure_limit": 0.0001,
     "user_defined_leverage_long": 1.0,
     "user_defined_leverage_short": 1.0,

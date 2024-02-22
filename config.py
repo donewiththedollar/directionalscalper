@@ -38,7 +38,6 @@ class Bot(BaseModel):
     wallet_exposure_limit: float = 0.0001
     user_defined_leverage_long: float = 2
     user_defined_leverage_short: float = 2
-    max_leverage: float = 1.0
     upnl_profit_pct: float = 0.003
     stoploss_enabled: bool = False
     stoploss_upnl_pct: float = 0.070
