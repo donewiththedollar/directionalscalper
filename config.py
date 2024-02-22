@@ -33,7 +33,6 @@ class API(BaseModel):
 class Bot(BaseModel):
     bot_name: str
     min_distance: float = 0.15
-    min_distance_largecap: float = 0.085
     min_volume: int = 15000
     wallet_exposure_limit: float = 0.0001
     user_defined_leverage_long: float = 2
