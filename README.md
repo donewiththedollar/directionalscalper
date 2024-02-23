@@ -53,7 +53,7 @@ Directional Scalper        |  API Scraper               |  Dashboard            
 * BTC: bc1q9hyvvtcsm0k39svz59hjgz4f6dr6c2k4wlrxmc
 
 ### Affiliate links
-## Bybit https://partner.bybit.com/b/tradesimple
+## Bybit https://partner.bybit.com/b/quantumvoid
 
 ### Full installation instructions
 Steps to set up Directionalscalper v2
