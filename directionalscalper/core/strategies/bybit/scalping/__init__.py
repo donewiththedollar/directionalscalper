@@ -5,3 +5,4 @@ from .quickscalp_trend import BybitQuickScalpTrend
 from .mfi_eri_long_short_trend import BybitMFIERILongShortTrend
 from .mfi_quickscalp_long import BybitMFIRSIQuickScalpLong
 from .quickscalp_trend_ob import BybitQuickScalpTrendOB
+from .quickscalp_trend_unified import BybitQuickScalpUnified

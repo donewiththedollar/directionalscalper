@@ -59,6 +59,7 @@ def get_available_strategies():
         'mfieritrend',
         'qstrendob',
         'qstrendlongonly',
+        'qstrend_unified',
     ]
 
 def choose_strategy():
@@ -148,7 +149,10 @@ class DirectionalMarketMaker:
         elif strategy_name.lower() == 'qstrendob':
             strategy = bybit_scalping.BybitQuickScalpTrendOB(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-            
+        elif strategy_name.lower() == 'qstrend_unified':
+            strategy = bybit_scalping.BybitQuickScalpTrendOB(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
+
     def get_balance(self, quote, market_type=None, sub_type=None):
         if self.exchange_name == 'bitget':
             return self.exchange.get_balance_bitget(quote)
