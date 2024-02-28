@@ -150,7 +150,7 @@ class DirectionalMarketMaker:
             strategy = bybit_scalping.BybitQuickScalpTrendOB(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'qstrend_unified':
-            strategy = bybit_scalping.BybitQuickScalpTrendOB(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy = bybit_scalping.BybitQuickScalpUnified(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
 
     def get_balance(self, quote, market_type=None, sub_type=None):
