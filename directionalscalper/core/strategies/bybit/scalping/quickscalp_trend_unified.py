@@ -577,7 +577,7 @@ class BybitQuickScalpUnified(Strategy):
                         except Exception as e:
                             logging.info(f"Exception fetching Short UPNL for {symbol}: {e}")
 
-                    self.bybit_1m_mfi_quickscalp_autoreduce(
+                    self.bybit_1m_mfi_quickscalp_trend(
                         open_orders,
                         symbol,
                         min_vol,

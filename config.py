@@ -32,6 +32,7 @@ class API(BaseModel):
 
 class Bot(BaseModel):
     bot_name: str
+    volume_check: bool = True
     min_distance: float = 0.15
     min_volume: int = 15000
     wallet_exposure_limit: float = 0.0001
@@ -162,6 +163,12 @@ class Bot(BaseModel):
     def check_auto_leverage_upscale_is_bool(cls, v):
         if not isinstance(v, bool):
             raise ValueError("auto_leverage_upscale must be a boolean")
+        return v
+
+    @validator('volume_check')
+    def check_volume_check_is_bool(cls, v):
+        if not isinstance(v, bool):
+            raise ValueError("volume_check must be a boolean")
         return v
     
 class Exchange(BaseModel):

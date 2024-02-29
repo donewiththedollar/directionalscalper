@@ -8,6 +8,7 @@
   "bot": {
     "bot_name": "your_bot_name",
     "symbol": "BTCUSDT",
+    "volume_check": true,
     "min_distance": 0.15,
     "min_volume": 10000,
     "wallet_exposure_limit": 0.0001,

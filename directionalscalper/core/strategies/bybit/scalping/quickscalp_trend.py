@@ -32,6 +32,7 @@ class BybitQuickScalpTrend(Strategy):
         self.helper_interval = 1
         self.position_inactive_threshold = 120
         try:
+            self.volume_check = self.config.volume_check
             self.max_usd_value = self.config.max_usd_value
             self.blacklist = self.config.blacklist
             self.test_orders_enabled = self.config.test_orders_enabled
@@ -124,6 +125,7 @@ class BybitQuickScalpTrend(Strategy):
             max_retries = 5
             retry_delay = 5
             
+            volume_check = self.config.volume_check
             min_dist = self.config.min_distance
             min_vol = self.config.min_volume
 
@@ -577,7 +579,7 @@ class BybitQuickScalpTrend(Strategy):
                         except Exception as e:
                             logging.info(f"Exception fetching Short UPNL for {symbol}: {e}")
 
-                    self.bybit_1m_mfi_quickscalp_autoreduce(
+                    self.bybit_1m_mfi_quickscalp_trend(
                         open_orders,
                         symbol,
                         min_vol,
@@ -589,7 +591,8 @@ class BybitQuickScalpTrend(Strategy):
                         short_pos_qty,
                         long_pos_price,
                         short_pos_price,
-                        entry_during_autoreduce
+                        entry_during_autoreduce,
+                        volume_check
                     )
                     
                     tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
