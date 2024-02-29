@@ -150,8 +150,8 @@ class Exchange:
             exchange_params['options']['defaultSubType'] = 'linear'
         
         # Existing condition for Bybit unified
-        if self.exchange_id.lower() == 'bybit_unified':
-            exchange_params['options']['enableUnifiedMargin'] = True
+        # if self.exchange_id.lower() == 'bybit_unified':
+        #     exchange_params['options']['enableUnifiedMargin'] = True
 
         # Initializing the exchange object
         self.exchange = exchange_class(exchange_params)

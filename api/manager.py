@@ -32,7 +32,7 @@ class Manager:
         exchange_name: str = 'bybit',  # Defaulting to 'bybit'
         data_source_exchange: str = 'bybit',
         api: str = "remote",
-        cache_life_seconds: int = 240,
+        cache_life_seconds: int = 30,
         asset_value_cache_life_seconds: int = 10,
         path: Path | None = None,
         url: str = "",
