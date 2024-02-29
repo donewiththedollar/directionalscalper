@@ -399,7 +399,7 @@ if __name__ == '__main__':
 
     print(f"Symbols to trade: {symbols_to_trade}")
 
-    rotation_threshold = 160  # Adjust as necessary
+    rotation_threshold = 30  # Adjust as necessary
 
     while True:
         try:
@@ -473,16 +473,29 @@ if __name__ == '__main__':
                             random_symbol = random.choice(list(available_symbols))
                             logging.info(f"Rotating out inactive symbol {symbol} for new symbol {random_symbol}")
                             if threads.get(symbol):
-                                logging.info(f"Waiting for thread {symbol} to complete.")
-                                thread_completed = threads[symbol].join(timeout=300)
-                                if thread_completed is None:  # Thread did not complete within the timeout
-                                    logging.warning(f"Thread {symbol} did not complete within the timeout period.")
-                                    # Implement any additional handling for incomplete threads here
-                                    # Example: Mark symbol as 'under review' to avoid starting new threads for it
-                                    under_review_symbols.add(symbol)
-                                else:
+                                logging.info(f"Attempting to join thread {symbol}.")
+                                thread = threads[symbol]
+                                thread.join(timeout=10)  # Reduced timeout to speed up the process
+                                if not thread.is_alive():
                                     logging.info(f"Thread {symbol} has completed.")
+                                else:
+                                    logging.warning(f"Thread {symbol} still running after timeout. Considering as under review.")
+                                    under_review_symbols.add(symbol)
+                                # Always remove the symbol from active management to allow new symbols to be added
+                                active_symbols.discard(symbol)
                                 del threads[symbol]
+                                thread_start_time.pop(symbol, None)
+                            # if threads.get(symbol):
+                            #     logging.info(f"Waiting for thread {symbol} to complete.")
+                            #     thread_completed = threads[symbol].join(timeout=300)
+                            #     if thread_completed is None:  # Thread did not complete within the timeout
+                            #         logging.warning(f"Thread {symbol} did not complete within the timeout period.")
+                            #         # Implement any additional handling for incomplete threads here
+                            #         # Example: Mark symbol as 'under review' to avoid starting new threads for it
+                            #         under_review_symbols.add(symbol)
+                            #     else:
+                            #         logging.info(f"Thread {symbol} has completed.")
+                            #     del threads[symbol]
                             if random_symbol not in under_review_symbols:
                                 active_symbols.discard(symbol)
                                 active_symbols.add(random_symbol)
