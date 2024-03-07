@@ -1,6 +1,7 @@
 import os
 import logging
 import time
+import uuid
 import ccxt
 import pandas as pd
 import json
@@ -164,7 +165,38 @@ class Exchange:
         #        'private': 'https://api-testnet.bybit.com',
         #    }
 
+    def transfer_funds_bybit(self, code: str, amount: float, from_account: str, to_account: str, params={}):
+        """
+        Transfer funds between different account types under the same UID.
 
+        :param str code: Unified currency code
+        :param float amount: Amount to transfer
+        :param str from_account: From account type (e.g., 'UNIFIED', 'CONTRACT')
+        :param str to_account: To account type (e.g., 'SPOT', 'CONTRACT')
+        :param dict params: Extra parameters specific to the exchange API endpoint
+        :return: A transfer structure
+        """
+        try:
+            # Generate a unique transfer ID (UUID)
+            transfer_id = str(uuid.uuid4())
+
+            # Add the transfer ID to the params dictionary
+            params['transferId'] = transfer_id
+
+            # Use CCXT's transfer function to initiate the internal transfer
+            transfer = self.exchange.transfer(code, amount, from_account, to_account, params)
+
+            if transfer:
+                logging.info(f"Funds transfer successful. Details: {transfer}")
+                return transfer
+            else:
+                logging.error(f"Error occurred during funds transfer.")
+                return None
+
+        except Exception as e:
+            logging.error(f"Error occurred during funds transfer: {e}")
+            return None
+        
     def update_order_history(self, symbol, order_id, timestamp):
         with self.entry_order_ids_lock:
             # Check if the symbol is already in the order history
