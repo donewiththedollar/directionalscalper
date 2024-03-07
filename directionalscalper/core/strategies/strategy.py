@@ -2262,25 +2262,6 @@ class Strategy:
                 self.postonly_limit_order_bybit(symbol, "sell", amount, best_ask_price, positionIdx=2, reduceOnly=False)
                 logging.info(f"Placed a post-only limit order to offset short position risk on {symbol} at {best_ask_price}")
 
-    def calculate_spoofing_amount(self, symbol, total_equity, best_ask_price, max_leverage):
-        if self.max_long_trade_qty is None or self.max_short_trade_qty is None:
-            max_trade_qty = self.calc_max_trade_qty(symbol, total_equity, best_ask_price, max_leverage)
-            self.max_long_trade_qty = max_trade_qty
-            self.max_short_trade_qty = max_trade_qty
-
-        # For demonstration, I'm using a much larger base.
-        long_spoofing_amount = 0.1 * self.initial_max_long_trade_qty
-        short_spoofing_amount = 0.1 * self.initial_max_short_trade_qty
-
-        market_data = self.get_market_data_with_retry(symbol, max_retries = 5, retry_delay = 5)
-        min_qty = float(market_data["min_qty"])
-
-        # Respect the min_qty requirement.
-        long_spoofing_amount = max(long_spoofing_amount, min_qty)
-        short_spoofing_amount = max(short_spoofing_amount, min_qty)
-
-        return long_spoofing_amount, short_spoofing_amount
-
     def get_active_order_count(self, symbol):
         try:
             active_orders = self.exchange.fetch_open_orders(symbol)
