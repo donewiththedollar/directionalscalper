@@ -10,3 +10,4 @@ streamlit
 plotly
 inquirer
 pytz
+uuid
