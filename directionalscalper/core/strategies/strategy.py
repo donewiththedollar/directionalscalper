@@ -3929,48 +3929,7 @@ class Strategy:
 
     #         except Exception as e:
     #             logging.error(f"{symbol} Auto-reduce error: Type: {type(e).__name__}, Message: {e}")
-
-
-    # def auto_reduce_logic_simple(self, min_qty, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
-    #                             auto_reduce_enabled, symbol, total_equity, open_position_data,
-    #                             current_market_price, long_dynamic_amount, short_dynamic_amount,
-    #                             auto_reduce_start_pct, max_pos_balance_pct):
-    #     if auto_reduce_enabled:
-    #         try:
-    #             position_margins = {}  # Track margin used per position
-    #             current_leverage = self.exchange.get_current_max_leverage_bybit(symbol)  # Get current leverage for symbol
-
-    #             for position in open_position_data:
-    #                 info = position.get('info', {})
-    #                 symbol_from_position = info.get('symbol', '').split(':')[0]
-    #                 side_from_position = info.get('side', '')
-    #                 position_margin = float(info.get('positionBalance', 0) or 0)  # Margin used for the position
-
-    #                 if symbol_from_position == symbol:
-    #                     position_margins[side_from_position] = position_margin
-
-    #             # Calculate margin used as a percentage of total equity, adjusted by current leverage
-    #             long_margin_pct = ((position_margins.get('Buy', 0) / total_equity) * 100) / current_leverage
-    #             short_margin_pct = ((position_margins.get('Sell', 0) / total_equity) * 100) / current_leverage
-
-    #             # Adjust thresholds based on configured risk parameters
-    #             adjusted_threshold = max_pos_balance_pct * 100  # Convert config value to percentage
-
-    #             if long_pos_qty > 0 and long_margin_pct > adjusted_threshold:
-    #                 self.execute_auto_reduce('long', symbol, long_pos_qty, long_dynamic_amount, current_market_price,
-    #                                         auto_reduce_start_pct, total_equity, long_pos_price, short_pos_price, min_qty)
-    #             else:
-    #                 logging.info(f"Long auto-reduce not triggered for {symbol}. Long Pos Qty: {long_pos_qty}, Margin Used %: {long_margin_pct}, Threshold: {adjusted_threshold}")
-
-    #             if short_pos_qty > 0 and short_margin_pct > adjusted_threshold:
-    #                 self.execute_auto_reduce('short', symbol, short_pos_qty, short_dynamic_amount, current_market_price,
-    #                                         auto_reduce_start_pct, total_equity, long_pos_price, short_pos_price, min_qty)
-    #             else:
-    #                 logging.info(f"Short auto-reduce not triggered for {symbol}. Short Pos Qty: {short_pos_qty}, Margin Used %: {short_margin_pct}, Threshold: {adjusted_threshold}")
-
-    #         except Exception as e:
-    #             logging.error(f"{symbol} Auto-reduce error: Type: {type(e).__name__}, Message: {e}")
-
+    
     # This worked until it does not. The max_loss_pct is used to calculate the grid and causes issues giving you further AR entries
     def auto_reduce_logic(self, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, auto_reduce_enabled, symbol, total_equity, auto_reduce_wallet_exposure_pct, open_position_data, current_market_price, long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct, auto_reduce_maxloss_pct):
         if auto_reduce_enabled:
