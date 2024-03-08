@@ -4387,7 +4387,7 @@ class Strategy:
                         time.sleep(1)
                     elif long_pos_qty > 0 and mfi_signal_long:
                         # Calculate the DCA order size needed to bring the position to the current price
-                        dca_order_size = self.calculate_dca_order_size(long_pos_qty, long_pos_price, current_price)
+                        dca_order_size = self.calculate_dca_order_size(long_pos_qty, long_pos_price, current_price, symbol)
                         if dca_order_size > 0 and not self.entry_order_exists(open_orders, "buy"):
                             self.place_postonly_order_bybit(symbol, "buy", dca_order_size, best_bid_price, positionIdx=1, reduceOnly=False)
                         else:
@@ -4401,7 +4401,7 @@ class Strategy:
                         time.sleep(1)
                     elif short_pos_qty > 0 and mfi_signal_short:
                         # Calculate the DCA order size needed to bring the position to the current price
-                        dca_order_size = self.calculate_dca_order_size(short_pos_qty, short_pos_price, current_price)
+                        dca_order_size = self.calculate_dca_order_size(short_pos_qty, short_pos_price, current_price, symbol)
                         if dca_order_size > 0 and not self.entry_order_exists(open_orders, "sell"):
                             self.place_postonly_order_bybit(symbol, "sell", dca_order_size, best_ask_price, positionIdx=2, reduceOnly=False)
                         else:
@@ -4413,7 +4413,7 @@ class Strategy:
 
             time.sleep(5)
             
-    def calculate_dca_order_size(self, open_position_qty, open_position_avg_price, current_market_price):
+    def calculate_dca_order_size(self, open_position_qty, open_position_avg_price, current_market_price, symbol):
         """
         Calculate the DCA order size needed to adjust the average price of the open position to the current market price.
         """
@@ -4429,7 +4429,14 @@ class Strategy:
         # Calculate the quantity needed for DCA
         dca_qty_needed = desired_total_qty - open_position_qty
 
-        return max(0, dca_qty_needed)  # Ensure the DCA quantity is non-negative
+        # Fetch the precision for the symbol to use in rounding
+        _, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
+        qty_precision = -int(math.log10(price_precision))  # Assuming price precision is a good proxy for quantity precision
+
+        # Adjust the DCA order size based on the symbol's quantity precision
+        dca_order_size_adjusted = round(dca_qty_needed, qty_precision)
+
+        return max(0, dca_order_size_adjusted)  # Ensure the DCA quantity is non-negative
 
 
     def bybit_1m_mfi_quickscalp_trend(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, entry_during_autoreduce: bool, volume_check: bool):
