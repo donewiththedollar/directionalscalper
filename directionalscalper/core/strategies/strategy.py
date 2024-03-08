@@ -4390,7 +4390,10 @@ class Strategy:
                         dca_order_size = self.calculate_dca_order_size(long_pos_qty, long_pos_price, current_price)
                         if dca_order_size > 0 and not self.entry_order_exists(open_orders, "buy"):
                             self.place_postonly_order_bybit(symbol, "buy", dca_order_size, best_bid_price, positionIdx=1, reduceOnly=False)
-                            time.sleep(1)
+                        else:
+                            # If DCA is not needed, place a normal long order
+                            self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                        time.sleep(1)
 
                 if not self.auto_reduce_active_short.get(symbol, False):
                     if short_pos_qty == 0 and mfi_signal_short and not self.entry_order_exists(open_orders, "sell"):
@@ -4401,7 +4404,10 @@ class Strategy:
                         dca_order_size = self.calculate_dca_order_size(short_pos_qty, short_pos_price, current_price)
                         if dca_order_size > 0 and not self.entry_order_exists(open_orders, "sell"):
                             self.place_postonly_order_bybit(symbol, "sell", dca_order_size, best_ask_price, positionIdx=2, reduceOnly=False)
-                            time.sleep(1)
+                        else:
+                            # If DCA is not needed, place a normal short order
+                            self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                        time.sleep(1)
             else:
                 logging.info(f"Volume check is disabled or conditions not met for {symbol}, proceeding without volume check.")
 
