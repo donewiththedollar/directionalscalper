@@ -11,11 +11,11 @@ from datetime import datetime, timedelta
 from directionalscalper.core.strategies.strategy import Strategy
 from directionalscalper.core.strategies.logger import Logger
 from live_table_manager import shared_symbols_data
-logging = Logger(logger_name="BybitQuickScalpUnified", filename="BybitQuickScalpUnified.log", stream=True)
+logging = Logger(logger_name="BybitQuickScalpTrendOB", filename="BybitQuickScalpTrendOB.log", stream=True)
 
 symbol_locks = {}
 
-class BybitQuickScalpUnified(Strategy):
+class BybitQuickScalpTrendOB(Strategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
         self.is_order_history_populated = False
@@ -52,7 +52,6 @@ class BybitQuickScalpUnified(Strategy):
             self.auto_leverage_upscale = self.config.auto_leverage_upscale
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
-
 
     def run(self, symbol, rotator_symbols_standardized=None):
         try:
@@ -111,10 +110,6 @@ class BybitQuickScalpUnified(Strategy):
             self.current_leverage = self.exchange.get_current_max_leverage_bybit(symbol)
             self.max_leverage = self.exchange.get_current_max_leverage_bybit(symbol)
 
-            logging.info(f"Max leverage for {symbol}: {self.max_leverage}")
-
-            self.adjust_risk_parameters(exchange_max_leverage=self.max_leverage)
-
             self.exchange.set_leverage_bybit(self.max_leverage, symbol)
             self.exchange.set_symbol_to_cross_margin(symbol, self.max_leverage)
 
@@ -124,20 +119,17 @@ class BybitQuickScalpUnified(Strategy):
             quote_currency = "USDT"
             max_retries = 5
             retry_delay = 5
-            
+
             volume_check = self.config.volume_check
             min_dist = self.config.min_distance
             min_vol = self.config.min_volume
-
             upnl_profit_pct = self.config.upnl_profit_pct
-
             # Stop loss
             stoploss_enabled = self.config.stoploss_enabled
             stoploss_upnl_pct = self.config.stoploss_upnl_pct
             # Liq based stop loss
             liq_stoploss_enabled = self.config.liq_stoploss_enabled
             liq_price_stop_pct = self.config.liq_price_stop_pct
-
             # Auto reduce
             auto_reduce_enabled = self.config.auto_reduce_enabled
             auto_reduce_start_pct = self.config.auto_reduce_start_pct
@@ -210,14 +202,6 @@ class BybitQuickScalpUnified(Strategy):
 
                 iteration_start_time = time.time()
 
-                leverage_tiers = self.exchange.fetch_leverage_tiers(symbol)
-
-                if leverage_tiers:
-                    logging.info(f"Leverage tiers for {symbol}: {leverage_tiers}")
-                else:
-                    logging.error(f"Failed to fetch leverage tiers for {symbol}.")
-
-
                 logging.info(f"Max USD value: {self.max_usd_value}")
 
                 # Check if the symbol should terminate
@@ -232,7 +216,6 @@ class BybitQuickScalpUnified(Strategy):
                 # Fetch open symbols every loop
                 open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
 
-                
                 #logging.info(f"Open position data: {open_position_data}")
 
                 position_details = {}
@@ -274,10 +257,9 @@ class BybitQuickScalpUnified(Strategy):
 
                 logging.info(f"Open symbols: {open_symbols}")
 
-                logging.info(f"Open orders: {open_orders}")
-
                 market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
                 min_qty = float(market_data["min_qty"])
+
 
                 # position_last_update_time = self.get_position_update_time(symbol)
 
@@ -341,8 +323,6 @@ class BybitQuickScalpUnified(Strategy):
                 logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
                 logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
 
-                # self.adjust_risk_parameters()
-
                 # self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
 
                 # Log the currently initialized symbols
@@ -352,7 +332,7 @@ class BybitQuickScalpUnified(Strategy):
 
                 time.sleep(5)
 
-                # self.print_trade_quantities_once_bybit(symbol, total_equity, best_ask_price)
+                # self.print_trade_quantities_once_bybit(symbol, total_equity, self.max_leverage)
 
                 logging.info(f"Rotator symbols standardized: {rotator_symbols_standardized}")
 
@@ -411,7 +391,6 @@ class BybitQuickScalpUnified(Strategy):
                     # short_liq_price = position_data["short"]["liq_price"]
                     # long_liq_price = position_data["long"]["liq_price"]
 
-
                     # Adjust risk parameters based on the maximum leverage allowed by the exchange
                     self.adjust_risk_parameters(exchange_max_leverage=self.max_leverage)
 
@@ -422,6 +401,20 @@ class BybitQuickScalpUnified(Strategy):
                         best_ask_price=best_ask_price,
                         best_bid_price=best_bid_price
                     )
+
+                    # self.adjust_risk_parameters()
+
+                    # self.handle_trade_quantities(symbol,
+                    #                              total_equity,
+                    #                              best_ask_price)
+                    
+                    # # Retrieve the dynamic amount for the current symbol
+                    # dynamic_amount = self.dynamic_amount_per_symbol.get(symbol, None)
+
+                    # if dynamic_amount:
+                    #     # Use the dynamic amount for both long and short positions
+                    #     long_dynamic_amount = dynamic_amount
+                    #     short_dynamic_amount = dynamic_amount
 
                     logging.info(f"Long dynamic amount: {long_dynamic_amount} for {symbol}")
                     logging.info(f"Short dynamic amount: {short_dynamic_amount} for {symbol}")
@@ -436,15 +429,28 @@ class BybitQuickScalpUnified(Strategy):
                     short_take_profit = None
                     long_take_profit = None
 
-                    # Calculate take profit for short and long positions using quickscalp method
-                    short_take_profit = self.calculate_quickscalp_short_take_profit(short_pos_price, symbol, upnl_profit_pct)
-                    long_take_profit = self.calculate_quickscalp_long_take_profit(long_pos_price, symbol, upnl_profit_pct)
+                    if long_pos_price is not None:
+                        long_take_profit = self.calculate_dynamic_long_take_profit(
+                            best_bid_price,
+                            long_pos_price,
+                            symbol,
+                            upnl_profit_pct
+                        )
+
+                    if short_pos_price is not None:
+                        short_take_profit = self.calculate_dynamic_short_take_profit(
+                            best_ask_price,
+                            short_pos_price,
+                            symbol,
+                            upnl_profit_pct
+                        )
 
                     short_stop_loss = None
                     long_stop_loss = None
 
                     initial_short_stop_loss = None
                     initial_long_stop_loss = None
+
 
                     try:
                         self.auto_reduce_logic_simple(
@@ -638,8 +644,10 @@ class BybitQuickScalpUnified(Strategy):
                     # Check for long positions
                     if long_pos_qty > 0:
                         if current_latest_time >= self.next_long_tp_update:
-                            self.next_long_tp_update = self.update_quickscalp_tp(
+                            self.next_long_tp_update = self.update_dynamic_quickscalp_tp(
                                 symbol=symbol, 
+                                best_ask_price=best_ask_price,
+                                best_bid_price=best_bid_price,
                                 pos_qty=long_pos_qty, 
                                 upnl_profit_pct=upnl_profit_pct,  # Add the quickscalp percentage
                                 short_pos_price=short_pos_price,
@@ -653,8 +661,10 @@ class BybitQuickScalpUnified(Strategy):
                     # Check for short positions
                     if short_pos_qty > 0:
                         if current_latest_time >= self.next_short_tp_update:
-                            self.next_short_tp_update = self.update_quickscalp_tp(
+                            self.next_short_tp_update = self.update_dynamic_quickscalp_tp(
                                 symbol=symbol, 
+                                best_ask_price=best_ask_price,
+                                best_bid_price=best_bid_price,
                                 pos_qty=short_pos_qty, 
                                 upnl_profit_pct=upnl_profit_pct,  # Add the quickscalp percentage
                                 short_pos_price=short_pos_price,
@@ -671,7 +681,6 @@ class BybitQuickScalpUnified(Strategy):
                             self.helperv2(symbol, short_dynamic_amount, long_dynamic_amount)
                         else:
                             logging.info(f"Skipping test orders for {symbol} as it's not in open symbols list.")
-                    
 
                     self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
                     # self.cancel_stale_orders_bybit(symbol)
