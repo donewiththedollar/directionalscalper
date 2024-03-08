@@ -3874,16 +3874,23 @@ class Strategy:
                 long_loss_exceeded = long_pos_price is not None and current_market_price < long_pos_price * (1 - auto_reduce_start_pct)
                 short_loss_exceeded = short_pos_price is not None and current_market_price > short_pos_price * (1 + auto_reduce_start_pct)
 
-                if long_pos_qty > 0 and long_position_value_pct > max_pos_balance_pct_value and long_loss_exceeded:
-                    logging.info(f"Auto reduce long allowed for {symbol} because the position is at a loss greater than auto_reduce_start_pct.")
-                    self.execute_auto_reduce('long', symbol, long_pos_qty, long_dynamic_amount, current_market_price, auto_reduce_start_pct, total_equity, long_pos_price, short_pos_price, min_qty)
+                if long_pos_qty > 0 and long_loss_exceeded:
+                    if long_position_value_pct > max_pos_balance_pct_value:  # Additional check
+                        logging.info(f"Auto reduce long allowed for {symbol} because the position is at a loss greater than auto_reduce_start_pct.")
+                        self.execute_auto_reduce('long', symbol, long_pos_qty, long_dynamic_amount, current_market_price, auto_reduce_start_pct, total_equity, long_pos_price, short_pos_price, min_qty)
+                    else:
+                        logging.info(f"Long auto-reduce not triggered for {symbol}. Long Position Value %: {long_position_value_pct}, Threshold: {max_pos_balance_pct_value}")
 
-                if short_pos_qty > 0 and short_position_value_pct > max_pos_balance_pct_value and short_loss_exceeded:
-                    logging.info(f"Auto reduce short allowed for {symbol} because the position is at a loss greater than auto_reduce_start_pct.")
-                    self.execute_auto_reduce('short', symbol, short_pos_qty, short_dynamic_amount, current_market_price, auto_reduce_start_pct, total_equity, long_pos_price, short_pos_price, min_qty)
+                if short_pos_qty > 0 and short_loss_exceeded:
+                    if short_position_value_pct > max_pos_balance_pct_value:  # Additional check
+                        logging.info(f"Auto reduce short allowed for {symbol} because the position is at a loss greater than auto_reduce_start_pct.")
+                        self.execute_auto_reduce('short', symbol, short_pos_qty, short_dynamic_amount, current_market_price, auto_reduce_start_pct, total_equity, long_pos_price, short_pos_price, min_qty)
+                    else:
+                        logging.info(f"Short auto-reduce not triggered for {symbol}. Short Position Value %: {short_position_value_pct}, Threshold: {max_pos_balance_pct_value}")
 
             except Exception as e:
                 logging.error(f"{symbol} Auto-reduce error: Type: {type(e).__name__}, Message: {e}")
+
                 
     # def auto_reduce_logic_simple(self, min_qty, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
     #                             auto_reduce_enabled, symbol, total_equity,
@@ -3900,7 +3907,6 @@ class Strategy:
     #                 logging.info(f"Info for {symbol_from_position} : {info}")
     #                 side_from_position = info.get('side', '')
     #                 position_value = float(info.get('positionValue', 0) or 0)
-    #                 position_balance = float(info.get('positionBalance', 0) or 0)
 
     #                 if symbol_from_position == symbol:
     #                     position_values[side_from_position] = position_value
@@ -3913,23 +3919,21 @@ class Strategy:
     #             logging.info(f"{symbol} Max pos balance pct: {max_pos_balance_pct_value}")
     #             logging.info(f"{symbol} Long Position Value %: {long_position_value_pct}, Short Position Value %: {short_position_value_pct}, Max Position Value Pct: {max_pos_balance_pct_value}")
 
-    #             if long_pos_qty > 0 and long_position_value_pct > max_pos_balance_pct_value:
-    #                 logging.info(f"Auto reduce long allowed for {symbol} because long_position_value_pct: {long_position_value_pct} is greater than max_pos_balance_pct: {max_pos_balance_pct_value}")
-    #                 # Execute auto-reduce for long positions
-    #                 self.execute_auto_reduce('long', symbol, long_pos_qty, long_dynamic_amount, current_market_price, auto_reduce_start_pct, total_equity, long_pos_price, short_pos_price, min_qty)
-    #             else:
-    #                 logging.info(f"Long auto-reduce not triggered for {symbol}. Long Pos Qty: {long_pos_qty}, Long Position Value %: {long_position_value_pct}, Threshold: {max_pos_balance_pct_value}")
+    #             # Check if the position is at a loss greater than auto_reduce_start_pct
+    #             long_loss_exceeded = long_pos_price is not None and current_market_price < long_pos_price * (1 - auto_reduce_start_pct)
+    #             short_loss_exceeded = short_pos_price is not None and current_market_price > short_pos_price * (1 + auto_reduce_start_pct)
 
-    #             if short_pos_qty > 0 and short_position_value_pct > max_pos_balance_pct_value:
-    #                 logging.info(f"Auto reduce short allowed for {symbol} because short_position_value_pct: {short_position_value_pct} is greater than max_pos_balance_pct: {max_pos_balance_pct_value}")
-    #                 # Execute auto-reduce for short positions
+    #             if long_pos_qty > 0 and long_position_value_pct > max_pos_balance_pct_value and long_loss_exceeded:
+    #                 logging.info(f"Auto reduce long allowed for {symbol} because the position is at a loss greater than auto_reduce_start_pct.")
+    #                 self.execute_auto_reduce('long', symbol, long_pos_qty, long_dynamic_amount, current_market_price, auto_reduce_start_pct, total_equity, long_pos_price, short_pos_price, min_qty)
+
+    #             if short_pos_qty > 0 and short_position_value_pct > max_pos_balance_pct_value and short_loss_exceeded:
+    #                 logging.info(f"Auto reduce short allowed for {symbol} because the position is at a loss greater than auto_reduce_start_pct.")
     #                 self.execute_auto_reduce('short', symbol, short_pos_qty, short_dynamic_amount, current_market_price, auto_reduce_start_pct, total_equity, long_pos_price, short_pos_price, min_qty)
-    #             else:
-    #                 logging.info(f"Short auto-reduce not triggered for {symbol}. Short Pos Qty: {short_pos_qty}, Short Position Value %: {short_position_value_pct}, Threshold: {max_pos_balance_pct_value}")
 
     #         except Exception as e:
     #             logging.error(f"{symbol} Auto-reduce error: Type: {type(e).__name__}, Message: {e}")
-    
+                
     # This worked until it does not. The max_loss_pct is used to calculate the grid and causes issues giving you further AR entries
     def auto_reduce_logic(self, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, auto_reduce_enabled, symbol, total_equity, auto_reduce_wallet_exposure_pct, open_position_data, current_market_price, long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct, auto_reduce_maxloss_pct):
         if auto_reduce_enabled:
@@ -4365,36 +4369,50 @@ class Strategy:
             self.symbol_locks[symbol] = threading.Lock()
 
         with self.symbol_locks[symbol]:
-            current_price = self.exchange.fetch_ticker(symbol)['last']  # Getting the last traded price
+            current_price = self.exchange.get_current_price(symbol)
             logging.info(f"Current price for {symbol}: {current_price}")
 
-            order_book = self.exchange.fetch_order_book(symbol)
-            best_ask_price = order_book['asks'][0][0]
-            best_bid_price = order_book['bids'][0][0]
-
+            order_book = self.exchange.get_orderbook(symbol)
+            best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol)
+            best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol)
+            
             mfi_signal_long = mfirsi.lower() == "long"
             mfi_signal_short = mfirsi.lower() == "short"
 
-            # Initial entry based on MFIRSI signal
+            # Check if volume check is enabled or not
             if not volume_check or (one_minute_volume > min_vol):
-                if not self.auto_reduce_active_long.get(symbol, False) and long_pos_qty == 0 and mfi_signal_long and not self.entry_order_exists(open_orders, "buy"):
-                    self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-                elif not self.auto_reduce_active_short.get(symbol, False) and short_pos_qty == 0 and mfi_signal_short and not self.entry_order_exists(open_orders, "sell"):
-                    self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                if not self.auto_reduce_active_long.get(symbol, False):
+                    if long_pos_qty == 0 and mfi_signal_long and not self.entry_order_exists(open_orders, "buy"):
+                        self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                        time.sleep(1)
+                    elif long_pos_qty > 0 and mfi_signal_long:
+                        # Calculate the DCA order size needed to bring the position to the current price
+                        dca_order_size = self.calculate_dca_order_size(long_pos_qty, long_pos_price, current_price)
+                        if dca_order_size > 0 and not self.entry_order_exists(open_orders, "buy"):
+                            self.place_postonly_order_bybit(symbol, "buy", dca_order_size, best_bid_price, positionIdx=1, reduceOnly=False)
+                        else:
+                            # If DCA is not needed, place a normal long order
+                            self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                        time.sleep(1)
 
-            # DCA adjustments for existing positions based on current market price
-            if long_pos_qty > 0 and mfi_signal_long:
-                dca_order_size = self.calculate_dca_order_size(long_pos_qty, long_pos_price, current_price)
-                if dca_order_size > 0:
-                    self.place_postonly_order_bybit(symbol, "buy", dca_order_size, best_bid_price, positionIdx=1, reduceOnly=False)
+                if not self.auto_reduce_active_short.get(symbol, False):
+                    if short_pos_qty == 0 and mfi_signal_short and not self.entry_order_exists(open_orders, "sell"):
+                        self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                        time.sleep(1)
+                    elif short_pos_qty > 0 and mfi_signal_short:
+                        # Calculate the DCA order size needed to bring the position to the current price
+                        dca_order_size = self.calculate_dca_order_size(short_pos_qty, short_pos_price, current_price)
+                        if dca_order_size > 0 and not self.entry_order_exists(open_orders, "sell"):
+                            self.place_postonly_order_bybit(symbol, "sell", dca_order_size, best_ask_price, positionIdx=2, reduceOnly=False)
+                        else:
+                            # If DCA is not needed, place a normal short order
+                            self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                        time.sleep(1)
+            else:
+                logging.info(f"Volume check is disabled or conditions not met for {symbol}, proceeding without volume check.")
 
-            if short_pos_qty > 0 and mfi_signal_short:
-                dca_order_size = self.calculate_dca_order_size(short_pos_qty, short_pos_price, current_price)
-                if dca_order_size > 0:
-                    self.place_postonly_order_bybit(symbol, "sell", dca_order_size, best_ask_price, positionIdx=2, reduceOnly=False)
-
-            logging.info("MFIRSI-based entry and DCA adjustments processed.")
-
+            time.sleep(5)
+            
     def calculate_dca_order_size(self, open_position_qty, open_position_avg_price, current_market_price):
         """
         Calculate the DCA order size needed to adjust the average price of the open position to the current market price.

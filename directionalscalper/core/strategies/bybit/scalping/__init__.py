@@ -2,6 +2,7 @@ from .bybit_mm_onemin_qfl_mfi_eri_walls import BybitMMOneMinuteQFLMFIERIWalls
 from .mfirsi_eri_ob_imbalance import BybitMFIRSIERIOBImbalance
 from .mfi_quickscalp import BybitMFIRSIQuickScalp
 from .quickscalp_trend import BybitQuickScalpTrend
+from .quickscalp_trend_dca import BybitQuickScalpTrendDCA
 from .mfi_eri_long_short_trend import BybitMFIERILongShortTrend
 from .mfi_quickscalp_long import BybitMFIRSIQuickScalpLong
 from .quickscalp_trend_ob import BybitQuickScalpTrendOB

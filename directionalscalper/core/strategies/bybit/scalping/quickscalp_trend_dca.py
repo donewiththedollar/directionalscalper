@@ -11,11 +11,11 @@ from datetime import datetime, timedelta
 from directionalscalper.core.strategies.strategy import Strategy
 from directionalscalper.core.strategies.logger import Logger
 from live_table_manager import shared_symbols_data
-logging = Logger(logger_name="BybitQuickScalpUnified", filename="BybitQuickScalpUnified.log", stream=True)
+logging = Logger(logger_name="BybitQuickScalpTrendDCA", filename="BybitQuickScalpTrendDCA.log", stream=True)
 
 symbol_locks = {}
 
-class BybitQuickScalpUnified(Strategy):
+class BybitQuickScalpTrendDCA(Strategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
         self.is_order_history_populated = False
@@ -579,7 +579,7 @@ class BybitQuickScalpUnified(Strategy):
                         except Exception as e:
                             logging.info(f"Exception fetching Short UPNL for {symbol}: {e}")
 
-                    self.bybit_1m_mfi_quickscalp_trend(
+                    self.bybit_1m_mfi_quickscalp_trend_dca(
                         open_orders,
                         symbol,
                         min_vol,
