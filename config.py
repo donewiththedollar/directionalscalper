@@ -46,6 +46,7 @@ class Bot(BaseModel):
     percentile_auto_reduce_enabled: bool = False
     auto_reduce_enabled: bool = False
     auto_reduce_start_pct: float = 0.098
+    upnl_threshold_pct: float = 0.10
     max_pos_balance_pct: float = 0.20
     auto_reduce_maxloss_pct: float = 0.50
     auto_reduce_marginbased_enabled: bool = False
@@ -121,6 +122,12 @@ class Bot(BaseModel):
     def validate_auto_reduce_start_pct(cls, v):
         if v < 0.0 or v > 1.0:
             raise ValueError("auto_reduce_start_pct must be between 0.0 and 1.0")
+        return v
+    
+    @validator('upnl_threshold_pct')
+    def validate_upnl_threshold_pct(cls, v):
+        if v < 0.0 or v > 1.0:
+            raise ValueError("upnl_threshold_pct must be between 0.0 and 1.0")
         return v
     
     @validator('auto_reduce_maxloss_pct')

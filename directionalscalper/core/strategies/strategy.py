@@ -3844,9 +3844,10 @@ class Strategy:
             logging.warning(f"An unknown error occurred in cancel_all_auto_reduce_orders_bybit(): {e}")
 
     def auto_reduce_logic_simple(self, min_qty, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
-                                auto_reduce_enabled, symbol, total_equity,
+                                auto_reduce_enabled, symbol, total_equity, available_equity,
                                 open_position_data, current_market_price, long_dynamic_amount,
-                                short_dynamic_amount, auto_reduce_start_pct, max_pos_balance_pct):
+                                short_dynamic_amount, auto_reduce_start_pct, max_pos_balance_pct,
+                                upnl_threshold_pct):
 
         if auto_reduce_enabled:
             try:
@@ -3864,75 +3865,35 @@ class Strategy:
 
                 long_position_value_pct = (position_values.get('Buy', 0) / total_equity) * 100
                 short_position_value_pct = (position_values.get('Sell', 0) / total_equity) * 100
+                upnl_pct = ((total_equity - available_equity) / total_equity) * 100
 
                 max_pos_balance_pct_value = max_pos_balance_pct * 100  # Convert to percentage
 
                 logging.info(f"{symbol} Max pos balance pct: {max_pos_balance_pct_value}")
                 logging.info(f"{symbol} Long Position Value %: {long_position_value_pct}, Short Position Value %: {short_position_value_pct}, Max Position Value Pct: {max_pos_balance_pct_value}")
+                logging.info(f"{symbol} uPNL %: {upnl_pct}, uPNL Threshold %: {upnl_threshold_pct}")
 
-                # Check if the position is at a loss greater than auto_reduce_start_pct
-                long_loss_exceeded = long_pos_price is not None and current_market_price < long_pos_price * (1 - auto_reduce_start_pct)
-                short_loss_exceeded = short_pos_price is not None and current_market_price > short_pos_price * (1 + auto_reduce_start_pct)
+                # Check if the position is at a loss greater than auto_reduce_start_pct and exceeds max_pos_balance_pct_value
+                long_loss_exceeded = long_pos_price is not None and current_market_price < long_pos_price * (1 - auto_reduce_start_pct) and long_position_value_pct > max_pos_balance_pct_value
+                short_loss_exceeded = short_pos_price is not None and current_market_price > short_pos_price * (1 + auto_reduce_start_pct) and short_position_value_pct > max_pos_balance_pct_value
 
-                if long_pos_qty > 0 and long_loss_exceeded:
-                    if long_position_value_pct > max_pos_balance_pct_value:  # Additional check
-                        logging.info(f"Auto reduce long allowed for {symbol} because the position is at a loss greater than auto_reduce_start_pct.")
-                        self.execute_auto_reduce('long', symbol, long_pos_qty, long_dynamic_amount, current_market_price, auto_reduce_start_pct, total_equity, long_pos_price, short_pos_price, min_qty)
-                    else:
-                        logging.info(f"Long auto-reduce not triggered for {symbol}. Long Position Value %: {long_position_value_pct}, Threshold: {max_pos_balance_pct_value}")
+                # Check if the uPNL is below the threshold
+                upnl_threshold_exceeded = upnl_pct < upnl_threshold_pct
 
-                if short_pos_qty > 0 and short_loss_exceeded:
-                    if short_position_value_pct > max_pos_balance_pct_value:  # Additional check
-                        logging.info(f"Auto reduce short allowed for {symbol} because the position is at a loss greater than auto_reduce_start_pct.")
-                        self.execute_auto_reduce('short', symbol, short_pos_qty, short_dynamic_amount, current_market_price, auto_reduce_start_pct, total_equity, long_pos_price, short_pos_price, min_qty)
-                    else:
-                        logging.info(f"Short auto-reduce not triggered for {symbol}. Short Position Value %: {short_position_value_pct}, Threshold: {max_pos_balance_pct_value}")
+                if long_pos_qty > 0 and (long_loss_exceeded or upnl_threshold_exceeded):
+                    logging.info(f"Auto reduce long allowed for {symbol} because the position is at a loss greater than auto_reduce_start_pct and exceeds max_pos_balance_pct_value or uPNL is below the threshold.")
+                    self.execute_auto_reduce('long', symbol, long_pos_qty, long_dynamic_amount, current_market_price, auto_reduce_start_pct, total_equity, long_pos_price, short_pos_price, min_qty)
+                else:
+                    logging.info(f"Long auto-reduce not triggered for {symbol}. Long Position Value %: {long_position_value_pct}, Loss Exceeded: {long_loss_exceeded}, uPNL Threshold Exceeded: {upnl_threshold_exceeded}")
+
+                if short_pos_qty > 0 and (short_loss_exceeded or upnl_threshold_exceeded):
+                    logging.info(f"Auto reduce short allowed for {symbol} because the position is at a loss greater than auto_reduce_start_pct and exceeds max_pos_balance_pct_value or uPNL is below the threshold.")
+                    self.execute_auto_reduce('short', symbol, short_pos_qty, short_dynamic_amount, current_market_price, auto_reduce_start_pct, total_equity, long_pos_price, short_pos_price, min_qty)
+                else:
+                    logging.info(f"Short auto-reduce not triggered for {symbol}. Short Position Value %: {short_position_value_pct}, Loss Exceeded: {short_loss_exceeded}, uPNL Threshold Exceeded: {upnl_threshold_exceeded}")
 
             except Exception as e:
                 logging.error(f"{symbol} Auto-reduce error: Type: {type(e).__name__}, Message: {e}")
-
-                
-    # def auto_reduce_logic_simple(self, min_qty, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
-    #                             auto_reduce_enabled, symbol, total_equity,
-    #                             open_position_data, current_market_price, long_dynamic_amount,
-    #                             short_dynamic_amount, auto_reduce_start_pct, max_pos_balance_pct):
-
-    #     if auto_reduce_enabled:
-    #         try:
-    #             position_values = {}
-
-    #             for position in open_position_data:
-    #                 info = position.get('info', {})
-    #                 symbol_from_position = info.get('symbol', '').split(':')[0]
-    #                 logging.info(f"Info for {symbol_from_position} : {info}")
-    #                 side_from_position = info.get('side', '')
-    #                 position_value = float(info.get('positionValue', 0) or 0)
-
-    #                 if symbol_from_position == symbol:
-    #                     position_values[side_from_position] = position_value
-
-    #             long_position_value_pct = (position_values.get('Buy', 0) / total_equity) * 100
-    #             short_position_value_pct = (position_values.get('Sell', 0) / total_equity) * 100
-
-    #             max_pos_balance_pct_value = max_pos_balance_pct * 100  # Convert to percentage
-
-    #             logging.info(f"{symbol} Max pos balance pct: {max_pos_balance_pct_value}")
-    #             logging.info(f"{symbol} Long Position Value %: {long_position_value_pct}, Short Position Value %: {short_position_value_pct}, Max Position Value Pct: {max_pos_balance_pct_value}")
-
-    #             # Check if the position is at a loss greater than auto_reduce_start_pct
-    #             long_loss_exceeded = long_pos_price is not None and current_market_price < long_pos_price * (1 - auto_reduce_start_pct)
-    #             short_loss_exceeded = short_pos_price is not None and current_market_price > short_pos_price * (1 + auto_reduce_start_pct)
-
-    #             if long_pos_qty > 0 and long_position_value_pct > max_pos_balance_pct_value and long_loss_exceeded:
-    #                 logging.info(f"Auto reduce long allowed for {symbol} because the position is at a loss greater than auto_reduce_start_pct.")
-    #                 self.execute_auto_reduce('long', symbol, long_pos_qty, long_dynamic_amount, current_market_price, auto_reduce_start_pct, total_equity, long_pos_price, short_pos_price, min_qty)
-
-    #             if short_pos_qty > 0 and short_position_value_pct > max_pos_balance_pct_value and short_loss_exceeded:
-    #                 logging.info(f"Auto reduce short allowed for {symbol} because the position is at a loss greater than auto_reduce_start_pct.")
-    #                 self.execute_auto_reduce('short', symbol, short_pos_qty, short_dynamic_amount, current_market_price, auto_reduce_start_pct, total_equity, long_pos_price, short_pos_price, min_qty)
-
-    #         except Exception as e:
-    #             logging.error(f"{symbol} Auto-reduce error: Type: {type(e).__name__}, Message: {e}")
                 
     # This worked until it does not. The max_loss_pct is used to calculate the grid and causes issues giving you further AR entries
     def auto_reduce_logic(self, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, auto_reduce_enabled, symbol, total_equity, auto_reduce_wallet_exposure_pct, open_position_data, current_market_price, long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct, auto_reduce_maxloss_pct):

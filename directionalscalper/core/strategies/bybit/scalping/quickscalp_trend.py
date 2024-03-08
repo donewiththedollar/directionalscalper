@@ -32,6 +32,7 @@ class BybitQuickScalpTrend(Strategy):
         self.helper_interval = 1
         self.position_inactive_threshold = 120
         try:
+            self.upnl_threshold_pct = self.config.upnl_threshold_pct
             self.volume_check = self.config.volume_check
             self.max_usd_value = self.config.max_usd_value
             self.blacklist = self.config.blacklist
@@ -129,6 +130,7 @@ class BybitQuickScalpTrend(Strategy):
             min_dist = self.config.min_distance
             min_vol = self.config.min_volume
 
+            upnl_threshold_pct = self.config.upnl_threshold_pct
             upnl_profit_pct = self.config.upnl_profit_pct
 
             # Stop loss
@@ -461,7 +463,8 @@ class BybitQuickScalpTrend(Strategy):
                             long_dynamic_amount,
                             short_dynamic_amount,
                             auto_reduce_start_pct,
-                            max_pos_balance_pct
+                            max_pos_balance_pct,
+                            upnl_threshold_pct
                         )
                     except Exception as e:
                         logging.info(f"Exception caught in autoreduce: {e}")
