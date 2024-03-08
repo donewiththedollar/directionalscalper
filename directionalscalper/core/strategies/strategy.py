@@ -4365,36 +4365,44 @@ class Strategy:
             self.symbol_locks[symbol] = threading.Lock()
 
         with self.symbol_locks[symbol]:
-            current_price = self.exchange.fetch_ticker(symbol)['last']  # Getting the last traded price
+            current_price = self.exchange.get_current_price(symbol)
             logging.info(f"Current price for {symbol}: {current_price}")
 
-            order_book = self.exchange.fetch_order_book(symbol)
-            best_ask_price = order_book['asks'][0][0]
-            best_bid_price = order_book['bids'][0][0]
-
+            order_book = self.exchange.get_orderbook(symbol)
+            best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol)
+            best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol)
+            
             mfi_signal_long = mfirsi.lower() == "long"
             mfi_signal_short = mfirsi.lower() == "short"
 
-            # Initial entry based on MFIRSI signal
+            # Check if volume check is enabled or not
             if not volume_check or (one_minute_volume > min_vol):
-                if not self.auto_reduce_active_long.get(symbol, False) and long_pos_qty == 0 and mfi_signal_long and not self.entry_order_exists(open_orders, "buy"):
-                    self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-                elif not self.auto_reduce_active_short.get(symbol, False) and short_pos_qty == 0 and mfi_signal_short and not self.entry_order_exists(open_orders, "sell"):
-                    self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                if not self.auto_reduce_active_long.get(symbol, False):
+                    if long_pos_qty == 0 and mfi_signal_long and not self.entry_order_exists(open_orders, "buy"):
+                        self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                        time.sleep(1)
+                    elif long_pos_qty > 0 and mfi_signal_long:
+                        # Calculate the DCA order size needed to bring the position to the current price
+                        dca_order_size = self.calculate_dca_order_size(long_pos_qty, long_pos_price, current_price)
+                        if dca_order_size > 0 and not self.entry_order_exists(open_orders, "buy"):
+                            self.place_postonly_order_bybit(symbol, "buy", dca_order_size, best_bid_price, positionIdx=1, reduceOnly=False)
+                            time.sleep(1)
 
-            # DCA adjustments for existing positions based on current market price
-            if long_pos_qty > 0 and mfi_signal_long:
-                dca_order_size = self.calculate_dca_order_size(long_pos_qty, long_pos_price, current_price)
-                if dca_order_size > 0:
-                    self.place_postonly_order_bybit(symbol, "buy", dca_order_size, best_bid_price, positionIdx=1, reduceOnly=False)
+                if not self.auto_reduce_active_short.get(symbol, False):
+                    if short_pos_qty == 0 and mfi_signal_short and not self.entry_order_exists(open_orders, "sell"):
+                        self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                        time.sleep(1)
+                    elif short_pos_qty > 0 and mfi_signal_short:
+                        # Calculate the DCA order size needed to bring the position to the current price
+                        dca_order_size = self.calculate_dca_order_size(short_pos_qty, short_pos_price, current_price)
+                        if dca_order_size > 0 and not self.entry_order_exists(open_orders, "sell"):
+                            self.place_postonly_order_bybit(symbol, "sell", dca_order_size, best_ask_price, positionIdx=2, reduceOnly=False)
+                            time.sleep(1)
+            else:
+                logging.info(f"Volume check is disabled or conditions not met for {symbol}, proceeding without volume check.")
 
-            if short_pos_qty > 0 and mfi_signal_short:
-                dca_order_size = self.calculate_dca_order_size(short_pos_qty, short_pos_price, current_price)
-                if dca_order_size > 0:
-                    self.place_postonly_order_bybit(symbol, "sell", dca_order_size, best_ask_price, positionIdx=2, reduceOnly=False)
-
-            logging.info("MFIRSI-based entry and DCA adjustments processed.")
-
+            time.sleep(5)
+            
     def calculate_dca_order_size(self, open_position_qty, open_position_avg_price, current_market_price):
         """
         Calculate the DCA order size needed to adjust the average price of the open position to the current market price.
