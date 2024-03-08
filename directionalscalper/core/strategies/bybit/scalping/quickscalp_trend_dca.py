@@ -459,6 +459,7 @@ class BybitQuickScalpTrendDCA(Strategy):
                             auto_reduce_enabled,
                             symbol,
                             total_equity,
+                            available_equity,
                             open_position_data,
                             current_price,
                             long_dynamic_amount,
