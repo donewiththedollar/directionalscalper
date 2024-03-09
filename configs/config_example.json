@@ -21,7 +21,7 @@
     "liq_price_stop_pct": 0.50,
     "percentile_auto_reduce_enabled": false,
     "auto_reduce_enabled": true,
-    "upnl_threshold_pct": 0.30,
+    "upnl_threshold_pct": 0.40,
     "auto_reduce_start_pct": 0.048,
     "auto_reduce_maxloss_pct": 0.30,
     "max_pos_balance_pct": 0.30,
