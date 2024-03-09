@@ -4162,7 +4162,7 @@ class Strategy:
                 logging.info(f"Volume check is disabled or conditions not met for {symbol}, proceeding without volume check.")
 
             time.sleep(5)
-            
+
     def calculate_dca_order_size(self, open_position_qty, open_position_avg_price, current_market_price, symbol):
         """
         Calculate the DCA order size needed to adjust the average price of the open position to the current market price.
@@ -4173,17 +4173,12 @@ class Strategy:
         # Calculate the total cost of the current position
         total_position_cost = open_position_qty * open_position_avg_price
 
-        logging.info(f"Total position cost for {symbol} {total_position_cost}")
+        logging.info(f"Total position cost for {symbol}: {total_position_cost}")
 
-        # Determine the desired total quantity after DCA to achieve the current market price as the new average price
-        desired_total_qty = total_position_cost / current_market_price
+        # Calculate the quantity needed for DCA to achieve the current market price as the new average price
+        dca_qty_needed = (total_position_cost - open_position_qty * current_market_price) / (current_market_price - open_position_avg_price)
 
-        logging.info(f"Desired total qty for {symbol} : {desired_total_qty}")
-
-        # Calculate the quantity needed for DCA
-        dca_qty_needed = desired_total_qty - open_position_qty
-
-        logging.info(f"DCA qty needed for {symbol} : {dca_qty_needed}")
+        logging.info(f"DCA qty needed for {symbol}: {dca_qty_needed}")
 
         # Fetch the precision for the symbol to use in rounding
         _, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
@@ -4195,6 +4190,39 @@ class Strategy:
         logging.info(f"DCA order size for {symbol} is {dca_order_size_adjusted}")
 
         return max(0, dca_order_size_adjusted)  # Ensure the DCA quantity is non-negative
+            
+    # def calculate_dca_order_size(self, open_position_qty, open_position_avg_price, current_market_price, symbol):
+    #     """
+    #     Calculate the DCA order size needed to adjust the average price of the open position to the current market price.
+    #     """
+    #     if open_position_qty == 0:
+    #         return 0  # No open position to adjust
+
+    #     # Calculate the total cost of the current position
+    #     total_position_cost = open_position_qty * open_position_avg_price
+
+    #     logging.info(f"Total position cost for {symbol} {total_position_cost}")
+
+    #     # Determine the desired total quantity after DCA to achieve the current market price as the new average price
+    #     desired_total_qty = total_position_cost / current_market_price
+
+    #     logging.info(f"Desired total qty for {symbol} : {desired_total_qty}")
+
+    #     # Calculate the quantity needed for DCA
+    #     dca_qty_needed = desired_total_qty - open_position_qty
+
+    #     logging.info(f"DCA qty needed for {symbol} : {dca_qty_needed}")
+
+    #     # Fetch the precision for the symbol to use in rounding
+    #     _, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
+    #     qty_precision = -int(math.log10(price_precision))  # Assuming price precision is a good proxy for quantity precision
+
+    #     # Adjust the DCA order size based on the symbol's quantity precision
+    #     dca_order_size_adjusted = round(dca_qty_needed, qty_precision)
+
+    #     logging.info(f"DCA order size for {symbol} is {dca_order_size_adjusted}")
+
+    #     return max(0, dca_order_size_adjusted)  # Ensure the DCA quantity is non-negative
 
 
     def bybit_1m_mfi_quickscalp_trend(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, entry_during_autoreduce: bool, volume_check: bool):
