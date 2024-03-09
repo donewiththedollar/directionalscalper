@@ -2,7 +2,7 @@
   "api": {
     "filename": "quantdatav2_bybit.json",
     "mode": "remote",
-    "url": "https://api.quantumvoid.org/data/",
+    "url": "https://api.quantumvoid.org/volumedata/",
     "data_source_exchange": "bybit"
   },
   "bot": {

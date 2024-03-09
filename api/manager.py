@@ -72,14 +72,14 @@ class Manager:
             logging.info("API manager mode: remote")
             if len(self.url) < 6:
                 # Adjusting the default URL based on the exchange_name
-                self.url = f"https://api.quantumvoid.org/data/quantdatav2_{self.exchange_name}.json"
+                self.url = f"https://api.quantumvoid.org/volumedata/quantdatav2_{self.exchange_name}.json"
             logging.info(f"Remote API URL: {self.url}")
             self.data = self.get_remote_data()
 
         elif self.api == "local":
             # You might also want to consider adjusting the local path based on the exchange_name in the future.
             if len(str(self.path)) < 6:
-                self.path = Path("data", f"quantdatav2_{self.exchange_name}.json")
+                self.path = Path("volumedata", f"quantdatav2_{self.exchange_name}.json")
             logging.info(f"Local API directory: {self.path}")
             self.data = self.get_local_data()
 
@@ -145,7 +145,7 @@ class Manager:
         return datetime.now() > self.rotator_symbols_cache_expiry
 
     def get_all_possible_symbols(self, max_retries: int = 5):
-        url = "https://api.quantumvoid.org/data/quantdatav2_bybit.json"
+        url = "https://api.quantumvoid.org/volumedata/quantdatav2_bybit.json"
         
         for retry in range(max_retries):
             delay = 2**retry  # exponential backoff
@@ -184,7 +184,7 @@ class Manager:
             return self.rotator_symbols_cache
 
         symbols = []
-        url = f"https://api.quantumvoid.org/data/rotatorsymbols_{self.data_source_exchange}.json"
+        url = f"https://api.quantumvoid.org/volumedata/rotatorsymbols_{self.data_source_exchange}.json"
         
         for retry in range(max_retries):
             delay = 2**retry  # exponential backoff
@@ -249,7 +249,7 @@ class Manager:
 
     
     def get_symbols(self):
-        url = f"https://api.quantumvoid.org/data/quantdatav2_bybit.json"
+        url = f"https://api.quantumvoid.org/volumedata/quantdatav2_bybit.json"
         try:
             header, raw_json = send_public_request(url=url)
             if isinstance(raw_json, list):
