@@ -618,36 +618,6 @@ class Strategy:
 
         return result
 
-    # def initialize_trade_quantities(self, symbol, total_equity, best_ask_price, max_leverage):
-    #     # Check if the symbol has been initialized before
-    #     if symbol in self.initialized_symbols:
-    #         return
-
-    #     # Calculate the max trade quantity if it hasn't been initialized for long or short trades
-    #     if symbol not in self.max_long_trade_qty_per_symbol or symbol not in self.max_short_trade_qty_per_symbol:
-    #         try:
-    #             max_trade_qty = self.calc_max_trade_qty(symbol, total_equity, best_ask_price, max_leverage)
-    #         except Exception as e:
-    #             logging.error(f"Error calculating max trade quantity for {symbol}: {e}")
-    #             return  # Exit the function if there's an error
-
-    #         self.max_long_trade_qty_per_symbol.setdefault(symbol, max_trade_qty)
-    #         self.max_short_trade_qty_per_symbol.setdefault(symbol, max_trade_qty)
-
-    #         logging.info(f"For symbol {symbol} Calculated max_long_trade_qty: {max_trade_qty}, max_short_trade_qty: {max_trade_qty}")
-
-    #     # Initialize the initial max trade quantities if not set
-    #     if symbol not in self.initial_max_long_trade_qty_per_symbol:
-    #         self.initial_max_long_trade_qty_per_symbol[symbol] = self.max_long_trade_qty_per_symbol[symbol]
-    #         logging.info(f"Initial max long trade qty set for {symbol} to {self.initial_max_long_trade_qty_per_symbol[symbol]}")
-
-    #     if symbol not in self.initial_max_short_trade_qty_per_symbol:
-    #         self.initial_max_short_trade_qty_per_symbol[symbol] = self.max_short_trade_qty_per_symbol[symbol]
-    #         logging.info(f"Initial max short trade qty set for {symbol} to {self.initial_max_short_trade_qty_per_symbol[symbol]}")
-
-    #     # Add the symbol to the initialized symbols set
-    #     self.initialized_symbols.add(symbol)
-
     def initialize_trade_quantities(self, symbol, total_equity, best_ask_price, max_leverage):
         if symbol in self.initialized_symbols:
             return
@@ -844,55 +814,6 @@ class Strategy:
         logging.info(f"Symbol: {symbol} Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
 
         return long_dynamic_amount, short_dynamic_amount, min_qty
-
-    # def calculate_dynamic_amount(self, symbol, total_equity, best_ask_price, max_leverage):
-
-    #     self.initialize_trade_quantities(symbol, total_equity, best_ask_price, max_leverage)
-
-    #     market_data = self.get_market_data_with_retry(symbol, max_retries = 100, retry_delay = 5)
-
-    #     long_dynamic_amount = 0.001 * self.initial_max_long_trade_qty_per_symbol[symbol]
-    #     short_dynamic_amount = 0.001 * self.initial_max_short_trade_qty_per_symbol[symbol]
-
-    #     logging.info(f"Initial long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
-
-    #     # Cap the dynamic amount if it exceeds the maximum allowed
-    #     max_allowed_dynamic_amount = (self.MAX_PCT_EQUITY / 100) * total_equity
-    #     logging.info(f"Max allowed dynamic amount for {symbol} : {max_allowed_dynamic_amount}")
-
-    #     min_qty = float(market_data["min_qty"])
-
-    #     logging.info(f"Min qty for {symbol} : {min_qty}")
-        
-    #     # Determine precision level directly
-    #     precision_level = len(str(min_qty).split('.')[-1]) if '.' in str(min_qty) else 0
-    #     logging.info(f"min_qty: {min_qty}, precision_level: {precision_level}")
-
-    #     # Round the dynamic amounts based on precision level
-    #     long_dynamic_amount = round(long_dynamic_amount, precision_level)
-    #     short_dynamic_amount = round(short_dynamic_amount, precision_level)
-
-    #     logging.info(f"Rounded long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
-
-    #     long_dynamic_amount = min(long_dynamic_amount, max_allowed_dynamic_amount)
-    #     short_dynamic_amount = min(short_dynamic_amount, max_allowed_dynamic_amount)
-
-    #     logging.info(f"Forced min qty long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
-
-    #     self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
-    #     self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
-
-    #     # Using min_qty if dynamic amount is too small
-    #     if long_dynamic_amount < min_qty:
-    #         logging.info(f"Dynamic amount too small for 0.001x, using min_qty for long_dynamic_amount")
-    #         long_dynamic_amount = min_qty
-    #     if short_dynamic_amount < min_qty:
-    #         logging.info(f"Dynamic amount too small for 0.001x, using min_qty for short_dynamic_amount")
-    #         short_dynamic_amount = min_qty
-
-    #     logging.info(f"Symbol: {symbol} Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
-
-    #     return long_dynamic_amount, short_dynamic_amount, min_qty
 
     def get_all_moving_averages(self, symbol, max_retries=3, delay=5):
         for _ in range(max_retries):
@@ -3692,7 +3613,8 @@ class Strategy:
         except Exception as e:
             logging.error(f"An error occurred while canceling auto-reduce orders for {symbol}: {e}")
 
-    def calculate_dynamic_auto_reduce_levels(self, symbol, pos_qty, dynamic_amount, market_price, start_pct, total_equity, long_pos_price, short_pos_price):
+
+    def calculate_dynamic_auto_reduce_levels(self, symbol, pos_qty, market_price, total_equity, long_pos_price, short_pos_price):
         # Check if conditions have changed significantly to recalculate levels
         if symbol in self.previous_levels:
             last_market_price, last_max_levels, last_price_interval = self.previous_levels[symbol]
@@ -3734,42 +3656,6 @@ class Strategy:
 
         return max_levels, price_interval
     
-
-    # Works well but very tight to the market price
-    # def calculate_dynamic_auto_reduce_levels(self, symbol, pos_qty, dynamic_amount, market_price, start_pct, total_equity, long_pos_price, short_pos_price):
-    #     volatility_metric = self.calculate_volatility_metric(symbol)
-    #     risk_factor = abs(pos_qty / total_equity)
-
-    #     # Dynamic scaling based on volatility and risk
-    #     volatility_scale = min(max(1, volatility_metric * 10), 5)
-    #     risk_scale = min(max(1, risk_factor * 10), 5)
-
-    #     # Base number of levels
-    #     base_levels = 10
-    #     volatility_adjustment = int(volatility_metric * volatility_scale)
-    #     risk_adjustment = int(risk_factor * risk_scale)
-
-    #     # Calculate max_levels and ensure it stays within a reasonable range
-    #     max_levels = base_levels + volatility_adjustment + risk_adjustment
-    #     max_levels = min(max(max_levels, 5), 30)
-
-    #     # Adjust starting point based on current market price
-    #     # Here, we use a very small buffer or none at all
-    #     buffer_percent = Decimal('0.001')  # 0.10% buffer
-    #     buffer_amount = market_price * buffer_percent
-
-    #     # Calculate price_interval dynamically
-    #     total_price_range = market_price * buffer_percent
-    #     price_interval = total_price_range / max_levels if max_levels > 1 else total_price_range
-
-    #     # Logging for debugging and analysis
-    #     logging.info(f"Symbol: {symbol}, Volatility Metric: {volatility_metric}, Risk Factor: {risk_factor}")
-    #     logging.info(f"Volatility Scale: {volatility_scale}, Risk Scale: {risk_scale}")
-    #     logging.info(f"Volatility Adjustment: {volatility_adjustment}, Risk Adjustment: {risk_adjustment}")
-    #     logging.info(f"Base Levels: {base_levels}, Max Levels: {max_levels}, Price Interval: {price_interval}, Buffer Amount: {buffer_amount}")
-
-    #     return max_levels, price_interval
-
     def place_auto_reduce_order(self, symbol, step_price, dynamic_amount, position_type):
         try:
             if position_type == 'long':
@@ -3788,7 +3674,8 @@ class Strategy:
             logging.error(f"Error in placing auto-reduce {position_type} order for {symbol}: {e}")
             return None
 
-    def execute_auto_reduce(self, position_type, symbol, pos_qty, dynamic_amount, market_price, start_pct, total_equity, long_pos_price, short_pos_price, min_qty):
+
+    def execute_auto_reduce(self, position_type, symbol, pos_qty, dynamic_amount, market_price, total_equity, long_pos_price, short_pos_price, min_qty):
         # Fetch precision for the symbol
         amount_precision, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
         price_precision_level = -int(math.log10(price_precision))
@@ -3797,7 +3684,7 @@ class Strategy:
         # Convert market_price to Decimal for consistent arithmetic operations
         market_price = Decimal(str(market_price))
 
-        max_levels, price_interval = self.calculate_dynamic_auto_reduce_levels(symbol, pos_qty, dynamic_amount, market_price, start_pct, total_equity, long_pos_price, short_pos_price)
+        max_levels, price_interval = self.calculate_dynamic_auto_reduce_levels(symbol, pos_qty, market_price, total_equity, long_pos_price, short_pos_price)
         for i in range(1, max_levels + 1):
             # Calculate step price and round it to the correct precision
             step_price = market_price + (price_interval * i) if position_type == 'long' else market_price - (price_interval * i)
@@ -3848,47 +3735,50 @@ class Strategy:
                                 open_position_data, current_market_price, long_dynamic_amount,
                                 short_dynamic_amount, auto_reduce_start_pct, max_pos_balance_pct,
                                 upnl_threshold_pct):
-
         if auto_reduce_enabled:
             try:
-                long_position_value = short_position_value = 0.0
-                for position in open_position_data:
-                    if position['symbol'] == symbol:
-                        if position['side'] == 'Buy':
-                            long_position_value = position['positionValue']
-                        elif position['side'] == 'Sell':
-                            short_position_value = position['positionValue']
+                # Calculate total unrealized PnL value and percentage across all symbols
+                total_upnl_value = 0
+                for open_symbol in open_position_data:
+                    unrealized_pnl = self.exchange.fetch_unrealized_pnl(open_symbol['symbol'])
+                    long_upnl = unrealized_pnl.get('long', 0)
+                    short_upnl = unrealized_pnl.get('short', 0)
+                    total_upnl_value += long_upnl + short_upnl
+                total_upnl_pct = (total_upnl_value / total_equity) * 100 if total_equity else 0
 
+                # Calculate the percentage of equity each position (long and short) represents for this particular symbol
+                long_position_value = sum(position['positionValue'] for position in open_position_data if position['symbol'] == symbol and position['side'] == 'Buy')
+                short_position_value = sum(position['positionValue'] for position in open_position_data if position['symbol'] == symbol and position['side'] == 'Sell')
                 long_position_value_pct = (long_position_value / total_equity) * 100 if total_equity else 0
                 short_position_value_pct = (short_position_value / total_equity) * 100 if total_equity else 0
-                upnl_pct = ((total_equity - available_equity) / available_equity) * 100 if available_equity else 0
 
                 logging.info(f"{symbol} Max pos balance pct: {max_pos_balance_pct * 100}")
                 logging.info(f"{symbol} Long Position Value %: {long_position_value_pct}")
                 logging.info(f"{symbol} Short Position Value %: {short_position_value_pct}")
-                logging.info(f"{symbol} uPNL %: {upnl_pct}")
+                logging.info(f"Total equity: {total_equity}")
+                logging.info(f"Available equity: {available_equity}")
+                logging.info(f"Total uPNL: {total_upnl_value:.2f} ({total_upnl_pct:.2f}%)")
 
+                # Logic for triggering auto-reduce
                 long_loss_exceeded = long_pos_price is not None and current_market_price < long_pos_price * (1 - auto_reduce_start_pct)
                 short_loss_exceeded = short_pos_price is not None and current_market_price > short_pos_price * (1 + auto_reduce_start_pct)
-                upnl_threshold_exceeded = upnl_pct < -abs(upnl_threshold_pct)
+                upnl_threshold_exceeded = abs(total_upnl_pct) > abs(upnl_threshold_pct)
 
-                if long_pos_qty > 0 and (long_loss_exceeded or upnl_threshold_exceeded or long_position_value_pct > max_pos_balance_pct * 100):
-                    logging.info(f"Auto-reduce long position for {symbol}.")
-                    # Execute auto-reduce logic for long position
-                    self.execute_auto_reduce('long', symbol, long_pos_qty, long_dynamic_amount, current_market_price, min_qty)
+                if long_pos_qty > 0 and ((long_loss_exceeded and long_position_value_pct > max_pos_balance_pct * 100) or (upnl_threshold_exceeded and long_loss_exceeded)):
+                    logging.info(f"Triggering auto-reduce for long position in {symbol}.")
+                    self.execute_auto_reduce('long', symbol, long_pos_qty, long_dynamic_amount, current_market_price, total_equity, long_pos_price, short_pos_price, min_qty)
                 else:
-                    logging.info(f"Long auto-reduce not triggered for {symbol}.")
+                    logging.info(f"No auto-reduce for long position in {symbol}.")
 
-                if short_pos_qty > 0 and (short_loss_exceeded or upnl_threshold_exceeded or short_position_value_pct > max_pos_balance_pct * 100):
-                    logging.info(f"Auto-reduce short position for {symbol}.")
-                    # Execute auto-reduce logic for short position
-                    self.execute_auto_reduce('short', symbol, short_pos_qty, short_dynamic_amount, current_market_price, min_qty)
+                if short_pos_qty > 0 and ((short_loss_exceeded and short_position_value_pct > max_pos_balance_pct * 100) or (upnl_threshold_exceeded and short_loss_exceeded)):
+                    logging.info(f"Triggering auto-reduce for short position in {symbol}.")
+                    self.execute_auto_reduce('short', symbol, short_pos_qty, short_dynamic_amount, current_market_price, total_equity, long_pos_price, short_pos_price, min_qty)
                 else:
-                    logging.info(f"Short auto-reduce not triggered for {symbol}.")
+                    logging.info(f"No auto-reduce for short position in {symbol}.")
 
             except Exception as e:
-                logging.error(f"Auto-reduce logic error for {symbol}: {e}")
-    
+                logging.error(f"Error in auto-reduce logic for {symbol}: {e}")
+                
     # This worked until it does not. The max_loss_pct is used to calculate the grid and causes issues giving you further AR entries
     def auto_reduce_logic(self, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, auto_reduce_enabled, symbol, total_equity, auto_reduce_wallet_exposure_pct, open_position_data, current_market_price, long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct, auto_reduce_maxloss_pct):
         if auto_reduce_enabled:
