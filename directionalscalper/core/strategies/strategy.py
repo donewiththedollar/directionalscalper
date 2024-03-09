@@ -712,109 +712,6 @@ class Strategy:
 
         logging.info(f"Updated dynamic amounts for {symbol}. New long_dynamic_amount: {self.long_dynamic_amount[symbol]}, New short_dynamic_amount: {self.short_dynamic_amount[symbol]}")
 
-    def calculate_dynamic_amount_v3(self, symbol, total_equity, best_ask_price, max_leverage):
-        price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
-        qty_precision_level = -int(math.log10(qty_precision))
-
-        market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
-        min_qty = float(market_data["min_qty"])
-
-        logging.info(f"Min qty for {symbol} {min_qty}")
-
-        # Calculate dynamic amounts considering the leverage and symbol's best ask price
-        dynamic_amount = (self.dynamic_amount_multiplier * total_equity * max_leverage) / best_ask_price
-        long_dynamic_amount = min(dynamic_amount, self.max_long_trade_qty_per_symbol.get(symbol, dynamic_amount))
-        short_dynamic_amount = min(dynamic_amount, self.max_short_trade_qty_per_symbol.get(symbol, dynamic_amount))
-
-        long_dynamic_amount = round(long_dynamic_amount, qty_precision_level)
-        short_dynamic_amount = round(short_dynamic_amount, qty_precision_level)
-
-        long_dynamic_amount = max(long_dynamic_amount, min_qty)
-        short_dynamic_amount = max(short_dynamic_amount, min_qty)
-
-        logging.info(f"Symbol: {symbol} Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
-        return long_dynamic_amount, short_dynamic_amount, min_qty
-
-
-
-    # def calculate_dynamic_amount_v3(self, symbol, total_equity):
-    #     # Fetch symbol precision for price and quantity
-    #     price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
-    #     qty_precision_level = -int(math.log10(qty_precision))
-
-    #     market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
-    #     min_qty = float(market_data["min_qty"])
-    #     logging.info(f"Min qty for {symbol}: {min_qty}")
-
-    #     # Calculate dynamic amounts based on total equity and multiplier
-    #     long_dynamic_amount = self.dynamic_amount_multiplier * total_equity
-    #     short_dynamic_amount = self.dynamic_amount_multiplier * total_equity
-
-    #     # Round the dynamic amounts based on quantity precision level
-    #     long_dynamic_amount = round(long_dynamic_amount, qty_precision_level)
-    #     short_dynamic_amount = round(short_dynamic_amount, qty_precision_level)
-
-    #     # Ensure dynamic amounts do not exceed the maximum allowed
-    #     max_allowed_dynamic_amount = (self.MAX_PCT_EQUITY / 100) * total_equity
-    #     long_dynamic_amount = min(long_dynamic_amount, max_allowed_dynamic_amount, self.max_long_trade_qty_per_symbol.get(symbol, float('inf')))
-    #     short_dynamic_amount = min(short_dynamic_amount, max_allowed_dynamic_amount, self.max_short_trade_qty_per_symbol.get(symbol, float('inf')))
-
-    #     # Ensure dynamic amounts are not below the minimum quantity
-    #     long_dynamic_amount = max(long_dynamic_amount, min_qty)
-    #     short_dynamic_amount = max(short_dynamic_amount, min_qty)
-
-    #     logging.info(f"Symbol: {symbol} Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
-    #     return long_dynamic_amount, short_dynamic_amount, min_qty
-
-
-
-    def calculate_dynamic_amount_v2(self, symbol, total_equity, best_ask_price, max_leverage):
-
-        market_data = self.get_market_data_with_retry(symbol, max_retries = 100, retry_delay = 5)
-
-        min_qty = float(market_data["min_qty"])
-
-        logging.info(f"Min qty for {symbol} : {min_qty}")
-
-        long_dynamic_amount = self.dynamic_amount_multiplier * total_equity
-        short_dynamic_amount = self.dynamic_amount_multiplier * total_equity
-
-        logging.info(f"Initial long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
-
-        # Cap the dynamic amount if it exceeds the maximum allowed
-        max_allowed_dynamic_amount = (self.MAX_PCT_EQUITY / 100) * total_equity
-        logging.info(f"Max allowed dynamic amount for {symbol} : {max_allowed_dynamic_amount}")
-        
-        # Determine precision level directly
-        precision_level = len(str(min_qty).split('.')[-1]) if '.' in str(min_qty) else 0
-        logging.info(f"min_qty: {min_qty}, precision_level: {precision_level}")
-
-        # Round the dynamic amounts based on precision level
-        long_dynamic_amount = round(long_dynamic_amount, precision_level)
-        short_dynamic_amount = round(short_dynamic_amount, precision_level)
-
-        logging.info(f"Rounded long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
-
-        long_dynamic_amount = min(long_dynamic_amount, max_allowed_dynamic_amount)
-        short_dynamic_amount = min(short_dynamic_amount, max_allowed_dynamic_amount)
-
-        logging.info(f"Forced min qty long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
-
-        self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
-        self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
-
-        # Using min_qty if dynamic amount is too small
-        if long_dynamic_amount < min_qty:
-            logging.info(f"Dynamic amount too small for 0.001x, using min_qty for long_dynamic_amount")
-            long_dynamic_amount = min_qty
-        if short_dynamic_amount < min_qty:
-            logging.info(f"Dynamic amount too small for 0.001x, using min_qty for short_dynamic_amount")
-            short_dynamic_amount = min_qty
-
-        logging.info(f"Symbol: {symbol} Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
-
-        return long_dynamic_amount, short_dynamic_amount, min_qty
-
     def get_all_moving_averages(self, symbol, max_retries=3, delay=5):
         for _ in range(max_retries):
             m_moving_averages = self.manager.get_1m_moving_averages(symbol)
@@ -3787,63 +3684,6 @@ class Strategy:
             except Exception as e:
                 logging.error(f"Error in auto-reduce logic for {symbol}: {e}")
                 
-    # def auto_reduce_logic_simple(self, min_qty, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
-    #                             auto_reduce_enabled, symbol, total_equity, available_equity,
-    #                             open_position_data, current_market_price, long_dynamic_amount,
-    #                             short_dynamic_amount, auto_reduce_start_pct, max_pos_balance_pct,
-    #                             upnl_threshold_pct):
-    #     if auto_reduce_enabled:
-    #         try:
-    #             # Calculate total unrealized PnL value and percentage across all symbols
-    #             total_upnl_value = 0
-    #             for open_symbol in open_position_data:
-    #                 unrealized_pnl = self.exchange.fetch_unrealized_pnl(open_symbol['symbol'])
-    #                 long_upnl = unrealized_pnl.get('long', 0)
-    #                 short_upnl = unrealized_pnl.get('short', 0)
-    #                 total_upnl_value += long_upnl + short_upnl
-    #             total_upnl_pct = (total_upnl_value / total_equity) * 100 if total_equity else 0
-
-    #             # Calculate the percentage of equity each position (long and short) represents for this particular symbol
-    #             position_values = {}
-    #             for position in open_position_data:
-    #                 info = position.get('info', {})
-    #                 symbol_from_position = info.get('symbol', '').split(':')[0]
-    #                 logging.info(f"Info for {symbol_from_position} : {info}")
-    #                 side_from_position = info.get('side', '')
-    #                 position_value = float(info.get('positionValue', 0) or 0)
-    #                 if symbol_from_position == symbol:
-    #                     position_values[side_from_position] = position_value
-
-    #             long_position_value_pct = (position_values.get('Buy', 0) / total_equity) * 100
-    #             short_position_value_pct = (position_values.get('Sell', 0) / total_equity) * 100
-
-    #             logging.info(f"{symbol} Max pos balance pct: {max_pos_balance_pct * 100}")
-    #             logging.info(f"{symbol} Long Position Value %: {long_position_value_pct}")
-    #             logging.info(f"{symbol} Short Position Value %: {short_position_value_pct}")
-    #             logging.info(f"Total equity: {total_equity}")
-    #             logging.info(f"Available equity: {available_equity}")
-    #             logging.info(f"Total uPNL: {total_upnl_value:.2f} ({total_upnl_pct:.2f}%)")
-
-    #             # Logic for triggering auto-reduce
-    #             long_loss_exceeded = long_pos_price is not None and current_market_price < long_pos_price * (1 - auto_reduce_start_pct)
-    #             short_loss_exceeded = short_pos_price is not None and current_market_price > short_pos_price * (1 + auto_reduce_start_pct)
-    #             upnl_threshold_exceeded = abs(total_upnl_pct) > abs(upnl_threshold_pct)
-
-    #             if long_pos_qty > 0 and ((long_loss_exceeded and long_position_value_pct > max_pos_balance_pct * 100) or (upnl_threshold_exceeded and long_position_value_pct > max_pos_balance_pct * 100)):
-    #                 logging.info(f"Triggering auto-reduce for long position in {symbol}.")
-    #                 self.execute_auto_reduce('long', symbol, long_pos_qty, long_dynamic_amount, current_market_price, total_equity, long_pos_price, short_pos_price, min_qty)
-    #             else:
-    #                 logging.info(f"No auto-reduce for long position in {symbol}.")
-
-    #             if short_pos_qty > 0 and ((short_loss_exceeded and short_position_value_pct > max_pos_balance_pct * 100) or (upnl_threshold_exceeded and short_position_value_pct > max_pos_balance_pct * 100)):
-    #                 logging.info(f"Triggering auto-reduce for short position in {symbol}.")
-    #                 self.execute_auto_reduce('short', symbol, short_pos_qty, short_dynamic_amount, current_market_price, total_equity, long_pos_price, short_pos_price, min_qty)
-    #             else:
-    #                 logging.info(f"No auto-reduce for short position in {symbol}.")
-
-    #         except Exception as e:
-    #             logging.error(f"Error in auto-reduce logic for {symbol}: {e}")
-                 
     # This worked until it does not. The max_loss_pct is used to calculate the grid and causes issues giving you further AR entries
     def auto_reduce_logic(self, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, auto_reduce_enabled, symbol, total_equity, auto_reduce_wallet_exposure_pct, open_position_data, current_market_price, long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct, auto_reduce_maxloss_pct):
         if auto_reduce_enabled:
@@ -4333,11 +4173,17 @@ class Strategy:
         # Calculate the total cost of the current position
         total_position_cost = open_position_qty * open_position_avg_price
 
+        logging.info(f"Total position cost for {symbol} {total_position_cost}")
+
         # Determine the desired total quantity after DCA to achieve the current market price as the new average price
         desired_total_qty = total_position_cost / current_market_price
 
+        logging.info(f"Desired total qty for {symbol} : {desired_total_qty}")
+
         # Calculate the quantity needed for DCA
         dca_qty_needed = desired_total_qty - open_position_qty
+
+        logging.info(f"DCA qty needed for {symbol} : {dca_qty_needed}")
 
         # Fetch the precision for the symbol to use in rounding
         _, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
@@ -4345,6 +4191,8 @@ class Strategy:
 
         # Adjust the DCA order size based on the symbol's quantity precision
         dca_order_size_adjusted = round(dca_qty_needed, qty_precision)
+
+        logging.info(f"DCA order size for {symbol} is {dca_order_size_adjusted}")
 
         return max(0, dca_order_size_adjusted)  # Ensure the DCA quantity is non-negative
 
