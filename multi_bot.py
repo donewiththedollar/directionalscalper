@@ -515,6 +515,6 @@ if __name__ == '__main__':
             logging.info(f"Active symbols: {active_symbols}")
             logging.info(f"Total active symbols: {len(active_symbols)}")
 
-            time.sleep(30)
+            time.sleep(15)
         except Exception as e:
             logging.error(f"Exception caught in main loop: {e}")

@@ -333,8 +333,6 @@ class BybitQuickScalpTrendOB(Strategy):
 
                 # self.check_for_inactivity(long_pos_qty, short_pos_qty)
 
-                time.sleep(5)
-
                 # self.print_trade_quantities_once_bybit(symbol, total_equity, self.max_leverage)
 
                 logging.info(f"Rotator symbols standardized: {rotator_symbols_standardized}")
@@ -690,8 +688,6 @@ class BybitQuickScalpTrendOB(Strategy):
                     self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
                     # self.cancel_stale_orders_bybit(symbol)
 
-                    time.sleep(5)
-
                 symbol_data = {
                     'symbol': symbol,
                     'min_qty': min_qty,
@@ -723,7 +719,7 @@ class BybitQuickScalpTrendOB(Strategy):
                 iteration_duration = iteration_end_time - iteration_start_time
                 logging.info(f"Iteration for symbol {symbol} took {iteration_duration:.2f} seconds")
 
-                time.sleep(5)
+                time.sleep(3)
         except Exception as e:
             traceback_info = traceback.format_exc()  # Get the full traceback
             logging.error(f"Exception caught in quickscalp strategy '{symbol}': {e}\nTraceback:\n{traceback_info}")
