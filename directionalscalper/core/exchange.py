@@ -1198,54 +1198,6 @@ class Exchange:
 
         return values
     
-    def mfirsibinsbuckets(self, symbol: str, limit: int = 100, lookback: int = 5, ema_period: int = 5, order_book_depth: int = 10, buckets: int = 10) -> str:
-        # Fetch OHLCV data
-        ohlcv_data = self.exchange.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
-        df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
-
-        # Calculate MFI and RSI
-        df['mfi'] = ta.volume.MFIIndicator(high=df['high'], low=df['low'], close=df['close'], volume=df['volume'], window=14, fillna=False).money_flow_index()
-        df['rsi'] = ta.momentum.rsi(df['close'], window=14)
-
-        # Calculate EMAs for MFI and RSI
-        df['mfi_ema'] = df['mfi'].ewm(span=ema_period, adjust=False).mean()
-        df['rsi_ema'] = df['rsi'].ewm(span=ema_period, adjust=False).mean()
-
-        # Fetch order book data using the fetch_order_book function from CCXT
-        order_book = self.exchange.fetch_order_book(symbol, limit=order_book_depth)
-
-        # Extract bids and asks from the order book data
-        bids = order_book['bids']
-        asks = order_book['asks']
-
-        bids_df = pd.DataFrame(bids, columns=['price', 'volume'])
-        asks_df = pd.DataFrame(asks, columns=['price', 'volume'])
-
-        bids_df['bin'] = pd.cut(bids_df['price'], bins=buckets)
-        asks_df['bin'] = pd.cut(asks_df['price'], bins=buckets)
-
-        bids_grouped = bids_df.groupby('bin', observed=True).sum()
-        asks_grouped = asks_df.groupby('bin', observed=True).sum()
-
-        bids_support = bids_grouped['volume'].idxmax()
-        asks_resistance = asks_grouped['volume'].idxmin()
-
-        bid_support_price = bids_df[bids_df['bin'] == bids_support]['price'].max()
-        ask_resistance_price = asks_df[asks_df['bin'] == asks_resistance]['price'].min()
-
-        # Determine conditions using EMAs and support/resistance levels
-        df['buy_condition'] = ((df['mfi_ema'] < 30) & (df['rsi_ema'] < 40) & (df['open'] < df['close']) & (df['close'] > bid_support_price)).astype(int)
-        df['sell_condition'] = ((df['mfi_ema'] > 80) & (df['rsi_ema'] > 70) & (df['open'] > df['close']) & (df['close'] < ask_resistance_price)).astype(int)
-
-        # Evaluate conditions over the lookback period
-        recent_conditions = df.iloc[-lookback:]
-        if recent_conditions['buy_condition'].any():
-            return 'long'
-        elif recent_conditions['sell_condition'].any():
-            return 'short'
-        else:
-            return 'neutral'
-        
     # Bitget
     def get_positions_bitget(self, symbol) -> dict:
         values = {
