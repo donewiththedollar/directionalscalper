@@ -27,7 +27,7 @@
     "max_pos_balance_pct": 0.30,
     "auto_reduce_wallet_exposure_pct": 0.20,
     "auto_reduce_marginbased_enabled": false,
-    "entry_during_autoreduce": true,
+    "entry_during_autoreduce": false,
     "hedge_ratio": 0.10,
     "hedge_price_difference_threshold": 0.10,
     "auto_leverage_upscale": false,
