@@ -3888,7 +3888,7 @@ class Strategy:
         return float(stop_loss_price)
 
 # price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
-    def calculate_dynamic_long_take_profit(self, best_bid_price, long_pos_price, symbol, upnl_profit_pct, max_deviation_pct=0.05):
+    def calculate_dynamic_long_take_profit(self, best_bid_price, long_pos_price, symbol, upnl_profit_pct):
         if long_pos_price is None:
             logging.error("Long position price is None for symbol: " + symbol)
             return None
@@ -3896,37 +3896,31 @@ class Strategy:
         _, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
         logging.info(f"Price precision for {symbol}: {price_precision}")
 
-        original_tp = long_pos_price * (1 + upnl_profit_pct)
-        logging.info(f"Original long TP for {symbol}: {original_tp}")
+        initial_tp = long_pos_price * (1 + upnl_profit_pct)
+        logging.info(f"Initial long TP for {symbol}: {initial_tp}")
 
         bid_walls, ask_walls = self.detect_significant_order_book_walls(symbol)
         if not ask_walls:
             logging.info(f"No significant ask walls found for {symbol}")
 
-        adjusted_tp = original_tp
         for price, size in ask_walls:
-            if price > original_tp:
+            if price > initial_tp:
                 extended_tp = price - float(price_precision)
                 if extended_tp > 0:
-                    adjusted_tp = max(adjusted_tp, extended_tp)
-                    logging.info(f"Adjusted long TP for {symbol} based on ask wall: {adjusted_tp}")
+                    initial_tp = max(initial_tp, extended_tp)
+                    logging.info(f"Adjusted long TP for {symbol} based on ask wall: {initial_tp}")
                 break
 
-        # Check if the adjusted TP is within the allowed deviation from the original TP
-        if adjusted_tp > original_tp * (1 + max_deviation_pct):
-            logging.info(f"Adjusted long TP for {symbol} exceeds the allowed deviation. Reverting to original TP: {original_tp}")
-            adjusted_tp = original_tp
-
         # Adjust TP to best bid price if surpassed
-        if best_bid_price >= adjusted_tp:
-            adjusted_tp = best_bid_price
-            logging.info(f"TP surpassed, adjusted to best bid price for {symbol}: {adjusted_tp}")
+        if best_bid_price >= initial_tp:
+            initial_tp = best_bid_price
+            logging.info(f"TP surpassed, adjusted to best bid price for {symbol}: {initial_tp}")
 
-        rounded_tp = round(adjusted_tp, len(str(price_precision).split('.')[-1]))
+        rounded_tp = round(initial_tp, len(str(price_precision).split('.')[-1]))
         logging.info(f"Final rounded long TP for {symbol}: {rounded_tp}")
         return rounded_tp
 
-    def calculate_dynamic_short_take_profit(self, best_ask_price, short_pos_price, symbol, upnl_profit_pct, max_deviation_pct=0.05):
+    def calculate_dynamic_short_take_profit(self, best_ask_price, short_pos_price, symbol, upnl_profit_pct):
         if short_pos_price is None:
             logging.error("Short position price is None for symbol: " + symbol)
             return None
@@ -3934,36 +3928,30 @@ class Strategy:
         _, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
         logging.info(f"Price precision for {symbol}: {price_precision}")
 
-        original_tp = short_pos_price * (1 - upnl_profit_pct)
-        logging.info(f"Original short TP for {symbol}: {original_tp}")
+        initial_tp = short_pos_price * (1 - upnl_profit_pct)
+        logging.info(f"Initial short TP for {symbol}: {initial_tp}")
 
         bid_walls, ask_walls = self.detect_significant_order_book_walls(symbol)
         if not bid_walls:
             logging.info(f"No significant bid walls found for {symbol}")
 
-        adjusted_tp = original_tp
         for price, size in bid_walls:
-            if price < original_tp:
+            if price < initial_tp:
                 extended_tp = price + float(price_precision)
                 if extended_tp > 0:
-                    adjusted_tp = min(adjusted_tp, extended_tp)
-                    logging.info(f"Adjusted short TP for {symbol} based on bid wall: {adjusted_tp}")
+                    initial_tp = min(initial_tp, extended_tp)
+                    logging.info(f"Adjusted short TP for {symbol} based on bid wall: {initial_tp}")
                 break
 
-        # Check if the adjusted TP is within the allowed deviation from the original TP
-        if adjusted_tp < original_tp * (1 - max_deviation_pct):
-            logging.info(f"Adjusted short TP for {symbol} exceeds the allowed deviation. Reverting to original TP: {original_tp}")
-            adjusted_tp = original_tp
-
         # Adjust TP to best ask price if surpassed
-        if best_ask_price <= adjusted_tp:
-            adjusted_tp = best_ask_price
-            logging.info(f"TP surpassed, adjusted to best ask price for {symbol}: {adjusted_tp}")
+        if best_ask_price <= initial_tp:
+            initial_tp = best_ask_price
+            logging.info(f"TP surpassed, adjusted to best ask price for {symbol}: {initial_tp}")
 
-        rounded_tp = round(adjusted_tp, len(str(price_precision).split('.')[-1]))
+        rounded_tp = round(initial_tp, len(str(price_precision).split('.')[-1]))
         logging.info(f"Final rounded short TP for {symbol}: {rounded_tp}")
         return rounded_tp
-
+    
     def calculate_quickscalp_long_take_profit(self, long_pos_price, symbol, upnl_profit_pct):
         if long_pos_price is None:
             return None
