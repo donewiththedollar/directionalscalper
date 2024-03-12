@@ -147,25 +147,18 @@ class Exchange:
             'adjustForTimeDifference': True,
         }
 
+        # Add the brokerId option only for Bybit exchanges
+        if self.exchange_id.lower().startswith('bybit'):
+            exchange_params['options']['brokerId'] = 'Nu000450'
+
         # Existing condition for Huobi
         if self.exchange_id.lower() == 'huobi' and self.market_type == 'swap':
             exchange_params['options']['defaultSubType'] = 'linear'
-        
-        # Existing condition for Bybit unified
-        # if self.exchange_id.lower() == 'bybit_unified':
-        #     exchange_params['options']['enableUnifiedMargin'] = True
 
         # Initializing the exchange object
         self.exchange = exchange_class(exchange_params)
-
-        # Uncomment and adjust the URLs if you need to connect to Bybit's testnet
-        #if self.exchange_id.lower() == 'bybit_spot':
-        #    exchange_params['urls'] = {
-        #        'api': 'https://api-testnet.bybit.com',
-        #        'public': 'https://api-testnet.bybit.com',
-        #        'private': 'https://api-testnet.bybit.com',
-        #    }
-
+        
+    
     def transfer_funds_bybit(self, code: str, amount: float, from_account: str, to_account: str, params={}):
         """
         Transfer funds between different account types under the same UID.
