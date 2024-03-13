@@ -824,6 +824,27 @@ class Exchange:
                 time.sleep(delay)
         raise Exception(f"Failed to execute the API function after {max_retries} retries.")
 
+## v5
+
+    def get_balance_bybit_spot(self, quote):
+        if self.exchange.has['fetchBalance']:
+            try:
+                # Specify the type as 'spot' for spot trading
+                balance_response = self.exchange.fetch_balance({'type': 'spot'})
+
+                # Logging the raw response for debugging might be useful
+                # logging.info(f"Raw balance response from Bybit: {balance_response}")
+
+                # Parse the balance for the quote currency
+                if quote in balance_response['total']:
+                    total_balance = balance_response['total'][quote]
+                    return total_balance
+                else:
+                    logging.warning(f"Balance for {quote} not found in the response.")
+            except Exception as e:
+                logging.error(f"Error fetching balance from Bybit: {e}")
+
+        return None
 
 ## v5
     def get_balance_bybit(self, quote):
