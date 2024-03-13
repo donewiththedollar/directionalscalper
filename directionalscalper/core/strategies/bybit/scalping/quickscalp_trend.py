@@ -448,6 +448,8 @@ class BybitQuickScalpTrend(Strategy):
 
                     try:
                         self.auto_reduce_logic_simple(
+                            long_upnl,
+                            short_upnl,
                             min_qty,
                             long_pos_price,
                             short_pos_price,
