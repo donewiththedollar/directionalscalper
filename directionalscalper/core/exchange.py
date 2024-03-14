@@ -49,7 +49,7 @@ class Exchange:
             for _ in range(self.max_retries):
                 try:
                     all_open_orders = self.parent.exchange.fetch_open_orders(symbol)
-                    logging.info(f"All open orders for {symbol}: {all_open_orders}")
+                    #logging.info(f"All open orders for {symbol}: {all_open_orders}")
                     
                     for order in all_open_orders:
                         order_details = {
