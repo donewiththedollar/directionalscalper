@@ -4204,50 +4204,6 @@ class Strategy:
                 logging.info(f"Volume check is disabled or conditions not met for {symbol}, proceeding without volume check.")
 
             time.sleep(5)
-            
-    # WTF HAPPENED HERE?
-    # def bybit_1m_mfi_quickscalp_trend(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, entry_during_autoreduce: bool, volume_check: bool):
-    #     if symbol not in self.symbol_locks:
-    #         self.symbol_locks[symbol] = threading.Lock()
-
-    #     with self.symbol_locks[symbol]:
-    #         current_price = self.exchange.get_current_price(symbol)
-    #         logging.info(f"Current price for {symbol}: {current_price}")
-
-    #         order_book = self.exchange.get_orderbook(symbol)
-    #         best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol)
-    #         best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol)
-
-    #         mfi_signal_long = mfirsi.lower() == "long"
-    #         mfi_signal_short = mfirsi.lower() == "short"
-
-    #         # Check if volume check is enabled or not
-    #         if not volume_check or (one_minute_volume > min_vol):
-    #             if not self.auto_reduce_active_long.get(symbol, False):
-    #                 if long_pos_qty == 0 and mfi_signal_long and not self.entry_order_exists(open_orders, "buy"):
-    #                     self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-    #                     time.sleep(1)
-    #                 elif long_pos_qty > 0 and mfi_signal_long and current_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
-    #                     if entry_during_autoreduce:
-    #                         self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-    #                         time.sleep(1)
-    #                     else:
-    #                         logging.info(f"Skipping additional long entry for {symbol} due to active auto-reduce and entry_during_autoreduce set to False.")
-
-    #             if not self.auto_reduce_active_short.get(symbol, False):
-    #                 if short_pos_qty == 0 and mfi_signal_short and not self.entry_order_exists(open_orders, "sell"):
-    #                     self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
-    #                     time.sleep(1)
-    #                 elif short_pos_qty > 0 and mfi_signal_short and current_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
-    #                     if entry_during_autoreduce:
-    #                         self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
-    #                         time.sleep(1)
-    #                     else:
-    #                         logging.info(f"Skipping additional short entry for {symbol} due to active auto-reduce and entry_during_autoreduce set to False.")
-    #         else:
-    #             logging.info(f"Volume check is disabled or conditions not met for {symbol}, proceeding without volume check.")
-
-    #         time.sleep(5)
 
     def bybit_1m_mfi_quickscalp(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, eri_trend: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool, uPNL_threshold: float, entry_during_autoreduce: bool):
         if symbol not in self.symbol_locks:
