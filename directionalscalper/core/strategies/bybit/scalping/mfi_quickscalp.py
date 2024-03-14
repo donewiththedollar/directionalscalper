@@ -123,6 +123,8 @@ class BybitMFIRSIQuickScalp(Strategy):
             min_dist = self.config.min_distance
             min_vol = self.config.min_volume
 
+            upnl_threshold_pct = self.config.upnl_threshold_pct
+
             upnl_profit_pct = self.config.upnl_profit_pct
 
             # Stop loss
@@ -435,16 +437,16 @@ class BybitMFIRSIQuickScalp(Strategy):
                             auto_reduce_enabled,
                             total_equity,
                             available_equity,
-                            current_price,
-                            long_dynamic_amount,
-                            short_dynamic_amount,
-                            auto_reduce_start_pct,
-                            max_pos_balance_pct,
-                            upnl_threshold_pct,
-                            shared_symbols_data
+                            current_market_price=current_price,
+                            long_dynamic_amount=long_dynamic_amount,
+                            short_dynamic_amount=short_dynamic_amount,
+                            auto_reduce_start_pct=auto_reduce_start_pct,
+                            max_pos_balance_pct=max_pos_balance_pct,
+                            upnl_threshold_pct=upnl_threshold_pct,
+                            shared_symbols_data=shared_symbols_data
                         )
                     except Exception as e:
-                        logging.info(f"Exception caught in autoreduce: {e}")
+                        logging.info(f"Exception caught in autoreduce")
 
                     self.auto_reduce_percentile_logic(
                         symbol,

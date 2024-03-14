@@ -32,6 +32,7 @@ class BybitQuickScalpUnified(Strategy):
         self.helper_interval = 1
         self.position_inactive_threshold = 120
         try:
+            self.upnl_threshold_pct = self.config.upnl_threshold_pct
             self.volume_check = self.config.volume_check
             self.max_usd_value = self.config.max_usd_value
             self.blacklist = self.config.blacklist
@@ -128,6 +129,8 @@ class BybitQuickScalpUnified(Strategy):
             volume_check = self.config.volume_check
             min_dist = self.config.min_distance
             min_vol = self.config.min_volume
+
+            upnl_threshold_pct = self.config_upnl_threshold_pct
 
             upnl_profit_pct = self.config.upnl_profit_pct
 
@@ -457,16 +460,16 @@ class BybitQuickScalpUnified(Strategy):
                             auto_reduce_enabled,
                             total_equity,
                             available_equity,
-                            current_price,
-                            long_dynamic_amount,
-                            short_dynamic_amount,
-                            auto_reduce_start_pct,
-                            max_pos_balance_pct,
-                            upnl_threshold_pct,
-                            shared_symbols_data
+                            current_market_price=current_price,
+                            long_dynamic_amount=long_dynamic_amount,
+                            short_dynamic_amount=short_dynamic_amount,
+                            auto_reduce_start_pct=auto_reduce_start_pct,
+                            max_pos_balance_pct=max_pos_balance_pct,
+                            upnl_threshold_pct=upnl_threshold_pct,
+                            shared_symbols_data=shared_symbols_data
                         )
                     except Exception as e:
-                        logging.info(f"Exception caught in autoreduce: {e}")
+                        logging.info(f"Exception caught in autoreduce")
 
                     self.auto_reduce_percentile_logic(
                         symbol,
