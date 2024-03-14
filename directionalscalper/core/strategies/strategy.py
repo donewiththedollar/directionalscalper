@@ -3679,7 +3679,7 @@ class Strategy:
 
             logging.info(f"{symbol} Long Loss Exceeded: {long_loss_exceeded}, Short Loss Exceeded: {short_loss_exceeded}, uPNL Threshold Exceeded: {upnl_threshold_exceeded}")
 
-            if long_pos_qty > 0 and long_loss_exceeded and long_position_value_pct > max_pos_balance_pct:
+            if long_pos_qty > 0 and long_loss_exceeded and long_position_value_pct > max_pos_balance_pct * 100:
                 logging.info(f"Triggering auto-reduce for long position in {symbol}.")
                 self.auto_reduce_active_long[symbol] = True
                 self.execute_auto_reduce('long', symbol, long_pos_qty, long_dynamic_amount, current_market_price, total_equity, long_pos_price, short_pos_price, min_qty)
@@ -3687,7 +3687,7 @@ class Strategy:
                 logging.info(f"No auto-reduce for long position in {symbol}.")
                 self.auto_reduce_active_long[symbol] = False
 
-            if short_pos_qty > 0 and short_loss_exceeded and short_position_value_pct > max_pos_balance_pct:
+            if short_pos_qty > 0 and short_loss_exceeded and short_position_value_pct > max_pos_balance_pct * 100:
                 logging.info(f"Triggering auto-reduce for short position in {symbol}.")
                 self.auto_reduce_active_short[symbol] = True
                 self.execute_auto_reduce('short', symbol, short_pos_qty, short_dynamic_amount, current_market_price, total_equity, long_pos_price, short_pos_price, min_qty)
