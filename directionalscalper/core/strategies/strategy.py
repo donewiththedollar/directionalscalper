@@ -3659,7 +3659,7 @@ class Strategy:
             # Calculate total unrealized PnL value and percentage across all symbols from shared data
             total_upnl_value = sum((symbol_data['long_upnl'] + symbol_data['short_upnl']) for symbol_data in shared_symbols_data.values())
             total_upnl_pct = (total_upnl_value / total_equity) * 100 if total_equity else 0
-            
+
             logging.info(f"{symbol} Total uPNL Value: {total_upnl_value}, Total uPNL Percentage: {total_upnl_pct}%")
 
             # Get data for the specific symbol
@@ -3679,7 +3679,7 @@ class Strategy:
 
             logging.info(f"{symbol} Long Loss Exceeded: {long_loss_exceeded}, Short Loss Exceeded: {short_loss_exceeded}, uPNL Threshold Exceeded: {upnl_threshold_exceeded}")
 
-            if long_pos_qty > 0 and ((long_loss_exceeded and long_position_value_pct > max_pos_balance_pct) or (upnl_threshold_exceeded and long_loss_exceeded and long_position_value_pct > max_pos_balance_pct)):
+            if long_pos_qty > 0 and long_loss_exceeded and long_position_value_pct > max_pos_balance_pct:
                 logging.info(f"Triggering auto-reduce for long position in {symbol}.")
                 self.auto_reduce_active_long[symbol] = True
                 self.execute_auto_reduce('long', symbol, long_pos_qty, long_dynamic_amount, current_market_price, total_equity, long_pos_price, short_pos_price, min_qty)
@@ -3687,7 +3687,7 @@ class Strategy:
                 logging.info(f"No auto-reduce for long position in {symbol}.")
                 self.auto_reduce_active_long[symbol] = False
 
-            if short_pos_qty > 0 and ((short_loss_exceeded and short_position_value_pct > max_pos_balance_pct) or (upnl_threshold_exceeded and short_loss_exceeded and short_position_value_pct > max_pos_balance_pct)):
+            if short_pos_qty > 0 and short_loss_exceeded and short_position_value_pct > max_pos_balance_pct:
                 logging.info(f"Triggering auto-reduce for short position in {symbol}.")
                 self.auto_reduce_active_short[symbol] = True
                 self.execute_auto_reduce('short', symbol, short_pos_qty, short_dynamic_amount, current_market_price, total_equity, long_pos_price, short_pos_price, min_qty)
