@@ -974,12 +974,17 @@ class Strategy:
         order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
         return order
 
-    def entry_order_exists(self, open_orders: list, side: str) -> bool:
+    def entry_order_exists(self, open_orders, side):
         for order in open_orders:
-            if order["side"].lower() == side and order["reduce_only"] == False:
+            # Assuming order details include 'info' which contains the API's raw response
+            if order.get("info", {}).get("orderLinkId", "").startswith("helperOrder"):
+                continue  # Skip helper orders based on their unique identifier
+            
+            if order["side"].lower() == side and not order.get("reduceOnly", False):
                 logging.info(f"An entry order for side {side} already exists.")
                 return True
-        logging.info(f"No entry order found for side {side}.")
+        
+        logging.info(f"No entry order found for side {side}, excluding helper orders.")
         return False
     
     def get_open_take_profit_order_quantity(self, orders, side):
@@ -2126,14 +2131,30 @@ class Strategy:
                     # Calculate long helper price based on best ask price
                     helper_price_long = best_ask_price + gap + safety_margin
                     helper_price_long = helper_price_long.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
-                    helper_order_long = self.limit_order_bybit(symbol, "sell", long_dynamic_amount * 1.5, helper_price_long, positionIdx=2, reduceOnly=False)
+                    helper_order_long = self.exchange.create_tagged_limit_order_bybit(
+                        symbol, 
+                        "sell", 
+                        long_dynamic_amount * 1.5, 
+                        helper_price_long, 
+                        positionIdx=2, 
+                        postOnly=True, 
+                        params={"orderLinkId": f"helperOrder_{symbol}_long_{i}"}
+                    )
                     helper_orders.append(helper_order_long)
 
                 if larger_position == "short":
                     # Calculate short helper price based on best bid price
                     helper_price_short = best_bid_price - gap - safety_margin
                     helper_price_short = helper_price_short.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
-                    helper_order_short = self.limit_order_bybit(symbol, "buy", short_dynamic_amount * 1.5, helper_price_short, positionIdx=1, reduceOnly=False)
+                    helper_order_short = self.exchange.create_tagged_limit_order_bybit(
+                        symbol, 
+                        "buy", 
+                        short_dynamic_amount * 1.5, 
+                        helper_price_short, 
+                        positionIdx=1, 
+                        postOnly=True, 
+                        params={"orderLinkId": f"helperOrder_{symbol}_short_{i}"}
+                    )
                     helper_orders.append(helper_order_short)
 
             # Sleep for the helper duration and then cancel all placed orders
@@ -4140,39 +4161,6 @@ class Strategy:
         logging.info(f"DCA order size for {symbol} is {dca_order_size_adjusted}")
 
         return max(0, dca_order_size_adjusted)  # Ensure the DCA quantity is non-negative
-            
-    # def calculate_dca_order_size(self, open_position_qty, open_position_avg_price, current_market_price, symbol):
-    #     """
-    #     Calculate the DCA order size needed to adjust the average price of the open position to the current market price.
-    #     """
-    #     if open_position_qty == 0:
-    #         return 0  # No open position to adjust
-
-    #     # Calculate the total cost of the current position
-    #     total_position_cost = open_position_qty * open_position_avg_price
-
-    #     logging.info(f"Total position cost for {symbol} {total_position_cost}")
-
-    #     # Determine the desired total quantity after DCA to achieve the current market price as the new average price
-    #     desired_total_qty = total_position_cost / current_market_price
-
-    #     logging.info(f"Desired total qty for {symbol} : {desired_total_qty}")
-
-    #     # Calculate the quantity needed for DCA
-    #     dca_qty_needed = desired_total_qty - open_position_qty
-
-    #     logging.info(f"DCA qty needed for {symbol} : {dca_qty_needed}")
-
-    #     # Fetch the precision for the symbol to use in rounding
-    #     _, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
-    #     qty_precision = -int(math.log10(price_precision))  # Assuming price precision is a good proxy for quantity precision
-
-    #     # Adjust the DCA order size based on the symbol's quantity precision
-    #     dca_order_size_adjusted = round(dca_qty_needed, qty_precision)
-
-    #     logging.info(f"DCA order size for {symbol} is {dca_order_size_adjusted}")
-
-    #     return max(0, dca_order_size_adjusted)  # Ensure the DCA quantity is non-negative
 
     def bybit_1m_mfi_quickscalp_trend(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, entry_during_autoreduce: bool, volume_check: bool):
         if symbol not in self.symbol_locks:
@@ -4196,26 +4184,70 @@ class Strategy:
                         self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
                         time.sleep(1)
                     elif long_pos_qty > 0 and mfi_signal_long and current_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
-                        if entry_during_autoreduce:
+                        if entry_during_autoreduce or not self.auto_reduce_active_long.get(symbol, False):
                             self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
                             time.sleep(1)
                         else:
-                            logging.info(f"Skipping additional long entry for {symbol} due to active auto-reduce and entry_during_autoreduce set to False.")
+                            logging.info(f"Skipping additional long entry for {symbol} due to active auto-reduce.")
 
                 if not self.auto_reduce_active_short.get(symbol, False):
                     if short_pos_qty == 0 and mfi_signal_short and not self.entry_order_exists(open_orders, "sell"):
                         self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
                         time.sleep(1)
                     elif short_pos_qty > 0 and mfi_signal_short and current_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
-                        if entry_during_autoreduce:
+                        if entry_during_autoreduce or not self.auto_reduce_active_short.get(symbol, False):
                             self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
                             time.sleep(1)
                         else:
-                            logging.info(f"Skipping additional short entry for {symbol} due to active auto-reduce and entry_during_autoreduce set to False.")
+                            logging.info(f"Skipping additional short entry for {symbol} due to active auto-reduce.")
             else:
                 logging.info(f"Volume check is disabled or conditions not met for {symbol}, proceeding without volume check.")
 
             time.sleep(5)
+            
+    # WTF HAPPENED HERE?
+    # def bybit_1m_mfi_quickscalp_trend(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, entry_during_autoreduce: bool, volume_check: bool):
+    #     if symbol not in self.symbol_locks:
+    #         self.symbol_locks[symbol] = threading.Lock()
+
+    #     with self.symbol_locks[symbol]:
+    #         current_price = self.exchange.get_current_price(symbol)
+    #         logging.info(f"Current price for {symbol}: {current_price}")
+
+    #         order_book = self.exchange.get_orderbook(symbol)
+    #         best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol)
+    #         best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol)
+
+    #         mfi_signal_long = mfirsi.lower() == "long"
+    #         mfi_signal_short = mfirsi.lower() == "short"
+
+    #         # Check if volume check is enabled or not
+    #         if not volume_check or (one_minute_volume > min_vol):
+    #             if not self.auto_reduce_active_long.get(symbol, False):
+    #                 if long_pos_qty == 0 and mfi_signal_long and not self.entry_order_exists(open_orders, "buy"):
+    #                     self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+    #                     time.sleep(1)
+    #                 elif long_pos_qty > 0 and mfi_signal_long and current_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
+    #                     if entry_during_autoreduce:
+    #                         self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+    #                         time.sleep(1)
+    #                     else:
+    #                         logging.info(f"Skipping additional long entry for {symbol} due to active auto-reduce and entry_during_autoreduce set to False.")
+
+    #             if not self.auto_reduce_active_short.get(symbol, False):
+    #                 if short_pos_qty == 0 and mfi_signal_short and not self.entry_order_exists(open_orders, "sell"):
+    #                     self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+    #                     time.sleep(1)
+    #                 elif short_pos_qty > 0 and mfi_signal_short and current_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
+    #                     if entry_during_autoreduce:
+    #                         self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+    #                         time.sleep(1)
+    #                     else:
+    #                         logging.info(f"Skipping additional short entry for {symbol} due to active auto-reduce and entry_during_autoreduce set to False.")
+    #         else:
+    #             logging.info(f"Volume check is disabled or conditions not met for {symbol}, proceeding without volume check.")
+
+    #         time.sleep(5)
 
     def bybit_1m_mfi_quickscalp(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, eri_trend: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool, uPNL_threshold: float, entry_during_autoreduce: bool):
         if symbol not in self.symbol_locks:

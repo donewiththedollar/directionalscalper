@@ -2864,6 +2864,40 @@ class Exchange:
         except Exception as e:
             logging.warning(f"An unknown error occurred in create_limit_order(): {e}")
 
+    def create_tagged_limit_order_bybit(self, symbol: str, side: str, qty: float, price: float, positionIdx=0, isLeverage=False, orderLinkId=None, postOnly=True, params={}):
+        try:
+            # Directly prepare the parameters required by the `create_order` method
+            order_type = "limit"  # For limit orders
+            time_in_force = "PostOnly" if postOnly else "GTC"
+            
+            # Include additional parameters
+            extra_params = {
+                "positionIdx": positionIdx,
+                "timeInForce": time_in_force
+            }
+            if isLeverage:
+                extra_params["isLeverage"] = 1
+            if orderLinkId:
+                extra_params["orderLinkId"] = orderLinkId
+            
+            # Merge any additional user-provided parameters
+            extra_params.update(params)
+
+            # Create the order
+            order = self.exchange.create_order(
+                symbol=symbol,
+                type=order_type,
+                side=side,
+                amount=qty,
+                price=price,
+                params=extra_params  # Pass extra params here
+            )
+            return order
+        except Exception as e:
+            logging.warning(f"An error occurred in create_tagged_limit_order_bybit() for {symbol}: {e}")
+            return {"error": str(e)}
+
+
     def create_limit_order_bybit(self, symbol: str, side: str, qty: float, price: float, positionIdx=0, params={}):
         try:
             if side == "buy" or side == "sell":
