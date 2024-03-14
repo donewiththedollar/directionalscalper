@@ -3675,7 +3675,7 @@ class Strategy:
             # Original conditions for triggering auto-reduce
             long_loss_exceeded = long_pos_price is not None and current_market_price < long_pos_price * (1 - auto_reduce_start_pct)
             short_loss_exceeded = short_pos_price is not None and current_market_price > short_pos_price * (1 + auto_reduce_start_pct)
-            upnl_threshold_exceeded = abs(total_upnl_pct) > abs(upnl_threshold_pct)
+            upnl_threshold_exceeded = abs(total_upnl_pct) > upnl_threshold_pct * 100
 
             logging.info(f"{symbol} Long Loss Exceeded: {long_loss_exceeded}, Short Loss Exceeded: {short_loss_exceeded}, uPNL Threshold Exceeded: {upnl_threshold_exceeded}")
 
