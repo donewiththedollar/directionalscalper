@@ -3649,52 +3649,55 @@ class Strategy:
             logging.warning(f"An unknown error occurred in cancel_all_auto_reduce_orders_bybit(): {e}")
 
     def auto_reduce_logic_simple(self, symbol, min_qty, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
-                                    auto_reduce_enabled, total_equity, available_equity, current_market_price, long_dynamic_amount,
-                                    short_dynamic_amount, auto_reduce_start_pct, max_pos_balance_pct, upnl_threshold_pct, shared_symbols_data):
-            if not auto_reduce_enabled:
-                logging.info(f"Auto-reduce is disabled for {symbol}.")
-                return
+                                auto_reduce_enabled, total_equity, available_equity, current_market_price, long_dynamic_amount,
+                                short_dynamic_amount, auto_reduce_start_pct, max_pos_balance_pct, upnl_threshold_pct, shared_symbols_data):
+        if not auto_reduce_enabled:
+            logging.info(f"Auto-reduce is disabled for {symbol}.")
+            return
 
-            try:
-                # Calculate total unrealized PnL value and percentage across all symbols from shared data
-                total_upnl_value = sum((symbol_data['long_upnl'] + symbol_data['short_upnl']) for symbol_data in shared_symbols_data.values())
-                total_upnl_pct = (total_upnl_value / total_equity) * 100 if total_equity else 0
-                
-                logging.info(f"{symbol} Total uPNL Value: {total_upnl_value}, Total uPNL Percentage: {total_upnl_pct}%")
+        try:
+            # Calculate total unrealized PnL value and percentage across all symbols from shared data
+            total_upnl_value = sum((symbol_data['long_upnl'] + symbol_data['short_upnl']) for symbol_data in shared_symbols_data.values())
+            total_upnl_pct = (total_upnl_value / total_equity) * 100 if total_equity else 0
+            
+            logging.info(f"{symbol} Total uPNL Value: {total_upnl_value}, Total uPNL Percentage: {total_upnl_pct}%")
 
-                # Get data for the specific symbol
-                symbol_data = shared_symbols_data.get(symbol, {})
-                long_position_value_pct = (symbol_data.get('long_pos_qty', 0) / total_equity) * 100 if total_equity else 0
-                short_position_value_pct = (symbol_data.get('short_pos_qty', 0) / total_equity) * 100 if total_equity else 0
+            # Get data for the specific symbol
+            symbol_data = shared_symbols_data.get(symbol, {})
+            long_position_value = symbol_data.get('long_pos_qty', 0) * current_market_price
+            short_position_value = symbol_data.get('short_pos_qty', 0) * current_market_price
+            long_position_value_pct = (long_position_value / total_equity) * 100 if total_equity else 0
+            short_position_value_pct = (short_position_value / total_equity) * 100 if total_equity else 0
 
-                logging.info(f"{symbol} Long Position Value Percentage: {long_position_value_pct}%, Short Position Value Percentage: {short_position_value_pct}%")
+            logging.info(f"{symbol} Long Position Value: {long_position_value}, Long Position Value Percentage: {long_position_value_pct}%")
+            logging.info(f"{symbol} Short Position Value: {short_position_value}, Short Position Value Percentage: {short_position_value_pct}%")
 
-                # Original conditions for triggering auto-reduce
-                long_loss_exceeded = long_pos_price is not None and current_market_price < long_pos_price * (1 - auto_reduce_start_pct)
-                short_loss_exceeded = short_pos_price is not None and current_market_price > short_pos_price * (1 + auto_reduce_start_pct)
-                upnl_threshold_exceeded = abs(total_upnl_pct) > abs(upnl_threshold_pct)
+            # Original conditions for triggering auto-reduce
+            long_loss_exceeded = long_pos_price is not None and current_market_price < long_pos_price * (1 - auto_reduce_start_pct)
+            short_loss_exceeded = short_pos_price is not None and current_market_price > short_pos_price * (1 + auto_reduce_start_pct)
+            upnl_threshold_exceeded = abs(total_upnl_pct) > abs(upnl_threshold_pct)
 
-                logging.info(f"{symbol} Long Loss Exceeded: {long_loss_exceeded}, Short Loss Exceeded: {short_loss_exceeded}, uPNL Threshold Exceeded: {upnl_threshold_exceeded}")
+            logging.info(f"{symbol} Long Loss Exceeded: {long_loss_exceeded}, Short Loss Exceeded: {short_loss_exceeded}, uPNL Threshold Exceeded: {upnl_threshold_exceeded}")
 
-                if long_pos_qty > 0 and ((long_loss_exceeded and long_position_value_pct > max_pos_balance_pct * 100) or (upnl_threshold_exceeded and long_loss_exceeded and long_position_value_pct > max_pos_balance_pct * 100)):
-                    logging.info(f"Triggering auto-reduce for long position in {symbol}.")
-                    self.auto_reduce_active_long[symbol] = True
-                    self.execute_auto_reduce('long', symbol, long_pos_qty, long_dynamic_amount, min_qty, current_market_price, long_pos_price, short_pos_price)
-                else:
-                    logging.info(f"No auto-reduce for long position in {symbol}.")
-                    self.auto_reduce_active_long[symbol] = False
+            if long_pos_qty > 0 and ((long_loss_exceeded and long_position_value_pct > max_pos_balance_pct) or (upnl_threshold_exceeded and long_loss_exceeded and long_position_value_pct > max_pos_balance_pct)):
+                logging.info(f"Triggering auto-reduce for long position in {symbol}.")
+                self.auto_reduce_active_long[symbol] = True
+                self.execute_auto_reduce('long', symbol, long_pos_qty, long_dynamic_amount, current_market_price, total_equity, long_pos_price, short_pos_price, min_qty)
+            else:
+                logging.info(f"No auto-reduce for long position in {symbol}.")
+                self.auto_reduce_active_long[symbol] = False
 
-                if short_pos_qty > 0 and ((short_loss_exceeded and short_position_value_pct > max_pos_balance_pct * 100) or (upnl_threshold_exceeded and short_loss_exceeded and short_position_value_pct > max_pos_balance_pct * 100)):
-                    logging.info(f"Triggering auto-reduce for short position in {symbol}.")
-                    self.auto_reduce_active_short[symbol] = True
-                    self.execute_auto_reduce('short', symbol, short_pos_qty, short_dynamic_amount, min_qty, current_market_price, long_pos_price, short_pos_price)
-                else:
-                    logging.info(f"No auto-reduce for short position in {symbol}.")
-                    self.auto_reduce_active_short[symbol] = False
+            if short_pos_qty > 0 and ((short_loss_exceeded and short_position_value_pct > max_pos_balance_pct) or (upnl_threshold_exceeded and short_loss_exceeded and short_position_value_pct > max_pos_balance_pct)):
+                logging.info(f"Triggering auto-reduce for short position in {symbol}.")
+                self.auto_reduce_active_short[symbol] = True
+                self.execute_auto_reduce('short', symbol, short_pos_qty, short_dynamic_amount, current_market_price, total_equity, long_pos_price, short_pos_price, min_qty)
+            else:
+                logging.info(f"No auto-reduce for short position in {symbol}.")
+                self.auto_reduce_active_short[symbol] = False
 
-            except Exception as e:
-                logging.error(f"Error in auto-reduce logic for {symbol}: {e}")
-
+        except Exception as e:
+            logging.error(f"Error in auto-reduce logic for {symbol}: {e}")
+            
     # This worked until it does not. The max_loss_pct is used to calculate the grid and causes issues giving you further AR entries
     def auto_reduce_logic(self, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, auto_reduce_enabled, symbol, total_equity, auto_reduce_wallet_exposure_pct, open_position_data, current_market_price, long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct, auto_reduce_maxloss_pct):
         if auto_reduce_enabled:
