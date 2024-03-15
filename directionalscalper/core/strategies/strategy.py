@@ -3118,6 +3118,48 @@ class Strategy:
             else:
                 logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
 
+    def get_mfirsi_ema_secondary_ema_l(self, symbol: str, limit: int = 100, lookback: int = 6, ema_period: int = 6, secondary_ema_period: int = 4) -> str:
+        # Fetch OHLCV data
+        ohlcv_data = self.exchange.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
+        df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+
+        # Calculate MFI and RSI
+        df['mfi'] = ta.volume.MFIIndicator(high=df['high'], low=df['low'], close=df['close'], volume=df['volume'], window=14, fillna=False).money_flow_index()
+        df['rsi'] = ta.momentum.RSIIndicator(df['close'], window=14).rsi()
+
+        # Calculate EMAs for MFI and RSI
+        df['mfi_ema'] = df['mfi'].ewm(span=ema_period, adjust=False).mean()
+        df['rsi_ema'] = df['rsi'].ewm(span=ema_period, adjust=False).mean()
+
+        # Calculate secondary EMAs for MFI and RSI
+        df['mfi_ema_secondary'] = df['mfi'].ewm(span=secondary_ema_period, adjust=False).mean()
+        df['rsi_ema_secondary'] = df['rsi'].ewm(span=secondary_ema_period, adjust=False).mean()
+
+        # Determine conditions using EMAs and secondary EMAs
+        df['buy_condition'] = (
+            (df['mfi_ema'] < 33) &
+            (df['rsi_ema'] < 43) &
+            (df['mfi_ema_secondary'] < df['mfi_ema']) &
+            (df['rsi_ema_secondary'] < df['rsi_ema']) &
+            (df['open'] < df['close'])
+        ).astype(int)
+        df['sell_condition'] = (
+            (df['mfi_ema'] > 67) &
+            (df['rsi_ema'] > 57) &
+            (df['mfi_ema_secondary'] > df['mfi_ema']) &
+            (df['rsi_ema_secondary'] > df['rsi_ema']) &
+            (df['open'] > df['close'])
+        ).astype(int)
+
+        # Evaluate conditions over the lookback period
+        recent_conditions = df.iloc[-lookback:]
+        if recent_conditions['buy_condition'].sum() > 0:
+            return 'long'
+        elif recent_conditions['sell_condition'].sum() > 0:
+            return 'short'
+        else:
+            return 'neutral'
+        
     def get_mfirsi_ema(self, symbol: str, limit: int = 100, lookback: int = 5, ema_period: int = 5) -> str:
         # Fetch OHLCV data
         ohlcv_data = self.exchange.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
