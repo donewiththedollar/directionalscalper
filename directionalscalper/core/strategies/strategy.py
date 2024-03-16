@@ -4012,7 +4012,29 @@ class Strategy:
         rounded_tp = round(adjusted_tp, len(str(price_precision).split('.')[-1]))
         logging.info(f"Final rounded short TP for {symbol}: {rounded_tp}")
         return rounded_tp
-    
+
+    def calculate_quickscalp_long_take_profit(self, long_pos_price, symbol, upnl_profit_pct):
+        if long_pos_price is None:
+            return None
+
+        price_precision = int(self.exchange.get_price_precision(symbol))
+        logging.info(f"Price precision for {symbol}: {price_precision}")
+
+        # Calculate the target profit price
+        target_profit_price = Decimal(long_pos_price) * (1 + Decimal(upnl_profit_pct))
+        
+        # Quantize the target profit price
+        try:
+            target_profit_price = target_profit_price.quantize(
+                Decimal('1e-{}'.format(price_precision)),
+                rounding=ROUND_HALF_UP
+            )
+        except InvalidOperation as e:
+            logging.error(f"Error when quantizing target_profit_price. {e}")
+            return None
+
+        return float(target_profit_price)
+
     def calculate_quickscalp_short_take_profit(self, short_pos_price, symbol, upnl_profit_pct):
         if short_pos_price is None:
             return None
