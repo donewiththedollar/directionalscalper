@@ -3646,8 +3646,21 @@ class Strategy:
 
         max_levels, price_interval = self.calculate_dynamic_auto_reduce_levels(symbol, pos_qty, market_price, total_equity, long_pos_price, short_pos_price)
         for i in range(1, max_levels + 1):
-            # Calculate step price and round it to the correct precision
-            step_price = market_price + (price_interval * i) if position_type == 'long' else market_price - (price_interval * i)
+            # Calculate step price based on position type
+            if position_type == 'long':
+                step_price = market_price + (price_interval * i)
+                # Ensure step price is greater than the market price for long positions
+                if step_price <= market_price:
+                    logging.warning(f"Skipping auto-reduce long order for {symbol} at {step_price} as it is not greater than the market price.")
+                    continue
+            else:  # position_type == 'short'
+                step_price = market_price - (price_interval * i)
+                # Ensure step price is less than the market price for short positions
+                if step_price >= market_price:
+                    logging.warning(f"Skipping auto-reduce short order for {symbol} at {step_price} as it is not less than the market price.")
+                    continue
+            
+            # Round the step price to the correct precision
             step_price = round(step_price, price_precision_level)
 
             # Ensure dynamic_amount is at least the minimum required quantity and rounded to the correct precision
