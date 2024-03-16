@@ -595,7 +595,9 @@ class BybitQuickScalpTrendDCA(Strategy):
                         long_pos_price,
                         short_pos_price,
                         entry_during_autoreduce,
-                        volume_check
+                        volume_check,
+                        long_take_profit,
+                        short_take_profit
                     )
                     
                     tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
