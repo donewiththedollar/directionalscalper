@@ -130,7 +130,7 @@ class DirectionalMarketMaker:
             self.exchange = BinanceExchange(api_key, secret_key, passphrase)
         else:
             self.exchange = Exchange(self.exchange_name, api_key, secret_key, passphrase)
-            
+
     def run_strategy(self, symbol, strategy_name, config, account_name, symbols_to_trade=None, rotator_symbols_standardized=None):
         symbols_allowed = None
         for exch in config.exchanges:
@@ -328,6 +328,125 @@ def update_rotator_queue(rotator_queue, latest_symbols):
     # Return a new deque from the updated set
     return deque(rotator_set)
 
+def bybit_auto_rotation(args, manager, symbols_allowed):
+    # Fetching open position symbols and standardizing them
+    open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_bybit()}
+    logging.info(f"Open position symbols: {open_position_symbols}")
+
+    # Fetching potential symbols from manager
+    potential_symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+    logging.info(f"Potential symbols: {potential_symbols}")
+    latest_rotator_symbols = set(standardize_symbol(sym) for sym in potential_symbols)
+    logging.info(f"Latest rotator symbols: {latest_rotator_symbols}")
+
+    # Thread management
+    running_threads_info = []
+    for symbol, thread in list(threads.items()):
+        if thread.is_alive():
+            running_threads_info.append(symbol)
+        else:
+            logging.info(f"Thread for symbol {symbol} is not alive and will be removed.")
+            active_symbols.discard(symbol)
+            del threads[symbol]
+            thread_start_time.pop(symbol, None)
+            logging.info(f"Thread for symbol {symbol} has been removed.")
+    logging.info(f"Currently running threads for symbols: {running_threads_info}")
+
+    # Check to ensure a thread exists for each open position symbol
+    for open_pos_symbol in open_position_symbols:
+        if open_pos_symbol not in threads or not threads[open_pos_symbol].is_alive():
+            logging.warning(f"No active thread for open position symbol: {open_pos_symbol}. Starting a new thread.")
+            new_thread = threading.Thread(target=run_bot, args=(open_pos_symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols))
+            new_thread.start()
+            threads[open_pos_symbol] = new_thread
+            active_symbols.add(open_pos_symbol)
+            thread_start_time[open_pos_symbol] = time.time()
+
+    # Start threads for symbols with open positions
+    for symbol in open_position_symbols:
+        if symbol not in active_symbols and len(active_symbols) < symbols_allowed:
+            logging.info(f"Starting thread for open position symbol: {symbol}")
+            thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols))
+            thread.start()
+            threads[symbol] = thread
+            active_symbols.add(symbol)
+            thread_start_time[symbol] = time.time()
+
+    # Start threads for additional symbols from latest_rotator_symbols
+    for symbol in latest_rotator_symbols:
+        if symbol not in active_symbols and len(active_symbols) < symbols_allowed:
+            logging.info(f"Starting thread for additional symbol: {symbol}")
+            thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols))
+            thread.start()
+            threads[symbol] = thread
+            active_symbols.add(symbol)
+            thread_start_time[symbol] = time.time()
+
+    # Rotate out inactive symbols and replace with new ones
+    current_time = time.time()
+    for symbol in list(active_symbols):
+        if symbol not in open_position_symbols and current_time - thread_start_time.get(symbol, 0) > rotation_threshold:
+            if latest_rotator_symbols:
+                available_symbols = latest_rotator_symbols - active_symbols
+                if available_symbols:
+                    random_symbol = random.choice(list(available_symbols))
+                    logging.info(f"Rotating out inactive symbol {symbol} for new symbol {random_symbol}")
+                    if threads.get(symbol):
+                        logging.info(f"Attempting to join thread {symbol}.")
+                        thread = threads[symbol]
+                        thread.join(timeout=10)
+                        if not thread.is_alive():
+                            logging.info(f"Thread {symbol} has completed.")
+                        else:
+                            logging.warning(f"Thread {symbol} still running after timeout. Considering as under review.")
+                            under_review_symbols.add(symbol)
+                        active_symbols.discard(symbol)
+                        del threads[symbol]
+                        thread_start_time.pop(symbol, None)
+                    if random_symbol not in under_review_symbols:
+                        active_symbols.discard(symbol)
+                        active_symbols.add(random_symbol)
+                        thread_start_time.pop(symbol, None)
+                        new_thread = threading.Thread(target=run_bot, args=(random_symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols))
+                        new_thread.start()
+                        threads[random_symbol] = new_thread
+                        thread_start_time[random_symbol] = time.time()
+                    latest_rotator_symbols.discard(random_symbol)
+                else:
+                    logging.info(f"No available new symbols to replace {symbol}")
+
+def hyperliquid_auto_rotation(args, manager, symbols_allowed):
+    # Fetching open position symbols and standardizing them
+    open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_hyperliquid()}
+    logging.info(f"Open position symbols: {open_position_symbols}")
+
+    # Implement HyperLiquid-specific auto-rotation logic here
+    # ...
+
+def huobi_auto_rotation(args, manager, symbols_allowed):
+    # Fetching open position symbols and standardizing them
+    open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_huobi()}
+    logging.info(f"Open position symbols: {open_position_symbols}")
+
+    # Implement Huobi-specific auto-rotation logic here
+    # ...
+
+def bitget_auto_rotation(args, manager, symbols_allowed):
+    # Fetching open position symbols and standardizing them
+    open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_bitget()}
+    logging.info(f"Open position symbols: {open_position_symbols}")
+
+    # Implement Bitget-specific auto-rotation logic here
+    # ...
+
+def binance_auto_rotation(args, manager, symbols_allowed):
+    # Fetching open position symbols and standardizing them
+    open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_binance()}
+    logging.info(f"Open position symbols: {open_position_symbols}")
+
+    # Implement Binance-specific auto-rotation logic here
+    # ...
+    
 
 if __name__ == '__main__':
     # ASCII Art and Text
@@ -436,105 +555,18 @@ if __name__ == '__main__':
             blacklist = config.bot.blacklist
             max_usd_value = config.bot.max_usd_value
 
-            # Fetching open position symbols and standardizing them
-            open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_bybit()}
-            logging.info(f"Open position symbols: {open_position_symbols}")
-
-            # Fetching potential symbols from manager
-            potential_symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
-            logging.info(f"Potential symbols: {potential_symbols}")
-            latest_rotator_symbols = set(standardize_symbol(sym) for sym in potential_symbols)
-            logging.info(f"Latest rotator symbols: {latest_rotator_symbols}")
-
-            # Thread management
-            running_threads_info = []
-            for symbol, thread in list(threads.items()):
-                if thread.is_alive():
-                    running_threads_info.append(symbol)
-                else:
-                    logging.info(f"Thread for symbol {symbol} is not alive and will be removed.")
-                    active_symbols.discard(symbol)
-                    del threads[symbol]
-                    thread_start_time.pop(symbol, None)
-                    logging.info(f"Thread for symbol {symbol} has been removed.")
-            logging.info(f"Currently running threads for symbols: {running_threads_info}")
-
-            # New functionality
-            # Check to ensure a thread exists for each open position symbol
-            for open_pos_symbol in open_position_symbols:
-                if open_pos_symbol not in threads or not threads[open_pos_symbol].is_alive():
-                    logging.warning(f"No active thread for open position symbol: {open_pos_symbol}. Starting a new thread.")
-                    # Start a new thread for this symbol
-                    new_thread = threading.Thread(target=run_bot, args=(open_pos_symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols))
-                    new_thread.start()
-                    threads[open_pos_symbol] = new_thread
-                    active_symbols.add(open_pos_symbol)
-                    thread_start_time[open_pos_symbol] = time.time()
-                    
-            # Start threads for symbols with open positions
-            for symbol in open_position_symbols:
-                if symbol not in active_symbols and len(active_symbols) < symbols_allowed:
-                    logging.info(f"Starting thread for open position symbol: {symbol}")
-                    thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols))
-                    thread.start()
-                    threads[symbol] = thread
-                    active_symbols.add(symbol)
-                    thread_start_time[symbol] = time.time()
-
-            # Start threads for additional symbols from latest_rotator_symbols
-            for symbol in latest_rotator_symbols:
-                if symbol not in active_symbols and len(active_symbols) < symbols_allowed:
-                    logging.info(f"Starting thread for additional symbol: {symbol}")
-                    thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols))
-                    thread.start()
-                    threads[symbol] = thread
-                    active_symbols.add(symbol)
-                    thread_start_time[symbol] = time.time()
-
-            # Rotate out inactive symbols and replace with new ones
-            current_time = time.time()
-            for symbol in list(active_symbols):
-                if symbol not in open_position_symbols and current_time - thread_start_time.get(symbol, 0) > rotation_threshold:
-                    if latest_rotator_symbols:
-                        available_symbols = latest_rotator_symbols - active_symbols
-                        if available_symbols:
-                            random_symbol = random.choice(list(available_symbols))
-                            logging.info(f"Rotating out inactive symbol {symbol} for new symbol {random_symbol}")
-                            if threads.get(symbol):
-                                logging.info(f"Attempting to join thread {symbol}.")
-                                thread = threads[symbol]
-                                thread.join(timeout=10)  # Reduced timeout to speed up the process
-                                if not thread.is_alive():
-                                    logging.info(f"Thread {symbol} has completed.")
-                                else:
-                                    logging.warning(f"Thread {symbol} still running after timeout. Considering as under review.")
-                                    under_review_symbols.add(symbol)
-                                # Always remove the symbol from active management to allow new symbols to be added
-                                active_symbols.discard(symbol)
-                                del threads[symbol]
-                                thread_start_time.pop(symbol, None)
-                            # if threads.get(symbol):
-                            #     logging.info(f"Waiting for thread {symbol} to complete.")
-                            #     thread_completed = threads[symbol].join(timeout=300)
-                            #     if thread_completed is None:  # Thread did not complete within the timeout
-                            #         logging.warning(f"Thread {symbol} did not complete within the timeout period.")
-                            #         # Implement any additional handling for incomplete threads here
-                            #         # Example: Mark symbol as 'under review' to avoid starting new threads for it
-                            #         under_review_symbols.add(symbol)
-                            #     else:
-                            #         logging.info(f"Thread {symbol} has completed.")
-                            #     del threads[symbol]
-                            if random_symbol not in under_review_symbols:
-                                active_symbols.discard(symbol)
-                                active_symbols.add(random_symbol)
-                                thread_start_time.pop(symbol, None)
-                                new_thread = threading.Thread(target=run_bot, args=(random_symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols))
-                                new_thread.start()
-                                threads[random_symbol] = new_thread
-                                thread_start_time[random_symbol] = time.time()
-                            latest_rotator_symbols.discard(random_symbol)
-                        else:
-                            logging.info(f"No available new symbols to replace {symbol}")
+            if exchange_name.lower() == 'bybit':
+                bybit_auto_rotation(args, manager, symbols_allowed)
+            elif exchange_name.lower() == 'hyperliquid':
+                hyperliquid_auto_rotation(args, manager, symbols_allowed)
+            elif exchange_name.lower() == 'huobi':
+                huobi_auto_rotation(args, manager, symbols_allowed)
+            elif exchange_name.lower() == 'bitget':
+                bitget_auto_rotation(args, manager, symbols_allowed)
+            elif exchange_name.lower() == 'binance':
+                binance_auto_rotation(args, manager, symbols_allowed)
+            else:
+                logging.warning(f"Auto-rotation not implemented for exchange: {exchange_name}")
 
             logging.info(f"Active symbols: {active_symbols}")
             logging.info(f"Total active symbols: {len(active_symbols)}")
