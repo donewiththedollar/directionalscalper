@@ -13,7 +13,7 @@ from config import load_config, Config
 import ccxt
 import config
 from api.manager import Manager
-from directionalscalper.core.exchange import Exchange
+from directionalscalper.core.exchanges.exchange import Exchange
 from directionalscalper.core.strategies.strategy import Strategy
 # BITGET
 from directionalscalper.core.strategies.bitget.bitget_hedge import BitgetHedgeStrategy

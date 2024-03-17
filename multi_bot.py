@@ -16,7 +16,7 @@ import config
 from config import load_config, Config
 from config import VERSION
 from api.manager import Manager
-from directionalscalper.core.exchange import Exchange
+from directionalscalper.core.exchanges.exchange import Exchange
 from directionalscalper.core.strategies.strategy import Strategy
 
 

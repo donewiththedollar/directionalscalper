@@ -12,7 +12,7 @@ import threading
 import traceback
 from typing import Optional, Tuple, List
 from ccxt.base.errors import RateLimitExceeded
-from .strategies.logger import Logger
+from ..strategies.logger import Logger
 from requests.exceptions import HTTPError
 from datetime import datetime, timedelta
 from ccxt.base.errors import NetworkError
@@ -157,6 +157,8 @@ class Exchange:
 
         # Initializing the exchange object
         self.exchange = exchange_class(exchange_params)
+        
+
         
     
     def transfer_funds_bybit(self, code: str, amount: float, from_account: str, to_account: str, params={}):
