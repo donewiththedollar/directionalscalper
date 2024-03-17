@@ -8,6 +8,7 @@ import traceback
 from threading import Thread, Lock
 from datetime import datetime, timedelta
 
+from directionalscalper.core.exchanges.bybit import BybitExchange
 from directionalscalper.core.strategies.strategy import Strategy
 from directionalscalper.core.strategies.logger import Logger
 from live_table_manager import shared_symbols_data
