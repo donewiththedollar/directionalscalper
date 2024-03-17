@@ -9,6 +9,23 @@ class BybitExchange(Exchange):
     def __init__(self, api_key, secret_key, passphrase=None, market_type='swap'):
         super().__init__('bybit', api_key, secret_key, passphrase, market_type)
     
+    def create_limit_order_bybit_unified(self, symbol: str, side: str, qty: float, price: float, positionIdx=0, params={}):
+        try:
+            if side == "buy" or side == "sell":
+                order = self.exchange.create_unified_account_order(
+                    symbol=symbol,
+                    type='limit',
+                    side=side,
+                    amount=qty,
+                    price=price,
+                    params={**params, 'positionIdx': positionIdx}
+                )
+                return order
+            else:
+                logging.warning(f"side {side} does not exist")
+        except Exception as e:
+            logging.warning(f"An unknown error occurred in create_limit_order(): {e}")
+
     def transfer_funds(self, code: str, amount: float, from_account: str, to_account: str, params={}):
         """
         Transfer funds between different account types under the same UID.
@@ -257,3 +274,17 @@ class BybitExchange(Exchange):
                         logging.error(f"Error fetching open positions: {e}")
                         return []
 
+    def fetch_leverage_tiers(self, symbol: str) -> dict:
+        """
+        Fetch leverage tiers for a given symbol using CCXT's fetch_market_leverage_tiers method.
+
+        :param symbol: The trading symbol to fetch leverage tiers for.
+        :return: A dictionary containing leverage tiers information if successful, None otherwise.
+        """
+        try:
+            params = {'category': 'linear'}  # Adjust parameters based on the specific needs and API documentation
+            leverage_tiers = self.exchange.fetch_derivatives_market_leverage_tiers(symbol, params)
+            return leverage_tiers
+        except Exception as e:
+            logging.error(f"Error fetching leverage tiers for {symbol}: {e}")
+            return None

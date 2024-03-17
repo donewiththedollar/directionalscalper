@@ -327,21 +327,6 @@ class Exchange:
                 return tick_size
         
         return None
-
-    def fetch_leverage_tiers(self, symbol: str) -> dict:
-        """
-        Fetch leverage tiers for a given symbol using CCXT's fetch_market_leverage_tiers method.
-
-        :param symbol: The trading symbol to fetch leverage tiers for.
-        :return: A dictionary containing leverage tiers information if successful, None otherwise.
-        """
-        try:
-            params = {'category': 'linear'}  # Adjust parameters based on the specific needs and API documentation
-            leverage_tiers = self.exchange.fetch_derivatives_market_leverage_tiers(symbol, params)
-            return leverage_tiers
-        except Exception as e:
-            logging.error(f"Error fetching leverage tiers for {symbol}: {e}")
-            return None
         
     def cancel_order_bybit(self, order_id, symbol):
         """
@@ -565,35 +550,6 @@ class Exchange:
         #     logging.info(f"Call Stack: {traceback.format_exc()}")
         except Exception as e:
             logging.info(f"An unknown error occurred in get_market_data_bybit(): {e}")
-        return values
-
-    # Binance
-    def get_market_data_binance(self, symbol: str) -> dict:
-        values = {"precision": 0.0, "leverage": 0.0, "min_qty": 0.0, "step_size": 0.0}
-        try:
-            self.exchange.load_markets()
-            symbol_data = self.exchange.market(symbol)
-                
-            if "precision" in symbol_data:
-                values["precision"] = symbol_data["precision"]["price"]
-            if "limits" in symbol_data:
-                values["min_qty"] = symbol_data["limits"]["amount"]["min"]
-
-            # Fetch positions
-            positions = self.exchange.fetch_positions()
-
-            for position in positions:
-                if position['symbol'] == symbol:
-                    values["leverage"] = float(position['leverage'])
-
-            # Fetch step size
-            if "info" in symbol_data and "filters" in symbol_data["info"]:
-                for filter in symbol_data["info"]["filters"]:
-                    if filter['filterType'] == 'LOT_SIZE':
-                        values["step_size"] = filter['stepSize']
-
-        except Exception as e:
-            logging.info(f"An unknown error occurred in get_market_data_binance(): {e}")
         return values
 
     def debug_binance_market_data(self, symbol: str) -> dict:
@@ -822,34 +778,6 @@ class Exchange:
         except Exception as e:
             print(f"An error occurred while fetching balance: {str(e)}")
 
-
-
-    # Binance
-    def get_balance_binance(self, symbol: str):
-        if self.exchange.has['fetchBalance']:
-            # Fetch the balance
-            balance = self.exchange.fetch_balance(params={'type': 'future'})
-            #print(balance)
-
-            # Find the symbol balance
-            for currency_balance in balance['info']['assets']:
-                if currency_balance['asset'] == symbol:
-                    return float(currency_balance['walletBalance'])
-        return None
-
-    def get_balance_bitget(self, quote, account_type='futures'):
-        if account_type == 'futures':
-            if self.exchange.has['fetchBalance']:
-                # Fetch the balance
-                balance = self.exchange.fetch_balance(params={'type': 'swap'})
-
-                for currency_balance in balance['info']:
-                    if currency_balance['marginCoin'] == quote:
-                        return float(currency_balance['equity'])
-        else:
-            # Handle other account types or fallback to default behavior
-            pass
-
     def get_balance_mexc(self, quote, market_type='swap'):
         if self.exchange.has['fetchBalance']:
             # Fetch the balance
@@ -964,32 +892,6 @@ class Exchange:
         else:
             return {}
 
-
-    def get_precision_ultimate_bybit(self, symbol: str) -> Tuple[int, int]:
-        try:
-            market = self.exchange.market(symbol)
-
-            smallest_increment_price = market['precision']['price']
-            price_precision = len(str(smallest_increment_price).split('.')[-1])
-
-            quantity_precision = int(market['precision']['amount'])
-
-            return price_precision, quantity_precision
-        except Exception as e:
-            print(f"An error occurred: {e}")
-            return None, None
-
-
-    # def get_symbol_precision_bybit(self, symbol: str) -> Tuple[int, int]:
-    #     try:
-    #         market = self.exchange.market(symbol)
-    #         price_precision = int(market['precision']['price'])
-    #         quantity_precision = int(market['precision']['amount'])
-    #         return price_precision, quantity_precision
-    #     except Exception as e:
-    #         print(f"An error occurred: {e}")
-    #         return None, None
-
     def get_price_precision(self, symbol):
         market = self.exchange.market(symbol)
         smallest_increment = market['precision']['price']
@@ -1002,7 +904,6 @@ class Exchange:
             if market['symbol'] == symbol:
                 return market['precision']
         return None
-
 
     def get_balance(self, quote: str) -> dict:
         values = {
@@ -1167,201 +1068,7 @@ class Exchange:
         except Exception as e:
             print(f"An error occurred while fetching all open orders: {e}")
             return []
-
-
-    def print_positions_structure_binance(self):
-        try:
-            data = self.exchange.fetch_positions_risk()
-            print(data)
-        except Exception as e:
-            logging.info(f"An unknown error occurred: {e}")
-
-    # Binance
-    def get_positions_binance(self, symbol):
-        values = {
-            "long": {
-                "qty": 0.0,
-                "price": 0.0,
-                "realised": 0,
-                "cum_realised": 0,
-                "upnl": 0,
-                "upnl_pct": 0,
-                "liq_price": 0,
-                "entry_price": 0,
-            },
-            "short": {
-                "qty": 0.0,
-                "price": 0.0,
-                "realised": 0,
-                "cum_realised": 0,
-                "upnl": 0,
-                "upnl_pct": 0,
-                "liq_price": 0,
-                "entry_price": 0,
-            },
-        }
-        try:
-            position_data = self.exchange.fetch_positions_risk([symbol])
-            #print(position_data)
-            if len(position_data) > 0:
-                for position in position_data:
-                    #print(position["info"])
-                    position_side = position["info"]["positionSide"].lower()
-                    if position_side == "both":
-                        # Adjust for positions with side 'both'
-                        long_qty = float(position["info"]["positionAmt"])
-                        short_qty = -long_qty  # Assume opposite quantity for short side
-                        position_side = "long"
-                        # Update long side values
-                        values[position_side]["qty"] = long_qty
-                        values[position_side]["price"] = float(position["info"]["entryPrice"])
-                        values[position_side]["realised"] = round(float(position["info"]["unRealizedProfit"]), 4)
-                        values[position_side]["cum_realised"] = round(float(position["info"]["unRealizedProfit"]), 4)
-                        values[position_side]["upnl"] = round(float(position["info"]["unRealizedProfit"]), 4)
-                        values[position_side]["upnl_pct"] = 0
-                        values[position_side]["liq_price"] = float(position["info"]["liquidationPrice"] or 0)
-                        values[position_side]["entry_price"] = float(position["info"]["entryPrice"])
-                        # Update short side values
-                        position_side = "short"
-                        values[position_side]["qty"] = short_qty
-                        values[position_side]["price"] = float(position["info"]["entryPrice"])
-                        values[position_side]["realised"] = round(-float(position["info"]["unRealizedProfit"]), 4)
-                        values[position_side]["cum_realised"] = round(-float(position["info"]["unRealizedProfit"]), 4)
-                        values[position_side]["upnl"] = round(-float(position["info"]["unRealizedProfit"]), 4)
-                        values[position_side]["upnl_pct"] = 0
-                        values[position_side]["liq_price"] = float(position["info"]["liquidationPrice"] or 0)
-                        values[position_side]["entry_price"] = float(position["info"]["entryPrice"])
-                    else:
-                        # Directly update values when position_side is 'long' or 'short'
-                        qty = float(position["info"]["positionAmt"]) if position["info"]["positionAmt"] else 0.0
-                        entry_price = float(position["info"]["entryPrice"]) if position["info"]["entryPrice"] else 0.0
-                        unrealized_profit = float(position["info"]["unRealizedProfit"]) if position["info"]["unRealizedProfit"] else 0.0
-                        values[position_side]["qty"] = qty
-                        values[position_side]["price"] = entry_price
-                        values[position_side]["realised"] = round(unrealized_profit, 4)
-                        values[position_side]["cum_realised"] = round(unrealized_profit, 4)
-                        values[position_side]["upnl"] = round(unrealized_profit, 4)
-                        values[position_side]["upnl_pct"] = 0
-                        values[position_side]["liq_price"] = float(position["info"]["liquidationPrice"] or 0)
-                        values[position_side]["entry_price"] = entry_price
-        except Exception as e:
-            logging.info(f"An unknown error occurred in get_positions_binance(): {e}")
-        return values
-
-    # Binance
-    # def get_positions_binance(self, symbol):
-    #     values = {
-    #         "long": {
-    #             "qty": 0.0,
-    #             "price": 0.0,
-    #             "realised": 0,
-    #             "cum_realised": 0,
-    #             "upnl": 0,
-    #             "upnl_pct": 0,
-    #             "liq_price": 0,
-    #             "entry_price": 0,
-    #         },
-    #         "short": {
-    #             "qty": 0.0,
-    #             "price": 0.0,
-    #             "realised": 0,
-    #             "cum_realised": 0,
-    #             "upnl": 0,
-    #             "upnl_pct": 0,
-    #             "liq_price": 0,
-    #             "entry_price": 0,
-    #         },
-    #     }
-    #     try:
-    #         position_data = self.exchange.fetch_positions_risk([symbol])
-    #         if len(position_data) > 0:
-    #             for position in position_data:
-    #                 position_side = position["info"]["positionSide"].lower()
-    #                 if position_side == "both":
-    #                     # Adjust for positions with side 'both'
-    #                     long_qty = float(position["info"]["positionAmt"])
-    #                     short_qty = -long_qty  # Assume opposite quantity for short side
-    #                     position_side = "long"
-    #                     # Update long side values
-    #                     values[position_side]["qty"] = long_qty
-    #                     values[position_side]["price"] = float(position["info"]["entryPrice"])
-    #                     values[position_side]["realised"] = round(float(position["info"]["unRealizedProfit"]), 4)
-    #                     values[position_side]["cum_realised"] = round(float(position["info"]["unRealizedProfit"]), 4)
-    #                     values[position_side]["upnl"] = round(float(position["info"]["unRealizedProfit"]), 4)
-    #                     values[position_side]["upnl_pct"] = 0
-    #                     values[position_side]["liq_price"] = float(position["info"]["liquidationPrice"] or 0)
-    #                     values[position_side]["entry_price"] = float(position["info"]["entryPrice"])
-    #                     # Update short side values
-    #                     position_side = "short"
-    #                     values[position_side]["qty"] = short_qty
-    #                     values[position_side]["price"] = float(position["info"]["entryPrice"])
-    #                     values[position_side]["realised"] = round(-float(position["info"]["unRealizedProfit"]), 4)
-    #                     values[position_side]["cum_realised"] = round(-float(position["info"]["unRealizedProfit"]), 4)
-    #                     values[position_side]["upnl"] = round(-float(position["info"]["unRealizedProfit"]), 4)
-    #                     values[position_side]["upnl_pct"] = 0
-    #                     values[position_side]["liq_price"] = float(position["info"]["liquidationPrice"] or 0)
-    #                     values[position_side]["entry_price"] = float(position["info"]["entryPrice"])
-    #                 else:
-    #                     qty = float(position["info"]["positionAmt"]) if position["info"]["positionAmt"] else 0.0
-    #                     entry_price = float(position["info"]["entryPrice"]) if position["info"]["entryPrice"] else 0.0
-    #                     unrealized_profit = float(position["info"]["unRealizedProfit"]) if position["info"]["unRealizedProfit"] else 0.0
-    #                     values[position_side]["qty"] = qty
-    #                     values[position_side]["price"] = entry_price
-    #                     values[position_side]["realised"] = round(unrealized_profit, 4)
-    #                     values[position_side]["cum_realised"] = round(unrealized_profit, 4)
-    #                     values[position_side]["upnl"] = round(unrealized_profit, 4)
-    #                     values[position_side]["upnl_pct"] = 0
-    #                     values[position_side]["liq_price"] = float(position["info"]["liquidationPrice"] or 0)
-    #                     values[position_side]["entry_price"] = entry_price
-    #     except Exception as e:
-    #         logging.info(f"An unknown error occurred in get_positions_binance(): {e}")
-    #     return values
-
-
-
-
-
-    # def get_positions_binance(self, symbol) -> dict:
-    #     values = {
-    #         "long": {
-    #             "qty": 0.0,
-    #             "price": 0.0,
-    #             "realised": 0,
-    #             "cum_realised": 0,
-    #             "upnl": 0,
-    #             "upnl_pct": 0,
-    #             "liq_price": 0,
-    #             "entry_price": 0,
-    #         },
-    #         "short": {
-    #             "qty": 0.0,
-    #             "price": 0.0,
-    #             "realised": 0,
-    #             "cum_realised": 0,
-    #             "upnl": 0,
-    #             "upnl_pct": 0,
-    #             "liq_price": 0,
-    #             "entry_price": 0,
-    #         },
-    #     }
-    #     try:
-    #         data = self.exchange.fetch_positions_risk([symbol])
-    #         print(data)
-    #         if len(data) > 0:
-    #             for position in data:
-    #                 position_side = position["positionSide"].lower()
-    #                 values[position_side]["qty"] = float(position["positionAmt"])
-    #                 values[position_side]["price"] = float(position["entryPrice"] or 0)
-    #                 values[position_side]["realised"] = round(float(position["unRealizedProfit"] or 0), 4)
-    #                 values[position_side]["cum_realised"] = round(float(position["unRealizedProfit"] or 0), 4)
-    #                 values[position_side]["upnl"] = round(float(position["unRealizedProfit"] or 0), 4)
-    #                 values[position_side]["upnl_pct"] = 0  # Binance does not provide the unrealized PnL percentage
-    #                 values[position_side]["liq_price"] = float(position["liquidationPrice"] or 0)
-    #                 values[position_side]["entry_price"] = float(position["entryPrice"] or 0)
-    #     except Exception as e:
-    #         log.warning(f"An unknown error occurred in get_positions(): {e}")
-    #     return values
-
+        
     
     # # Huobi
     # def safe_order_operation(self, operation, *args, **kwargs):
@@ -1776,28 +1483,6 @@ class Exchange:
             logging.info(f"An unknown error occurred in get_open_orders(): {e}")
         return open_orders_list
 
-
-    def get_open_orders_bitget(self, symbol: str) -> list:
-        open_orders = []
-        try:
-            orders = self.exchange.fetch_open_orders(symbol)
-            #print(f"Raw orders: {orders}")  # Add this line to print raw orders
-            for order in orders:
-                if "info" in order:
-                    info = order["info"]
-                    if "state" in info and info["state"] == "new":  # Change "status" to "state"
-                        order_data = {
-                            "id": info.get("orderId", ""),  # Change "order_id" to "orderId"
-                            "price": info.get("price", 0.0),  # Use the correct field name
-                            "qty": info.get("size", 0.0),  # Change "qty" to "size"
-                            "side": info.get("side", ""),
-                            "reduce_only": info.get("reduceOnly", False),
-                        }
-                        open_orders.append(order_data)
-        except Exception as e:
-            logging.info(f"An unknown error occurred in get_open_orders_debug(): {e}")
-        return open_orders
-
     def get_open_orders_huobi(self, symbol: str) -> list:
         open_orders_list = []
         try:
@@ -2075,103 +1760,6 @@ class Exchange:
                 raise e
 
         raise Exception(f"Failed to get max leverage for {symbol} after {max_retries} retries.")
-        
-    # Bitget 
-    def get_max_leverage_bitget(self, symbol):
-        try:
-            # Fetch market leverage tiers
-            leverage_tiers = self.exchange.fetch_market_leverage_tiers(symbol)
-
-            # Extract maximum leverage from the tiers
-            max_leverage = 0
-            for tier in leverage_tiers:
-                tier_leverage = tier['maxLeverage']
-                if tier_leverage > max_leverage:
-                    max_leverage = tier_leverage
-
-            return max_leverage
-
-        except Exception as e:
-            logging.info(f"An error occurred while fetching max leverage: {e}")
-            return None
-
-    # Bitget
-    def cancel_all_entries_bitget(self, symbol: str) -> None:
-        try:
-            orders = self.exchange.fetch_open_orders(symbol)
-            long_orders = 0
-            short_orders = 0
-
-            # Count the number of open long and short orders
-            for order in orders:
-                order_info = order["info"]
-                order_status = order_info["state"]
-                order_side = order_info["side"]
-                reduce_only = order_info["reduceOnly"]
-                
-                if order_status != "Filled" and order_status != "Cancelled" and not reduce_only:
-                    if order_side == "open_long":
-                        long_orders += 1
-                    elif order_side == "open_short":
-                        short_orders += 1
-
-            # Cancel extra long or short orders if more than one open order per side
-            if long_orders > 1 or short_orders > 1:
-                for order in orders:
-                    order_info = order["info"]
-                    order_id = order_info["orderId"]
-                    order_status = order_info["state"]
-                    order_side = order_info["side"]
-                    reduce_only = order_info["reduceOnly"]
-
-                    if (
-                        order_status != "Filled"
-                        and order_status != "Cancelled"
-                        and not reduce_only
-                    ):
-                        self.exchange.cancel_order(symbol=symbol, id=order_id)
-                        logging.info(f"Cancelling order: {order_id}")
-        except Exception as e:
-            logging.warning(f"An unknown error occurred in cancel_entry(): {e}")
-
-    def get_open_take_profit_order_quantity_bitget(self, orders, side):
-        for order in orders:
-            if order['side'] == side and order['params'].get('reduceOnly', False):
-                return order['amount']
-        return None
-
-    # Bitget
-    def get_order_status_bitget(self, symbol, side):
-        open_orders = self.exchange.fetch_open_orders(symbol)
-
-        for order in open_orders:
-            if order['side'] == side:
-                return order['status']
-
-        return None
-
-    # Bitget
-    def cancel_entry_bitget(self, symbol: str) -> None:
-        try:
-            orders = self.exchange.fetch_open_orders(symbol)
-            
-            for order in orders:
-                order_info = order["info"]
-                order_id = order_info["orderId"]
-                order_status = order_info["state"]
-                order_side = order_info["side"]
-                reduce_only = order_info["reduceOnly"]
-                
-                if (
-                    order_status != "Filled"
-                    and order_status != "Cancelled"
-                    and not reduce_only
-                ):
-                    self.exchange.cancel_order(symbol=symbol, id=order_id)
-                    logging.info(f"Cancelling order: {order_id}")
-        except Exception as e:
-            logging.warning(f"An unknown error occurred in cancel_entry(): {e}")
-
 
     def cancel_entry(self, symbol: str) -> None:
         try:
@@ -2412,104 +2000,6 @@ class Exchange:
         except Exception as e:
             print(f"Exception caught {e}")
 
-    def cancel_close_bitget(self, symbol: str, side: str) -> None:
-        side_map = {"long": "close_long", "short": "close_short"}
-        try:
-            orders = self.exchange.fetch_open_orders(symbol)
-            if len(orders) > 0:
-                for order in orders:
-                    if "info" in order:
-                        order_id = order["info"]["orderId"]
-                        order_status = order["info"]["state"]
-                        order_side = order["info"]["side"]
-                        reduce_only = order["info"]["reduceOnly"]
-
-                        if (
-                            order_status != "filled"
-                            and order_side == side_map[side]
-                            and order_status != "canceled"
-                            and reduce_only
-                        ):
-                            self.exchange.cancel_order(symbol=symbol, id=order_id)
-                            logging.info(f"Cancelling order: {order_id}")
-        except Exception as e:
-            logging.warning(f"An unknown error occurred in cancel_close_bitget(): {e}")
-
-    def cancel_close_huobi(self, symbol: str, side: str, offset: str) -> None:
-        side_map = {"long": "buy", "short": "sell"}
-        try:
-            orders = self.exchange.fetch_open_orders(symbol)
-            print(f"Orders: {orders}")
-            if orders:
-                for order in orders:
-                    order_info = order["info"]
-                    order_id = order_info["order_id"]
-                    order_status = order_info["status"]
-                    order_direction = order_info["direction"]
-                    order_offset = order_info["offset"]
-                    reduce_only = order_info["reduce_only"]
-
-                    if (
-                        order_status == '3'  # Assuming '3' represents open orders
-                        and order_direction == side_map[side]
-                        and order_offset == offset
-                        and reduce_only == '1'  # Assuming '1' represents reduce_only orders
-                    ):
-                        self.exchange.cancel_order(symbol=symbol, id=order_id)
-                        logging.info(f"Cancelling order: {order_id}")
-        except Exception as e:
-            logging.warning(f"An unknown error occurred in cancel_close_huobi(): {e}")
-
-    # def cancel_close_huobi(self, symbol: str, side: str) -> None:
-    #     side_map = {"long": "buy", "short": "sell"}
-    #     offset = "close"
-    #     try:
-    #         orders = self.exchange.fetch_open_orders(symbol)
-    #         if orders:
-    #             for order in orders:
-    #                 order_info = order["info"]
-    #                 order_id = order_info["order_id"]
-    #                 order_status = order_info["status"]
-    #                 order_direction = order_info["direction"]
-    #                 order_offset = order_info["offset"]
-    #                 reduce_only = order_info["reduce_only"]
-
-    #                 if (
-    #                     order_status == '3'  # Assuming '3' represents open orders
-    #                     and order_direction == side_map[side]
-    #                     and order_offset == offset
-    #                     and reduce_only == '1'  # Assuming '1' represents reduce_only orders
-    #                 ):
-    #                     self.exchange.cancel_order(symbol=symbol, id=order_id)
-    #                     log.info(f"Cancelling order: {order_id}")
-    #     except Exception as e:
-    #         log.warning(f"An unknown error occurred in cancel_close_huobi(): {e}")
-
-    # def cancel_close_huobi(self, symbol: str, side: str) -> None:
-    #     side_map = {"long": "sell", "short": "buy"}
-    #     offset_map = {"long": "close", "short": "close"}
-    #     try:
-    #         orders = self.exchange.fetch_open_orders(symbol)
-    #         if len(orders) > 0:
-    #             for order in orders:
-    #                 order_info = order["info"]
-    #                 order_id = order_info["order_id"]
-    #                 order_status = str(order_info["status"])  # status seems to be a string of a number
-    #                 order_direction = order_info["direction"]
-    #                 order_offset = order_info["offset"]
-
-    #                 if (
-    #                     order_status != "4"  # Assuming 4 is 'Filled'
-    #                     and order_direction == side_map[side]
-    #                     and order_offset == offset_map[side]
-    #                     and order_status != "6"  # Assuming 6 is 'Cancelled'
-    #                     # There's no 'reduceOnly' equivalent in Huobi from the provided data
-    #                 ):
-    #                     self.exchange.cancel_order(symbol=symbol, id=order_id)
-    #                     log.info(f"Cancelling order: {order_id}")
-    #     except Exception as e:
-    #         log.warning(f"An unknown error occurred in cancel_close_huobi(): {e}")
-
     def cancel_close(self, symbol: str, side: str) -> None:
         try:
             order = self.exchange.fetch_open_orders(symbol)
@@ -2582,40 +2072,6 @@ class Exchange:
         else:
             raise ValueError(f"Unsupported order type: {order_type}")
 
-    # Huobi
-    def create_take_profit_order_huobi(self, symbol, order_type, side, amount, price=None, reduce_only=False):
-        if order_type == 'limit':
-            if price is None:
-                raise ValueError("A price must be specified for a limit order")
-
-            if side not in ["buy", "sell"]:
-                raise ValueError(f"Invalid side: {side}")
-
-            params = {"offset": "close" if reduce_only else "open"}
-            return self.exchange.create_order(symbol, order_type, side, amount, price, params)
-        else:
-            raise ValueError(f"Unsupported order type: {order_type}")
-
-    def market_close_position_bitget(self, symbol, side, amount):
-        """
-        Close a position by creating a market order in the opposite direction.
-        
-        :param str symbol: Symbol of the market to create an order in.
-        :param str side: Original side of the position. Either 'buy' (for long positions) or 'sell' (for short positions).
-        :param float amount: The quantity of the position to close.
-        """
-        # Determine the side of the closing order based on the original side of the position
-        if side == "buy":
-            close_side = "sell"
-        elif side == "sell":
-            close_side = "buy"
-        else:
-            raise ValueError("Invalid order side. Must be either 'buy' or 'sell'.")
-
-        # Create a market order in the opposite direction to close the position
-        self.create_order(symbol, 'market', close_side, amount)
-
-
     def create_market_order(self, symbol: str, side: str, amount: float, params={}, close_position: bool = False) -> None:
         try:
             if side not in ["buy", "sell"]:
@@ -2637,23 +2093,6 @@ class Exchange:
             return response
         except Exception as e:
             logging.warning(f"An unknown error occurred in create_market_order(): {e}")
-
-    def create_limit_order_bybit_unified(self, symbol: str, side: str, qty: float, price: float, positionIdx=0, params={}):
-        try:
-            if side == "buy" or side == "sell":
-                order = self.exchange.create_unified_account_order(
-                    symbol=symbol,
-                    type='limit',
-                    side=side,
-                    amount=qty,
-                    price=price,
-                    params={**params, 'positionIdx': positionIdx}
-                )
-                return order
-            else:
-                logging.warning(f"side {side} does not exist")
-        except Exception as e:
-            logging.warning(f"An unknown error occurred in create_limit_order(): {e}")
 
     def create_tagged_limit_order_bybit(self, symbol: str, side: str, qty: float, price: float, positionIdx=0, isLeverage=False, orderLinkId=None, postOnly=True, params={}):
         try:
