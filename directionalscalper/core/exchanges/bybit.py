@@ -157,3 +157,55 @@ class BybitExchange(Exchange):
                     raise e  # If it's still failing after max_retries, re-raise the exception.
 
         return values
+
+    def cancel_all_orders_for_symbol_bybit(self, symbol):
+        try:
+            # Assuming 'self.exchange' is your initialized CCXT exchange instance
+            cancel_result = self.exchange.cancel_all_orders(symbol)
+            logging.info(f"All open orders for {symbol} have been cancelled. Result: {cancel_result}")
+            return cancel_result
+        except Exception as e:
+            logging.error(f"Error cancelling open orders for {symbol}: {e}")
+            return None
+        
+    def get_current_max_leverage_bybit(self, symbol):
+        try:
+            # Fetch leverage tiers for the symbol
+            leverage_tiers = self.exchange.fetch_market_leverage_tiers(symbol)
+
+            # Process leverage tiers to find the maximum leverage
+            max_leverage = max([tier['maxLeverage'] for tier in leverage_tiers if 'maxLeverage' in tier])
+            logging.info(f"Maximum leverage for symbol {symbol}: {max_leverage}")
+
+            return max_leverage
+
+        except Exception as e:
+            logging.error(f"Error retrieving leverage tiers for {symbol}: {e}")
+            return None
+
+    def set_leverage_bybit(self, leverage, symbol):
+        try:
+            self.exchange.set_leverage(leverage, symbol)
+            logging.info(f"Leverage set to {leverage} for symbol {symbol}")
+        except Exception as e:
+            logging.info(f"Error setting leverage: {e}")
+
+    def set_symbol_to_cross_margin(self, symbol, leverage):
+        """
+        Set a specific symbol's margin mode to cross with specified leverage.
+        """
+        try:
+            response = self.exchange.set_margin_mode('cross', symbol=symbol, params={'leverage': leverage})
+            
+            retCode = response.get('retCode') if isinstance(response, dict) else None
+
+            if retCode == 110026:  # Margin mode is already set to cross
+                logging.info(f"Symbol {symbol} is already set to cross margin mode. No changes made.")
+                return {"status": "unchanged", "response": response}
+            else:
+                logging.info(f"Margin mode set to cross for symbol {symbol} with leverage {leverage}. Response: {response}")
+                return {"status": "changed", "response": response}
+
+        except Exception as e:
+            logging.info(f"Failed to set margin mode or margin mode already set to cross for symbol {symbol} with leverage {leverage}: {e}")
+            return {"status": "error", "message": str(e)}
