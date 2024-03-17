@@ -1,6 +1,7 @@
 import uuid
 from .exchange import Exchange
 import logging
+import time
 
 class BybitExchange(Exchange):
     def __init__(self, api_key, secret_key, passphrase=None, market_type='swap'):
