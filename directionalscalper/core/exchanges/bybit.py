@@ -88,3 +88,22 @@ class BybitExchange(Exchange):
 
         return None
     
+    def get_symbol_precision_bybit(self, symbol):
+        try:
+            # Use fetch_markets to retrieve data for all markets
+            all_markets = self.exchange.fetch_markets()
+
+            # Find the market data for the specific symbol
+            market_data = next((market for market in all_markets if market['id'] == symbol), None)
+
+            if market_data:
+                # Extract precision data
+                amount_precision = market_data['precision']['amount']
+                price_precision = market_data['precision']['price']
+                return amount_precision, price_precision
+            else:
+                print(f"Market data not found for {symbol}")
+                return None, None
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return None, None
