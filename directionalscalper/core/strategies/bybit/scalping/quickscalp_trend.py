@@ -19,6 +19,7 @@ symbol_locks = {}
 class BybitQuickScalpTrend(Strategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
+        self.exchange = BybitExchange(exchange.api_key, exchange.secret_key, exchange.passphrase)
         self.is_order_history_populated = False
         self.last_health_check_time = time.time()
         self.health_check_interval = 600
@@ -288,7 +289,8 @@ class BybitQuickScalpTrend(Strategy):
 
                 # Fetch equity data less frequently or if it's not available yet
                 if current_time - last_equity_fetch_time > equity_refresh_interval or total_equity is None:
-                    total_equity = self.retry_api_call(self.exchange.get_balance_bybit, quote_currency)
+                    #total_equity = self.retry_api_call(self.exchange.get_balance_bybit, quote_currency)
+                    total_equity = self.retry_api_call(self.exchange.get_futures_balance_bybit(quote_currency))
                     available_equity = self.retry_api_call(self.exchange.get_available_balance_bybit, quote_currency)
                     last_equity_fetch_time = current_time
 

@@ -876,27 +876,6 @@ class Exchange:
 
         return None
 
-    def get_available_balance_bybit(self, quote):
-        if self.exchange.has['fetchBalance']:
-            try:
-                # Fetch the balance with params to specify the account type
-                balance_response = self.exchange.fetch_balance({'type': 'swap'})
-
-                # Log the raw response for debugging purposes
-                #logging.info(f"Raw available balance response from Bybit: {balance_response}")
-
-                # Check for the required keys in the response
-                if 'free' in balance_response and quote in balance_response['free']:
-                    # Return the available balance for the specified currency
-                    return float(balance_response['free'][quote])
-                else:
-                    logging.warning(f"Available balance for {quote} not found in the response.")
-
-            except Exception as e:
-                logging.error(f"Error fetching available balance from Bybit: {e}")
-
-        return None
-    
     def fetch_unrealized_pnl(self, symbol):
         """
         Fetches the unrealized profit and loss (PNL) for both long and short positions of a given symbol.
