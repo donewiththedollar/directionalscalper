@@ -16,6 +16,11 @@ import config
 from config import load_config, Config
 from config import VERSION
 from api.manager import Manager
+
+from directionalscalper.core.exchanges.huobi import HuobiExchange
+from directionalscalper.core.exchanges.bitget import BitgetExchange
+from directionalscalper.core.exchanges.binance import BinanceExchange
+from directionalscalper.core.exchanges.hyperliquid import HyperLiquidExchange
 from directionalscalper.core.exchanges.bybit import BybitExchange
 from directionalscalper.core.exchanges.exchange import Exchange
 from directionalscalper.core.strategies.strategy import Strategy
@@ -115,6 +120,14 @@ class DirectionalMarketMaker:
         
         if exchange_name.lower() == 'bybit':
             self.exchange = BybitExchange(api_key, secret_key, passphrase)
+        elif exchange_name.lower() == 'hyperliquid':
+            self.exchange = HyperLiquidExchange(api_key, secret_key, passphrase)
+        elif exchange_name.lower() == 'huobi':
+            self.exchange = HuobiExchange(api_key, secret_key, passphrase)
+        elif exchange_name.lower() == 'bitget':
+            self.exchange = BitgetExchange(api_key, secret_key, passphrase)
+        elif exchange_name.lower() == 'binance':
+            self.exchange = BinanceExchange(api_key, secret_key, passphrase)
         else:
             self.exchange = Exchange(self.exchange_name, api_key, secret_key, passphrase)
             
