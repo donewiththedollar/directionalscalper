@@ -157,7 +157,7 @@ class Exchange:
         # Add the brokerId option only for Bybit exchanges
         if self.exchange_id.lower().startswith('bybit'):
             exchange_params['options']['brokerId'] = 'Nu000450'
-
+            
         # Existing condition for Huobi
         if self.exchange_id.lower() == 'huobi' and self.market_type == 'swap':
             exchange_params['options']['defaultSubType'] = 'linear'

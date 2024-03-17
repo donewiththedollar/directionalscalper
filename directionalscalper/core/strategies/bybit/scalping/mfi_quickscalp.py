@@ -162,13 +162,25 @@ class BybitMFIRSIQuickScalp(Strategy):
             if self.config.dashboard_enabled:
                 try:
                     dashboard_path = os.path.join(self.config.shared_data_path, "shared_data.json")
+                    logging.info(f"Dashboard path: {dashboard_path}")
 
                     # Ensure the directory exists
                     os.makedirs(os.path.dirname(dashboard_path), exist_ok=True)
+                    logging.info(f"Directory created: {os.path.dirname(dashboard_path)}")
 
-                    with open(dashboard_path, "r") as file:
-                        # Read or process file data
-                        data = json.load(file)
+                    if os.path.exists(dashboard_path):
+                        with open(dashboard_path, "r") as file:
+                            # Read or process file data
+                            data = json.load(file)
+                            logging.info("Loaded existing data from shared_data.json")
+                    else:
+                        logging.warning("shared_data.json does not exist. Creating a new file.")
+                        data = {}  # Initialize data as an empty dictionary
+
+                    # Save the updated data to the JSON file
+                    with open(dashboard_path, "w") as file:
+                        json.dump(data, file)
+                        logging.info("Data saved to shared_data.json")
 
                 except FileNotFoundError:
                     logging.error(f"File not found: {dashboard_path}")
@@ -178,7 +190,7 @@ class BybitMFIRSIQuickScalp(Strategy):
                     # Handle other I/O errors
                 except Exception as e:
                     logging.error(f"An unexpected error occurred: {e}")
-
+                    
                     
             logging.info("Setting up exchange")
             self.exchange.setup_exchange_bybit(symbol)
