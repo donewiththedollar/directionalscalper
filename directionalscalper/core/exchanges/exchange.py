@@ -41,8 +41,6 @@ class Exchange:
 
         self.entry_order_ids = {}  # Initialize order history
         self.entry_order_ids_lock = threading.Lock()  # For thread safety
-
-        self.bybit = self.Bybit(self)
         
     def initialise(self):
         exchange_class = getattr(ccxt, self.exchange_id)
