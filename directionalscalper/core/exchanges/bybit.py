@@ -9,6 +9,85 @@ class BybitExchange(Exchange):
     def __init__(self, api_key, secret_key, passphrase=None, market_type='swap'):
         super().__init__('bybit', api_key, secret_key, passphrase, market_type)
     
+    def create_limit_order_bybit(self, symbol: str, side: str, qty: float, price: float, positionIdx=0, params={}):
+        try:
+            if side == "buy" or side == "sell":
+                order = self.exchange.create_order(
+                    symbol=symbol,
+                    type='limit',
+                    side=side,
+                    amount=qty,
+                    price=price,
+                    params={**params, 'positionIdx': positionIdx}  # Pass the 'positionIdx' parameter here
+                )
+                return order
+            else:
+                logging.warning(f"side {side} does not exist")
+                return {"error": f"side {side} does not exist"}
+        except Exception as e:
+            logging.warning(f"An unknown error occurred in create_limit_order() for {symbol}: {e}")
+            return {"error": str(e)}
+
+    def create_limit_order_bybit_spot(self, symbol: str, side: str, qty: float, price: float, isLeverage=0, orderLinkId=None):
+        try:
+            # Define the 'params' dictionary to include any additional parameters required by Bybit's v5 API
+            params = {
+                'timeInForce': 'PostOnly',  # Set the order as a PostOnly order
+                'isLeverage': isLeverage,   # Specify whether to borrow for margin trading
+            }
+            
+            # If 'orderLinkId' is provided, add it to the 'params' dictionary
+            if orderLinkId:
+                params['orderLinkId'] = orderLinkId
+
+            # Create the limit order using CCXT's 'create_order' function
+            order = self.exchange.create_order(
+                symbol=symbol,
+                type='limit',
+                side=side,
+                amount=qty,
+                price=price,
+                params=params
+            )
+            
+            return order
+        except Exception as e:
+            logging.error(f"An error occurred while creating limit order on Bybit: {e}")
+            return None
+
+    def create_tagged_limit_order_bybit(self, symbol: str, side: str, qty: float, price: float, positionIdx=0, isLeverage=False, orderLinkId=None, postOnly=True, params={}):
+        try:
+            # Directly prepare the parameters required by the `create_order` method
+            order_type = "limit"  # For limit orders
+            time_in_force = "PostOnly" if postOnly else "GTC"
+            
+            # Include additional parameters
+            extra_params = {
+                "positionIdx": positionIdx,
+                "timeInForce": time_in_force
+            }
+            if isLeverage:
+                extra_params["isLeverage"] = 1
+            if orderLinkId:
+                extra_params["orderLinkId"] = orderLinkId
+            
+            # Merge any additional user-provided parameters
+            extra_params.update(params)
+
+            # Create the order
+            order = self.exchange.create_order(
+                symbol=symbol,
+                type=order_type,
+                side=side,
+                amount=qty,
+                price=price,
+                params=extra_params  # Pass extra params here
+            )
+            return order
+        except Exception as e:
+            logging.warning(f"An error occurred in create_tagged_limit_order_bybit() for {symbol}: {e}")
+            return {"error": str(e)}
+        
     def create_limit_order_bybit_unified(self, symbol: str, side: str, qty: float, price: float, positionIdx=0, params={}):
         try:
             if side == "buy" or side == "sell":

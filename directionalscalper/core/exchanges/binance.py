@@ -8,7 +8,141 @@ from typing import Optional, Tuple, List
 class BinanceExchange(Exchange):
     def __init__(self, api_key, secret_key, passphrase=None, market_type='swap'):
         super().__init__('binance', api_key, secret_key, passphrase, market_type)
-    
+
+    def set_hedge_mode_binance(self):
+        """
+        set hedged to True for the account
+        :returns dict: response from the exchange
+        """
+        try:
+            response = self.exchange.set_position_mode(True)
+            return response
+        except Exception as e:
+            print(f"An error occurred while setting position mode: {e}")
+
+    # Binance
+    def create_limit_order_binance(self, symbol: str, side: str, qty: float, price: float, params={}):
+        try:
+            if side == "buy" or side == "sell":
+                user_position_side = "LONG"  # Replace this with the actual user's position side setting
+                params["positionSide"] = user_position_side
+                order = self.exchange.create_order(
+                    symbol=symbol,
+                    type='LIMIT',
+                    side=side,
+                    amount=qty,
+                    price=price,
+                    params=params
+                )
+                return order
+            else:
+                logging.warning(f"side {side} does not exist")
+        except Exception as e:
+            logging.warning(f"An unknown error occurred in create_limit_order_binance(): {e}")
+
+    # Binance
+    def create_close_position_limit_order_binance(self, symbol: str, side: str, qty: float, price: float):
+        try:
+            if side == "buy" or side == "sell":
+                position_side = "LONG" if side == "sell" else "SHORT"
+                params = {
+                    "positionSide": position_side,
+                    "closePosition": True
+                }
+                order = self.exchange.create_order(
+                    symbol=symbol,
+                    type='LIMIT',
+                    side=side,
+                    amount=qty,
+                    price=price,
+                    params=params
+                )
+                return order
+            else:
+                logging.warning(f"Invalid side: {side}")
+        except Exception as e:
+            logging.warning(f"An unknown error occurred in create_close_position_limit_order_binance(): {e}")
+
+    # Binance
+    def create_take_profit_order_binance(self, symbol, side, amount, price):
+        if side not in ["buy", "sell"]:
+            raise ValueError(f"Invalid side: {side}")
+
+        params = {"closePosition": True}
+
+        # Create the limit order for the take profit
+        order = self.create_limit_order_binance(symbol, side, amount, price, params)
+
+        return order
+
+    def create_normal_take_profit_order_binance(self, symbol, side, quantity, price, stopPrice):
+        params = {
+            'stopPrice': stopPrice,  # the price at which the order is triggered
+            'type': 'TAKE_PROFIT'  # specifies the type of the order
+        }
+        return self.exchange.create_order(symbol, 'limit', side, quantity, price, params)
+
+    def binance_create_limit_order(self, symbol: str, side: str, amount: float, price: float, params={}):
+        params["positionSide"] = "LONG" if side.lower() == "buy" else "SHORT"  # set positionSide parameter
+        try:
+            order = self.exchange.create_order(symbol, "limit", side, amount, price, params)
+            return order
+        except Exception as e:
+            print(f"An error occurred while creating the limit order: {e}")
+
+    def binance_create_limit_order_with_time_in_force(self, symbol: str, side: str, amount: float, price: float, time_in_force: str, params={}):
+        params["positionSide"] = "LONG" if side.lower() == "buy" else "SHORT"  # set positionSide parameter
+        params["timeInForce"] = time_in_force
+        try:
+            order = self.exchange.create_order(symbol, "limit", side, amount, price, params)
+            return order
+        except Exception as e:
+            print(f"An error occurred while creating the limit order: {e}")
+
+    def binance_create_take_profit_order(self, symbol: str, side: str, positionSide: str, amount: float, price: float, params={}):
+        try:
+            order_params = {
+                'positionSide': positionSide,
+                **params
+            }
+            order = self.exchange.create_order(symbol, "TAKE_PROFIT_MARKET", side, amount, price, order_params)
+            return order
+        except Exception as e:
+            print(f"An error occurred while creating the take-profit order: {e}")
+
+    def binance_create_limit_maker_order(self, symbol: str, side: str, amount: float, price: float):
+        try:
+            order_params = {
+                'timeInForce': 'GTC'
+            }
+            order = self.exchange.create_order(symbol, "LIMIT", side, amount, price, order_params)
+            return order
+        except Exception as e:
+            print(f"An error occurred while creating the limit maker order: {e}")
+
+    def binance_create_take_profit_limit_maker_order(self, symbol: str, side: str, amount: float, stop_price: float, price: float):
+        try:
+            order_params = {
+                'stopPrice': stop_price,
+                'timeInForce': 'GTC'
+            }
+            order = self.exchange.create_order(symbol, "TAKE_PROFIT", side, amount, price, order_params)
+            return order
+        except Exception as e:
+            print(f"An error occurred while creating the take profit limit maker order: {e}")
+
+    def binance_create_reduce_only_limit_order(self, symbol: str, side: str, amount: float, price: float):
+        try:
+            order_params = {
+                'reduceOnly': 'true',
+                'timeInForce': 'GTC'
+            }
+            order = self.exchange.create_order(symbol, "LIMIT", side, amount, price, order_params)
+            return order
+        except Exception as e:
+            raise Exception(f"An error occurred while creating the reduce only limit order: {e}") from e
+
+
     def get_market_data_binance(self, symbol: str) -> dict:
         values = {"precision": 0.0, "leverage": 0.0, "min_qty": 0.0, "step_size": 0.0}
         try:
