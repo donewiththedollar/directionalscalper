@@ -16,6 +16,7 @@ import config
 from config import load_config, Config
 from config import VERSION
 from api.manager import Manager
+from directionalscalper.core.exchanges.bybit import BybitExchange
 from directionalscalper.core.exchanges.exchange import Exchange
 from directionalscalper.core.strategies.strategy import Strategy
 
@@ -107,11 +108,16 @@ class DirectionalMarketMaker:
 
         if not exchange_config:
             raise ValueError(f"Exchange {exchange_name} with account {account_name} not found in the configuration file.")
+        
         api_key = exchange_config.api_key
         secret_key = exchange_config.api_secret
         passphrase = exchange_config.passphrase
-        self.exchange = Exchange(self.exchange_name, api_key, secret_key, passphrase)
-
+        
+        if exchange_name.lower() == 'bybit':
+            self.exchange = BybitExchange(api_key, secret_key, passphrase)
+        else:
+            self.exchange = Exchange(self.exchange_name, api_key, secret_key, passphrase)
+            
     def run_strategy(self, symbol, strategy_name, config, account_name, symbols_to_trade=None, rotator_symbols_standardized=None):
         symbols_allowed = None
         for exch in config.exchanges:
