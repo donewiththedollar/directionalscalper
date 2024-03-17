@@ -107,3 +107,52 @@ class BybitExchange(Exchange):
         except Exception as e:
             print(f"An error occurred: {e}")
             return None, None
+
+    def get_positions_bybit(self, symbol, max_retries=100, retry_delay=5) -> dict:
+        values = {
+            "long": {
+                "qty": 0.0,
+                "price": 0.0,
+                "realised": 0,
+                "cum_realised": 0,
+                "upnl": 0,
+                "upnl_pct": 0,
+                "liq_price": 0,
+                "entry_price": 0,
+            },
+            "short": {
+                "qty": 0.0,
+                "price": 0.0,
+                "realised": 0,
+                "cum_realised": 0,
+                "upnl": 0,
+                "upnl_pct": 0,
+                "liq_price": 0,
+                "entry_price": 0,
+            },
+        }
+
+        for i in range(max_retries):
+            try:
+                data = self.exchange.fetch_positions(symbol)
+                if len(data) == 2:
+                    sides = ["long", "short"]
+                    for side in [0, 1]:
+                        values[sides[side]]["qty"] = float(data[side]["contracts"])
+                        values[sides[side]]["price"] = float(data[side]["entryPrice"] or 0)
+                        values[sides[side]]["realised"] = round(float(data[side]["info"]["unrealisedPnl"] or 0), 4)
+                        values[sides[side]]["cum_realised"] = round(float(data[side]["info"]["cumRealisedPnl"] or 0), 4)
+                        values[sides[side]]["upnl"] = round(float(data[side]["info"]["unrealisedPnl"] or 0), 4)
+                        values[sides[side]]["upnl_pct"] = round(float(data[side]["percentage"] or 0), 4)
+                        values[sides[side]]["liq_price"] = float(data[side]["liquidationPrice"] or 0)
+                        values[sides[side]]["entry_price"] = float(data[side]["entryPrice"] or 0)
+                break  # If the fetch was successful, break out of the loop
+            except Exception as e:
+                if i < max_retries - 1:  # If not the last attempt
+                    logging.info(f"An unknown error occurred in get_positions_bybit(): {e}. Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    logging.info(f"Failed to fetch positions after {max_retries} attempts: {e}")
+                    raise e  # If it's still failing after max_retries, re-raise the exception.
+
+        return values
