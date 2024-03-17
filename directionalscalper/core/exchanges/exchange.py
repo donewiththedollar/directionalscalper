@@ -24,87 +24,6 @@ class Exchange:
     open_positions_shared_cache = None
     last_open_positions_time_shared = None
     open_positions_semaphore = threading.Semaphore()
-    class Bybit:
-        def __init__(self, parent):
-            self.parent = parent  # Refers to the outer Exchange instance
-            self.max_retries = 100  # Maximum retries for rate-limited requests
-            self.retry_wait = 5  # Seconds to wait between retries
-
-        def get_open_orders(self, symbol):
-            """Fetches open orders for the given symbol."""
-            for _ in range(self.max_retries):
-                try:
-                    open_orders = self.parent.fetch_open_orders(symbol)
-                    logging.info(f"Open orders {open_orders}")
-                    return open_orders
-                except ccxt.RateLimitExceeded:
-                    logging.warning(f"Rate limit exceeded when fetching open orders for {symbol}. Retrying in {self.retry_wait} seconds...")
-                    time.sleep(self.retry_wait)
-            logging.error(f"Failed to fetch open orders for {symbol} after {self.max_retries} retries.")
-            return []
-        
-        def get_open_tp_orders(self, symbol):
-            long_tp_orders = []
-            short_tp_orders = []
-            for _ in range(self.max_retries):
-                try:
-                    all_open_orders = self.parent.exchange.fetch_open_orders(symbol)
-                    #logging.info(f"All open orders for {symbol}: {all_open_orders}")
-                    
-                    for order in all_open_orders:
-                        order_details = {
-                            'id': order['id'],
-                            'qty': float(order['info']['qty']),
-                            'price': float(order['price'])  # Extracting the price
-                        }
-                        
-                        if order['info'].get('reduceOnly', False):
-                            if order['side'] == 'sell':
-                                long_tp_orders.append(order_details)
-                            elif order['side'] == 'buy':
-                                short_tp_orders.append(order_details)
-                    
-                    return long_tp_orders, short_tp_orders
-                except ccxt.RateLimitExceeded:
-                    logging.warning(f"Rate limit exceeded when fetching TP orders for {symbol}. Retrying in {self.retry_wait} seconds...")
-                    time.sleep(self.retry_wait)
-            logging.error(f"Failed to fetch TP orders for {symbol} after {self.max_retries} retries.")
-            return long_tp_orders, short_tp_orders
-        
-        def get_open_tp_order_count(self, symbol):
-            """
-            Fetches the count of open take profit (TP) orders for the given symbol.
-            
-            :param str symbol: The trading pair symbol.
-            :return: Dictionary with counts of long and short TP orders for the symbol.
-            """
-            long_tp_orders, short_tp_orders = self.get_open_tp_orders(symbol)
-            return {
-                'long_tp_count': len(long_tp_orders),
-                'short_tp_count': len(short_tp_orders)
-            }
-
-        def get_open_take_profit_orders(self, symbol, side):
-            """
-            Fetches open take profit orders for the given symbol and side.
-            
-            :param str symbol: The trading pair symbol.
-            :param str side: The side ("buy" or "sell") of the TP orders to fetch.
-            :return: A list of take profit order structures.
-            """
-            # First, fetch the open orders
-            response = self.parent.exchange.get_open_orders(symbol)
-            
-            # Filter the orders for take profits (reduceOnly) and the specified side
-            tp_orders = [
-                order for order in response
-                if order.get('info', {}).get('reduceOnly', False) and order.get('side', '').lower() == side.lower()
-            ]
-            
-            # If necessary, you can further parse the orders here using self.parse_order or similar methods
-            
-            return tp_orders
-
 
     def __init__(self, exchange_id, api_key, secret_key, passphrase=None, market_type='swap'):
         self.order_timestamps = None
@@ -2172,28 +2091,6 @@ class Exchange:
     #             raise ValueError("Invalid order type. Use 'limit' or 'market'.")
 
     #     return order
-
-    def create_market_order_bybit(self, symbol: str, side: str, qty: float, positionIdx=0, params={}):
-        try:
-            if side == "buy" or side == "sell":
-                request = {
-                    'symbol': symbol,
-                    'type': 'market',
-                    'side': side,
-                    'qty': qty,
-                    'positionIdx': positionIdx,
-                    'closeOnTrigger': True  # Set closeOnTrigger to True for market close order
-                }
-                order = self.exchange.create_contract_v3_order(symbol, 'market', side, qty, params=request)
-                return order
-            else:
-                logging.warning(f"Side {side} does not exist")
-        except Exception as e:
-            logging.warning(f"An unknown error occurred in create_market_order(): {e}")
-
-    def create_contract_order_huobi(self, symbol, order_type, side, amount, price=None, params={}):
-        params = {'leverRate': 50}
-        return self.exchange.create_contract_order(symbol, order_type, side, amount, price, params)
 
 
     # def get_symbol_precision_bybit(self, symbol: str) -> Tuple[int, int]:

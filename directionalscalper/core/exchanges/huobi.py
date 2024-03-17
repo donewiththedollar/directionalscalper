@@ -53,3 +53,7 @@ class HuobiExchange(Exchange):
             return self.exchange.create_order(symbol, order_type, side, amount, price, params)
         else:
             raise ValueError(f"Unsupported order type: {order_type}")
+
+    def create_contract_order_huobi(self, symbol, order_type, side, amount, price=None, params={}):
+        params = {'leverRate': 50}
+        return self.exchange.create_contract_order(symbol, order_type, side, amount, price, params)
