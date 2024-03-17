@@ -74,7 +74,7 @@ def choose_strategy():
     return answers['strategy']
 
 def get_available_exchanges():
-    return ['bybit', 'bitget', 'mexc', 'huobi', 'okx', 'binance', 'phemex']
+    return ['bybit', 'hyperliquid']
 
 def ask_for_missing_arguments(args):
     questions = []

@@ -147,6 +147,13 @@ class Exchange:
             'adjustForTimeDifference': True,
         }
 
+        # Set additional params based on the exchange
+        if self.exchange_id.lower() == 'hyperliquid':
+            exchange_params['options'] = {
+                'sandboxMode': False,
+                # Set Liquid-specific options here
+            }
+            
         # Add the brokerId option only for Bybit exchanges
         if self.exchange_id.lower().startswith('bybit'):
             exchange_params['options']['brokerId'] = 'Nu000450'

@@ -65,6 +65,13 @@
       "symbols_allowed": 5
     },
     {
+      "name": "hyperliquid",
+      "account_name": "account_1",
+      "api_key": "",
+      "api_secret": "",
+      "symbols_allowed": 5
+    },
+    {
       "name": "bitget",
       "account_name": "account_1",
       "api_key": "",
