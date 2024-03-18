@@ -95,7 +95,7 @@ class Strategy:
         self.dynamic_amount_per_symbol = {}
         self.max_trade_qty_per_symbol = {}
 
-        self.bybit = self.Bybit(self)
+        # self.bybit = self.Bybit(self)
         
     def update_hedged_status(self, symbol, is_hedged):
         self.hedged_positions[symbol] = is_hedged
