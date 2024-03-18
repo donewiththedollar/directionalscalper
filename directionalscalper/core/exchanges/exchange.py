@@ -82,6 +82,9 @@ class Exchange:
         # Initializing the exchange object
         self.exchange = exchange_class(exchange_params)
         
+
+        
+    
     def transfer_funds_bybit(self, code: str, amount: float, from_account: str, to_account: str, params={}):
         """
         Transfer funds between different account types under the same UID.
@@ -1555,7 +1558,7 @@ class Exchange:
                         logging.info(f"Cancelling order: {order_id}")
 
         except Exception as e:
-            logging.warning(f"An unknown error occurred in cancel_all_entries_bybit(): {e}")
+            logging.info(f"An unknown error occurred in cancel_all_entries_bybit(): {e}")
 
     def cancel_all_entries_huobi(self, symbol: str) -> None:
         try:
@@ -1589,7 +1592,7 @@ class Exchange:
                         self.exchange.cancel_order(symbol=symbol, id=order_id)
                         logging.info(f"Cancelling order: {order_id}")
         except Exception as e:
-            logging.warning(f"An unknown error occurred in cancel_entry(): {e}")
+            logging.info(f"An unknown error occurred in cancel_entry(): {e}")
 
     def binance_set_leverage(self, leverage, symbol: Optional[str] = None, params={}):
         # here we're assuming that maximum allowed leverage is 125 for the symbol
@@ -1702,7 +1705,7 @@ class Exchange:
                         self.exchange.cancel_order(symbol=symbol, id=order_id)
                         logging.info(f"Cancelling order: {order_id}")
         except Exception as e:
-            logging.warning(f"An unknown error occurred in cancel_entry(): {e}")
+            logging.info(f"An unknown error occurred in cancel_entry(): {e}")
 
     # Bybit
     def get_take_profit_order_quantity_bybit(self, symbol, side):
@@ -1868,7 +1871,7 @@ class Exchange:
 
             except (RateLimitExceeded, NetworkError) as e:
                 retries += 1
-                logging.warning(f"Encountered an error in cancel_close_bybit(). Retrying... {retries}/{max_retries}")
+                logging.info(f"Encountered an error in cancel_close_bybit(). Retrying... {retries}/{max_retries}")
                 time.sleep(5)  # Pause before retrying, this can be adjusted
 
             except Exception as e:
