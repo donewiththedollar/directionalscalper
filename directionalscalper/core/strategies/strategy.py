@@ -30,10 +30,6 @@ class Strategy:
     initialized_symbols = set()
     initialized_symbols_lock = threading.Lock()
 
-    class Bybit:
-        def __init__(self, parent):
-            self.parent = parent
-
     def __init__(self, exchange, config, manager, symbols_allowed=None):
         self.exchange = exchange
         self.config = config
@@ -1394,7 +1390,7 @@ class Strategy:
 
     def place_long_tp_order(self, symbol, best_ask_price, long_pos_price, long_pos_qty, long_take_profit, open_orders):
         try:
-            tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
+            tp_order_counts = self.exchange.get_open_tp_order_count(symbol)
             logging.info(f"Long TP order counts for {symbol}: {tp_order_counts}")
 
             if tp_order_counts['long_tp_count'] == 0:
@@ -1410,7 +1406,7 @@ class Strategy:
 
     def place_short_tp_order(self, symbol, best_bid_price, short_pos_price, short_pos_qty, short_take_profit, open_orders):
         try:
-            tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
+            tp_order_counts = self.exchange.get_open_tp_order_count(symbol)
             logging.info(f"Short TP order counts for {symbol}: {tp_order_counts}")
 
             if tp_order_counts['short_tp_count'] == 0:
@@ -5541,7 +5537,7 @@ class Strategy:
 
     def update_take_profit_spread_bybit_v2(self, symbol, pos_qty, short_take_profit, long_take_profit, short_pos_price, long_pos_price, positionIdx, order_side, next_tp_update, five_minute_distance, previous_five_minute_distance, max_retries=10):
         # Fetch the current open TP orders for the symbol
-        long_tp_orders, short_tp_orders = self.exchange.bybit.get_open_tp_orders(symbol)
+        long_tp_orders, short_tp_orders = self.exchange.get_open_tp_orders(symbol)
 
         logging.info(f"From update_take_profit_spread : Calculated short TP for {symbol}: {short_take_profit}")
         logging.info(f"From update_take_profit_spread : Calculated long TP for {symbol}: {long_take_profit}")
@@ -5598,7 +5594,7 @@ class Strategy:
     def update_quickscalp_take_profit_bybit(self, symbol, pos_qty, upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, max_retries=10):
         try:
             # Fetch the current open TP orders for the symbol
-            long_tp_orders, short_tp_orders = self.exchange.bybit.get_open_tp_orders(symbol)
+            long_tp_orders, short_tp_orders = self.exchange.get_open_tp_orders(symbol)
 
             # Calculate the original TP values using quickscalp method
             original_short_tp = self.calculate_quickscalp_short_take_profit(short_pos_price, symbol, upnl_profit_pct)
@@ -5659,7 +5655,7 @@ class Strategy:
             return last_tp_update
 
         # Fetch current open TP orders for the symbol
-        long_tp_orders, _ = self.exchange.bybit.get_open_tp_orders(symbol)
+        long_tp_orders, _ = self.exchange.get_open_tp_orders(symbol)
 
         # Check if there's an existing TP order with a mismatched quantity or price
         mismatched_qty_orders = [order for order in long_tp_orders if order['qty'] != pos_qty or order['price'] != current_market_price]
@@ -5689,7 +5685,7 @@ class Strategy:
 
     def update_dynamic_quickscalp_tp(self, symbol, best_ask_price, best_bid_price, pos_qty, upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, tp_order_counts, max_retries=10):
         # Fetch the current open TP orders and TP order counts for the symbol
-        long_tp_orders, short_tp_orders = self.exchange.bybit.get_open_tp_orders(symbol)
+        long_tp_orders, short_tp_orders = self.exchange.get_open_tp_orders(symbol)
 
         long_tp_count = tp_order_counts['long_tp_count']
         short_tp_count = tp_order_counts['short_tp_count']
@@ -5748,7 +5744,7 @@ class Strategy:
 
     def update_quickscalp_tp(self, symbol, pos_qty, upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, tp_order_counts, max_retries=10):
         # Fetch the current open TP orders and TP order counts for the symbol
-        long_tp_orders, short_tp_orders = self.exchange.bybit.get_open_tp_orders(symbol)
+        long_tp_orders, short_tp_orders = self.exchange.get_open_tp_orders(symbol)
         long_tp_count = tp_order_counts['long_tp_count']
         short_tp_count = tp_order_counts['short_tp_count']
 
@@ -5795,8 +5791,8 @@ class Strategy:
         
     def update_take_profit_spread_bybit(self, symbol, pos_qty, short_take_profit, long_take_profit, short_pos_price, long_pos_price, positionIdx, order_side, next_tp_update, five_minute_distance, previous_five_minute_distance, tp_order_counts, max_retries=10):
         # Fetch the current open TP orders and TP order counts for the symbol
-        long_tp_orders, short_tp_orders = self.exchange.bybit.get_open_tp_orders(symbol)
-        #tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
+        long_tp_orders, short_tp_orders = self.exchange.get_open_tp_orders(symbol)
+        #tp_order_counts = self.exchange.get_open_tp_order_count(symbol)
         long_tp_count = tp_order_counts['long_tp_count']
         short_tp_count = tp_order_counts['short_tp_count']
 

@@ -399,7 +399,7 @@ class BybitExchange(Exchange):
         :return: A list of take profit order structures.
         """
         # First, fetch the open orders
-        response = self.parent.exchange.get_open_orders(symbol)
+        response = self.exchange.get_open_orders(symbol)
         
         # Filter the orders for take profits (reduceOnly) and the specified side
         tp_orders = [
@@ -415,7 +415,7 @@ class BybitExchange(Exchange):
         """Fetches open orders for the given symbol."""
         for _ in range(self.max_retries):
             try:
-                open_orders = self.parent.fetch_open_orders(symbol)
+                open_orders = self.exchange.fetch_open_orders(symbol)
                 logging.info(f"Open orders {open_orders}")
                 return open_orders
             except ccxt.RateLimitExceeded:
@@ -429,7 +429,7 @@ class BybitExchange(Exchange):
         short_tp_orders = []
         for _ in range(self.max_retries):
             try:
-                all_open_orders = self.parent.exchange.fetch_open_orders(symbol)
+                all_open_orders = self.exchange.fetch_open_orders(symbol)
                 #logging.info(f"All open orders for {symbol}: {all_open_orders}")
                 
                 for order in all_open_orders:

@@ -82,9 +82,6 @@ class Exchange:
         # Initializing the exchange object
         self.exchange = exchange_class(exchange_params)
         
-
-        
-    
     def transfer_funds_bybit(self, code: str, amount: float, from_account: str, to_account: str, params={}):
         """
         Transfer funds between different account types under the same UID.
