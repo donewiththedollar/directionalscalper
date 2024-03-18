@@ -57,33 +57,29 @@ class Exchange:
         if self.passphrase:
             exchange_params["password"] = self.passphrase
 
-        # Set the defaultType based on the exchange name
         if self.exchange_id.lower() == 'bybit_spot':
             exchange_params['options'] = {
                 'defaultType': 'spot',
                 'adjustForTimeDifference': True,
-                'brokerId': 'Nu000450'
             }
+            self.exchange_id = 'bybit'  # Change the exchange ID to 'bybit' for CCXT
         elif self.exchange_id.lower() == 'bybit':
             exchange_params['options'] = {
+                'defaultType': self.market_type,
                 'adjustForTimeDifference': True,
-                'brokerId': 'Nu000450'
             }
         else:
             exchange_params['options'] = {
                 'defaultType': self.market_type,
                 'adjustForTimeDifference': True,
-                'brokerId': 'Nu000450'
             }
 
-        # Set additional params based on the exchange
         if self.exchange_id.lower() == 'hyperliquid':
             exchange_params['options'] = {
                 'sandboxMode': False,
                 # Set Liquid-specific options here
             }
 
-        # Add the brokerId option only for Bybit exchanges
         if self.exchange_id.lower().startswith('bybit'):
             exchange_params['options']['brokerId'] = 'Nu000450'
 

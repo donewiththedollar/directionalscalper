@@ -51,7 +51,7 @@
       "symbols_allowed": 10 
     },
     {
-      "name": "bybit",
+      "name": "bybit_spot",
       "account_name": "account_2",
       "api_key": "",
       "api_secret": "",
