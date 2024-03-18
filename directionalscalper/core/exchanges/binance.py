@@ -261,3 +261,77 @@ class BinanceExchange(Exchange):
         except Exception as e:
             logging.info(f"An unknown error occurred in get_positions_binance(): {e}")
         return values
+
+    def cancel_order_by_id_binance(self, order_id, symbol):
+        try:
+            self.exchange.cancel_order(order_id, symbol)
+            logging.info(f"Order with ID: {order_id} was successfully canceled")
+        except Exception as e:
+            logging.error(f"An error occurred while canceling the order: {e}")
+
+    def cancel_take_profit_orders_binance(self, symbol, side):
+        side = side.lower()
+        
+        try:
+            open_orders = self.exchange.fetch_open_orders(symbol)
+            for order in open_orders:
+                if (
+                    order['side'].lower() == side
+                    and order['reduce_only']  # Checking if the order is a reduce-only order
+                    and order['type'] in ['TAKE_PROFIT', 'TAKE_PROFIT_LIMIT']  # Checking if the order is a take profit order
+                ):
+                    order_id = order['id']
+                    self.exchange.cancel_order(order_id, symbol)  # Cancel the order
+                    logging.info(f"Canceled take profit order - ID: {order_id}")
+        except Exception as e:
+            print(f"An unknown error occurred in cancel_take_profit_orders_binance: {e}")
+ 
+    def get_leverage_tiers_binance_binance(self):
+        try:
+            leverage_tiers = self.exchange.fetchLeverageTiers()
+            print(f"Leverage tiers: {leverage_tiers}")
+        except Exception as e:
+            print(f"Error getting leverage tiers: {e}")
+            
+    def get_max_leverage_binance(self, symbol):
+        # Split symbol into base and quote
+        base = symbol[:-4]
+        quote = symbol[-4:]
+        formatted_symbol = f"{base}/{quote}:{quote}"
+        
+        try:
+            leverage_tiers = self.exchange.fetchLeverageTiers()
+            symbol_tiers = leverage_tiers.get(formatted_symbol)
+            
+            if not symbol_tiers:
+                raise Exception(f"No leverage tier data available for symbol {formatted_symbol}")
+
+            max_leverage = symbol_tiers[0]['maxLeverage']
+            print(f"Max leverage for {formatted_symbol}: {max_leverage}")
+            return max_leverage
+        except Exception as e:
+            print(f"Error getting max leverage: {e}")
+            return None
+
+    def binance_set_leverage(self, leverage, symbol: Optional[str] = None, params={}):
+        # here we're assuming that maximum allowed leverage is 125 for the symbol
+        # but the actual value can vary based on the symbol and the user's account
+        max_leverage = 125 
+        if leverage > max_leverage:
+            print(f"Requested leverage of {leverage}x exceeds maximum allowed leverage of {max_leverage}x for {symbol}.")
+            return None
+        try:
+            response = self.exchange.set_leverage(leverage, symbol, params)
+            return response
+        except Exception as e:
+            print(f"An error occurred while setting the leverage: {e}")
+
+    def binance_set_margin_mode(self, margin_mode: str, symbol: Optional[str] = None, params={}):
+        if margin_mode not in ['ISOLATED', 'CROSSED']:
+            print(f"Invalid margin mode {margin_mode} for {symbol}. Allowed modes are 'ISOLATED' and 'CROSSED'.")
+            return None
+        try:
+            response = self.exchange.set_margin_mode(margin_mode, symbol, params)
+            return response
+        except Exception as e:
+            print(f"An error occurred while setting the margin mode: {e}")
