@@ -139,7 +139,7 @@ class Exchange:
 
                 # Check if recent_trades is None or empty
                 if not recent_trades:
-                    logging.warning(f"No trade data returned for {symbol}. It might not be a valid symbol or no recent trades.")
+                    logging.info(f"No trade data returned for {symbol}. It might not be a valid symbol or no recent trades.")
                     continue
 
                 last_trade = recent_trades[-1]
@@ -618,7 +618,7 @@ class Exchange:
                     total_balance = balance_response['total'][quote]
                     return total_balance
                 else:
-                    logging.warning(f"Balance for {quote} not found in the response.")
+                    logging.info(f"Balance for {quote} not found in the response.")
             except Exception as e:
                 logging.error(f"Error fetching balance from Bybit: {e}")
 
@@ -639,7 +639,7 @@ class Exchange:
                     total_balance = balance_response['total'][quote]
                     return total_balance
                 else:
-                    logging.warning(f"Balance for {quote} not found in the response.")
+                    logging.info(f"Balance for {quote} not found in the response.")
             except Exception as e:
                 logging.error(f"Error fetching balance from Bybit: {e}")
 
@@ -1474,7 +1474,7 @@ class Exchange:
             except ccxt.RateLimitExceeded as e:
                 # If rate limit error and not the last retry, then wait and try again
                 if retry < max_retries - 1:
-                    logging.warning(f"Rate limit exceeded. Retrying in {retry_delay} seconds...")
+                    logging.info(f"Rate limit exceeded. Retrying in {retry_delay} seconds...")
                     time.sleep(retry_delay)
                 else:  # If it's the last retry, raise the error
                     logging.error(f"Rate limit exceeded after {max_retries} retries.")
@@ -1537,7 +1537,7 @@ class Exchange:
                         logging.info(f"Cancelling reduce-only order: {order_id}")
 
         except Exception as e:
-            logging.warning(f"An error occurred in cancel_all_reduce_only_orders_bybit(): {e}")
+            logging.info(f"An error occurred in cancel_all_reduce_only_orders_bybit(): {e}")
 
     # v5
     def cancel_all_entries_bybit(self, symbol: str) -> None:
