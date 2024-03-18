@@ -1876,7 +1876,7 @@ class Exchange:
 
             except Exception as e:
                 # For other exceptions, log and break out of the loop
-                logging.warning(f"An unknown error occurred in cancel_close_bybit(): {e}")
+                logging.info(f"An unknown error occurred in cancel_close_bybit(): {e}")
                 break
 
 
@@ -1945,7 +1945,7 @@ class Exchange:
                         self.exchange.cancel_order(symbol=symbol, id=order_id)
                         logging.info(f"Cancelling order: {order_id}")
         except Exception as e:
-            logging.warning(f"{e}")
+            logging.info(f"{e}")
 
     # Bybit
     def create_take_profit_order_bybit(self, symbol, order_type, side, amount, price=None, positionIdx=1, reduce_only=True):
@@ -1992,7 +1992,7 @@ class Exchange:
     def create_market_order(self, symbol: str, side: str, amount: float, params={}, close_position: bool = False) -> None:
         try:
             if side not in ["buy", "sell"]:
-                logging.warning(f"side {side} does not exist")
+                logging.info(f"side {side} does not exist")
                 return
 
             order_type = "market"
@@ -2009,7 +2009,7 @@ class Exchange:
             response = self.exchange.create_order(symbol, order_type, side, amount, params=params)
             return response
         except Exception as e:
-            logging.warning(f"An unknown error occurred in create_market_order(): {e}")
+            logging.info(f"An unknown error occurred in create_market_order(): {e}")
 
     def test_func(self):
         try:

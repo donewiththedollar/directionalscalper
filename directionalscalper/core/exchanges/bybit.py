@@ -26,10 +26,10 @@ class BybitExchange(Exchange):
                 )
                 return order
             else:
-                logging.warning(f"side {side} does not exist")
+                logging.info(f"side {side} does not exist")
                 return {"error": f"side {side} does not exist"}
         except Exception as e:
-            logging.warning(f"An unknown error occurred in create_limit_order() for {symbol}: {e}")
+            logging.info(f"An unknown error occurred in create_limit_order() for {symbol}: {e}")
             return {"error": str(e)}
 
     def create_limit_order_bybit_spot(self, symbol: str, side: str, qty: float, price: float, isLeverage=0, orderLinkId=None):
@@ -89,7 +89,7 @@ class BybitExchange(Exchange):
             )
             return order
         except Exception as e:
-            logging.warning(f"An error occurred in create_tagged_limit_order_bybit() for {symbol}: {e}")
+            logging.info(f"An error occurred in create_tagged_limit_order_bybit() for {symbol}: {e}")
             return {"error": str(e)}
         
     def create_limit_order_bybit_unified(self, symbol: str, side: str, qty: float, price: float, positionIdx=0, params={}):
@@ -105,9 +105,9 @@ class BybitExchange(Exchange):
                 )
                 return order
             else:
-                logging.warning(f"side {side} does not exist")
+                logging.info(f"side {side} does not exist")
         except Exception as e:
-            logging.warning(f"An unknown error occurred in create_limit_order(): {e}")
+            logging.info(f"An unknown error occurred in create_limit_order(): {e}")
 
     def create_market_order_bybit(self, symbol: str, side: str, qty: float, positionIdx=0, params={}):
         try:
@@ -123,9 +123,9 @@ class BybitExchange(Exchange):
                 order = self.exchange.create_contract_v3_order(symbol, 'market', side, qty, params=request)
                 return order
             else:
-                logging.warning(f"Side {side} does not exist")
+                logging.info(f"Side {side} does not exist")
         except Exception as e:
-            logging.warning(f"An unknown error occurred in create_market_order(): {e}")
+            logging.info(f"An unknown error occurred in create_market_order(): {e}")
 
     def transfer_funds(self, code: str, amount: float, from_account: str, to_account: str, params={}):
         """
@@ -162,7 +162,7 @@ class BybitExchange(Exchange):
             if coin in balance:
                 return balance[coin]['free']
             else:
-                logging.warning(f"Coin {coin} not found in Bybit wallet balance.")
+                logging.info(f"Coin {coin} not found in Bybit wallet balance.")
                 return None
         except Exception as e:
             logging.error(f"Error occurred while fetching Bybit wallet balance: {e}")
@@ -182,7 +182,7 @@ class BybitExchange(Exchange):
                     total_balance = balance_response['total'][quote]
                     return total_balance
                 else:
-                    logging.warning(f"Balance for {quote} not found in the response.")
+                    logging.info(f"Balance for {quote} not found in the response.")
             except Exception as e:
                 logging.error(f"Error fetching balance from Bybit: {e}")
 
@@ -202,7 +202,7 @@ class BybitExchange(Exchange):
                     # Return the available balance for the specified currency
                     return float(balance_response['free'][quote])
                 else:
-                    logging.warning(f"Available balance for {quote} not found in the response.")
+                    logging.info(f"Available balance for {quote} not found in the response.")
 
             except Exception as e:
                 logging.error(f"Error fetching available balance from Bybit: {e}")
@@ -419,7 +419,7 @@ class BybitExchange(Exchange):
                 logging.info(f"Open orders {open_orders}")
                 return open_orders
             except ccxt.RateLimitExceeded:
-                logging.warning(f"Rate limit exceeded when fetching open orders for {symbol}. Retrying in {self.retry_wait} seconds...")
+                logging.info(f"Rate limit exceeded when fetching open orders for {symbol}. Retrying in {self.retry_wait} seconds...")
                 time.sleep(self.retry_wait)
         logging.error(f"Failed to fetch open orders for {symbol} after {self.max_retries} retries.")
         return []
@@ -447,7 +447,7 @@ class BybitExchange(Exchange):
                 
                 return long_tp_orders, short_tp_orders
             except ccxt.RateLimitExceeded:
-                logging.warning(f"Rate limit exceeded when fetching TP orders for {symbol}. Retrying in {self.retry_wait} seconds...")
+                logging.info(f"Rate limit exceeded when fetching TP orders for {symbol}. Retrying in {self.retry_wait} seconds...")
                 time.sleep(self.retry_wait)
         logging.error(f"Failed to fetch TP orders for {symbol} after {self.max_retries} retries.")
         return long_tp_orders, short_tp_orders
