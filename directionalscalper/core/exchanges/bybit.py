@@ -4,6 +4,7 @@ import logging
 import time
 from datetime import datetime, timedelta
 from typing import Optional, Tuple, List
+from ccxt.base.errors import RateLimitExceeded, NetworkError
 import ccxt
 
 class BybitExchange(Exchange):
@@ -464,3 +465,46 @@ class BybitExchange(Exchange):
             'long_tp_count': len(long_tp_orders),
             'short_tp_count': len(short_tp_orders)
         }
+
+    def cancel_close_bybit(self, symbol: str, side: str, max_retries: int = 3) -> None:
+        side = side.lower()
+        side_map = {"long": "buy", "short": "sell"}
+        side = side_map.get(side, side)
+        
+        position_idx_map = {"buy": 1, "sell": 2}
+        
+        retries = 0
+        while retries < max_retries:
+            try:
+                orders = self.exchange.fetch_open_orders(symbol)
+                if len(orders) > 0:
+                    for order in orders:
+                        if "info" in order:
+                            order_id = order["info"]["orderId"]
+                            order_status = order["info"]["orderStatus"]
+                            order_side = order["info"]["side"]
+                            reduce_only = order["info"]["reduceOnly"]
+                            position_idx = order["info"]["positionIdx"]
+
+                            if (
+                                order_status != "Filled"
+                                and order_side.lower() == side
+                                and order_status != "Cancelled"
+                                and reduce_only
+                                and position_idx == position_idx_map[side]
+                            ):
+                                # use the new cancel_derivatives_order function
+                                self.exchange.cancel_derivatives_order(order_id, symbol)
+                                logging.info(f"Cancelling order: {order_id}")
+                # If the code reaches this point without an exception, break out of the loop
+                break
+
+            except (RateLimitExceeded, NetworkError) as e:
+                retries += 1
+                logging.info(f"Encountered an error in cancel_close_bybit(). Retrying... {retries}/{max_retries}")
+                time.sleep(5)  # Pause before retrying, this can be adjusted
+
+            except Exception as e:
+                # For other exceptions, log and break out of the loop
+                logging.info(f"An unknown error occurred in cancel_close_bybit(): {e}")
+                break

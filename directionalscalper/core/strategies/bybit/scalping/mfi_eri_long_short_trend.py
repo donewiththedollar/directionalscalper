@@ -531,7 +531,7 @@ class BybitMFIERILongShortTrend(Strategy):
                     if long_pos_price is not None:
                         should_add_to_long = long_pos_price > moving_averages["ma_6_high"] and self.long_trade_condition(best_bid_price, moving_averages["ma_6_low"])
 
-                    open_tp_order_count = self.exchange.bybit.get_open_tp_order_count(symbol)
+                    open_tp_order_count = self.exchange.get_open_tp_order_count(symbol)
 
                     logging.info(f"Open TP order count {open_tp_order_count}")
 
@@ -596,7 +596,7 @@ class BybitMFIERILongShortTrend(Strategy):
                         fivemin_bottom_signal=fivemin_bottom_signal
                     )
                     
-                    tp_order_counts = self.exchange.bybit.get_open_tp_order_count(symbol)
+                    tp_order_counts = self.exchange.get_open_tp_order_count(symbol)
 
                     long_tp_counts = tp_order_counts['long_tp_count']
                     short_tp_counts = tp_order_counts['short_tp_count']
