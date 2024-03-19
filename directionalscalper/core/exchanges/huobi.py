@@ -166,3 +166,137 @@ class HuobiExchange(Exchange):
         except Exception as e:
             logging.info(f"An unknown error occurred in get_market_data_huobi(): {e}")
         return values
+
+    def fetch_margin_balance_huobi(self, params={}):
+        response = self.exchange.private_get_margin_accounts_balance(params)
+        return self._parse_huobi_balance(response)
+
+    def fetch_futures_balance_huobi(self, params={}):
+        response = self.exchange.linearGetV2AccountInfo(params)
+        return self._parse_huobi_balance(response)
+
+    def fetch_swaps_balance_huobi(self, params={}):
+        response = self.exchange.swapGetSwapBalance(params)
+        return self._parse_huobi_balance(response)
+
+    def _parse_huobi_balance(self, response):
+        if 'data' in response:
+            balance_data = response['data']
+            parsed_balance = {}
+            for currency_data in balance_data:
+                currency = currency_data['currency']
+                parsed_balance[currency] = {
+                    'free': float(currency_data.get('available', 0)),
+                    'used': float(currency_data.get('frozen', 0)),
+                    'total': float(currency_data.get('balance', 0))
+                }
+            return parsed_balance
+        else:
+            return {}
+
+    #Huobi 
+    def safe_order_operation(self, operation, *args, **kwargs):
+        while True:
+            try:
+                return operation(*args, **kwargs)
+            except ccxt.BaseError as e:
+                e_str = str(e)
+                if 'In settlement' in e_str or 'In delivery' in e_str or 'Settling. Unable to place/cancel orders currently.' in e_str:
+                    print(f"Contract is in settlement or delivery. Cannot perform operation currently. Retrying in 10 seconds...")
+                    time.sleep(10)
+                elif 'Insufficient close amount available' in e_str:
+                    print(f"Insufficient close amount available. Retrying in 5 seconds...")
+                    time.sleep(5)
+                else:
+                    raise
+
+    # Huobi     
+    def get_contract_size_huobi(self, symbol, max_retries=3, retry_delay=5):
+        for i in range(max_retries):
+            try:
+                markets = self.exchange.fetch_markets_by_type_and_sub_type('swap', 'linear')
+                for market in markets:
+                    if market['symbol'] == symbol:
+                        return market['contractSize']
+                # If the contract size is not found in the markets, return None
+                return None
+
+            except Exception as e:
+                if i < max_retries - 1:  # If not the last attempt
+                    logging.info(f"An unknown error occurred in get_contract_size_huobi(): {e}. Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    logging.info(f"Failed to fetch contract size after {max_retries} attempts: {e}")
+                    raise e  # If it's still failing after max_retries, re-raise the exception.
+ 
+    # Huobi
+    def get_positions_huobi(self, symbol) -> dict:
+        print(f"Symbol received in get_positions_huobi: {symbol}")
+        self.exchange.load_markets()
+        if symbol not in self.exchange.markets:
+            print(f"Market symbol {symbol} not found in Huobi markets.")
+            return None
+        values = {
+            "long": {
+                "qty": 0.0,
+                "price": 0.0,
+                "realised": 0,
+                "cum_realised": 0,
+                "upnl": 0,
+                "upnl_pct": 0,
+                "liq_price": 0,
+                "entry_price": 0,
+            },
+            "short": {
+                "qty": 0.0,
+                "price": 0.0,
+                "realised": 0,
+                "cum_realised": 0,
+                "upnl": 0,
+                "upnl_pct": 0,
+                "liq_price": 0,
+                "entry_price": 0,
+            },
+        }
+        try:
+            data = self.exchange.fetch_positions([symbol])
+            for position in data:
+                if "info" not in position or "direction" not in position["info"]:
+                    continue
+                side = "long" if position["info"]["direction"] == "buy" else "short"
+                values[side]["qty"] = float(position["info"]["volume"])  # Updated to use 'volume'
+                values[side]["price"] = float(position["info"]["cost_open"])
+                values[side]["realised"] = float(position["info"]["profit"])
+                values[side]["cum_realised"] = float(position["info"]["profit"])  # Huobi API doesn't seem to provide cumulative realised profit
+                values[side]["upnl"] = float(position["info"]["profit_unreal"])
+                values[side]["upnl_pct"] = float(position["info"]["profit_rate"])
+                values[side]["liq_price"] = 0.0  # Huobi API doesn't seem to provide liquidation price
+                values[side]["entry_price"] = float(position["info"]["cost_open"])
+        except Exception as e:
+            logging.info(f"An unknown error occurred in get_positions_huobi(): {e}")
+        return values
+
+    def get_open_orders_huobi(self, symbol: str) -> list:
+        open_orders_list = []
+        try:
+            orders = self.exchange.fetch_open_orders(symbol)
+            #print(f"Debug: {orders}")
+            if len(orders) > 0:
+                for order in orders:
+                    if "info" in order:
+                        try:
+                            # Extracting the necessary fields for Huobi orders
+                            order_info = {
+                                "id": order["info"]["order_id"],
+                                "price": float(order["info"]["price"]),
+                                "qty": float(order["info"]["volume"]),
+                                "order_status": order["info"]["status"],
+                                "side": order["info"]["direction"],  # assuming 'direction' indicates 'buy' or 'sell'
+                            }
+                            open_orders_list.append(order_info)
+                        except KeyError as e:
+                            logging.info(f"Key {e} not found in order info.")
+        except Exception as e:
+            logging.info(f"An unknown error occurred in get_open_orders_huobi(): {e}")
+        return open_orders_list
+    

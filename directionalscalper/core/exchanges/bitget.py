@@ -254,3 +254,45 @@ class BitgetExchange(Exchange):
         except Exception as e:
             logging.info(f"An unknown error occurred in get_market_data(): {e}")
         return values
+
+    def get_positions_bitget(self, symbol) -> dict:
+        values = {
+            "long": {
+                "qty": 0.0,
+                "price": 0.0,
+                "realised": 0,
+                "cum_realised": 0,
+                "upnl": 0,
+                "upnl_pct": 0,
+                "liq_price": 0,
+                "entry_price": 0,
+            },
+            "short": {
+                "qty": 0.0,
+                "price": 0.0,
+                "realised": 0,
+                "cum_realised": 0,
+                "upnl": 0,
+                "upnl_pct": 0,
+                "liq_price": 0,
+                "entry_price": 0,
+            },
+        }
+        try:
+            data = self.exchange.fetch_positions([symbol])
+            for position in data:
+                side = position["side"]
+                values[side]["qty"] = float(position["contracts"])  # Use "contracts" instead of "contractSize"
+                values[side]["price"] = float(position["entryPrice"])
+                values[side]["realised"] = round(float(position["info"]["achievedProfits"]), 4)
+                values[side]["upnl"] = round(float(position["unrealizedPnl"]), 4)
+                if position["liquidationPrice"] is not None:
+                    values[side]["liq_price"] = float(position["liquidationPrice"])
+                else:
+                    print(f"Warning: liquidationPrice is None for {side} position")
+                    values[side]["liq_price"] = None
+                values[side]["entry_price"] = float(position["entryPrice"])
+        except Exception as e:
+            logging.info(f"An unknown error occurred in get_positions_bitget(): {e}")
+        return values
+

@@ -39,7 +39,32 @@ class BybitExchange(Exchange):
             logging.info(f"An unknown error occurred in get_market_data_bybit(): {e}")
         return values
 
+    def get_best_bid_ask_bybit(self, symbol):
+        orderbook = self.exchange.get_orderbook(symbol)
+        try:
+            best_ask_price = orderbook['asks'][0][0]
+        except IndexError:
+            best_ask_price = None
+        try:
+            best_bid_price = orderbook['bids'][0][0]
+        except IndexError:
+            best_bid_price = None
 
+        return best_bid_price, best_ask_price
+
+    def get_all_open_orders_bybit(self):
+        """
+        Fetch all open orders for all symbols from the Bybit API.
+        
+        :return: A list of open orders for all symbols.
+        """
+        try:
+            all_open_orders = self.exchange.fetch_open_orders()
+            return all_open_orders
+        except Exception as e:
+            print(f"An error occurred while fetching all open orders: {e}")
+            return []
+        
     def get_balance_bybit_spot(self, quote):
         if self.exchange.has['fetchBalance']:
             try:
@@ -625,6 +650,28 @@ class BybitExchange(Exchange):
                 time.sleep(self.retry_wait)
         logging.error(f"Failed to fetch open orders for {symbol} after {self.max_retries} retries.")
         return []
+
+    def get_open_orders_bybit_unified(self, symbol: str) -> list:
+        open_orders_list = []
+        try:
+            orders = self.exchange.fetch_open_orders(symbol)
+            #print(orders)
+            if len(orders) > 0:
+                for order in orders:
+                    if "info" in order:
+                        order_info = {
+                            "id": order["id"],
+                            "price": float(order["price"]),
+                            "qty": float(order["amount"]),
+                            "order_status": order["status"],
+                            "side": order["side"],
+                            "reduce_only": order["reduceOnly"],
+                            "position_idx": int(order["info"]["positionIdx"])
+                        }
+                        open_orders_list.append(order_info)
+        except Exception as e:
+            logging.info(f"An unknown error occurred in get_open_orders(): {e}")
+        return open_orders_list
     
     def get_open_tp_orders(self, symbol):
         long_tp_orders = []

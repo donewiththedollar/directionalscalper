@@ -336,3 +336,25 @@ class BinanceExchange(Exchange):
             return response
         except Exception as e:
             print(f"An error occurred while setting the margin mode: {e}")
+            
+    def get_open_orders_binance(self, symbol: str) -> list:
+        open_orders_list = []
+        try:
+            orders = self.exchange.fetch_open_orders(symbol)
+            #print(orders)
+            if len(orders) > 0:
+                for order in orders:
+                    if "info" in order:
+                        order_info = {
+                            "id": order["info"]["orderId"],
+                            "price": order["info"]["price"],
+                            "amount": float(order["info"]["origQty"]),
+                            "status": order["info"]["status"],
+                            "side": order["info"]["side"],
+                            "reduce_only": order["info"]["reduceOnly"],
+                            "type": order["info"]["type"]
+                        }
+                        open_orders_list.append(order_info)
+        except Exception as e:
+            logging.info(f"An unknown error occurred in get_open_orders_binance(): {e}")
+        return open_orders_list
