@@ -131,6 +131,49 @@ class Strategy:
         logging.info(f"User-defined leverage for long positions set to {self.user_defined_leverage_long}x")
         logging.info(f"User-defined leverage for short positions set to {self.user_defined_leverage_short}x")
 
+    def calculate_dynamic_amounts_notional_bybit(self, symbol, total_equity, best_ask_price, best_bid_price):
+        """
+        Calculate the dynamic entry sizes for both long and short positions based on wallet exposure limit and user-defined leverage,
+        ensuring compliance with the exchange's minimum notional value requirements.
+        
+        :param symbol: Trading symbol.
+        :param total_equity: Total equity in the wallet.
+        :param best_ask_price: Current best ask price of the symbol for buying (long entry).
+        :param best_bid_price: Current best bid price of the symbol for selling (short entry).
+        :return: A tuple containing entry sizes for long and short trades.
+        """
+        # Set the minimum notional value based on the contract type
+        if symbol in ["BTCUSDT", "BTC-PERP"]:
+            min_notional_value = 100  # $100 for BTCUSDT and BTC-PERP
+        elif symbol in ["ETHUSDT", "ETH-PERP"]:
+            min_notional_value = 20  # $20 for ETHUSDT and ETH-PERP
+        else:
+            min_notional_value = 5  # $5 for other USDT and USDC perpetual contracts
+        
+        # Calculate dynamic entry sizes based on risk parameters
+        max_equity_for_long_trade = total_equity * self.wallet_exposure_limit
+        max_long_position_value = max_equity_for_long_trade * self.user_defined_leverage_long
+
+        logging.info(f"Max long pos value for {symbol} : {max_long_position_value}")
+
+        long_entry_size = max(max_long_position_value / best_ask_price, min_notional_value / best_ask_price)
+
+        max_equity_for_short_trade = total_equity * self.wallet_exposure_limit
+        max_short_position_value = max_equity_for_short_trade * self.user_defined_leverage_short
+
+        logging.info(f"Max short pos value for {symbol} : {max_short_position_value}")
+        
+        short_entry_size = max(max_short_position_value / best_bid_price, min_notional_value / best_bid_price)
+
+        # Adjusting entry sizes based on the symbol's minimum quantity precision
+        qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
+        long_entry_size_adjusted = round(long_entry_size, -int(math.log10(qty_precision)))
+        short_entry_size_adjusted = round(short_entry_size, -int(math.log10(qty_precision)))
+
+        logging.info(f"Calculated long entry size for {symbol}: {long_entry_size_adjusted} units")
+        logging.info(f"Calculated short entry size for {symbol}: {short_entry_size_adjusted} units")
+
+        return long_entry_size_adjusted, short_entry_size_adjusted
 
     def calculate_dynamic_amounts(self, symbol, total_equity, best_ask_price, best_bid_price):
         """
