@@ -4,6 +4,7 @@ import logging
 import time
 from datetime import datetime, timedelta
 from typing import Optional, Tuple, List
+from ccxt.base.errors import RateLimitExceeded
 
 class BitgetExchange(Exchange):
     def __init__(self, api_key, secret_key, passphrase=None, market_type='swap'):
@@ -179,3 +180,77 @@ class BitgetExchange(Exchange):
 
         # Create a market order in the opposite direction to close the position
         self.create_order(symbol, 'market', close_side, amount)
+
+    # Bitget
+    def get_current_candle_bitget(self, symbol: str, timeframe='1m', retries=3, delay=60):
+        """
+        Fetches the current candle for a given symbol and timeframe from Bitget.
+
+        :param str symbol: unified symbol of the market to fetch OHLCV data for
+        :param str timeframe: the length of time each candle represents
+        :returns [int]: A list representing the current candle [timestamp, open, high, low, close, volume]
+        """
+        for _ in range(retries):
+            try:
+                # Fetch the most recent 2 candles
+                ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, limit=2)
+
+                # The last element in the list is the current (incomplete) candle
+                current_candle = ohlcv[-1]
+
+                return current_candle
+
+            except RateLimitExceeded:
+                print("Rate limit exceeded... sleeping for {} seconds".format(delay))
+                time.sleep(delay)
+        
+        raise RateLimitExceeded("Failed to fetch candle data after {} retries".format(retries))
+
+    # Bitget 
+    def set_leverage_bitget(self, symbol, leverage, params={}):
+        """
+        Set the level of leverage for a market.
+
+        :param str symbol: unified market symbol
+        :param float leverage: the rate of leverage
+        :param dict params: extra parameters specific to the Bitget API endpoint
+        :returns dict: response from the exchange
+        """
+        try:
+            if hasattr(self.exchange, 'set_leverage'):
+                return self.exchange.set_leverage(leverage, symbol, params)
+            else:
+                print(f"The {self.exchange_id} exchange doesn't support setting leverage.")
+                return None
+        except ccxt.BaseError as e:
+            print(f"An error occurred while setting leverage: {e}")
+            return None
+
+
+    # Bitget
+    def get_market_data_bitget(self, symbol: str) -> dict:
+        values = {"precision": 0.0, "leverage": 0.0, "min_qty": 0.0}
+        try:
+            self.exchange.load_markets()
+            symbol_data = self.exchange.market(symbol)
+
+            if self.exchange.id == 'bybit':
+                if "info" in symbol_data:
+                    values["precision"] = symbol_data["info"]["price_scale"]
+                    values["leverage"] = symbol_data["info"]["leverage_filter"][
+                        "max_leverage"
+                    ]
+                    values["min_qty"] = symbol_data["info"]["lot_size_filter"][
+                        "min_trading_qty"
+                    ]
+            elif self.exchange.id == 'bitget':
+                if "precision" in symbol_data:
+                    values["precision"] = symbol_data["precision"]["price"]
+                if "limits" in symbol_data:
+                    values["min_qty"] = symbol_data["limits"]["amount"]["min"]
+            else:
+                logging.info("Exchange not recognized for fetching market data.")
+
+        except Exception as e:
+            logging.info(f"An unknown error occurred in get_market_data(): {e}")
+        return values

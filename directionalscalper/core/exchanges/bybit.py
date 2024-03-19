@@ -128,6 +128,53 @@ class BybitExchange(Exchange):
         except Exception as e:
             logging.info(f"An unknown error occurred in create_market_order(): {e}")
 
+    def cancel_order_bybit(self, order_id, symbol):
+        """
+        Wrapper function to cancel an order on the exchange using the CCXT instance.
+
+        :param order_id: The ID of the order to cancel.
+        :param symbol: The trading symbol of the market the order was made in.
+        :return: The response from the exchange after attempting to cancel the order.
+        """
+        try:
+            # Call the cancel_order method of the ccxt instance
+            response = self.exchange.cancel_order(order_id, symbol)
+            logging.info(f"Order {order_id} for {symbol} cancelled successfully.")
+            return response
+        except Exception as e:
+            logging.error(f"An error occurred while cancelling order {order_id} for {symbol}: {str(e)}")
+            # Handle the exception as needed (e.g., retry, raise, etc.)
+            return None
+        
+    def get_precision_and_limits_bybit(self, symbol):
+        # Fetch the market data
+        markets = self.exchange.fetch_markets()
+
+        # Filter for the specific symbol
+        for market in markets:
+            if market['symbol'] == symbol:
+                precision_amount = market['precision']['amount']
+                precision_price = market['precision']['price']
+                min_amount = market['limits']['amount']['min']
+
+                return precision_amount, precision_price, min_amount
+
+        return None, None, None
+
+    def get_market_precision_data_bybit(self, symbol):
+        # Fetch the market data
+        markets = self.exchange.fetch_markets()
+        
+        # Print the first market from the list
+        logging.info(markets[0])
+
+        # Filter for the specific symbol
+        for market in markets:
+            if market['symbol'] == symbol:
+                return market['precision']
+        
+        return None
+    
     def transfer_funds_bybit(self, code: str, amount: float, from_account: str, to_account: str, params={}):
         """
         Transfer funds between different account types under the same UID.
@@ -692,3 +739,29 @@ class BybitExchange(Exchange):
                 raise e
 
         raise Exception(f"Failed to get max leverage for {symbol} after {max_retries} retries.")
+
+    def print_trade_quantities_bybit(self, max_trade_qty, leverage_sizes, wallet_exposure, best_ask_price):
+        sorted_leverage_sizes = sorted(leverage_sizes)  # Sort leverage sizes in ascending order
+
+        for leverage in sorted_leverage_sizes:
+            trade_qty = max_trade_qty * leverage  # Calculate trade quantity based on leverage
+            print(f"Leverage: {leverage}x, Trade Quantity: {trade_qty}")
+
+    # Bybit calc lot size based on spread
+    def spread_based_entry_size_bybit(self, symbol, spread, min_order_qty):
+        current_price = self.get_current_price(symbol)
+        logging.info(f"Current price debug: {current_price}")
+        entry_amount = min_order_qty + (spread * current_price) / 100
+
+        return entry_amount
+
+    def bybit_fetch_precision(self, symbol):
+        try:
+            markets = self.exchange.fetch_derivatives_markets()
+            for market in markets['result']['list']:
+                if market['symbol'] == symbol:
+                    qty_step = market['lotSizeFilter']['qtyStep']
+                    self.market_precisions[symbol] = {'amount': float(qty_step)}
+                    break
+        except Exception as e:
+            logging.info(f"Exception in bybit_fetch_precision: {e}")
