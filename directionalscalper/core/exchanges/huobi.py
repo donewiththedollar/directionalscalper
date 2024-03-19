@@ -2,7 +2,9 @@ import uuid
 from .exchange import Exchange
 import logging
 import time
-from ccxt.base.errors import RateLimitExceeded
+import ccxt
+from ccxt.base.errors import RateLimitExceeded, NetworkError
+from typing import Optional, Tuple, List
 
 class HuobiExchange(Exchange):
     def __init__(self, api_key, secret_key, passphrase=None, market_type='swap'):
