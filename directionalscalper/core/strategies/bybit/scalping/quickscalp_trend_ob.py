@@ -369,7 +369,9 @@ class BybitQuickScalpTrendOB(Strategy):
                     five_minute_distance = metrics['5mSpread']
                     trend = metrics['Trend']
                     #mfirsi_signal = metrics['MFI']
-                    mfirsi_signal = self.get_mfirsi_ema(symbol, limit=100, lookback=5, ema_period=5)
+                    #mfirsi_signal = self.get_mfirsi_ema(symbol, limit=100, lookback=5, ema_period=5)
+                    mfirsi_signal = self.get_mfirsi_ema_secondary_ema(symbol, limit=100, lookback=5, ema_period= 5, secondary_ema_period=3)
+                    
                     funding_rate = metrics['Funding']
                     hma_trend = metrics['HMA Trend']
                     eri_trend = metrics['ERI Trend']
