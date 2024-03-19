@@ -13,6 +13,86 @@ class BybitExchange(Exchange):
         self.max_retries = 100  # Maximum retries for rate-limited requests
         self.retry_wait = 5  # Seconds to wait between retries
 
+    def get_market_data_bybit(self, symbol: str) -> dict:
+        values = {"precision": 0.0, "leverage": 0.0, "min_qty": 0.0}
+        try:
+            self.exchange.load_markets()
+            symbol_data = self.exchange.market(symbol)
+            
+            #print("Symbol data:", symbol_data)  # Debug print
+            
+            if "info" in symbol_data:
+                values["precision"] = symbol_data["precision"]["price"]
+                values["min_qty"] = symbol_data["limits"]["amount"]["min"]
+
+            # Fetch positions
+            positions = self.exchange.fetch_positions()
+
+            for position in positions:
+                if position['symbol'] == symbol:
+                    values["leverage"] = float(position['leverage'])
+
+        # except Exception as e:
+        #     logging.info(f"An unknown error occurred in get_market_data_bybit(): {e}")
+        #     logging.info(f"Call Stack: {traceback.format_exc()}")
+        except Exception as e:
+            logging.info(f"An unknown error occurred in get_market_data_bybit(): {e}")
+        return values
+
+
+    def get_balance_bybit_spot(self, quote):
+        if self.exchange.has['fetchBalance']:
+            try:
+                # Specify the type as 'spot' for spot trading
+                balance_response = self.exchange.fetch_balance({'type': 'spot'})
+
+                # Logging the raw response for debugging might be useful
+                # logging.info(f"Raw balance response from Bybit: {balance_response}")
+
+                # Parse the balance for the quote currency
+                if quote in balance_response['total']:
+                    total_balance = balance_response['total'][quote]
+                    return total_balance
+                else:
+                    logging.info(f"Balance for {quote} not found in the response.")
+            except Exception as e:
+                logging.error(f"Error fetching balance from Bybit: {e}")
+
+        return None
+
+    def get_balance_bybit(self, quote):
+        if self.exchange.has['fetchBalance']:
+            try:
+                # Fetch the balance with params to specify the account type if needed
+                balance_response = self.exchange.fetch_balance({'type': 'swap'})
+
+                # Log the raw response for debugging purposes
+                #logging.info(f"Raw balance response from Bybit: {balance_response}")
+
+                # Parse the balance
+                if quote in balance_response['total']:
+                    total_balance = balance_response['total'][quote]
+                    return total_balance
+                else:
+                    logging.info(f"Balance for {quote} not found in the response.")
+            except Exception as e:
+                logging.error(f"Error fetching balance from Bybit: {e}")
+
+        return None
+    
+    def get_balance_bybit_unified(self, quote):
+        if self.exchange.has['fetchBalance']:
+            # Fetch the balance
+            balance = self.exchange.fetch_balance()
+
+            # Find the quote balance
+            unified_balance = balance.get('USDT', {})
+            total_balance = unified_balance.get('total', None)
+            
+            if total_balance is not None:
+                return float(total_balance)
+
+        return None
     
     def create_limit_order_bybit(self, symbol: str, side: str, qty: float, price: float, positionIdx=0, params={}):
         try:
@@ -765,3 +845,62 @@ class BybitExchange(Exchange):
                     break
         except Exception as e:
             logging.info(f"Exception in bybit_fetch_precision: {e}")
+
+    def get_market_tick_size_bybit(self, symbol):
+        # Fetch the market data
+        markets = self.exchange.fetch_markets()
+
+        # Filter for the specific symbol
+        for market in markets:
+            if market['symbol'] == symbol:
+                tick_size = market['info']['priceFilter']['tickSize']
+                return tick_size
+        
+        return None
+
+    def fetch_recent_trades(self, symbol, since=None, limit=100):
+        """
+        Fetch recent trades for a given symbol.
+
+        :param str symbol: The trading pair symbol.
+        :param int since: Timestamp in milliseconds for fetching trades since this time.
+        :param int limit: The maximum number of trades to fetch.
+        :return: List of recent trades.
+        """
+        try:
+            # Ensure the markets are loaded
+            self.exchange.load_markets()
+
+            # Fetch trades using ccxt
+            trades = self.exchange.fetch_trades(symbol, since=since, limit=limit)
+            return trades
+        except Exception as e:
+            logging.error(f"Error fetching recent trades for {symbol}: {e}")
+            return []
+
+    def fetch_unrealized_pnl(self, symbol):
+        """
+        Fetches the unrealized profit and loss (PNL) for both long and short positions of a given symbol.
+
+        :param symbol: The trading pair symbol.
+        :return: A dictionary containing the unrealized PNL for long and short positions.
+                The dictionary has keys 'long' and 'short' with corresponding PNL values.
+                Returns None for a position if it's not open or the key is not present.
+        """
+        # Fetch positions for the symbol
+        response = self.exchange.fetch_positions([symbol])
+        logging.info(f"Response from unrealized pnl: {response}")
+        unrealized_pnl = {'long': None, 'short': None}
+
+        # Loop through each position in the response
+        for pos in response:
+            side = pos['info'].get('side', '').lower()
+            pnl = pos['info'].get('unrealisedPnl')
+            if pnl is not None:
+                pnl = float(pnl)
+                if side == 'buy':  # Long position
+                    unrealized_pnl['long'] = pnl
+                elif side == 'sell':  # Short position
+                    unrealized_pnl['short'] = pnl
+
+        return unrealized_pnl

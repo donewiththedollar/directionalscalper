@@ -99,3 +99,70 @@ class HuobiExchange(Exchange):
                         logging.info(f"Cancelling order: {order_id}")
         except Exception as e:
             logging.info(f"An unknown error occurred in cancel_entry(): {e}")
+
+    def check_account_type_huobi(self):
+        if self.exchange_id.lower() != 'huobi':
+            logging.info("This operation is only available for Huobi.")
+            return
+
+        response = self.exchange.contractPrivateGetLinearSwapApiV3SwapUnifiedAccountType()
+        return response
+    
+    def switch_account_type_huobi(self, account_type: int):
+        if self.exchange_id.lower() != 'huobi':
+            logging.info("This operation is only available for Huobi.")
+            return
+
+        body = {
+            "account_type": account_type
+        }
+
+        response = self.exchange.contractPrivatePostLinearSwapApiV3SwapSwitchAccountType(body)
+        return response
+    
+    # Huobi
+    def fetch_max_leverage_huobi(self, symbol, max_retries=3, delay_between_retries=5):
+        """
+        Retrieve the maximum leverage for a given symbol
+        :param str symbol: unified market symbol
+        :param int max_retries: Number of times to retry fetching
+        :param int delay_between_retries: Delay in seconds between retries
+        :returns int: maximum leverage for the symbol
+        """
+        retries = 0
+        while retries < max_retries:
+            try:
+                leverage_tiers = self.exchange.fetch_leverage_tiers([symbol])
+                if symbol in leverage_tiers:
+                    symbol_tiers = leverage_tiers[symbol]
+                    max_leverage = max([tier['maxLeverage'] for tier in symbol_tiers])
+                    return max_leverage
+                else:
+                    return None
+            except ccxt.NetworkError:
+                retries += 1
+                if retries < max_retries:
+                    time.sleep(delay_between_retries)
+                else:
+                    raise  # if max_retries is reached, raise the exception to be handled by the caller
+
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
+                return None
+            
+    # Huobi
+    def get_market_data_huobi(self, symbol: str) -> dict:
+        values = {"precision": 0.0, "min_qty": 0.0, "leverage": 0.0}
+        try:
+            self.exchange.load_markets()
+            symbol_data = self.exchange.market(symbol)
+            
+            if "precision" in symbol_data:
+                values["precision"] = symbol_data["precision"]["price"]
+            if "limits" in symbol_data:
+                values["min_qty"] = symbol_data["limits"]["amount"]["min"]
+            if "info" in symbol_data and "leverage-ratio" in symbol_data["info"]:
+                values["leverage"] = float(symbol_data["info"]["leverage-ratio"])
+        except Exception as e:
+            logging.info(f"An unknown error occurred in get_market_data_huobi(): {e}")
+        return values

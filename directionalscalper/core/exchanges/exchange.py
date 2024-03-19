@@ -171,26 +171,6 @@ class Exchange:
             })
 
         return parsed_data
-    
-    def check_account_type_huobi(self):
-        if self.exchange_id.lower() != 'huobi':
-            logging.info("This operation is only available for Huobi.")
-            return
-
-        response = self.exchange.contractPrivateGetLinearSwapApiV3SwapUnifiedAccountType()
-        return response
-    
-    def switch_account_type_huobi(self, account_type: int):
-        if self.exchange_id.lower() != 'huobi':
-            logging.info("This operation is only available for Huobi.")
-            return
-
-        body = {
-            "account_type": account_type
-        }
-
-        response = self.exchange.contractPrivatePostLinearSwapApiV3SwapSwitchAccountType(body)
-        return response
 
     def calculate_max_trade_quantity(self, symbol, leverage, wallet_exposure, best_ask_price):
         # Fetch necessary data from the exchange
@@ -206,18 +186,6 @@ class Exchange:
 
         return max_trade_qty
     
-    def get_market_tick_size_bybit(self, symbol):
-        # Fetch the market data
-        markets = self.exchange.fetch_markets()
-
-        # Filter for the specific symbol
-        for market in markets:
-            if market['symbol'] == symbol:
-                tick_size = market['info']['priceFilter']['tickSize']
-                return tick_size
-        
-        return None
-
     def debug_derivatives_positions(self, symbol):
         try:
             positions = self.exchange.fetch_derivatives_positions([symbol])
@@ -239,52 +207,7 @@ class Exchange:
             'maker_fee': maker_fee,
             'taker_fee': taker_fee
         }
-    
-    # Mexc
-    def get_market_data_mexc(self, symbol: str) -> dict:
-        values = {"precision": 0.0, "leverage": 0.0, "min_qty": 0.0}
-        try:
-            self.exchange.load_markets()
-            symbol_data = self.exchange.market(symbol)
 
-            # Extract the desired values from symbol_data
-            if "precision" in symbol_data:
-                values["precision"] = symbol_data["precision"]["price"]
-            if "limits" in symbol_data:
-                values["min_qty"] = symbol_data["limits"]["amount"]["min"]
-            # Note that leverage is not available in the provided symbol_data for the mexc exchange
-            values["leverage"] = None
-
-        except Exception as e:
-            logging.info(f"An unknown error occurred in get_market_data_mexc(): {e}")
-        return values
-
-    # Bybit
-    def get_market_data_bybit(self, symbol: str) -> dict:
-        values = {"precision": 0.0, "leverage": 0.0, "min_qty": 0.0}
-        try:
-            self.exchange.load_markets()
-            symbol_data = self.exchange.market(symbol)
-            
-            #print("Symbol data:", symbol_data)  # Debug print
-            
-            if "info" in symbol_data:
-                values["precision"] = symbol_data["precision"]["price"]
-                values["min_qty"] = symbol_data["limits"]["amount"]["min"]
-
-            # Fetch positions
-            positions = self.exchange.fetch_positions()
-
-            for position in positions:
-                if position['symbol'] == symbol:
-                    values["leverage"] = float(position['leverage'])
-
-        # except Exception as e:
-        #     logging.info(f"An unknown error occurred in get_market_data_bybit(): {e}")
-        #     logging.info(f"Call Stack: {traceback.format_exc()}")
-        except Exception as e:
-            logging.info(f"An unknown error occurred in get_market_data_bybit(): {e}")
-        return values
 
     def debug_binance_market_data(self, symbol: str) -> dict:
         try:
@@ -293,27 +216,6 @@ class Exchange:
             print(symbol_data)
         except Exception as e:
             logging.info(f"Error occurred in debug_binance_market_data: {e}")
-
-    # Bybit
-    def fetch_recent_trades(self, symbol, since=None, limit=100):
-        """
-        Fetch recent trades for a given symbol.
-
-        :param str symbol: The trading pair symbol.
-        :param int since: Timestamp in milliseconds for fetching trades since this time.
-        :param int limit: The maximum number of trades to fetch.
-        :return: List of recent trades.
-        """
-        try:
-            # Ensure the markets are loaded
-            self.exchange.load_markets()
-
-            # Fetch trades using ccxt
-            trades = self.exchange.fetch_trades(symbol, since=since, limit=limit)
-            return trades
-        except Exception as e:
-            logging.error(f"Error fetching recent trades for {symbol}: {e}")
-            return []
         
     def fetch_trades(self, symbol: str, since: int = None, limit: int = None, params={}):
         """
@@ -330,89 +232,6 @@ class Exchange:
             logging.error(f"Error fetching trades for {symbol}: {e}")
             return []
 
-
-    # Huobi
-    def fetch_max_leverage_huobi(self, symbol, max_retries=3, delay_between_retries=5):
-        """
-        Retrieve the maximum leverage for a given symbol
-        :param str symbol: unified market symbol
-        :param int max_retries: Number of times to retry fetching
-        :param int delay_between_retries: Delay in seconds between retries
-        :returns int: maximum leverage for the symbol
-        """
-        retries = 0
-        while retries < max_retries:
-            try:
-                leverage_tiers = self.exchange.fetch_leverage_tiers([symbol])
-                if symbol in leverage_tiers:
-                    symbol_tiers = leverage_tiers[symbol]
-                    max_leverage = max([tier['maxLeverage'] for tier in symbol_tiers])
-                    return max_leverage
-                else:
-                    return None
-            except ccxt.NetworkError:
-                retries += 1
-                if retries < max_retries:
-                    time.sleep(delay_between_retries)
-                else:
-                    raise  # if max_retries is reached, raise the exception to be handled by the caller
-
-            except Exception as e:
-                print(f"An unexpected error occurred: {e}")
-                return None
-            
-    # Huobi
-    def get_market_data_huobi(self, symbol: str) -> dict:
-        values = {"precision": 0.0, "min_qty": 0.0, "leverage": 0.0}
-        try:
-            self.exchange.load_markets()
-            symbol_data = self.exchange.market(symbol)
-            
-            if "precision" in symbol_data:
-                values["precision"] = symbol_data["precision"]["price"]
-            if "limits" in symbol_data:
-                values["min_qty"] = symbol_data["limits"]["amount"]["min"]
-            if "info" in symbol_data and "leverage-ratio" in symbol_data["info"]:
-                values["leverage"] = float(symbol_data["info"]["leverage-ratio"])
-        except Exception as e:
-            logging.info(f"An unknown error occurred in get_market_data_huobi(): {e}")
-        return values
-
-    # Bybit
-    def get_balance_bybit_unified(self, quote):
-        if self.exchange.has['fetchBalance']:
-            # Fetch the balance
-            balance = self.exchange.fetch_balance()
-
-            # Find the quote balance
-            unified_balance = balance.get('USDT', {})
-            total_balance = unified_balance.get('total', None)
-            
-            if total_balance is not None:
-                return float(total_balance)
-
-        return None
-
-    # Bybit regular and unified
-    # def get_balance_bybit(self, quote):
-    #     if self.exchange.has['fetchBalance']:
-    #         # Fetch the balance
-    #         balance_response = self.exchange.fetch_balance()
-
-    #         # Check if it's the unified structure
-    #         if 'result' in balance_response:
-    #             coin_list = balance_response.get('result', {}).get('coin', [])
-    #             for currency_balance in coin_list:
-    #                 if currency_balance['coin'] == quote:
-    #                     return float(currency_balance['equity'])
-    #         # If not unified, handle the old structure
-    #         elif 'info' in balance_response:
-    #             for currency_balance in balance_response['info']['result']['list']:
-    #                 if currency_balance['coin'] == quote:
-    #                     return float(currency_balance['equity'])
-
-    #     return None
-
     def retry_api_call(self, function, *args, max_retries=100, delay=10, **kwargs):
         for i in range(max_retries):
             try:
@@ -421,76 +240,6 @@ class Exchange:
                 logging.info(f"Error occurred during API call: {e}. Retrying in {delay} seconds...")
                 time.sleep(delay)
         raise Exception(f"Failed to execute the API function after {max_retries} retries.")
-
-## v5
-
-    def get_balance_bybit_spot(self, quote):
-        if self.exchange.has['fetchBalance']:
-            try:
-                # Specify the type as 'spot' for spot trading
-                balance_response = self.exchange.fetch_balance({'type': 'spot'})
-
-                # Logging the raw response for debugging might be useful
-                # logging.info(f"Raw balance response from Bybit: {balance_response}")
-
-                # Parse the balance for the quote currency
-                if quote in balance_response['total']:
-                    total_balance = balance_response['total'][quote]
-                    return total_balance
-                else:
-                    logging.info(f"Balance for {quote} not found in the response.")
-            except Exception as e:
-                logging.error(f"Error fetching balance from Bybit: {e}")
-
-        return None
-
-## v5
-    def get_balance_bybit(self, quote):
-        if self.exchange.has['fetchBalance']:
-            try:
-                # Fetch the balance with params to specify the account type if needed
-                balance_response = self.exchange.fetch_balance({'type': 'swap'})
-
-                # Log the raw response for debugging purposes
-                #logging.info(f"Raw balance response from Bybit: {balance_response}")
-
-                # Parse the balance
-                if quote in balance_response['total']:
-                    total_balance = balance_response['total'][quote]
-                    return total_balance
-                else:
-                    logging.info(f"Balance for {quote} not found in the response.")
-            except Exception as e:
-                logging.error(f"Error fetching balance from Bybit: {e}")
-
-        return None
-
-    def fetch_unrealized_pnl(self, symbol):
-        """
-        Fetches the unrealized profit and loss (PNL) for both long and short positions of a given symbol.
-
-        :param symbol: The trading pair symbol.
-        :return: A dictionary containing the unrealized PNL for long and short positions.
-                The dictionary has keys 'long' and 'short' with corresponding PNL values.
-                Returns None for a position if it's not open or the key is not present.
-        """
-        # Fetch positions for the symbol
-        response = self.exchange.fetch_positions([symbol])
-        logging.info(f"Response from unrealized pnl: {response}")
-        unrealized_pnl = {'long': None, 'short': None}
-
-        # Loop through each position in the response
-        for pos in response:
-            side = pos['info'].get('side', '').lower()
-            pnl = pos['info'].get('unrealisedPnl')
-            if pnl is not None:
-                pnl = float(pnl)
-                if side == 'buy':  # Long position
-                    unrealized_pnl['long'] = pnl
-                elif side == 'sell':  # Short position
-                    unrealized_pnl['short'] = pnl
-
-        return unrealized_pnl
     
     def get_available_balance_huobi(self, symbol):
         try:
@@ -512,15 +261,6 @@ class Exchange:
         except Exception as e:
             print(f"An error occurred while fetching balance: {str(e)}")
 
-    def get_balance_mexc(self, quote, market_type='swap'):
-        if self.exchange.has['fetchBalance']:
-            # Fetch the balance
-            balance = self.exchange.fetch_balance(params={"type": market_type})
-
-            # Find the quote balance
-            if quote in balance['total']:
-                return float(balance['total'][quote])
-        return None
 
     def get_balance_huobi(self, quote, type='spot', subType='linear', marginMode='cross'):
         if self.exchange.has['fetchBalance']:
@@ -672,7 +412,6 @@ class Exchange:
         return values
     
     # Universal
-
     def fetch_ohlcv(self, symbol, timeframe='1d', limit=None):
         """
         Fetch OHLCV data for the given symbol and timeframe.
