@@ -32,6 +32,7 @@ class BybitQuickScalpTrendCustomOB(Strategy):
         self.helper_interval = 1
         self.position_inactive_threshold = 120
         try:
+            self.volume_check = self.config.volume_check
             self.upnl_threshold_pct = self.config.upnl_threshold_pct
             self.max_usd_value = self.config.max_usd_value
             self.blacklist = self.config.blacklist
@@ -100,6 +101,8 @@ class BybitQuickScalpTrendCustomOB(Strategy):
             long_pos_price = None
             short_pos_price = None
 
+            volume_check = self.config.volume_check
+            
             # Initializing time trackers for less frequent API calls
             last_equity_fetch_time = 0
             equity_refresh_interval = 1800  # 30 minutes in seconds
@@ -594,7 +597,12 @@ class BybitQuickScalpTrendCustomOB(Strategy):
                         except Exception as e:
                             logging.info(f"Exception fetching Short UPNL for {symbol}: {e}")
 
-                    self.bybit_1m_mfi_quickscalp_autoreduce(
+                    tp_order_counts = self.exchange.get_open_tp_order_count(symbol)
+
+                    long_tp_counts = tp_order_counts['long_tp_count']
+                    short_tp_counts = tp_order_counts['short_tp_count']
+
+                    self.bybit_1m_mfi_quickscalp_trend(
                         open_orders,
                         symbol,
                         min_vol,
@@ -606,13 +614,14 @@ class BybitQuickScalpTrendCustomOB(Strategy):
                         short_pos_qty,
                         long_pos_price,
                         short_pos_price,
-                        entry_during_autoreduce
+                        entry_during_autoreduce,
+                        volume_check,
+                        long_take_profit,
+                        short_take_profit,
+                        upnl_profit_pct,
+                        tp_order_counts
                     )
                     
-                    tp_order_counts = self.exchange.get_open_tp_order_count(symbol)
-
-                    long_tp_counts = tp_order_counts['long_tp_count']
-                    short_tp_counts = tp_order_counts['short_tp_count']
 
                     logging.info(f"Long tp counts: {long_tp_counts}")
                     logging.info(f"Short tp counts: {short_tp_counts}")

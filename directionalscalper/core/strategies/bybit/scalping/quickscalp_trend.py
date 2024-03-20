@@ -600,6 +600,10 @@ class BybitQuickScalpTrend(Strategy):
                         except Exception as e:
                             logging.info(f"Exception fetching Short UPNL for {symbol}: {e}")
 
+
+                    long_tp_counts = tp_order_counts['long_tp_count']
+                    short_tp_counts = tp_order_counts['short_tp_count']
+
                     self.bybit_1m_mfi_quickscalp_trend(
                         open_orders,
                         symbol,
@@ -619,11 +623,7 @@ class BybitQuickScalpTrend(Strategy):
                         upnl_profit_pct,
                         tp_order_counts
                     )
-                    
-
-                    long_tp_counts = tp_order_counts['long_tp_count']
-                    short_tp_counts = tp_order_counts['short_tp_count']
-
+                
                     logging.info(f"Long tp counts: {long_tp_counts}")
                     logging.info(f"Short tp counts: {short_tp_counts}")
 
