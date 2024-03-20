@@ -332,16 +332,25 @@ def update_rotator_queue(rotator_queue, latest_symbols):
     # Return a new deque from the updated set
     return deque(rotator_set)
 
+last_rotator_update_time = 0
+
 def bybit_auto_rotation(args, manager, symbols_allowed):
+    global latest_rotator_symbols, last_rotator_update_time
+
+    current_time = time.time()
+
     # Fetching open position symbols and standardizing them
     open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_bybit()}
     logging.info(f"Open position symbols: {open_position_symbols}")
 
-    # Fetching potential symbols from manager
-    potential_symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
-    logging.info(f"Potential symbols: {potential_symbols}")
-    latest_rotator_symbols = set(standardize_symbol(sym) for sym in potential_symbols)
-    logging.info(f"Latest rotator symbols: {latest_rotator_symbols}")
+    if current_time - last_rotator_update_time >= 50:  # Update every 50 seconds
+        # Fetching potential symbols from manager
+        potential_symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+        logging.info(f"Potential symbols: {potential_symbols}")
+        latest_rotator_symbols = set(standardize_symbol(sym) for sym in potential_symbols)
+        logging.info(f"Latest rotator symbols: {latest_rotator_symbols}")
+
+        last_rotator_update_time = current_time  # Update the last update time
 
     # Thread management
     running_threads_info = []
@@ -387,7 +396,6 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
             thread_start_time[symbol] = time.time()
 
     # Rotate out inactive symbols and replace with new ones
-    current_time = time.time()
     for symbol in list(active_symbols):
         if symbol not in open_position_symbols and current_time - thread_start_time.get(symbol, 0) > rotation_threshold:
             if latest_rotator_symbols:
@@ -418,7 +426,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                     latest_rotator_symbols.discard(random_symbol)
                 else:
                     logging.info(f"No available new symbols to replace {symbol}")
-
+                    
 def hyperliquid_auto_rotation(args, manager, symbols_allowed):
     # Fetching open position symbols and standardizing them
     open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_hyperliquid()}
