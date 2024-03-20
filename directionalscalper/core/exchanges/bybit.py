@@ -6,6 +6,9 @@ from datetime import datetime, timedelta
 from typing import Optional, Tuple, List
 from ccxt.base.errors import RateLimitExceeded, NetworkError
 import ccxt
+from directionalscalper.core.strategies.logger import Logger
+
+logging = Logger(logger_name="BybitExchange", filename="BybitExchange.log", stream=True)
 
 class BybitExchange(Exchange):
     def __init__(self, api_key, secret_key, passphrase=None, market_type='swap'):
