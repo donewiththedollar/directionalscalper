@@ -4327,57 +4327,108 @@ class Strategy:
 
         return max(0, dca_order_size_adjusted)  # Ensure the DCA quantity is non-negative
 
-    def bybit_1m_mfi_quickscalp_trend(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, entry_during_autoreduce: bool, volume_check: bool, long_take_profit: float, short_take_profit: float):
-        if symbol not in self.symbol_locks:
-            self.symbol_locks[symbol] = threading.Lock()
+    def bybit_1m_mfi_quickscalp_trend(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, entry_during_autoreduce: bool, volume_check: bool, long_take_profit: float, short_take_profit: float, upnl_profit_pct: float, tp_order_counts: dict):
+        try:
+            if symbol not in self.symbol_locks:
+                self.symbol_locks[symbol] = threading.Lock()
 
-        with self.symbol_locks[symbol]:
-            current_price = self.exchange.get_current_price(symbol)
-            logging.info(f"Current price for {symbol}: {current_price}")
+            with self.symbol_locks[symbol]:
+                current_price = self.exchange.get_current_price(symbol)
+                logging.info(f"Current price for {symbol}: {current_price}")
 
-            order_book = self.exchange.get_orderbook(symbol)
-            best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol)
-            best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol)
+                order_book = self.exchange.get_orderbook(symbol)
+                best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol)
+                best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol)
 
-            mfi_signal_long = mfirsi.lower() == "long"
-            mfi_signal_short = mfirsi.lower() == "short"
+                mfi_signal_long = mfirsi.lower() == "long"
+                mfi_signal_short = mfirsi.lower() == "short"
 
-            # Check if volume check is enabled or not
-            if not volume_check or (one_minute_volume > min_vol):
-                if not self.auto_reduce_active_long.get(symbol, False):
-                    if long_pos_qty == 0 and mfi_signal_long and not self.entry_order_exists(open_orders, "buy"):
-                        self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
-                        time.sleep(1)
-                        if long_pos_qty > 0:
-                            self.place_long_tp_order(symbol, best_ask_price, long_pos_price, long_pos_qty, long_take_profit, open_orders)
-                    elif long_pos_qty > 0 and mfi_signal_long and current_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
-                        if entry_during_autoreduce or not self.auto_reduce_active_long.get(symbol, False):
+                # Check if volume check is enabled or not
+                if not volume_check or (one_minute_volume > min_vol):
+                    if not self.auto_reduce_active_long.get(symbol, False):
+                        if long_pos_qty == 0 and mfi_signal_long and not self.entry_order_exists(open_orders, "buy"):
                             self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
                             time.sleep(1)
                             if long_pos_qty > 0:
                                 self.place_long_tp_order(symbol, best_ask_price, long_pos_price, long_pos_qty, long_take_profit, open_orders)
-                        else:
-                            logging.info(f"Skipping additional long entry for {symbol} due to active auto-reduce.")
+                                # Update TP for long position
+                                self.next_long_tp_update = self.update_quickscalp_tp(
+                                    symbol=symbol,
+                                    pos_qty=long_pos_qty,
+                                    upnl_profit_pct=upnl_profit_pct,
+                                    short_pos_price=short_pos_price,
+                                    long_pos_price=long_pos_price,
+                                    positionIdx=1,
+                                    order_side="sell",
+                                    last_tp_update=self.next_long_tp_update,
+                                    tp_order_counts=tp_order_counts
+                                )
+                        elif long_pos_qty > 0 and mfi_signal_long and current_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
+                            if entry_during_autoreduce or not self.auto_reduce_active_long.get(symbol, False):
+                                self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                                time.sleep(1)
+                                if long_pos_qty > 0:
+                                    self.place_long_tp_order(symbol, best_ask_price, long_pos_price, long_pos_qty, long_take_profit, open_orders)
+                                    # Update TP for long position
+                                    self.next_long_tp_update = self.update_quickscalp_tp(
+                                        symbol=symbol,
+                                        pos_qty=long_pos_qty,
+                                        upnl_profit_pct=upnl_profit_pct,
+                                        short_pos_price=short_pos_price,
+                                        long_pos_price=long_pos_price,
+                                        positionIdx=1,
+                                        order_side="sell",
+                                        last_tp_update=self.next_long_tp_update,
+                                        tp_order_counts=tp_order_counts
+                                    )
+                            else:
+                                logging.info(f"Skipping additional long entry for {symbol} due to active auto-reduce.")
 
-                if not self.auto_reduce_active_short.get(symbol, False):
-                    if short_pos_qty == 0 and mfi_signal_short and not self.entry_order_exists(open_orders, "sell"):
-                        self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
-                        time.sleep(1)
-                        if short_pos_qty > 0:
-                            self.place_short_tp_order(symbol, best_bid_price, short_pos_price, short_pos_qty, short_take_profit, open_orders)
-                    elif short_pos_qty > 0 and mfi_signal_short and current_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
-                        if entry_during_autoreduce or not self.auto_reduce_active_short.get(symbol, False):
+                    if not self.auto_reduce_active_short.get(symbol, False):
+                        if short_pos_qty == 0 and mfi_signal_short and not self.entry_order_exists(open_orders, "sell"):
                             self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
                             time.sleep(1)
                             if short_pos_qty > 0:
                                 self.place_short_tp_order(symbol, best_bid_price, short_pos_price, short_pos_qty, short_take_profit, open_orders)
-                        else:
-                            logging.info(f"Skipping additional short entry for {symbol} due to active auto-reduce.")
-            else:
-                logging.info(f"Volume check is disabled or conditions not met for {symbol}, proceeding without volume check.")
+                                # Update TP for short position
+                                self.next_short_tp_update = self.update_quickscalp_tp(
+                                    symbol=symbol,
+                                    pos_qty=short_pos_qty,
+                                    upnl_profit_pct=upnl_profit_pct,
+                                    short_pos_price=short_pos_price,
+                                    long_pos_price=long_pos_price,
+                                    positionIdx=2,
+                                    order_side="buy",
+                                    last_tp_update=self.next_short_tp_update,
+                                    tp_order_counts=tp_order_counts
+                                )
+                        elif short_pos_qty > 0 and mfi_signal_short and current_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
+                            if entry_during_autoreduce or not self.auto_reduce_active_short.get(symbol, False):
+                                self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                                time.sleep(1)
+                                if short_pos_qty > 0:
+                                    self.place_short_tp_order(symbol, best_bid_price, short_pos_price, short_pos_qty, short_take_profit, open_orders)
+                                    # Update TP for short position
+                                    self.next_short_tp_update = self.update_quickscalp_tp(
+                                        symbol=symbol,
+                                        pos_qty=short_pos_qty,
+                                        upnl_profit_pct=upnl_profit_pct,
+                                        short_pos_price=short_pos_price,
+                                        long_pos_price=long_pos_price,
+                                        positionIdx=2,
+                                        order_side="buy",
+                                        last_tp_update=self.next_short_tp_update,
+                                        tp_order_counts=tp_order_counts
+                                    )
+                            else:
+                                logging.info(f"Skipping additional short entry for {symbol} due to active auto-reduce.")
+                else:
+                    logging.info(f"Volume check is disabled or conditions not met for {symbol}, proceeding without volume check.")
 
-            time.sleep(5)
-            
+                time.sleep(5)
+        except Exception as e:
+            logging.info(f"Exception caught in quickscalp trend: {e}")
+
     def bybit_1m_mfi_quickscalp(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, eri_trend: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool, uPNL_threshold: float, entry_during_autoreduce: bool):
         if symbol not in self.symbol_locks:
             self.symbol_locks[symbol] = threading.Lock()
@@ -5833,7 +5884,6 @@ class Strategy:
             try:
                 self.exchange.cancel_order_by_id(order['id'], symbol)
                 logging.info(f"Cancelled TP order {order['id']} for update.")
-                time.sleep(0.05)
             except Exception as e:
                 logging.error(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
 

@@ -613,7 +613,9 @@ class BybitQuickScalpUnified(Strategy):
                         entry_during_autoreduce,
                         volume_check,
                         long_take_profit,
-                        short_take_profit
+                        short_take_profit,
+                        upnl_profit_pct,
+                        tp_order_counts
                     )
                     
                     tp_order_counts = self.exchange.get_open_tp_order_count(symbol)
