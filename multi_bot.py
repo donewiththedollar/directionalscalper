@@ -478,7 +478,7 @@ if __name__ == '__main__':
 
     print("\n" + "=" * 50)
     print(f"DirectionalScalper {VERSION}".center(50))
-    print(f"Developed by Tyler Simpson and contributors at TradeSimple".center(50))
+    print(f"Developed by Tyler Simpson and contributors at QuantumVoid".center(50))
     print("=" * 50 + "\n")
 
     print("Initializing", end="")
