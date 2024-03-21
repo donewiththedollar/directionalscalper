@@ -131,6 +131,64 @@ class Strategy:
         logging.info(f"User-defined leverage for long positions set to {self.user_defined_leverage_long}x")
         logging.info(f"User-defined leverage for short positions set to {self.user_defined_leverage_short}x")
 
+    def calculate_dynamic_amounts_notional_bybit_2(self, symbol, total_equity, best_ask_price, best_bid_price):
+        """
+        Calculate the dynamic entry sizes for both long and short positions based on wallet exposure limit and user-defined leverage,
+        ensuring compliance with the exchange's minimum notional value requirements.
+        
+        :param symbol: Trading symbol.
+        :param total_equity: Total equity in the wallet.
+        :param best_ask_price: Current best ask price of the symbol for buying (long entry).
+        :param best_bid_price: Current best bid price of the symbol for selling (short entry).
+        :return: A tuple containing entry sizes for long and short trades.
+        """
+        # Fetch the exchange's minimum quantity for the symbol
+        min_qty = self.exchange.get_min_qty_bybit(symbol)
+        
+        # Set the minimum notional value based on the contract type
+        if symbol in ["BTCUSDT", "BTC-PERP"]:
+            min_notional_value = 100  # $100 for BTCUSDT and BTC-PERP
+        elif symbol in ["ETHUSDT", "ETH-PERP"]:
+            min_notional_value = 20  # $20 for ETHUSDT and ETH-PERP
+        else:
+            min_notional_value = 5  # $5 for other USDT and USDC perpetual contracts
+        
+        # Check if the exchange's minimum quantity meets the minimum notional value requirement
+        if min_qty * best_ask_price < min_notional_value:
+            min_qty_long = min_notional_value / best_ask_price
+        else:
+            min_qty_long = min_qty
+        
+        if min_qty * best_bid_price < min_notional_value:
+            min_qty_short = min_notional_value / best_bid_price
+        else:
+            min_qty_short = min_qty
+        
+        # Calculate dynamic entry sizes based on risk parameters
+        max_equity_for_long_trade = total_equity * self.wallet_exposure_limit
+        max_long_position_value = max_equity_for_long_trade * self.user_defined_leverage_long
+
+        logging.info(f"Max long pos value for {symbol} : {max_long_position_value}")
+
+        long_entry_size = max(max_long_position_value / best_ask_price, min_qty_long)
+
+        max_equity_for_short_trade = total_equity * self.wallet_exposure_limit
+        max_short_position_value = max_equity_for_short_trade * self.user_defined_leverage_short
+
+        logging.info(f"Max short pos value for {symbol} : {max_short_position_value}")
+        
+        short_entry_size = max(max_short_position_value / best_bid_price, min_qty_short)
+
+        # Adjusting entry sizes based on the symbol's minimum quantity precision
+        qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
+        long_entry_size_adjusted = round(long_entry_size, -int(math.log10(qty_precision)))
+        short_entry_size_adjusted = round(short_entry_size, -int(math.log10(qty_precision)))
+
+        logging.info(f"Calculated long entry size for {symbol}: {long_entry_size_adjusted} units")
+        logging.info(f"Calculated short entry size for {symbol}: {short_entry_size_adjusted} units")
+
+        return long_entry_size_adjusted, short_entry_size_adjusted
+
     def calculate_dynamic_amounts_notional_bybit(self, symbol, total_equity, best_ask_price, best_bid_price):
         """
         Calculate the dynamic entry sizes for both long and short positions based on wallet exposure limit and user-defined leverage,
@@ -4326,6 +4384,117 @@ class Strategy:
         logging.info(f"DCA order size for {symbol} is {dca_order_size_adjusted}")
 
         return max(0, dca_order_size_adjusted)  # Ensure the DCA quantity is non-negative
+
+    def bybit_1m_mfi_quickscalp_trend_long_only(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, long_dynamic_amount: float, long_pos_qty: float, long_pos_price: float, volume_check: bool, long_take_profit: float, upnl_profit_pct: float, tp_order_counts: dict):
+        try:
+            if symbol not in self.symbol_locks:
+                self.symbol_locks[symbol] = threading.Lock()
+
+            with self.symbol_locks[symbol]:
+                current_price = self.exchange.get_current_price(symbol)
+                logging.info(f"Current price for {symbol}: {current_price}")
+
+                order_book = self.exchange.get_orderbook(symbol)
+                best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol)
+                best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol)
+
+                mfi_signal_long = mfirsi.lower() == "long"
+
+                if not volume_check or (one_minute_volume > min_vol):
+                    if long_pos_qty == 0 and mfi_signal_long and not self.entry_order_exists(open_orders, "buy"):
+                        self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                        time.sleep(1)
+                        if long_pos_qty > 0:
+                            self.place_long_tp_order(symbol, best_ask_price, long_pos_price, long_pos_qty, long_take_profit, open_orders)
+                            # Update TP for long position
+                            self.next_long_tp_update = self.update_quickscalp_tp(
+                                symbol=symbol,
+                                pos_qty=long_pos_qty,
+                                upnl_profit_pct=upnl_profit_pct,
+                                long_pos_price=long_pos_price,
+                                positionIdx=1,
+                                order_side="sell",
+                                last_tp_update=self.next_long_tp_update,
+                                tp_order_counts=tp_order_counts
+                            )
+                    elif long_pos_qty > 0 and mfi_signal_long and current_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
+                        self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                        time.sleep(1)
+                        if long_pos_qty > 0:
+                            self.place_long_tp_order(symbol, best_ask_price, long_pos_price, long_pos_qty, long_take_profit, open_orders)
+                            # Update TP for long position
+                            self.next_long_tp_update = self.update_quickscalp_tp(
+                                symbol=symbol,
+                                pos_qty=long_pos_qty,
+                                upnl_profit_pct=upnl_profit_pct,
+                                long_pos_price=long_pos_price,
+                                positionIdx=1,
+                                order_side="sell",
+                                last_tp_update=self.next_long_tp_update,
+                                tp_order_counts=tp_order_counts
+                            )
+                else:
+                    logging.info(f"Volume check is disabled or conditions not met for {symbol}, proceeding without volume check.")
+
+                time.sleep(5)
+        except Exception as e:
+            logging.info(f"Exception caught in quickscalp trend long only: {e}")
+
+    def bybit_1m_mfi_quickscalp_trend_short_only(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, short_dynamic_amount: float, short_pos_qty: float, short_pos_price: float, volume_check: bool, short_take_profit: float, upnl_profit_pct: float, tp_order_counts: dict):
+        try:
+            if symbol not in self.symbol_locks:
+                self.symbol_locks[symbol] = threading.Lock()
+
+            with self.symbol_locks[symbol]:
+                current_price = self.exchange.get_current_price(symbol)
+                logging.info(f"Current price for {symbol}: {current_price}")
+
+                order_book = self.exchange.get_orderbook(symbol)
+                best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol)
+                best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol)
+
+                mfi_signal_short = mfirsi.lower() == "short"
+
+                if not volume_check or (one_minute_volume > min_vol):
+                    if short_pos_qty == 0 and mfi_signal_short and not self.entry_order_exists(open_orders, "sell"):
+                        self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                        time.sleep(1)
+                        if short_pos_qty > 0:
+                            self.place_short_tp_order(symbol, best_bid_price, short_pos_price, short_pos_qty, short_take_profit, open_orders)
+                            # Update TP for short position
+                            self.next_short_tp_update = self.update_quickscalp_tp(
+                                symbol=symbol,
+                                pos_qty=short_pos_qty,
+                                upnl_profit_pct=upnl_profit_pct,
+                                short_pos_price=short_pos_price,
+                                positionIdx=2,
+                                order_side="buy",
+                                last_tp_update=self.next_short_tp_update,
+                                tp_order_counts=tp_order_counts
+                            )
+                    elif short_pos_qty > 0 and mfi_signal_short and current_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
+                        self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                        time.sleep(1)
+                        if short_pos_qty > 0:
+                            self.place_short_tp_order(symbol, best_bid_price, short_pos_price, short_pos_qty, short_take_profit, open_orders)
+                            # Update TP for short position
+                            self.next_short_tp_update = self.update_quickscalp_tp(
+                                symbol=symbol,
+                                pos_qty=short_pos_qty,
+                                upnl_profit_pct=upnl_profit_pct,
+                                short_pos_price=short_pos_price,
+                                positionIdx=2,
+                                order_side="buy",
+                                last_tp_update=self.next_short_tp_update,
+                                tp_order_counts=tp_order_counts
+                            )
+                else:
+                    logging.info(f"Volume check is disabled or conditions not met for {symbol}, proceeding without volume check.")
+
+                time.sleep(5)
+        except Exception as e:
+            logging.info(f"Exception caught in quickscalp trend short only: {e}")
+
 
     def bybit_1m_mfi_quickscalp_trend(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, entry_during_autoreduce: bool, volume_check: bool, long_take_profit: float, short_take_profit: float, upnl_profit_pct: float, tp_order_counts: dict):
         try:
