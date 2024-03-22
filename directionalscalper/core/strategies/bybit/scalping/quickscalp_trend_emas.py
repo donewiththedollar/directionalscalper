@@ -391,7 +391,7 @@ class BybitQSTrendDoubleMA(Strategy):
                     mfirsi_signal = self.get_mfirsi_ema_secondary_ema_l(
                         symbol, 
                         limit=100,
-                        lookback=6,
+                        lookback=2,
                         ema_period=6,
                         secondary_ema_period=4
                     )
