@@ -559,6 +559,8 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                     one_hour_atr_value = self.calculate_atr(historical_data)
 
                     logging.info(f"ATR for {symbol} : {one_hour_atr_value}")
+                    tp_order_counts = self.exchange.get_open_tp_order_count(symbol)
+                    #print(type(tp_order_counts))
 
                     # Check for long position
                     if long_pos_qty > 0:
@@ -577,6 +579,10 @@ class BybitMMOneMinuteQFLMFIERIWalls(Strategy):
                             logging.info(f"Short UPNL for {symbol}: {short_upnl}")
                         except Exception as e:
                             logging.info(f"Exception fetching Short UPNL for {symbol}: {e}")
+
+
+                    long_tp_counts = tp_order_counts['long_tp_count']
+                    short_tp_counts = tp_order_counts['short_tp_count']
 
                     self.bybit_1m_mfi_eri_walls(
                         open_orders,

@@ -414,8 +414,32 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(Strategy):
                     logging.info(f"Long dynamic amount: {long_dynamic_amount} for {symbol}")
                     logging.info(f"Short dynamic amount: {short_dynamic_amount} for {symbol}")
 
-                    short_upnl = position_data["short"]["upnl"]
-                    long_upnl = position_data["long"]["upnl"]
+                    tp_order_counts = self.exchange.get_open_tp_order_count(symbol)
+                    #print(type(tp_order_counts))
+
+                    # Check for long position
+                    if long_pos_qty > 0:
+                        try:
+                            unrealized_pnl = self.exchange.fetch_unrealized_pnl(symbol)
+                            long_upnl = unrealized_pnl.get('long')
+                            logging.info(f"Long UPNL for {symbol}: {long_upnl}")
+                        except Exception as e:
+                            logging.info(f"Exception fetching Long UPNL for {symbol}: {e}")
+
+                    # Check for short position
+                    if short_pos_qty > 0:
+                        try:
+                            unrealized_pnl = self.exchange.fetch_unrealized_pnl(symbol)
+                            short_upnl = unrealized_pnl.get('short')
+                            logging.info(f"Short UPNL for {symbol}: {short_upnl}")
+                        except Exception as e:
+                            logging.info(f"Exception fetching Short UPNL for {symbol}: {e}")
+
+
+                    long_tp_counts = tp_order_counts['long_tp_count']
+                    short_tp_counts = tp_order_counts['short_tp_count']
+
+
                     cum_realised_pnl_long = position_data["long"]["cum_realised"]
                     cum_realised_pnl_short = position_data["short"]["cum_realised"]
 

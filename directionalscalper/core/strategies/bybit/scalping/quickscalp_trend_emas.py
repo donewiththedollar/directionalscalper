@@ -582,6 +582,9 @@ class BybitQSTrendDoubleMA(Strategy):
 
                     logging.info(f"ATR for {symbol} : {one_hour_atr_value}")
 
+                    tp_order_counts = self.exchange.get_open_tp_order_count(symbol)
+                    #print(type(tp_order_counts))
+
                     # Check for long position
                     if long_pos_qty > 0:
                         try:
@@ -599,8 +602,7 @@ class BybitQSTrendDoubleMA(Strategy):
                             logging.info(f"Short UPNL for {symbol}: {short_upnl}")
                         except Exception as e:
                             logging.info(f"Exception fetching Short UPNL for {symbol}: {e}")
-                    
-                    tp_order_counts = self.exchange.get_open_tp_order_count(symbol)
+
 
                     long_tp_counts = tp_order_counts['long_tp_count']
                     short_tp_counts = tp_order_counts['short_tp_count']
