@@ -3859,7 +3859,16 @@ class Strategy:
             return
 
         try:
-            total_upnl = sum(data['long_upnl'] + data['short_upnl'] for data in shared_symbols_data.values())
+            #total_upnl = sum(data['long_upnl'] + data['short_upnl'] for data in shared_symbols_data.values())
+            # Possibly has issues w/ calculation above 
+
+            # Testing fix
+
+            total_upnl = sum(
+                (data.get('long_upnl', 0) or 0) + (data.get('short_upnl', 0) or 0)
+                for data in shared_symbols_data.values()
+            )
+            
             # Correct calculation for total UPnL percentage
             total_upnl_pct = total_upnl / total_equity if total_equity else 0
 

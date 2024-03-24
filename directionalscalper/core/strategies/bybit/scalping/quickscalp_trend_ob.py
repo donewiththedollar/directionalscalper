@@ -486,7 +486,7 @@ class BybitQuickScalpTrendOB(Strategy):
                             shared_symbols_data=shared_symbols_data
                         )
                     except Exception as e:
-                        logging.info(f"Exception caught in autoreduce")
+                        logging.info(f"Exception caught in autoreduce {e}")
 
 
                     self.auto_reduce_percentile_logic(
