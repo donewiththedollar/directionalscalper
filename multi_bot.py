@@ -26,7 +26,6 @@ from directionalscalper.core.exchanges.binance import BinanceExchange
 from directionalscalper.core.exchanges.hyperliquid import HyperLiquidExchange
 from directionalscalper.core.exchanges.bybit import BybitExchange
 from directionalscalper.core.exchanges.exchange import Exchange
-from directionalscalper.core.strategies.strategy import Strategy
 
 
 import directionalscalper.core.strategies.bybit.scalping as bybit_scalping

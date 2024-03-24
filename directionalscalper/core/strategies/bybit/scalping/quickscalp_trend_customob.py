@@ -8,14 +8,14 @@ import traceback
 from threading import Thread, Lock
 from datetime import datetime, timedelta
 
-from directionalscalper.core.strategies.strategy import Strategy
+from directionalscalper.core.strategies.bybit.bybit_strategy import BybitStrategy
 from directionalscalper.core.strategies.logger import Logger
 from live_table_manager import shared_symbols_data
-logging = Logger(logger_name="BybitQuickScalpTrendCustomOB", filename="BybitQuickScalpTrendCustomOB.log", stream=True)
+logging = Logger(logger_name="BybitQuickScalpTrendDCA", filename="BybitQuickScalpTrendDCA.log", stream=True)
 
 symbol_locks = {}
 
-class BybitQuickScalpTrendCustomOB(Strategy):
+class BybitQuickScalpTrendDCA(BybitStrategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
         self.is_order_history_populated = False
@@ -32,8 +32,8 @@ class BybitQuickScalpTrendCustomOB(Strategy):
         self.helper_interval = 1
         self.position_inactive_threshold = 120
         try:
-            self.volume_check = self.config.volume_check
             self.upnl_threshold_pct = self.config.upnl_threshold_pct
+            self.volume_check = self.config.volume_check
             self.max_usd_value = self.config.max_usd_value
             self.blacklist = self.config.blacklist
             self.test_orders_enabled = self.config.test_orders_enabled
@@ -101,8 +101,6 @@ class BybitQuickScalpTrendCustomOB(Strategy):
             long_pos_price = None
             short_pos_price = None
 
-            volume_check = self.config.volume_check
-            
             # Initializing time trackers for less frequent API calls
             last_equity_fetch_time = 0
             equity_refresh_interval = 1800  # 30 minutes in seconds
@@ -127,7 +125,10 @@ class BybitQuickScalpTrendCustomOB(Strategy):
             quote_currency = "USDT"
             max_retries = 5
             retry_delay = 5
+
+            upnl_threshold_pct = self.config.upnl_threshold_pct
             
+            volume_check = self.config.volume_check
             min_dist = self.config.min_distance
             min_vol = self.config.min_volume
 
@@ -364,8 +365,6 @@ class BybitQuickScalpTrendCustomOB(Strategy):
 
                 # self.check_for_inactivity(long_pos_qty, short_pos_qty)
 
-                time.sleep(5)
-
                 # self.print_trade_quantities_once_bybit(symbol, total_equity, best_ask_price)
 
                 logging.info(f"Rotator symbols standardized: {rotator_symbols_standardized}")
@@ -392,7 +391,6 @@ class BybitQuickScalpTrendCustomOB(Strategy):
                     #mfirsi_signal = metrics['MFI']
                     #mfirsi_signal = self.get_mfirsi_ema(symbol, limit=100, lookback=5, ema_period=5)
                     mfirsi_signal = self.get_mfirsi_ema_secondary_ema(symbol, limit=100, lookback=2, ema_period=5, secondary_ema_period=3)
-                    
                     funding_rate = metrics['Funding']
                     hma_trend = metrics['HMA Trend']
                     eri_trend = metrics['ERI Trend']
@@ -624,7 +622,7 @@ class BybitQuickScalpTrendCustomOB(Strategy):
                         tp_order_counts
                     )
                     
-
+                    
                     logging.info(f"Long tp counts: {long_tp_counts}")
                     logging.info(f"Short tp counts: {short_tp_counts}")
 
@@ -701,8 +699,6 @@ class BybitQuickScalpTrendCustomOB(Strategy):
                     self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
                     # self.cancel_stale_orders_bybit(symbol)
 
-                    time.sleep(5)
-
                 symbol_data = {
                     'symbol': symbol,
                     'min_qty': min_qty,
@@ -734,7 +730,7 @@ class BybitQuickScalpTrendCustomOB(Strategy):
                 iteration_duration = iteration_end_time - iteration_start_time
                 logging.info(f"Iteration for symbol {symbol} took {iteration_duration:.2f} seconds")
 
-                time.sleep(5)
+                time.sleep(3)
         except Exception as e:
             traceback_info = traceback.format_exc()  # Get the full traceback
             logging.error(f"Exception caught in quickscalp strategy '{symbol}': {e}\nTraceback:\n{traceback_info}")
