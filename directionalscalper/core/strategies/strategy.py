@@ -3222,7 +3222,7 @@ class Strategy:
             else:
                 logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
 
-    def get_mfirsi_ema_secondary_ema(self, symbol: str, limit: int = 100, lookback: int = 2, ema_period: int = 5, secondary_ema_period: int = 3) -> str:
+    def get_mfirsi_ema_secondary_ema(self, symbol: str, limit: int = 100, lookback: int = 1, ema_period: int = 5, secondary_ema_period: int = 3) -> str:
         # Fetch OHLCV data
         ohlcv_data = self.exchange.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
         df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
