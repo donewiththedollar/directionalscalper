@@ -15,7 +15,7 @@ logging = Logger(logger_name="BybitQuickScalpTrendDCA", filename="BybitQuickScal
 
 symbol_locks = {}
 
-class BybitQuickScalpTrendDCA(Strategy):
+class BybitQuickScalpTrendDCA(BybitStrategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
         self.is_order_history_populated = False
