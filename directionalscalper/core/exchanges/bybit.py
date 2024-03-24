@@ -107,7 +107,29 @@ class BybitExchange(Exchange):
                 logging.error(f"Error fetching balance from Bybit: {e}")
 
         return None
+
+    def get_available_balance_bybit(self, quote):
+        if self.exchange.has['fetchBalance']:
+            try:
+                # Fetch the balance with params to specify the account type
+                balance_response = self.exchange.fetch_balance({'type': 'swap'})
+
+                # Log the raw response for debugging purposes
+                #logging.info(f"Raw available balance response from Bybit: {balance_response}")
+
+                # Check for the required keys in the response
+                if 'free' in balance_response and quote in balance_response['free']:
+                    # Return the available balance for the specified currency
+                    return float(balance_response['free'][quote])
+                else:
+                    logging.warning(f"Available balance for {quote} not found in the response.")
+
+            except Exception as e:
+                logging.error(f"Error fetching available balance from Bybit: {e}")
+
+        return None
     
+
     def get_balance_bybit_unified(self, quote):
         if self.exchange.has['fetchBalance']:
             # Fetch the balance
@@ -373,27 +395,6 @@ class BybitExchange(Exchange):
                     logging.info(f"Balance for {quote} not found in the response.")
             except Exception as e:
                 logging.error(f"Error fetching balance from Bybit: {e}")
-
-        return None
-
-    def get_available_balance_bybit(self, quote):
-        if self.exchange.has['fetchBalance']:
-            try:
-                # Fetch the balance with params to specify the account type
-                balance_response = self.exchange.fetch_balance({'type': 'swap'})
-
-                # Log the raw response for debugging purposes
-                #logging.info(f"Raw available balance response from Bybit: {balance_response}")
-
-                # Check for the required keys in the response
-                if 'free' in balance_response and quote in balance_response['free']:
-                    # Return the available balance for the specified currency
-                    return float(balance_response['free'][quote])
-                else:
-                    logging.info(f"Available balance for {quote} not found in the response.")
-
-            except Exception as e:
-                logging.error(f"Error fetching available balance from Bybit: {e}")
 
         return None
     
@@ -963,3 +964,30 @@ class BybitExchange(Exchange):
                         unrealized_pnl['short'] = None
 
         return unrealized_pnl
+
+    def process_position_data(self, open_position_data):
+        position_details = {}
+
+        for position in open_position_data:
+            info = position.get('info', {})
+            symbol = info.get('symbol', '').split(':')[0]  # Splitting to get the base symbol
+
+            # Ensure 'size', 'side', and 'avgPrice' keys exist in the info dictionary
+            if 'size' in info and 'side' in info and 'avgPrice' in info:
+                size = float(info['size'])
+                side = info['side'].lower()
+                avg_price = float(info['avgPrice'])
+
+                # Initialize the nested dictionary if the symbol is not already in position_details
+                if symbol not in position_details:
+                    position_details[symbol] = {'long': {'qty': 0, 'avg_price': None}, 'short': {'qty': 0, 'avg_price': None}}
+
+                # Update the quantities and average prices based on the side of the position
+                if side == 'buy':
+                    position_details[symbol]['long']['qty'] += size
+                    position_details[symbol]['long']['avg_price'] = avg_price
+                elif side == 'sell':
+                    position_details[symbol]['short']['qty'] += size
+                    position_details[symbol]['short']['avg_price'] = avg_price
+
+        return position_details

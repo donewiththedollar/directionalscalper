@@ -23,7 +23,7 @@ from threading import Thread, Lock
 
 from ...bot_metrics import BotDatabase
 
-from ..base_strategy import BaseStrategy
+from directionalscalper.core.strategies.base_strategy import BaseStrategy
 
 logging = Logger(logger_name="Strategy", filename="Strategy.log", stream=True)
 
