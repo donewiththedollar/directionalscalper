@@ -9,3 +9,4 @@ from .mfi_quickscalp_short import BybitMFIRSIQuickScalpShort
 from .quickscalp_trend_ob import BybitQuickScalpTrendOB
 from .quickscalp_trend_unified import BybitQuickScalpUnified
 from .quickscalp_trend_emas import BybitQSTrendDoubleMA
+from .basicgrid import BybitBasicGrid
