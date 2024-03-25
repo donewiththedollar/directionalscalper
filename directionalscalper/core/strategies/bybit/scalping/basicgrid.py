@@ -322,6 +322,9 @@ class BybitBasicGrid(BybitStrategy):
                     logging.info(f"Total equity: {total_equity}")
                     logging.info(f"Available equity: {available_equity}")
                     
+                    # Log the type of total_equity
+                    logging.info(f"Type of total_equity: {type(total_equity)}")
+                    
                     # If total_equity is still None after fetching, log a warning and skip to the next iteration
                     if total_equity is None:
                         logging.warning("Failed to fetch total_equity. Skipping this iteration.")
@@ -620,6 +623,7 @@ class BybitBasicGrid(BybitStrategy):
 
                     self.linear_grid_handle_positions(
                         symbol,
+                        total_equity,
                         long_pos_qty,
                         short_pos_qty,
                         levels,

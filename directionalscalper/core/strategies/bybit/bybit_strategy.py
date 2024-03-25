@@ -1077,7 +1077,7 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"Placing additional short entry with post-only order")
                         self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2)
 
-    def linear_grid_handle_positions(self, symbol: str, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool):
+    def linear_grid_handle_positions(self, symbol: str, total_equity: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool):
         if symbol not in self.symbol_locks:
             self.symbol_locks[symbol] = threading.Lock()
 
@@ -1101,8 +1101,8 @@ class BybitStrategy(BaseStrategy):
             grid_levels_short = [best_bid_price - (diff_short * factor) for factor in factors[1:]]
 
             # Calculate total amount based on wallet exposure limit and user-defined leverage
-            total_amount_long = self.calculate_total_amount(symbol, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_long, "buy") if long_mode else 0
-            total_amount_short = self.calculate_total_amount(symbol, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_short, "sell") if short_mode else 0
+            total_amount_long = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_long, "buy") if long_mode else 0
+            total_amount_short = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_short, "sell") if short_mode else 0
             amounts_long = self.calculate_order_amounts(total_amount_long, levels, strength)
             amounts_short = self.calculate_order_amounts(total_amount_short, levels, strength)
 
@@ -1113,8 +1113,8 @@ class BybitStrategy(BaseStrategy):
 
             time.sleep(5)
 
-    def calculate_total_amount(self, symbol: str, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float, side: str) -> float:
-        total_equity = self.retry_api_call(self.exchange.get_futures_balance_bybit, quote_currency="USDT")
+    def calculate_total_amount(self, symbol: str, total_equity: float, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float, side: str) -> float:
+        #total_equity = self.retry_api_call(self.exchange.get_futures_balance_bybit, quote_currency="USDT")
         
         # Fetch market data to get the minimum trade quantity for the symbol
         market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
