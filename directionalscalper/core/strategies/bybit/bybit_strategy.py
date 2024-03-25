@@ -1175,7 +1175,7 @@ class BybitStrategy(BaseStrategy):
             else:
                 raise ValueError(f"Invalid side: {side}")
             
-            order = self.exchange.create_order(symbol, 'limit', side, amount, level, params={'positionIdx': positionIdx})
+            order = self.limit_order_bybit(symbol, side, amount, level, positionIdx=positionIdx)
             self.linear_grid_orders.setdefault(symbol, []).append(order)
             logging.info(f"Placed {side} order at level {level} for {symbol} with amount {amount}")
             
