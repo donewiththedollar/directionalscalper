@@ -40,7 +40,12 @@
     "blacklist": ["SOLUSDT", "10000*", "1000*", "BTCUSDT", "ETHUSDT", "1000LADYSUSDT", "BCHUSDT", "LUNA2USDT", "1000BONKUSDT", "1000000VINUUSDT", "10000LADYSUSDT", "10000SATSUSDT", "CTCUSDT", "1000PEPEUSDT", "USTUSDT", "TRBUSDT", "BSVUSDT", "AVAXUSDT"],
     "whitelist": [],
     "dashboard_enabled": false,
-    "shared_data_path": "data/"
+    "shared_data_path": "data/",
+    "linear_grid": {
+      "levels": 5,
+      "strength": 1.5,
+      "outer_price_distance": 0.02
+    }
   },
   "exchanges": [
     {

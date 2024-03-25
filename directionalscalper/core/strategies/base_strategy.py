@@ -1121,27 +1121,6 @@ class BaseStrategy:
 
         raise Exception("Failed to calculate maximum trade quantity after maximum retries.")
 
-    def check_amount_validity_bybit(self, amount, symbol):
-        market_data = self.exchange.get_market_data_bybit(symbol)
-        min_qty_bybit = market_data["min_qty"]
-        if float(amount) < min_qty_bybit:
-            logging.info(f"The amount you entered ({amount}) is less than the minimum required by Bybit for {symbol}: {min_qty_bybit}.")
-            return False
-        else:
-            logging.info(f"The amount you entered ({amount}) is valid for {symbol}")
-            return True
-
-    def check_amount_validity_once_bybit(self, amount, symbol):
-        if not self.check_amount_validity_bybit:
-            market_data = self.exchange.get_market_data_bybit(symbol)
-            min_qty_bybit = market_data["min_qty"]
-            if float(amount) < min_qty_bybit:
-                logging.info(f"The amount you entered ({amount}) is less than the minimum required by Bybit for {symbol}: {min_qty_bybit}.")
-                return False
-            else:
-                logging.info(f"The amount you entered ({amount}) is valid for {symbol}")
-                return True
-
     def check_amount_validity_once_binance(self, amount, symbol):
         if not self.checked_amount_validity_binance:
             market_data = self.exchange.get_market_data_binance(symbol)

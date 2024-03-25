@@ -67,6 +67,7 @@ class Bot(BaseModel):
     whitelist: List[str] = []
     dashboard_enabled: bool = False
     shared_data_path: Optional[str] = None
+    linear_grid: Optional[dict] = None
     # shared_data_path: Optional[DirectoryPath] = None
 
     
@@ -224,20 +225,6 @@ class Config(BaseModel):
     exchanges: List[Exchange]  # <-- Changed from List[Exchange]
     logger: Logger
     messengers: dict[str, Union[Discord, Telegram]]
-
-# class Config(BaseModel):
-#     api: API
-#     bot: Bot
-#     exchanges: List[Exchange]
-#     logger: Logger
-#     messengers: dict[str, Union[Discord, Telegram]]
-
-# class Config(BaseModel):
-#     api: API
-#     bot: Bot
-#     exchange: Exchange
-#     logger: Logger
-#     messengers: dict[str, Union[Discord, Telegram]]
 
 def resolve_shared_data_path(relative_path: str) -> Path:
     # Get the directory of the config file

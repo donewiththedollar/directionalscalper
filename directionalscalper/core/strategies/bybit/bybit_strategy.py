@@ -33,6 +33,27 @@ class BybitStrategy(BaseStrategy):
         # Bybit-specific initialization code
         pass
 
+    def check_amount_validity_bybit(self, amount, symbol):
+        market_data = self.exchange.get_market_data_bybit(symbol)
+        min_qty_bybit = market_data["min_qty"]
+        if float(amount) < min_qty_bybit:
+            logging.info(f"The amount you entered ({amount}) is less than the minimum required by Bybit for {symbol}: {min_qty_bybit}.")
+            return False
+        else:
+            logging.info(f"The amount you entered ({amount}) is valid for {symbol}")
+            return True
+
+    def check_amount_validity_once_bybit(self, amount, symbol):
+        if not self.check_amount_validity_bybit:
+            market_data = self.exchange.get_market_data_bybit(symbol)
+            min_qty_bybit = market_data["min_qty"]
+            if float(amount) < min_qty_bybit:
+                logging.info(f"The amount you entered ({amount}) is less than the minimum required by Bybit for {symbol}: {min_qty_bybit}.")
+                return False
+            else:
+                logging.info(f"The amount you entered ({amount}) is valid for {symbol}")
+                return True
+            
     def place_hedge_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
         """Places a hedge order and updates the hedging status."""
         order = self.place_postonly_order_bybit(symbol, side, amount, price, positionIdx, reduceOnly)
@@ -531,3 +552,41 @@ class BybitStrategy(BaseStrategy):
                     elif mfi.lower() == "short" and short_pos_qty < max_short_trade_qty_for_symbol and best_ask_price > short_pos_price:
                         logging.info(f"Placing additional short entry with post-only order")
                         self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2)
+
+    def linear_grid_handle_positions(self, symbol: str, long_pos_qty: float, short_pos_qty: float, long_dynamic_amount: float, short_dynamic_amount: float, levels: int, strength: float, outer_price_distance: float):
+        if symbol not in self.symbol_locks:
+            self.symbol_locks[symbol] = threading.Lock()
+
+        with self.symbol_locks[symbol]:
+            current_price = self.exchange.get_current_price(symbol)
+            logging.info(f"Current price for {symbol}: {current_price}")
+
+            order_book = self.exchange.get_orderbook(symbol)
+            best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol)
+            best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol)
+
+            # Calculate outer prices
+            outer_price_long = best_ask_price * (1 + outer_price_distance)
+            outer_price_short = best_bid_price * (1 - outer_price_distance)
+
+            # Calculate grid levels
+            diff_long = outer_price_long - best_ask_price
+            diff_short = best_bid_price - outer_price_short
+
+            factors = np.linspace(0.0, 1.0, num=levels + 1) ** strength
+
+            grid_levels_long = [best_ask_price + (diff_long * factor) for factor in factors[1:]]
+            grid_levels_short = [best_bid_price - (diff_short * factor) for factor in factors[1:]]
+
+            if long_pos_qty == 0:
+                self.place_linear_grid_orders(symbol, "buy", grid_levels_long, long_dynamic_amount)
+            elif short_pos_qty == 0:
+                self.place_linear_grid_orders(symbol, "sell", grid_levels_short, short_dynamic_amount)
+
+            time.sleep(5)
+
+    def place_linear_grid_orders(self, symbol: str, side: str, grid_levels: list, dynamic_amount: float):
+        for level in grid_levels:
+            order = self.exchange.create_order(symbol, 'limit', side, dynamic_amount, level)
+            self.linear_grid_orders.setdefault(symbol, []).append(order)
+            logging.info(f"Placed {side} order at level {level} for {symbol} with amount {dynamic_amount}")
