@@ -1102,13 +1102,14 @@ class BybitStrategy(BaseStrategy):
 
             total_amount_long = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_long, "buy") if long_mode else 0
             total_amount_short = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_short, "sell") if short_mode else 0
-            
-            # Get the symbol's minimum quantity precision
+
+            # Get the symbol's minimum quantity precision and minimum quantity
             qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
-            
-            # Calculate order amounts and round them based on the minimum quantity precision
-            amounts_long = self.calculate_order_amounts(total_amount_long, levels, strength, qty_precision)
-            amounts_short = self.calculate_order_amounts(total_amount_short, levels, strength, qty_precision)
+            min_qty = float(self.exchange.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
+
+            # Calculate order amounts and round them based on the minimum quantity precision and minimum quantity
+            amounts_long = self.calculate_order_amounts(total_amount_long, levels, strength, qty_precision, min_qty)
+            amounts_short = self.calculate_order_amounts(total_amount_short, levels, strength, qty_precision, min_qty)
 
             if long_mode and long_pos_qty == 0:
                 self.place_linear_grid_orders(symbol, "buy", grid_levels_long, amounts_long)
