@@ -30,6 +30,7 @@ logging = Logger(logger_name="Strategy", filename="Strategy.log", stream=True)
 class BybitStrategy(BaseStrategy):
     def __init__(self, exchange, config, manager, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
+        self.linear_grid_orders = {} 
         # Bybit-specific initialization code
         pass
 
