@@ -136,6 +136,12 @@ class BybitBasicGrid(BybitStrategy):
             max_retries = 5
             retry_delay = 5
             
+
+            levels = self.config.linear_grid['levels']
+            strength = self.config.linear_grid['strength']
+            outer_price_distance = self.config.linear_grid['outer_price_distance']
+            long_mode = self.config.linear_grid['long_mode']
+            short_mode = self.config.linear_grid['short_mode']
             volume_check = self.config.volume_check
             min_dist = self.config.min_distance
             min_vol = self.config.min_volume
@@ -616,14 +622,14 @@ class BybitBasicGrid(BybitStrategy):
                         symbol,
                         long_pos_qty,
                         short_pos_qty,
-                        self.levels,
-                        self.strength,
-                        self.outer_price_distance,
+                        levels,
+                        strength,
+                        outer_price_distance,
                         self.wallet_exposure_limit,
                         self.user_defined_leverage_long,
                         self.user_defined_leverage_short,
-                        self.long_mode,
-                        self.short_mode
+                        long_mode,
+                        short_mode
                     )
 
                     logging.info(f"Long tp counts: {long_tp_counts}")
