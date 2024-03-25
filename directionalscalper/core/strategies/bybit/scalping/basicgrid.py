@@ -34,9 +34,14 @@ class BybitBasicGrid(BybitStrategy):
         self.helper_interval = 1
         self.position_inactive_threshold = 120
         try:
+            self.wallet_exposure_limit = self.config.wallet_exposure_limit
+            self.user_defined_leverage_long = self.config.user_defined_leverage_long
+            self.user_defined_leverage_short = self.config.user_defined_leverage_short
             self.levels = config.bot.linear_grid['levels']
             self.strength = config.bot.linear_grid['strength']
             self.outer_price_distance = config.bot.linear_grid['outer_price_distance']
+            self.long_mode = config.bot.linear_grid['long_mode']
+            self.short_mode = config.bot.linear_grid['short_mode']
             self.upnl_threshold_pct = self.config.upnl_threshold_pct
             self.volume_check = self.config.volume_check
             self.max_usd_value = self.config.max_usd_value
@@ -606,18 +611,21 @@ class BybitBasicGrid(BybitStrategy):
 
                     long_tp_counts = tp_order_counts['long_tp_count']
                     short_tp_counts = tp_order_counts['short_tp_count']
-
+                    
                     self.linear_grid_handle_positions(
                         symbol,
+                        long_pos_qty,
+                        short_pos_qty,
                         self.levels,
                         self.strength,
                         self.outer_price_distance,
-                        long_pos_qty, 
-                        short_pos_qty, 
-                        long_dynamic_amount, 
-                        short_dynamic_amount
+                        self.wallet_exposure_limit,
+                        self.user_defined_leverage_long,
+                        self.user_defined_leverage_short,
+                        self.long_mode,
+                        self.short_mode
                     )
-                
+
                     logging.info(f"Long tp counts: {long_tp_counts}")
                     logging.info(f"Short tp counts: {short_tp_counts}")
 

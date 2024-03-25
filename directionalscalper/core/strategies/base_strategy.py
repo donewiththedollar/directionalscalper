@@ -215,40 +215,6 @@ class BaseStrategy:
         atr = np.mean(tr[-period:])
         return atr
     
-    def can_proceed_with_trade(self, symbol: str) -> dict:
-        """
-        Check if we can proceed with a long or short trade based on the funding rate.
-
-        Parameters:
-            symbol (str): The trading symbol to check.
-            
-        Returns:
-            dict: A dictionary containing boolean values for 'can_long' and 'can_short'.
-        """
-        # Initialize the result dictionary
-        result = {
-            'can_long': False,
-            'can_short': False
-        }
-
-        # Retrieve the maximum absolute funding rate from config
-        max_abs_funding_rate = self.config.MaxAbsFundingRate
-
-        # Get the current funding rate for the symbol
-        funding_rate = self.get_funding_rate(symbol)
-        
-        # If funding_rate is None, we can't make a decision
-        if funding_rate is None:
-            return result
-        
-        # Check conditions for long and short trades
-        if funding_rate <= max_abs_funding_rate:
-            result['can_long'] = True
-
-        if funding_rate >= -max_abs_funding_rate:
-            result['can_short'] = True
-
-        return result
 
     def initialize_trade_quantities(self, symbol, total_equity, best_ask_price, max_leverage):
         if symbol in self.initialized_symbols:
@@ -319,23 +285,6 @@ class BaseStrategy:
             logging.info(f"Market order to close {side} position of {amount} {symbol} placed successfully.")
         except Exception as e:
             logging.error(f"Failed to place market close order: {e}")
-
-    def can_place_order(self, symbol, interval=60):
-        with self.lock:
-            current_time = time.time()
-            logging.info(f"Attempting to check if an order can be placed for {symbol} at {current_time}")
-            
-            if symbol in self.last_order_time:
-                time_difference = current_time - self.last_order_time[symbol]
-                logging.info(f"Time since last order for {symbol}: {time_difference} seconds")
-                
-                if time_difference <= interval:
-                    logging.warning(f"Rate limit exceeded for {symbol}. Denying order placement.")
-                    return False
-                
-            self.last_order_time[symbol] = current_time
-            logging.info(f"Order allowed for {symbol} at {current_time}")
-            return True
         
     def get_position_update_time(self, symbol):
         try:
@@ -3350,127 +3299,6 @@ class BaseStrategy:
             return None
 
         return float(stop_loss_price)
-
-# price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
-    def calculate_dynamic_long_take_profit(self, best_bid_price, long_pos_price, symbol, upnl_profit_pct, max_deviation_pct=0.0040):
-        if long_pos_price is None:
-            logging.error("Long position price is None for symbol: " + symbol)
-            return None
-
-        _, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
-        logging.info(f"Price precision for {symbol}: {price_precision}")
-
-        original_tp = long_pos_price * (1 + upnl_profit_pct)
-        logging.info(f"Original long TP for {symbol}: {original_tp}")
-
-        bid_walls, ask_walls = self.detect_significant_order_book_walls(symbol)
-        if not ask_walls:
-            logging.info(f"No significant ask walls found for {symbol}")
-
-        adjusted_tp = original_tp
-        for price, size in ask_walls:
-            if price > original_tp:
-                extended_tp = price - float(price_precision)
-                if extended_tp > 0:
-                    adjusted_tp = max(adjusted_tp, extended_tp)
-                    logging.info(f"Adjusted long TP for {symbol} based on ask wall: {adjusted_tp}")
-                break
-
-        # Check if the adjusted TP is within the allowed deviation from the original TP
-        if adjusted_tp > original_tp * (1 + max_deviation_pct):
-            logging.info(f"Adjusted long TP for {symbol} exceeds the allowed deviation. Reverting to original TP: {original_tp}")
-            adjusted_tp = original_tp
-
-        # Adjust TP to best bid price if surpassed
-        if best_bid_price >= adjusted_tp:
-            adjusted_tp = best_bid_price
-            logging.info(f"TP surpassed, adjusted to best bid price for {symbol}: {adjusted_tp}")
-
-        rounded_tp = round(adjusted_tp, len(str(price_precision).split('.')[-1]))
-        logging.info(f"Final rounded long TP for {symbol}: {rounded_tp}")
-        return rounded_tp
-
-    def calculate_dynamic_short_take_profit(self, best_ask_price, short_pos_price, symbol, upnl_profit_pct, max_deviation_pct=0.05):
-        if short_pos_price is None:
-            logging.error("Short position price is None for symbol: " + symbol)
-            return None
-
-        _, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
-        logging.info(f"Price precision for {symbol}: {price_precision}")
-
-        original_tp = short_pos_price * (1 - upnl_profit_pct)
-        logging.info(f"Original short TP for {symbol}: {original_tp}")
-
-        bid_walls, ask_walls = self.detect_significant_order_book_walls(symbol)
-        if not bid_walls:
-            logging.info(f"No significant bid walls found for {symbol}")
-
-        adjusted_tp = original_tp
-        for price, size in bid_walls:
-            if price < original_tp:
-                extended_tp = price + float(price_precision)
-                if extended_tp > 0:
-                    adjusted_tp = min(adjusted_tp, extended_tp)
-                    logging.info(f"Adjusted short TP for {symbol} based on bid wall: {adjusted_tp}")
-                break
-
-        # Check if the adjusted TP is within the allowed deviation from the original TP
-        if adjusted_tp < original_tp * (1 - max_deviation_pct):
-            logging.info(f"Adjusted short TP for {symbol} exceeds the allowed deviation. Reverting to original TP: {original_tp}")
-            adjusted_tp = original_tp
-
-        # Adjust TP to best ask price if surpassed
-        if best_ask_price <= adjusted_tp:
-            adjusted_tp = best_ask_price
-            logging.info(f"TP surpassed, adjusted to best ask price for {symbol}: {adjusted_tp}")
-
-        rounded_tp = round(adjusted_tp, len(str(price_precision).split('.')[-1]))
-        logging.info(f"Final rounded short TP for {symbol}: {rounded_tp}")
-        return rounded_tp
-
-    def calculate_quickscalp_long_take_profit(self, long_pos_price, symbol, upnl_profit_pct):
-        if long_pos_price is None:
-            return None
-
-        price_precision = int(self.exchange.get_price_precision(symbol))
-        logging.info(f"Price precision for {symbol}: {price_precision}")
-
-        # Calculate the target profit price
-        target_profit_price = Decimal(long_pos_price) * (1 + Decimal(upnl_profit_pct))
-        
-        # Quantize the target profit price
-        try:
-            target_profit_price = target_profit_price.quantize(
-                Decimal('1e-{}'.format(price_precision)),
-                rounding=ROUND_HALF_UP
-            )
-        except InvalidOperation as e:
-            logging.error(f"Error when quantizing target_profit_price. {e}")
-            return None
-
-        return float(target_profit_price)
-
-    def calculate_quickscalp_short_take_profit(self, short_pos_price, symbol, upnl_profit_pct):
-        if short_pos_price is None:
-            return None
-
-        price_precision = int(self.exchange.get_price_precision(symbol))
-        logging.info(f"Price precision for {symbol}: {price_precision}")
-
-        # Calculate the target profit price
-        target_profit_price = Decimal(short_pos_price) * (1 - Decimal(upnl_profit_pct))
-        
-        # Quantize the target profit price
-        try:
-            target_profit_price = target_profit_price.quantize(
-                Decimal('1e-{}'.format(price_precision)),
-                rounding=ROUND_HALF_UP
-            )
-        except InvalidOperation as e:
-            logging.error(f"Error when quantizing target_profit_price. {e}")
-            return None
-
-        return float(target_profit_price)
 
     def quickscalp_mfi_handle_long_positions(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, long_dynamic_amount: float, long_pos_qty: float, long_pos_price: float):
         if symbol not in self.symbol_locks:

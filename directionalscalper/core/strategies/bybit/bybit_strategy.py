@@ -82,6 +82,126 @@ class BybitStrategy(BaseStrategy):
         # Cancel all orders for the symbol and perform any other cleanup needed
         self.exchange.cancel_all_orders_for_symbol_bybit(symbol)
 
+    def calculate_quickscalp_long_take_profit(self, long_pos_price, symbol, upnl_profit_pct):
+        if long_pos_price is None:
+            return None
+
+        price_precision = int(self.exchange.get_price_precision(symbol))
+        logging.info(f"Price precision for {symbol}: {price_precision}")
+
+        # Calculate the target profit price
+        target_profit_price = Decimal(long_pos_price) * (1 + Decimal(upnl_profit_pct))
+        
+        # Quantize the target profit price
+        try:
+            target_profit_price = target_profit_price.quantize(
+                Decimal('1e-{}'.format(price_precision)),
+                rounding=ROUND_HALF_UP
+            )
+        except InvalidOperation as e:
+            logging.error(f"Error when quantizing target_profit_price. {e}")
+            return None
+
+        return float(target_profit_price)
+
+    def calculate_quickscalp_short_take_profit(self, short_pos_price, symbol, upnl_profit_pct):
+        if short_pos_price is None:
+            return None
+
+        price_precision = int(self.exchange.get_price_precision(symbol))
+        logging.info(f"Price precision for {symbol}: {price_precision}")
+
+        # Calculate the target profit price
+        target_profit_price = Decimal(short_pos_price) * (1 - Decimal(upnl_profit_pct))
+        
+        # Quantize the target profit price
+        try:
+            target_profit_price = target_profit_price.quantize(
+                Decimal('1e-{}'.format(price_precision)),
+                rounding=ROUND_HALF_UP
+            )
+        except InvalidOperation as e:
+            logging.error(f"Error when quantizing target_profit_price. {e}")
+            return None
+
+        return float(target_profit_price)
+    
+# price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
+    def calculate_dynamic_long_take_profit(self, best_bid_price, long_pos_price, symbol, upnl_profit_pct, max_deviation_pct=0.0040):
+        if long_pos_price is None:
+            logging.error("Long position price is None for symbol: " + symbol)
+            return None
+
+        _, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
+        logging.info(f"Price precision for {symbol}: {price_precision}")
+
+        original_tp = long_pos_price * (1 + upnl_profit_pct)
+        logging.info(f"Original long TP for {symbol}: {original_tp}")
+
+        bid_walls, ask_walls = self.detect_significant_order_book_walls_atr(symbol)
+        if not ask_walls:
+            logging.info(f"No significant ask walls found for {symbol}")
+
+        adjusted_tp = original_tp
+        for price, size in ask_walls:
+            if price > original_tp:
+                extended_tp = price - float(price_precision)
+                if extended_tp > 0:
+                    adjusted_tp = max(adjusted_tp, extended_tp)
+                    logging.info(f"Adjusted long TP for {symbol} based on ask wall: {adjusted_tp}")
+                break
+
+        # Check if the adjusted TP is within the allowed deviation from the original TP
+        if adjusted_tp > original_tp * (1 + max_deviation_pct):
+            logging.info(f"Adjusted long TP for {symbol} exceeds the allowed deviation. Reverting to original TP: {original_tp}")
+            adjusted_tp = original_tp
+
+        # Adjust TP to best bid price if surpassed
+        if best_bid_price >= adjusted_tp:
+            adjusted_tp = best_bid_price
+            logging.info(f"TP surpassed, adjusted to best bid price for {symbol}: {adjusted_tp}")
+
+        rounded_tp = round(adjusted_tp, len(str(price_precision).split('.')[-1]))
+        logging.info(f"Final rounded long TP for {symbol}: {rounded_tp}")
+        return rounded_tp
+
+    def calculate_dynamic_short_take_profit(self, best_ask_price, short_pos_price, symbol, upnl_profit_pct, max_deviation_pct=0.05):
+        if short_pos_price is None:
+            logging.error("Short position price is None for symbol: " + symbol)
+            return None
+
+        _, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
+        logging.info(f"Price precision for {symbol}: {price_precision}")
+
+        original_tp = short_pos_price * (1 - upnl_profit_pct)
+        logging.info(f"Original short TP for {symbol}: {original_tp}")
+
+        bid_walls, ask_walls = self.detect_significant_order_book_walls_atr(symbol)
+        if not bid_walls:
+            logging.info(f"No significant bid walls found for {symbol}")
+
+        adjusted_tp = original_tp
+        for price, size in bid_walls:
+            if price < original_tp:
+                extended_tp = price + float(price_precision)
+                if extended_tp > 0:
+                    adjusted_tp = min(adjusted_tp, extended_tp)
+                    logging.info(f"Adjusted short TP for {symbol} based on bid wall: {adjusted_tp}")
+                break
+
+        # Check if the adjusted TP is within the allowed deviation from the original TP
+        if adjusted_tp < original_tp * (1 - max_deviation_pct):
+            logging.info(f"Adjusted short TP for {symbol} exceeds the allowed deviation. Reverting to original TP: {original_tp}")
+            adjusted_tp = original_tp
+
+        # Adjust TP to best ask price if surpassed
+        if best_ask_price <= adjusted_tp:
+            adjusted_tp = best_ask_price
+            logging.info(f"TP surpassed, adjusted to best ask price for {symbol}: {adjusted_tp}")
+
+        rounded_tp = round(adjusted_tp, len(str(price_precision).split('.')[-1]))
+        logging.info(f"Final rounded short TP for {symbol}: {rounded_tp}")
+        return rounded_tp
     def detect_order_book_walls(self, symbol, threshold=5.0):
         order_book = self.exchange.get_orderbook(symbol)
         bids = order_book['bids']
@@ -100,7 +220,7 @@ class BybitStrategy(BaseStrategy):
 
         return bid_walls, ask_walls
 
-    def detect_significant_order_book_walls(self, symbol, timeframe='1h', base_threshold_factor=5.0, atr_proximity_percentage=10.0):
+    def detect_significant_order_book_walls_atr(self, symbol, timeframe='1h', base_threshold_factor=5.0, atr_proximity_percentage=10.0):
         order_book = self.exchange.get_orderbook(symbol)
         bids, asks = order_book['bids'], order_book['asks']
 
@@ -250,6 +370,58 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"The amount you entered ({amount}) is valid for {symbol}")
                 return True
 
+    def can_proceed_with_trade_funding(self, symbol: str) -> dict:
+        """
+        Check if we can proceed with a long or short trade based on the funding rate.
+
+        Parameters:
+            symbol (str): The trading symbol to check.
+            
+        Returns:
+            dict: A dictionary containing boolean values for 'can_long' and 'can_short'.
+        """
+        # Initialize the result dictionary
+        result = {
+            'can_long': False,
+            'can_short': False
+        }
+
+        # Retrieve the maximum absolute funding rate from config
+        max_abs_funding_rate = self.config.MaxAbsFundingRate
+
+        # Get the current funding rate for the symbol
+        funding_rate = self.get_funding_rate(symbol)
+        
+        # If funding_rate is None, we can't make a decision
+        if funding_rate is None:
+            return result
+        
+        # Check conditions for long and short trades
+        if funding_rate <= max_abs_funding_rate:
+            result['can_long'] = True
+
+        if funding_rate >= -max_abs_funding_rate:
+            result['can_short'] = True
+
+        return result
+    
+    def can_place_order(self, symbol, interval=60):
+        with self.lock:
+            current_time = time.time()
+            logging.info(f"Attempting to check if an order can be placed for {symbol} at {current_time}")
+            
+            if symbol in self.last_order_time:
+                time_difference = current_time - self.last_order_time[symbol]
+                logging.info(f"Time since last order for {symbol}: {time_difference} seconds")
+                
+                if time_difference <= interval:
+                    logging.warning(f"Rate limit exceeded for {symbol}. Denying order placement.")
+                    return False
+                
+            self.last_order_time[symbol] = current_time
+            logging.info(f"Order allowed for {symbol} at {current_time}")
+            return True
+        
     def postonly_limit_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
         """Directly places the order with the exchange."""
         params = {"reduceOnly": reduceOnly, "postOnly": True}
@@ -929,8 +1101,8 @@ class BybitStrategy(BaseStrategy):
             grid_levels_short = [best_bid_price - (diff_short * factor) for factor in factors[1:]]
 
             # Calculate total amount based on wallet exposure limit and user-defined leverage
-            total_amount_long = self.calculate_total_amount(symbol, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_long) if long_mode else 0
-            total_amount_short = self.calculate_total_amount(symbol, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_short) if short_mode else 0
+            total_amount_long = self.calculate_total_amount(symbol, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_long, "buy") if long_mode else 0
+            total_amount_short = self.calculate_total_amount(symbol, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_short, "sell") if short_mode else 0
             amounts_long = self.calculate_order_amounts(total_amount_long, levels, strength)
             amounts_short = self.calculate_order_amounts(total_amount_short, levels, strength)
 
@@ -941,15 +1113,20 @@ class BybitStrategy(BaseStrategy):
 
             time.sleep(5)
 
-    def calculate_total_amount(self, symbol: str, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float) -> float:
+    def calculate_total_amount(self, symbol: str, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float, side: str) -> float:
         total_equity = self.get_total_equity()
         
         # Fetch market data to get the minimum trade quantity for the symbol
         market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
         min_qty = float(market_data["min_qty"])
         
-        # Calculate the minimum quantity in USD value
-        min_qty_usd_value = min_qty * best_ask_price
+        # Calculate the minimum quantity in USD value based on the side
+        if side == "buy":
+            min_qty_usd_value = min_qty * best_ask_price
+        elif side == "sell":
+            min_qty_usd_value = min_qty * best_bid_price
+        else:
+            raise ValueError(f"Invalid side: {side}")
         
         # Calculate the maximum position value based on total equity, wallet exposure limit, and user-defined leverage
         max_position_value = total_equity * wallet_exposure_limit * user_defined_leverage
@@ -973,7 +1150,6 @@ class BybitStrategy(BaseStrategy):
             order = self.exchange.create_order(symbol, 'limit', side, amount, level)
             self.linear_grid_orders.setdefault(symbol, []).append(order)
             logging.info(f"Placed {side} order at level {level} for {symbol} with amount {amount}")
-            
 
     def initiate_spread_entry(self, symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty):
         order_book = self.exchange.get_orderbook(symbol)
