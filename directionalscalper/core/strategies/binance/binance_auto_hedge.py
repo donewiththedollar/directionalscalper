@@ -1,7 +1,6 @@
 import time
 import math
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_DOWN
-from ..strategy import Strategy
 from typing import Tuple
 from rich.console import Console
 from rich.table import Table
@@ -13,9 +12,11 @@ import os
 import logging
 from ..logger import Logger
 
-logging = Logger(logger_name="BinanceAutoHedge", filename="binanceautohedge.log", stream=True)
+from directionalscalper.core.strategies.binance.binance_strategy import BinanceStrategy
 
-class BinanceAutoHedgeStrategy(Strategy):
+logging = Logger(logger_name="BinanceAutoHedge", filename="BinanceAutoHedge.log", stream=True)
+
+class BinanceAutoHedgeStrategy(BinanceStrategy):
     def __init__(self, exchange, manager, config):
         super().__init__(exchange, config, manager)
         self.manager = manager

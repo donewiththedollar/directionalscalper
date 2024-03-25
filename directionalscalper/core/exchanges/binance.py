@@ -5,6 +5,7 @@ import time
 from datetime import datetime, timedelta
 from typing import Optional, Tuple, List
 from ccxt.base.errors import RateLimitExceeded
+import math
 
 class BinanceExchange(Exchange):
     def __init__(self, api_key, secret_key, passphrase=None, market_type='swap'):
@@ -358,3 +359,32 @@ class BinanceExchange(Exchange):
         except Exception as e:
             logging.info(f"An unknown error occurred in get_open_orders_binance(): {e}")
         return open_orders_list
+
+    def binance_hedge_placetp_market(self, symbol, pos_qty, take_profit_price, position_side, open_orders):
+        order_side = 'sell' if position_side == 'LONG' else 'buy'
+        existing_tps = self.get_open_take_profit_order_quantities_binance(open_orders, order_side)
+
+        print(f"Existing TP IDs: {[order_id for _, order_id in existing_tps]}")
+        print(f"Existing {order_side} TPs: {existing_tps}")
+
+        # Cancel all TP orders if there is more than one existing TP order for the side
+        if len(existing_tps) > 1:
+            logging.info(f"More than one existing TP order found. Cancelling all {order_side} TP orders.")
+            for qty, existing_tp_id in existing_tps:
+                try:
+                    self.exchange.cancel_order_by_id_binance(existing_tp_id, symbol)
+                    logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
+                    time.sleep(0.05)
+                except Exception as e:
+                    raise Exception(f"Error in cancelling {order_side} TP orders: {e}") from e
+        # If there is exactly one TP order for the side, and its quantity doesn't match the position quantity, cancel it
+        elif len(existing_tps) == 1 and not math.isclose(existing_tps[0][0], pos_qty):
+            logging.info(f"Existing TP qty {existing_tps[0][0]} and position qty {pos_qty} not close. Cancelling the TP order.")
+            try:
+                existing_tp_id = existing_tps[0][1]
+                self.exchange.cancel_order_by_id_binance(existing_tp_id, symbol)
+                logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
+                time.sleep(0.05)
+            except Exception as e:
+                raise Exception(f"Error in cancelling {order_side} TP orders: {e}") from e
+            
