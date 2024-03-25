@@ -44,7 +44,9 @@
     "linear_grid": {
       "levels": 5,
       "strength": 1.5,
-      "outer_price_distance": 0.02
+      "outer_price_distance": 0.02,
+      "long_mode": true,
+      "short_mode": false
     }
   },
   "exchanges": [

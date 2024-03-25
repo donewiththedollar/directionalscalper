@@ -36,6 +36,25 @@ class BybitStrategy(BaseStrategy):
 
     TAKER_FEE_RATE = 0.00055
 
+    def update_dynamic_amounts(self, symbol, total_equity, best_ask_price, best_bid_price):
+        if symbol not in self.long_dynamic_amount or symbol not in self.short_dynamic_amount:
+            long_dynamic_amount, short_dynamic_amount, _ = self.calculate_dynamic_amounts(symbol, total_equity, best_ask_price, best_bid_price)
+            self.long_dynamic_amount[symbol] = long_dynamic_amount
+            self.short_dynamic_amount[symbol] = short_dynamic_amount
+
+        if symbol in self.max_long_trade_qty_per_symbol:
+            self.long_dynamic_amount[symbol] = min(
+                self.long_dynamic_amount[symbol], 
+                self.max_long_trade_qty_per_symbol[symbol]
+            )
+        if symbol in self.max_short_trade_qty_per_symbol:
+            self.short_dynamic_amount[symbol] = min(
+                self.short_dynamic_amount[symbol], 
+                self.max_short_trade_qty_per_symbol[symbol]
+            )
+
+        logging.info(f"Updated dynamic amounts for {symbol}. New long_dynamic_amount: {self.long_dynamic_amount[symbol]}, New short_dynamic_amount: {self.short_dynamic_amount[symbol]}")
+    
     def get_open_symbols(self):
         open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
         position_symbols = set()
@@ -230,7 +249,23 @@ class BybitStrategy(BaseStrategy):
             else:
                 logging.info(f"The amount you entered ({amount}) is valid for {symbol}")
                 return True
-            
+
+    def postonly_limit_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
+        """Directly places the order with the exchange."""
+        params = {"reduceOnly": reduceOnly, "postOnly": True}
+        order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
+
+        # Log and store the order ID if the order was placed successfully
+        if order and 'id' in order:
+            logging.info(f"Successfully placed post-only limit order for {symbol}. Order ID: {order['id']}. Side: {side}, Amount: {amount}, Price: {price}, PositionIdx: {positionIdx}, ReduceOnly: {reduceOnly}")
+            if symbol not in self.order_ids:
+                self.order_ids[symbol] = []
+            self.order_ids[symbol].append(order['id'])
+        else:
+            logging.warning(f"Failed to place post-only limit order for {symbol}. Side: {side}, Amount: {amount}, Price: {price}, PositionIdx: {positionIdx}, ReduceOnly: {reduceOnly}")
+
+        return order
+      
     def place_hedge_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
         """Places a hedge order and updates the hedging status."""
         order = self.place_postonly_order_bybit(symbol, side, amount, price, positionIdx, reduceOnly)
@@ -266,11 +301,93 @@ class BybitStrategy(BaseStrategy):
 
         return order
 
+    def postonly_limit_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
+        """Directly places the order with the exchange."""
+        params = {"reduceOnly": reduceOnly, "postOnly": True}
+        order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
+
+        # Log and store the order ID if the order was placed successfully
+        if order and 'id' in order:
+            logging.info(f"Successfully placed post-only limit order for {symbol}. Order ID: {order['id']}. Side: {side}, Amount: {amount}, Price: {price}, PositionIdx: {positionIdx}, ReduceOnly: {reduceOnly}")
+            if symbol not in self.order_ids:
+                self.order_ids[symbol] = []
+            self.order_ids[symbol].append(order['id'])
+        else:
+            logging.warning(f"Failed to place post-only limit order for {symbol}. Side: {side}, Amount: {amount}, Price: {price}, PositionIdx: {positionIdx}, ReduceOnly: {reduceOnly}")
+
+        return order
+
+    def limit_order_bybit_reduce_nolimit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
+        params = {"reduceOnly": reduceOnly}
+        logging.info(f"Placing {side} limit order for {symbol} at {price} with qty {amount} and params {params}...")
+        try:
+            order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
+            logging.info(f"Order result: {order}")
+            if order is None:
+                logging.warning(f"Order result is None for {side} limit order on {symbol}")
+            return order
+        except Exception as e:
+            logging.error(f"Error placing order: {str(e)}")
+            logging.exception("Stack trace for error in placing order:")
+            return None
+            
+    def postonly_limit_order_bybit_nolimit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
+        params = {"reduceOnly": reduceOnly, "postOnly": True}
+        logging.info(f"Placing {side} limit order for {symbol} at {price} with qty {amount} and params {params}...")
+        try:
+            order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
+            logging.info(f"Nolimit postonly order result for {symbol}: {order}")
+            if order is None:
+                logging.warning(f"Order result is None for {side} limit order on {symbol}")
+            return order
+        except Exception as e:
+            logging.error(f"Error placing order: {str(e)}")
+            logging.exception("Stack trace for error in placing order:")  # This will log the full stack trace
+
+    def postonly_limit_order_bybit_s(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
+        params = {"reduceOnly": reduceOnly, "postOnly": True}
+        logging.info(f"Placing {side} limit order for {symbol} at {price} with qty {amount} and params {params}...")
+        try:
+            order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
+            logging.info(f"Order result: {order}")
+            if order is None:
+                logging.warning(f"Order result is None for {side} limit order on {symbol}")
+            return order
+        except Exception as e:
+            logging.error(f"Error placing order: {str(e)}")
+            logging.exception("Stack trace for error in placing order:")  # This will log the full stack trace
+
+    def limit_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
+        params = {"reduceOnly": reduceOnly}
+        #print(f"Symbol: {symbol}, Side: {side}, Amount: {amount}, Price: {price}, Params: {params}")
+        order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
+        return order
+
+
     def limit_order_bybit_unified(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
         params = {"reduceOnly": reduceOnly}
         #print(f"Symbol: {symbol}, Side: {side}, Amount: {amount}, Price: {price}, Params: {params}")
         order = self.exchange.create_limit_order_bybit_unified(symbol, side, amount, price, positionIdx=positionIdx, params=params)
         return order
+
+    def limit_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
+        params = {"reduceOnly": reduceOnly}
+        #print(f"Symbol: {symbol}, Side: {side}, Amount: {amount}, Price: {price}, Params: {params}")
+        order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
+        return order
+
+    def entry_order_exists(self, open_orders, side):
+        for order in open_orders:
+            # Assuming order details include 'info' which contains the API's raw response
+            if order.get("info", {}).get("orderLinkId", "").startswith("helperOrder"):
+                continue  # Skip helper orders based on their unique identifier
+            
+            if order["side"].lower() == side and not order.get("reduceOnly", False):
+                logging.info(f"An entry order for side {side} already exists.")
+                return True
+        
+        logging.info(f"No entry order found for side {side}, excluding helper orders.")
+        return False
     
     def calculate_dynamic_amounts(self, symbol, total_equity, best_ask_price, best_bid_price):
         """
@@ -415,6 +532,64 @@ class BybitStrategy(BaseStrategy):
         logging.info(f"Calculated short entry size for {symbol}: {short_entry_size_adjusted} units")
 
         return long_entry_size_adjusted, short_entry_size_adjusted
+
+    def calculate_dynamic_amount_obstrength(self, symbol, total_equity, best_ask_price, max_leverage):
+        self.initialize_trade_quantities(symbol, total_equity, best_ask_price, max_leverage)
+
+        market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
+        min_qty = float(market_data["min_qty"])
+        logging.info(f"Min qty for {symbol} : {min_qty}")
+
+        # Starting with 0.1% of total equity for both long and short orders
+        long_dynamic_amount = 0.001 * total_equity
+        short_dynamic_amount = 0.001 * total_equity
+
+        # Calculate the order book strength
+        strength = self.calculate_orderbook_strength(symbol)
+        logging.info(f"OB strength: {strength}")
+
+        # Reduce the aggressive multiplier from 10 to 5
+        aggressive_steps = max(0, (strength - 0.5) * 5)  # This ensures values are always non-negative
+        long_dynamic_amount += aggressive_steps * min_qty
+        short_dynamic_amount += aggressive_steps * min_qty
+
+        logging.info(f"Long dynamic amount for {symbol} {long_dynamic_amount}")
+        logging.info(f"Short dynamic amount for {symbol} {short_dynamic_amount}")
+
+        # Reduce the maximum allowed dynamic amount to be more conservative
+        AGGRESSIVE_MAX_PCT_EQUITY = 0.05  # 5% of the total equity
+        max_allowed_dynamic_amount = AGGRESSIVE_MAX_PCT_EQUITY * total_equity
+        logging.info(f"Max allowed dynamic amount for {symbol} : {max_allowed_dynamic_amount}")
+
+        # Determine precision level directly
+        precision_level = len(str(min_qty).split('.')[-1]) if '.' in str(min_qty) else 0
+        logging.info(f"min_qty: {min_qty}, precision_level: {precision_level}")
+
+        # Round the dynamic amounts based on precision level
+        long_dynamic_amount = round(long_dynamic_amount, precision_level)
+        short_dynamic_amount = round(short_dynamic_amount, precision_level)
+        logging.info(f"Rounded long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+
+        # Apply the cap to the dynamic amounts
+        long_dynamic_amount = min(long_dynamic_amount, max_allowed_dynamic_amount)
+        short_dynamic_amount = min(short_dynamic_amount, max_allowed_dynamic_amount)
+
+        logging.info(f"Forced min qty long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+
+        self.check_amount_validity_once_bybit(long_dynamic_amount, symbol)
+        self.check_amount_validity_once_bybit(short_dynamic_amount, symbol)
+
+        # Using min_qty if dynamic amount is too small
+        if long_dynamic_amount < min_qty:
+            logging.info(f"Dynamic amount too small for 0.001x, using min_qty for long_dynamic_amount")
+            long_dynamic_amount = min_qty
+        if short_dynamic_amount < min_qty:
+            logging.info(f"Dynamic amount too small for 0.001x, using min_qty for short_dynamic_amount")
+            short_dynamic_amount = min_qty
+
+        logging.info(f"Symbol: {symbol} Final long_dynamic_amount: {long_dynamic_amount}, short_dynamic_amount: {short_dynamic_amount}")
+
+        return long_dynamic_amount, short_dynamic_amount, min_qty
 
 
     def bybit_1m_mfi_quickscalp_trend(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, entry_during_autoreduce: bool, volume_check: bool, long_take_profit: float, short_take_profit: float, upnl_profit_pct: float, tp_order_counts: dict):
@@ -730,7 +905,7 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"Placing additional short entry with post-only order")
                         self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2)
 
-    def linear_grid_handle_positions(self, symbol: str, long_pos_qty: float, short_pos_qty: float, long_dynamic_amount: float, short_dynamic_amount: float, levels: int, strength: float, outer_price_distance: float):
+    def linear_grid_handle_positions(self, symbol: str, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool):
         if symbol not in self.symbol_locks:
             self.symbol_locks[symbol] = threading.Lock()
 
@@ -749,24 +924,56 @@ class BybitStrategy(BaseStrategy):
             # Calculate grid levels
             diff_long = outer_price_long - best_ask_price
             diff_short = best_bid_price - outer_price_short
-
             factors = np.linspace(0.0, 1.0, num=levels + 1) ** strength
-
             grid_levels_long = [best_ask_price + (diff_long * factor) for factor in factors[1:]]
             grid_levels_short = [best_bid_price - (diff_short * factor) for factor in factors[1:]]
 
-            if long_pos_qty == 0:
-                self.place_linear_grid_orders(symbol, "buy", grid_levels_long, long_dynamic_amount)
-            elif short_pos_qty == 0:
-                self.place_linear_grid_orders(symbol, "sell", grid_levels_short, short_dynamic_amount)
+            # Calculate total amount based on wallet exposure limit and user-defined leverage
+            total_amount_long = self.calculate_total_amount(symbol, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_long) if long_mode else 0
+            total_amount_short = self.calculate_total_amount(symbol, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_short) if short_mode else 0
+            amounts_long = self.calculate_order_amounts(total_amount_long, levels, strength)
+            amounts_short = self.calculate_order_amounts(total_amount_short, levels, strength)
+
+            if long_mode and long_pos_qty == 0:
+                self.place_linear_grid_orders(symbol, "buy", grid_levels_long, amounts_long)
+            elif short_mode and short_pos_qty == 0:
+                self.place_linear_grid_orders(symbol, "sell", grid_levels_short, amounts_short)
 
             time.sleep(5)
 
-    def place_linear_grid_orders(self, symbol: str, side: str, grid_levels: list, dynamic_amount: float):
-        for level in grid_levels:
-            order = self.exchange.create_order(symbol, 'limit', side, dynamic_amount, level)
+    def calculate_total_amount(self, symbol: str, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float) -> float:
+        total_equity = self.get_total_equity()
+        
+        # Fetch market data to get the minimum trade quantity for the symbol
+        market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
+        min_qty = float(market_data["min_qty"])
+        
+        # Calculate the minimum quantity in USD value
+        min_qty_usd_value = min_qty * best_ask_price
+        
+        # Calculate the maximum position value based on total equity, wallet exposure limit, and user-defined leverage
+        max_position_value = total_equity * wallet_exposure_limit * user_defined_leverage
+        
+        # Calculate the total amount considering the maximum position value and minimum quantity
+        total_amount = max(max_position_value, min_qty_usd_value)
+        
+        return total_amount
+
+    def calculate_order_amounts(self, total_amount: float, levels: int, strength: float) -> List[float]:
+        # Calculate the order amounts based on the strength (ratio_power)
+        amounts = []
+        for i in range(levels):
+            ratio = (i + 1) ** strength
+            amount = total_amount * (ratio / sum([(j + 1) ** strength for j in range(levels)]))
+            amounts.append(amount)
+        return amounts
+
+    def place_linear_grid_orders(self, symbol: str, side: str, grid_levels: list, amounts: list):
+        for level, amount in zip(grid_levels, amounts):
+            order = self.exchange.create_order(symbol, 'limit', side, amount, level)
             self.linear_grid_orders.setdefault(symbol, []).append(order)
-            logging.info(f"Placed {side} order at level {level} for {symbol} with amount {dynamic_amount}")
+            logging.info(f"Placed {side} order at level {level} for {symbol} with amount {amount}")
+            
 
     def initiate_spread_entry(self, symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty):
         order_book = self.exchange.get_orderbook(symbol)
@@ -882,3 +1089,4 @@ class BybitStrategy(BaseStrategy):
         for interval in intervals:
             t = threading.Thread(target=self.log_order_book_walls, args=(symbol, interval))
             t.start()
+
