@@ -34,6 +34,57 @@ class BybitStrategy(BaseStrategy):
         # Bybit-specific initialization code
         pass
 
+    def initialize_symbol(self, symbol, total_equity, best_ask_price, max_leverage):
+        with self.initialized_symbols_lock:
+            if symbol not in self.initialized_symbols:
+                self.initialize_trade_quantities(symbol, total_equity, best_ask_price, max_leverage)
+                logging.info(f"Initialized quantities for {symbol}. Initial long qty: {self.initial_max_long_trade_qty_per_symbol.get(symbol, 'N/A')}, Initial short qty: {self.initial_max_short_trade_qty_per_symbol.get(symbol, 'N/A')}")
+                self.initialized_symbols.add(symbol)
+                return True
+            else:
+                logging.info(f"{symbol} is already initialized.")
+                return False
+
+    def adjust_risk_parameters(self, exchange_max_leverage):
+        """
+        Adjust risk parameters based on user preferences.
+        
+        :param exchange_max_leverage: The maximum leverage allowed by the exchange.
+        """
+        # Ensure the wallet exposure limit is within a practical range (1% to 100%)
+        # self.wallet_exposure_limit = max(0.01, min(self.wallet_exposure_limit, 1.0))
+        
+        # Ensure the wallet exposure limit is within a practical range (0.1% to 100%)
+        self.wallet_exposure_limit = min(self.wallet_exposure_limit, 1.0)
+
+        # Adjust user-defined leverage for long and short positions to not exceed exchange maximum
+        self.user_defined_leverage_long = max(1, min(self.user_defined_leverage_long, exchange_max_leverage))
+        self.user_defined_leverage_short = max(1, min(self.user_defined_leverage_short, exchange_max_leverage))
+        
+        logging.info(f"Wallet exposure limit set to {self.wallet_exposure_limit*100}%")
+        logging.info(f"User-defined leverage for long positions set to {self.user_defined_leverage_long}x")
+        logging.info(f"User-defined leverage for short positions set to {self.user_defined_leverage_short}x")
+
+    # Handle the calculation of trade quantities per symbol
+    def handle_trade_quantities(self, symbol, total_equity, best_ask_price):
+        if symbol not in self.initialized_symbols:
+            max_trade_qty = self.calculate_max_trade_qty(symbol, total_equity, best_ask_price)
+            self.max_trade_qty_per_symbol[symbol] = max_trade_qty
+            self.initialized_symbols.add(symbol)
+            logging.info(f"Symbol {symbol} initialization: Max Trade Qty: {max_trade_qty}, Total Equity: {total_equity}, Best Ask Price: {best_ask_price}")
+
+        dynamic_amount = self.calculate_dynamic_amount(symbol, total_equity, best_ask_price)
+        self.dynamic_amount_per_symbol[symbol] = dynamic_amount
+        logging.info(f"Dynamic Amount Updated: Symbol: {symbol}, Dynamic Amount: {dynamic_amount}")
+
+    # Calculate maximum trade quantity for a symbol
+    def calculate_max_trade_qty(self, symbol, total_equity, best_ask_price, max_leverage):
+        leveraged_equity = total_equity * max_leverage
+        max_trade_qty = (self.dynamic_amount_multiplier * leveraged_equity) / best_ask_price
+        logging.info(f"Calculating Max Trade Qty: Symbol: {symbol}, Leveraged Equity: {leveraged_equity}, Max Trade Qty: {max_trade_qty}")
+        return max_trade_qty
+
+    
     def check_amount_validity_bybit(self, amount, symbol):
         market_data = self.exchange.get_market_data_bybit(symbol)
         min_qty_bybit = market_data["min_qty"]
