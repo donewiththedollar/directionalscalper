@@ -1114,12 +1114,10 @@ class BybitStrategy(BaseStrategy):
             time.sleep(5)
 
     def calculate_total_amount(self, symbol: str, total_equity: float, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float, side: str) -> float:
-        #total_equity = self.retry_api_call(self.exchange.get_futures_balance_bybit, quote_currency="USDT")
-        
         # Fetch market data to get the minimum trade quantity for the symbol
         market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
         min_qty = float(market_data["min_qty"])
-        
+
         # Calculate the minimum quantity in USD value based on the side
         if side == "buy":
             min_qty_usd_value = min_qty * best_ask_price
@@ -1127,14 +1125,18 @@ class BybitStrategy(BaseStrategy):
             min_qty_usd_value = min_qty * best_bid_price
         else:
             raise ValueError(f"Invalid side: {side}")
-        
+
         # Calculate the maximum position value based on total equity, wallet exposure limit, and user-defined leverage
         max_position_value = total_equity * wallet_exposure_limit * user_defined_leverage
-        
+
         # Calculate the total amount considering the maximum position value and minimum quantity
         total_amount = max(max_position_value, min_qty_usd_value)
-        
-        return total_amount
+
+        # Adjusting total amount based on the symbol's minimum quantity precision
+        qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
+        total_amount_adjusted = round(total_amount, -int(math.log10(qty_precision)))
+
+        return total_amount_adjusted
 
     def calculate_order_amounts(self, total_amount: float, levels: int, strength: float) -> List[float]:
         # Calculate the order amounts based on the strength (ratio_power)
@@ -1143,6 +1145,7 @@ class BybitStrategy(BaseStrategy):
             ratio = (i + 1) ** strength
             amount = total_amount * (ratio / sum([(j + 1) ** strength for j in range(levels)]))
             amounts.append(amount)
+
         return amounts
 
     def place_linear_grid_orders(self, symbol: str, side: str, grid_levels: list, amounts: list):
