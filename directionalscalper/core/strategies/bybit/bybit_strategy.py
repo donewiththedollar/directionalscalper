@@ -25,7 +25,7 @@ from ...bot_metrics import BotDatabase
 
 from directionalscalper.core.strategies.base_strategy import BaseStrategy
 
-logging = Logger(logger_name="Strategy", filename="Strategy.log", stream=True)
+logging = Logger(logger_name="BybitBaseStrategy", filename="BybitBaseStrategy.log", stream=True)
 
 class BybitStrategy(BaseStrategy):
     def __init__(self, exchange, config, manager, symbols_allowed=None):
