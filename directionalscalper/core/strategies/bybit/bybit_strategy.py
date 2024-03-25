@@ -1100,11 +1100,15 @@ class BybitStrategy(BaseStrategy):
             grid_levels_long = [best_ask_price + (diff_long * factor) for factor in factors[1:]]
             grid_levels_short = [best_bid_price - (diff_short * factor) for factor in factors[1:]]
 
-            # Calculate total amount based on wallet exposure limit and user-defined leverage
             total_amount_long = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_long, "buy") if long_mode else 0
             total_amount_short = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_short, "sell") if short_mode else 0
-            amounts_long = self.calculate_order_amounts(total_amount_long, levels, strength)
-            amounts_short = self.calculate_order_amounts(total_amount_short, levels, strength)
+            
+            # Get the symbol's minimum quantity precision
+            qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
+            
+            # Calculate order amounts and round them based on the minimum quantity precision
+            amounts_long = self.calculate_order_amounts(total_amount_long, levels, strength, qty_precision)
+            amounts_short = self.calculate_order_amounts(total_amount_short, levels, strength, qty_precision)
 
             if long_mode and long_pos_qty == 0:
                 self.place_linear_grid_orders(symbol, "buy", grid_levels_long, amounts_long)
@@ -1132,19 +1136,18 @@ class BybitStrategy(BaseStrategy):
         # Calculate the total amount considering the maximum position value and minimum quantity
         total_amount = max(max_position_value, min_qty_usd_value)
 
-        # Adjusting total amount based on the symbol's minimum quantity precision
-        qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
-        total_amount_adjusted = round(total_amount, -int(math.log10(qty_precision)))
+        return total_amount
 
-        return total_amount_adjusted
-
-    def calculate_order_amounts(self, total_amount: float, levels: int, strength: float) -> List[float]:
-        # Calculate the order amounts based on the strength (ratio_power)
+    def calculate_order_amounts(self, total_amount: float, levels: int, strength: float, qty_precision: float) -> List[float]:
+        # Calculate the order amounts based on the strength
         amounts = []
         for i in range(levels):
             ratio = (i + 1) ** strength
             amount = total_amount * (ratio / sum([(j + 1) ** strength for j in range(levels)]))
-            amounts.append(amount)
+            
+            # Round the order amount based on the minimum quantity precision
+            rounded_amount = round(amount / qty_precision) * qty_precision
+            amounts.append(rounded_amount)
 
         return amounts
 
