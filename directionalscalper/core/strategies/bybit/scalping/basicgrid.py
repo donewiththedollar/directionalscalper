@@ -117,6 +117,7 @@ class BybitBasicGrid(BybitStrategy):
 
             # Clean out orders
             self.exchange.cancel_all_orders_for_symbol_bybit(symbol)
+            logging.info(f"Canceled all orders for {symbol}")
 
             # Check leverages only at startup
             self.current_leverage = self.exchange.get_current_max_leverage_bybit(symbol)
@@ -709,7 +710,7 @@ class BybitBasicGrid(BybitStrategy):
                             logging.info(f"Skipping test orders for {symbol} as it's not in open symbols list.")
                     
 
-                    self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
+                    # self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
                     # self.cancel_stale_orders_bybit(symbol)
 
                 symbol_data = {
