@@ -1114,7 +1114,7 @@ class BybitStrategy(BaseStrategy):
             time.sleep(5)
 
     def calculate_total_amount(self, symbol: str, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float, side: str) -> float:
-        total_equity = self.get_total_equity()
+        total_equity = self.retry_api_call(self.exchange.get_futures_balance_bybit, quote_currency="USDT")
         
         # Fetch market data to get the minimum trade quantity for the symbol
         market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
