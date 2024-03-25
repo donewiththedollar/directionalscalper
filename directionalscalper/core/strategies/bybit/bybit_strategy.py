@@ -1138,7 +1138,7 @@ class BybitStrategy(BaseStrategy):
 
         return total_amount
 
-    def calculate_order_amounts(self, total_amount: float, levels: int, strength: float, qty_precision: float) -> List[float]:
+    def calculate_order_amounts(self, total_amount: float, levels: int, strength: float, qty_precision: float, min_qty: float) -> List[float]:
         # Calculate the order amounts based on the strength
         amounts = []
         for i in range(levels):
@@ -1147,16 +1147,26 @@ class BybitStrategy(BaseStrategy):
             
             # Round the order amount based on the minimum quantity precision
             rounded_amount = round(amount / qty_precision) * qty_precision
-            amounts.append(rounded_amount)
+            
+            # Ensure the order amount is greater than or equal to the minimum quantity
+            adjusted_amount = max(rounded_amount, min_qty)
+            amounts.append(adjusted_amount)
 
         return amounts
 
     def place_linear_grid_orders(self, symbol: str, side: str, grid_levels: list, amounts: list):
         for level, amount in zip(grid_levels, amounts):
-            order = self.exchange.create_order(symbol, 'limit', side, amount, level)
+            if side == "buy":
+                positionIdx = 1
+            elif side == "sell":
+                positionIdx = 2
+            else:
+                raise ValueError(f"Invalid side: {side}")
+            
+            order = self.exchange.create_order(symbol, 'limit', side, amount, level, params={'positionIdx': positionIdx})
             self.linear_grid_orders.setdefault(symbol, []).append(order)
             logging.info(f"Placed {side} order at level {level} for {symbol} with amount {amount}")
-
+            
     def initiate_spread_entry(self, symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty):
         order_book = self.exchange.get_orderbook(symbol)
         best_ask_price = order_book['asks'][0][0]
