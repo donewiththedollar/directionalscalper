@@ -767,3 +767,118 @@ class BybitStrategy(BaseStrategy):
             order = self.exchange.create_order(symbol, 'limit', side, dynamic_amount, level)
             self.linear_grid_orders.setdefault(symbol, []).append(order)
             logging.info(f"Placed {side} order at level {level} for {symbol} with amount {dynamic_amount}")
+
+    def initiate_spread_entry(self, symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty):
+        order_book = self.exchange.get_orderbook(symbol)
+        best_ask_price = order_book['asks'][0][0]
+        best_bid_price = order_book['bids'][0][0]
+        
+        long_dynamic_amount = self.m_order_amount(symbol, "long", long_dynamic_amount)
+        short_dynamic_amount = self.m_order_amount(symbol, "short", short_dynamic_amount)
+        
+        # Calculate order book imbalance
+        depth = self.ORDER_BOOK_DEPTH
+        top_bids = order_book['bids'][:depth]
+        total_bids = sum([bid[1] for bid in top_bids])
+        top_asks = order_book['asks'][:depth]
+        total_asks = sum([ask[1] for ask in top_asks])
+        
+        if total_bids > total_asks:
+            imbalance = "buy_wall"
+        elif total_asks > total_bids:
+            imbalance = "sell_wall"
+        else:
+            imbalance = "neutral"
+        
+        # Entry Logic
+        if imbalance == "buy_wall" and not self.entry_order_exists(open_orders, "buy") and long_pos_qty <= 0:
+            self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+        elif imbalance == "sell_wall" and not self.entry_order_exists(open_orders, "sell") and short_pos_qty <= 0:
+            self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+
+    def get_order_book_imbalance(self, symbol):
+        order_book = self.exchange.get_orderbook(symbol)
+        
+        depth = self.ORDER_BOOK_DEPTH
+        top_bids = order_book['bids'][:depth]
+        total_bids = sum([bid[1] for bid in top_bids])
+        
+        top_asks = order_book['asks'][:depth]
+        total_asks = sum([ask[1] for ask in top_asks])
+        
+        if total_bids > total_asks:
+            return "buy_wall"
+        elif total_asks > total_bids:
+            return "sell_wall"
+        else:
+            return "neutral"
+
+    def identify_walls(self, order_book, type="buy"):
+        # Threshold for what constitutes a wall (this can be adjusted)
+        WALL_THRESHOLD = 5.0  # for example, 5 times the average size of top orders
+        
+        if type == "buy":
+            orders = order_book['bids']
+        else:
+            orders = order_book['asks']
+
+        avg_size = sum([order[1] for order in orders[:10]]) / 10  # average size of top 10 orders
+        
+        walls = []
+        for price, size in orders:
+            if size > avg_size * WALL_THRESHOLD:
+                walls.append(price)
+        
+        return walls
+    
+    def print_order_book_imbalance(self, symbol):
+        imbalance = self.get_order_book_imbalance(symbol)
+        print(f"Order Book Imbalance for {symbol}: {imbalance}")
+
+    def log_order_book_walls(self, symbol, interval_in_seconds):
+        """
+        Log the presence of buy/sell walls every 'interval_in_seconds'.
+        """
+        # Initialize counters for buy and sell wall occurrences
+        buy_wall_count = 0
+        sell_wall_count = 0
+
+        start_time = time.time()
+
+        while True:
+            # Fetch the current order book for the symbol
+            order_book = self.exchange.get_orderbook(symbol)
+            
+            # Identify buy and sell walls
+            buy_walls = self.identify_walls(order_book, type="buy")
+            sell_walls = self.identify_walls(order_book, type="sell")
+
+            if buy_walls:
+                buy_wall_count += 1
+            if sell_walls:
+                sell_wall_count += 1
+
+            elapsed_time = time.time() - start_time
+
+            # Log the counts every 'interval_in_seconds'
+            if elapsed_time >= interval_in_seconds:
+                logging.info(f"Buy Walls detected in the last {interval_in_seconds/60} minutes: {buy_wall_count}")
+                logging.info(f"Sell Walls detected in the last {interval_in_seconds/60} minutes: {sell_wall_count}")
+
+                # Reset the counters and start time
+                buy_wall_count = 0
+                sell_wall_count = 0
+                start_time = time.time()
+
+            time.sleep(60)  # Check every minute
+
+    def start_wall_logging(self, symbol):
+        """
+        Start logging buy/sell walls at different intervals.
+        """
+        intervals = [300, 600, 1800, 3600]  # 5 minutes, 10 minutes, 30 minutes, 1 hour in seconds
+
+        # Start a new thread for each interval
+        for interval in intervals:
+            t = threading.Thread(target=self.log_order_book_walls, args=(symbol, interval))
+            t.start()
