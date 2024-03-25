@@ -33,6 +33,47 @@ class BybitStrategy(BaseStrategy):
         # Bybit-specific initialization code
         pass
 
+    def place_hedge_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
+        """Places a hedge order and updates the hedging status."""
+        order = self.place_postonly_order_bybit(symbol, side, amount, price, positionIdx, reduceOnly)
+        if order and 'id' in order:
+            self.update_hedged_status(symbol, True)
+            logging.info(f"Hedge order placed for {symbol}: {order['id']}")
+        else:
+            logging.warning(f"Failed to place hedge order for {symbol}")
+        return order
+
+    def place_postonly_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
+        current_thread_id = threading.get_ident()  # Get the current thread ID
+        logging.info(f"[Thread ID: {current_thread_id}] Attempting to place post-only order for {symbol}. Side: {side}, Amount: {amount}, Price: {price}, PositionIdx: {positionIdx}, ReduceOnly: {reduceOnly}")
+
+        if not self.can_place_order(symbol):
+            logging.warning(f"[Thread ID: {current_thread_id}] Order placement rate limit exceeded for {symbol}. Skipping...")
+            return None
+
+        return self.postonly_limit_order_bybit(symbol, side, amount, price, positionIdx, reduceOnly)
+
+    def postonly_limit_entry_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
+        """Places a post-only limit entry order and stores its ID."""
+        order = self.postonly_limit_order_bybit(symbol, side, amount, price, positionIdx, reduceOnly)
+        
+        # If the order was successfully placed, store its ID as an entry order ID for the symbol
+        if order and 'id' in order:
+            if symbol not in self.entry_order_ids:
+                self.entry_order_ids[symbol] = []
+            self.entry_order_ids[symbol].append(order['id'])
+            logging.info(f"Stored order ID {order['id']} for symbol {symbol}. Current order IDs for {symbol}: {self.entry_order_ids[symbol]}")
+        else:
+            logging.warning(f"Failed to store order ID for symbol {symbol} due to missing 'id' or unsuccessful order placement.")
+
+        return order
+
+    def limit_order_bybit_unified(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
+        params = {"reduceOnly": reduceOnly}
+        #print(f"Symbol: {symbol}, Side: {side}, Amount: {amount}, Price: {price}, Params: {params}")
+        order = self.exchange.create_limit_order_bybit_unified(symbol, side, amount, price, positionIdx=positionIdx, params=params)
+        return order
+    
     def calculate_dynamic_amounts(self, symbol, total_equity, best_ask_price, best_bid_price):
         """
         Calculate the dynamic entry sizes for both long and short positions based on wallet exposure limit and user-defined leverage,
@@ -74,6 +115,109 @@ class BybitStrategy(BaseStrategy):
         logging.info(f"Calculated short entry size for {symbol}: {short_entry_size_adjusted} units")
 
         return long_entry_size_adjusted, short_entry_size_adjusted
+
+    def calculate_dynamic_amounts_notional_bybit_2(self, symbol, total_equity, best_ask_price, best_bid_price):
+        """
+        Calculate the dynamic entry sizes for both long and short positions based on wallet exposure limit and user-defined leverage,
+        ensuring compliance with the exchange's minimum notional value requirements.
+        
+        :param symbol: Trading symbol.
+        :param total_equity: Total equity in the wallet.
+        :param best_ask_price: Current best ask price of the symbol for buying (long entry).
+        :param best_bid_price: Current best bid price of the symbol for selling (short entry).
+        :return: A tuple containing entry sizes for long and short trades.
+        """
+        # Fetch the exchange's minimum quantity for the symbol
+        min_qty = self.exchange.get_min_qty_bybit(symbol)
+        
+        # Set the minimum notional value based on the contract type
+        if symbol in ["BTCUSDT", "BTC-PERP"]:
+            min_notional_value = 100  # $100 for BTCUSDT and BTC-PERP
+        elif symbol in ["ETHUSDT", "ETH-PERP"]:
+            min_notional_value = 20  # $20 for ETHUSDT and ETH-PERP
+        else:
+            min_notional_value = 5  # $5 for other USDT and USDC perpetual contracts
+        
+        # Check if the exchange's minimum quantity meets the minimum notional value requirement
+        if min_qty * best_ask_price < min_notional_value:
+            min_qty_long = min_notional_value / best_ask_price
+        else:
+            min_qty_long = min_qty
+        
+        if min_qty * best_bid_price < min_notional_value:
+            min_qty_short = min_notional_value / best_bid_price
+        else:
+            min_qty_short = min_qty
+        
+        # Calculate dynamic entry sizes based on risk parameters
+        max_equity_for_long_trade = total_equity * self.wallet_exposure_limit
+        max_long_position_value = max_equity_for_long_trade * self.user_defined_leverage_long
+
+        logging.info(f"Max long pos value for {symbol} : {max_long_position_value}")
+
+        long_entry_size = max(max_long_position_value / best_ask_price, min_qty_long)
+
+        max_equity_for_short_trade = total_equity * self.wallet_exposure_limit
+        max_short_position_value = max_equity_for_short_trade * self.user_defined_leverage_short
+
+        logging.info(f"Max short pos value for {symbol} : {max_short_position_value}")
+        
+        short_entry_size = max(max_short_position_value / best_bid_price, min_qty_short)
+
+        # Adjusting entry sizes based on the symbol's minimum quantity precision
+        qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
+        long_entry_size_adjusted = round(long_entry_size, -int(math.log10(qty_precision)))
+        short_entry_size_adjusted = round(short_entry_size, -int(math.log10(qty_precision)))
+
+        logging.info(f"Calculated long entry size for {symbol}: {long_entry_size_adjusted} units")
+        logging.info(f"Calculated short entry size for {symbol}: {short_entry_size_adjusted} units")
+
+        return long_entry_size_adjusted, short_entry_size_adjusted
+
+    def calculate_dynamic_amounts_notional_bybit(self, symbol, total_equity, best_ask_price, best_bid_price):
+        """
+        Calculate the dynamic entry sizes for both long and short positions based on wallet exposure limit and user-defined leverage,
+        ensuring compliance with the exchange's minimum notional value requirements.
+        
+        :param symbol: Trading symbol.
+        :param total_equity: Total equity in the wallet.
+        :param best_ask_price: Current best ask price of the symbol for buying (long entry).
+        :param best_bid_price: Current best bid price of the symbol for selling (short entry).
+        :return: A tuple containing entry sizes for long and short trades.
+        """
+        # Set the minimum notional value based on the contract type
+        if symbol in ["BTCUSDT", "BTC-PERP"]:
+            min_notional_value = 100  # $100 for BTCUSDT and BTC-PERP
+        elif symbol in ["ETHUSDT", "ETH-PERP"]:
+            min_notional_value = 20  # $20 for ETHUSDT and ETH-PERP
+        else:
+            min_notional_value = 5  # $5 for other USDT and USDC perpetual contracts
+        
+        # Calculate dynamic entry sizes based on risk parameters
+        max_equity_for_long_trade = total_equity * self.wallet_exposure_limit
+        max_long_position_value = max_equity_for_long_trade * self.user_defined_leverage_long
+
+        logging.info(f"Max long pos value for {symbol} : {max_long_position_value}")
+
+        long_entry_size = max(max_long_position_value / best_ask_price, min_notional_value / best_ask_price)
+
+        max_equity_for_short_trade = total_equity * self.wallet_exposure_limit
+        max_short_position_value = max_equity_for_short_trade * self.user_defined_leverage_short
+
+        logging.info(f"Max short pos value for {symbol} : {max_short_position_value}")
+        
+        short_entry_size = max(max_short_position_value / best_bid_price, min_notional_value / best_bid_price)
+
+        # Adjusting entry sizes based on the symbol's minimum quantity precision
+        qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
+        long_entry_size_adjusted = round(long_entry_size, -int(math.log10(qty_precision)))
+        short_entry_size_adjusted = round(short_entry_size, -int(math.log10(qty_precision)))
+
+        logging.info(f"Calculated long entry size for {symbol}: {long_entry_size_adjusted} units")
+        logging.info(f"Calculated short entry size for {symbol}: {short_entry_size_adjusted} units")
+
+        return long_entry_size_adjusted, short_entry_size_adjusted
+
 
     def bybit_1m_mfi_quickscalp_trend(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, entry_during_autoreduce: bool, volume_check: bool, long_take_profit: float, short_take_profit: float, upnl_profit_pct: float, tp_order_counts: dict):
         try:
