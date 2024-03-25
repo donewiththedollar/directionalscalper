@@ -440,17 +440,6 @@ class BaseStrategy:
             return False
         return long_pos_price < ma_6_low
 
-    def get_market_data_with_retry(self, symbol, max_retries=5, retry_delay=5):
-        for i in range(max_retries):
-            try:
-                return self.exchange.get_market_data_bybit(symbol)
-            except Exception as e:
-                if i < max_retries - 1:
-                    print(f"Error occurred while fetching market data: {e}. Retrying in {retry_delay} seconds...")
-                    time.sleep(retry_delay)
-                else:
-                    raise e
-
     def get_market_data_with_retry_binance(self, symbol, max_retries=5, retry_delay=5):
         for i in range(max_retries):
             try:

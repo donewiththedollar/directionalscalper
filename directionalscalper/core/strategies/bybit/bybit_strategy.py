@@ -36,6 +36,17 @@ class BybitStrategy(BaseStrategy):
 
     TAKER_FEE_RATE = 0.00055
 
+    def get_market_data_with_retry(self, symbol, max_retries=5, retry_delay=5):
+        for i in range(max_retries):
+            try:
+                return self.exchange.get_market_data_bybit(symbol)
+            except Exception as e:
+                if i < max_retries - 1:
+                    print(f"Error occurred while fetching market data: {e}. Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    raise e
+                
     def update_dynamic_amounts(self, symbol, total_equity, best_ask_price, best_bid_price):
         if symbol not in self.long_dynamic_amount or symbol not in self.short_dynamic_amount:
             long_dynamic_amount, short_dynamic_amount, _ = self.calculate_dynamic_amounts(symbol, total_equity, best_ask_price, best_bid_price)
@@ -1105,7 +1116,7 @@ class BybitStrategy(BaseStrategy):
 
             # Get the symbol's minimum quantity precision and minimum quantity
             qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
-            min_qty = float(self.exchange.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
+            min_qty = float(self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
 
             # Calculate order amounts and round them based on the minimum quantity precision and minimum quantity
             amounts_long = self.calculate_order_amounts(total_amount_long, levels, strength, qty_precision, min_qty)
