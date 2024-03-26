@@ -47,7 +47,11 @@ class BybitBasicGrid(BybitStrategy):
             self.volume_check = self.config.volume_check
             self.max_usd_value = self.config.max_usd_value
             self.blacklist = self.config.blacklist
-            self.test_orders_enabled = self.config.test_orders_enabled
+            try:
+                self.test_orders_enabled = self.config.test_orders_enabled
+                # Initialization of other attributes
+            except AttributeError as e:
+                logging.error(f"Failed to initialize attributes from config: {e}")
             self.upnl_profit_pct = self.config.upnl_profit_pct
             self.stoploss_enabled = self.config.stoploss_enabled
             self.stoploss_upnl_pct = self.config.stoploss_upnl_pct
@@ -137,6 +141,9 @@ class BybitBasicGrid(BybitStrategy):
             quote_currency = "USDT"
             max_retries = 5
             retry_delay = 5
+
+
+            test_orders_enabled = self.config.test_orders_enabled
             
 
             levels = self.config.linear_grid['levels']

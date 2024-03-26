@@ -1105,11 +1105,11 @@ class BybitStrategy(BaseStrategy):
             outer_price_short = best_bid_price * (1 - outer_price_distance)
 
             # Calculate grid levels
-            diff_long = outer_price_long - current_price  # Change here to use the current price instead of best ask
-            diff_short = current_price - outer_price_short  # Change here to use the current price instead of best bid
-            factors = np.linspace(0.0, 1.0, num=levels + 1) ** strength
-            grid_levels_long = [current_price + (diff_long * factor) for factor in factors[1:]]  # Change here to use the current price
-            grid_levels_short = [current_price - (diff_short * factor) for factor in factors[1:]]  # Change here to use the current price
+            diff_long = outer_price_long - current_price
+            diff_short = current_price - outer_price_short
+            factors = np.linspace(0.0, 1.0, num=levels) ** strength
+            grid_levels_long = [current_price + (diff_long * (1 - factor)) for factor in factors]
+            grid_levels_short = [current_price - (diff_short * (1 - factor)) for factor in factors]
 
             total_amount_long = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_long, "buy") if long_mode else 0
             total_amount_short = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_short, "sell") if short_mode else 0
@@ -1122,6 +1122,13 @@ class BybitStrategy(BaseStrategy):
             amounts_long = self.calculate_order_amounts(total_amount_long, levels, strength, qty_precision, min_qty)
             amounts_short = self.calculate_order_amounts(total_amount_short, levels, strength, qty_precision, min_qty)
 
+            # Place initial orders if there are no existing positions
+            if long_mode and long_pos_qty == 0:
+                self.place_linear_grid_orders(symbol, "buy", grid_levels_long, amounts_long)
+            elif short_mode and short_pos_qty == 0:
+                self.place_linear_grid_orders(symbol, "sell", grid_levels_short, amounts_short)
+
+            # Check if orders need to be reissued based on the reissue_threshold
             if long_mode and long_pos_qty == 0:
                 if self.should_reissue_orders(symbol, "buy", grid_levels_long, reissue_threshold):
                     self.cancel_linear_grid_orders(symbol, "buy")
@@ -1175,10 +1182,10 @@ class BybitStrategy(BaseStrategy):
         for i in range(levels):
             ratio = (i + 1) ** strength
             amount = total_amount * (ratio / sum([(j + 1) ** strength for j in range(levels)]))
-            
+
             # Round the order amount based on the minimum quantity precision
             rounded_amount = round(amount / qty_precision) * qty_precision
-            
+
             # Ensure the order amount is greater than or equal to the minimum quantity
             adjusted_amount = max(rounded_amount, min_qty)
             amounts.append(adjusted_amount)
@@ -1193,7 +1200,7 @@ class BybitStrategy(BaseStrategy):
                 positionIdx = 2
             else:
                 raise ValueError(f"Invalid side: {side}")
-            
+
             order = self.limit_order_bybit(symbol, side, amount, level, positionIdx=positionIdx)
             self.linear_grid_orders.setdefault(symbol, []).append(order)
             logging.info(f"Placed {side} order at level {level} for {symbol} with amount {amount}")
