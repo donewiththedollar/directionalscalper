@@ -33,6 +33,8 @@ class BybitStrategy(BaseStrategy):
         self.linear_grid_orders = {} 
         self.last_price = {}
         self.last_cancel_time = {}
+        self.cancel_all_orders_interval = 240
+        self.cancel_interval = 120
         self.order_refresh_interval = 120  # seconds
         self.last_order_refresh_time = 0
         pass
@@ -1120,6 +1122,19 @@ class BybitStrategy(BaseStrategy):
             amounts_long = self.calculate_order_amounts(total_amount_long, levels, strength, qty_precision, min_qty)
             amounts_short = self.calculate_order_amounts(total_amount_short, levels, strength, qty_precision, min_qty)
 
+            # Cancel all open orders periodically
+            current_time = time.time()
+            last_cancel_time = self.last_cancel_time.get(symbol)  # Get the last cancel time for the symbol
+
+            if last_cancel_time is None:
+                # If there's no entry for the symbol, set the last cancel time to the current time
+                self.last_cancel_time[symbol] = current_time
+            elif current_time - last_cancel_time >= self.cancel_all_orders_interval:
+                # If the time difference is greater than or equal to the cancel interval, cancel all orders
+                self.exchange.cancel_all_open_orders_bybit(symbol)
+                self.last_cancel_time[symbol] = current_time
+                logging.info(f"[{symbol}] All open orders cancelled periodically.")
+
             # Place or reissue orders based on the mode and whether positions are open
             if long_mode and long_pos_qty > 0 and self.should_reissue_orders(symbol, reissue_threshold):
                 self.cancel_linear_grid_orders(symbol)
@@ -1189,10 +1204,21 @@ class BybitStrategy(BaseStrategy):
         orders_to_cancel = self.linear_grid_orders.get(symbol, [])
         for order in orders_to_cancel:
             if 'id' in order:
-                self.exchange.cancel_order(order['id'], symbol)
+                self.exchange.cancel_order_by_id(order['id'], symbol)
             else:
                 logging.warning(f"Could not cancel order for {symbol}: {order.get('error', 'Unknown error')}")
         self.linear_grid_orders[symbol] = []
+        
+
+
+    # def cancel_linear_grid_orders(self, symbol: str):
+    #     orders_to_cancel = self.linear_grid_orders.get(symbol, [])
+    #     for order in orders_to_cancel:
+    #         if 'id' in order:
+    #             self.exchange.cancel_order(order['id'], symbol)
+    #         else:
+    #             logging.warning(f"Could not cancel order for {symbol}: {order.get('error', 'Unknown error')}")
+    #     self.linear_grid_orders[symbol] = []
 
     def calculate_total_amount(self, symbol: str, total_equity: float, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float, side: str) -> float:
         # Fetch market data to get the minimum trade quantity for the symbol

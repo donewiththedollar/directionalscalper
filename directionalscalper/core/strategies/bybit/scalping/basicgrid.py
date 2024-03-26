@@ -27,7 +27,7 @@ class BybitBasicGrid(BybitStrategy):
         self.last_short_tp_update = datetime.now()
         self.next_long_tp_update = datetime.now() - timedelta(seconds=1)
         self.next_short_tp_update = datetime.now() - timedelta(seconds=1)
-        self.last_cancel_time = 0
+        self.last_helper_order_cancel_time = 0
         self.helper_active = False
         self.helper_wall_size = 5
         self.helper_duration = 5
@@ -713,7 +713,7 @@ class BybitBasicGrid(BybitStrategy):
                                 tp_order_counts=tp_order_counts
                             )
 
-                    if self.test_orders_enabled and current_time - self.last_cancel_time >= self.helper_interval:
+                    if self.test_orders_enabled and current_time - self.last_helper_order_cancel_time >= self.helper_interval:
                         if symbol in open_symbols:
                             self.helper_active = True
                             self.helperv2(symbol, short_dynamic_amount, long_dynamic_amount)
