@@ -42,7 +42,7 @@ class BybitBasicGrid(BybitStrategy):
             self.outer_price_distance = self.config.linear_grid['outer_price_distance']
             self.long_mode = self.config.linear_grid['long_mode']
             self.short_mode = self.config.linear_grid['short_mode']
-            self.reissue_threshold = self.config.reissue_threshold['reissue_threshold']
+            self.reissue_threshold = self.config.linear_grid['reissue_threshold']
             self.upnl_threshold_pct = self.config.upnl_threshold_pct
             self.volume_check = self.config.volume_check
             self.max_usd_value = self.config.max_usd_value
