@@ -1096,76 +1096,94 @@ class BybitStrategy(BaseStrategy):
             self.symbol_locks[symbol] = threading.Lock()
 
         with self.symbol_locks[symbol]:
-            current_time = time.time()
-
-            # Check if it's time to refresh orders
-            if 'order_refresh_time' not in self.__dict__:
-                self.order_refresh_time = {}  # Initialize if it does not exist
-            if symbol not in self.order_refresh_time or current_time - self.order_refresh_time[symbol] > 120:  # Refresh orders every 120 seconds
-                # Cancel all existing orders for the symbol
-                self.cancel_linear_grid_orders(symbol)
-                # Reset the timer for the symbol
-                self.order_refresh_time[symbol] = current_time
-
             current_price = self.exchange.get_current_price(symbol)
             logging.info(f"Current price for {symbol}: {current_price}")
 
             order_book = self.exchange.get_orderbook(symbol)
-            best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol)
-            best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol)
+            best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol, current_price)
+            best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol, current_price)
 
-            # Calculate outer prices
             outer_price_long = current_price * (1 + outer_price_distance)
             outer_price_short = current_price * (1 - outer_price_distance)
 
-            # Calculate grid levels
             price_range = outer_price_long - outer_price_short
-            factors = [(i / (levels - 1)) ** strength for i in range(levels)]
+            factors = np.linspace(0.0, 1.0, num=levels) ** strength
             grid_levels_long = [outer_price_short + price_range * factor for factor in factors]
             grid_levels_short = [outer_price_long - price_range * factor for factor in factors]
 
             total_amount_long = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_long, "buy") if long_mode else 0
             total_amount_short = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_short, "sell") if short_mode else 0
 
-            # Get the symbol's minimum quantity precision and minimum quantity
             qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
             min_qty = float(self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
 
-            # Calculate order amounts and round them based on the minimum quantity precision and minimum quantity
             amounts_long = self.calculate_order_amounts(total_amount_long, levels, strength, qty_precision, min_qty)
             amounts_short = self.calculate_order_amounts(total_amount_short, levels, strength, qty_precision, min_qty)
 
-            if (long_mode and long_pos_qty == 0) or (short_mode and short_pos_qty == 0):
-                if self.should_reissue_orders(symbol, reissue_threshold):
-                    self.cancel_linear_grid_orders(symbol)
-                    if long_mode:
-                        self.place_linear_grid_orders(symbol, "buy", grid_levels_long, amounts_long)
-                    if short_mode:
-                        self.place_linear_grid_orders(symbol, "sell", grid_levels_short, amounts_short)
-            else:
-                # Place initial orders if there are no existing positions
-                if long_mode and long_pos_qty == 0:
+            # Place or reissue orders based on the mode and whether positions are open
+            if long_mode and long_pos_qty > 0 and self.should_reissue_orders(symbol, reissue_threshold):
+                self.cancel_linear_grid_orders(symbol)
+                self.place_linear_grid_orders(symbol, "buy", grid_levels_long, amounts_long)
+            elif short_mode and short_pos_qty > 0 and self.should_reissue_orders(symbol, reissue_threshold):
+                self.cancel_linear_grid_orders(symbol)
+                self.place_linear_grid_orders(symbol, "sell", grid_levels_short, amounts_short)
+            elif (long_mode and long_pos_qty == 0) or (short_mode and short_pos_qty == 0):
+                self.cancel_linear_grid_orders(symbol)
+                if long_mode:
                     self.place_linear_grid_orders(symbol, "buy", grid_levels_long, amounts_long)
-                elif short_mode and short_pos_qty == 0:
+                if short_mode:
                     self.place_linear_grid_orders(symbol, "sell", grid_levels_short, amounts_short)
 
             time.sleep(5)
 
     def should_reissue_orders(self, symbol: str, reissue_threshold: float) -> bool:
-        current_price = self.exchange.get_current_price(symbol)
-        last_price = self.last_price.get(symbol)
+        try:
+            current_price = self.exchange.get_current_price(symbol)
+            last_price = self.last_price.get(symbol)
+            
+            if last_price is None:
+                self.last_price[symbol] = current_price
+                logging.info(f"[{symbol}] No last price recorded. Current price {current_price} set as last price. No reissue required.")
+                return False
 
-        if last_price is None:
-            self.last_price[symbol] = current_price
-            logging.info(f"Last price recorded: {symbol} {last_price}")
-            return False
+            price_change_percentage = abs(current_price - last_price) / last_price * 100
+            logging.info(f"[{symbol}] Last recorded price: {last_price}, Current price: {current_price}, Price change: {price_change_percentage:.8f}%")
 
-        price_change = abs(current_price - last_price) / last_price
-        if price_change >= reissue_threshold:
-            self.last_price[symbol] = current_price
-            return True
+            if price_change_percentage >= reissue_threshold * 100:
+                self.last_price[symbol] = current_price
+                logging.info(f"[{symbol}] Price change ({price_change_percentage:.8f}%) exceeds reissue threshold ({reissue_threshold*100}%). Reissuing orders.")
+                return True
+            else:
+                logging.info(f"[{symbol}] Price change ({price_change_percentage:.8f}%) does not exceed reissue threshold ({reissue_threshold*100}%). No reissue required.")
+                return False
+        except Exception as e:
+            logging.info(f"Exception caught in should_reissue_orders {e}")
 
-        return False
+    def issue_grid_orders(self, symbol, grid_levels_long, amounts_long, grid_levels_short, amounts_short, long_mode, short_mode):
+        # Cancel existing grid orders first
+        self.cancel_linear_grid_orders(symbol)
+
+        # Place new grid orders based on the current configuration
+        if long_mode:
+            self.place_linear_grid_orders(symbol, "buy", grid_levels_long, amounts_long)
+        if short_mode:
+            self.place_linear_grid_orders(symbol, "sell", grid_levels_short, amounts_short)
+        logging.info(f"[{symbol}] Grid orders reissued.")
+        
+    def refresh_or_initialize_grid(self, symbol):
+        # Fetch open positions and existing grid orders for the symbol
+        open_positions = self.fetch_open_positions(symbol)
+        existing_orders = self.fetch_existing_grid_orders(symbol)
+
+        # Check if there are open positions but no corresponding grid orders
+        if open_positions and not existing_orders:
+            logging.info(f"[{symbol}] Initializing grid for existing open positions.")
+            # Initialize the grid based on existing positions
+            self.initialize_grid_for_open_positions(symbol, open_positions)
+        else:
+            # Routine refresh or cancellation of all orders for the symbol to reset the grid
+            self.cancel_linear_grid_orders(symbol)
+            logging.info(f"[{symbol}] Refreshed grid orders.")
 
     def cancel_linear_grid_orders(self, symbol: str):
         orders_to_cancel = self.linear_grid_orders.get(symbol, [])
@@ -1226,7 +1244,6 @@ class BybitStrategy(BaseStrategy):
             self.linear_grid_orders.setdefault(symbol, []).append(order)
             logging.info(f"Placed {side} order at level {level} for {symbol} with amount {amount}")
      
-
     def cancel_entries_bybit_new(self, open_symbols, open_orders):
         current_time = time.time()
         # Ensure last_cancel_time is initialized for each symbol in open_orders

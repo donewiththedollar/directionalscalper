@@ -258,6 +258,29 @@ class BybitExchange(Exchange):
         except Exception as e:
             logging.info(f"An unknown error occurred in create_market_order(): {e}")
 
+    def cancel_all_open_orders_bybit(self, symbol=None, category="linear"):
+        """
+        Cancels all open orders for a specific category. If a symbol is provided, only orders for that symbol are cancelled.
+        :param symbol: Optional. The market symbol (e.g., 'BTC/USDT') for which to cancel orders. If None, all orders in the specified category are cancelled.
+        :param category: The category of products for which to cancel orders (e.g., 'linear', 'inverse'). Default is 'linear'.
+        :return: Response from the exchange indicating success or failure.
+        """
+        try:
+            logging.info(f"cancel_all_open_orders_bybit called")
+            params = {'category': category}  # Specify additional parameters as needed
+            
+            # Optionally, add symbol to request if provided
+            if symbol is not None:
+                market = self.exchange.market(symbol)
+                params['symbol'] = market['id']
+
+            response = self.exchange.cancel_all_orders(params=params)
+            
+            print("Successfully cancelled orders:", response)
+            return response
+        except Exception as e:
+            print(f"Error cancelling orders: {e}")
+            
     def cancel_order_bybit(self, order_id, symbol):
         """
         Wrapper function to cancel an order on the exchange using the CCXT instance.
