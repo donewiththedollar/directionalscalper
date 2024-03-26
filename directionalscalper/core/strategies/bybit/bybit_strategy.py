@@ -1101,15 +1101,14 @@ class BybitStrategy(BaseStrategy):
             best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol)
 
             # Calculate outer prices
-            outer_price_long = best_ask_price * (1 + outer_price_distance)
-            outer_price_short = best_bid_price * (1 - outer_price_distance)
+            outer_price_long = current_price * (1 + outer_price_distance)
+            outer_price_short = current_price * (1 - outer_price_distance)
 
             # Calculate grid levels
-            diff_long = outer_price_long - current_price
-            diff_short = current_price - outer_price_short
-            factors = np.linspace(0.0, 1.0, num=levels) ** strength
-            grid_levels_long = [current_price + (diff_long * (1 - factor)) for factor in factors]
-            grid_levels_short = [current_price - (diff_short * (1 - factor)) for factor in factors]
+            price_range = outer_price_long - outer_price_short
+            factors = [(i / (levels - 1)) ** strength for i in range(levels)]
+            grid_levels_long = [outer_price_short + price_range * factor for factor in factors]
+            grid_levels_short = [outer_price_long - price_range * factor for factor in factors]
 
             total_amount_long = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_long, "buy") if long_mode else 0
             total_amount_short = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_short, "sell") if short_mode else 0
@@ -1149,12 +1148,16 @@ class BybitStrategy(BaseStrategy):
         else:
             raise ValueError(f"Invalid side: {side}")
 
+
     def cancel_linear_grid_orders(self, symbol: str, side: str):
         orders_to_cancel = [order for order in self.linear_grid_orders.get(symbol, []) if order['side'] == side]
         for order in orders_to_cancel:
-            self.exchange.cancel_order(order['id'], symbol)
-            self.linear_grid_orders[symbol].remove(order)
-
+            if 'id' in order:
+                self.exchange.cancel_order(order['id'], symbol)
+                self.linear_grid_orders[symbol].remove(order)
+            else:
+                logging.warning(f"Could not cancel order for {symbol}: {order.get('error', 'Unknown error')}")
+                
     def calculate_total_amount(self, symbol: str, total_equity: float, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float, side: str) -> float:
         # Fetch market data to get the minimum trade quantity for the symbol
         market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
@@ -1204,7 +1207,6 @@ class BybitStrategy(BaseStrategy):
             order = self.limit_order_bybit(symbol, side, amount, level, positionIdx=positionIdx)
             self.linear_grid_orders.setdefault(symbol, []).append(order)
             logging.info(f"Placed {side} order at level {level} for {symbol} with amount {amount}")
-            
             
     def initiate_spread_entry(self, symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty):
         order_book = self.exchange.get_orderbook(symbol)
