@@ -144,7 +144,7 @@ class BybitBasicGrid(BybitStrategy):
             outer_price_distance = self.config.linear_grid['outer_price_distance']
             long_mode = self.config.linear_grid['long_mode']
             short_mode = self.config.linear_grid['short_mode']
-            reissue_threshold = self.config.reissue_threshold['reissue_threshold']
+            reissue_threshold = self.config.linear_grid['reissue_threshold']
 
             volume_check = self.config.volume_check
             min_dist = self.config.min_distance
