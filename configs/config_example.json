@@ -46,7 +46,8 @@
       "strength": 1.5,
       "outer_price_distance": 0.02,
       "long_mode": true,
-      "short_mode": false
+      "short_mode": false,
+      "reissue_threshold": 0.0001
     }
   },
   "exchanges": [

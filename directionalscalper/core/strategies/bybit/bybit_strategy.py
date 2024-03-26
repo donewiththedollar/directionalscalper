@@ -1088,7 +1088,7 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"Placing additional short entry with post-only order")
                         self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2)
 
-    def linear_grid_handle_positions(self, symbol: str, total_equity: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool):
+    def linear_grid_handle_positions(self, symbol: str, total_equity: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool):
         if symbol not in self.symbol_locks:
             self.symbol_locks[symbol] = threading.Lock()
 
@@ -1105,11 +1105,11 @@ class BybitStrategy(BaseStrategy):
             outer_price_short = best_bid_price * (1 - outer_price_distance)
 
             # Calculate grid levels
-            diff_long = outer_price_long - best_ask_price
-            diff_short = best_bid_price - outer_price_short
+            diff_long = outer_price_long - current_price  # Change here to use the current price instead of best ask
+            diff_short = current_price - outer_price_short  # Change here to use the current price instead of best bid
             factors = np.linspace(0.0, 1.0, num=levels + 1) ** strength
-            grid_levels_long = [best_ask_price + (diff_long * factor) for factor in factors[1:]]
-            grid_levels_short = [best_bid_price - (diff_short * factor) for factor in factors[1:]]
+            grid_levels_long = [current_price + (diff_long * factor) for factor in factors[1:]]  # Change here to use the current price
+            grid_levels_short = [current_price - (diff_short * factor) for factor in factors[1:]]  # Change here to use the current price
 
             total_amount_long = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_long, "buy") if long_mode else 0
             total_amount_short = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_short, "sell") if short_mode else 0
@@ -1123,11 +1123,30 @@ class BybitStrategy(BaseStrategy):
             amounts_short = self.calculate_order_amounts(total_amount_short, levels, strength, qty_precision, min_qty)
 
             if long_mode and long_pos_qty == 0:
-                self.place_linear_grid_orders(symbol, "buy", grid_levels_long, amounts_long)
+                if self.should_reissue_orders(symbol, "buy", grid_levels_long, reissue_threshold):
+                    self.cancel_linear_grid_orders(symbol, "buy")
+                    self.place_linear_grid_orders(symbol, "buy", grid_levels_long, amounts_long)
             elif short_mode and short_pos_qty == 0:
-                self.place_linear_grid_orders(symbol, "sell", grid_levels_short, amounts_short)
+                if self.should_reissue_orders(symbol, "sell", grid_levels_short, reissue_threshold):
+                    self.cancel_linear_grid_orders(symbol, "sell")
+                    self.place_linear_grid_orders(symbol, "sell", grid_levels_short, amounts_short)
 
             time.sleep(5)
+
+    def should_reissue_orders(self, symbol: str, side: str, grid_levels: list, reissue_threshold: float) -> bool:
+        current_price = self.exchange.get_current_price(symbol)
+        if side == "buy":
+            return current_price > grid_levels[-1] * (1 + reissue_threshold)
+        elif side == "sell":
+            return current_price < grid_levels[0] * (1 - reissue_threshold)
+        else:
+            raise ValueError(f"Invalid side: {side}")
+
+    def cancel_linear_grid_orders(self, symbol: str, side: str):
+        orders_to_cancel = [order for order in self.linear_grid_orders.get(symbol, []) if order['side'] == side]
+        for order in orders_to_cancel:
+            self.exchange.cancel_order(order['id'], symbol)
+            self.linear_grid_orders[symbol].remove(order)
 
     def calculate_total_amount(self, symbol: str, total_equity: float, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float, side: str) -> float:
         # Fetch market data to get the minimum trade quantity for the symbol
