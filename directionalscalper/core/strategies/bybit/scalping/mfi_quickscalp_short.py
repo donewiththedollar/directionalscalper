@@ -9,15 +9,17 @@ from threading import Thread, Lock
 from datetime import datetime, timedelta
 
 from directionalscalper.core.strategies.bybit.bybit_strategy import BybitStrategy
+from directionalscalper.core.exchanges.bybit import BybitExchange
 from directionalscalper.core.strategies.logger import Logger
 from live_table_manager import shared_symbols_data
-logging = Logger(logger_name="BybitMFIRSIQuickScalpShort", filename="BybitMFIRSIQuickScalpShort.log", stream=True)
+logging = Logger(logger_name="BybitMFIRSIQuickScalpLong", filename="BybitMFIRSIQuickScalpShort.log", stream=True)
 
 symbol_locks = {}
 
 class BybitMFIRSIQuickScalpShort(BybitStrategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
+        self.exchange = BybitExchange(exchange.api_key, exchange.secret_key, exchange.passphrase)
         self.is_order_history_populated = False
         self.last_health_check_time = time.time()
         self.health_check_interval = 600
@@ -25,15 +27,15 @@ class BybitMFIRSIQuickScalpShort(BybitStrategy):
         self.last_short_tp_update = datetime.now()
         self.next_long_tp_update = datetime.now() - timedelta(seconds=1)
         self.next_short_tp_update = datetime.now() - timedelta(seconds=1)
-        self.last_cancel_time = 0
+        self.last_helper_order_cancel_time = 0
         self.helper_active = False
         self.helper_wall_size = 5
         self.helper_duration = 5
         self.helper_interval = 1
         self.position_inactive_threshold = 120
         try:
-            self.volume_check = self.config.volume_check
             self.upnl_threshold_pct = self.config.upnl_threshold_pct
+            self.volume_check = self.config.volume_check
             self.max_usd_value = self.config.max_usd_value
             self.blacklist = self.config.blacklist
             self.test_orders_enabled = self.config.test_orders_enabled
@@ -53,6 +55,7 @@ class BybitMFIRSIQuickScalpShort(BybitStrategy):
             self.auto_leverage_upscale = self.config.auto_leverage_upscale
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
+
 
     def run(self, symbol, rotator_symbols_standardized=None):
         try:
@@ -111,6 +114,10 @@ class BybitMFIRSIQuickScalpShort(BybitStrategy):
             self.current_leverage = self.exchange.get_current_max_leverage_bybit(symbol)
             self.max_leverage = self.exchange.get_current_max_leverage_bybit(symbol)
 
+            logging.info(f"Max leverage for {symbol}: {self.max_leverage}")
+
+            self.adjust_risk_parameters(exchange_max_leverage=self.max_leverage)
+
             self.exchange.set_leverage_bybit(self.max_leverage, symbol)
             self.exchange.set_symbol_to_cross_margin(symbol, self.max_leverage)
 
@@ -120,13 +127,12 @@ class BybitMFIRSIQuickScalpShort(BybitStrategy):
             quote_currency = "USDT"
             max_retries = 5
             retry_delay = 5
-
+            
             volume_check = self.config.volume_check
-
             min_dist = self.config.min_distance
             min_vol = self.config.min_volume
 
-            upnl_threshold_pct = self.config.upnl_profit_pct
+            upnl_threshold_pct = self.config.upnl_threshold_pct
             upnl_profit_pct = self.config.upnl_profit_pct
 
             # Stop loss
@@ -149,8 +155,10 @@ class BybitMFIRSIQuickScalpShort(BybitStrategy):
             auto_reduce_wallet_exposure_pct = self.config.auto_reduce_wallet_exposure_pct
 
             percentile_auto_reduce_enabled = self.config.percentile_auto_reduce_enabled
-            
+        
             max_pos_balance_pct = self.config.max_pos_balance_pct
+
+            auto_leverage_upscale = self.config.auto_leverage_upscale
 
             # Funding
             MaxAbsFundingRate = self.config.MaxAbsFundingRate
@@ -218,6 +226,14 @@ class BybitMFIRSIQuickScalpShort(BybitStrategy):
 
                 iteration_start_time = time.time()
 
+                leverage_tiers = self.exchange.fetch_leverage_tiers(symbol)
+
+                if leverage_tiers:
+                    logging.info(f"Leverage tiers for {symbol}: {leverage_tiers}")
+                else:
+                    logging.error(f"Failed to fetch leverage tiers for {symbol}.")
+
+
                 logging.info(f"Max USD value: {self.max_usd_value}")
 
                 # Check if the symbol should terminate
@@ -232,6 +248,7 @@ class BybitMFIRSIQuickScalpShort(BybitStrategy):
                 # Fetch open symbols every loop
                 open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
 
+                
                 #logging.info(f"Open position data: {open_position_data}")
 
                 position_details = {}
@@ -273,6 +290,8 @@ class BybitMFIRSIQuickScalpShort(BybitStrategy):
 
                 logging.info(f"Open symbols: {open_symbols}")
 
+                logging.info(f"Open orders: {open_orders}")
+
                 market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
                 min_qty = float(market_data["min_qty"])
 
@@ -282,7 +301,7 @@ class BybitMFIRSIQuickScalpShort(BybitStrategy):
 
                 # Fetch equity data less frequently or if it's not available yet
                 if current_time - last_equity_fetch_time > equity_refresh_interval or total_equity is None:
-                    total_equity = self.retry_api_call(self.exchange.get_balance_bybit, quote_currency)
+                    total_equity = self.retry_api_call(self.exchange.get_futures_balance_bybit, quote_currency)
                     available_equity = self.retry_api_call(self.exchange.get_available_balance_bybit, quote_currency)
                     last_equity_fetch_time = current_time
 
@@ -338,6 +357,8 @@ class BybitMFIRSIQuickScalpShort(BybitStrategy):
                 logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
                 logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
 
+                # self.adjust_risk_parameters()
+
                 # self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
 
                 # Log the currently initialized symbols
@@ -345,11 +366,13 @@ class BybitMFIRSIQuickScalpShort(BybitStrategy):
 
                 # self.check_for_inactivity(long_pos_qty, short_pos_qty)
 
-                time.sleep(5)
-
-                # self.print_trade_quantities_once_bybit(symbol, total_equity, self.max_leverage)
+                # self.print_trade_quantities_once_bybit(symbol, total_equity, best_ask_price)
 
                 logging.info(f"Rotator symbols standardized: {rotator_symbols_standardized}")
+
+                symbol_precision = self.exchange.get_symbol_precision_bybit(symbol)
+
+                logging.info(f"Symbol precision for {symbol} : {symbol_precision}")
 
                 # If the symbol is in rotator_symbols and either it's already being traded or trading is allowed.
                 if symbol in rotator_symbols_standardized or (symbol in open_symbols or trading_allowed): # and instead of or
@@ -369,6 +392,7 @@ class BybitMFIRSIQuickScalpShort(BybitStrategy):
                     #mfirsi_signal = metrics['MFI']
                     #mfirsi_signal = self.get_mfirsi_ema(symbol, limit=100, lookback=5, ema_period=5)
                     mfirsi_signal = self.get_mfirsi_ema_secondary_ema(symbol, limit=100, lookback=1, ema_period=5, secondary_ema_period=3)
+
                     funding_rate = metrics['Funding']
                     hma_trend = metrics['HMA Trend']
                     eri_trend = metrics['ERI Trend']
@@ -380,9 +404,6 @@ class BybitMFIRSIQuickScalpShort(BybitStrategy):
 
                     onemin_top_signal = metrics['Top Signal 1m']
                     onemin_bottom_signal = metrics['Bottom Signal 1m']
-
-                    logging.info(f"Fivemin top signal: {fivemin_top_signal}")
-                    logging.info(f"Fivemin bottom signal: {fivemin_bottom_signal}")
 
                     position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
 
@@ -405,6 +426,7 @@ class BybitMFIRSIQuickScalpShort(BybitStrategy):
 
                     # short_liq_price = position_data["short"]["liq_price"]
                     # long_liq_price = position_data["long"]["liq_price"]
+
 
                     # Adjust risk parameters based on the maximum leverage allowed by the exchange
                     self.adjust_risk_parameters(exchange_max_leverage=self.max_leverage)
@@ -451,16 +473,16 @@ class BybitMFIRSIQuickScalpShort(BybitStrategy):
                             auto_reduce_enabled,
                             total_equity,
                             available_equity,
-                            current_price,
-                            long_dynamic_amount,
-                            short_dynamic_amount,
-                            auto_reduce_start_pct,
-                            max_pos_balance_pct,
-                            upnl_threshold_pct,
-                            shared_symbols_data
+                            current_market_price=current_price,
+                            long_dynamic_amount=long_dynamic_amount,
+                            short_dynamic_amount=short_dynamic_amount,
+                            auto_reduce_start_pct=auto_reduce_start_pct,
+                            max_pos_balance_pct=max_pos_balance_pct,
+                            upnl_threshold_pct=upnl_threshold_pct,
+                            shared_symbols_data=shared_symbols_data
                         )
                     except Exception as e:
-                        logging.info(f"Exception caught in autoreduce: {e}")
+                        logging.info(f"Exception caught in autoreduce {e}")
 
                     self.auto_reduce_percentile_logic(
                         symbol,
@@ -520,7 +542,6 @@ class BybitMFIRSIQuickScalpShort(BybitStrategy):
                         max_pos_balance_pct,
                         open_position_data
                     )
-
 
                     # short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, one_minute_distance, previous_one_minute_distance, short_take_profit, long_take_profit)
                     #short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
@@ -598,11 +619,26 @@ class BybitMFIRSIQuickScalpShort(BybitStrategy):
                         tp_order_counts
                     )
                     
-                    tp_order_counts = self.exchange.get_open_tp_order_count(symbol)
-
-                    long_tp_counts = tp_order_counts['long_tp_count']
-                    short_tp_counts = tp_order_counts['short_tp_count']
-
+                    # self.bybit_1m_mfi_quickscalp_trend(
+                    #     open_orders,
+                    #     symbol,
+                    #     min_vol,
+                    #     one_minute_volume,
+                    #     mfirsi_signal,
+                    #     long_dynamic_amount,
+                    #     short_dynamic_amount,
+                    #     long_pos_qty,
+                    #     short_pos_qty,
+                    #     long_pos_price,
+                    #     short_pos_price,
+                    #     entry_during_autoreduce,
+                    #     volume_check,
+                    #     long_take_profit,
+                    #     short_take_profit,
+                    #     upnl_profit_pct,
+                    #     tp_order_counts
+                    # )
+                
                     logging.info(f"Long tp counts: {long_tp_counts}")
                     logging.info(f"Short tp counts: {short_tp_counts}")
 
@@ -615,42 +651,45 @@ class BybitMFIRSIQuickScalpShort(BybitStrategy):
                     logging.info(f"Long TP order count for {symbol} is {tp_order_counts['long_tp_count']}")
                     logging.info(f"Short TP order count for {symbol} is {tp_order_counts['short_tp_count']}")
 
-                    # # Place long TP order if there are no existing long TP orders
-                    # if long_pos_qty > 0 and long_take_profit is not None and tp_order_counts['long_tp_count'] == 0:
-                    #     logging.info(f"Placing long TP order for {symbol} with {long_take_profit}")
-                    #     self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
+                    self.place_short_tp_order(
+                        symbol,
+                        best_bid_price,
+                        short_pos_price,
+                        short_pos_qty,
+                        short_take_profit,
+                        open_orders
+                    )
 
                     current_latest_time = datetime.now()
                     logging.info(f"Current time: {current_latest_time}")
                     logging.info(f"Next long TP update time: {self.next_long_tp_update}")
                     logging.info(f"Next short TP update time: {self.next_short_tp_update}")
-
-                    # Check for long positions
-                    if long_pos_qty > 0:
-                        if current_latest_time >= self.next_long_tp_update:
-                            # Update the TP for long positions based on MFIRSI signal
-                            self.next_long_tp_update = self.update_mfirsi_tp(
-                                symbol=symbol,
-                                pos_qty=long_pos_qty,
-                                mfirsi=mfirsi_signal,
-                                current_market_price=best_ask_price,
-                                positionIdx=1,
-                                last_tp_update=self.next_long_tp_update,
-                                long_upnl=long_upnl
+                    
+                    # Check for short positions
+                    if short_pos_qty > 0:
+                        if current_latest_time >= self.next_short_tp_update:
+                            self.next_short_tp_update = self.update_quickscalp_tp(
+                                symbol=symbol, 
+                                pos_qty=short_pos_qty, 
+                                upnl_profit_pct=upnl_profit_pct,  # Add the quickscalp percentage
+                                short_pos_price=short_pos_price,
+                                long_pos_price=long_pos_price,
+                                positionIdx=2, 
+                                order_side="buy", 
+                                last_tp_update=self.next_short_tp_update,
+                                tp_order_counts=tp_order_counts
                             )
 
-                    if self.test_orders_enabled and current_time - self.last_cancel_time >= self.helper_interval:
+                    if self.test_orders_enabled and current_time - self.last_helper_order_cancel_time >= self.helper_interval:
                         if symbol in open_symbols:
                             self.helper_active = True
                             self.helperv2(symbol, short_dynamic_amount, long_dynamic_amount)
                         else:
                             logging.info(f"Skipping test orders for {symbol} as it's not in open symbols list.")
-
+                    
 
                     self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
                     # self.cancel_stale_orders_bybit(symbol)
-
-                    time.sleep(5)
 
                 symbol_data = {
                     'symbol': symbol,
@@ -674,16 +713,42 @@ class BybitMFIRSIQuickScalpShort(BybitStrategy):
                 shared_symbols_data[symbol] = symbol_data
 
                 if self.config.dashboard_enabled:
-                    data_to_save = copy.deepcopy(shared_symbols_data)
-                    with open(dashboard_path, "w") as f:
-                        json.dump(data_to_save, f)
-                    self.update_shared_data(symbol_data, open_position_data, len(open_symbols))
+                    try:
+                        dashboard_path = os.path.join(self.config.shared_data_path, "shared_data.json")
+                        logging.info(f"Dashboard path: {dashboard_path}")
 
+                        # Ensure the directory exists
+                        os.makedirs(os.path.dirname(dashboard_path), exist_ok=True)
+                        logging.info(f"Directory created: {os.path.dirname(dashboard_path)}")
+
+                        if os.path.exists(dashboard_path):
+                            with open(dashboard_path, "r") as file:
+                                # Read or process file data
+                                data = json.load(file)
+                                logging.info("Loaded existing data from shared_data.json")
+                        else:
+                            logging.warning("shared_data.json does not exist. Creating a new file.")
+                            data = {}  # Initialize data as an empty dictionary
+
+                        # Save the updated data to the JSON file
+                        with open(dashboard_path, "w") as file:
+                            json.dump(data, file)
+                            logging.info("Data saved to shared_data.json")
+
+                    except FileNotFoundError:
+                        logging.error(f"File not found: {dashboard_path}")
+                        # Handle the absence of the file, e.g., by creating it or using default data
+                    except IOError as e:
+                        logging.error(f"I/O error occurred: {e}")
+                        # Handle other I/O errors
+                    except Exception as e:
+                        logging.error(f"An unexpected error occurred: {e}")
+                        
                 iteration_end_time = time.time()  # Record the end time of the iteration
                 iteration_duration = iteration_end_time - iteration_start_time
                 logging.info(f"Iteration for symbol {symbol} took {iteration_duration:.2f} seconds")
 
-                time.sleep(5)
+                time.sleep(3)
         except Exception as e:
             traceback_info = traceback.format_exc()  # Get the full traceback
             logging.error(f"Exception caught in quickscalp strategy '{symbol}': {e}\nTraceback:\n{traceback_info}")
