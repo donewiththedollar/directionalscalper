@@ -25,7 +25,7 @@ class BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(BybitStrategy):
         self.last_short_tp_update = datetime.now()
         self.next_long_tp_update = datetime.now() - timedelta(seconds=1)
         self.next_short_tp_update = datetime.now() - timedelta(seconds=1)
-        self.last_cancel_time = 0
+        self.last_helper_order_cancel_time = 0
         self.helper_active = False
         self.helper_wall_size = 5
         self.helper_duration = 5

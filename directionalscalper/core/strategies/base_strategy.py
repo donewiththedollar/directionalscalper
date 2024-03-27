@@ -78,6 +78,7 @@ class BaseStrategy:
         self.wallet_exposure_limit = self.config.wallet_exposure_limit
         self.user_defined_leverage_long = self.config.user_defined_leverage_long
         self.user_defined_leverage_short = self.config.user_defined_leverage_short
+        self.last_entries_cancel_time = 0
         self.MIN_RISK_LEVEL = 0.001
         self.MAX_RISK_LEVEL = 10
         self.auto_reduce_active_long = {}
@@ -5129,7 +5130,7 @@ class BaseStrategy:
     def cancel_entries_bybit(self, symbol, best_ask_price, ma_1m_3_high, ma_5m_3_high):
         # Cancel entries
         current_time = time.time()
-        if current_time - self.last_cancel_time >= 60: #60 # Execute this block every 1 minute
+        if current_time - self.last_entries_cancel_time >= 60: #60 # Execute this block every 1 minute
             try:
                 if best_ask_price < ma_1m_3_high or best_ask_price < ma_5m_3_high:
                     self.exchange.cancel_all_entries_bybit(symbol)
@@ -5138,7 +5139,7 @@ class BaseStrategy:
             except Exception as e:
                 logging.info(f"An error occurred while canceling entry orders: {e}")
 
-            self.last_cancel_time = current_time
+            self.last_entries_cancel_time = current_time
 
     def clear_stale_positions(self, open_orders, rotator_symbols, max_time_without_volume=3600): # default time is 1 hour
         open_positions = self.exchange.get_open_positions()
@@ -5218,7 +5219,7 @@ class BaseStrategy:
     def cancel_entries_binance(self, symbol, best_ask_price, ma_1m_3_high, ma_5m_3_high):
         # Cancel entries
         current_time = time.time()
-        if current_time - self.last_cancel_time >= 60:  # Execute this block every 1 minute
+        if current_time - self.last_entries_cancel_time >= 60:  # Execute this block every 1 minute
             try:
                 if best_ask_price < ma_1m_3_high or best_ask_price < ma_5m_3_high:
                     self.exchange.cancel_all_entries_binance(symbol)
@@ -5227,7 +5228,7 @@ class BaseStrategy:
             except Exception as e:
                 logging.info(f"An error occurred while canceling entry orders: {e}")
 
-            self.last_cancel_time = current_time
+            self.last_entries_cancel_time = current_time
             
     def adjust_leverage_and_qty(self, symbol, current_qty, current_leverage, max_leverage, increase=True):
         logging.info(f"Symbol: {symbol}")

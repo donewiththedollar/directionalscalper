@@ -18,6 +18,7 @@ symbol_locks = {}
 class BybitQuickScalpTrendOB(BybitStrategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
+        self.exchange = BybitExchange(exchange.api_key, exchange.secret_key, exchange.passphrase)
         self.is_order_history_populated = False
         self.last_health_check_time = time.time()
         self.health_check_interval = 600
@@ -25,7 +26,7 @@ class BybitQuickScalpTrendOB(BybitStrategy):
         self.last_short_tp_update = datetime.now()
         self.next_long_tp_update = datetime.now() - timedelta(seconds=1)
         self.next_short_tp_update = datetime.now() - timedelta(seconds=1)
-        self.last_cancel_time = 0
+        self.last_helper_order_cancel_time = 0
         self.helper_active = False
         self.helper_wall_size = 5
         self.helper_duration = 5
@@ -699,7 +700,7 @@ class BybitQuickScalpTrendOB(BybitStrategy):
                                 tp_order_counts=tp_order_counts
                             )
 
-                    if self.test_orders_enabled and current_time - self.last_cancel_time >= self.helper_interval:
+                    if self.test_orders_enabled and current_time - self.last_entries_cancel_time >= self.helper_interval:
                         if symbol in open_symbols:
                             self.helper_active = True
                             self.helperv2(symbol, short_dynamic_amount, long_dynamic_amount)
