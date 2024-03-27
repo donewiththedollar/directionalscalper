@@ -309,7 +309,7 @@ class BybitExchange(Exchange):
 
             response = self.exchange.cancel_all_orders(params=params)
             
-            logging.info("Successfully cancelled orders:", response)
+            logging.info(f"Successfully cancelled orders {response}")
             return response
         except Exception as e:
             logging.info(f"Error cancelling orders: {e}")
