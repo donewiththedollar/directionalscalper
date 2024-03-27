@@ -32,7 +32,6 @@ class BybitStrategy(BaseStrategy):
         super().__init__(exchange, config, manager, symbols_allowed)
         self.grid_levels = {}
         self.linear_grid_orders = {}
-        self.linear_grid_orders = {} 
         self.last_price = {}
         self.last_cancel_time = {}
         self.cancel_all_orders_interval = 240
@@ -1095,61 +1094,84 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"Placing additional short entry with post-only order")
                         self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2)
 
-    def linear_grid_handle_positions(self, symbol: str, total_equity: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool):
+    def linear_grid_handle_positions(self, symbol: str, total_equity: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, buffer_percentage: float):
         if symbol not in self.symbol_locks:
             self.symbol_locks[symbol] = threading.Lock()
 
         with self.symbol_locks[symbol]:
             current_price = self.exchange.get_current_price(symbol)
-            logging.info(f"Current price for {symbol}: {current_price}")
+            logging.info(f"[{symbol}] Current price: {current_price}")
 
             order_book = self.exchange.get_orderbook(symbol)
             best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol, current_price)
             best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol, current_price)
+            logging.info(f"[{symbol}] Best ask price: {best_ask_price}, Best bid price: {best_bid_price}")
 
-            outer_price_long = current_price * (1 + outer_price_distance)
-            outer_price_short = current_price * (1 - outer_price_distance)
+            outer_price_long = current_price * (1 - outer_price_distance)
+            outer_price_short = current_price * (1 + outer_price_distance)
+            logging.info(f"[{symbol}] Outer price long: {outer_price_long}, Outer price short: {outer_price_short}")
 
-            price_range = outer_price_long - outer_price_short
+            price_range_long = current_price - outer_price_long
+            price_range_short = outer_price_short - current_price
+
+            # Calculate the buffer distance as a decimal percentage
+            buffer_distance_long = current_price * buffer_percentage / 100
+            buffer_distance_short = current_price * buffer_percentage / 100
+
+            # Calculate the grid levels with the buffer
             factors = np.linspace(0.0, 1.0, num=levels) ** strength
-            grid_levels_long = [outer_price_short + price_range * factor for factor in factors]
-            grid_levels_short = [outer_price_long - price_range * factor for factor in factors]
+            grid_levels_long = [current_price - buffer_distance_long - price_range_long * factor for factor in factors]
+            grid_levels_short = [current_price + buffer_distance_short + price_range_short * factor for factor in factors]
 
+            logging.info(f"[{symbol}] Long grid levels: {grid_levels_long}")
+            logging.info(f"[{symbol}] Short grid levels: {grid_levels_short}")
+            
             total_amount_long = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_long, "buy") if long_mode else 0
             total_amount_short = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_short, "sell") if short_mode else 0
+            logging.info(f"[{symbol}] Total amount long: {total_amount_long}, Total amount short: {total_amount_short}")
 
             qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
             min_qty = float(self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
+            logging.info(f"[{symbol}] Quantity precision: {qty_precision}, Minimum quantity: {min_qty}")
 
             amounts_long = self.calculate_order_amounts(total_amount_long, levels, strength, qty_precision, min_qty)
             amounts_short = self.calculate_order_amounts(total_amount_short, levels, strength, qty_precision, min_qty)
+            logging.info(f"[{symbol}] Long order amounts: {amounts_long}")
+            logging.info(f"[{symbol}] Short order amounts: {amounts_short}")
+
+            logging.info(f"[{symbol}] Long order amounts: {amounts_long}")
+            logging.info(f"[{symbol}] Short order amounts: {amounts_short}")
 
             # Cancel all open orders periodically
             current_time = time.time()
-            last_cancel_time = self.last_cancel_time.get(symbol)  # Get the last cancel time for the symbol
+            last_cancel_time = self.last_cancel_time.get(symbol)
 
             if last_cancel_time is None:
-                # If there's no entry for the symbol, set the last cancel time to the current time
                 self.last_cancel_time[symbol] = current_time
+                logging.info(f"[{symbol}] No last cancel time recorded. Setting current time as last cancel time.")
             elif current_time - last_cancel_time >= self.cancel_all_orders_interval:
-                # If the time difference is greater than or equal to the cancel interval, cancel all orders
                 self.exchange.cancel_all_open_orders_bybit(symbol)
                 self.last_cancel_time[symbol] = current_time
                 logging.info(f"[{symbol}] All open orders cancelled periodically.")
 
             # Place or reissue orders based on the mode and whether positions are open
             if long_mode and long_pos_qty > 0 and self.should_reissue_orders(symbol, reissue_threshold):
+                logging.info(f"[{symbol}] Reissuing long orders due to open long position and reissue threshold met.")
                 self.cancel_linear_grid_orders(symbol)
                 self.place_linear_grid_orders(symbol, "buy", grid_levels_long, amounts_long)
             elif short_mode and short_pos_qty > 0 and self.should_reissue_orders(symbol, reissue_threshold):
+                logging.info(f"[{symbol}] Reissuing short orders due to open short position and reissue threshold met.")
                 self.cancel_linear_grid_orders(symbol)
                 self.place_linear_grid_orders(symbol, "sell", grid_levels_short, amounts_short)
             elif (long_mode and long_pos_qty == 0) or (short_mode and short_pos_qty == 0):
+                logging.info(f"[{symbol}] No open positions. Placing new orders.")
                 self.cancel_linear_grid_orders(symbol)
                 if long_mode:
                     self.place_linear_grid_orders(symbol, "buy", grid_levels_long, amounts_long)
                 if short_mode:
                     self.place_linear_grid_orders(symbol, "sell", grid_levels_short, amounts_short)
+            else:
+                logging.info(f"[{symbol}] No action required.")
 
             time.sleep(5)
 

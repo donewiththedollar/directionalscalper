@@ -43,6 +43,7 @@ class BybitBasicGrid(BybitStrategy):
             self.long_mode = self.config.linear_grid['long_mode']
             self.short_mode = self.config.linear_grid['short_mode']
             self.reissue_threshold = self.config.linear_grid['reissue_threshold']
+            self.buffer_percentage = self.config.linear_grid['buffer_percentage']
             self.upnl_threshold_pct = self.config.upnl_threshold_pct
             self.volume_check = self.config.volume_check
             self.max_usd_value = self.config.max_usd_value
@@ -152,6 +153,7 @@ class BybitBasicGrid(BybitStrategy):
             long_mode = self.config.linear_grid['long_mode']
             short_mode = self.config.linear_grid['short_mode']
             reissue_threshold = self.config.linear_grid['reissue_threshold']
+            buffer_percentage = self.config.linear_grid['buffer_percentage']
 
             volume_check = self.config.volume_check
             min_dist = self.config.min_distance
@@ -645,7 +647,8 @@ class BybitBasicGrid(BybitStrategy):
                         self.user_defined_leverage_long,
                         self.user_defined_leverage_short,
                         long_mode,
-                        short_mode
+                        short_mode,
+                        buffer_percentage
                     )
 
                     logging.info(f"Long tp counts: {long_tp_counts}")

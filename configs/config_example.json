@@ -47,7 +47,8 @@
       "outer_price_distance": 0.049,
       "long_mode": true,
       "short_mode": false,
-      "reissue_threshold": 0.00001
+      "reissue_threshold": 0.00001,
+      "buffer_percentage": 0.005
     }
   },
   "exchanges": [
