@@ -30,6 +30,8 @@ logging = Logger(logger_name="BybitBaseStrategy", filename="BybitBaseStrategy.lo
 class BybitStrategy(BaseStrategy):
     def __init__(self, exchange, config, manager, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
+        self.grid_levels = {}
+        self.linear_grid_orders = {}
         self.linear_grid_orders = {} 
         self.last_price = {}
         self.last_cancel_time = {}
@@ -1151,6 +1153,84 @@ class BybitStrategy(BaseStrategy):
 
             time.sleep(5)
 
+    def update_long_grid(self, symbol, current_price, grid_levels, amounts):
+        # Check if the current price has crossed any grid levels
+        for level, order in zip(self.grid_levels[symbol]['long'], self.linear_grid_orders.get(symbol, {}).get('long', [])):
+            if current_price > level:
+                # Cancel the order at the crossed level
+                self.exchange.cancel_order_by_id(order['id'], symbol)
+                
+                # Place a new order at the next grid level
+                next_level = self.get_next_long_level(grid_levels, level)
+                amount = self.get_amount_for_level(symbol, 'long', next_level, amounts)
+                new_order = self.limit_order_bybit(symbol, 'buy', amount, next_level, positionIdx=1)
+                
+                # Update the grid levels and orders
+                self.grid_levels[symbol]['long'].remove(level)
+                self.grid_levels[symbol]['long'].append(next_level)
+                
+                if order in self.linear_grid_orders.get(symbol, {}).get('long', []):
+                    self.linear_grid_orders[symbol]['long'].remove(order)
+                self.linear_grid_orders.setdefault(symbol, {}).setdefault('long', []).append(new_order)
+                
+                break
+
+    def update_short_grid(self, symbol, current_price, grid_levels, amounts):
+        # Check if the current price has crossed any grid levels
+        for level, order in zip(self.grid_levels[symbol]['short'], self.linear_grid_orders.get(symbol, {}).get('short', [])):
+            if current_price < level:
+                # Cancel the order at the crossed level
+                self.exchange.cancel_order_by_id(order['id'], symbol)
+                
+                # Place a new order at the next grid level
+                next_level = self.get_next_short_level(grid_levels, level)
+                amount = self.get_amount_for_level(symbol, 'short', next_level, amounts)
+                new_order = self.limit_order_bybit(symbol, 'sell', amount, next_level, positionIdx=2)
+                
+                # Update the grid levels and orders
+                self.grid_levels[symbol]['short'].remove(level)
+                self.grid_levels[symbol]['short'].append(next_level)
+                
+                if order in self.linear_grid_orders.get(symbol, {}).get('short', []):
+                    self.linear_grid_orders[symbol]['short'].remove(order)
+                self.linear_grid_orders.setdefault(symbol, {}).setdefault('short', []).append(new_order)
+                
+                break
+
+    def get_next_long_level(self, grid_levels, current_level):
+        # Find the index of the current level in the grid levels
+        current_index = grid_levels.index(current_level)
+        
+        # Return the next level if available, otherwise return the last level
+        if current_index < len(grid_levels) - 1:
+            return grid_levels[current_index + 1]
+        else:
+            return grid_levels[-1]
+
+    def get_next_short_level(self, grid_levels, current_level):
+        # Find the index of the current level in the grid levels
+        current_index = grid_levels.index(current_level)
+        
+        # Return the previous level if available, otherwise return the first level
+        if current_index > 0:
+            return grid_levels[current_index - 1]
+        else:
+            return grid_levels[0]
+
+    def get_amount_for_level(self, symbol, side, level, amounts):
+        # Find the index of the level in the corresponding grid levels list
+        if side == 'long':
+            grid_levels = self.grid_levels[symbol]['long']
+        elif side == 'short':
+            grid_levels = self.grid_levels[symbol]['short']
+        else:
+            raise ValueError(f"Invalid side: {side}")
+
+        level_index = grid_levels.index(level)
+        
+        # Return the corresponding amount for the level
+        return amounts[level_index]
+            
     def should_reissue_orders(self, symbol: str, reissue_threshold: float) -> bool:
         try:
             current_price = self.exchange.get_current_price(symbol)
@@ -1208,17 +1288,6 @@ class BybitStrategy(BaseStrategy):
             else:
                 logging.warning(f"Could not cancel order for {symbol}: {order.get('error', 'Unknown error')}")
         self.linear_grid_orders[symbol] = []
-        
-
-
-    # def cancel_linear_grid_orders(self, symbol: str):
-    #     orders_to_cancel = self.linear_grid_orders.get(symbol, [])
-    #     for order in orders_to_cancel:
-    #         if 'id' in order:
-    #             self.exchange.cancel_order(order['id'], symbol)
-    #         else:
-    #             logging.warning(f"Could not cancel order for {symbol}: {order.get('error', 'Unknown error')}")
-    #     self.linear_grid_orders[symbol] = []
 
     def calculate_total_amount(self, symbol: str, total_equity: float, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float, side: str) -> float:
         # Fetch market data to get the minimum trade quantity for the symbol
