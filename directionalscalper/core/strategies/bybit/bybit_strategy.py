@@ -38,6 +38,7 @@ class BybitStrategy(BaseStrategy):
         self.cancel_interval = 120
         self.order_refresh_interval = 120  # seconds
         self.last_order_refresh_time = 0
+        self.last_grid_cancel_time = {}
         pass
 
     TAKER_FEE_RATE = 0.00055
@@ -1144,15 +1145,16 @@ class BybitStrategy(BaseStrategy):
 
             # Cancel all open orders periodically
             current_time = time.time()
-            last_cancel_time = self.last_cancel_time.get(symbol)
+            last_grid_cancel_time = self.last_grid_cancel_time.get(symbol)
 
-            if last_cancel_time is None:
-                self.last_cancel_time[symbol] = current_time
-                logging.info(f"[{symbol}] No last cancel time recorded. Setting current time as last cancel time.")
-            elif current_time - last_cancel_time >= self.cancel_all_orders_interval:
-                self.exchange.cancel_all_open_orders_bybit(symbol)
-                self.last_cancel_time[symbol] = current_time
+            if last_grid_cancel_time is None:
+                self.last_grid_cancel_time[symbol] = current_time
+                logging.info(f"[{symbol}] No last grid cancel time recorded. Setting current time as last grid cancel time.")
+            elif current_time - last_grid_cancel_time >= 180:  # 3 minutes in seconds
+                self.exchange.cancel_all_open_orders_bybit()
+                self.last_grid_cancel_time[symbol] = current_time
                 logging.info(f"[{symbol}] All open orders cancelled periodically.")
+
 
             if long_mode and long_pos_qty == 0 and self.should_reissue_orders(symbol, reissue_threshold):
                 logging.info(f"[{symbol}] Reissuing long orders due to no open long position and reissue threshold met.")
