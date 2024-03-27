@@ -1094,7 +1094,7 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"Placing additional short entry with post-only order")
                         self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2)
 
-    def linear_grid_handle_positions(self, symbol: str, total_equity: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, buffer_percentage: float):
+    def linear_grid_handle_positions(self, symbol: str, total_equity: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, buffer_percentage: float, reissue_threshold_inposition: bool):
         if symbol not in self.symbol_locks:
             self.symbol_locks[symbol] = threading.Lock()
 
@@ -1154,15 +1154,30 @@ class BybitStrategy(BaseStrategy):
                 self.last_cancel_time[symbol] = current_time
                 logging.info(f"[{symbol}] All open orders cancelled periodically.")
 
-            # Place or reissue orders based on the mode and whether positions are open
-            if long_mode and long_pos_qty > 0 and self.should_reissue_orders(symbol, reissue_threshold):
-                logging.info(f"[{symbol}] Reissuing long orders due to open long position and reissue threshold met.")
+            if long_mode and long_pos_qty == 0 and self.should_reissue_orders(symbol, reissue_threshold):
+                logging.info(f"[{symbol}] Reissuing long orders due to no open long position and reissue threshold met.")
                 self.cancel_linear_grid_orders(symbol)
                 self.place_linear_grid_orders(symbol, "buy", grid_levels_long, amounts_long)
-            elif short_mode and short_pos_qty > 0 and self.should_reissue_orders(symbol, reissue_threshold):
-                logging.info(f"[{symbol}] Reissuing short orders due to open short position and reissue threshold met.")
+            elif short_mode and short_pos_qty == 0 and self.should_reissue_orders(symbol, reissue_threshold):
+                logging.info(f"[{symbol}] Reissuing short orders due to no open short position and reissue threshold met.")
                 self.cancel_linear_grid_orders(symbol)
                 self.place_linear_grid_orders(symbol, "sell", grid_levels_short, amounts_short)
+            elif long_mode and long_pos_qty > 0 and reissue_threshold_inposition and self.should_reissue_orders(symbol, reissue_threshold):
+                logging.info(f"[{symbol}] Reissuing long orders due to open long position, reissue threshold met, and reissue_threshold_inposition enabled.")
+                self.cancel_linear_grid_orders(symbol)
+                entered_level = self.get_entered_level(symbol, "buy", grid_levels_long)
+                if entered_level is not None:
+                    self.place_linear_grid_orders(symbol, "buy", grid_levels_long[entered_level+1:], amounts_long[entered_level+1:])
+                else:
+                    self.place_linear_grid_orders(symbol, "buy", grid_levels_long, amounts_long)
+            elif short_mode and short_pos_qty > 0 and reissue_threshold_inposition and self.should_reissue_orders(symbol, reissue_threshold):
+                logging.info(f"[{symbol}] Reissuing short orders due to open short position, reissue threshold met, and reissue_threshold_inposition enabled.")
+                self.cancel_linear_grid_orders(symbol)
+                entered_level = self.get_entered_level(symbol, "sell", grid_levels_short)
+                if entered_level is not None:
+                    self.place_linear_grid_orders(symbol, "sell", grid_levels_short[entered_level+1:], amounts_short[entered_level+1:])
+                else:
+                    self.place_linear_grid_orders(symbol, "sell", grid_levels_short, amounts_short)
             elif (long_mode and long_pos_qty == 0) or (short_mode and short_pos_qty == 0):
                 logging.info(f"[{symbol}] No open positions. Placing new orders.")
                 self.cancel_linear_grid_orders(symbol)
@@ -1174,6 +1189,19 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"[{symbol}] No action required.")
 
             time.sleep(5)
+
+    def get_entered_level(self, symbol: str, side: str, grid_levels: List[float]) -> Optional[int]:
+        positions = self.exchange.get_symbol_info_and_positions(symbol)
+        logging.info(f"Positions info: {positions}")
+        for position in positions:
+            if position['side'] == side:
+                entry_price = float(position['entry_price'])
+                for i, level in enumerate(grid_levels):
+                    if side == "buy" and entry_price >= level:
+                        return i
+                    elif side == "sell" and entry_price <= level:
+                        return i
+        return None
 
     def update_long_grid(self, symbol, current_price, grid_levels, amounts):
         # Check if the current price has crossed any grid levels

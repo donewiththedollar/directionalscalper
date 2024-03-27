@@ -16,6 +16,39 @@ class BybitExchange(Exchange):
         self.max_retries = 100  # Maximum retries for rate-limited requests
         self.retry_wait = 5  # Seconds to wait between retries
 
+    def get_symbol_info_and_positions(self, symbol: str):
+        try:
+            # Fetch the market info for the given symbol
+            market = self.exchange.market(symbol)
+
+            # Log the market info
+            logging.info(f"Symbol: {market['symbol']}")
+            logging.info(f"Base: {market['base']}")
+            logging.info(f"Quote: {market['quote']}")
+            logging.info(f"Type: {market['type']}")
+            logging.info(f"Settle: {market['settle']}")
+
+            # Fetch the positions for the given symbol
+            positions = self.exchange.fetch_positions([symbol])
+
+            # Log the positions
+            for position in positions:
+                logging.info(f"Position Info:")
+                logging.info(f"Symbol: {position['symbol']}")
+                logging.info(f"Side: {position['side']}")
+                logging.info(f"Amount: {position['amount']}")
+                logging.info(f"Entry Price: {position['entryPrice']}")
+                logging.info(f"Unrealized PNL: {position['unrealizedPnl']}")
+                logging.info(f"Leverage: {position['leverage']}")
+                logging.info(f"Margin Type: {position['marginType']}")
+                logging.info(f"Liquidation Price: {position['liquidationPrice']}")
+
+            return positions
+
+        except Exception as e:
+            logging.error(f"Error fetching symbol info and positions: {e}")
+            return []
+        
     def get_market_data_bybit(self, symbol: str) -> dict:
         values = {"precision": 0.0, "leverage": 0.0, "min_qty": 0.0}
         try:

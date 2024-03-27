@@ -48,7 +48,8 @@
       "long_mode": true,
       "short_mode": false,
       "reissue_threshold": 0.00001,
-      "buffer_percentage": 0.005
+      "buffer_percentage": 0.005,
+      "reissue_threshold_inposition": true
     }
   },
   "exchanges": [
