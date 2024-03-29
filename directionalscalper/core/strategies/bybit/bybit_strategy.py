@@ -1136,8 +1136,8 @@ class BybitStrategy(BaseStrategy):
             min_qty = float(self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
             logging.info(f"[{symbol}] Quantity precision: {qty_precision}, Minimum quantity: {min_qty}")
 
-            amounts_long = self.calculate_order_amounts(total_amount_long, levels, strength, qty_precision, min_qty)
-            amounts_short = self.calculate_order_amounts(total_amount_short, levels, strength, qty_precision, min_qty)
+            amounts_long = self.calculate_order_amounts(symbol, total_amount_long, levels, strength, qty_precision, min_qty)
+            amounts_short = self.calculate_order_amounts(symbol, total_amount_short, levels, strength, qty_precision, min_qty)
             logging.info(f"[{symbol}] Long order amounts: {amounts_long}")
             logging.info(f"[{symbol}] Short order amounts: {amounts_short}")
 
@@ -1238,11 +1238,14 @@ class BybitStrategy(BaseStrategy):
         for order in open_orders:
             if order['side'].lower() == side.lower():
                 self.exchange.cancel_order_by_id(order['id'], symbol)
-                
+
     def calculate_total_amount(self, symbol: str, total_equity: float, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float, side: str) -> float:
+        logging.info(f"Calculating total amount for {symbol} with total_equity: {total_equity}, best_ask_price: {best_ask_price}, best_bid_price: {best_bid_price}, wallet_exposure_limit: {wallet_exposure_limit}, user_defined_leverage: {user_defined_leverage}, side: {side}")
+
         # Fetch market data to get the minimum trade quantity for the symbol
         market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
         min_qty = float(market_data["min_qty"])
+        logging.info(f"Minimum quantity for {symbol}: {min_qty}")
 
         # Calculate the minimum quantity in USD value based on the side
         if side == "buy":
@@ -1251,57 +1254,53 @@ class BybitStrategy(BaseStrategy):
             min_qty_usd_value = min_qty * best_bid_price
         else:
             raise ValueError(f"Invalid side: {side}")
+        logging.info(f"Minimum quantity USD value for {symbol}: {min_qty_usd_value}")
 
         # Calculate the maximum position value based on total equity, wallet exposure limit, and user-defined leverage
         max_position_value = total_equity * wallet_exposure_limit * user_defined_leverage
+        logging.info(f"Maximum position value for {symbol}: {max_position_value}")
 
         # Calculate the total amount considering the maximum position value and minimum quantity
         total_amount = max(max_position_value, min_qty_usd_value)
+        logging.info(f"Calculated total amount for {symbol}: {total_amount}")
 
         return total_amount
 
-    def calculate_order_amounts(self, total_amount: float, levels: int, strength: float, qty_precision: float, min_qty: float) -> List[float]:
+    def calculate_order_amounts(self, symbol: str, total_amount: float, levels: int, strength: float, qty_precision: float, min_qty: float) -> List[float]:
+        logging.info(f"Calculating order amounts for {symbol} with total_amount: {total_amount}, levels: {levels}, strength: {strength}, qty_precision: {qty_precision}, min_qty: {min_qty}")
+        
         # Calculate the order amounts based on the strength
         amounts = []
-        for i in range(levels):
+        total_ratio = sum([(j + 1) ** strength for j in range(levels)])
+        remaining_amount = total_amount
+        logging.info(f"Total ratio: {total_ratio}, Remaining amount: {remaining_amount}")
+
+        for i in range(levels - 1):
             ratio = (i + 1) ** strength
-            amount = total_amount * (ratio / sum([(j + 1) ** strength for j in range(levels)]))
+            amount = total_amount * (ratio / total_ratio)
+            logging.info(f"Level {i+1} - Ratio: {ratio}, Amount: {amount}")
 
             # Round the order amount based on the minimum quantity precision
-            rounded_amount = round(amount / min_qty) * min_qty
+            rounded_amount = round(amount, -int(math.log10(qty_precision)))
+            logging.info(f"Level {i+1} - Rounded amount: {rounded_amount}")
 
             # Ensure the order amount is greater than or equal to the minimum quantity
             adjusted_amount = max(rounded_amount, min_qty)
-            amounts.append(adjusted_amount)
+            logging.info(f"Level {i+1} - Adjusted amount: {adjusted_amount}")
 
+            amounts.append(adjusted_amount)
+            remaining_amount -= adjusted_amount
+            logging.info(f"Level {i+1} - Remaining amount: {remaining_amount}")
+
+        # Assign the remaining amount to the last level
+        last_amount = round(remaining_amount, -int(math.log10(qty_precision)))
+        last_amount = max(last_amount, min_qty)
+        amounts.append(last_amount)
+        logging.info(f"Last level - Amount: {last_amount}")
+
+        logging.info(f"Calculated order amounts: {amounts}")
         return amounts
     
-    def cancel_entries_bybit_new(self, open_symbols, open_orders):
-        current_time = time.time()
-        # Ensure last_cancel_time is initialized for each symbol in open_orders
-        for symbol in open_orders:
-            if symbol not in self.last_cancel_time:
-                self.last_cancel_time[symbol] = 0
-
-        # Iterate through symbols in open_orders to check if they need cancellation
-        for symbol in open_orders.keys():
-            # Check if symbol has no open positions and if the specified time has passed since last cancellation
-            if symbol not in open_symbols and (current_time - self.last_cancel_time[symbol] > 120):
-                try:
-                    # Assuming open_orders[symbol] provides a list of order IDs for cancellation
-                    for order_id in open_orders[symbol]:
-                        self.exchange.cancel_order(order_id, symbol)
-                    logging.info(f"Cancelled all orders for {symbol} due to absence of open positions for over 120 seconds.")
-                    # Update the last cancel time after performing cancellation
-                    self.last_cancel_time[symbol] = current_time
-                except Exception as e:
-                    logging.error(f"Error cancelling orders for {symbol}: {e}")
-
-            # This block is optional depending on your strategy's requirements
-            # It resets the cancellation timer if there are open positions for the symbol
-            elif symbol in open_symbols:
-                self.last_cancel_time[symbol] = current_time
-
     def initiate_spread_entry(self, symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty):
         order_book = self.exchange.get_orderbook(symbol)
         best_ask_price = order_book['asks'][0][0]
