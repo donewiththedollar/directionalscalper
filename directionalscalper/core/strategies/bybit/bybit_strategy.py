@@ -1098,11 +1098,22 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"Placing additional short entry with post-only order")
                         self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2)
 
-    def linear_grid_handle_positions(self, symbol: str, total_equity: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, buffer_percentage: float, reissue_threshold_inposition: bool):
+    def linear_grid_handle_positions(self, symbol: str, open_symbols: list, total_equity: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, buffer_percentage: float, symbols_allowed: int):
         if symbol not in self.symbol_locks:
             self.symbol_locks[symbol] = threading.Lock()
 
         with self.symbol_locks[symbol]:
+            should_reissue = self.should_reissue_orders(symbol, reissue_threshold)
+            open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+
+            # Initialize filled_levels dictionary for the current symbol if it doesn't exist
+            if symbol not in self.filled_levels:
+                self.filled_levels[symbol] = {"buy": set(), "sell": set()}
+
+            if symbol in self.active_grids and not should_reissue:
+                logging.info(f"[{symbol}] Grid already active and reissue threshold not met. Skipping grid placement.")
+                return
+
             current_price = self.exchange.get_current_price(symbol)
             logging.info(f"[{symbol}] Current price: {current_price}")
 
@@ -1141,50 +1152,39 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"[{symbol}] Long order amounts: {amounts_long}")
             logging.info(f"[{symbol}] Short order amounts: {amounts_short}")
 
-            open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+            if should_reissue or symbol not in self.active_grids:
+                if long_mode:
+                    if long_pos_qty > 0 and not any(order['side'].lower() == 'buy' for order in open_orders):
+                        logging.info(f"[{symbol}] Open long position detected, but no active long grid orders. Placing new long grid orders.")
+                        self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                        self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+                    elif long_pos_qty == 0 and symbol not in self.active_grids:
+                        # Check if the bot can trade a new symbol
+                        if not self.can_trade_new_symbol(open_symbols, symbols_allowed, symbol):
+                            logging.info(f"[{symbol}] Cannot trade new symbol due to symbol limit. Skipping long grid placement.")
+                        else:
+                            logging.info(f"[{symbol}] No open long position. Placing new long orders.")
+                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                            self.active_grids.add(symbol)  # Mark the symbol as having an active grid
 
-            # Initialize filled_levels dictionary for the current symbol and side
-            if symbol not in self.filled_levels:
-                self.filled_levels[symbol] = {"buy": set(), "sell": set()}
-
-            should_reissue = self.should_reissue_orders(symbol, reissue_threshold)
-
-            if long_mode:
-                if long_pos_qty > 0 and not any(order['side'].lower() == 'buy' for order in open_orders):
-                    logging.info(f"[{symbol}] Open long position detected, but no active long grid orders. Placing new long grid orders.")
-                    self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                    self.filled_levels[symbol]["buy"] = set(grid_levels_long)  # Update filled_levels for the current open position
-                elif long_pos_qty == 0 and should_reissue:
-                    logging.info(f"[{symbol}] Reissuing long orders due to no open long position and reissue threshold met.")
-                    self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                elif long_pos_qty > 0 and reissue_threshold_inposition and should_reissue:
-                    logging.info(f"[{symbol}] Reissuing long orders due to open long position, reissue threshold met, and reissue_threshold_inposition enabled.")
-                    self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                elif long_pos_qty == 0:
-                    logging.info(f"[{symbol}] No open long position. Placing new long orders.")
-                    self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                else:
-                    logging.info(f"[{symbol}] No action required for long orders.")
-
-            if short_mode:
-                if short_pos_qty > 0 and not any(order['side'].lower() == 'sell' for order in open_orders):
-                    logging.info(f"[{symbol}] Open short position detected, but no active short grid orders. Placing new short grid orders.")
-                    self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                    self.filled_levels[symbol]["sell"] = set(grid_levels_short)  # Update filled_levels for the current open position
-                elif short_pos_qty == 0 and should_reissue:
-                    logging.info(f"[{symbol}] Reissuing short orders due to no open short position and reissue threshold met.")
-                    self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                elif short_pos_qty > 0 and reissue_threshold_inposition and should_reissue:
-                    logging.info(f"[{symbol}] Reissuing short orders due to open short position, reissue threshold met, and reissue_threshold_inposition enabled.")
-                    self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                elif short_pos_qty == 0:
-                    logging.info(f"[{symbol}] No open short position. Placing new short orders.")
-                    self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                else:
-                    logging.info(f"[{symbol}] No action required for short orders.")
+                if short_mode:
+                    if short_pos_qty > 0 and not any(order['side'].lower() == 'sell' for order in open_orders):
+                        logging.info(f"[{symbol}] Open short position detected, but no active short grid orders. Placing new short grid orders.")
+                        self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                        self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+                    elif short_pos_qty == 0 and symbol not in self.active_grids:
+                        # Check if the bot can trade a new symbol
+                        if not self.can_trade_new_symbol(open_symbols, symbols_allowed, symbol):
+                            logging.info(f"[{symbol}] Cannot trade new symbol due to symbol limit. Skipping short grid placement.")
+                        else:
+                            logging.info(f"[{symbol}] No open short position. Placing new short orders.")
+                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                            self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+            else:
+                logging.info(f"[{symbol}] Grid already active and reissue threshold not met. No action required.")
 
             time.sleep(5)
-            
+                        
     def should_reissue_orders(self, symbol: str, reissue_threshold: float) -> bool:
         try:
             current_price = self.exchange.get_current_price(symbol)
@@ -1231,14 +1231,17 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"Skipping {side} order at level {level} for {symbol} as it is already filled for the current open position.")
 
         logging.info(f"[{symbol}] {side.capitalize()} grid orders issued for unfilled levels.")
-        
+ 
     def cancel_grid_orders(self, symbol: str, side: str):
         open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
         logging.info(f"Open orders data for {symbol}: {open_orders}")
         for order in open_orders:
             if order['side'].lower() == side.lower():
                 self.exchange.cancel_order_by_id(order['id'], symbol)
-
+        
+        # Remove the symbol from active_grids
+        self.active_grids.discard(symbol)
+        
     def calculate_total_amount(self, symbol: str, total_equity: float, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float, side: str) -> float:
         logging.info(f"Calculating total amount for {symbol} with total_equity: {total_equity}, best_ask_price: {best_ask_price}, best_bid_price: {best_bid_price}, wallet_exposure_limit: {wallet_exposure_limit}, user_defined_leverage: {user_defined_leverage}, side: {side}")
 
@@ -1300,7 +1303,7 @@ class BybitStrategy(BaseStrategy):
 
         logging.info(f"Calculated order amounts: {amounts}")
         return amounts
-    
+
     def calculate_order_amounts_min_notional(self, total_amount: float, levels: int, strength: float, min_notional: float, current_price: float) -> List[float]:
         logging.info(f"Calculating order amounts with total_amount: {total_amount}, levels: {levels}, strength: {strength}, min_notional: {min_notional}, current_price: {current_price}")
 

@@ -653,6 +653,7 @@ class BybitBasicGrid(BybitStrategy):
 
                     self.linear_grid_handle_positions(
                         symbol,
+                        open_symbols,
                         total_equity,
                         long_pos_qty,
                         short_pos_qty,
@@ -666,7 +667,7 @@ class BybitBasicGrid(BybitStrategy):
                         long_mode,
                         short_mode,
                         buffer_percentage,
-                        reissue_threshold_inposition
+                        self.symbols_allowed
                     )
 
                     logging.info(f"Long tp counts: {long_tp_counts}")
