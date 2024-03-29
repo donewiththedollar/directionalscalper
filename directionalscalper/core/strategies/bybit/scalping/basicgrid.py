@@ -19,7 +19,6 @@ symbol_locks = {}
 class BybitBasicGrid(BybitStrategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
-        self.exchange = BybitExchange(exchange.api_key, exchange.secret_key, exchange.passphrase)
         self.is_order_history_populated = False
         self.last_health_check_time = time.time()
         self.health_check_interval = 600
@@ -278,7 +277,7 @@ class BybitBasicGrid(BybitStrategy):
                 open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
 
                 
-                #logging.info(f"Open position data: {open_position_data}")
+                logging.info(f"Open position data for {symbol}: {open_position_data}")
 
                 position_details = {}
 

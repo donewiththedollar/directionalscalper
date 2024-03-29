@@ -39,6 +39,9 @@ class BybitStrategy(BaseStrategy):
         self.order_refresh_interval = 120  # seconds
         self.last_order_refresh_time = 0
         self.last_grid_cancel_time = {}
+        self.entered_grid_levels = {}
+        self.filled_order_levels = {}
+        self.filled_levels = {}
         pass
 
     TAKER_FEE_RATE = 0.00055
@@ -1115,18 +1118,16 @@ class BybitStrategy(BaseStrategy):
             price_range_long = current_price - outer_price_long
             price_range_short = outer_price_short - current_price
 
-            # Calculate the buffer distance as a decimal percentage
             buffer_distance_long = current_price * buffer_percentage / 100
             buffer_distance_short = current_price * buffer_percentage / 100
 
-            # Calculate the grid levels with the buffer
             factors = np.linspace(0.0, 1.0, num=levels) ** strength
             grid_levels_long = [current_price - buffer_distance_long - price_range_long * factor for factor in factors]
             grid_levels_short = [current_price + buffer_distance_short + price_range_short * factor for factor in factors]
 
             logging.info(f"[{symbol}] Long grid levels: {grid_levels_long}")
             logging.info(f"[{symbol}] Short grid levels: {grid_levels_short}")
-            
+
             total_amount_long = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_long, "buy") if long_mode else 0
             total_amount_short = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_short, "sell") if short_mode else 0
             logging.info(f"[{symbol}] Total amount long: {total_amount_long}, Total amount short: {total_amount_short}")
@@ -1140,154 +1141,55 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"[{symbol}] Long order amounts: {amounts_long}")
             logging.info(f"[{symbol}] Short order amounts: {amounts_short}")
 
-            logging.info(f"[{symbol}] Long order amounts: {amounts_long}")
-            logging.info(f"[{symbol}] Short order amounts: {amounts_short}")
+            open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
-            # Cancel all open orders periodically
-            current_time = time.time()
-            last_grid_cancel_time = self.last_grid_cancel_time.get(symbol)
+            # Initialize filled_levels dictionary for the current symbol and side
+            if symbol not in self.filled_levels:
+                self.filled_levels[symbol] = {"buy": set(), "sell": set()}
 
-            if last_grid_cancel_time is None:
-                self.last_grid_cancel_time[symbol] = current_time
-                logging.info(f"[{symbol}] No last grid cancel time recorded. Setting current time as last grid cancel time.")
-            elif current_time - last_grid_cancel_time >= 180:  # 3 minutes in seconds
-                self.exchange.cancel_all_open_orders_bybit()
-                self.last_grid_cancel_time[symbol] = current_time
-                logging.info(f"[{symbol}] All open orders cancelled periodically.")
+            should_reissue = self.should_reissue_orders(symbol, reissue_threshold)
 
-
-            if long_mode and long_pos_qty == 0 and self.should_reissue_orders(symbol, reissue_threshold):
-                logging.info(f"[{symbol}] Reissuing long orders due to no open long position and reissue threshold met.")
-                self.cancel_linear_grid_orders(symbol)
-                self.place_linear_grid_orders(symbol, "buy", grid_levels_long, amounts_long)
-            elif short_mode and short_pos_qty == 0 and self.should_reissue_orders(symbol, reissue_threshold):
-                logging.info(f"[{symbol}] Reissuing short orders due to no open short position and reissue threshold met.")
-                self.cancel_linear_grid_orders(symbol)
-                self.place_linear_grid_orders(symbol, "sell", grid_levels_short, amounts_short)
-            elif long_mode and long_pos_qty > 0 and reissue_threshold_inposition and self.should_reissue_orders(symbol, reissue_threshold):
-                logging.info(f"[{symbol}] Reissuing long orders due to open long position, reissue threshold met, and reissue_threshold_inposition enabled.")
-                self.cancel_linear_grid_orders(symbol)
-                entered_level = self.get_entered_level(symbol, "buy", grid_levels_long)
-                if entered_level is not None:
-                    self.place_linear_grid_orders(symbol, "buy", grid_levels_long[entered_level+1:], amounts_long[entered_level+1:])
+            if long_mode:
+                if long_pos_qty > 0 and not any(order['side'].lower() == 'buy' for order in open_orders):
+                    logging.info(f"[{symbol}] Open long position detected, but no active long grid orders. Placing new long grid orders.")
+                    self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                    self.filled_levels[symbol]["buy"] = set(grid_levels_long)  # Update filled_levels for the current open position
+                elif long_pos_qty == 0 and should_reissue:
+                    logging.info(f"[{symbol}] Reissuing long orders due to no open long position and reissue threshold met.")
+                    self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                elif long_pos_qty > 0 and reissue_threshold_inposition and should_reissue:
+                    logging.info(f"[{symbol}] Reissuing long orders due to open long position, reissue threshold met, and reissue_threshold_inposition enabled.")
+                    self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                elif long_pos_qty == 0:
+                    logging.info(f"[{symbol}] No open long position. Placing new long orders.")
+                    self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                 else:
-                    self.place_linear_grid_orders(symbol, "buy", grid_levels_long, amounts_long)
-            elif short_mode and short_pos_qty > 0 and reissue_threshold_inposition and self.should_reissue_orders(symbol, reissue_threshold):
-                logging.info(f"[{symbol}] Reissuing short orders due to open short position, reissue threshold met, and reissue_threshold_inposition enabled.")
-                self.cancel_linear_grid_orders(symbol)
-                entered_level = self.get_entered_level(symbol, "sell", grid_levels_short)
-                if entered_level is not None:
-                    self.place_linear_grid_orders(symbol, "sell", grid_levels_short[entered_level+1:], amounts_short[entered_level+1:])
+                    logging.info(f"[{symbol}] No action required for long orders.")
+
+            if short_mode:
+                if short_pos_qty > 0 and not any(order['side'].lower() == 'sell' for order in open_orders):
+                    logging.info(f"[{symbol}] Open short position detected, but no active short grid orders. Placing new short grid orders.")
+                    self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                    self.filled_levels[symbol]["sell"] = set(grid_levels_short)  # Update filled_levels for the current open position
+                elif short_pos_qty == 0 and should_reissue:
+                    logging.info(f"[{symbol}] Reissuing short orders due to no open short position and reissue threshold met.")
+                    self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                elif short_pos_qty > 0 and reissue_threshold_inposition and should_reissue:
+                    logging.info(f"[{symbol}] Reissuing short orders due to open short position, reissue threshold met, and reissue_threshold_inposition enabled.")
+                    self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                elif short_pos_qty == 0:
+                    logging.info(f"[{symbol}] No open short position. Placing new short orders.")
+                    self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                 else:
-                    self.place_linear_grid_orders(symbol, "sell", grid_levels_short, amounts_short)
-            elif (long_mode and long_pos_qty == 0) or (short_mode and short_pos_qty == 0):
-                logging.info(f"[{symbol}] No open positions. Placing new orders.")
-                self.cancel_linear_grid_orders(symbol)
-                if long_mode:
-                    self.place_linear_grid_orders(symbol, "buy", grid_levels_long, amounts_long)
-                if short_mode:
-                    self.place_linear_grid_orders(symbol, "sell", grid_levels_short, amounts_short)
-            else:
-                logging.info(f"[{symbol}] No action required.")
+                    logging.info(f"[{symbol}] No action required for short orders.")
 
             time.sleep(5)
-
-    def get_entered_level(self, symbol: str, side: str, grid_levels: List[float]) -> Optional[int]:
-        positions = self.exchange.get_symbol_info_and_positions(symbol)
-        logging.info(f"Positions info: {positions}")
-        for position in positions:
-            if position['side'] == side:
-                entry_price = float(position['entry_price'])
-                for i, level in enumerate(grid_levels):
-                    if side == "buy" and entry_price >= level:
-                        return i
-                    elif side == "sell" and entry_price <= level:
-                        return i
-        return None
-
-    def update_long_grid(self, symbol, current_price, grid_levels, amounts):
-        # Check if the current price has crossed any grid levels
-        for level, order in zip(self.grid_levels[symbol]['long'], self.linear_grid_orders.get(symbol, {}).get('long', [])):
-            if current_price > level:
-                # Cancel the order at the crossed level
-                self.exchange.cancel_order_by_id(order['id'], symbol)
-                
-                # Place a new order at the next grid level
-                next_level = self.get_next_long_level(grid_levels, level)
-                amount = self.get_amount_for_level(symbol, 'long', next_level, amounts)
-                new_order = self.limit_order_bybit(symbol, 'buy', amount, next_level, positionIdx=1)
-                
-                # Update the grid levels and orders
-                self.grid_levels[symbol]['long'].remove(level)
-                self.grid_levels[symbol]['long'].append(next_level)
-                
-                if order in self.linear_grid_orders.get(symbol, {}).get('long', []):
-                    self.linear_grid_orders[symbol]['long'].remove(order)
-                self.linear_grid_orders.setdefault(symbol, {}).setdefault('long', []).append(new_order)
-                
-                break
-
-    def update_short_grid(self, symbol, current_price, grid_levels, amounts):
-        # Check if the current price has crossed any grid levels
-        for level, order in zip(self.grid_levels[symbol]['short'], self.linear_grid_orders.get(symbol, {}).get('short', [])):
-            if current_price < level:
-                # Cancel the order at the crossed level
-                self.exchange.cancel_order_by_id(order['id'], symbol)
-                
-                # Place a new order at the next grid level
-                next_level = self.get_next_short_level(grid_levels, level)
-                amount = self.get_amount_for_level(symbol, 'short', next_level, amounts)
-                new_order = self.limit_order_bybit(symbol, 'sell', amount, next_level, positionIdx=2)
-                
-                # Update the grid levels and orders
-                self.grid_levels[symbol]['short'].remove(level)
-                self.grid_levels[symbol]['short'].append(next_level)
-                
-                if order in self.linear_grid_orders.get(symbol, {}).get('short', []):
-                    self.linear_grid_orders[symbol]['short'].remove(order)
-                self.linear_grid_orders.setdefault(symbol, {}).setdefault('short', []).append(new_order)
-                
-                break
-
-    def get_next_long_level(self, grid_levels, current_level):
-        # Find the index of the current level in the grid levels
-        current_index = grid_levels.index(current_level)
-        
-        # Return the next level if available, otherwise return the last level
-        if current_index < len(grid_levels) - 1:
-            return grid_levels[current_index + 1]
-        else:
-            return grid_levels[-1]
-
-    def get_next_short_level(self, grid_levels, current_level):
-        # Find the index of the current level in the grid levels
-        current_index = grid_levels.index(current_level)
-        
-        # Return the previous level if available, otherwise return the first level
-        if current_index > 0:
-            return grid_levels[current_index - 1]
-        else:
-            return grid_levels[0]
-
-    def get_amount_for_level(self, symbol, side, level, amounts):
-        # Find the index of the level in the corresponding grid levels list
-        if side == 'long':
-            grid_levels = self.grid_levels[symbol]['long']
-        elif side == 'short':
-            grid_levels = self.grid_levels[symbol]['short']
-        else:
-            raise ValueError(f"Invalid side: {side}")
-
-        level_index = grid_levels.index(level)
-        
-        # Return the corresponding amount for the level
-        return amounts[level_index]
             
     def should_reissue_orders(self, symbol: str, reissue_threshold: float) -> bool:
         try:
             current_price = self.exchange.get_current_price(symbol)
             last_price = self.last_price.get(symbol)
-            
+
             if last_price is None:
                 self.last_price[symbol] = current_price
                 logging.info(f"[{symbol}] No last price recorded. Current price {current_price} set as last price. No reissue required.")
@@ -1306,41 +1208,37 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.info(f"Exception caught in should_reissue_orders {e}")
 
-    def issue_grid_orders(self, symbol, grid_levels_long, amounts_long, grid_levels_short, amounts_short, long_mode, short_mode):
-        # Cancel existing grid orders first
-        self.cancel_linear_grid_orders(symbol)
+    def issue_grid_orders(self, symbol: str, side: str, grid_levels: list, amounts: list, is_long: bool, filled_levels: set):
+        """
+        Check the status of existing grid orders and place new orders for unfilled levels.
+        """
+        open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+        logging.info(f"Open orders data for {symbol}: {open_orders}")
 
-        # Place new grid orders based on the current configuration
-        if long_mode:
-            self.place_linear_grid_orders(symbol, "buy", grid_levels_long, amounts_long)
-        if short_mode:
-            self.place_linear_grid_orders(symbol, "sell", grid_levels_short, amounts_short)
-        logging.info(f"[{symbol}] Grid orders reissued.")
-        
-    def refresh_or_initialize_grid(self, symbol):
-        # Fetch open positions and existing grid orders for the symbol
-        open_positions = self.fetch_open_positions(symbol)
-        existing_orders = self.fetch_existing_grid_orders(symbol)
-
-        # Check if there are open positions but no corresponding grid orders
-        if open_positions and not existing_orders:
-            logging.info(f"[{symbol}] Initializing grid for existing open positions.")
-            # Initialize the grid based on existing positions
-            self.initialize_grid_for_open_positions(symbol, open_positions)
-        else:
-            # Routine refresh or cancellation of all orders for the symbol to reset the grid
-            self.cancel_linear_grid_orders(symbol)
-            logging.info(f"[{symbol}] Refreshed grid orders.")
-
-    def cancel_linear_grid_orders(self, symbol: str):
-        orders_to_cancel = self.linear_grid_orders.get(symbol, [])
-        for order in orders_to_cancel:
-            if 'id' in order:
-                self.exchange.cancel_order_by_id(order['id'], symbol)
+        # Place new grid orders for unfilled levels
+        for level, amount in zip(grid_levels, amounts):
+            if level not in filled_levels:
+                unique_identifier = str(uuid.uuid4())[:8]  # Generate a unique 8-character string
+                order_link_id = f"{symbol}_{side}_{level}_{unique_identifier}"
+                position_idx = 1 if is_long else 2
+                order = self.exchange.create_tagged_limit_order_bybit(symbol, side, amount, level, positionIdx=position_idx, orderLinkId=order_link_id)
+                if order is not None and 'id' in order:
+                    logging.info(f"Placed {side} order at level {level} for {symbol} with amount {amount}")
+                    filled_levels.add(level)  # Add the level to filled_levels
+                else:
+                    logging.error(f"Failed to place {side} order at level {level} for {symbol} with amount {amount}")
             else:
-                logging.warning(f"Could not cancel order for {symbol}: {order.get('error', 'Unknown error')}")
-        self.linear_grid_orders[symbol] = []
+                logging.info(f"Skipping {side} order at level {level} for {symbol} as it is already filled for the current open position.")
 
+        logging.info(f"[{symbol}] {side.capitalize()} grid orders issued for unfilled levels.")
+        
+    def cancel_grid_orders(self, symbol: str, side: str):
+        open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+        logging.info(f"Open orders data for {symbol}: {open_orders}")
+        for order in open_orders:
+            if order['side'].lower() == side.lower():
+                self.exchange.cancel_order_by_id(order['id'], symbol)
+                
     def calculate_total_amount(self, symbol: str, total_equity: float, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float, side: str) -> float:
         # Fetch market data to get the minimum trade quantity for the symbol
         market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
@@ -1370,27 +1268,14 @@ class BybitStrategy(BaseStrategy):
             amount = total_amount * (ratio / sum([(j + 1) ** strength for j in range(levels)]))
 
             # Round the order amount based on the minimum quantity precision
-            rounded_amount = round(amount / qty_precision) * qty_precision
+            rounded_amount = round(amount / min_qty) * min_qty
 
             # Ensure the order amount is greater than or equal to the minimum quantity
             adjusted_amount = max(rounded_amount, min_qty)
             amounts.append(adjusted_amount)
 
         return amounts
-
-    def place_linear_grid_orders(self, symbol: str, side: str, grid_levels: list, amounts: list):
-        for level, amount in zip(grid_levels, amounts):
-            if side == "buy":
-                positionIdx = 1
-            elif side == "sell":
-                positionIdx = 2
-            else:
-                raise ValueError(f"Invalid side: {side}")
-
-            order = self.limit_order_bybit(symbol, side, amount, level, positionIdx=positionIdx)
-            self.linear_grid_orders.setdefault(symbol, []).append(order)
-            logging.info(f"Placed {side} order at level {level} for {symbol} with amount {amount}")
-     
+    
     def cancel_entries_bybit_new(self, open_symbols, open_orders):
         current_time = time.time()
         # Ensure last_cancel_time is initialized for each symbol in open_orders

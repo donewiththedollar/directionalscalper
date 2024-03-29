@@ -9,7 +9,6 @@ from threading import Thread, Lock
 from datetime import datetime, timedelta
 
 from directionalscalper.core.strategies.bybit.bybit_strategy import BybitStrategy
-from directionalscalper.core.exchanges.bybit import BybitExchange
 from directionalscalper.core.strategies.logger import Logger
 from live_table_manager import shared_symbols_data
 logging = Logger(logger_name="BybitQuickScalpTrend", filename="BybitQuickScalpTrend.log", stream=True)
@@ -19,7 +18,6 @@ symbol_locks = {}
 class BybitQuickScalpTrend(BybitStrategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
-        self.exchange = BybitExchange(exchange.api_key, exchange.secret_key, exchange.passphrase)
         self.is_order_history_populated = False
         self.last_health_check_time = time.time()
         self.health_check_interval = 600
