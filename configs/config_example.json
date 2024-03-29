@@ -43,13 +43,12 @@
     "shared_data_path": "data/",
     "linear_grid": {
       "levels": 5,
-      "strength": 1.0,
+      "strength": 1.6,
       "outer_price_distance": 0.049,
       "long_mode": true,
       "short_mode": false,
       "reissue_threshold": 0.00001,
-      "buffer_percentage": 0.005,
-      "reissue_threshold_inposition": true
+      "buffer_percentage": 0.005
     }
   },
   "exchanges": [

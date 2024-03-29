@@ -42,6 +42,7 @@ class BybitStrategy(BaseStrategy):
         self.entered_grid_levels = {}
         self.filled_order_levels = {}
         self.filled_levels = {}
+        self.active_grids = set()
         pass
 
     TAKER_FEE_RATE = 0.00055
