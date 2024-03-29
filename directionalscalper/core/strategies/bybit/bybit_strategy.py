@@ -1301,6 +1301,38 @@ class BybitStrategy(BaseStrategy):
         logging.info(f"Calculated order amounts: {amounts}")
         return amounts
     
+    def calculate_order_amounts_min_notional(self, total_amount: float, levels: int, strength: float, min_notional: float, current_price: float) -> List[float]:
+        logging.info(f"Calculating order amounts with total_amount: {total_amount}, levels: {levels}, strength: {strength}, min_notional: {min_notional}, current_price: {current_price}")
+
+        # Calculate the order amounts based on the strength
+        amounts = []
+        total_ratio = sum([(j + 1) ** strength for j in range(levels)])
+        remaining_amount = total_amount
+
+        for i in range(levels - 1):
+            ratio = (i + 1) ** strength
+            amount = total_amount * (ratio / total_ratio)
+            logging.info(f"Level {i+1} - Ratio: {ratio}, Amount: {amount}")
+
+            # Calculate the minimum quantity based on the minimum notional value
+            min_qty = min_notional / current_price
+            logging.info(f"Level {i+1} - Minimum quantity: {min_qty}")
+
+            # Ensure the order amount is greater than or equal to the minimum quantity
+            adjusted_amount = max(amount, min_qty)
+            logging.info(f"Level {i+1} - Adjusted amount: {adjusted_amount}")
+
+            amounts.append(adjusted_amount)
+            remaining_amount -= adjusted_amount
+
+        # Assign the remaining amount to the last level
+        last_amount = max(remaining_amount, min_notional / current_price)
+        amounts.append(last_amount)
+        logging.info(f"Last level - Amount: {last_amount}")
+
+        logging.info(f"Calculated order amounts: {amounts}")
+        return amounts
+
     def initiate_spread_entry(self, symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty):
         order_book = self.exchange.get_orderbook(symbol)
         best_ask_price = order_book['asks'][0][0]
