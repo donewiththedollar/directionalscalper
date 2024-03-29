@@ -1333,6 +1333,28 @@ class BybitStrategy(BaseStrategy):
         logging.info(f"Calculated order amounts: {amounts}")
         return amounts
 
+    def calculate_total_amount_min_notional(self, symbol: str, total_equity: float, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float, side: str, min_notional: float) -> float:
+        logging.info(f"Calculating total amount for {symbol} with total_equity: {total_equity}, best_ask_price: {best_ask_price}, best_bid_price: {best_bid_price}, wallet_exposure_limit: {wallet_exposure_limit}, user_defined_leverage: {user_defined_leverage}, side: {side}, min_notional: {min_notional}")
+
+        # Calculate the minimum quantity based on the minimum notional value
+        if side == "buy":
+            min_qty = min_notional / best_ask_price
+        elif side == "sell":
+            min_qty = min_notional / best_bid_price
+        else:
+            raise ValueError(f"Invalid side: {side}")
+        logging.info(f"Minimum quantity for {symbol}: {min_qty}")
+
+        # Calculate the maximum position value based on total equity, wallet exposure limit, and user-defined leverage
+        max_position_value = total_equity * wallet_exposure_limit * user_defined_leverage
+        logging.info(f"Maximum position value for {symbol}: {max_position_value}")
+
+        # Calculate the total amount considering the maximum position value and minimum notional value
+        total_amount = max(max_position_value, min_notional)
+        logging.info(f"Calculated total amount for {symbol}: {total_amount}")
+
+        return total_amount
+
     def initiate_spread_entry(self, symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty):
         order_book = self.exchange.get_orderbook(symbol)
         best_ask_price = order_book['asks'][0][0]
