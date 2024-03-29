@@ -97,6 +97,9 @@ class BybitBasicGrid(BybitStrategy):
             logging.info(f"Starting to process symbol: {symbol}")
             logging.info(f"Initializing default values for symbol: {symbol}")
 
+            previous_long_pos_qty = 0
+            previous_short_pos_qty = 0
+
             # position_inactive_threshold = 60
 
             min_qty = None
@@ -446,6 +449,19 @@ class BybitBasicGrid(BybitStrategy):
 
                     long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
                     short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
+
+                    # Check if a position has been closed
+                    if previous_long_pos_qty > 0 and long_pos_qty == 0:
+                        logging.info(f"Long position closed for {symbol}. Canceling long grid orders.")
+                        self.cancel_grid_orders(symbol, "buy")
+
+                    if previous_short_pos_qty > 0 and short_pos_qty == 0:
+                        logging.info(f"Short position closed for {symbol}. Canceling short grid orders.")
+                        self.cancel_grid_orders(symbol, "sell")
+
+                    # Update the previous position quantities
+                    previous_long_pos_qty = long_pos_qty
+                    previous_short_pos_qty = short_pos_qty
 
                     logging.info(f"Rotator symbol trading: {symbol}")
                                 
