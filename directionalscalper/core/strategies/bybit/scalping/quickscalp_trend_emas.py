@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from directionalscalper.core.strategies.bybit.bybit_strategy import BybitStrategy
 from directionalscalper.core.strategies.logger import Logger
 from live_table_manager import shared_symbols_data
-logging = Logger(logger_name="BybitQSTrendDoubleMA", filename="BybitQSTrendDoubleMA.log", stream=True)
+logging = Logger(logger_name="BybitQuickScalpTrend", filename="BybitQuickScalpTrend.log", stream=True)
 
 symbol_locks = {}
 
@@ -299,7 +299,7 @@ class BybitQSTrendDoubleMA(BybitStrategy):
 
                 # Fetch equity data less frequently or if it's not available yet
                 if current_time - last_equity_fetch_time > equity_refresh_interval or total_equity is None:
-                    total_equity = self.retry_api_call(self.exchange.get_balance_bybit, quote_currency)
+                    total_equity = self.retry_api_call(self.exchange.get_futures_balance_bybit, quote_currency)
                     available_equity = self.retry_api_call(self.exchange.get_available_balance_bybit, quote_currency)
                     last_equity_fetch_time = current_time
 
@@ -387,11 +387,12 @@ class BybitQSTrendDoubleMA(BybitStrategy):
                     one_minute_distance = metrics['1mSpread']
                     five_minute_distance = metrics['5mSpread']
                     trend = metrics['Trend']
-
+                    #mfirsi_signal = metrics['MFI']
+                    #mfirsi_signal = self.get_mfirsi_ema(symbol, limit=100, lookback=5, ema_period=5)
                     mfirsi_signal = self.get_mfirsi_ema_secondary_ema_l(
                         symbol, 
                         limit=100,
-                        lookback=2,
+                        lookback=1,
                         ema_period=6,
                         secondary_ema_period=4
                     )
@@ -485,7 +486,7 @@ class BybitQSTrendDoubleMA(BybitStrategy):
                             shared_symbols_data=shared_symbols_data
                         )
                     except Exception as e:
-                        logging.info(f"Exception caught in autoreduce")
+                        logging.info(f"Exception caught in autoreduce {e}")
 
                     self.auto_reduce_percentile_logic(
                         symbol,
@@ -626,8 +627,7 @@ class BybitQSTrendDoubleMA(BybitStrategy):
                         upnl_profit_pct,
                         tp_order_counts
                     )
-                    
-                    
+                
                     logging.info(f"Long tp counts: {long_tp_counts}")
                     logging.info(f"Short tp counts: {short_tp_counts}")
 
@@ -726,11 +726,37 @@ class BybitQSTrendDoubleMA(BybitStrategy):
                 shared_symbols_data[symbol] = symbol_data
 
                 if self.config.dashboard_enabled:
-                    data_to_save = copy.deepcopy(shared_symbols_data)
-                    with open(dashboard_path, "w") as f:
-                        json.dump(data_to_save, f)
-                    self.update_shared_data(symbol_data, open_position_data, len(open_symbols))
+                    try:
+                        dashboard_path = os.path.join(self.config.shared_data_path, "shared_data.json")
+                        logging.info(f"Dashboard path: {dashboard_path}")
 
+                        # Ensure the directory exists
+                        os.makedirs(os.path.dirname(dashboard_path), exist_ok=True)
+                        logging.info(f"Directory created: {os.path.dirname(dashboard_path)}")
+
+                        if os.path.exists(dashboard_path):
+                            with open(dashboard_path, "r") as file:
+                                # Read or process file data
+                                data = json.load(file)
+                                logging.info("Loaded existing data from shared_data.json")
+                        else:
+                            logging.warning("shared_data.json does not exist. Creating a new file.")
+                            data = {}  # Initialize data as an empty dictionary
+
+                        # Save the updated data to the JSON file
+                        with open(dashboard_path, "w") as file:
+                            json.dump(data, file)
+                            logging.info("Data saved to shared_data.json")
+
+                    except FileNotFoundError:
+                        logging.error(f"File not found: {dashboard_path}")
+                        # Handle the absence of the file, e.g., by creating it or using default data
+                    except IOError as e:
+                        logging.error(f"I/O error occurred: {e}")
+                        # Handle other I/O errors
+                    except Exception as e:
+                        logging.error(f"An unexpected error occurred: {e}")
+                        
                 iteration_end_time = time.time()  # Record the end time of the iteration
                 iteration_duration = iteration_end_time - iteration_start_time
                 logging.info(f"Iteration for symbol {symbol} took {iteration_duration:.2f} seconds")
