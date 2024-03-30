@@ -696,38 +696,6 @@ class BaseStrategy:
         next_update_time = now + timedelta(seconds=10)
         return next_update_time.replace(microsecond=0)
 
-    def place_long_tp_order(self, symbol, best_ask_price, long_pos_price, long_pos_qty, long_take_profit, open_orders):
-        try:
-            tp_order_counts = self.exchange.get_open_tp_order_count(symbol)
-            logging.info(f"Long TP order counts for {symbol}: {tp_order_counts}")
-
-            if tp_order_counts['long_tp_count'] == 0:
-                if long_pos_price is not None and best_ask_price is not None and long_pos_price >= long_take_profit:
-                    long_take_profit = best_ask_price
-                    logging.info(f"Adjusted long TP to current bid price for {symbol}: {long_take_profit}")
-
-                if long_pos_qty > 0 and long_take_profit is not None:
-                    logging.info(f"Placing long TP order for {symbol} at {long_take_profit} with {long_pos_qty}")
-                    self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
-        except Exception as e:
-            logging.error(f"Exception caught in placing long TP order for {symbol}: {e}")
-
-    def place_short_tp_order(self, symbol, best_bid_price, short_pos_price, short_pos_qty, short_take_profit, open_orders):
-        try:
-            tp_order_counts = self.exchange.get_open_tp_order_count(symbol)
-            logging.info(f"Short TP order counts for {symbol}: {tp_order_counts}")
-
-            if tp_order_counts['short_tp_count'] == 0:
-                if short_pos_price is not None and best_bid_price is not None and short_pos_price <= short_take_profit:
-                    short_take_profit = best_bid_price
-                    logging.info(f"Adjusted short TP to current ask price for {symbol}: {short_take_profit}")
-
-                if short_pos_qty > 0 and short_take_profit is not None:
-                    logging.info(f"Placing short TP order for {symbol} at {short_take_profit} with {short_pos_qty}")
-                    self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
-        except Exception as e:
-            logging.error(f"Exception caught in placing short TP order for {symbol}: {e}")
-
     def calculate_short_take_profit_bybit(self, short_pos_price, symbol):
         if short_pos_price is None:
             return None

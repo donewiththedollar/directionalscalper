@@ -59,10 +59,6 @@ def standardize_symbol(symbol):
 
 def get_available_strategies():
     return [
-        'bybit_1m_qfl_mfi_eri_walls',
-        'bybit_1m_qfl_mfi_eri_autohedge_walls_atr',
-        'bybit_mfirsi_imbalance',
-        'bybit_mfirsi_quickscalp',
         'qstrend',
         'qstrendemas',
         'mfieritrend',
