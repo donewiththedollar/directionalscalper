@@ -1100,91 +1100,123 @@ class BybitStrategy(BaseStrategy):
                         self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2)
 
     def linear_grid_handle_positions(self, symbol: str, open_symbols: list, total_equity: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, buffer_percentage: float, symbols_allowed: int):
-        if symbol not in self.symbol_locks:
-            self.symbol_locks[symbol] = threading.Lock()
+        try:
+            if symbol not in self.symbol_locks:
+                self.symbol_locks[symbol] = threading.Lock()
 
-        with self.symbol_locks[symbol]:
-            should_reissue = self.should_reissue_orders(symbol, reissue_threshold)
-            open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+            with self.symbol_locks[symbol]:
+                should_reissue = self.should_reissue_orders(symbol, reissue_threshold)
+                open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
-            # Initialize filled_levels dictionary for the current symbol if it doesn't exist
-            if symbol not in self.filled_levels:
-                self.filled_levels[symbol] = {"buy": set(), "sell": set()}
+                # Initialize filled_levels dictionary for the current symbol if it doesn't exist
+                if symbol not in self.filled_levels:
+                    self.filled_levels[symbol] = {"buy": set(), "sell": set()}
 
-            if symbol in self.active_grids and not should_reissue:
-                logging.info(f"[{symbol}] Grid already active and reissue threshold not met. Skipping grid placement.")
-                return
+                if symbol in self.active_grids and not should_reissue:
+                    logging.info(f"[{symbol}] Grid already active and reissue threshold not met. Skipping grid placement.")
+                    return
 
-            current_price = self.exchange.get_current_price(symbol)
-            logging.info(f"[{symbol}] Current price: {current_price}")
+                current_price = self.exchange.get_current_price(symbol)
+                logging.info(f"[{symbol}] Current price: {current_price}")
 
-            order_book = self.exchange.get_orderbook(symbol)
-            best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol, current_price)
-            best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol, current_price)
-            logging.info(f"[{symbol}] Best ask price: {best_ask_price}, Best bid price: {best_bid_price}")
+                order_book = self.exchange.get_orderbook(symbol)
+                best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol, current_price)
+                best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol, current_price)
+                logging.info(f"[{symbol}] Best ask price: {best_ask_price}, Best bid price: {best_bid_price}")
 
-            outer_price_long = current_price * (1 - outer_price_distance)
-            outer_price_short = current_price * (1 + outer_price_distance)
-            logging.info(f"[{symbol}] Outer price long: {outer_price_long}, Outer price short: {outer_price_short}")
+                outer_price_long = current_price * (1 - outer_price_distance)
+                outer_price_short = current_price * (1 + outer_price_distance)
+                logging.info(f"[{symbol}] Outer price long: {outer_price_long}, Outer price short: {outer_price_short}")
 
-            price_range_long = current_price - outer_price_long
-            price_range_short = outer_price_short - current_price
+                price_range_long = current_price - outer_price_long
+                price_range_short = outer_price_short - current_price
 
-            buffer_distance_long = current_price * buffer_percentage / 100
-            buffer_distance_short = current_price * buffer_percentage / 100
+                buffer_distance_long = current_price * buffer_percentage / 100
+                buffer_distance_short = current_price * buffer_percentage / 100
 
-            factors = np.linspace(0.0, 1.0, num=levels) ** strength
-            grid_levels_long = [current_price - buffer_distance_long - price_range_long * factor for factor in factors]
-            grid_levels_short = [current_price + buffer_distance_short + price_range_short * factor for factor in factors]
+                factors = np.linspace(0.0, 1.0, num=levels) ** strength
+                grid_levels_long = [current_price - buffer_distance_long - price_range_long * factor for factor in factors]
+                grid_levels_short = [current_price + buffer_distance_short + price_range_short * factor for factor in factors]
 
-            logging.info(f"[{symbol}] Long grid levels: {grid_levels_long}")
-            logging.info(f"[{symbol}] Short grid levels: {grid_levels_short}")
+                logging.info(f"[{symbol}] Long grid levels: {grid_levels_long}")
+                logging.info(f"[{symbol}] Short grid levels: {grid_levels_short}")
 
-            total_amount_long = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_long, "buy") if long_mode else 0
-            total_amount_short = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_short, "sell") if short_mode else 0
-            logging.info(f"[{symbol}] Total amount long: {total_amount_long}, Total amount short: {total_amount_short}")
+                total_amount_long = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_long, "buy") if long_mode else 0
+                total_amount_short = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_short, "sell") if short_mode else 0
+                logging.info(f"[{symbol}] Total amount long: {total_amount_long}, Total amount short: {total_amount_short}")
 
-            qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
-            min_qty = float(self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
-            logging.info(f"[{symbol}] Quantity precision: {qty_precision}, Minimum quantity: {min_qty}")
+                qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
+                min_qty = float(self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
+                logging.info(f"[{symbol}] Quantity precision: {qty_precision}, Minimum quantity: {min_qty}")
 
-            amounts_long = self.calculate_order_amounts(symbol, total_amount_long, levels, strength, qty_precision, min_qty)
-            amounts_short = self.calculate_order_amounts(symbol, total_amount_short, levels, strength, qty_precision, min_qty)
-            logging.info(f"[{symbol}] Long order amounts: {amounts_long}")
-            logging.info(f"[{symbol}] Short order amounts: {amounts_short}")
+                amounts_long = self.calculate_order_amounts(symbol, total_amount_long, levels, strength, qty_precision, min_qty)
+                amounts_short = self.calculate_order_amounts(symbol, total_amount_short, levels, strength, qty_precision, min_qty)
+                logging.info(f"[{symbol}] Long order amounts: {amounts_long}")
+                logging.info(f"[{symbol}] Short order amounts: {amounts_short}")
 
-            if should_reissue or symbol not in self.active_grids:
-                if long_mode:
-                    if long_pos_qty > 0 and not any(order['side'].lower() == 'buy' for order in open_orders):
-                        logging.info(f"[{symbol}] Open long position detected, but no active long grid orders. Placing new long grid orders.")
+                trading_allowed = self.can_trade_new_symbol(open_symbols, symbols_allowed, symbol)
+                logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
+                logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
+
+                if should_reissue or symbol not in self.active_grids:
+                    if symbol in open_symbols:
+                        if long_mode:
+                            if long_pos_qty > 0 and not any(order['side'].lower() == 'buy' for order in open_orders):
+                                logging.info(f"[{symbol}] Open long position detected, but no active long grid orders. Placing new long grid orders.")
+                                self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                                self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+                            elif long_pos_qty == 0 and symbol not in self.active_grids:
+                                logging.info(f"[{symbol}] No open long position. Placing new long orders.")
+                                self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                                self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+
+                        if short_mode:
+                            if short_pos_qty > 0 and not any(order['side'].lower() == 'sell' for order in open_orders):
+                                logging.info(f"[{symbol}] Open short position detected, but no active short grid orders. Placing new short grid orders.")
+                                self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                                self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+                            elif short_pos_qty == 0 and symbol not in self.active_grids:
+                                logging.info(f"[{symbol}] No open short position. Placing new short orders.")
+                                self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                                self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+                    else:
+                        if trading_allowed:
+                            if long_mode:
+                                if long_pos_qty == 0 and symbol not in self.active_grids:
+                                    logging.info(f"[{symbol}] No open long position. Placing new long orders.")
+                                    self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                                    self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+
+                            if short_mode:
+                                if short_pos_qty == 0 and symbol not in self.active_grids:
+                                    logging.info(f"[{symbol}] No open short position. Placing new short orders.")
+                                    self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                                    self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+                        else:
+                            logging.info(f"[{symbol}] Trading not allowed. Skipping grid placement.")
+                else:
+                    logging.info(f"[{symbol}] Grid already active and reissue threshold not met. No action required.")
+
+                # Check if there is room for trading new symbols
+                logging.info(f"[{symbol}] Number of open symbols: {len(open_symbols)}, Symbols allowed: {symbols_allowed}")
+                if len(open_symbols) < symbols_allowed and long_pos_qty == 0 and short_pos_qty == 0 and symbol not in self.active_grids:
+                    logging.info(f"[{symbol}] No open positions and no active grids. Checking for new symbols to trade.")
+                    # Place grid orders for the new symbol
+                    if long_mode:
+                        logging.info(f"[{symbol}] Placing new long orders.")
                         self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                         self.active_grids.add(symbol)  # Mark the symbol as having an active grid
-                    elif long_pos_qty == 0 and symbol not in self.active_grids:
-                        # Check if the bot can trade a new symbol
-                        if not self.can_trade_new_symbol(open_symbols, symbols_allowed, symbol):
-                            logging.info(f"[{symbol}] Cannot trade new symbol due to symbol limit. Skipping long grid placement.")
-                        else:
-                            logging.info(f"[{symbol}] No open long position. Placing new long orders.")
-                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                            self.active_grids.add(symbol)  # Mark the symbol as having an active grid
-
-                if short_mode:
-                    if short_pos_qty > 0 and not any(order['side'].lower() == 'sell' for order in open_orders):
-                        logging.info(f"[{symbol}] Open short position detected, but no active short grid orders. Placing new short grid orders.")
+                    if short_mode:
+                        logging.info(f"[{symbol}] Placing new short orders.")
                         self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                         self.active_grids.add(symbol)  # Mark the symbol as having an active grid
-                    elif short_pos_qty == 0 and symbol not in self.active_grids:
-                        # Check if the bot can trade a new symbol
-                        if not self.can_trade_new_symbol(open_symbols, symbols_allowed, symbol):
-                            logging.info(f"[{symbol}] Cannot trade new symbol due to symbol limit. Skipping short grid placement.")
-                        else:
-                            logging.info(f"[{symbol}] No open short position. Placing new short orders.")
-                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                            self.active_grids.add(symbol)  # Mark the symbol as having an active grid
-            else:
-                logging.info(f"[{symbol}] Grid already active and reissue threshold not met. No action required.")
+                else:
+                    logging.info(f"[{symbol}] Cannot trade new symbol due to symbol limit or existing open positions/active grids.")
 
-            time.sleep(5)
+                time.sleep(5)
+        except Exception as e:
+            logging.info(f"Exception caught in grid {e}")
+            
                         
     def should_reissue_orders(self, symbol: str, reissue_threshold: float) -> bool:
         try:

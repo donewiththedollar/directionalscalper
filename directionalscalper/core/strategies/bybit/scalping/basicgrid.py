@@ -670,6 +670,7 @@ class BybitBasicGrid(BybitStrategy):
                         self.symbols_allowed
                     )
 
+
                     logging.info(f"Long tp counts: {long_tp_counts}")
                     logging.info(f"Short tp counts: {short_tp_counts}")
 
