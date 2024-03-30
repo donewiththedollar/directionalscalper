@@ -97,7 +97,7 @@ class BaseStrategy:
         self.max_trade_qty_per_symbol = {}
 
         # self.bybit = self.Bybit(self)
-        
+
     def update_hedged_status(self, symbol, is_hedged):
         self.hedged_positions[symbol] = is_hedged
 
@@ -207,7 +207,7 @@ class BaseStrategy:
         df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
         return df
-        
+
     def calculate_atr(self, df, period=14):
         high_low = df['high'] - df['low']
         high_close = np.abs(df['high'] - df['close'].shift())
@@ -215,7 +215,7 @@ class BaseStrategy:
         tr = np.max([high_low, high_close, low_close], axis=0)
         atr = np.mean(tr[-period:])
         return atr
-    
+
 
     def initialize_trade_quantities(self, symbol, total_equity, best_ask_price, max_leverage):
         if symbol in self.initialized_symbols:
@@ -286,7 +286,7 @@ class BaseStrategy:
             logging.info(f"Market order to close {side} position of {amount} {symbol} placed successfully.")
         except Exception as e:
             logging.error(f"Failed to place market close order: {e}")
-        
+
     def get_position_update_time(self, symbol):
         try:
             # Fetch position information
@@ -319,7 +319,7 @@ class BaseStrategy:
         except Exception as e:
             logging.error(f"Error fetching recent trades for {symbol}: {e}")
             return []
-        
+
     # def fetch_recent_trades_for_symbol(self, symbol, since=None, limit=100):
     #     """
     #     Fetch recent trades for a given symbol.
@@ -357,7 +357,7 @@ class BaseStrategy:
             logging.info(f"Raw order data: {order}")
             order_side = order.get('side')
             reduce_only = order.get('reduce_only', False)
-            
+
             if order_side and isinstance(order_side, str) and order_side.lower() == side.lower() and reduce_only:
                 qty = order.get('qty', 0)
                 order_id = order.get('id')
@@ -370,7 +370,7 @@ class BaseStrategy:
             logging.info(f"Raw order data additional entries: {order}")
             order_side = order.get('side')
             order_id = order.get('id')
-            
+
             if order_id and self.is_entry_order(symbol, order_id) and order_side and isinstance(order_side, str) and order_side.lower() == side.lower():
                 qty = order.get('qty', 0)
                 additional_entry_orders.append((qty, order_id))
@@ -391,8 +391,8 @@ class BaseStrategy:
         return [(order['amount'], order['id']) for order in open_orders
                 if order['type'] == 'TAKE_PROFIT_MARKET' and
                 order['side'].lower() == order_side.lower() and
-                order.get('reduce_only', False)]        
-                
+                order.get('reduce_only', False)]
+
     def get_open_take_profit_limit_order_quantities_binance(self, open_orders, order_side):
         return [(order['amount'], order['id']) for order in open_orders
                 if order['type'] == 'LIMIT' and
@@ -420,7 +420,7 @@ class BaseStrategy:
             logging.info(f"Long TP price: {long_take_profit}, TP distance in percent: {long_tp_distance_percent:.2f}%, Expected profit: {long_expected_profit_usdt:.2f} USDT")
             return should_add_to_long, long_tp_distance_percent, long_expected_profit_usdt
         return None, None, None
-    
+
     def short_trade_condition(self, current_ask, ma_3_high):
         if current_ask is None or ma_3_high is None:
             return False
@@ -462,7 +462,7 @@ class BaseStrategy:
                     time.sleep(retry_delay)
                 else:
                     raise e
-                
+
     def calc_max_trade_qty(self, symbol, total_equity, best_ask_price, max_leverage, max_retries=5, retry_delay=5):
         wallet_exposure = self.config.wallet_exposure
         for _ in range(max_retries):
@@ -493,7 +493,7 @@ class BaseStrategy:
     #             )
 
     #             logging.info(f"Max trade qty for {symbol} calculated: {max_trade_qty} ")
-                
+
     #             return max_trade_qty
     #         except TypeError as e:
     #             if total_equity is None:
@@ -516,13 +516,13 @@ class BaseStrategy:
                     / (100 / max_leverage),
                     int(float(market_data["min_qty"])),
                 )
-                
+
                 # Apply your logic to differentiate between long and short here
                 max_long_trade_qty = base_max_trade_qty  # Modify based on long_pos_qty_open_symbol
                 max_short_trade_qty = base_max_trade_qty  # Modify based on short_pos_qty_open_symbol
-                
+
                 return max_long_trade_qty, max_short_trade_qty
-                    
+
             except TypeError as e:
                 if total_equity is None:
                     print(f"Error: total_equity is None. Retrying in {retry_delay} seconds...")
@@ -530,9 +530,9 @@ class BaseStrategy:
                     print(f"Error: best_ask_price is None. Retrying in {retry_delay} seconds...")
             except Exception as e:
                 print(f"An unexpected error occurred: {e}. Retrying in {retry_delay} seconds...")
-                
+
             time.sleep(retry_delay)
-            
+
         raise Exception("Failed to calculate maximum trade quantity after maximum retries.")
 
     def calc_max_trade_qty_multi(self, total_equity, best_ask_price, max_leverage, max_retries=5, retry_delay=5):
@@ -545,13 +545,13 @@ class BaseStrategy:
                     / (100 / max_leverage),
                     int(float(market_data["min_qty"])),
                 )
-                
+
                 # Assuming the logic for max_long_trade_qty and max_short_trade_qty is the same
                 max_long_trade_qty = max_trade_qty
                 max_short_trade_qty = max_trade_qty
-                
+
                 return max_long_trade_qty, max_short_trade_qty
-                
+
             except TypeError as e:
                 if total_equity is None:
                     print(f"Error: total_equity is None. Retrying in {retry_delay} seconds...")
@@ -559,9 +559,9 @@ class BaseStrategy:
                     print(f"Error: best_ask_price is None. Retrying in {retry_delay} seconds...")
             except Exception as e:
                 print(f"An unexpected error occurred: {e}. Retrying in {retry_delay} seconds...")
-                
+
             time.sleep(retry_delay)
-            
+
         raise Exception("Failed to calculate maximum trade quantity after maximum retries.")
 
     def calc_max_trade_qty_binance(self, total_equity, best_ask_price, max_leverage, step_size, max_retries=5, retry_delay=5):
@@ -591,16 +591,16 @@ class BaseStrategy:
             market_data = self.exchange.get_market_data_binance(symbol)
             min_qty = float(market_data["min_qty"])
             step_size = float(market_data['step_size'])
-            
+
             if step_size == 0.0:
                 print(f"Step size is zero for {symbol}. Cannot calculate precision.")
                 return False
 
             precision = int(-math.log10(step_size))
-            
+
             # Ensure the amount is a multiple of step_size
             amount = round(amount, precision)
-            
+
             if amount < min_qty:
                 print(f"The amount you entered ({amount}) is less than the minimum required by Binance for {symbol}: {min_qty}.")
                 return False
@@ -612,29 +612,29 @@ class BaseStrategy:
         """
         Monitors liquidation risk and closes positions if the current price is within the threshold
         of the liquidation price.
-        
+
         Parameters:
             symbol (str): The trading symbol (e.g., "BTCUSD").
             threshold (float): The percentage threshold for closing positions (default is 2% or 0.02).
         """
-        
+
         # Fetch the current positions
         position_data = self.exchange.get_positions_bybit(symbol)
         short_liq_price = float(position_data["short"]["liq_price"])
         long_liq_price = float(position_data["long"]["liq_price"])
-        
+
         # Fetch the current market price
         current_price = float(self.exchange.get_current_price(symbol))
-        
+
         # Calculate the thresholds
         short_close_threshold = short_liq_price * (1 + threshold)
         long_close_threshold = long_liq_price * (1 - threshold)
-        
+
         # Check if the current price is within the threshold for the short position and close if necessary
         if current_price >= short_close_threshold:
             logging.warning(f"Closing short position for {symbol} as the current price {current_price} is close to the liquidation price {short_liq_price}.")
             self.market_close_order_bybit(symbol, "sell")  # Assuming this is your function to close a market order
-        
+
         # Check if the current price is within the threshold for the long position and close if necessary
         if current_price <= long_close_threshold:
             logging.warning(f"Closing long position for {symbol} as the current price {current_price} is close to the liquidation price {long_liq_price}.")
@@ -973,11 +973,11 @@ class BaseStrategy:
         if five_minute_distance != previous_five_minute_distance or short_take_profit is None or long_take_profit is None:
             short_take_profit = self.calculate_short_take_profit_spread_bybit(short_pos_price, symbol, five_minute_distance)
             long_take_profit = self.calculate_long_take_profit_spread_bybit(long_pos_price, symbol, five_minute_distance)
-            
+
             # Log the calculated values
             logging.info(f"Newly calculated short_take_profit: {short_take_profit}")
             logging.info(f"Newly calculated long_take_profit: {long_take_profit}")
-        
+
         return short_take_profit, long_take_profit
 
     def calculate_short_take_profit_binance(self, short_pos_price, symbol):
@@ -1035,7 +1035,7 @@ class BaseStrategy:
         step_size = market_data['step_size']
         price_precision = int(-math.log10(float(step_size))) if float(step_size) < 1 else 8
         print(f"price_precision: {price_precision}")
-        
+
         if five_min_data is not None:
             ma_6_high = Decimal(five_min_data["MA_6_H"])
             ma_6_low = Decimal(five_min_data["MA_6_L"])
@@ -1061,7 +1061,7 @@ class BaseStrategy:
 
             return float(long_profit_price)
         return None
-        
+
     def check_short_long_conditions(self, best_bid_price, ma_3_high):
         should_short = best_bid_price > ma_3_high
         should_long = best_bid_price < ma_3_high
@@ -1240,7 +1240,7 @@ class BaseStrategy:
     def parse_symbol_swap_huobi(self, symbol):
         if "huobi" in self.exchange.name.lower():
             base_currency = symbol[:-4]
-            quote_currency = symbol[-4:] 
+            quote_currency = symbol[-4:]
             return f"{base_currency}/{quote_currency}:{quote_currency}"
         return symbol
 
@@ -1262,7 +1262,7 @@ class BaseStrategy:
                 self.account_type_verified = True  # set to True after account type is verified or changed
             except Exception as e:
                 print(f"Error in switching account type {e}")
-                
+
     # MFIRSI with retry
     def initialize_MFIRSI(self, symbol):
         max_retries = 5
@@ -1312,7 +1312,7 @@ class BaseStrategy:
     def extract_symbols_from_positions_bybit(self, positions: List[dict]) -> List[str]:
         """
         Extract symbols from the positions data.
-        
+
         :param positions: List of position dictionaries.
         :return: List of extracted symbols.
         """
@@ -1366,7 +1366,7 @@ class BaseStrategy:
         # Update and serialize open position data
         with open(os.path.join(data_directory, "open_positions_data.json"), "w") as f:
             json.dump(open_position_data, f)
-        
+
         # Update and serialize count of open symbols
         with open(os.path.join(data_directory, "open_symbols_count.json"), "w") as f:
             json.dump({"count": open_symbols_count}, f)
@@ -1416,7 +1416,7 @@ class BaseStrategy:
 
             long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
             short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
-        
+
             if short_pos_qty is None and long_pos_qty is None:
                 logging.warning(f"Could not fetch position quantities for {symbol}. Skipping helper process.")
                 return
@@ -1443,12 +1443,12 @@ class BaseStrategy:
                     helper_price_long = best_ask_price + gap + safety_margin
                     helper_price_long = helper_price_long.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
                     helper_order_long = self.exchange.create_tagged_limit_order_bybit(
-                        symbol, 
-                        "sell", 
-                        long_dynamic_amount * 1.5, 
-                        helper_price_long, 
-                        positionIdx=2, 
-                        postOnly=True, 
+                        symbol,
+                        "sell",
+                        long_dynamic_amount * 1.5,
+                        helper_price_long,
+                        positionIdx=2,
+                        postOnly=True,
                         params={"orderLinkId": f"helperOrder_{symbol}_long_{i}"}
                     )
                     helper_orders.append(helper_order_long)
@@ -1458,12 +1458,12 @@ class BaseStrategy:
                     helper_price_short = best_bid_price - gap - safety_margin
                     helper_price_short = helper_price_short.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
                     helper_order_short = self.exchange.create_tagged_limit_order_bybit(
-                        symbol, 
-                        "buy", 
-                        short_dynamic_amount * 1.5, 
-                        helper_price_short, 
-                        positionIdx=1, 
-                        postOnly=True, 
+                        symbol,
+                        "buy",
+                        short_dynamic_amount * 1.5,
+                        helper_price_short,
+                        positionIdx=1,
+                        postOnly=True,
                         params={"orderLinkId": f"helperOrder_{symbol}_short_{i}"}
                     )
                     helper_orders.append(helper_order_short)
@@ -1486,10 +1486,10 @@ class BaseStrategy:
         # Fetch historical candle data
         candles = self.exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=lookback_period)
         df = pd.DataFrame(candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-        
+
         # Convert timestamps to readable dates (optional)
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-        
+
         # Find the lowest lows and highest highs of the lookback period for QFL bases and ceilings
         qfl_base = df['low'].min()  # Support level
         qfl_ceiling = df['high'].max()  # Resistance level
@@ -1500,10 +1500,10 @@ class BaseStrategy:
         # Fetch historical candle data
         candles = self.exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=lookback_period)
         df = pd.DataFrame(candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-        
+
         # Convert timestamps to readable dates (optional)
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-        
+
         # Find the lowest lows of the lookback period
         qfl_base = df['low'].min()
         return qfl_base
@@ -1540,7 +1540,7 @@ class BaseStrategy:
         if one_minute_volume is None or five_minute_distance is None or one_minute_volume <= min_vol or five_minute_distance <= min_dist:
             logging.warning(f"Either 'one_minute_volume' or 'five_minute_distance' does not meet the criteria for symbol {symbol}. Skipping current execution...")
             return
-        
+
         order_book = self.exchange.get_orderbook(symbol)
 
         best_ask_price = order_book['asks'][0][0]
@@ -1592,7 +1592,7 @@ class BaseStrategy:
         if one_minute_volume is None or five_minute_distance is None or one_minute_volume <= min_vol or five_minute_distance <= min_dist:
             logging.warning(f"Either 'one_minute_volume' or 'five_minute_distance' does not meet the criteria for symbol {symbol}. Skipping current execution...")
             return
-        
+
         order_book = self.exchange.get_orderbook(symbol)
 
         best_ask_price = order_book['asks'][0][0]
@@ -1629,7 +1629,7 @@ class BaseStrategy:
                 logging.info(f"Turbocharged Additional Short Entry Placed at {front_run_ask_price} with {short_dynamic_amount} amount!")
 
     def bybit_turbocharged_entry_maker(self, open_orders, symbol, trend, mfi, one_minute_volume: float, five_minute_distance: float, min_vol, min_dist, take_profit_long, take_profit_short, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, should_long, should_add_to_long, should_short, should_add_to_short):
-        
+
         if not (one_minute_volume and five_minute_distance) or one_minute_volume <= min_vol or five_minute_distance <= min_dist:
             logging.warning(f"Either 'one_minute_volume' or 'five_minute_distance' does not meet the criteria for symbol {symbol}. Skipping current execution...")
             return
@@ -1758,7 +1758,7 @@ class BaseStrategy:
                 self.exchange.cancel_order_by_id(order['id'], symbol)
 
         return long_amount if larger_position == "long" else short_amount
-    
+
     def e_m_d(self, symbol):
         while True:  # Continuous operation
             order_book = self.exchange.get_orderbook(symbol)
@@ -1781,7 +1781,7 @@ class BaseStrategy:
                     logging.error(f"Error in extreme market distortion: {e}")
 
             time.sleep(0.01)  # Minimal delay before next cycle
-            
+
     def m_order_amount(self, symbol, side, amount):
         order_book = self.exchange.get_orderbook(symbol)
         top_asks = order_book['asks'][:10]
@@ -1874,7 +1874,7 @@ class BaseStrategy:
             logging.info(f"Short trading fee for {symbol} : {short_trading_fee}")
         else:
             short_trading_fee = 0
-            
+
         # For long positions
         if long_pos_qty > 0:
             if sell_walls and sell_walls[0] > long_pos_price:  # Check if the detected sell wall is above the long position price
@@ -1911,7 +1911,7 @@ class BaseStrategy:
 
         best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
         best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
-        
+
         # Calculate average of top asks and bids
         avg_top_asks = sum([ask[0] for ask in top_asks]) / 5
         avg_top_bids = sum([bid[0] for bid in top_bids]) / 5
@@ -1982,13 +1982,13 @@ class BaseStrategy:
             bid_walls, ask_walls = self.detect_order_book_walls(symbol)
             largest_bid_wall = max(bid_walls, key=lambda x: x[1], default=None)
             largest_ask_wall = max(ask_walls, key=lambda x: x[1], default=None)
-            
+
             qfl_base, qfl_ceiling = self.calculate_qfl_levels(symbol=symbol, timeframe='5m', lookback_period=12)
             current_price = self.exchange.get_current_price(symbol)
 
             best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
             best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
-            
+
             min_order_size = 1
 
             # Auto-hedging logic for long position
@@ -2053,7 +2053,7 @@ class BaseStrategy:
             bid_walls, ask_walls = self.detect_order_book_walls(symbol)
             largest_bid_wall = max(bid_walls, key=lambda x: x[1], default=None)
             largest_ask_wall = max(ask_walls, key=lambda x: x[1], default=None)
-            
+
             qfl_base, qfl_ceiling = self.calculate_qfl_levels(symbol=symbol, timeframe='5m', lookback_period=12)
             logging.info(f"QFL Base for {symbol}: {qfl_base}")
             logging.info(f"QFL Ceiling for {symbol}: {qfl_ceiling}")
@@ -2086,7 +2086,7 @@ class BaseStrategy:
                     if largest_ask_wall and current_price > largest_ask_wall[0] and not self.entry_order_exists(open_orders, "sell"):
                         logging.info(f"Placing additional short trade due to detected sell wall for {symbol}")
                         self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, largest_ask_wall[0], positionIdx=2, reduceOnly=False)
-                
+
             else:
                 logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
 
@@ -2193,7 +2193,7 @@ class BaseStrategy:
                     logging.info(f"order_response: {order_response}")
                     logging.info(f"Auto-hedge short order placed for {symbol}: {order_response}")
                     time.sleep(5)
-            
+
     def bybit_1m_walls_topbottom(self, open_orders: list, symbol: str, trend: str, hma_trend: str, eri_trend: str, top_signal: str, bottom_signal: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
         if symbol not in self.symbol_locks:
             self.symbol_locks[symbol] = threading.Lock()
@@ -2250,7 +2250,7 @@ class BaseStrategy:
             bid_walls, ask_walls = self.detect_order_book_walls(symbol)
             largest_bid_wall = max(bid_walls, key=lambda x: x[1], default=None)
             largest_ask_wall = max(ask_walls, key=lambda x: x[1], default=None)
-            
+
             qfl_base, qfl_ceiling = self.calculate_qfl_levels(symbol=symbol, timeframe='5m', lookback_period=12)
             current_price = self.exchange.get_current_price(symbol)
 
@@ -2335,7 +2335,7 @@ class BaseStrategy:
             bid_walls, ask_walls = self.detect_significant_order_book_walls(symbol)
             largest_bid_wall = max(bid_walls, key=lambda x: x[1], default=None)
             largest_ask_wall = max(ask_walls, key=lambda x: x[1], default=None)
-            
+
             qfl_base, qfl_ceiling = self.calculate_qfl_levels(symbol=symbol, timeframe='5m', lookback_period=12)
             current_price = self.exchange.get_current_price(symbol)
 
@@ -2404,7 +2404,7 @@ class BaseStrategy:
                         logging.info(f"Price approaching significant sell wall and top signal detected for {symbol}. Placing short trade.")
                         self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, largest_ask_wall[0], positionIdx=2, reduceOnly=False)
                         time.sleep(5)
-                
+
             else:
                 logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
 
@@ -2449,7 +2449,7 @@ class BaseStrategy:
             return 'short'
         else:
             return 'neutral'
-        
+
     def get_mfirsi_ema_secondary_ema_l(self, symbol: str, limit: int = 100, lookback: int = 6, ema_period: int = 6, secondary_ema_period: int = 4) -> str:
         # Fetch OHLCV data
         ohlcv_data = self.exchange.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
@@ -2491,7 +2491,7 @@ class BaseStrategy:
             return 'short'
         else:
             return 'neutral'
-        
+
     def get_mfirsi_ema(self, symbol: str, limit: int = 100, lookback: int = 5, ema_period: int = 5) -> str:
         # Fetch OHLCV data
         ohlcv_data = self.exchange.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
@@ -2517,7 +2517,7 @@ class BaseStrategy:
             return 'short'
         else:
             return 'neutral'
-        
+
     def get_mfirsi_volatility_ema(self, symbol: str, limit: int = 100, lookback: int = 5, ema_period: int = 5) -> str:
         # Fetch OHLCV data using CCXT
         ohlcv_data = self.exchange.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
@@ -2534,7 +2534,7 @@ class BaseStrategy:
         # Calculate MFI and RSI with adaptive windows
         df['mfi'] = ta.volume.MFIIndicator(high=df['high'], low=df['low'], close=df['close'], volume=df['volume'], window=mfi_window, fillna=False).money_flow_index()
         df['rsi'] = ta.momentum.rsi(df['close'], window=rsi_window)
-        
+
         # Calculate EMAs for MFI and RSI
         df['mfi_ema'] = df['mfi'].ewm(span=ema_period, adjust=False).mean()
         df['rsi_ema'] = df['rsi'].ewm(span=ema_period, adjust=False).mean()
@@ -2588,7 +2588,7 @@ class BaseStrategy:
         mfi_sell_threshold = 85 if latest_atr_value > volatility_threshold else 80
         rsi_buy_threshold = 35 if latest_atr_value > volatility_threshold else 40
         rsi_sell_threshold = 75 if latest_atr_value > volatility_threshold else 70
-        
+
         # Calculate conditions with adaptive thresholds
         df_min['buy_condition'] = ((df_min['mfi'] < mfi_buy_threshold) & (df_min['rsi'] < rsi_buy_threshold) & (df_min['open_less_close'] == 1)).astype(int)
         df_min['sell_condition'] = ((df_min['mfi'] > mfi_sell_threshold) & (df_min['rsi'] > rsi_sell_threshold) & (df_min['open_less_close'] == 0)).astype(int)
@@ -2803,7 +2803,7 @@ class BaseStrategy:
                     if self.auto_reduce_active_long[symbol]:
                         max_levels, price_interval = self.calculate_auto_reduce_levels_long(
                             symbol,
-                            current_market_price, long_pos_qty, long_dynamic_amount, 
+                            current_market_price, long_pos_qty, long_dynamic_amount,
                             auto_reduce_start_pct, auto_reduce_maxloss_pct
                         )
                         for i in range(1, min(max_levels, 3) + 1):
@@ -2816,7 +2816,7 @@ class BaseStrategy:
                     if self.auto_reduce_active_short[symbol]:
                         max_levels, price_interval = self.calculate_auto_reduce_levels_short(
                             symbol,
-                            current_market_price, short_pos_qty, short_dynamic_amount, 
+                            current_market_price, short_pos_qty, short_dynamic_amount,
                             auto_reduce_start_pct, auto_reduce_maxloss_pct
                         )
                         for i in range(1, min(max_levels, 3) + 1):
@@ -2851,7 +2851,8 @@ class BaseStrategy:
                     self.auto_reduce_active_long[symbol] = current_market_price <= auto_reduce_start_price_long
                     if self.auto_reduce_active_long[symbol]:
                         max_levels, price_interval = self.calculate_auto_reduce_levels_long(
-                            current_market_price, long_pos_qty, long_dynamic_amount, 
+                            symbol,
+                            current_market_price, long_pos_qty, long_dynamic_amount,
                             auto_reduce_start_pct, auto_reduce_maxloss_pct
                         )
                         for i in range(1, min(max_levels, 3) + 1):
@@ -2864,7 +2865,8 @@ class BaseStrategy:
                     self.auto_reduce_active_short[symbol] = current_market_price >= auto_reduce_start_price_short
                     if self.auto_reduce_active_short[symbol]:
                         max_levels, price_interval = self.calculate_auto_reduce_levels_short(
-                            current_market_price, short_pos_qty, short_dynamic_amount, 
+                            symbol,
+                            current_market_price, short_pos_qty, short_dynamic_amount,
                             auto_reduce_start_pct, auto_reduce_maxloss_pct
                         )
                         for i in range(1, min(max_levels, 3) + 1):
@@ -2947,7 +2949,7 @@ class BaseStrategy:
         logging.info(f"Base Levels: {base_levels}, Max Levels: {max_levels}, Price Interval: {price_interval}, Total Price Range: {total_price_range}")
 
         return max_levels, price_interval
-    
+
     def place_auto_reduce_order(self, symbol, step_price, dynamic_amount, position_type):
         try:
             if position_type == 'long':
@@ -2991,7 +2993,7 @@ class BaseStrategy:
                 if step_price >= market_price:
                     logging.warning(f"Skipping auto-reduce short order for {symbol} at {step_price} as it is not less than the market price.")
                     continue
-            
+
             # Round the step price to the correct precision
             step_price = round(step_price, price_precision_level)
 
@@ -3005,11 +3007,11 @@ class BaseStrategy:
                     order_id = self.auto_reduce_long(symbol, adjusted_dynamic_amount, float(step_price))
                 elif position_type == 'short':
                     order_id = self.auto_reduce_short(symbol, adjusted_dynamic_amount, float(step_price))
-                
+
                 # Initialize the symbol key if it doesn't exist
                 if symbol not in self.auto_reduce_orders:
                     self.auto_reduce_orders[symbol] = []
-                    
+
                 if order_id:
                     self.auto_reduce_orders[symbol].append(order_id)
                     logging.info(f"{symbol} {position_type.capitalize()} Auto-Reduce Order Placed at {step_price} with amount {adjusted_dynamic_amount}")
@@ -3018,7 +3020,7 @@ class BaseStrategy:
             except Exception as e:
                 logging.error(f"Error in executing auto-reduce {position_type} order for {symbol}: {e}")
                 logging.error("Traceback:", traceback.format_exc())
-                
+
     def cancel_all_auto_reduce_orders_bybit(self, symbol: str) -> None:
         try:
             if symbol in self.auto_reduce_orders:
@@ -3046,7 +3048,7 @@ class BaseStrategy:
 
         try:
             #total_upnl = sum(data['long_upnl'] + data['short_upnl'] for data in shared_symbols_data.values())
-            # Possibly has issues w/ calculation above 
+            # Possibly has issues w/ calculation above
 
             # Testing fix
 
@@ -3054,7 +3056,7 @@ class BaseStrategy:
                 (data.get('long_upnl', 0) or 0) + (data.get('short_upnl', 0) or 0)
                 for data in shared_symbols_data.values()
             )
-            
+
             # Correct calculation for total UPnL percentage
             total_upnl_pct = total_upnl / total_equity if total_equity else 0
 
@@ -3132,7 +3134,7 @@ class BaseStrategy:
                 if long_pos_qty > 0 and long_pos_price is not None and auto_reduce_triggered_long:
                     if current_market_price >= long_pos_price * (1 + auto_reduce_start_pct):  # Position price threshold check
                         max_levels, price_interval = self.calculate_auto_reduce_levels_long(
-                            symbol, current_market_price, long_pos_qty, long_dynamic_amount, 
+                            symbol, current_market_price, long_pos_qty, long_dynamic_amount,
                             auto_reduce_start_pct, auto_reduce_maxloss_pct
                         )
                         for i in range(1, min(max_levels, 3) + 1):
@@ -3144,7 +3146,7 @@ class BaseStrategy:
                 if short_pos_qty > 0 and short_pos_price is not None and auto_reduce_triggered_short:
                     if current_market_price <= short_pos_price * (1 - auto_reduce_start_pct):  # Position price threshold check
                         max_levels, price_interval = self.calculate_auto_reduce_levels_short(
-                            symbol, current_market_price, short_pos_qty, short_dynamic_amount, 
+                            symbol, current_market_price, short_pos_qty, short_dynamic_amount,
                             auto_reduce_start_pct, auto_reduce_maxloss_pct
                         )
                         for i in range(1, min(max_levels, 3) + 1):
@@ -3255,7 +3257,7 @@ class BaseStrategy:
 
         # Calculate the stop loss price by reducing the long position price by the stop loss percentage
         stop_loss_price = Decimal(long_pos_price) * (1 - Decimal(stoploss_upnl_pct))
-        
+
         # Quantize the stop loss price
         try:
             stop_loss_price = stop_loss_price.quantize(
@@ -3277,7 +3279,7 @@ class BaseStrategy:
 
         # Calculate the stop loss price by increasing the short position price by the stop loss percentage
         stop_loss_price = Decimal(short_pos_price) * (1 + Decimal(stoploss_upnl_pct))
-        
+
         # Quantize the stop loss price
         try:
             stop_loss_price = stop_loss_price.quantize(
@@ -3387,7 +3389,7 @@ class BaseStrategy:
             order_book = self.exchange.get_orderbook(symbol)
             best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol)
             best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol)
-            
+
             mfi_signal_long = mfirsi.lower() == "long"
             mfi_signal_short = mfirsi.lower() == "short"
 
@@ -3478,7 +3480,7 @@ class BaseStrategy:
                 best_bid_price = order_book['bids'][0][0]
             else:
                 best_bid_price = self.last_known_bid.get(symbol)
-                
+
             mfi_signal_long = mfirsi.lower() == "long"
             mfi_signal_short = mfirsi.lower() == "short"
 
@@ -3517,7 +3519,7 @@ class BaseStrategy:
             # bid_walls, ask_walls = self.detect_order_book_walls(symbol)
             largest_bid_wall = max(bid_walls, key=lambda x: x[1], default=None)
             largest_ask_wall = max(ask_walls, key=lambda x: x[1], default=None)
-            
+
             qfl_base, qfl_ceiling = self.calculate_qfl_levels(symbol=symbol, timeframe='5m', lookback_period=12)
             current_price = self.exchange.get_current_price(symbol)
 
@@ -3536,7 +3538,7 @@ class BaseStrategy:
                 best_bid_price = order_book['bids'][0][0]
             else:
                 best_bid_price = self.last_known_bid.get(symbol)
-                
+
             min_order_size = 1
 
             # Trend Alignment Checks
@@ -3590,7 +3592,7 @@ class BaseStrategy:
                         logging.info(f"Price approaching significant sell wall and top signal detected for {symbol}. Placing short trade.")
                         self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, largest_ask_wall[0], positionIdx=2, reduceOnly=False)
                         time.sleep(5)
-                
+
             else:
                 logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
 
@@ -3605,7 +3607,7 @@ class BaseStrategy:
             # bid_walls, ask_walls = self.detect_order_book_walls(symbol)
             largest_bid_wall = max(bid_walls, key=lambda x: x[1], default=None)
             largest_ask_wall = max(ask_walls, key=lambda x: x[1], default=None)
-            
+
             qfl_base, qfl_ceiling = self.calculate_qfl_levels(symbol=symbol, timeframe='5m', lookback_period=12)
             current_price = self.exchange.get_current_price(symbol)
 
@@ -3624,7 +3626,7 @@ class BaseStrategy:
                 best_bid_price = order_book['bids'][0][0]
             else:
                 best_bid_price = self.last_known_bid.get(symbol)
-                
+
             min_order_size = 1
 
             # Trend Alignment Checks
@@ -3678,7 +3680,7 @@ class BaseStrategy:
                         logging.info(f"Price approaching significant sell wall and top signal detected for {symbol}. Placing short trade.")
                         self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, largest_ask_wall[0], positionIdx=2, reduceOnly=False)
                         time.sleep(5)
-                
+
             else:
                 logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
 
@@ -3692,7 +3694,7 @@ class BaseStrategy:
             bid_walls, ask_walls = self.detect_order_book_walls(symbol)
             largest_bid_wall = max(bid_walls, key=lambda x: x[1], default=None)
             largest_ask_wall = max(ask_walls, key=lambda x: x[1], default=None)
-            
+
             qfl_base, qfl_ceiling = self.calculate_qfl_levels(symbol=symbol, timeframe='5m', lookback_period=12)
             current_price = self.exchange.get_current_price(symbol)
 
@@ -3700,12 +3702,12 @@ class BaseStrategy:
             order_book = self.exchange.get_orderbook(symbol)
             best_ask_price = order_book['asks'][0][0] if 'asks' in order_book and order_book['asks'] else self.last_known_ask.get(symbol)
             best_bid_price = order_book['bids'][0][0] if 'bids' in order_book and order_book['bids'] else self.last_known_bid.get(symbol)
-            
+
             min_order_size = 1
 
             # Call to your auto hedging function
             self.auto_hedge_orders_bybit_atr(symbol, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, best_ask_price, best_bid_price, hedge_ratio, atr, min_order_size)
-            
+
             # Trend Alignment Checks based on ERI trend
             eri_trend_aligned_long = eri_trend == "bullish"
             eri_trend_aligned_short = eri_trend == "bearish"
@@ -3748,7 +3750,7 @@ class BaseStrategy:
             bid_walls, ask_walls = self.detect_order_book_walls(symbol)
             largest_bid_wall = max(bid_walls, key=lambda x: x[1], default=None)
             largest_ask_wall = max(ask_walls, key=lambda x: x[1], default=None)
-            
+
             qfl_base, qfl_ceiling = self.calculate_qfl_levels(symbol=symbol, timeframe='5m', lookback_period=12)
             current_price = self.exchange.get_current_price(symbol)
 
@@ -3756,12 +3758,12 @@ class BaseStrategy:
             order_book = self.exchange.get_orderbook(symbol)
             best_ask_price = order_book['asks'][0][0] if 'asks' in order_book and order_book['asks'] else self.last_known_ask.get(symbol)
             best_bid_price = order_book['bids'][0][0] if 'bids' in order_book and order_book['bids'] else self.last_known_bid.get(symbol)
-            
+
             min_order_size = 1
 
             # Call to your auto hedging function
             self.auto_hedge_orders_bybit_atr(symbol, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, best_ask_price, best_bid_price, hedge_ratio, atr, min_order_size)
-            
+
             # Trend Alignment Checks based on ERI trend
             eri_trend_aligned_long = eri_trend == "bullish"
             eri_trend_aligned_short = eri_trend == "bearish"
@@ -3805,7 +3807,7 @@ class BaseStrategy:
             bid_walls, ask_walls = self.detect_order_book_walls(symbol)
             largest_bid_wall = max(bid_walls, key=lambda x: x[1], default=None)
             largest_ask_wall = max(ask_walls, key=lambda x: x[1], default=None)
-            
+
             qfl_base, qfl_ceiling = self.calculate_qfl_levels(symbol=symbol, timeframe='5m', lookback_period=12)
             current_price = self.exchange.get_current_price(symbol)
 
@@ -3813,10 +3815,10 @@ class BaseStrategy:
             order_book = self.exchange.get_orderbook(symbol)
             best_ask_price = order_book['asks'][0][0] if 'asks' in order_book and order_book['asks'] else self.last_known_ask.get(symbol)
             best_bid_price = order_book['bids'][0][0] if 'bids' in order_book and order_book['bids'] else self.last_known_bid.get(symbol)
-            
+
             # Call to your auto hedging function
             self.auto_hedge_orders_bybit_atr(symbol, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, best_ask_price, best_bid_price, hedge_ratio, atr, min_order_size=min_qty)
-            
+
             # Trend Alignment Checks based on ERI trend
             eri_trend_aligned_long = eri_trend == "bullish"
             eri_trend_aligned_short = eri_trend == "bearish"
@@ -3879,7 +3881,7 @@ class BaseStrategy:
                 best_bid_price = order_book['bids'][0][0]
             else:
                 best_bid_price = self.last_known_bid.get(symbol)
-                
+
             # Trend and MFI Signal Checks
             mfi_signal_long = mfi.lower() == "long"
             mfi_signal_short = mfi.lower() == "short"
@@ -3973,7 +3975,7 @@ class BaseStrategy:
                 bid_walls, ask_walls = self.detect_order_book_walls(symbol)
                 largest_bid_wall = max(bid_walls, key=lambda x: x[1], default=None)
                 largest_ask_wall = max(ask_walls, key=lambda x: x[1], default=None)
-                
+
                 # Additional Long Entry Logic
                 if should_add_to_long and long_pos_qty > 0:
                     trend_aligned_long = eri_trend.lower() == "bullish" or trend.lower() == "long"
@@ -4016,13 +4018,13 @@ class BaseStrategy:
             bid_walls, ask_walls = self.detect_order_book_walls(symbol)
             largest_bid_wall = max(bid_walls, key=lambda x: x[1], default=None)
             largest_ask_wall = max(ask_walls, key=lambda x: x[1], default=None)
-            
+
             qfl_base, qfl_ceiling = self.calculate_qfl_levels(symbol=symbol, timeframe='5m', lookback_period=12)
             current_price = self.exchange.get_current_price(symbol)
 
             best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
             best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
-            
+
             min_order_size = 1
 
             # Auto-hedging logic for long position
@@ -4239,7 +4241,7 @@ class BaseStrategy:
             bid_walls, ask_walls = self.detect_order_book_walls(symbol)
             largest_bid_wall = max(bid_walls, key=lambda x: x[1], default=None)
             largest_ask_wall = max(ask_walls, key=lambda x: x[1], default=None)
-            
+
             qfl_base, qfl_ceiling = self.calculate_qfl_levels(symbol=symbol, timeframe='5m', lookback_period=12)
             current_price = self.exchange.get_current_price(symbol)
 
@@ -4256,7 +4258,7 @@ class BaseStrategy:
                 best_bid_price = order_book['bids'][0][0]
             else:
                 best_bid_price = self.last_known_bid.get(symbol)
-            
+
             min_order_size = 1
 
             # Trend Alignment Checks
@@ -4309,7 +4311,7 @@ class BaseStrategy:
             bid_walls, ask_walls = self.detect_order_book_walls(symbol)
             largest_bid_wall = max(bid_walls, key=lambda x: x[1], default=None)
             largest_ask_wall = max(ask_walls, key=lambda x: x[1], default=None)
-            
+
             qfl_base, qfl_ceiling = self.calculate_qfl_levels(symbol=symbol, timeframe='5m', lookback_period=12)
             current_price = self.exchange.get_current_price(symbol)
 
@@ -4326,7 +4328,7 @@ class BaseStrategy:
                 best_bid_price = order_book['bids'][0][0]
             else:
                 best_bid_price = self.last_known_bid.get(symbol)
-            
+
             min_order_size = 1
 
             # Auto-hedging logic for long position
@@ -4457,10 +4459,10 @@ class BaseStrategy:
             self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
             time.sleep(1.5)
 
-    def bybit_additional_entry_mm_5m(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, 
-                                            five_minute_volume: float, five_minute_distance: float, min_vol: float, 
-                                            min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, 
-                                            long_pos_qty: float, short_pos_qty: float, long_pos_price: float, 
+    def bybit_additional_entry_mm_5m(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str,
+                                            five_minute_volume: float, five_minute_distance: float, min_vol: float,
+                                            min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float,
+                                            long_pos_qty: float, short_pos_qty: float, long_pos_price: float,
                                             short_pos_price: float, should_add_to_long: bool, should_add_to_short: bool):
 
         if None in [trend, mfi, hma_trend]:
@@ -4611,42 +4613,42 @@ class BaseStrategy:
             position_data = self.exchange.get_positions_bybit(symbol)
             open_position_data = self.exchange.get_all_open_positions_bybit()
             current_time = datetime.utcnow()
-            
+
             # Fetch current order book prices
             best_ask_price = float(self.exchange.get_orderbook(symbol)['asks'][0][0])
             best_bid_price = float(self.exchange.get_orderbook(symbol)['bids'][0][0])
 
             # Initialize next_tp_update using your calculate_next_update_time function
             next_tp_update = self.calculate_next_update_time()
-            
+
             # Loop through all open positions to find the one for the given symbol
             for position in open_position_data:
                 if position['symbol'].split(':')[0] == symbol:
                     timestamp = datetime.utcfromtimestamp(position['timestamp'] / 1000.0)  # Convert to seconds from milliseconds
                     time_in_position = current_time - timestamp
-                    
+
                     # Check if the position has been open for more than a minute
                     if time_in_position > timedelta(minutes=1):
                         side = position['side']
                         pos_qty = position['contracts']
                         entry_price = position['entryPrice']
-                        
+
                         # Check if the position is profitable
                         is_profitable = (best_ask_price > entry_price) if side == 'long' else (best_bid_price < entry_price)
-                        
+
                         if is_profitable:
                             # Calculate take profit price based on the current price
                             take_profit_price = best_ask_price if side == 'long' else best_bid_price
-                            
+
                             # Fetch open orders for the symbol
                             open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
-                            
+
                             # Update the take profit
                             positionIdx = 1 if side == 'long' else 2
                             order_side = 'Buy' if side == 'short' else 'Sell'
-                            
+
                             next_tp_update = self.update_take_profit_spread_bybit(
-                                symbol, pos_qty, take_profit_price, positionIdx, order_side, 
+                                symbol, pos_qty, take_profit_price, positionIdx, order_side,
                                 open_orders, next_tp_update
                             )
                             logging.info(f"Updated take profit for {side} position on {symbol} to {take_profit_price}")
@@ -4672,7 +4674,7 @@ class BaseStrategy:
                     self.exchange.cancel_order_by_id(existing_tp_id, symbol)
                     logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
                     time.sleep(0.05)
-                
+
                 # Create multiple take-profit orders at different levels
                 for i in range(1, 4):  # Creating 3 take-profit levels
                     partial_qty = pos_qty // 3
@@ -4683,7 +4685,7 @@ class BaseStrategy:
                 next_tp_update = self.calculate_next_update_time()  # Calculate the next update time after placing the order
             except Exception as e:
                 logging.info(f"Error in updating {order_side} TP: {e}")
-                
+
         return next_tp_update
 
     def update_take_profit_spread_bybit_v2(self, symbol, pos_qty, short_take_profit, long_take_profit, short_pos_price, long_pos_price, positionIdx, order_side, next_tp_update, five_minute_distance, previous_five_minute_distance, max_retries=10):
@@ -4695,7 +4697,7 @@ class BaseStrategy:
 
         # Determine the take profit price based on the order side
         take_profit_price = long_take_profit if order_side == "sell" else short_take_profit
-        logging.info(f"Determined TP price for {symbol} {order_side}: {take_profit_price}") 
+        logging.info(f"Determined TP price for {symbol} {order_side}: {take_profit_price}")
 
         # Determine the relevant TP orders and quantities based on the order side
         relevant_tp_orders = long_tp_orders if order_side == "sell" else short_tp_orders
@@ -4938,7 +4940,7 @@ class BaseStrategy:
         else:
             logging.info(f"No immediate update needed for TP orders for {symbol}. Last update at: {last_tp_update}")
             return last_tp_update
-        
+
     def update_take_profit_spread_bybit(self, symbol, pos_qty, short_take_profit, long_take_profit, short_pos_price, long_pos_price, positionIdx, order_side, next_tp_update, five_minute_distance, previous_five_minute_distance, tp_order_counts, max_retries=10):
         # Fetch the current open TP orders and TP order counts for the symbol
         long_tp_orders, short_tp_orders = self.exchange.get_open_tp_orders(symbol)
@@ -5015,7 +5017,7 @@ class BaseStrategy:
     #         logging.info(f"Hedged TP order placed for {symbol}, ID: {tp_order['id']}")
     #     else:
     #         logging.warning(f"Failed to mark TP order as hedge for {symbol}")
-            
+
     def bybit_hedge_placetp_maker_v2(self, symbol, pos_qty, take_profit_price, positionIdx, order_side, open_orders):
         logging.info(f"TP maker function Trying to place TP for {symbol}")
         existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
@@ -5103,7 +5105,7 @@ class BaseStrategy:
 
     def long_entry_maker(self, symbol: str, trend: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, long_pos_qty: float, long_pos_price: float, should_long: bool, should_add_to_long: bool):
         best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
-        
+
         if trend is not None and isinstance(trend, str) and trend.lower() == "long":
             if one_minute_volume > min_vol and five_minute_distance > min_dist:
                 if should_long and long_pos_qty == 0:
@@ -5116,7 +5118,7 @@ class BaseStrategy:
 
     def short_entry_maker(self, symbol: str, trend: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, short_dynamic_amount: float, short_pos_qty: float, short_pos_price: float, should_short: bool, should_add_to_short: bool):
         best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
-        
+
         if trend is not None and isinstance(trend, str) and trend.lower() == "short":
             if one_minute_volume > min_vol and five_minute_distance > min_dist:
                 if should_short and short_pos_qty == 0:
@@ -5143,33 +5145,33 @@ class BaseStrategy:
 
     def clear_stale_positions(self, open_orders, rotator_symbols, max_time_without_volume=3600): # default time is 1 hour
         open_positions = self.exchange.get_open_positions()
-        
+
         for position in open_positions:
             symbol = position['symbol']
-            
+
             # Check if the symbol is not in the rotator list
             if symbol not in rotator_symbols:
-                
+
                 # Check how long the position has been open
                 position_open_time = position.get('timestamp', None)  # assuming your position has a 'timestamp' field
                 current_time = time.time()
                 time_elapsed = current_time - position_open_time
-                
+
                 # Fetch volume for the coin
                 volume = self.exchange.get_24hr_volume(symbol)
-                
+
                 # Check if the volume is low and position has been open for too long
                 if volume < self.MIN_VOLUME_THRESHOLD and time_elapsed > max_time_without_volume:
-                    
+
                     # Place take profit order at the current price
                     current_price = self.exchange.get_current_price(symbol)
                     amount = position['amount']  # assuming your position has an 'amount' field
-                    
+
                     # Determine if it's a buy or sell based on position type
                     order_type = "sell" if position['side'] == 'long' else "buy"
                     self.bybit_hedge_placetp_maker(symbol, amount, current_price, positionIdx=1, order_side="sell", open_orders=open_orders)
                     #self.exchange.place_order(symbol, order_type, amount, current_price, take_profit=True)
-                    
+
                     logging.info(f"Placed take profit order for stale position: {symbol} at price: {current_price}")
 
 
@@ -5194,7 +5196,7 @@ class BaseStrategy:
     def get_all_open_orders_bybit(self):
         """
         Fetch all open orders for all symbols from the Bybit API.
-        
+
         :return: A list of open orders for all symbols.
         """
         try:
@@ -5205,7 +5207,7 @@ class BaseStrategy:
             print(f"An error occurred while fetching all open orders: {e}")
             return []
 
-    def cancel_old_entries_bybit(self, symbol):        
+    def cancel_old_entries_bybit(self, symbol):
         # Cancel entries
         try:
             self.exchange.cancel_all_entries_bybit(symbol)
@@ -5229,7 +5231,7 @@ class BaseStrategy:
                 logging.info(f"An error occurred while canceling entry orders: {e}")
 
             self.last_entries_cancel_time = current_time
-            
+
     def adjust_leverage_and_qty(self, symbol, current_qty, current_leverage, max_leverage, increase=True):
         logging.info(f"Symbol: {symbol}")
         logging.info(f"Max leverage: {max_leverage}")
@@ -5267,8 +5269,8 @@ class BaseStrategy:
                     self.max_long_trade_qty_per_symbol[symbol], self.long_pos_leverage_per_symbol[symbol] = self.adjust_leverage_and_qty(
                         symbol,
                         long_pos_qty,
-                        self.long_pos_leverage_per_symbol[symbol], 
-                        max_leverage, 
+                        self.long_pos_leverage_per_symbol[symbol],
+                        max_leverage,
                         increase=True
                     )
                     logging.info(f"Long leverage for {symbol} temporarily increased to {self.long_pos_leverage_per_symbol[symbol]}x")
@@ -5277,8 +5279,8 @@ class BaseStrategy:
                     self.max_long_trade_qty_per_symbol[symbol], self.long_pos_leverage_per_symbol[symbol] = self.adjust_leverage_and_qty(
                         symbol,
                         long_pos_qty,
-                        self.long_pos_leverage_per_symbol[symbol], 
-                        max_leverage, 
+                        self.long_pos_leverage_per_symbol[symbol],
+                        max_leverage,
                         increase=False
                     )
                     logging.info(f"Long leverage for {symbol} returned to normal {self.long_pos_leverage_per_symbol[symbol]}x")
@@ -5304,8 +5306,8 @@ class BaseStrategy:
                     self.max_short_trade_qty_per_symbol[symbol], self.short_pos_leverage_per_symbol[symbol] = self.adjust_leverage_and_qty(
                         symbol,
                         short_pos_qty,
-                        self.short_pos_leverage_per_symbol[symbol], 
-                        max_leverage, 
+                        self.short_pos_leverage_per_symbol[symbol],
+                        max_leverage,
                         increase=True
                     )
                     logging.info(f"Short leverage for {symbol} temporarily increased to {self.short_pos_leverage_per_symbol[symbol]}x")
@@ -5314,8 +5316,8 @@ class BaseStrategy:
                     self.max_short_trade_qty_per_symbol[symbol], self.short_pos_leverage_per_symbol[symbol] = self.adjust_leverage_and_qty(
                         symbol,
                         short_pos_qty,
-                        self.short_pos_leverage_per_symbol[symbol], 
-                        max_leverage, 
+                        self.short_pos_leverage_per_symbol[symbol],
+                        max_leverage,
                         increase=False
                     )
                     logging.info(f"Short leverage for {symbol} returned to normal {self.short_pos_leverage_per_symbol[symbol]}x")
