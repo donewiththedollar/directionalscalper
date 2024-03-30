@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from directionalscalper.core.strategies.bybit.bybit_strategy import BybitStrategy
 from directionalscalper.core.strategies.logger import Logger
 from live_table_manager import shared_symbols_data
-logging = Logger(logger_name="BybitQuickScalpTrend", filename="BybitQuickScalpTrend.log", stream=True)
+logging = Logger(logger_name="BybitQSTrendDoubleMA", filename="BybitQSTrendDoubleMA.log", stream=True)
 
 symbol_locks = {}
 
