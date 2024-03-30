@@ -683,25 +683,23 @@ class BybitBasicGrid(BybitStrategy):
                     logging.info(f"Long TP order count for {symbol} is {tp_order_counts['long_tp_count']}")
                     logging.info(f"Short TP order count for {symbol} is {tp_order_counts['short_tp_count']}")
 
-                    if long_pos_qty > 0:
-                        self.place_long_tp_order(
-                            symbol,
-                            best_ask_price,
-                            long_pos_price,
-                            long_pos_qty,
-                            long_take_profit,
-                            open_orders
-                        )
+                    self.place_long_tp_order(
+                        symbol,
+                        best_ask_price,
+                        long_pos_price,
+                        long_pos_qty,
+                        long_take_profit,
+                        open_orders
+                    )
 
-                    if short_pos_qty > 0:
-                        self.place_short_tp_order(
-                            symbol,
-                            best_bid_price,
-                            short_pos_price,
-                            short_pos_qty,
-                            short_take_profit,
-                            open_orders
-                        )
+                    self.place_short_tp_order(
+                        symbol,
+                        best_bid_price,
+                        short_pos_price,
+                        short_pos_qty,
+                        short_take_profit,
+                        open_orders
+                    )
 
                     current_latest_time = datetime.now()
                     logging.info(f"Current time: {current_latest_time}")
