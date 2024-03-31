@@ -118,8 +118,14 @@ class DirectionalMarketMaker:
         secret_key = exchange_config.api_secret
         passphrase = exchange_config.passphrase
         
-        if exchange_name.lower() == 'bybit' or exchange_name.lower() == 'bybit_spot':
-            market_type = 'spot' if exchange_name.lower() == 'bybit_spot' else 'swap'
+        # if exchange_name.lower() == 'bybit' or exchange_name.lower() == 'bybit_spot':
+        #     market_type = 'spot' if exchange_name.lower() == 'bybit_spot' else 'swap'
+        #     self.exchange = BybitExchange(api_key, secret_key, passphrase, market_type)
+        if exchange_name.lower() == 'bybit':
+            market_type = 'swap'
+            self.exchange = BybitExchange(api_key, secret_key, passphrase, market_type)
+        elif exchange_name.lower() == 'bybit_spot':
+            market_type = 'spot'
             self.exchange = BybitExchange(api_key, secret_key, passphrase, market_type)
         elif exchange_name.lower() == 'hyperliquid':
             self.exchange = HyperLiquidExchange(api_key, secret_key, passphrase)
