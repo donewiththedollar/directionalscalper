@@ -635,4 +635,4 @@ if __name__ == '__main__':
 
             time.sleep(15)
         except Exception as e:
-            logging.error(f"Exception caught in main loop: {e}")s
+            logging.error(f"Exception caught in main loop: {e}")
