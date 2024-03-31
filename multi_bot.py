@@ -364,13 +364,35 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
         logging.info(f"Open position symbols: {open_position_symbols}")
 
         if current_time - last_rotator_update_time >= 50:  # Update every 50 seconds
-            # Fetching potential symbols from manager
-            potential_symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
-            logging.info(f"Potential symbols: {potential_symbols}")
+            strategy_name = args.strategy.lower()
+            long_mode = config.bot.linear_grid['long_mode']
+            short_mode = config.bot.linear_grid['short_mode']
+
+            if strategy_name == 'basicgrid':
+                if long_mode and not short_mode:
+                    # Fetching only bullish symbols from manager for BybitBasicGrid strategy
+                    potential_symbols = manager.get_bullish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+                    logging.info(f"Potential bullish symbols for BybitBasicGrid: {potential_symbols}")
+                elif short_mode and not long_mode:
+                    # Fetching only bearish symbols from manager for BybitBasicGrid strategy
+                    potential_symbols = manager.get_bearish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+                    logging.info(f"Potential bearish symbols for BybitBasicGrid: {potential_symbols}")
+                else:
+                    # Fetching both bullish and bearish symbols from manager for BybitBasicGrid strategy
+                    potential_bullish_symbols = manager.get_bullish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+                    potential_bearish_symbols = manager.get_bearish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+                    potential_symbols = potential_bullish_symbols + potential_bearish_symbols
+                    logging.info(f"Potential bullish and bearish symbols for BybitBasicGrid: {potential_symbols}")
+            else:
+                # Fetching potential symbols from manager for other strategies
+                potential_symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+                logging.info(f"Potential symbols: {potential_symbols}")
+
             latest_rotator_symbols = set(standardize_symbol(sym) for sym in potential_symbols)
             logging.info(f"Latest rotator symbols: {latest_rotator_symbols}")
 
             last_rotator_update_time = current_time  # Update the last update time
+
 
         # Thread management
         running_threads_info = []
@@ -613,4 +635,4 @@ if __name__ == '__main__':
 
             time.sleep(15)
         except Exception as e:
-            logging.error(f"Exception caught in main loop: {e}")
+            logging.error(f"Exception caught in main loop: {e}")s
