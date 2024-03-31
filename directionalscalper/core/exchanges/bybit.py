@@ -12,7 +12,11 @@ logging = Logger(logger_name="BybitExchange", filename="BybitExchange.log", stre
 
 class BybitExchange(Exchange):
     def __init__(self, api_key, secret_key, passphrase=None, market_type='swap'):
-        super().__init__('bybit', api_key, secret_key, passphrase, market_type)
+        if market_type == 'spot':
+            super().__init__('bybit', api_key, secret_key, passphrase, market_type)
+        else:
+            super().__init__('bybit', api_key, secret_key, passphrase, market_type)
+
         self.max_retries = 100  # Maximum retries for rate-limited requests
         self.retry_wait = 5  # Seconds to wait between retries
 
@@ -100,7 +104,7 @@ class BybitExchange(Exchange):
         except Exception as e:
             print(f"An error occurred while fetching all open orders: {e}")
             return []
-        
+
     def get_balance_bybit_spot(self, quote):
         if self.exchange.has['fetchBalance']:
             try:
