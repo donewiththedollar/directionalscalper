@@ -21,6 +21,28 @@ class BybitQuickScalpTrendSpot(BybitStrategy):
         # Initialize spot-specific attributes and configurations
         # ...
 
+    def run(self, symbol, rotator_symbols_standardized=None):
+        # This method remains largely the same as in the futures strategy
+        try:
+            standardized_symbol = symbol.upper()
+            logging.info(f"Standardized symbol: {standardized_symbol}")
+            current_thread_id = threading.get_ident()
+
+            if standardized_symbol not in symbol_locks:
+                symbol_locks[standardized_symbol] = threading.Lock()
+
+            if symbol_locks[standardized_symbol].acquire(blocking=False):
+                logging.info(f"Lock acquired for symbol {standardized_symbol} by thread {current_thread_id}")
+                try:
+                    self.run_single_symbol(standardized_symbol, rotator_symbols_standardized)
+                finally:
+                    symbol_locks[standardized_symbol].release()
+                    logging.info(f"Lock released for symbol {standardized_symbol} by thread {current_thread_id}")
+            else:
+                logging.info(f"Failed to acquire lock for symbol: {standardized_symbol}")
+        except Exception as e:
+            logging.info(f"Exception in run function {e}")
+
     def run_single_symbol(self, symbol, rotator_symbols_standardized=None):
         try:
             logging.info(f"Starting to process symbol: {symbol}")
@@ -50,4 +72,4 @@ class BybitQuickScalpTrendSpot(BybitStrategy):
                 time.sleep(3)
         except Exception as e:
             traceback_info = traceback.format_exc()
-            logging.error(f"Exception caught in spot strategy '{symbol}': {e}\nTraceback:\n{traceback_info}")
+            logging.info(f"Exception caught in spot strategy '{symbol}': {e}\nTraceback:\n{traceback_info}")
