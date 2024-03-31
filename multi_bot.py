@@ -356,7 +356,11 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
         current_time = time.time()
 
         # Fetching open position symbols and standardizing them
-        open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_bybit()}
+        if args.exchange.lower() == 'bybit':
+            open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_bybit()}
+        elif args.exchange.lower() == 'bybit_spot':
+            open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_bybit_spot()}
+        
         logging.info(f"Open position symbols: {open_position_symbols}")
 
         if current_time - last_rotator_update_time >= 50:  # Update every 50 seconds
@@ -439,6 +443,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
         logging.error(f"Exception caught in bybit_auto_rotation: {str(e)}")
         # Log the traceback for more detailed information
         logging.error(traceback.format_exc())
+        
 
 def hyperliquid_auto_rotation(args, manager, symbols_allowed):
     # Fetching open position symbols and standardizing them
