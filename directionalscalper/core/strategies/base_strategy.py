@@ -1218,22 +1218,42 @@ class BaseStrategy:
         """
         unique_open_symbols = set(open_symbols)  # Convert to set to get unique symbols
         self.open_symbols_count = len(unique_open_symbols)  # Count unique symbols
-
+        logging.info(f"Symbols allowed amount: {symbols_allowed}")
         logging.info(f"Open symbols count (unique): {self.open_symbols_count}")
 
         if symbols_allowed is None:
+            logging.info(f"Symbols alloweed is none")
             symbols_allowed = 10  # Use a default value if symbols_allowed is not specified
 
-        # If the current symbol is already being traded, allow it
-        if current_symbol in unique_open_symbols:
+        # If we haven't reached the symbol limit or the current symbol is already being traded, allow the trade
+        if self.open_symbols_count < symbols_allowed or current_symbol in unique_open_symbols:
+            logging.info(f"New symbol is allowed : Symbols allowed: {symbols_allowed} Open symbol count: {self.open_symbols_count}")
             return True
+        else:
+            return False
+        
+    # def can_trade_new_symbol(self, open_symbols: list, symbols_allowed: int, current_symbol: str) -> bool:
+    #     """
+    #     Checks if the bot can trade a given symbol.
+    #     """
+    #     unique_open_symbols = set(open_symbols)  # Convert to set to get unique symbols
+    #     self.open_symbols_count = len(unique_open_symbols)  # Count unique symbols
 
-        # If we haven't reached the symbol limit, allow a new symbol to be traded
-        if self.open_symbols_count < symbols_allowed:
-            return True
+    #     logging.info(f"Open symbols count (unique): {self.open_symbols_count}")
 
-        # If none of the above conditions are met, don't allow the new trade
-        return False
+    #     if symbols_allowed is None:
+    #         symbols_allowed = 10  # Use a default value if symbols_allowed is not specified
+
+    #     # If the current symbol is already being traded, allow it
+    #     if current_symbol in unique_open_symbols:
+    #         return True
+
+    #     # If we haven't reached the symbol limit, allow a new symbol to be traded
+    #     if self.open_symbols_count < symbols_allowed:
+    #         return True
+
+    #     # If none of the above conditions are met, don't allow the new trade
+    #     return False
 
     # Dashboard
     def update_shared_data(self, symbol_data: dict, open_position_data: dict, open_symbols_count: int):
