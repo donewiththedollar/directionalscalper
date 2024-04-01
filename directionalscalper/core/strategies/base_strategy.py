@@ -1231,7 +1231,7 @@ class BaseStrategy:
             return True
         else:
             return False
-        
+            
     # def can_trade_new_symbol(self, open_symbols: list, symbols_allowed: int, current_symbol: str) -> bool:
     #     """
     #     Checks if the bot can trade a given symbol.
@@ -2647,7 +2647,7 @@ class BaseStrategy:
             except Exception as e:
                 logging.error(f"{symbol} Exception caught in auto reduce: {e}")
 
-    def cancel_auto_reduce_orders_bybit(self, symbol, total_equity, max_pos_balance_pct, open_position_data):
+    def cancel_auto_reduce_orders_bybit(self, symbol, total_equity, max_pos_balance_pct, open_position_data, long_pos_qty, short_pos_qty):
         try:
             # Get current position balances
             long_position_balance = self.get_position_balance(symbol, 'Buy', open_position_data)
@@ -2655,8 +2655,8 @@ class BaseStrategy:
             long_position_balance_pct = (long_position_balance / total_equity) * 100
             short_position_balance_pct = (short_position_balance / total_equity) * 100
 
-            # Cancel long auto-reduce orders if position balance is below max threshold
-            if long_position_balance_pct < max_pos_balance_pct and symbol in self.auto_reduce_orders:
+            # Cancel long auto-reduce orders if position balance is below max threshold and long position is open
+            if long_pos_qty > 0 and long_position_balance_pct < max_pos_balance_pct and symbol in self.auto_reduce_orders:
                 for order_id in self.auto_reduce_orders[symbol]:
                     try:
                         self.exchange.cancel_order_bybit(order_id, symbol)
@@ -2665,8 +2665,8 @@ class BaseStrategy:
                         logging.warning(f"An error occurred while cancelling auto-reduce order {order_id}: {e}")
                 self.auto_reduce_orders[symbol].clear()  # Clear the list after cancellation
 
-            # Cancel short auto-reduce orders if position balance is below max threshold
-            if short_position_balance_pct < max_pos_balance_pct and symbol in self.auto_reduce_orders:
+            # Cancel short auto-reduce orders if position balance is below max threshold and short position is open
+            if short_pos_qty > 0 and short_position_balance_pct < max_pos_balance_pct and symbol in self.auto_reduce_orders:
                 for order_id in self.auto_reduce_orders[symbol]:
                     try:
                         self.exchange.cancel_order_bybit(order_id, symbol)
@@ -2677,7 +2677,7 @@ class BaseStrategy:
 
         except Exception as e:
             logging.error(f"An error occurred while canceling auto-reduce orders for {symbol}: {e}")
-
+            
 
     def calculate_dynamic_auto_reduce_levels(self, symbol, pos_qty, market_price, total_equity, long_pos_price, short_pos_price):
         # Check if conditions have changed significantly to recalculate levels

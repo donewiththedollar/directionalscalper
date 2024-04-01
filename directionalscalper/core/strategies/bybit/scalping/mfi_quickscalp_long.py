@@ -540,7 +540,9 @@ class BybitMFIRSIQuickScalpLong(BybitStrategy):
                         symbol,
                         total_equity,
                         max_pos_balance_pct,
-                        open_position_data
+                        open_position_data,
+                        long_pos_qty,
+                        short_pos_qty
                     )
 
                     # short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, one_minute_distance, previous_one_minute_distance, short_take_profit, long_take_profit)
