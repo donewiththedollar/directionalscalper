@@ -1377,7 +1377,7 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"Placing additional short entry with post-only order")
                         self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2)
 
-    def bybit_1m_mfi_quickscalp_trend_long_only_spot(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, long_dynamic_amount: float, spot_position_qty: float, spot_position_price: float, volume_check: bool, long_take_profit: float):
+    def bybit_1m_mfi_quickscalp_trend_long_only_spot(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, long_dynamic_amount: float, spot_position_qty: float, spot_position_price: float, volume_check: bool, upnl_profit_pct: float):
         try:
             if symbol not in self.symbol_locks:
                 self.symbol_locks[symbol] = threading.Lock()
@@ -1394,28 +1394,26 @@ class BybitStrategy(BaseStrategy):
 
                 if not volume_check or (one_minute_volume > min_vol):
                     if spot_position_qty == 0 and mfi_signal_long and not self.entry_order_exists(open_orders, "buy"):
-                        # Place a spot market buy order
+                        logging.info(f"Placing spot market buy order for {symbol} with amount {long_dynamic_amount}")
                         self.place_spot_market_order(symbol, "buy", long_dynamic_amount)
                         time.sleep(1)
 
                     if spot_position_qty > 0:
-                        # Place a spot limit sell order for take profit
-                        self.place_spot_limit_order(symbol, "sell", spot_position_qty, long_take_profit)
+                        take_profit_price = spot_position_price * (1 + upnl_profit_pct)
+                        logging.info(f"Placing spot limit sell order for {symbol} with amount {spot_position_qty} and take profit price {take_profit_price}")
+                        self.place_spot_limit_order(symbol, "sell", spot_position_qty, take_profit_price)
 
                     elif spot_position_qty > 0 and mfi_signal_long and current_price < spot_position_price and not self.entry_order_exists(open_orders, "buy"):
-                        # Place a spot market buy order to add to the existing position
+                        logging.info(f"Placing spot market buy order to add to existing position for {symbol} with amount {long_dynamic_amount}")
                         self.place_spot_market_order(symbol, "buy", long_dynamic_amount)
                         time.sleep(1)
-
-                        # # Place a spot limit sell order for take profit
-                        # self.place_spot_limit_order(symbol, "sell", spot_position_qty, long_take_profit)
 
                 else:
                     logging.info(f"Volume check is disabled or conditions not met for {symbol}, proceeding without volume check.")
                     time.sleep(5)
 
         except Exception as e:
-            logging.info(f"Exception caught in quickscalp trend long only spot: {e}")
+            logging.error(f"Exception caught in bybit_1m_mfi_quickscalp_trend_long_only_spot: {e}")
             
     def linear_grid_handle_positions(self, symbol: str, open_symbols: list, total_equity: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, buffer_percentage: float, symbols_allowed: int):
         try:

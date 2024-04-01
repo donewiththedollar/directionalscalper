@@ -842,6 +842,74 @@ class BybitExchange(Exchange):
         else:
             raise ValueError(f"Unsupported order type: {order_type}")
         
+    def create_limit_order_bybit_spot(self, symbol: str, side: str, qty: float, price: float, isLeverage=0, orderLinkId=None):
+        try:
+            # Define the 'params' dictionary to include any additional parameters required by Bybit's v5 API
+            params = {
+                'timeInForce': 'PostOnly',  # Set the order as a PostOnly order
+                'isLeverage': isLeverage,   # Specify whether to borrow for margin trading
+            }
+            
+            # If 'orderLinkId' is provided, add it to the 'params' dictionary
+            if orderLinkId:
+                params['orderLinkId'] = orderLinkId
+
+            # Create the limit order using CCXT's 'create_order' function
+            order = self.exchange.create_order(
+                symbol=symbol,
+                type='limit',
+                side=side,
+                amount=qty,
+                price=price,
+                params=params
+            )
+            
+            return order
+        except Exception as e:
+            logging.error(f"An error occurred while creating limit order on Bybit: {e}")
+            return None
+        
+    def create_market_order_bybit_spot(self, symbol: str, side: str, qty: float, marketUnit=None, isLeverage=0, orderLinkId=None, orderFilter=None, takeProfit=None, stopLoss=None, tpOrderType=None, slOrderType=None, tpLimitPrice=None, slLimitPrice=None):
+        try:
+            # Define the 'params' dictionary to include additional parameters
+            params = {
+                'isLeverage': isLeverage,
+            }
+
+            # Add optional parameters to the 'params' dictionary if provided
+            if marketUnit:
+                params['marketUnit'] = marketUnit
+            if orderLinkId:
+                params['orderLinkId'] = orderLinkId
+            if orderFilter:
+                params['orderFilter'] = orderFilter
+            if takeProfit:
+                params['takeProfit'] = str(takeProfit)
+            if stopLoss:
+                params['stopLoss'] = str(stopLoss)
+            if tpOrderType:
+                params['tpOrderType'] = tpOrderType
+            if slOrderType:
+                params['slOrderType'] = slOrderType
+            if tpLimitPrice:
+                params['tpLimitPrice'] = str(tpLimitPrice)
+            if slLimitPrice:
+                params['slLimitPrice'] = str(slLimitPrice)
+
+            # Create the market order using CCXT's 'create_order' function
+            order = self.exchange.create_order(
+                symbol=symbol,
+                type='market',
+                side=side,
+                amount=qty,
+                params=params
+            )
+
+            return order
+        except Exception as e:
+            logging.error(f"An error occurred while creating market order on Bybit: {e}")
+            return None
+        
     def cancel_order_by_id(self, order_id, symbol):
         try:
             # Call the updated cancel_order method
