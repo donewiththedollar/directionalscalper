@@ -588,6 +588,42 @@ class BybitExchange(Exchange):
         except Exception as e:
             logging.info(f"An unknown error occurred in with set_position_mode: {e}")
 
+    def get_all_open_positions_bybit_spot(self, retries=10, delay_factor=10, max_delay=60) -> List[dict]:
+        now = datetime.now()
+        # Check if the shared cache is still valid
+        cache_duration = timedelta(seconds=30)  # Cache duration is 30 seconds
+        if self.open_positions_shared_cache and self.last_open_positions_time_shared and now - self.last_open_positions_time_shared < cache_duration:
+            return self.open_positions_shared_cache
+
+        # Using a semaphore to limit concurrent API requests
+        with self.open_positions_semaphore:
+            # Double-checking the cache inside the semaphore to ensure no other thread has refreshed it in the meantime
+            if self.open_positions_shared_cache and self.last_open_positions_time_shared and now - self.last_open_positions_time_shared < cache_duration:
+                return self.open_positions_shared_cache
+
+            for attempt in range(retries):
+                try:
+                    params = {
+                        'type': 'spot',  # Set the type to 'spot' for Bybit Spot trading
+                    }
+                    all_positions = self.exchange.fetch_positions(params=params)
+                    open_positions = [position for position in all_positions if float(position.get('contracts', position.get('size', 0))) != 0]
+                    
+                    # Update the shared cache with the new data
+                    self.open_positions_shared_cache = open_positions
+                    self.last_open_positions_time_shared = now
+                    return open_positions
+                except Exception as e:
+                    is_rate_limit_error = "Too many visits" in str(e) or (hasattr(e, 'response') and e.response.status_code == 403)
+                    if is_rate_limit_error and attempt < retries - 1:
+                        delay = min(delay_factor * (attempt + 1), max_delay)  # Exponential delay with a cap
+                        logging.info(f"Rate limit on get_all_open_positions_bybit_spot hit, waiting for {delay} seconds before retrying...")
+                        time.sleep(delay)
+                        continue
+                    else:
+                        logging.error(f"Error fetching open positions: {e}")
+                        return []
+                    
     def get_all_open_positions_bybit(self, retries=10, delay_factor=10, max_delay=60) -> List[dict]:
         now = datetime.now()
 
