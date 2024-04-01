@@ -129,3 +129,86 @@ class BinanceStrategy(BaseStrategy):
                     elif trend.lower() == "short" and should_add_to_short and short_pos_qty < max_short_trade_qty and best_ask_price > short_pos_price:
                         print(f"Placing additional short entry")
                         self.exchange.binance_create_limit_order_with_time_in_force(symbol, "sell", short_dynamic_amount, best_ask_price, "GTC")
+
+    def calculate_short_take_profit_binance(self, short_pos_price, symbol):
+        if short_pos_price is None:
+            return None
+
+        five_min_data = self.manager.get_5m_moving_averages(symbol)
+        print(f"five_min_data: {five_min_data}")
+
+        market_data = self.get_market_data_with_retry_binance(symbol, max_retries = 5, retry_delay = 5)
+        print(f"market_data: {market_data}")
+
+        step_size = market_data['step_size']
+        price_precision = int(-math.log10(float(step_size))) if float(step_size) < 1 else 8
+        print(f"price_precision: {price_precision}")
+
+
+        if five_min_data is not None:
+            ma_6_high = Decimal(five_min_data["MA_6_H"])
+            ma_6_low = Decimal(five_min_data["MA_6_L"])
+
+            try:
+                short_target_price = Decimal(short_pos_price) - (ma_6_high - ma_6_low)
+                print(f"short_target_price: {short_target_price}")
+            except InvalidOperation as e:
+                print(f"Error: Invalid operation when calculating short_target_price. short_pos_price={short_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
+                return None
+
+            try:
+                short_target_price = short_target_price.quantize(
+                    Decimal('1e-{}'.format(price_precision)),
+                    rounding=ROUND_HALF_UP
+                )
+
+                print(f"quantized short_target_price: {short_target_price}")
+            except InvalidOperation as e:
+                print(f"Error: Invalid operation when quantizing short_target_price. short_target_price={short_target_price}, price_precision={price_precision}")
+                return None
+
+            short_profit_price = short_target_price
+
+            return float(short_profit_price)
+        return None
+
+    def calculate_long_take_profit_binance(self, long_pos_price, symbol):
+        if long_pos_price is None:
+            return None
+
+        five_min_data = self.manager.get_5m_moving_averages(symbol)
+        print(f"five_min_data: {five_min_data}")
+
+        market_data = self.get_market_data_with_retry_binance(symbol, max_retries = 5, retry_delay = 5)
+        print(f"market_data: {market_data}")
+
+        step_size = market_data['step_size']
+        price_precision = int(-math.log10(float(step_size))) if float(step_size) < 1 else 8
+        print(f"price_precision: {price_precision}")
+
+        if five_min_data is not None:
+            ma_6_high = Decimal(five_min_data["MA_6_H"])
+            ma_6_low = Decimal(five_min_data["MA_6_L"])
+
+            try:
+                long_target_price = Decimal(long_pos_price) + (ma_6_high - ma_6_low)
+                print(f"long_target_price: {long_target_price}")
+            except InvalidOperation as e:
+                print(f"Error: Invalid operation when calculating long_target_price. long_pos_price={long_pos_price}, ma_6_high={ma_6_high}, ma_6_low={ma_6_low}")
+                return None
+
+            try:
+                long_target_price = long_target_price.quantize(
+                    Decimal('1e-{}'.format(price_precision)),
+                    rounding=ROUND_HALF_UP
+                )
+                print(f"quantized long_target_price: {long_target_price}")
+            except InvalidOperation as e:
+                print(f"Error: Invalid operation when quantizing long_target_price. long_target_price={long_target_price}, price_precision={price_precision}")
+                return None
+
+            long_profit_price = long_target_price
+
+            return float(long_profit_price)
+        return None
+    
