@@ -110,6 +110,93 @@ class BybitStrategy(BaseStrategy):
         next_update_time = now + timedelta(seconds=3)
         return next_update_time.replace(microsecond=0)
 
+    # Bybit cancel all entries
+    def cancel_entries_bybit(self, symbol, best_ask_price, ma_1m_3_high, ma_5m_3_high):
+        # Cancel entries
+        current_time = time.time()
+        if current_time - self.last_entries_cancel_time >= 60: #60 # Execute this block every 1 minute
+            try:
+                if best_ask_price < ma_1m_3_high or best_ask_price < ma_5m_3_high:
+                    self.exchange.cancel_all_entries_bybit(symbol)
+                    logging.info(f"Canceled entry orders for {symbol}")
+                    time.sleep(0.05)
+            except Exception as e:
+                logging.info(f"An error occurred while canceling entry orders: {e}")
+
+            self.last_entries_cancel_time = current_time
+
+    def clear_stale_positions(self, open_orders, rotator_symbols, max_time_without_volume=3600): # default time is 1 hour
+        open_positions = self.exchange.get_open_positions()
+
+        for position in open_positions:
+            symbol = position['symbol']
+
+            # Check if the symbol is not in the rotator list
+            if symbol not in rotator_symbols:
+
+                # Check how long the position has been open
+                position_open_time = position.get('timestamp', None)  # assuming your position has a 'timestamp' field
+                current_time = time.time()
+                time_elapsed = current_time - position_open_time
+
+                # Fetch volume for the coin
+                volume = self.exchange.get_24hr_volume(symbol)
+
+                # Check if the volume is low and position has been open for too long
+                if volume < self.MIN_VOLUME_THRESHOLD and time_elapsed > max_time_without_volume:
+
+                    # Place take profit order at the current price
+                    current_price = self.exchange.get_current_price(symbol)
+                    amount = position['amount']  # assuming your position has an 'amount' field
+
+                    # Determine if it's a buy or sell based on position type
+                    order_type = "sell" if position['side'] == 'long' else "buy"
+                    self.bybit_hedge_placetp_maker(symbol, amount, current_price, positionIdx=1, order_side="sell", open_orders=open_orders)
+                    #self.exchange.place_order(symbol, order_type, amount, current_price, take_profit=True)
+
+                    logging.info(f"Placed take profit order for stale position: {symbol} at price: {current_price}")
+
+    def cancel_stale_orders_bybit(self, symbol):
+        current_time = time.time()
+        if current_time - self.last_stale_order_check_time < 3720:  # 3720 seconds = 1 hour 12 minutes
+            return  # Skip the rest of the function if it's been less than 1 hour 12 minutes
+
+        # Directly cancel orders for the given symbol
+        self.exchange.cancel_all_open_orders_bybit(symbol)
+        logging.info(f"Stale orders for {symbol} canceled")
+
+        self.last_stale_order_check_time = current_time  # Update the last check time
+
+    def cancel_all_orders_for_symbol_bybit(self, symbol):
+        try:
+            self.exchange.cancel_all_open_orders_bybit(symbol)
+            logging.info(f"All orders for {symbol} canceled")
+        except Exception as e:
+            logging.error(f"An error occurred while canceling all orders for {symbol}: {e}")
+
+    def get_all_open_orders_bybit(self):
+        """
+        Fetch all open orders for all symbols from the Bybit API.
+
+        :return: A list of open orders for all symbols.
+        """
+        try:
+            # Call fetch_open_orders with no symbol to get orders for all symbols
+            all_open_orders = self.exchange.fetch_open_orders()
+            return all_open_orders
+        except Exception as e:
+            print(f"An error occurred while fetching all open orders: {e}")
+            return []
+
+    def cancel_old_entries_bybit(self, symbol):
+        # Cancel entries
+        try:
+            self.exchange.cancel_all_entries_bybit(symbol)
+            logging.info(f"Canceled entry orders for {symbol}")
+            time.sleep(0.05)
+        except Exception as e:
+            logging.info(f"An error occurred while canceling entry orders: {e}")
+
     def update_quickscalp_tp(self, symbol, pos_qty, upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, tp_order_counts, max_retries=10):
         # Fetch the current open TP orders and TP order counts for the symbol
         long_tp_orders, short_tp_orders = self.exchange.get_open_tp_orders(symbol)
@@ -621,6 +708,115 @@ class BybitStrategy(BaseStrategy):
         #print(f"Symbol: {symbol}, Side: {side}, Amount: {amount}, Price: {price}, Params: {params}")
         order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
         return order
+
+    def update_take_profit_if_profitable_for_one_minute(self, symbol):
+        try:
+            # Fetch position data and open position data
+            position_data = self.exchange.get_positions_bybit(symbol)
+            open_position_data = self.exchange.get_all_open_positions_bybit()
+            current_time = datetime.utcnow()
+
+            # Fetch current order book prices
+            best_ask_price = float(self.exchange.get_orderbook(symbol)['asks'][0][0])
+            best_bid_price = float(self.exchange.get_orderbook(symbol)['bids'][0][0])
+
+            # Initialize next_tp_update using your calculate_next_update_time function
+            next_tp_update = self.calculate_next_update_time()
+
+            # Loop through all open positions to find the one for the given symbol
+            for position in open_position_data:
+                if position['symbol'].split(':')[0] == symbol:
+                    timestamp = datetime.utcfromtimestamp(position['timestamp'] / 1000.0)  # Convert to seconds from milliseconds
+                    time_in_position = current_time - timestamp
+
+                    # Check if the position has been open for more than a minute
+                    if time_in_position > timedelta(minutes=1):
+                        side = position['side']
+                        pos_qty = position['contracts']
+                        entry_price = position['entryPrice']
+
+                        # Check if the position is profitable
+                        is_profitable = (best_ask_price > entry_price) if side == 'long' else (best_bid_price < entry_price)
+
+                        if is_profitable:
+                            # Calculate take profit price based on the current price
+                            take_profit_price = best_ask_price if side == 'long' else best_bid_price
+
+                            # Fetch open orders for the symbol
+                            open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+
+                            # Update the take profit
+                            positionIdx = 1 if side == 'long' else 2
+                            order_side = 'Buy' if side == 'short' else 'Sell'
+
+                            next_tp_update = self.update_take_profit_spread_bybit(
+                                symbol, pos_qty, take_profit_price, positionIdx, order_side,
+                                open_orders, next_tp_update
+                            )
+                            logging.info(f"Updated take profit for {side} position on {symbol} to {take_profit_price}")
+
+        except Exception as e:
+            logging.error(f"Error in updating take profit: {e}")
+
+    def update_dynamic_quickscalp_tp(self, symbol, best_ask_price, best_bid_price, pos_qty, upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, tp_order_counts, max_retries=10):
+        # Fetch the current open TP orders and TP order counts for the symbol
+        long_tp_orders, short_tp_orders = self.exchange.get_open_tp_orders(symbol)
+
+        long_tp_count = tp_order_counts['long_tp_count']
+        short_tp_count = tp_order_counts['short_tp_count']
+
+        # Calculate the new TP values using quickscalp method w/ dynamic
+        new_short_tp = self.calculate_dynamic_short_take_profit(
+            best_ask_price,
+            short_pos_price,
+            symbol,
+            upnl_profit_pct
+        )
+
+        new_long_tp = self.calculate_dynamic_long_take_profit(
+            best_bid_price,
+            long_pos_price,
+            symbol,
+            upnl_profit_pct
+        )
+
+        # Determine the relevant TP orders based on the order side
+        relevant_tp_orders = long_tp_orders if order_side == "sell" else short_tp_orders
+
+        # Check if there's an existing TP order with a mismatched quantity
+        mismatched_qty_orders = [order for order in relevant_tp_orders if order['qty'] != pos_qty]
+
+        # Cancel mismatched TP orders if any
+        for order in mismatched_qty_orders:
+            try:
+                self.exchange.cancel_order_by_id(order['id'], symbol)
+                logging.info(f"Cancelled TP order {order['id']} for update.")
+                time.sleep(0.05)
+            except Exception as e:
+                logging.error(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
+
+        now = datetime.now()
+        if now >= last_tp_update or mismatched_qty_orders:
+            # Check if a TP order already exists
+            tp_order_exists = (order_side == "sell" and long_tp_count > 0) or (order_side == "buy" and short_tp_count > 0)
+
+            # Set new TP order with updated prices only if no TP order exists
+            if not tp_order_exists:
+                new_tp_price = new_long_tp if order_side == "sell" else new_short_tp
+                try:
+                    self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, new_tp_price, positionIdx=positionIdx, reduce_only=True)
+                    logging.info(f"New {order_side.capitalize()} TP set at {new_tp_price}")
+                except Exception as e:
+                    logging.error(f"Failed to set new {order_side} TP for {symbol}. Error: {e}")
+            else:
+                logging.info(f"Skipping TP update as a TP order already exists for {symbol}")
+
+            # Calculate and return the next update time
+            return self.calculate_next_update_time()
+        else:
+            logging.info(f"No immediate update needed for TP orders for {symbol}. Last update at: {last_tp_update}")
+            return last_tp_update
+
 
     def place_long_tp_order(self, symbol, best_ask_price, long_pos_price, long_pos_qty, long_take_profit, open_orders):
         try:
@@ -1682,3 +1878,81 @@ class BybitStrategy(BaseStrategy):
                 self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, front_run_ask_price, positionIdx=2, reduceOnly=False)
                 logging.info(f"Turbocharged Additional Short Entry Placed at {front_run_ask_price} for {symbol} with {short_dynamic_amount} amount!")
 
+    def bybit_hedge_initial_entry_maker_hma(self, open_orders: list, symbol: str, trend: str, hma_trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, should_long: bool, should_short: bool):
+
+        if trend is None or mfi is None or hma_trend is None:
+            logging.warning(f"Either 'trend', 'mfi', or 'hma_trend' is None for symbol {symbol}. Skipping current execution...")
+            return
+
+        if one_minute_volume is not None and five_minute_distance is not None:
+            if one_minute_volume > min_vol and five_minute_distance > min_dist:
+
+                best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+                best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+
+                # Check for long entry conditions
+                if ((trend.lower() == "long" or hma_trend.lower() == "long") and mfi.lower() == "long") and should_long and long_pos_qty == 0 and long_pos_qty < self.max_long_trade_qty_per_symbol[symbol] and not self.entry_order_exists(open_orders, "buy"):
+                    logging.info(f"Placing initial long entry")
+                    self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                    logging.info(f"Placed initial long entry")
+
+                # Check for short entry conditions
+                if ((trend.lower() == "short" or hma_trend.lower() == "short") and mfi.lower() == "short") and should_short and short_pos_qty == 0 and short_pos_qty < self.max_short_trade_qty_per_symbol[symbol] and not self.entry_order_exists(open_orders, "sell"):
+                    logging.info(f"Placing initial short entry")
+                    self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                    logging.info(f"Placed initial short entry")
+                    
+    # Revised consistent maker strategy using MA Trend OR MFI as well while maintaining same original MA logic
+    def bybit_hedge_entry_maker_v2(self, symbol: str, trend: str, mfi: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
+
+        if one_minute_volume is not None and five_minute_distance is not None:
+            if one_minute_volume > min_vol and five_minute_distance > min_dist:
+                open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+
+                best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+                best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+
+                if (trend.lower() == "long" or mfi.lower() == "long") and should_long and long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
+                    logging.info(f"Placing initial long entry")
+                    self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                    logging.info(f"Placed initial long entry")
+
+                elif (trend.lower() == "long" or mfi.lower() == "long") and should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price and not self.entry_order_exists(open_orders, "buy"):
+                    logging.info(f"Placing additional long entry")
+                    self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+
+                if (trend.lower() == "short" or mfi.lower() == "short") and should_short and short_pos_qty == 0 and not self.entry_order_exists(open_orders, "sell"):
+                    logging.info(f"Placing initial short entry")
+                    self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                    logging.info("Placed initial short entry")
+
+                elif (trend.lower() == "short" or mfi.lower() == "short") and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price and not self.entry_order_exists(open_orders, "sell"):
+                    logging.info(f"Placing additional short entry")
+                    self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+
+    # Revised for ERI
+    def bybit_hedge_entry_maker_eritrend(self, symbol: str, trend: str, eri: str, one_minute_volume: float, five_minute_distance: float, min_vol: float, min_dist: float, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, should_long: bool, should_short: bool, should_add_to_long: bool, should_add_to_short: bool):
+
+        if one_minute_volume is not None and five_minute_distance is not None:
+            if one_minute_volume > min_vol and five_minute_distance > min_dist:
+
+                best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+                best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+
+                if (trend.lower() == "long" or eri.lower() == "short") and should_long and long_pos_qty == 0:
+                    logging.info(f"Placing initial long entry")
+                    self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                    logging.info(f"Placed initial long entry")
+                else:
+                    if (trend.lower() == "long" or eri.lower() == "short") and should_add_to_long and long_pos_qty < self.max_long_trade_qty and best_bid_price < long_pos_price:
+                        logging.info(f"Placing additional long entry")
+                        self.postonly_limit_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+
+                if (trend.lower() == "short" or eri.lower() == "long") and should_short and short_pos_qty == 0:
+                    logging.info(f"Placing initial short entry")
+                    self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                    logging.info("Placed initial short entry")
+                else:
+                    if (trend.lower() == "short" or eri.lower() == "long") and should_add_to_short and short_pos_qty < self.max_short_trade_qty and best_ask_price > short_pos_price:
+                        logging.info(f"Placing additional short entry")
+                        self.postonly_limit_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
