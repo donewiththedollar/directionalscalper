@@ -14,7 +14,7 @@
     "wallet_exposure_limit": 0.0005,
     "user_defined_leverage_long": 1.0,
     "user_defined_leverage_short": 1.0,
-    "upnl_profit_pct": 0.0033,
+    "upnl_profit_pct": 0.0024,
     "stoploss_enabled": false,
     "stoploss_upnl_pct": 0.05,
     "liq_stoploss_enabled": false,
@@ -43,12 +43,12 @@
     "shared_data_path": "data/",
     "linear_grid": {
       "levels": 5,
-      "strength": 2.6,
+      "strength": 1.6,
       "outer_price_distance": 0.039,
       "long_mode": true,
       "short_mode": false,
       "reissue_threshold": 0.001,
-      "buffer_percentage": 0.005
+      "buffer_percentage": 0.007
     }
   },
   "exchanges": [
