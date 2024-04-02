@@ -1461,15 +1461,13 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"[{symbol}] Long grid levels: {grid_levels_long}")
                 logging.info(f"[{symbol}] Short grid levels: {grid_levels_short}")
 
-                total_amount_long = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_long, "buy") if long_mode else 0
-                total_amount_short = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_short, "sell") if short_mode else 0
-                logging.info(f"[{symbol}] Total amount long: {total_amount_long}, Total amount short: {total_amount_short}")
-
                 qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
                 min_qty = float(self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
                 logging.info(f"[{symbol}] Quantity precision: {qty_precision}, Minimum quantity: {min_qty}")
 
-                # enforce_full_grid = True
+                total_amount_long = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_long, "buy", levels, min_qty, enforce_full_grid) if long_mode else 0
+                total_amount_short = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_short, "sell", levels, min_qty, enforce_full_grid) if short_mode else 0
+                logging.info(f"[{symbol}] Total amount long: {total_amount_long}, Total amount short: {total_amount_short}")
 
                 amounts_long = self.calculate_order_amounts(symbol, total_amount_long, levels, strength, qty_precision, min_qty, enforce_full_grid)
                 amounts_short = self.calculate_order_amounts(symbol, total_amount_short, levels, strength, qty_precision, min_qty, enforce_full_grid)
@@ -1512,7 +1510,7 @@ class BybitStrategy(BaseStrategy):
                 time.sleep(5)
         except Exception as e:
             logging.info(f"Exception caught in grid {e}")
-                        
+            
     def should_reissue_orders(self, symbol: str, reissue_threshold: float) -> bool:
         try:
             current_price = self.exchange.get_current_price(symbol)
@@ -1607,30 +1605,52 @@ class BybitStrategy(BaseStrategy):
         remaining_amount = total_amount
         logging.info(f"Total ratio: {total_ratio}, Remaining amount: {remaining_amount}")
         
-        if enforce_full_grid:
-            # Override the total amount to fulfill the specified number of levels
-            total_amount = levels * min_qty
-            remaining_amount = total_amount
-        
         for i in range(levels):
             ratio = (i + 1) ** strength
             amount = total_amount * (ratio / total_ratio)
             logging.info(f"Level {i+1} - Ratio: {ratio}, Amount: {amount}")
             
-            # Round the order amount to the nearest multiple of min_qty
-            rounded_amount = round(amount / min_qty) * min_qty
+            if enforce_full_grid:
+                # Round the order amount to the nearest multiple of min_qty
+                rounded_amount = round(amount / min_qty) * min_qty
+            else:
+                # Round the order amount to the nearest multiple of qty_precision or min_qty, whichever is larger
+                rounded_amount = round(amount / max(qty_precision, min_qty)) * max(qty_precision, min_qty)
+            
             logging.info(f"Level {i+1} - Rounded amount: {rounded_amount}")
             
             # Ensure the order amount is greater than or equal to the minimum quantity
-            adjusted_amount = max(rounded_amount, min_qty)
+            adjusted_amount = max(rounded_amount, min_qty * (i + 1))
             logging.info(f"Level {i+1} - Adjusted amount: {adjusted_amount}")
             
             amounts.append(adjusted_amount)
             remaining_amount -= adjusted_amount
             logging.info(f"Level {i+1} - Remaining amount: {remaining_amount}")
         
+        # If enforce_full_grid is True and there is remaining amount, distribute it among the levels
+        if enforce_full_grid and remaining_amount > 0:
+            # Sort the amounts in ascending order
+            sorted_amounts = sorted(amounts)
+            
+            # Iterate over the sorted amounts and add the remaining amount until it is fully distributed
+            for i in range(len(sorted_amounts)):
+                if remaining_amount <= 0:
+                    break
+                
+                # Calculate the additional amount to add to the current level
+                additional_amount = min(remaining_amount, min_qty)
+                
+                # Find the index of the current amount in the original amounts list
+                index = amounts.index(sorted_amounts[i])
+                
+                # Update the amount in the original amounts list
+                amounts[index] += additional_amount
+                
+                remaining_amount -= additional_amount
+        
         logging.info(f"Calculated order amounts: {amounts}")
         return amounts
+
 
 
     def calculate_order_amounts_min_notional(self, total_amount: float, levels: int, strength: float, min_notional: float, current_price: float) -> List[float]:
