@@ -1428,7 +1428,11 @@ class BybitStrategy(BaseStrategy):
                 if symbol not in self.filled_levels:
                     self.filled_levels[symbol] = {"buy": set(), "sell": set()}
 
-                if symbol in self.active_grids and not should_reissue:
+                # Check if long and short grids are active separately
+                long_grid_active = symbol in self.active_grids and "buy" in self.filled_levels[symbol]
+                short_grid_active = symbol in self.active_grids and "sell" in self.filled_levels[symbol]
+
+                if (long_grid_active or short_grid_active) and not should_reissue:
                     logging.info(f"[{symbol}] Grid already active and reissue threshold not met. Skipping grid placement.")
                     return
 
@@ -1474,15 +1478,15 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
                 logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
 
-                if should_reissue or symbol not in self.active_grids:
+                if should_reissue or (not long_grid_active and not short_grid_active):
                     if symbol in open_symbols or trading_allowed:
-                        if long_mode:
+                        if long_mode and not long_grid_active:
                             if long_pos_qty == 0 or (long_pos_qty > 0 and not any(order['side'].lower() == 'buy' for order in open_orders)):
                                 logging.info(f"[{symbol}] Placing new long grid orders.")
                                 self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                                 self.active_grids.add(symbol)  # Mark the symbol as having an active grid
 
-                        if short_mode:
+                        if short_mode and not short_grid_active:
                             if short_pos_qty == 0 or (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' for order in open_orders)):
                                 logging.info(f"[{symbol}] Placing new short grid orders.")
                                 self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
@@ -1494,7 +1498,7 @@ class BybitStrategy(BaseStrategy):
 
                 # Check if there is room for trading new symbols
                 logging.info(f"[{symbol}] Number of open symbols: {len(open_symbols)}, Symbols allowed: {symbols_allowed}")
-                if len(open_symbols) < symbols_allowed and long_pos_qty == 0 and short_pos_qty == 0 and symbol not in self.active_grids:
+                if len(open_symbols) < symbols_allowed and long_pos_qty == 0 and short_pos_qty == 0 and not long_grid_active and not short_grid_active:
                     logging.info(f"[{symbol}] No open positions and no active grids. Checking for new symbols to trade.")
                     # Place grid orders for the new symbol
                     if long_mode:
