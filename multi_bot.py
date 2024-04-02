@@ -383,6 +383,14 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                     potential_bearish_symbols = manager.get_bearish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
                     potential_symbols = potential_bullish_symbols + potential_bearish_symbols
                     logging.info(f"Potential bullish and bearish symbols for BybitBasicGrid: {potential_symbols}")
+            elif strategy_name == 'qstrendlongonly':
+                # Fetching only bullish symbols from manager for BybitMFIRSIQuickScalpLong strategy
+                potential_symbols = manager.get_bullish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+                logging.info(f"Potential bullish symbols for BybitMFIRSIQuickScalpLong: {potential_symbols}")
+            elif strategy_name == 'qstrendshortonly':
+                # Fetching only bearish symbols from manager for BybitMFIRSIQuickScalpShort strategy
+                potential_symbols = manager.get_bearish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+                logging.info(f"Potential bearish symbols for BybitMFIRSIQuickScalpShort: {potential_symbols}")
             else:
                 # Fetching potential symbols from manager for other strategies
                 potential_symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
@@ -465,7 +473,6 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
         logging.error(f"Exception caught in bybit_auto_rotation: {str(e)}")
         # Log the traceback for more detailed information
         logging.error(traceback.format_exc())
-        
 
 def hyperliquid_auto_rotation(args, manager, symbols_allowed):
     # Fetching open position symbols and standardizing them
