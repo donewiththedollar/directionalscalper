@@ -67,6 +67,7 @@ class Bot(BaseModel):
     whitelist: List[str] = []
     dashboard_enabled: bool = False
     shared_data_path: Optional[str] = None
+    #risk_management: Optional[dict] = None
     linear_grid: Optional[dict] = None
     # shared_data_path: Optional[DirectoryPath] = None
 

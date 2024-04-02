@@ -1415,7 +1415,7 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.error(f"Exception caught in bybit_1m_mfi_quickscalp_trend_long_only_spot: {e}")
             
-    def linear_grid_handle_positions(self, symbol: str, open_symbols: list, total_equity: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, buffer_percentage: float, symbols_allowed: int):
+    def linear_grid_handle_positions(self, symbol: str, open_symbols: list, total_equity: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, buffer_percentage: float, symbols_allowed: int, enforce_full_grid: bool):
         try:
             if symbol not in self.symbol_locks:
                 self.symbol_locks[symbol] = threading.Lock()
@@ -1431,6 +1431,10 @@ class BybitStrategy(BaseStrategy):
                 # Check if long and short grids are active separately
                 long_grid_active = symbol in self.active_grids and "buy" in self.filled_levels[symbol]
                 short_grid_active = symbol in self.active_grids and "sell" in self.filled_levels[symbol]
+
+                if (long_grid_active or short_grid_active) and not should_reissue:
+                    logging.info(f"[{symbol}] Grid already active and reissue threshold not met. Skipping grid placement.")
+                    return
 
                 current_price = self.exchange.get_current_price(symbol)
                 logging.info(f"[{symbol}] Current price: {current_price}")
@@ -1465,8 +1469,10 @@ class BybitStrategy(BaseStrategy):
                 min_qty = float(self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
                 logging.info(f"[{symbol}] Quantity precision: {qty_precision}, Minimum quantity: {min_qty}")
 
-                amounts_long = self.calculate_order_amounts(symbol, total_amount_long, levels, strength, qty_precision, min_qty)
-                amounts_short = self.calculate_order_amounts(symbol, total_amount_short, levels, strength, qty_precision, min_qty)
+                # enforce_full_grid = True
+
+                amounts_long = self.calculate_order_amounts(symbol, total_amount_long, levels, strength, qty_precision, min_qty, enforce_full_grid)
+                amounts_short = self.calculate_order_amounts(symbol, total_amount_short, levels, strength, qty_precision, min_qty, enforce_full_grid)
                 logging.info(f"[{symbol}] Long order amounts: {amounts_long}")
                 logging.info(f"[{symbol}] Short order amounts: {amounts_short}")
 
@@ -1475,42 +1481,37 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
 
                 if symbol in open_symbols or trading_allowed:
-                    if long_mode:
-                        if should_reissue or not long_grid_active:
-                            if long_pos_qty == 0 or (long_pos_qty > 0 and not any(order['side'].lower() == 'buy' for order in open_orders)):
-                                logging.info(f"[{symbol}] Placing new long grid orders.")
-                                self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                                self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+                    if long_mode and not long_grid_active:
+                        if should_reissue or (long_pos_qty > 0 and not any(order['side'].lower() == 'buy' for order in open_orders)):
+                            logging.info(f"[{symbol}] Placing new long grid orders.")
+                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                            self.active_grids.add(symbol)  # Mark the symbol as having an active grid
 
-                    if short_mode:
-                        if should_reissue or not short_grid_active:
-                            if short_pos_qty == 0 or (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' for order in open_orders)):
-                                logging.info(f"[{symbol}] Placing new short grid orders.")
-                                self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                                self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+                    if short_mode and not short_grid_active:
+                        if should_reissue or (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' for order in open_orders)):
+                            logging.info(f"[{symbol}] Placing new short grid orders.")
+                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                            self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+
+                    # Check if there is room for trading new symbols
+                    logging.info(f"[{symbol}] Number of open symbols: {len(open_symbols)}, Symbols allowed: {symbols_allowed}")
+                    if len(open_symbols) < symbols_allowed and symbol not in self.active_grids:
+                        logging.info(f"[{symbol}] No active grids. Checking for new symbols to trade.")
+                        # Place grid orders for the new symbol
+                        if long_mode:
+                            logging.info(f"[{symbol}] Placing new long orders.")
+                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                            self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+                        if short_mode:
+                            logging.info(f"[{symbol}] Placing new short orders.")
+                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                            self.active_grids.add(symbol)  # Mark the symbol as having an active grid
                 else:
                     logging.info(f"[{symbol}] Trading not allowed. Skipping grid placement.")
-
-                # Check if there is room for trading new symbols
-                logging.info(f"[{symbol}] Number of open symbols: {len(open_symbols)}, Symbols allowed: {symbols_allowed}")
-                if len(open_symbols) < symbols_allowed and long_pos_qty == 0 and short_pos_qty == 0 and not long_grid_active and not short_grid_active:
-                    logging.info(f"[{symbol}] No open positions and no active grids. Checking for new symbols to trade.")
-                    # Place grid orders for the new symbol
-                    if long_mode:
-                        logging.info(f"[{symbol}] Placing new long orders.")
-                        self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                        self.active_grids.add(symbol)  # Mark the symbol as having an active grid
-                    if short_mode:
-                        logging.info(f"[{symbol}] Placing new short orders.")
-                        self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                        self.active_grids.add(symbol)  # Mark the symbol as having an active grid
-                else:
-                    logging.info(f"[{symbol}] Cannot trade new symbol due to symbol limit or existing open positions/active grids.")
 
                 time.sleep(5)
         except Exception as e:
             logging.info(f"Exception caught in grid {e}")
-            
                         
     def should_reissue_orders(self, symbol: str, reissue_threshold: float) -> bool:
         try:
@@ -1571,12 +1572,12 @@ class BybitStrategy(BaseStrategy):
         
     def calculate_total_amount(self, symbol: str, total_equity: float, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float, side: str) -> float:
         logging.info(f"Calculating total amount for {symbol} with total_equity: {total_equity}, best_ask_price: {best_ask_price}, best_bid_price: {best_bid_price}, wallet_exposure_limit: {wallet_exposure_limit}, user_defined_leverage: {user_defined_leverage}, side: {side}")
-
+        
         # Fetch market data to get the minimum trade quantity for the symbol
         market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
         min_qty = float(market_data["min_qty"])
         logging.info(f"Minimum quantity for {symbol}: {min_qty}")
-
+        
         # Calculate the minimum quantity in USD value based on the side
         if side == "buy":
             min_qty_usd_value = min_qty * best_ask_price
@@ -1585,51 +1586,52 @@ class BybitStrategy(BaseStrategy):
         else:
             raise ValueError(f"Invalid side: {side}")
         logging.info(f"Minimum quantity USD value for {symbol}: {min_qty_usd_value}")
-
+        
         # Calculate the maximum position value based on total equity, wallet exposure limit, and user-defined leverage
         max_position_value = total_equity * wallet_exposure_limit * user_defined_leverage
         logging.info(f"Maximum position value for {symbol}: {max_position_value}")
-
-        # Calculate the total amount considering the maximum position value and minimum quantity
-        total_amount = max(max_position_value, min_qty_usd_value)
+        
+        # Calculate the total amount as a multiple of the minimum quantity USD value
+        total_amount = max(max_position_value // min_qty_usd_value, 1) * min_qty_usd_value
         logging.info(f"Calculated total amount for {symbol}: {total_amount}")
-
+        
         return total_amount
 
-    def calculate_order_amounts(self, symbol: str, total_amount: float, levels: int, strength: float, qty_precision: float, min_qty: float) -> List[float]:
-        logging.info(f"Calculating order amounts for {symbol} with total_amount: {total_amount}, levels: {levels}, strength: {strength}, qty_precision: {qty_precision}, min_qty: {min_qty}")
+
+    def calculate_order_amounts(self, symbol: str, total_amount: float, levels: int, strength: float, qty_precision: float, min_qty: float, enforce_full_grid: bool) -> List[float]:
+        logging.info(f"Calculating order amounts for {symbol} with total_amount: {total_amount}, levels: {levels}, strength: {strength}, qty_precision: {qty_precision}, min_qty: {min_qty}, enforce_full_grid: {enforce_full_grid}")
         
         # Calculate the order amounts based on the strength
         amounts = []
         total_ratio = sum([(j + 1) ** strength for j in range(levels)])
         remaining_amount = total_amount
         logging.info(f"Total ratio: {total_ratio}, Remaining amount: {remaining_amount}")
-
-        for i in range(levels - 1):
+        
+        if enforce_full_grid:
+            # Override the total amount to fulfill the specified number of levels
+            total_amount = levels * min_qty
+            remaining_amount = total_amount
+        
+        for i in range(levels):
             ratio = (i + 1) ** strength
             amount = total_amount * (ratio / total_ratio)
             logging.info(f"Level {i+1} - Ratio: {ratio}, Amount: {amount}")
-
-            # Round the order amount based on the minimum quantity precision
-            rounded_amount = round(amount, -int(math.log10(qty_precision)))
+            
+            # Round the order amount to the nearest multiple of min_qty
+            rounded_amount = round(amount / min_qty) * min_qty
             logging.info(f"Level {i+1} - Rounded amount: {rounded_amount}")
-
+            
             # Ensure the order amount is greater than or equal to the minimum quantity
             adjusted_amount = max(rounded_amount, min_qty)
             logging.info(f"Level {i+1} - Adjusted amount: {adjusted_amount}")
-
+            
             amounts.append(adjusted_amount)
             remaining_amount -= adjusted_amount
             logging.info(f"Level {i+1} - Remaining amount: {remaining_amount}")
-
-        # Assign the remaining amount to the last level
-        last_amount = round(remaining_amount, -int(math.log10(qty_precision)))
-        last_amount = max(last_amount, min_qty)
-        amounts.append(last_amount)
-        logging.info(f"Last level - Amount: {last_amount}")
-
+        
         logging.info(f"Calculated order amounts: {amounts}")
         return amounts
+
 
     def calculate_order_amounts_min_notional(self, total_amount: float, levels: int, strength: float, min_notional: float, current_price: float) -> List[float]:
         logging.info(f"Calculating order amounts with total_amount: {total_amount}, levels: {levels}, strength: {strength}, min_notional: {min_notional}, current_price: {current_price}")

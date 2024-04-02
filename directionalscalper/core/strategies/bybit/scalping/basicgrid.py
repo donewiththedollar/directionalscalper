@@ -43,6 +43,7 @@ class BybitBasicGrid(BybitStrategy):
             self.short_mode = self.config.linear_grid['short_mode']
             self.reissue_threshold = self.config.linear_grid['reissue_threshold']
             self.buffer_percentage = self.config.linear_grid['buffer_percentage']
+            self.enforce_full_grid = self.config.linear_grid['enforce_full_grid']
             # self.reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
             self.upnl_threshold_pct = self.config.upnl_threshold_pct
             self.volume_check = self.config.volume_check
@@ -157,6 +158,7 @@ class BybitBasicGrid(BybitStrategy):
             short_mode = self.config.linear_grid['short_mode']
             reissue_threshold = self.config.linear_grid['reissue_threshold']
             buffer_percentage = self.config.linear_grid['buffer_percentage']
+            enforce_full_grid = self.config.linear_grid['enforce_full_grid']
             # reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
 
             volume_check = self.config.volume_check
@@ -670,7 +672,8 @@ class BybitBasicGrid(BybitStrategy):
                         long_mode,
                         short_mode,
                         buffer_percentage,
-                        self.symbols_allowed
+                        self.symbols_allowed,
+                        enforce_full_grid
                     )
 
 
