@@ -1475,41 +1475,20 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
 
                 if should_reissue or symbol not in self.active_grids:
-                    if symbol in open_symbols:
+                    if symbol in open_symbols or trading_allowed:
                         if long_mode:
-                            if long_pos_qty > 0 and not any(order['side'].lower() == 'buy' for order in open_orders):
-                                logging.info(f"[{symbol}] Open long position detected, but no active long grid orders. Placing new long grid orders.")
-                                self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                                self.active_grids.add(symbol)  # Mark the symbol as having an active grid
-                            elif long_pos_qty == 0 and symbol not in self.active_grids:
-                                logging.info(f"[{symbol}] No open long position. Placing new long orders.")
+                            if long_pos_qty == 0 or (long_pos_qty > 0 and not any(order['side'].lower() == 'buy' for order in open_orders)):
+                                logging.info(f"[{symbol}] Placing new long grid orders.")
                                 self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                                 self.active_grids.add(symbol)  # Mark the symbol as having an active grid
 
                         if short_mode:
-                            if short_pos_qty > 0 and not any(order['side'].lower() == 'sell' for order in open_orders):
-                                logging.info(f"[{symbol}] Open short position detected, but no active short grid orders. Placing new short grid orders.")
-                                self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                                self.active_grids.add(symbol)  # Mark the symbol as having an active grid
-                            elif short_pos_qty == 0 and symbol not in self.active_grids:
-                                logging.info(f"[{symbol}] No open short position. Placing new short orders.")
+                            if short_pos_qty == 0 or (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' for order in open_orders)):
+                                logging.info(f"[{symbol}] Placing new short grid orders.")
                                 self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                                 self.active_grids.add(symbol)  # Mark the symbol as having an active grid
                     else:
-                        if trading_allowed:
-                            if long_mode:
-                                if long_pos_qty == 0 and symbol not in self.active_grids:
-                                    logging.info(f"[{symbol}] No open long position. Placing new long orders.")
-                                    self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                                    self.active_grids.add(symbol)  # Mark the symbol as having an active grid
-
-                            if short_mode:
-                                if short_pos_qty == 0 and symbol not in self.active_grids:
-                                    logging.info(f"[{symbol}] No open short position. Placing new short orders.")
-                                    self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                                    self.active_grids.add(symbol)  # Mark the symbol as having an active grid
-                        else:
-                            logging.info(f"[{symbol}] Trading not allowed. Skipping grid placement.")
+                        logging.info(f"[{symbol}] Trading not allowed. Skipping grid placement.")
                 else:
                     logging.info(f"[{symbol}] Grid already active and reissue threshold not met. No action required.")
 
