@@ -399,6 +399,8 @@ class BybitMFIRSIQuickScalpLong(BybitStrategy):
                     hma_trend = metrics['HMA Trend']
                     eri_trend = metrics['ERI Trend']
 
+                    logging.info(f"{symbol} ERI Trend: {eri_trend}")
+
                     logging.info(f"{symbol} MFIRSI Signal: {mfirsi_signal}")
 
                     fivemin_top_signal = metrics['Top Signal 5m']
