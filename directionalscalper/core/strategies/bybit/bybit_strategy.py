@@ -1667,12 +1667,11 @@ class BybitStrategy(BaseStrategy):
         # Remove the symbol from active_grids
         self.active_grids.discard(symbol)
         
-    def calculate_total_amount(self, symbol: str, total_equity: float, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float, side: str) -> float:
-        logging.info(f"Calculating total amount for {symbol} with total_equity: {total_equity}, best_ask_price: {best_ask_price}, best_bid_price: {best_bid_price}, wallet_exposure_limit: {wallet_exposure_limit}, user_defined_leverage: {user_defined_leverage}, side: {side}")
+    def calculate_total_amount(self, symbol: str, total_equity: float, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float, side: str, levels: int, min_qty: float, enforce_full_grid: bool) -> float:
+        logging.info(f"Calculating total amount for {symbol} with total_equity: {total_equity}, best_ask_price: {best_ask_price}, best_bid_price: {best_bid_price}, wallet_exposure_limit: {wallet_exposure_limit}, user_defined_leverage: {user_defined_leverage}, side: {side}, levels: {levels}, min_qty: {min_qty}, enforce_full_grid: {enforce_full_grid}")
         
         # Fetch market data to get the minimum trade quantity for the symbol
         market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
-        min_qty = float(market_data["min_qty"])
         logging.info(f"Minimum quantity for {symbol}: {min_qty}")
         
         # Calculate the minimum quantity in USD value based on the side
@@ -1684,16 +1683,20 @@ class BybitStrategy(BaseStrategy):
             raise ValueError(f"Invalid side: {side}")
         logging.info(f"Minimum quantity USD value for {symbol}: {min_qty_usd_value}")
         
-        # Calculate the maximum position value based on total equity, wallet exposure limit, and user-defined leverage
-        max_position_value = total_equity * wallet_exposure_limit * user_defined_leverage
-        logging.info(f"Maximum position value for {symbol}: {max_position_value}")
+        if enforce_full_grid:
+            # Calculate the total amount based on the specified number of levels and minimum quantity
+            total_amount = levels * min_qty_usd_value
+        else:
+            # Calculate the maximum position value based on total equity, wallet exposure limit, and user-defined leverage
+            max_position_value = total_equity * wallet_exposure_limit * user_defined_leverage
+            logging.info(f"Maximum position value for {symbol}: {max_position_value}")
+            
+            # Calculate the total amount as a multiple of the minimum quantity USD value
+            total_amount = max(max_position_value // min_qty_usd_value, 1) * min_qty_usd_value
         
-        # Calculate the total amount as a multiple of the minimum quantity USD value
-        total_amount = max(max_position_value // min_qty_usd_value, 1) * min_qty_usd_value
         logging.info(f"Calculated total amount for {symbol}: {total_amount}")
         
         return total_amount
-
 
     def calculate_order_amounts(self, symbol: str, total_amount: float, levels: int, strength: float, qty_precision: float, min_qty: float, enforce_full_grid: bool) -> List[float]:
         logging.info(f"Calculating order amounts for {symbol} with total_amount: {total_amount}, levels: {levels}, strength: {strength}, qty_precision: {qty_precision}, min_qty: {min_qty}, enforce_full_grid: {enforce_full_grid}")
