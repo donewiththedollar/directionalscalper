@@ -71,6 +71,12 @@ class Bot(BaseModel):
     linear_grid: Optional[dict] = None
     # shared_data_path: Optional[DirectoryPath] = None
 
+
+    @validator('linear_grid')
+    def validate_linear_grid(cls, value):
+        if value is None:
+            raise ValueError("linear_grid must be a dictionary - check example config")
+        return value
     
     @validator("min_volume")
     def minimum_min_volume(cls, v):
