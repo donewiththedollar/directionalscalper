@@ -1064,7 +1064,7 @@ class BybitStrategy(BaseStrategy):
         return long_dynamic_amount, short_dynamic_amount, min_qty
 
 
-    def bybit_1m_mfi_quickscalp_trend(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, entry_during_autoreduce: bool, volume_check: bool, long_take_profit: float, short_take_profit: float, upnl_profit_pct: float, tp_order_counts: dict):
+    def bybit_1m_mfi_quickscalp_trend(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, eri_trend: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, entry_during_autoreduce: bool, volume_check: bool, long_take_profit: float, short_take_profit: float, upnl_profit_pct: float, tp_order_counts: dict):
         try:
             if symbol not in self.symbol_locks:
                 self.symbol_locks[symbol] = threading.Lock()
@@ -1083,7 +1083,7 @@ class BybitStrategy(BaseStrategy):
                 # Check if volume check is enabled or not
                 if not volume_check or (one_minute_volume > min_vol):
                     if not self.auto_reduce_active_long.get(symbol, False):
-                        if long_pos_qty == 0 and mfi_signal_long and not self.entry_order_exists(open_orders, "buy"):
+                        if long_pos_qty == 0 and mfi_signal_long and eri_trend == "bullish" and not self.entry_order_exists(open_orders, "buy"):
                             self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
                             time.sleep(1)
                             if long_pos_qty > 0:
@@ -1122,7 +1122,7 @@ class BybitStrategy(BaseStrategy):
                                 logging.info(f"Skipping additional long entry for {symbol} due to active auto-reduce.")
 
                     if not self.auto_reduce_active_short.get(symbol, False):
-                        if short_pos_qty == 0 and mfi_signal_short and not self.entry_order_exists(open_orders, "sell"):
+                        if short_pos_qty == 0 and mfi_signal_short and eri_trend == "bearish" and not self.entry_order_exists(open_orders, "sell"):
                             self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
                             time.sleep(1)
                             if short_pos_qty > 0:
