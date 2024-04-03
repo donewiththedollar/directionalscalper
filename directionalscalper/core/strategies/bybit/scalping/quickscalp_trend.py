@@ -81,6 +81,9 @@ class BybitQuickScalpTrend(BybitStrategy):
             logging.info(f"Starting to process symbol: {symbol}")
             logging.info(f"Initializing default values for symbol: {symbol}")
 
+
+            previous_long_pos_qty = 0
+            previous_short_pos_qty = 0
             # position_inactive_threshold = 60
 
             min_qty = None
@@ -395,6 +398,8 @@ class BybitQuickScalpTrend(BybitStrategy):
                     hma_trend = metrics['HMA Trend']
                     eri_trend = metrics['ERI Trend']
 
+                    logging.info(f"{symbol} ERI Trend {eri_trend}")
+
                     logging.info(f"{symbol} MFIRSI Signal: {mfirsi_signal}")
 
                     fivemin_top_signal = metrics['Top Signal 5m']
@@ -413,6 +418,17 @@ class BybitQuickScalpTrend(BybitStrategy):
 
                     long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
                     short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
+
+                    # Check if a position has been closed
+                    if previous_long_pos_qty > 0 and long_pos_qty == 0:
+                        logging.info(f"Long position closed for {symbol}. Canceling orders and moving on.")
+                        self.cleanup_before_termination(symbol)
+                        break
+
+                    if previous_short_pos_qty > 0 and short_pos_qty == 0:
+                        logging.info(f"Short position closed for {symbol}. Canceling orders and moving on.")
+                        self.cleanup_before_termination(symbol)
+                        break
 
                     logging.info(f"Rotator symbol trading: {symbol}")
                                 
