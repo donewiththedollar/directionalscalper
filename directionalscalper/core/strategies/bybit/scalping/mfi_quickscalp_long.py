@@ -84,6 +84,8 @@ class BybitMFIRSIQuickScalpLong(BybitStrategy):
             logging.info(f"Initializing default values for symbol: {symbol}")
 
             # position_inactive_threshold = 60
+            previous_long_pos_qty = 0
+            previous_short_pos_qty = 0
 
             min_qty = None
             current_price = None
@@ -415,6 +417,17 @@ class BybitMFIRSIQuickScalpLong(BybitStrategy):
 
                     long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
                     short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
+
+                    # Check if a position has been closed
+                    if previous_long_pos_qty > 0 and long_pos_qty == 0:
+                        logging.info(f"Long position closed for {symbol}. Canceling orders and moving on.")
+                        self.cleanup_before_termination(symbol)
+                        break
+
+                    if previous_short_pos_qty > 0 and short_pos_qty == 0:
+                        logging.info(f"Short position closed for {symbol}. Canceling orders and moving on.")
+                        self.cleanup_before_termination(symbol)
+                        break
 
                     logging.info(f"Rotator symbol trading: {symbol}")
                                 
