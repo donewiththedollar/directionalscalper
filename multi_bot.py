@@ -69,6 +69,7 @@ def get_available_strategies():
         'qstrend_unified',
         'qstrend_dca',
         'basicgrid',
+        'basicgridmfirsi',
         'qstrendspot',
     ]
 
@@ -197,6 +198,9 @@ class DirectionalMarketMaker:
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'basicgrid':
             strategy = bybit_scalping.BybitBasicGrid(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
+        elif strategy_name.lower() == 'basicgridmfirsi':
+            strategy = bybit_scalping.BybitBasicGridMFIRSI(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'qstrendspot':
             strategy = bybit_scalping.BybitQuickScalpTrendSpot(self.exchange, self.manager, config.bot, symbols_allowed)
@@ -386,6 +390,21 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                     potential_bearish_symbols = manager.get_bearish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
                     potential_symbols = potential_bullish_symbols + potential_bearish_symbols
                     logging.info(f"Potential bullish and bearish symbols for BybitBasicGrid: {potential_symbols}")
+            elif strategy_name == 'basicgridmfirsi':
+                if long_mode and not short_mode:
+                    # Fetching only bullish symbols with MFIRSI signal from manager for BybitBasicGridMFIRSI strategy
+                    potential_symbols = manager.get_bullish_mfirsi_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+                    logging.info(f"Potential bullish symbols with MFIRSI signal for BybitBasicGridMFIRSI: {potential_symbols}")
+                elif short_mode and not long_mode:
+                    # Fetching only bearish symbols with MFIRSI signal from manager for BybitBasicGridMFIRSI strategy
+                    potential_symbols = manager.get_bearish_mfirsi_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+                    logging.info(f"Potential bearish symbols with MFIRSI signal for BybitBasicGridMFIRSI: {potential_symbols}")
+                else:
+                    # Fetching both bullish and bearish symbols with MFIRSI signal from manager for BybitBasicGridMFIRSI strategy
+                    potential_bullish_symbols = manager.get_bullish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+                    potential_bearish_symbols = manager.get_bearish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+                    potential_symbols = potential_bullish_symbols + potential_bearish_symbols
+                    logging.info(f"Potential bullish and bearish symbols with MFIRSI signal for BybitBasicGridMFIRSI: {potential_symbols}")
             elif strategy_name == 'qstrendlongonly':
                 # Fetching only bullish symbols from manager for BybitMFIRSIQuickScalpLong strategy
                 potential_symbols = manager.get_bullish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
