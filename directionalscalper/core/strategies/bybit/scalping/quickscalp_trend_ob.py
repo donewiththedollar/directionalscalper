@@ -540,7 +540,7 @@ class BybitQuickScalpTrendOB(BybitStrategy):
                         auto_reduce_start_pct,
                         auto_reduce_maxloss_pct
                     )
-                    
+
                     self.cancel_auto_reduce_orders_bybit(
                         symbol,
                         total_equity,
@@ -618,6 +618,7 @@ class BybitQuickScalpTrendOB(BybitStrategy):
                         min_vol,
                         one_minute_volume,
                         mfirsi_signal,
+                        eri_trend,
                         long_dynamic_amount,
                         short_dynamic_amount,
                         long_pos_qty,

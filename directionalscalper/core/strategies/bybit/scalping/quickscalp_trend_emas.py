@@ -616,6 +616,7 @@ class BybitQSTrendDoubleMA(BybitStrategy):
                         min_vol,
                         one_minute_volume,
                         mfirsi_signal,
+                        eri_trend,
                         long_dynamic_amount,
                         short_dynamic_amount,
                         long_pos_qty,
