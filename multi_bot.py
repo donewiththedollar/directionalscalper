@@ -387,17 +387,17 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                 else:
                     # Fetching both bullish and bearish symbols from manager for BybitBasicGrid strategy
                     potential_bullish_symbols = manager.get_bullish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
-                    potential_bearish_symbols = manager.get_bearish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+                    potential_bearish_symbols = manager.get_bullish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
                     potential_symbols = potential_bullish_symbols + potential_bearish_symbols
                     logging.info(f"Potential bullish and bearish symbols for BybitBasicGrid: {potential_symbols}")
             elif strategy_name == 'basicgridmfirsi':
                 if long_mode and not short_mode:
                     # Fetching only bullish symbols with MFIRSI signal from manager for BybitBasicGridMFIRSI strategy
-                    potential_symbols = manager.get_bullish_mfirsi_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+                    potential_symbols = manager.get_bullish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
                     logging.info(f"Potential bullish symbols with MFIRSI signal for BybitBasicGridMFIRSI: {potential_symbols}")
                 elif short_mode and not long_mode:
                     # Fetching only bearish symbols with MFIRSI signal from manager for BybitBasicGridMFIRSI strategy
-                    potential_symbols = manager.get_bearish_mfirsi_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+                    potential_symbols = manager.get_bullish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
                     logging.info(f"Potential bearish symbols with MFIRSI signal for BybitBasicGridMFIRSI: {potential_symbols}")
                 else:
                     # Fetching both bullish and bearish symbols with MFIRSI signal from manager for BybitBasicGridMFIRSI strategy
