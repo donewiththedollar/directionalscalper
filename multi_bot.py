@@ -19,6 +19,7 @@ from config import load_config, Config
 from config import VERSION
 from api.manager import Manager
 
+from directionalscalper.core.exchanges.lbank import LBankExchange
 from directionalscalper.core.exchanges.mexc import MexcExchange
 from directionalscalper.core.exchanges.huobi import HuobiExchange
 from directionalscalper.core.exchanges.bitget import BitgetExchange
@@ -138,6 +139,8 @@ class DirectionalMarketMaker:
             self.exchange = BinanceExchange(api_key, secret_key, passphrase)
         elif exchange_name.lower() == 'mexc':
             self.exchange = MexcExchange(api_key, secret_key, passphrase)
+        elif exchange_name.lower() == 'lbank':
+            self.exchange = LBankExchange(api_key, secret_key, passphrase)
         else:
             self.exchange = Exchange(self.exchange_name, api_key, secret_key, passphrase)
 
@@ -513,6 +516,14 @@ def mexc_auto_rotation(args, manager, symbols_allowed):
 
     # Implement Binance-specific auto-rotation logic here
     # ...
+
+def lbank_auto_rotation(args, manager, symbols_allowed):
+    # Fetching open position symbols and standardizing them
+    open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_binance()}
+    logging.info(f"Open position symbols: {open_position_symbols}")
+
+    # Implement Binance-specific auto-rotation logic here
+    # ...
     
 
 if __name__ == '__main__':
@@ -634,6 +645,8 @@ if __name__ == '__main__':
                 binance_auto_rotation(args, manager, symbols_allowed)
             elif exchange_name.lower() == 'mexc':
                 mexc_auto_rotation(args, manager, symbols_allowed)
+            elif exchange_name.lower() == 'lbank':
+                lbank_auto_rotation(args, manager, symbols_allowed)
             else:
                 logging.warning(f"Auto-rotation not implemented for exchange: {exchange_name}")
 
