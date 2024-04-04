@@ -130,7 +130,7 @@ class BybitQuickScalpUnified(BybitStrategy):
             min_dist = self.config.min_distance
             min_vol = self.config.min_volume
 
-            upnl_threshold_pct = self.config_upnl_threshold_pct
+            upnl_threshold_pct = self.config.upnl_threshold_pct
 
             upnl_profit_pct = self.config.upnl_profit_pct
 
@@ -612,6 +612,7 @@ class BybitQuickScalpUnified(BybitStrategy):
                         min_vol,
                         one_minute_volume,
                         mfirsi_signal,
+                        eri_trend,
                         long_dynamic_amount,
                         short_dynamic_amount,
                         long_pos_qty,
