@@ -1527,8 +1527,7 @@ class BybitStrategy(BaseStrategy):
                             positionIdx=1,
                             order_side="sell",
                             last_tp_update=self.next_long_tp_update,
-                            tp_order_counts=tp_order_counts,
-                            take_profit=long_take_profit
+                            tp_order_counts=tp_order_counts
                         )
 
                     if short_pos_qty > 0:
@@ -1542,8 +1541,7 @@ class BybitStrategy(BaseStrategy):
                             positionIdx=2,
                             order_side="buy",
                             last_tp_update=self.next_short_tp_update,
-                            tp_order_counts=tp_order_counts,
-                            take_profit=short_take_profit
+                            tp_order_counts=tp_order_counts
                         )
 
                 else:
