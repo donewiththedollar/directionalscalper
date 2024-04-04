@@ -896,8 +896,12 @@ class BybitStrategy(BaseStrategy):
 
         # Adjusting entry sizes based on the symbol's minimum quantity precision
         qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
-        long_entry_size_adjusted = round(long_entry_size, -int(math.log10(qty_precision)))
-        short_entry_size_adjusted = round(short_entry_size, -int(math.log10(qty_precision)))
+        if qty_precision is None:
+            long_entry_size_adjusted = round(long_entry_size)
+            short_entry_size_adjusted = round(short_entry_size)
+        else:
+            long_entry_size_adjusted = round(long_entry_size, -int(math.log10(qty_precision)))
+            short_entry_size_adjusted = round(short_entry_size, -int(math.log10(qty_precision)))
 
         logging.info(f"Calculated long entry size for {symbol}: {long_entry_size_adjusted} units")
         logging.info(f"Calculated short entry size for {symbol}: {short_entry_size_adjusted} units")
