@@ -1422,10 +1422,19 @@ class BybitStrategy(BaseStrategy):
 
             with self.symbol_locks[symbol]:
                 should_reissue = self.should_reissue_orders(symbol, reissue_threshold)
+                open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
                 # Initialize filled_levels dictionary for the current symbol if it doesn't exist
                 if symbol not in self.filled_levels:
                     self.filled_levels[symbol] = {"buy": set(), "sell": set()}
+
+                # Check if long and short grids are active separately
+                long_grid_active = symbol in self.active_grids and "buy" in self.filled_levels[symbol]
+                short_grid_active = symbol in self.active_grids and "sell" in self.filled_levels[symbol]
+
+                if (long_grid_active or short_grid_active) and not should_reissue:
+                    logging.info(f"[{symbol}] Grid already active and reissue threshold not met. Skipping grid placement.")
+                    return
 
                 current_price = self.exchange.get_current_price(symbol)
                 logging.info(f"[{symbol}] Current price: {current_price}")
@@ -1473,19 +1482,17 @@ class BybitStrategy(BaseStrategy):
                 mfi_signal_short = mfirsi_signal.lower() == "short"
 
                 if symbol in open_symbols or trading_allowed:
-                    if long_mode and mfi_signal_long:
-                        logging.info(f"[{symbol}] Canceling existing long grid orders.")
-                        self.cancel_grid_orders(symbol, "buy")
-                        logging.info(f"[{symbol}] Placing new long grid orders.")
-                        self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                        self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+                    if long_mode and (not long_grid_active or long_pos_qty > 0) and (mfi_signal_long or long_pos_qty > 0):
+                        if should_reissue or (long_pos_qty > 0 and not any(order['side'].lower() == 'buy' for order in open_orders)):
+                            logging.info(f"[{symbol}] Placing new long grid orders.")
+                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                            self.active_grids.add(symbol)  # Mark the symbol as having an active grid
 
-                    if short_mode and mfi_signal_short:
-                        logging.info(f"[{symbol}] Canceling existing short grid orders.")
-                        self.cancel_grid_orders(symbol, "sell")
-                        logging.info(f"[{symbol}] Placing new short grid orders.")
-                        self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                        self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+                    if short_mode and (not short_grid_active or short_pos_qty > 0) and (mfi_signal_short or short_pos_qty > 0):
+                        if should_reissue or (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' for order in open_orders)):
+                            logging.info(f"[{symbol}] Placing new short grid orders.")
+                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                            self.active_grids.add(symbol)  # Mark the symbol as having an active grid
 
                     # Check if there is room for trading new symbols
                     logging.info(f"[{symbol}] Number of open symbols: {len(open_symbols)}, Symbols allowed: {symbols_allowed}")
