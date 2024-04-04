@@ -1838,14 +1838,14 @@ class BybitStrategy(BaseStrategy):
             raise ValueError(f"Invalid side: {side}")
         logging.info(f"Minimum quantity USD value for {symbol}: {min_qty_usd_value}")
         
+        # Calculate the maximum position value based on total equity, wallet exposure limit, and user-defined leverage
+        max_position_value = total_equity * wallet_exposure_limit * user_defined_leverage
+        logging.info(f"Maximum position value for {symbol}: {max_position_value}")
+        
         if enforce_full_grid:
-            # Calculate the total amount based on the specified number of levels and minimum quantity
-            total_amount = levels * min_qty_usd_value
+            # Calculate the total amount based on the maximum position value and number of levels
+            total_amount = max(max_position_value // levels, min_qty_usd_value) * levels
         else:
-            # Calculate the maximum position value based on total equity, wallet exposure limit, and user-defined leverage
-            max_position_value = total_equity * wallet_exposure_limit * user_defined_leverage
-            logging.info(f"Maximum position value for {symbol}: {max_position_value}")
-            
             # Calculate the total amount as a multiple of the minimum quantity USD value
             total_amount = max(max_position_value // min_qty_usd_value, 1) * min_qty_usd_value
         
@@ -1907,7 +1907,7 @@ class BybitStrategy(BaseStrategy):
         
         logging.info(f"Calculated order amounts: {amounts}")
         return amounts
-
+    
     def calculate_order_amounts_min_notional(self, total_amount: float, levels: int, strength: float, min_notional: float, current_price: float) -> List[float]:
         logging.info(f"Calculating order amounts with total_amount: {total_amount}, levels: {levels}, strength: {strength}, min_notional: {min_notional}, current_price: {current_price}")
 
