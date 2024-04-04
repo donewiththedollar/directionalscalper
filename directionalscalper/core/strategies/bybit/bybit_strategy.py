@@ -1415,7 +1415,7 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.error(f"Exception caught in bybit_1m_mfi_quickscalp_trend_long_only_spot: {e}")
 
-    def linear_grid_handle_positions_mfirsi_persistent(self, symbol: str, open_symbols: list, total_equity: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, buffer_percentage: float, symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str):
+    def linear_grid_handle_positions_mfirsi_persistent(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float, short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, buffer_percentage: float, symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float, long_take_profit: float, short_take_profit: float, tp_order_counts: dict):
         try:
             if symbol not in self.symbol_locks:
                 self.symbol_locks[symbol] = threading.Lock()
@@ -1431,10 +1431,6 @@ class BybitStrategy(BaseStrategy):
                 # Check if long and short grids are active separately
                 long_grid_active = symbol in self.active_grids and "buy" in self.filled_levels[symbol]
                 short_grid_active = symbol in self.active_grids and "sell" in self.filled_levels[symbol]
-
-                if (long_grid_active or short_grid_active) and not should_reissue:
-                    logging.info(f"[{symbol}] Grid already active and reissue threshold not met. Skipping grid placement.")
-                    return
 
                 current_price = self.exchange.get_current_price(symbol)
                 logging.info(f"[{symbol}] Current price: {current_price}")
@@ -1482,14 +1478,26 @@ class BybitStrategy(BaseStrategy):
                 mfi_signal_short = mfirsi_signal.lower() == "short"
 
                 if symbol in open_symbols or trading_allowed:
-                    if long_mode and (not long_grid_active or long_pos_qty > 0) and (mfi_signal_long or long_pos_qty > 0):
+                    if long_mode and (mfi_signal_long or (long_pos_qty > 0 and not long_grid_active)):
                         if should_reissue or (long_pos_qty > 0 and not any(order['side'].lower() == 'buy' for order in open_orders)):
+                            # Cancel existing long grid orders if should_reissue or long position exists but no buy orders
+                            self.cancel_grid_orders(symbol, "buy")
+                            self.filled_levels[symbol]["buy"].clear()
+
+                        # Place new long grid orders only if there are no existing buy orders and no active long grid
+                        if not any(order['side'].lower() == 'buy' for order in open_orders) and not long_grid_active:
                             logging.info(f"[{symbol}] Placing new long grid orders.")
                             self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                             self.active_grids.add(symbol)  # Mark the symbol as having an active grid
 
-                    if short_mode and (not short_grid_active or short_pos_qty > 0) and (mfi_signal_short or short_pos_qty > 0):
+                    if short_mode and (mfi_signal_short or (short_pos_qty > 0 and not short_grid_active)):
                         if should_reissue or (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' for order in open_orders)):
+                            # Cancel existing short grid orders if should_reissue or short position exists but no sell orders
+                            self.cancel_grid_orders(symbol, "sell")
+                            self.filled_levels[symbol]["sell"].clear()
+
+                        # Place new short grid orders only if there are no existing sell orders and no active short grid
+                        if not any(order['side'].lower() == 'sell' for order in open_orders) and not short_grid_active:
                             logging.info(f"[{symbol}] Placing new short grid orders.")
                             self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                             self.active_grids.add(symbol)  # Mark the symbol as having an active grid
@@ -1507,12 +1515,45 @@ class BybitStrategy(BaseStrategy):
                             logging.info(f"[{symbol}] Placing new short orders.")
                             self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                             self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+
+                    if long_pos_qty > 0:
+                        # Update TP for long position
+                        self.next_long_tp_update = self.update_quickscalp_tp(
+                            symbol=symbol,
+                            pos_qty=long_pos_qty,
+                            upnl_profit_pct=upnl_profit_pct,
+                            short_pos_price=short_pos_price,
+                            long_pos_price=long_pos_price,
+                            positionIdx=1,
+                            order_side="sell",
+                            last_tp_update=self.next_long_tp_update,
+                            tp_order_counts=tp_order_counts,
+                            take_profit=long_take_profit
+                        )
+
+                    if short_pos_qty > 0:
+                        # Update TP for short position
+                        self.next_short_tp_update = self.update_quickscalp_tp(
+                            symbol=symbol,
+                            pos_qty=short_pos_qty,
+                            upnl_profit_pct=upnl_profit_pct,
+                            short_pos_price=short_pos_price,
+                            long_pos_price=long_pos_price,
+                            positionIdx=2,
+                            order_side="buy",
+                            last_tp_update=self.next_short_tp_update,
+                            tp_order_counts=tp_order_counts,
+                            take_profit=short_take_profit
+                        )
+
                 else:
                     logging.info(f"[{symbol}] Trading not allowed. Skipping grid placement.")
 
                 time.sleep(5)
         except Exception as e:
             logging.info(f"Exception caught in grid {e}")
+            
+            
             
     def linear_grid_handle_positions_mfirsi(self, symbol: str, open_symbols: list, total_equity: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, buffer_percentage: float, symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str):
         try:
@@ -1758,14 +1799,29 @@ class BybitStrategy(BaseStrategy):
         logging.info(f"[{symbol}] {side.capitalize()} grid orders issued for unfilled levels.")
  
     def cancel_grid_orders(self, symbol: str, side: str):
-        open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
-        logging.info(f"Open orders data for {symbol}: {open_orders}")
-        for order in open_orders:
-            if order['side'].lower() == side.lower():
-                self.exchange.cancel_order_by_id(order['id'], symbol)
-        
-        # Remove the symbol from active_grids
-        self.active_grids.discard(symbol)
+        try:
+            open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+            logging.info(f"Open orders data for {symbol}: {open_orders}")
+
+            orders_canceled = 0
+            for order in open_orders:
+                if order['side'].lower() == side.lower():
+                    self.exchange.cancel_order_by_id(order['id'], symbol)
+                    orders_canceled += 1
+                    logging.info(f"Canceled order for {symbol}: {order}")
+
+            if orders_canceled > 0:
+                logging.info(f"Canceled {orders_canceled} {side} grid orders for {symbol}")
+            else:
+                logging.info(f"No {side} grid orders found for {symbol}")
+
+            # Remove the symbol from active_grids
+            self.active_grids.discard(symbol)
+            logging.info(f"Removed {symbol} from active_grids")
+
+        except Exception as e:
+            logging.info(f"Exception in cancel_grid_orders {e}")
+            
         
     def calculate_total_amount(self, symbol: str, total_equity: float, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float, side: str, levels: int, min_qty: float, enforce_full_grid: bool) -> float:
         logging.info(f"Calculating total amount for {symbol} with total_equity: {total_equity}, best_ask_price: {best_ask_price}, best_bid_price: {best_bid_price}, wallet_exposure_limit: {wallet_exposure_limit}, user_defined_leverage: {user_defined_leverage}, side: {side}, levels: {levels}, min_qty: {min_qty}, enforce_full_grid: {enforce_full_grid}")
