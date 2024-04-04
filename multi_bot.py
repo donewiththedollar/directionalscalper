@@ -70,6 +70,7 @@ def get_available_strategies():
         'qstrend_dca',
         'basicgrid',
         'basicgridmfirsi',
+        'basicgridmfipersist'
         'qstrendspot',
     ]
 
@@ -201,6 +202,9 @@ class DirectionalMarketMaker:
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'basicgridmfirsi':
             strategy = bybit_scalping.BybitBasicGridMFIRSI(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
+        elif strategy_name.lower() == 'basicgridmfipersist':
+            strategy = bybit_scalping.BybitBasicGridMFIRSIPersisent(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'qstrendspot':
             strategy = bybit_scalping.BybitQuickScalpTrendSpot(self.exchange, self.manager, config.bot, symbols_allowed)
@@ -405,6 +409,21 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                     potential_bearish_symbols = manager.get_bearish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
                     potential_symbols = potential_bullish_symbols + potential_bearish_symbols
                     logging.info(f"Potential bullish and bearish symbols with MFIRSI signal for BybitBasicGridMFIRSI: {potential_symbols}")
+            elif strategy_name == 'basicgridmfipersist':
+                if long_mode and not short_mode:
+                    # Fetching only bullish symbols with MFIRSI signal from manager for BybitBasicGridMFIPersist strategy
+                    potential_symbols = manager.get_bullish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+                    logging.info(f"Potential bullish symbols with MFIRSI signal for BybitBasicGridMFIPersist: {potential_symbols}")
+                elif short_mode and not long_mode:
+                    # Fetching only bearish symbols with MFIRSI signal from manager for BybitBasicGridMFIPersist strategy
+                    potential_symbols = manager.get_bullish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+                    logging.info(f"Potential bearish symbols with MFIRSI signal for BybitBasicGridMFIPersist: {potential_symbols}")
+                else:
+                    # Fetching both bullish and bearish symbols with MFIRSI signal from manager for BybitBasicGridMFIPersist strategy
+                    potential_bullish_symbols = manager.get_bullish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+                    potential_bearish_symbols = manager.get_bearish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+                    potential_symbols = potential_bullish_symbols + potential_bearish_symbols
+                    logging.info(f"Potential bullish and bearish symbols with MFIRSI signal for BybitBasicGridMFIPersist: {potential_symbols}")
             elif strategy_name == 'qstrendlongonly':
                 # Fetching only bullish symbols from manager for BybitMFIRSIQuickScalpLong strategy
                 potential_symbols = manager.get_bullish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
@@ -495,7 +514,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
         logging.error(f"Exception caught in bybit_auto_rotation: {str(e)}")
         # Log the traceback for more detailed information
         logging.error(traceback.format_exc())
-
+        
 def hyperliquid_auto_rotation(args, manager, symbols_allowed):
     # Fetching open position symbols and standardizing them
     open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_hyperliquid()}

@@ -1415,6 +1415,98 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.error(f"Exception caught in bybit_1m_mfi_quickscalp_trend_long_only_spot: {e}")
 
+    def linear_grid_handle_positions_mfirsi_persistent(self, symbol: str, open_symbols: list, total_equity: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, buffer_percentage: float, symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str):
+        try:
+            if symbol not in self.symbol_locks:
+                self.symbol_locks[symbol] = threading.Lock()
+
+            with self.symbol_locks[symbol]:
+                should_reissue = self.should_reissue_orders(symbol, reissue_threshold)
+
+                # Initialize filled_levels dictionary for the current symbol if it doesn't exist
+                if symbol not in self.filled_levels:
+                    self.filled_levels[symbol] = {"buy": set(), "sell": set()}
+
+                current_price = self.exchange.get_current_price(symbol)
+                logging.info(f"[{symbol}] Current price: {current_price}")
+
+                order_book = self.exchange.get_orderbook(symbol)
+                best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol, current_price)
+                best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol, current_price)
+                logging.info(f"[{symbol}] Best ask price: {best_ask_price}, Best bid price: {best_bid_price}")
+
+                outer_price_long = current_price * (1 - outer_price_distance)
+                outer_price_short = current_price * (1 + outer_price_distance)
+                logging.info(f"[{symbol}] Outer price long: {outer_price_long}, Outer price short: {outer_price_short}")
+
+                price_range_long = current_price - outer_price_long
+                price_range_short = outer_price_short - current_price
+
+                buffer_distance_long = current_price * buffer_percentage / 100
+                buffer_distance_short = current_price * buffer_percentage / 100
+
+                factors = np.linspace(0.0, 1.0, num=levels) ** strength
+                grid_levels_long = [current_price - buffer_distance_long - price_range_long * factor for factor in factors]
+                grid_levels_short = [current_price + buffer_distance_short + price_range_short * factor for factor in factors]
+
+                logging.info(f"[{symbol}] Long grid levels: {grid_levels_long}")
+                logging.info(f"[{symbol}] Short grid levels: {grid_levels_short}")
+
+                qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
+                min_qty = float(self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
+                logging.info(f"[{symbol}] Quantity precision: {qty_precision}, Minimum quantity: {min_qty}")
+
+                total_amount_long = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_long, "buy", levels, min_qty, enforce_full_grid) if long_mode else 0
+                total_amount_short = self.calculate_total_amount(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_short, "sell", levels, min_qty, enforce_full_grid) if short_mode else 0
+                logging.info(f"[{symbol}] Total amount long: {total_amount_long}, Total amount short: {total_amount_short}")
+
+                amounts_long = self.calculate_order_amounts(symbol, total_amount_long, levels, strength, qty_precision, min_qty, enforce_full_grid)
+                amounts_short = self.calculate_order_amounts(symbol, total_amount_short, levels, strength, qty_precision, min_qty, enforce_full_grid)
+                logging.info(f"[{symbol}] Long order amounts: {amounts_long}")
+                logging.info(f"[{symbol}] Short order amounts: {amounts_short}")
+
+                trading_allowed = self.can_trade_new_symbol(open_symbols, symbols_allowed, symbol)
+                logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
+                logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
+
+                mfi_signal_long = mfirsi_signal.lower() == "long"
+                mfi_signal_short = mfirsi_signal.lower() == "short"
+
+                if symbol in open_symbols or trading_allowed:
+                    if long_mode and mfi_signal_long:
+                        logging.info(f"[{symbol}] Canceling existing long grid orders.")
+                        self.cancel_grid_orders(symbol, "buy")
+                        logging.info(f"[{symbol}] Placing new long grid orders.")
+                        self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                        self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+
+                    if short_mode and mfi_signal_short:
+                        logging.info(f"[{symbol}] Canceling existing short grid orders.")
+                        self.cancel_grid_orders(symbol, "sell")
+                        logging.info(f"[{symbol}] Placing new short grid orders.")
+                        self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                        self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+
+                    # Check if there is room for trading new symbols
+                    logging.info(f"[{symbol}] Number of open symbols: {len(open_symbols)}, Symbols allowed: {symbols_allowed}")
+                    if len(open_symbols) < symbols_allowed and symbol not in self.active_grids:
+                        logging.info(f"[{symbol}] No active grids. Checking for new symbols to trade.")
+                        # Place grid orders for the new symbol
+                        if long_mode and mfi_signal_long:
+                            logging.info(f"[{symbol}] Placing new long orders.")
+                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                            self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+                        if short_mode and mfi_signal_short:
+                            logging.info(f"[{symbol}] Placing new short orders.")
+                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                            self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+                else:
+                    logging.info(f"[{symbol}] Trading not allowed. Skipping grid placement.")
+
+                time.sleep(5)
+        except Exception as e:
+            logging.info(f"Exception caught in grid {e}")
+            
     def linear_grid_handle_positions_mfirsi(self, symbol: str, open_symbols: list, total_equity: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, buffer_percentage: float, symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str):
         try:
             if symbol not in self.symbol_locks:
@@ -1482,13 +1574,13 @@ class BybitStrategy(BaseStrategy):
                 mfi_signal_short = mfirsi_signal.lower() == "short"
 
                 if symbol in open_symbols or trading_allowed:
-                    if long_mode and not long_grid_active and mfi_signal_long:
+                    if long_mode and (not long_grid_active or long_pos_qty > 0) and (mfi_signal_long or long_pos_qty > 0):
                         if should_reissue or (long_pos_qty > 0 and not any(order['side'].lower() == 'buy' for order in open_orders)):
                             logging.info(f"[{symbol}] Placing new long grid orders.")
                             self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                             self.active_grids.add(symbol)  # Mark the symbol as having an active grid
 
-                    if short_mode and not short_grid_active and mfi_signal_short:
+                    if short_mode and (not short_grid_active or short_pos_qty > 0) and (mfi_signal_short or short_pos_qty > 0):
                         if should_reissue or (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' for order in open_orders)):
                             logging.info(f"[{symbol}] Placing new short grid orders.")
                             self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
@@ -1513,6 +1605,7 @@ class BybitStrategy(BaseStrategy):
                 time.sleep(5)
         except Exception as e:
             logging.info(f"Exception caught in grid {e}")
+            
             
     def linear_grid_handle_positions(self, symbol: str, open_symbols: list, total_equity: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, buffer_percentage: float, symbols_allowed: int, enforce_full_grid: bool):
         try:
