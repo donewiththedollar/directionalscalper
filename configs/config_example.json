@@ -42,9 +42,9 @@
     "dashboard_enabled": false,
     "shared_data_path": "data/",
     "linear_grid": {
-      "levels": 5,
+      "levels": 6,
       "strength": 1.6,
-      "outer_price_distance": 0.039,
+      "outer_price_distance": 0.059,
       "long_mode": true,
       "short_mode": false,
       "reissue_threshold": 0.001,
