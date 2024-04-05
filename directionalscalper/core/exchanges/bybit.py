@@ -737,7 +737,7 @@ class BybitExchange(Exchange):
         for _ in range(self.max_retries):
             try:
                 open_orders = self.exchange.fetch_open_orders(symbol)
-                logging.info(f"Open orders {open_orders}")
+                #logging.info(f"Open orders {open_orders}")
                 return open_orders
             except ccxt.RateLimitExceeded:
                 logging.info(f"Rate limit exceeded when fetching open orders for {symbol}. Retrying in {self.retry_wait} seconds...")
