@@ -531,7 +531,8 @@ class BybitExchange(Exchange):
         try:
             # Assuming 'self.exchange' is your initialized CCXT exchange instance
             cancel_result = self.exchange.cancel_all_orders(symbol)
-            logging.info(f"All open orders for {symbol} have been cancelled. Result: {cancel_result}")
+            logging.info(f"All open orders for {symbol} have been cancelled.")
+            #logging.info(f"Result: {cancel_result}")
             return cancel_result
         except Exception as e:
             logging.error(f"Error cancelling open orders for {symbol}: {e}")
