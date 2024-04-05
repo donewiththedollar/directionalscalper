@@ -64,6 +64,8 @@ class LiveTableManager:
 
             # Helper function to format the cell
             def format_cell(value, is_bold=is_symbolrowalive, is_highlight=False):
+                if value is None:
+                    return f"[b]N/A[/b]"
                 if is_bold:
                     return f"[b]{value}[/b]"
                 elif is_highlight:
