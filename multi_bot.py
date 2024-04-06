@@ -61,6 +61,7 @@ def standardize_symbol(symbol):
 def get_available_strategies():
     return [
         'qstrend',
+        'qsematrend',
         'qstrendemas',
         'mfieritrend',
         'qstrendob',
@@ -175,6 +176,9 @@ class DirectionalMarketMaker:
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'qstrend':
             strategy = bybit_scalping.BybitQuickScalpTrend(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
+        elif strategy_name.lower() == 'qsematrend':
+            strategy = bybit_scalping.BybitQuickScalpEMATrend(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'qstrend_dca':
             strategy = bybit_scalping.BybitQuickScalpTrendDCA(self.exchange, self.manager, config.bot, symbols_allowed)

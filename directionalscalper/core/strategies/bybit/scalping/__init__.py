@@ -13,3 +13,4 @@ from .basicgrid import BybitBasicGrid
 from .basicgridmfirsi import BybitBasicGridMFIRSI
 from .basicgridmfirsi_persistent import BybitBasicGridMFIRSIPersisent
 from .quickscalp_trend_spot import BybitQuickScalpTrendSpot
+from .quickscalp_ematrend import BybitQuickScalpEMATrend
