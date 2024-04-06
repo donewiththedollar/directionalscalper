@@ -677,31 +677,9 @@ class BybitBasicGridMFIRSIPersisent(BybitStrategy):
                         enforce_full_grid,
                         mfirsi_signal,
                         upnl_profit_pct,
-                        long_take_profit,
-                        short_take_profit,
-                        tp_order_counts
+                        tp_order_counts,
+                        entry_during_autoreduce
                     )
-                    
-                    # self.linear_grid_handle_positions_mfirsi_persistent(
-                    #     symbol,
-                    #     open_symbols,
-                    #     total_equity,
-                    #     long_pos_qty,
-                    #     short_pos_qty,
-                    #     levels,
-                    #     strength,
-                    #     outer_price_distance,
-                    #     reissue_threshold,
-                    #     self.wallet_exposure_limit,
-                    #     self.user_defined_leverage_long,
-                    #     self.user_defined_leverage_short,
-                    #     long_mode,
-                    #     short_mode,
-                    #     buffer_percentage,
-                    #     self.symbols_allowed,
-                    #     enforce_full_grid,
-                    #     mfirsi_signal
-                    # )
 
 
                     logging.info(f"Long tp counts: {long_tp_counts}")
