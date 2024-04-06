@@ -30,7 +30,6 @@ class BybitQuickScalpTrend(BybitStrategy):
         self.helper_wall_size = 5
         self.helper_duration = 5
         self.helper_interval = 1
-        self.position_inactive_threshold = 120
         try:
             self.upnl_threshold_pct = self.config.upnl_threshold_pct
             self.volume_check = self.config.volume_check

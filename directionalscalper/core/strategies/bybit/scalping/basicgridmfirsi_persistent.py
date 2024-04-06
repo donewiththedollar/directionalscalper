@@ -31,7 +31,6 @@ class BybitBasicGridMFIRSIPersisent(BybitStrategy):
         self.helper_wall_size = 5
         self.helper_duration = 5
         self.helper_interval = 1
-        self.position_inactive_threshold = 120
         try:
             self.wallet_exposure_limit = self.config.wallet_exposure_limit
             self.user_defined_leverage_long = self.config.user_defined_leverage_long
@@ -100,8 +99,6 @@ class BybitBasicGridMFIRSIPersisent(BybitStrategy):
 
             previous_long_pos_qty = 0
             previous_short_pos_qty = 0
-
-            # position_inactive_threshold = 60
 
             min_qty = None
             current_price = None
