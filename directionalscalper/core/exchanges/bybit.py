@@ -1094,7 +1094,8 @@ class BybitExchange(Exchange):
         :param symbol: The trading pair symbol.
         :return: A dictionary containing the unrealized PNL for long and short positions.
                 The dictionary has keys 'long' and 'short' with corresponding PNL values.
-                Returns None for a position if it's not open, the key is not present, or there's an error.
+                Returns None for a position if it's not open or there's an error.
+                Returns 0.0 if the 'unrealisedPnl' key is present but its value is an empty string.
         """
         # Fetch positions for the symbol
         response = self.exchange.fetch_positions([symbol])
@@ -1105,19 +1106,28 @@ class BybitExchange(Exchange):
         # Loop through each position in the response
         for pos in response:
             side = pos['info'].get('side', '').lower()
-            pnl = pos['info'].get('unrealisedPnl')
+            pnl = pos['info'].get('unrealisedPnl', '')  # Default to empty string if 'unrealisedPnl' is not present
 
-            if pnl is not None:
+            if pnl == '':
+                # If 'unrealisedPnl' is an empty string, set the PNL value to 0.0
+                if side == 'buy':
+                    unrealized_pnl['long'] = 0.0
+                elif side == 'sell':
+                    unrealized_pnl['short'] = 0.0
+            else:
                 try:
                     pnl = float(pnl)
                     if side == 'buy':
+                        # Long position
                         unrealized_pnl['long'] = pnl
                     elif side == 'sell':
+                        # Short position
                         unrealized_pnl['short'] = pnl
                     else:
                         logging.warning(f"Unknown side value for {symbol}: {side}")
                 except (ValueError, TypeError) as e:
                     logging.error(f"Error converting unrealisedPnl to float for {symbol}: {e}")
+                    # Set the PNL value to None if there's an error
                     if side == 'buy':
                         unrealized_pnl['long'] = None
                     elif side == 'sell':
