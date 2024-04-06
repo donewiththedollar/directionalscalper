@@ -70,7 +70,7 @@ def get_available_strategies():
         'qstrend_dca',
         'basicgrid',
         'basicgridmfirsi',
-        'basicgridmfipersist'
+        'basicgridmfipersist',
         'qstrendspot',
     ]
 
