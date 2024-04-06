@@ -528,6 +528,7 @@ class Manager:
             funding_rate = api_data.get('Funding', 0)
             hma_trend = api_data.get('HMA Trend', 'neutral')
             eri_trend = api_data.get('ERI Trend', 'undefined')
+            ema_trend = api_data.get('EMA Trend', 'undefined')
             
             # Ensure boolean values are used for top and bottom signals
             # fivemin_top_signal = api_data.get('Top Signal 5m', False)
@@ -553,7 +554,8 @@ class Manager:
                 "Top Signal 5m": fivemin_top_signal,
                 "Bottom Signal 5m": fivemin_bottom_signal,
                 "Top Signal 1m": onemin_top_signal,
-                "Bottom Signal 1m": onemin_bottom_signal
+                "Bottom Signal 1m": onemin_bottom_signal,
+                "EMA Trend": ema_trend
             }
         except Exception as e:
             logging.warning(f"Error processing API data for symbol {symbol}: {e}")
@@ -569,5 +571,6 @@ class Manager:
                 "Top Signal 5m": False,
                 "Bottom Signal 5m": False,
                 "Top Signal 1m": False,
-                "Bottom Signal 1m": False
+                "Bottom Signal 1m": False,
+                "EMA Trend": 'undefined'
             }
