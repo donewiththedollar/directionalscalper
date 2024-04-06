@@ -1572,9 +1572,6 @@ class BybitStrategy(BaseStrategy):
                                 logging.info(f"[{symbol}] Skipping new short orders due to active auto-reduce.")
 
                     if long_pos_qty > 0:
-                        # Calculate the new TP values using the quickscalp method
-                        new_long_tp = self.calculate_quickscalp_long_take_profit(long_pos_price, symbol, upnl_profit_pct)
-
                         # Update TP for long position
                         self.next_long_tp_update = self.update_quickscalp_tp(
                             symbol=symbol,
@@ -1585,14 +1582,10 @@ class BybitStrategy(BaseStrategy):
                             positionIdx=1,
                             order_side="sell",
                             last_tp_update=self.next_long_tp_update,
-                            tp_order_counts=tp_order_counts,
-                            new_tp=new_long_tp
+                            tp_order_counts=tp_order_counts
                         )
 
                     if short_pos_qty > 0:
-                        # Calculate the new TP values using the quickscalp method
-                        new_short_tp = self.calculate_quickscalp_short_take_profit(short_pos_price, symbol, upnl_profit_pct)
-
                         # Update TP for short position
                         self.next_short_tp_update = self.update_quickscalp_tp(
                             symbol=symbol,
@@ -1603,8 +1596,7 @@ class BybitStrategy(BaseStrategy):
                             positionIdx=2,
                             order_side="buy",
                             last_tp_update=self.next_short_tp_update,
-                            tp_order_counts=tp_order_counts,
-                            new_tp=new_short_tp
+                            tp_order_counts=tp_order_counts
                         )
 
                 else:
@@ -1613,7 +1605,7 @@ class BybitStrategy(BaseStrategy):
                 time.sleep(5)
         except Exception as e:
             logging.info(f"Exception caught in grid {e}")
-
+            
     def linear_grid_handle_positions_mfirsi(self, symbol: str, open_symbols: list, total_equity: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, buffer_percentage: float, symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str):
         try:
             if symbol not in self.symbol_locks:
