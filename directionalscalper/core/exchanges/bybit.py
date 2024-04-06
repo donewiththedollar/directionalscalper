@@ -1098,7 +1098,7 @@ class BybitExchange(Exchange):
         """
         # Fetch positions for the symbol
         response = self.exchange.fetch_positions([symbol])
-        #logging.info(f"Response from unrealized pnl: {response}")
+        logging.info(f"Response from unrealized pnl: {response}")
 
         unrealized_pnl = {'long': None, 'short': None}
 
@@ -1110,13 +1110,14 @@ class BybitExchange(Exchange):
             if pnl is not None:
                 try:
                     pnl = float(pnl)
-                    if side == 'buy':  # Long position
+                    if side == 'buy':
                         unrealized_pnl['long'] = pnl
-                    elif side == 'sell':  # Short position
+                    elif side == 'sell':
                         unrealized_pnl['short'] = pnl
+                    else:
+                        logging.warning(f"Unknown side value for {symbol}: {side}")
                 except (ValueError, TypeError) as e:
                     logging.error(f"Error converting unrealisedPnl to float for {symbol}: {e}")
-                    # Set the PNL value to None if there's an error
                     if side == 'buy':
                         unrealized_pnl['long'] = None
                     elif side == 'sell':
