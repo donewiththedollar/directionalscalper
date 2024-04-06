@@ -497,7 +497,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                                 logging.info(f"Rotating out inactive symbol {symbol} for new symbol {new_symbol}")
                                 if threads.get(symbol):
                                     thread = threads[symbol]
-                                    thread.join(timeout=140)
+                                    thread.join(timeout=330)
                                     if thread.is_alive():
                                         logging.warning(f"Thread {symbol} still running after timeout. Skipping termination.")
                                 active_symbols.discard(symbol)
