@@ -424,7 +424,7 @@ class BybitBasicGrid(BybitStrategy):
                     five_minute_volume = metrics['5mVol']
                     one_minute_distance = metrics['1mSpread']
                     five_minute_distance = metrics['5mSpread']
-                    trend = metrics['Trend']
+                    trend = metrics['EMA Trend']
                     #mfirsi_signal = metrics['MFI']
                     #mfirsi_signal = self.get_mfirsi_ema(symbol, limit=100, lookback=5, ema_period=5)
                     mfirsi_signal = self.get_mfirsi_ema_secondary_ema(symbol, limit=100, lookback=1, ema_period=5, secondary_ema_period=3)
