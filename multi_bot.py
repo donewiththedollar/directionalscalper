@@ -492,24 +492,29 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                 if latest_rotator_symbols:
                     available_symbols = latest_rotator_symbols - active_symbols
                     if available_symbols:
-                        new_symbol = random.choice(list(available_symbols))
-                        logging.info(f"Rotating out inactive symbol {symbol} for new symbol {new_symbol}")
-                        if threads.get(symbol):
-                            thread = threads[symbol]
-                            thread.join(timeout=140)
-                            if thread.is_alive():
-                                logging.warning(f"Thread {symbol} still running after timeout. Skipping termination.")
-                        active_symbols.discard(symbol)
-                        del threads[symbol]
-                        thread_start_time.pop(symbol, None)
-                        new_thread = threading.Thread(target=run_bot, args=(new_symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols))
-                        new_thread.start()
-                        threads[new_symbol] = new_thread
-                        active_symbols.add(new_symbol)
-                        thread_start_time[new_symbol] = time.time()
-                        latest_rotator_symbols.discard(new_symbol)
+                        for new_symbol in available_symbols:
+                            if new_symbol not in active_symbols:
+                                logging.info(f"Rotating out inactive symbol {symbol} for new symbol {new_symbol}")
+                                if threads.get(symbol):
+                                    thread = threads[symbol]
+                                    thread.join(timeout=140)
+                                    if thread.is_alive():
+                                        logging.warning(f"Thread {symbol} still running after timeout. Skipping termination.")
+                                active_symbols.discard(symbol)
+                                del threads[symbol]
+                                thread_start_time.pop(symbol, None)
+                                new_thread = threading.Thread(target=run_bot, args=(new_symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols))
+                                new_thread.start()
+                                threads[new_symbol] = new_thread
+                                active_symbols.add(new_symbol)
+                                thread_start_time[new_symbol] = time.time()
+                                latest_rotator_symbols.discard(new_symbol)
+                                break
+                        else:
+                            logging.info(f"No available new symbols to replace {symbol} that are not already being traded.")
                     else:
                         logging.info(f"No available new symbols to replace {symbol}")
+                        
     except Exception as e:
         logging.error(f"Exception caught in bybit_auto_rotation: {str(e)}")
         # Log the traceback for more detailed information
