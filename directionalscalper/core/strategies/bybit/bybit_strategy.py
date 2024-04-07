@@ -1800,53 +1800,94 @@ class BybitStrategy(BaseStrategy):
 
                             # Place new long and short grid orders only if there are no existing orders and no active grids
                             if not any(order['side'].lower() == 'buy' for order in open_orders) and not any(order['side'].lower() == 'sell' for order in open_orders) and not long_grid_active and not short_grid_active:
-                                if entry_during_autoreduce or (not self.auto_reduce_active_long.get(symbol, False) and not self.auto_reduce_active_short.get(symbol, False)):
-                                    logging.info(f"[{symbol}] Placing new long and short grid orders.")
-                                    self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                                    self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                                    self.active_grids.add(symbol)  # Mark the symbol as having active grids
-                                else:
-                                    logging.info(f"[{symbol}] Skipping new long and short grid orders due to active auto-reduce.")
+                                logging.info(f"[{symbol}] Placing new long and short grid orders.")
+                                self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                                self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                                self.active_grids.add(symbol)  # Mark the symbol as having active grids
                         else:
-                            if long_mode and not self.auto_reduce_active_long.get(symbol, False):
-                                logging.info(f"Auto-reduce for long position on {symbol} is not active")
-                                if mfi_signal_long or (long_pos_qty > 0 and not long_grid_active):
-                                    if should_reissue or (long_pos_qty > 0 and not any(order['side'].lower() == 'buy' for order in open_orders)):
+                            if long_mode:
+                                if mfi_signal_long:
+                                    logging.info(f"[{symbol}] MFI signal is long.")
+                                    # Cancel existing long grid orders
+                                    self.cancel_grid_orders(symbol, "buy")
+                                    self.filled_levels[symbol]["buy"].clear()
+
+                                    # Place new long grid orders
+                                    logging.info(f"[{symbol}] Placing new long grid orders.")
+                                    self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                                    self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+                                elif long_pos_qty > 0 and not long_grid_active:
+                                    if should_reissue or not any(order['side'].lower() == 'buy' for order in open_orders):
                                         # Cancel existing long grid orders if should_reissue or long position exists but no buy orders
                                         self.cancel_grid_orders(symbol, "buy")
                                         self.filled_levels[symbol]["buy"].clear()
 
                                     # Place new long grid orders if there are no existing buy orders and no active long grid, or if there is a long position
                                     if (not any(order['side'].lower() == 'buy' for order in open_orders) and not long_grid_active) or long_pos_qty > 0:
-                                        if entry_during_autoreduce or not self.auto_reduce_active_long.get(symbol, False):
-                                            logging.info(f"[{symbol}] Placing new long grid orders.")
-                                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                                            self.active_grids.add(symbol)  # Mark the symbol as having an active grid
-                                        else:
-                                            logging.info(f"[{symbol}] Skipping new long grid orders due to active auto-reduce.")
-                            else:
-                                logging.info(f"Auto-reduce for long position on {symbol} is active, skipping entry")
+                                        logging.info(f"[{symbol}] Placing new long grid orders.")
+                                        self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                                        self.active_grids.add(symbol)  # Mark the symbol as having an active grid
 
-                            if short_mode and not self.auto_reduce_active_short.get(symbol, False):
-                                logging.info(f"Auto-reduce for short position on {symbol} is not active")
-                                if mfi_signal_short or (short_pos_qty > 0 and not short_grid_active):
-                                    if should_reissue or (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' for order in open_orders)):
+                            if short_mode:
+                                if mfi_signal_short:
+                                    logging.info(f"[{symbol}] MFI signal is short.")
+                                    # Cancel existing short grid orders
+                                    self.cancel_grid_orders(symbol, "sell")
+                                    self.filled_levels[symbol]["sell"].clear()
+
+                                    # Place new short grid orders
+                                    logging.info(f"[{symbol}] Placing new short grid orders.")
+                                    self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                                    self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+                                elif short_pos_qty > 0 and not short_grid_active:
+                                    if should_reissue or not any(order['side'].lower() == 'sell' for order in open_orders):
                                         # Cancel existing short grid orders if should_reissue or short position exists but no sell orders
                                         self.cancel_grid_orders(symbol, "sell")
                                         self.filled_levels[symbol]["sell"].clear()
 
                                     # Place new short grid orders if there are no existing sell orders and no active short grid, or if there is a short position
                                     if (not any(order['side'].lower() == 'sell' for order in open_orders) and not short_grid_active) or short_pos_qty > 0:
-                                        if entry_during_autoreduce or not self.auto_reduce_active_short.get(symbol, False):
-                                            logging.info(f"[{symbol}] Placing new short grid orders.")
-                                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                                            self.active_grids.add(symbol)  # Mark the symbol as having an active grid
-                                        else:
-                                            logging.info(f"[{symbol}] Skipping new short grid orders due to active auto-reduce.")
-                            else:
-                                logging.info(f"Auto-reduce for short position on {symbol} is active, skipping entry")
+                                        logging.info(f"[{symbol}] Placing new short grid orders.")
+                                        self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                                        self.active_grids.add(symbol)  # Mark the symbol as having an active grid
                     else:
-                        logging.info(f"Auto-reduce for long or short position on {symbol} is active, skipping entry")
+                        if not self.auto_reduce_active_long.get(symbol, False):
+                            logging.info(f"Auto-reduce for long position on {symbol} is not active")
+                            if long_mode and (mfi_signal_long or (long_pos_qty > 0 and not long_grid_active)):
+                                if should_reissue or (long_pos_qty > 0 and not any(order['side'].lower() == 'buy' for order in open_orders)):
+                                    # Cancel existing long grid orders if should_reissue or long position exists but no buy orders
+                                    self.cancel_grid_orders(symbol, "buy")
+                                    self.filled_levels[symbol]["buy"].clear()
+
+                                # Place new long grid orders if there are no existing buy orders and no active long grid, or if there is a long position
+                                if (not any(order['side'].lower() == 'buy' for order in open_orders) and not long_grid_active) or long_pos_qty > 0:
+                                    if entry_during_autoreduce:
+                                        logging.info(f"[{symbol}] Placing new long grid orders (entry during auto-reduce).")
+                                        self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                                        self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+                                    else:
+                                        logging.info(f"[{symbol}] Skipping new long grid orders due to active auto-reduce.")
+                        else:
+                            logging.info(f"Auto-reduce for long position on {symbol} is active, skipping entry")
+
+                        if not self.auto_reduce_active_short.get(symbol, False):
+                            logging.info(f"Auto-reduce for short position on {symbol} is not active")
+                            if short_mode and (mfi_signal_short or (short_pos_qty > 0 and not short_grid_active)):
+                                if should_reissue or (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' for order in open_orders)):
+                                    # Cancel existing short grid orders if should_reissue or short position exists but no sell orders
+                                    self.cancel_grid_orders(symbol, "sell")
+                                    self.filled_levels[symbol]["sell"].clear()
+
+                                # Place new short grid orders if there are no existing sell orders and no active short grid, or if there is a short position
+                                if (not any(order['side'].lower() == 'sell' for order in open_orders) and not short_grid_active) or short_pos_qty > 0:
+                                    if entry_during_autoreduce:
+                                        logging.info(f"[{symbol}] Placing new short grid orders (entry during auto-reduce).")
+                                        self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                                        self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+                                    else:
+                                        logging.info(f"[{symbol}] Skipping new short grid orders due to active auto-reduce.")
+                        else:
+                            logging.info(f"Auto-reduce for short position on {symbol} is active, skipping entry")
 
                     # Check if there is room for trading new symbols
                     logging.info(f"[{symbol}] Number of open symbols: {len(open_symbols)}, Symbols allowed: {symbols_allowed}")
@@ -1898,11 +1939,10 @@ class BybitStrategy(BaseStrategy):
 
                 else:
                     logging.info(f"[{symbol}] Trading not allowed. Skipping grid placement.")
-
-                time.sleep(5)
+                    time.sleep(5)
         except Exception as e:
-            logging.info(f"Exception caught in grid {e}") 
-
+            logging.info(f"Exception caught in grid {e}")
+            
 
     def linear_grid_handle_positions_mfirsi(self, symbol: str, open_symbols: list, total_equity: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, buffer_percentage: float, symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str):
         try:
