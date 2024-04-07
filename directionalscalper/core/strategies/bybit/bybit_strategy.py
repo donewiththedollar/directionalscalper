@@ -1808,9 +1808,9 @@ class BybitStrategy(BaseStrategy):
                                 else:
                                     logging.info(f"[{symbol}] Skipping new long and short grid orders due to active auto-reduce.")
                         else:
-                            if not self.auto_reduce_active_long.get(symbol, False):
+                            if long_mode and not self.auto_reduce_active_long.get(symbol, False):
                                 logging.info(f"Auto-reduce for long position on {symbol} is not active")
-                                if long_mode and (mfi_signal_long or long_pos_qty > 0):
+                                if mfi_signal_long or (long_pos_qty > 0 and not long_grid_active):
                                     if should_reissue or (long_pos_qty > 0 and not any(order['side'].lower() == 'buy' for order in open_orders)):
                                         # Cancel existing long grid orders if should_reissue or long position exists but no buy orders
                                         self.cancel_grid_orders(symbol, "buy")
@@ -1827,9 +1827,9 @@ class BybitStrategy(BaseStrategy):
                             else:
                                 logging.info(f"Auto-reduce for long position on {symbol} is active, skipping entry")
 
-                            if not self.auto_reduce_active_short.get(symbol, False):
+                            if short_mode and not self.auto_reduce_active_short.get(symbol, False):
                                 logging.info(f"Auto-reduce for short position on {symbol} is not active")
-                                if short_mode and (mfi_signal_short or short_pos_qty > 0):
+                                if mfi_signal_short or (short_pos_qty > 0 and not short_grid_active):
                                     if should_reissue or (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' for order in open_orders)):
                                         # Cancel existing short grid orders if should_reissue or short position exists but no sell orders
                                         self.cancel_grid_orders(symbol, "sell")
@@ -1901,8 +1901,8 @@ class BybitStrategy(BaseStrategy):
 
                 time.sleep(5)
         except Exception as e:
-            logging.info(f"Exception caught in grid {e}")
-            
+            logging.info(f"Exception caught in grid {e}") 
+
 
     def linear_grid_handle_positions_mfirsi(self, symbol: str, open_symbols: list, total_equity: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, buffer_percentage: float, symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str):
         try:
