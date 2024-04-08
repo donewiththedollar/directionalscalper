@@ -437,6 +437,7 @@ class Manager:
         try:
             asset_data = self.get_asset_data(symbol, data)
             if asset_data is not None:
+                # Remove the conditions for 'Trend' and 'MA Trend'
                 if value == "Price" and "Price" in asset_data:
                     return asset_data["Price"]
                 if value == "1mVol" and "1m 1x Volume (USDT)" in asset_data:
@@ -457,8 +458,6 @@ class Manager:
                     return asset_data["1h Spread"]
                 if value == "4hSpread" and "4h Spread" in asset_data:
                     return asset_data["4h Spread"]
-                if value == "Trend" and "Trend" in asset_data:
-                    return asset_data["Trend"]
                 if value == "Funding" and "Funding" in asset_data:
                     return asset_data["Funding"]
                 if value == "MFI" and "MFI" in asset_data:
@@ -479,6 +478,8 @@ class Manager:
                     return asset_data["Top Signal 1m"]
                 if value == "Bottom Signal 1m" in asset_data:
                     return asset_data["Bottom signal 1m"]
+                if value == "MA Trend" in asset_data:
+                    return asset_data["MA Trend"]
                 if value == "EMA Trend" in asset_data:
                     return asset_data["EMA Trend"]
         except Exception as e:
@@ -503,7 +504,7 @@ class Manager:
             '30mSpread': self.get_asset_value(symbol, data, "30mSpread"),
             '1hSpread': self.get_asset_value(symbol, data, "1hSpread"),
             '4hSpread': self.get_asset_value(symbol, data, "4hSpread"),
-            'Trend': self.get_asset_value(symbol, data, "Trend"),
+            'MA Trend': self.get_asset_value(symbol, data, "MA Trend"),
             'HMA Trend': self.get_asset_value(symbol, data, "HMA Trend"),
             'MFI': self.get_asset_value(symbol, data, "MFI"),
             'ERI Trend': self.get_asset_value(symbol, data, "ERI Trend"),
@@ -523,30 +524,24 @@ class Manager:
             five_minute_volume = api_data.get('5mVol', 0)
             one_minute_distance = api_data.get('1mSpread', 0)
             five_minute_distance = api_data.get('5mSpread', 0)
-            trend = api_data.get('Trend', 'neutral')
+            ma_trend = api_data.get('Trend', 'neutral')
             mfirsi_signal = api_data.get('MFI', 'neutral')
             funding_rate = api_data.get('Funding', 0)
             hma_trend = api_data.get('HMA Trend', 'neutral')
             eri_trend = api_data.get('ERI Trend', 'undefined')
             ema_trend = api_data.get('EMA Trend', 'undefined')
             
-            # Ensure boolean values are used for top and bottom signals
-            # fivemin_top_signal = api_data.get('Top Signal 5m', False)
-            # fivemin_bottom_signal = api_data.get('Bottom Signal 5m', False)
-
             fivemin_top_signal = str(api_data.get('Top Signal 5m', 'false')).lower() == 'true'
             fivemin_bottom_signal = str(api_data.get('Bottom Signal 5m', 'false')).lower() == 'true'
 
             onemin_top_signal = str(api_data.get('Top Signal 1m', 'false')).lower() == 'true'
             onemin_bottom_signal = str(api_data.get('Bottom Signal 1m', 'false')).lower() == 'true'
 
-
             return {
                 "1mVol": one_minute_volume,
                 "5mVol": five_minute_volume,
                 "1mSpread": one_minute_distance,
                 "5mSpread": five_minute_distance,
-                "Trend": trend,
                 "MFI": mfirsi_signal,
                 "Funding": funding_rate,
                 "HMA Trend": hma_trend,
@@ -555,7 +550,8 @@ class Manager:
                 "Bottom Signal 5m": fivemin_bottom_signal,
                 "Top Signal 1m": onemin_top_signal,
                 "Bottom Signal 1m": onemin_bottom_signal,
-                "EMA Trend": ema_trend
+                "EMA Trend": ema_trend,
+                "MA Trend": ma_trend
             }
         except Exception as e:
             logging.warning(f"Error processing API data for symbol {symbol}: {e}")
@@ -563,7 +559,7 @@ class Manager:
                 "1mVol": 0,
                 "5mVol": 0,
                 "5mSpread": 0,
-                "Trend": 'neutral',
+                "MA Trend": 'neutral',
                 "MFI": 'neutral',
                 "Funding": 0,
                 "HMA Trend": 'neutral',

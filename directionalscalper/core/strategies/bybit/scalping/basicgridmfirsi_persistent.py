@@ -108,7 +108,8 @@ class BybitBasicGridMFIRSIPersisent(BybitStrategy):
             five_minute_volume = None
             one_minute_distance = None
             five_minute_distance = None
-            trend = None
+            ma_trend = 'neutral'  # Initialize with default value
+            ema_trend = 'undefined'  # Initialize with default value
             long_pos_qty = 0
             short_pos_qty = 0
             long_upnl = 0
@@ -421,7 +422,9 @@ class BybitBasicGridMFIRSIPersisent(BybitStrategy):
                     five_minute_volume = metrics['5mVol']
                     one_minute_distance = metrics['1mSpread']
                     five_minute_distance = metrics['5mSpread']
-                    trend = metrics['EMA Trend']
+                    ma_trend = metrics['MA Trend']
+                    ema_trend = metrics['EMA Trend']
+
                     #mfirsi_signal = metrics['MFI']
                     #mfirsi_signal = self.get_mfirsi_ema(symbol, limit=100, lookback=5, ema_period=5)
                     mfirsi_signal = self.get_mfirsi_ema_secondary_ema(symbol, limit=100, lookback=1, ema_period=5, secondary_ema_period=3)
@@ -766,7 +769,8 @@ class BybitBasicGridMFIRSIPersisent(BybitStrategy):
                     'available_bal': available_equity,
                     'volume': five_minute_volume,
                     'spread': five_minute_distance,
-                    'trend': trend,
+                    'ma_trend': ma_trend,
+                    'ema_trend': ema_trend,
                     'long_pos_qty': long_pos_qty,
                     'short_pos_qty': short_pos_qty,
                     'long_upnl': long_upnl,

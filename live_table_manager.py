@@ -21,7 +21,7 @@ class LiveTableManager:
         table.add_column("Price")
         table.add_column("1m Vol")
         table.add_column("5m Spread")
-        table.add_column("Trend",style="magenta")
+        table.add_column("MA Trend",style="magenta")
         table.add_column("Long Pos. Qty")
         table.add_column("Short Pos. Qty")
         table.add_column("Long uPNL")
@@ -78,7 +78,7 @@ class LiveTableManager:
                 format_cell(symbol_data.get('current_price', 0)),
                 format_cell(symbol_data.get('volume', 0)),
                 format_cell(symbol_data.get('spread', 0)),
-                format_cell(symbol_data.get('trend', '')),
+                format_cell(symbol_data.get('ema_trend', '')),
                 format_cell(long_pos_qty),
                 format_cell(short_pos_qty),
                 format_cell(long_upnl, is_highlight=True),
