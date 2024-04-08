@@ -230,11 +230,22 @@ class BybitStrategy(BaseStrategy):
             # Set new TP order with updated prices only if no TP order exists
             if not tp_order_exists:
                 new_tp_price = new_long_tp if order_side == "sell" else new_short_tp
-                try:
-                    self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, new_tp_price, positionIdx=positionIdx, reduce_only=True)
-                    logging.info(f"New {order_side.capitalize()} TP set at {new_tp_price}")
-                except Exception as e:
-                    logging.error(f"Failed to set new {order_side} TP for {symbol}. Error: {e}")
+                current_price = self.exchange.get_current_price(symbol)
+
+                if (order_side == "sell" and current_price >= new_tp_price) or (order_side == "buy" and current_price <= new_tp_price):
+                    # If the current price has surpassed the new TP price, use a normal limit order
+                    try:
+                        self.exchange.create_normal_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, new_tp_price, positionIdx=positionIdx, reduce_only=True)
+                        logging.info(f"New {order_side.capitalize()} TP set at {new_tp_price} using a normal limit order")
+                    except Exception as e:
+                        logging.error(f"Failed to set new {order_side} TP for {symbol} using a normal limit order. Error: {e}")
+                else:
+                    # If the current price hasn't surpassed the new TP price, use a post-only order
+                    try:
+                        self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, new_tp_price, positionIdx=positionIdx, reduce_only=True)
+                        logging.info(f"New {order_side.capitalize()} TP set at {new_tp_price} using a post-only order")
+                    except Exception as e:
+                        logging.error(f"Failed to set new {order_side} TP for {symbol} using a post-only order. Error: {e}")
             else:
                 logging.info(f"Skipping TP update as a TP order already exists for {symbol}")
 
@@ -243,7 +254,7 @@ class BybitStrategy(BaseStrategy):
         else:
             logging.info(f"No immediate update needed for TP orders for {symbol}. Last update at: {last_tp_update}")
             return last_tp_update
-
+        
     def calculate_quickscalp_long_take_profit(self, long_pos_price, symbol, upnl_profit_pct):
         if long_pos_price is None:
             return None
