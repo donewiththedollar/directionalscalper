@@ -583,7 +583,36 @@ class BybitStrategy(BaseStrategy):
             self.last_order_time[symbol] = current_time
             logging.info(f"Order allowed for {symbol} at {current_time}")
             return True
-        
+
+    def bybit_hedge_placetp_maker(self, symbol, pos_qty, take_profit_price, positionIdx, order_side, open_orders):
+        logging.info(f"TP maker function Trying to place TP for {symbol}")
+        existing_tps = self.get_open_take_profit_order_quantities(open_orders, order_side)
+        logging.info(f"Existing TP from TP maker functions: {existing_tps}")
+        total_existing_tp_qty = sum(qty for qty, _ in existing_tps)
+        logging.info(f"TP maker function Existing {order_side} TPs: {existing_tps}")
+
+        if not math.isclose(total_existing_tp_qty, pos_qty):
+            try:
+                for qty, existing_tp_id in existing_tps:
+                    if not math.isclose(qty, pos_qty) and existing_tp_id not in self.auto_reduce_order_ids.get(symbol, []):
+                        self.exchange.cancel_order_by_id(existing_tp_id, symbol)
+                        logging.info(f"{order_side.capitalize()} take profit {existing_tp_id} canceled")
+                        time.sleep(0.05)
+            except Exception as e:
+                logging.info(f"Error in cancelling {order_side} TP orders {e}")
+
+        if len(existing_tps) < 1:
+            try:
+                # Use postonly_limit_order_bybit function to place take profit order
+                tp_order = self.postonly_limit_order_bybit_nolimit(symbol, order_side, pos_qty, take_profit_price, positionIdx, reduceOnly=True)
+                if tp_order and 'id' in tp_order:
+                    logging.info(f"{order_side.capitalize()} take profit set at {take_profit_price} with ID {tp_order['id']}")
+                else:
+                    logging.warning(f"Failed to place {order_side} take profit for {symbol}")
+                time.sleep(0.05)
+            except Exception as e:
+                logging.info(f"Error in placing {order_side} TP: {e}")
+
     def postonly_limit_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
         """Directly places the order with the exchange."""
         params = {"reduceOnly": reduceOnly, "postOnly": True}

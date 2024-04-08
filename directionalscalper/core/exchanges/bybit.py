@@ -857,6 +857,18 @@ class BybitExchange(Exchange):
         if order_type == 'limit':
             if price is None:
                 raise ValueError("A price must be specified for a limit order")
+            if side not in ["buy", "sell"]:
+                raise ValueError(f"Invalid side: {side}")
+            params = {"reduceOnly": reduce_only, "postOnly": True}  # Add postOnly parameter
+            return self.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
+        else:
+            raise ValueError(f"Unsupported order type: {order_type}")
+        
+    def create_normal_take_profit_order_bybit(self, symbol, order_type, side, amount, price=None, positionIdx=1, reduce_only=True):
+        logging.info(f"Calling create_take_profit_order_bybit with symbol={symbol}, order_type={order_type}, side={side}, amount={amount}, price={price}")
+        if order_type == 'limit':
+            if price is None:
+                raise ValueError("A price must be specified for a limit order")
 
             if side not in ["buy", "sell"]:
                 raise ValueError(f"Invalid side: {side}")
