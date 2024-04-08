@@ -1721,6 +1721,8 @@ class BybitStrategy(BaseStrategy):
                 should_reissue = self.should_reissue_orders(symbol, reissue_threshold)
                 open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
+                logging.info(f"Open orders: {open_orders}")
+
                 # Initialize filled_levels dictionary for the current symbol if it doesn't exist
                 if symbol not in self.filled_levels:
                     self.filled_levels[symbol] = {"buy": set(), "sell": set()}
@@ -1791,15 +1793,15 @@ class BybitStrategy(BaseStrategy):
                     if not self.auto_reduce_active_long.get(symbol, False) and not self.auto_reduce_active_short.get(symbol, False):
                         logging.info(f"Auto-reduce for long and short positions on {symbol} is not active")
                         if long_mode and short_mode and ((mfi_signal_long or long_pos_qty > 0) and (mfi_signal_short or short_pos_qty > 0)):
-                            if should_reissue or (long_pos_qty > 0 and not any(order['side'].lower() == 'buy' for order in open_orders)) or (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' for order in open_orders)):
+                            if should_reissue or (long_pos_qty > 0 and not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)) or (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)):
                                 # Cancel existing long and short grid orders if should_reissue or positions exist but no corresponding orders
                                 self.cancel_grid_orders(symbol, "buy")
                                 self.cancel_grid_orders(symbol, "sell")
                                 self.filled_levels[symbol]["buy"].clear()
                                 self.filled_levels[symbol]["sell"].clear()
 
-                            # Place new long and short grid orders only if there are no existing orders and no active grids
-                            if not any(order['side'].lower() == 'buy' for order in open_orders) and not any(order['side'].lower() == 'sell' for order in open_orders) and not long_grid_active and not short_grid_active:
+                            # Place new long and short grid orders only if there are no existing orders (excluding TP orders) and no active grids
+                            if not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders) and not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders) and not long_grid_active and not short_grid_active:
                                 logging.info(f"[{symbol}] Placing new long and short grid orders.")
                                 self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                                 self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
@@ -1817,13 +1819,13 @@ class BybitStrategy(BaseStrategy):
                                     self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                                     self.active_grids.add(symbol)  # Mark the symbol as having an active grid
                                 elif long_pos_qty > 0 and not long_grid_active:
-                                    if should_reissue or not any(order['side'].lower() == 'buy' for order in open_orders):
-                                        # Cancel existing long grid orders if should_reissue or long position exists but no buy orders
+                                    if should_reissue or not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders):
+                                        # Cancel existing long grid orders if should_reissue or long position exists but no buy orders (excluding TP orders)
                                         self.cancel_grid_orders(symbol, "buy")
                                         self.filled_levels[symbol]["buy"].clear()
 
-                                    # Place new long grid orders if there are no existing buy orders and no active long grid, or if there is a long position
-                                    if (not any(order['side'].lower() == 'buy' for order in open_orders) and not long_grid_active) or long_pos_qty > 0:
+                                    # Place new long grid orders if there are no existing buy orders (excluding TP orders) and no active long grid, or if there is a long position
+                                    if (not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders) and not long_grid_active) or long_pos_qty > 0:
                                         logging.info(f"[{symbol}] Placing new long grid orders.")
                                         self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                                         self.active_grids.add(symbol)  # Mark the symbol as having an active grid
@@ -1840,13 +1842,13 @@ class BybitStrategy(BaseStrategy):
                                     self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                                     self.active_grids.add(symbol)  # Mark the symbol as having an active grid
                                 elif short_pos_qty > 0 and not short_grid_active:
-                                    if should_reissue or not any(order['side'].lower() == 'sell' for order in open_orders):
-                                        # Cancel existing short grid orders if should_reissue or short position exists but no sell orders
+                                    if should_reissue or not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders):
+                                        # Cancel existing short grid orders if should_reissue or short position exists but no sell orders (excluding TP orders)
                                         self.cancel_grid_orders(symbol, "sell")
                                         self.filled_levels[symbol]["sell"].clear()
 
-                                    # Place new short grid orders if there are no existing sell orders and no active short grid, or if there is a short position
-                                    if (not any(order['side'].lower() == 'sell' for order in open_orders) and not short_grid_active) or short_pos_qty > 0:
+                                    # Place new short grid orders if there are no existing sell orders (excluding TP orders) and no active short grid, or if there is a short position
+                                    if (not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders) and not short_grid_active) or short_pos_qty > 0:
                                         logging.info(f"[{symbol}] Placing new short grid orders.")
                                         self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                                         self.active_grids.add(symbol)  # Mark the symbol as having an active grid
@@ -1854,13 +1856,13 @@ class BybitStrategy(BaseStrategy):
                         if not self.auto_reduce_active_long.get(symbol, False):
                             logging.info(f"Auto-reduce for long position on {symbol} is not active")
                             if long_mode and (mfi_signal_long or (long_pos_qty > 0 and not long_grid_active)):
-                                if should_reissue or (long_pos_qty > 0 and not any(order['side'].lower() == 'buy' for order in open_orders)):
-                                    # Cancel existing long grid orders if should_reissue or long position exists but no buy orders
+                                if should_reissue or (long_pos_qty > 0 and not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)):
+                                    # Cancel existing long grid orders if should_reissue or long position exists but no buy orders (excluding TP orders)
                                     self.cancel_grid_orders(symbol, "buy")
                                     self.filled_levels[symbol]["buy"].clear()
 
-                                # Place new long grid orders if there are no existing buy orders and no active long grid, or if there is a long position
-                                if (not any(order['side'].lower() == 'buy' for order in open_orders) and not long_grid_active) or long_pos_qty > 0:
+                                # Place new long grid orders if there are no existing buy orders (excluding TP orders) and no active long grid, or if there is a long position
+                                if (not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders) and not long_grid_active) or long_pos_qty > 0:
                                     if entry_during_autoreduce:
                                         logging.info(f"[{symbol}] Placing new long grid orders (entry during auto-reduce).")
                                         self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
@@ -1873,13 +1875,13 @@ class BybitStrategy(BaseStrategy):
                         if not self.auto_reduce_active_short.get(symbol, False):
                             logging.info(f"Auto-reduce for short position on {symbol} is not active")
                             if short_mode and (mfi_signal_short or (short_pos_qty > 0 and not short_grid_active)):
-                                if should_reissue or (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' for order in open_orders)):
-                                    # Cancel existing short grid orders if should_reissue or short position exists but no sell orders
+                                if should_reissue or (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)):
+                                    # Cancel existing short grid orders if should_reissue or short position exists but no sell orders (excluding TP orders)
                                     self.cancel_grid_orders(symbol, "sell")
                                     self.filled_levels[symbol]["sell"].clear()
 
-                                # Place new short grid orders if there are no existing sell orders and no active short grid, or if there is a short position
-                                if (not any(order['side'].lower() == 'sell' for order in open_orders) and not short_grid_active) or short_pos_qty > 0:
+                                # Place new short grid orders if there are no existing sell orders (excluding TP orders) and no active short grid, or if there is a short position
+                                if (not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders) and not short_grid_active) or short_pos_qty > 0:
                                     if entry_during_autoreduce:
                                         logging.info(f"[{symbol}] Placing new short grid orders (entry during auto-reduce).")
                                         self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
@@ -1942,7 +1944,6 @@ class BybitStrategy(BaseStrategy):
                     time.sleep(5)
         except Exception as e:
             logging.info(f"Exception caught in grid {e}")
-            
 
     def linear_grid_handle_positions_mfirsi(self, symbol: str, open_symbols: list, total_equity: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, buffer_percentage: float, symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str):
         try:
