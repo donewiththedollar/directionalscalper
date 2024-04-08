@@ -290,7 +290,7 @@ class Exchange:
     def fetch_ohlcv(self, symbol, timeframe='1d', limit=None):
         """
         Fetch OHLCV data for the given symbol and timeframe.
-
+        
         :param symbol: Trading symbol.
         :param timeframe: Timeframe string.
         :param limit: Limit the number of returned data points.
@@ -299,17 +299,33 @@ class Exchange:
         try:
             # Fetch the OHLCV data from the exchange
             ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, limit=limit)  # Pass the limit parameter
-
+            
+            # Create a DataFrame from the OHLCV data
             df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-
+            
+            # Convert the timestamp to datetime
             df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-
+            
+            # Set the timestamp as the index
             df.set_index('timestamp', inplace=True)
-
+            
             return df
-
+        
         except ccxt.BaseError as e:
-            print(f'Failed to fetch OHLCV data: {e}')
+            # Log the error message
+            logging.error(f"Failed to fetch OHLCV data: {self.exchange.id} {e}")
+            
+            # Log the traceback for further debugging
+            logging.error(traceback.format_exc())
+            
+            # Return an empty DataFrame in case of an error
+            return pd.DataFrame()
+        
+        except Exception as e:
+            # Log any other unexpected errors
+            logging.error(f"Unexpected error occurred while fetching OHLCV data: {e}")
+            logging.error(traceback.format_exc())
+            
             return pd.DataFrame()
 
     def get_orderbook(self, symbol, max_retries=3, retry_delay=5) -> dict:
