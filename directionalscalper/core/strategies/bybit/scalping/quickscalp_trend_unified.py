@@ -91,7 +91,8 @@ class BybitQuickScalpUnified(BybitStrategy):
             five_minute_volume = None
             one_minute_distance = None
             five_minute_distance = None
-            trend = None
+            ma_trend = 'neutral'  # Initialize with default value
+            ema_trend = 'undefined'  # Initialize with default value
             long_pos_qty = 0
             short_pos_qty = 0
             long_upnl = 0
@@ -716,7 +717,8 @@ class BybitQuickScalpUnified(BybitStrategy):
                     'available_bal': available_equity,
                     'volume': five_minute_volume,
                     'spread': five_minute_distance,
-                    'trend': trend,
+                    'ma_trend': ma_trend,
+                    'ema_trend': ema_trend,
                     'long_pos_qty': long_pos_qty,
                     'short_pos_qty': short_pos_qty,
                     'long_upnl': long_upnl,
