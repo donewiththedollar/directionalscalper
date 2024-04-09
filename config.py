@@ -12,7 +12,7 @@ from pydantic import BaseModel, HttpUrl, ValidationError, validator, DirectoryPa
 from directionalscalper.core.strategies.logger import Logger
 logging = Logger(logger_name="Configuration", filename="Configuration.log", stream=True)
 
-VERSION = "v2.9.2"
+VERSION = "v2.9.3"
 
 class Exchanges(Enum):
     BYBIT = "bybit"
@@ -26,7 +26,7 @@ class Messengers(Enum):
 class API(BaseModel):
     filename: str = "quantdatav2.json"
     mode: str = "remote"
-    url: str = "http://apiv3.tradesimple.xyz/data/"
+    url: str = "https://api.quantumvoid.org/volumedata/"
     data_source_exchange: str = "bybit"
 
 
