@@ -213,8 +213,20 @@ class BaseStrategy:
         high_close = np.abs(df['high'] - df['close'].shift())
         low_close = np.abs(df['low'] - df['close'].shift())
         tr = np.max([high_low, high_close, low_close], axis=0)
-        atr = np.mean(tr[-period:])
-        return atr
+        
+        if len(tr) < period:
+            return None  # Return None if there are not enough data points
+        
+        atr = np.nanmean(tr[-period:])  # Use np.nanmean to handle NaNs
+        return atr if not np.isnan(atr) else None  # Return None if the result is NaN
+
+    # def calculate_atr(self, df, period=14):
+    #     high_low = df['high'] - df['low']
+    #     high_close = np.abs(df['high'] - df['close'].shift())
+    #     low_close = np.abs(df['low'] - df['close'].shift())
+    #     tr = np.max([high_low, high_close, low_close], axis=0)
+    #     atr = np.mean(tr[-period:])
+    #     return atr
 
 
     def initialize_trade_quantities(self, symbol, total_equity, best_ask_price, max_leverage):
