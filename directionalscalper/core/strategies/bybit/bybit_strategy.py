@@ -913,32 +913,24 @@ class BybitStrategy(BaseStrategy):
         :param best_bid_price: Current best bid price of the symbol for selling (short entry).
         :return: A tuple containing entry sizes for long and short trades.
         """
-        # Fetch market data to get the minimum trade quantity for the symbol
-        market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
-        min_qty = float(market_data["min_qty"])
-
         # Calculate the minimum notional value based on the symbol
         if symbol in ["BTCUSDT", "BTC-PERP"]:
-            min_notional_value = 100
+            min_notional_value = 100.5  # Slightly above 100 to ensure orders are above the minimum
         elif symbol in ["ETHUSDT", "ETH-PERP"] or symbol.endswith("USDC"):
-            min_notional_value = 20
+            min_notional_value = 20.1  # Slightly above 20 to ensure orders are above the minimum
         else:
-            min_notional_value = 5
-
-        # Calculate the minimum quantity based on the minimum notional value and current price
-        min_qty_long = max(min_qty, min_notional_value / best_ask_price)
-        min_qty_short = max(min_qty, min_notional_value / best_bid_price)
+            min_notional_value = 5.1  # Slightly above 5 to ensure orders are above the minimum
 
         # Calculate dynamic entry sizes based on risk parameters
         max_equity_for_long_trade = total_equity * self.wallet_exposure_limit
         max_long_position_value = max_equity_for_long_trade * self.user_defined_leverage_long
         logging.info(f"Max long pos value for {symbol} : {max_long_position_value}")
-        long_entry_size = max(max_long_position_value / best_ask_price, min_qty_long)
+        long_entry_size = max(max_long_position_value / best_ask_price, min_notional_value / best_ask_price)
 
         max_equity_for_short_trade = total_equity * self.wallet_exposure_limit
         max_short_position_value = max_equity_for_short_trade * self.user_defined_leverage_short
         logging.info(f"Max short pos value for {symbol} : {max_short_position_value}")
-        short_entry_size = max(max_short_position_value / best_bid_price, min_qty_short)
+        short_entry_size = max(max_short_position_value / best_bid_price, min_notional_value / best_bid_price)
 
         # Adjusting entry sizes based on the symbol's minimum quantity precision
         qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
@@ -1865,12 +1857,12 @@ class BybitStrategy(BaseStrategy):
                 min_qty = float(self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
                 logging.info(f"[{symbol}] Quantity precision: {qty_precision}, Minimum quantity: {min_qty}")
 
-                total_amount_long = self.calculate_total_amount_notional(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_long, "buy", levels, min_qty, enforce_full_grid) if long_mode else 0
-                total_amount_short = self.calculate_total_amount_notional(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_short, "sell", levels, min_qty, enforce_full_grid) if short_mode else 0
+                total_amount_long = self.calculate_total_amount_notional(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_long, "buy", levels, enforce_full_grid) if long_mode else 0
+                total_amount_short = self.calculate_total_amount_notional(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_short, "sell", levels, enforce_full_grid) if short_mode else 0
                 logging.info(f"[{symbol}] Total amount long: {total_amount_long}, Total amount short: {total_amount_short}")
 
-                amounts_long = self.calculate_order_amounts_notional(symbol, total_amount_long, levels, strength, qty_precision, min_qty, enforce_full_grid)
-                amounts_short = self.calculate_order_amounts_notional(symbol, total_amount_short, levels, strength, qty_precision, min_qty, enforce_full_grid)
+                amounts_long = self.calculate_order_amounts_notional(symbol, total_amount_long, levels, strength, qty_precision, enforce_full_grid)
+                amounts_short = self.calculate_order_amounts_notional(symbol, total_amount_short, levels, strength, qty_precision, enforce_full_grid)
                 logging.info(f"[{symbol}] Long order amounts: {amounts_long}")
                 logging.info(f"[{symbol}] Short order amounts: {amounts_short}")
 
@@ -2625,65 +2617,19 @@ class BybitStrategy(BaseStrategy):
         logging.info(f"Calculated order amounts: {amounts}")
         return amounts
     
-    def calculate_total_amount_notional(self, symbol: str, total_equity: float, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float, side: str, levels: int, min_qty: float, enforce_full_grid: bool) -> float:
-        logging.info(f"Calculating total amount for {symbol} with total_equity: {total_equity}, best_ask_price: {best_ask_price}, best_bid_price: {best_bid_price}, wallet_exposure_limit: {wallet_exposure_limit}, user_defined_leverage: {user_defined_leverage}, side: {side}, levels: {levels}, min_qty: {min_qty}, enforce_full_grid: {enforce_full_grid}")
+    def calculate_order_amounts_notional(self, symbol: str, total_amount: float, levels: int, strength: float, qty_precision: float, enforce_full_grid: bool) -> List[float]:
+        logging.info(f"Calculating order amounts for {symbol} with total_amount: {total_amount}, levels: {levels}, strength: {strength}, qty_precision: {qty_precision}, enforce_full_grid: {enforce_full_grid}")
         
-        # Fetch market data to get the minimum trade quantity for the symbol
-        market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
-        logging.info(f"Minimum quantity for {symbol}: {min_qty}")
-        
-        # Calculate the minimum notional value based on the symbol
-        if symbol in ["BTCUSDT", "BTC-PERP"]:
-            min_notional_value = 100
-        elif symbol in ["ETHUSDT", "ETH-PERP"] or symbol.endswith("USDC"):
-            min_notional_value = 20
-        else:
-            min_notional_value = 5
-        
-        # Calculate the minimum quantity based on the minimum notional value and current price
-        if side == "buy":
-            min_qty = max(min_qty, min_notional_value / best_ask_price)
-        elif side == "sell":
-            min_qty = max(min_qty, min_notional_value / best_bid_price)
-        else:
-            raise ValueError(f"Invalid side: {side}")
-        
-        logging.info(f"Minimum quantity for {symbol} considering notional value: {min_qty}")
-        
-        # Calculate the minimum quantity USD value based on the side
-        if side == "buy":
-            min_qty_usd_value = min_qty * best_ask_price
-        elif side == "sell":
-            min_qty_usd_value = min_qty * best_bid_price
-        else:
-            raise ValueError(f"Invalid side: {side}")
-        logging.info(f"Minimum quantity USD value for {symbol}: {min_qty_usd_value}")
-        
-        # Calculate the maximum position value based on total equity, wallet exposure limit, and user-defined leverage
-        max_position_value = total_equity * wallet_exposure_limit * user_defined_leverage
-        logging.info(f"Maximum position value for {symbol}: {max_position_value}")
-        
-        if enforce_full_grid:
-            # Calculate the total amount based on the maximum position value and number of levels
-            total_amount = max(max_position_value // levels, min_qty_usd_value) * levels
-        else:
-            # Calculate the total amount as a multiple of the minimum quantity USD value
-            total_amount = max(max_position_value // min_qty_usd_value, 1) * min_qty_usd_value
-        
-        logging.info(f"Calculated total amount for {symbol}: {total_amount}")
-        
-        return total_amount
-
-    def calculate_order_amounts_notional(self, symbol: str, total_amount: float, levels: int, strength: float, qty_precision: float, min_qty: float, enforce_full_grid: bool) -> List[float]:
-        logging.info(f"Calculating order amounts for {symbol} with total_amount: {total_amount}, levels: {levels}, strength: {strength}, qty_precision: {qty_precision}, min_qty: {min_qty}, enforce_full_grid: {enforce_full_grid}")
+        # Fetch the current price of the symbol
+        current_price = self.exchange.get_current_price(symbol)
         
         # Calculate the minimum notional value based on the symbol
         if symbol in ["BTCUSDT", "BTC-PERP"]:
-            min_notional_value = 100
+            min_notional_value = 100.5  # Slightly above 100 to ensure orders are above the minimum
         elif symbol in ["ETHUSDT", "ETH-PERP"] or symbol.endswith("USDC"):
-            min_notional_value = 20
+            min_notional_value = 20.1  # Slightly above 20 to ensure orders are above the minimum
         else:
-            min_notional_value = 5
+            min_notional_value = 5.1  # Slightly above 5 to ensure orders are above the minimum
         
         # Calculate the order amounts based on the strength
         amounts = []
@@ -2693,24 +2639,19 @@ class BybitStrategy(BaseStrategy):
         
         for i in range(levels):
             ratio = (i + 1) ** strength
-            amount = total_amount * (ratio / total_ratio)
-            logging.info(f"Level {i+1} - Ratio: {ratio}, Amount: {amount}")
+            notional_amount = max(total_amount * (ratio / total_ratio), min_notional_value)
+            logging.info(f"Level {i+1} - Ratio: {ratio}, Notional Amount: {notional_amount}")
             
-            if enforce_full_grid:
-                # Round the order amount to the nearest multiple of min_qty
-                rounded_amount = round(amount / min_qty) * min_qty
-            else:
-                # Round the order amount to the nearest multiple of qty_precision or min_qty, whichever is larger
-                rounded_amount = round(amount / max(qty_precision, min_qty)) * max(qty_precision, min_qty)
+            # Calculate the quantity based on the notional amount and current price
+            quantity = notional_amount / current_price
             
-            logging.info(f"Level {i+1} - Rounded amount: {rounded_amount}")
+            # Round the quantity to the nearest multiple of qty_precision
+            rounded_quantity = round(quantity / qty_precision) * qty_precision
             
-            # Ensure the order amount is greater than or equal to the minimum quantity and minimum notional value
-            adjusted_amount = max(rounded_amount, min_qty * (i + 1), min_notional_value)
-            logging.info(f"Level {i+1} - Adjusted amount: {adjusted_amount}")
+            logging.info(f"Level {i+1} - Rounded Quantity: {rounded_quantity}")
             
-            amounts.append(adjusted_amount)
-            remaining_amount -= adjusted_amount
+            amounts.append(rounded_quantity)
+            remaining_amount -= rounded_quantity * current_price
             logging.info(f"Level {i+1} - Remaining amount: {remaining_amount}")
         
         # If enforce_full_grid is True and there is remaining amount, distribute it among the levels
@@ -2723,19 +2664,48 @@ class BybitStrategy(BaseStrategy):
                 if remaining_amount <= 0:
                     break
                 
-                # Calculate the additional amount to add to the current level
-                additional_amount = min(remaining_amount, min_qty)
+                # Calculate the additional quantity to add to the current level based on the remaining amount and current price
+                additional_quantity = min(remaining_amount, min_notional_value) / current_price
+                
+                # Round the additional quantity to the nearest multiple of qty_precision
+                rounded_additional_quantity = round(additional_quantity / qty_precision) * qty_precision
                 
                 # Find the index of the current amount in the original amounts list
                 index = amounts.index(sorted_amounts[i])
                 
-                # Update the amount in the original amounts list
-                amounts[index] += additional_amount
+                # Update the quantity in the original amounts list
+                amounts[index] += rounded_additional_quantity
                 
-                remaining_amount -= additional_amount
+                remaining_amount -= rounded_additional_quantity * current_price
         
         logging.info(f"Calculated order amounts: {amounts}")
         return amounts
+        
+    def calculate_total_amount_notional(self, symbol: str, total_equity: float, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float, side: str, levels: int, enforce_full_grid: bool) -> float:
+        logging.info(f"Calculating total amount for {symbol} with total_equity: {total_equity}, best_ask_price: {best_ask_price}, best_bid_price: {best_bid_price}, wallet_exposure_limit: {wallet_exposure_limit}, user_defined_leverage: {user_defined_leverage}, side: {side}, levels: {levels}, enforce_full_grid: {enforce_full_grid}")
+        
+        # Calculate the minimum notional value based on the symbol
+        if symbol in ["BTCUSDT", "BTC-PERP"]:
+            min_notional_value = 100.5  # Slightly above 100 to ensure orders are above the minimum
+        elif symbol in ["ETHUSDT", "ETH-PERP"] or symbol.endswith("USDC"):
+            min_notional_value = 20.1  # Slightly above 20 to ensure orders are above the minimum
+        else:
+            min_notional_value = 5.1  # Slightly above 5 to ensure orders are above the minimum
+        
+        # Calculate the maximum position value based on total equity, wallet exposure limit, and user-defined leverage
+        max_position_value = total_equity * wallet_exposure_limit * user_defined_leverage
+        logging.info(f"Maximum position value for {symbol}: {max_position_value}")
+        
+        if enforce_full_grid:
+            # Calculate the total notional amount based on the maximum position value and number of levels
+            total_notional_amount = max(max_position_value, min_notional_value * levels)
+        else:
+            # Calculate the total notional amount as a multiple of the minimum notional value
+            total_notional_amount = max(max_position_value, min_notional_value)
+        
+        logging.info(f"Calculated total notional amount for {symbol}: {total_notional_amount}")
+        
+        return total_notional_amount
 
 
     def initiate_spread_entry(self, symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty):
