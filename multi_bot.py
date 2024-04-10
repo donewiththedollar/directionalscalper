@@ -72,6 +72,7 @@ def get_available_strategies():
         'basicgrid',
         'basicgridmfirsi',
         'basicgridmfipersist',
+        'basicgridpersistnotional',
         'qstrendspot',
     ]
 
@@ -213,7 +214,10 @@ class DirectionalMarketMaker:
         elif strategy_name.lower() == 'qstrendspot':
             strategy = bybit_scalping.BybitQuickScalpTrendSpot(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-
+        elif strategy_name.lower() == 'basicgridpersistnotional':
+            strategy = bybit_scalping.BybitBasicGridMFIRSIPersisentNotional(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
+            
 
     def get_balance(self, quote, market_type=None, sub_type=None):
         if self.exchange_name == 'bitget':
