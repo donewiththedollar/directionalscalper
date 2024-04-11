@@ -61,7 +61,7 @@ def standardize_symbol(symbol):
 def get_available_strategies():
     return [
         'qstrend',
-        'qstrend_notional',
+        'qstrendnotional',
         'qsematrend',
         'qstrendemas',
         'qstrendemasnotional',
@@ -70,9 +70,6 @@ def get_available_strategies():
         'qstrendlongonly',
         'qstrendshortonly',
         'qstrend_unified',
-        'qstrend_dca',
-        'basicgrid',
-        'basicgridmfirsi',
         'basicgridmfipersist',
         'basicgridpersistnotional',
         'qstrendspot',
