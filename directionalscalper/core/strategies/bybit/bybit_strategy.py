@@ -2629,7 +2629,7 @@ class BybitStrategy(BaseStrategy):
         elif symbol in ["ETHUSDT", "ETH-PERP"] or symbol.endswith("USDC"):
             min_notional_value = 20.1  # Slightly above 20 to ensure orders are above the minimum
         else:
-            min_notional_value = 5.1  # Slightly above 5 to ensure orders are above the minimum
+            min_notional_value = 6  # Slightly above 5 to ensure orders are above the minimum
         
         # Calculate the order amounts based on the strength
         amounts = []
@@ -2639,19 +2639,26 @@ class BybitStrategy(BaseStrategy):
         
         for i in range(levels):
             ratio = (i + 1) ** strength
-            notional_amount = max(total_amount * (ratio / total_ratio), min_notional_value)
+            notional_amount = total_amount * (ratio / total_ratio)
             logging.info(f"Level {i+1} - Ratio: {ratio}, Notional Amount: {notional_amount}")
             
             # Calculate the quantity based on the notional amount and current price
             quantity = notional_amount / current_price
             
-            # Round the quantity to the nearest multiple of qty_precision
-            rounded_quantity = round(quantity / qty_precision) * qty_precision
+            # Ensure the notional amount of the order is greater than or equal to the minimum notional value
+            adjusted_notional_amount = max(notional_amount, min_notional_value)
+            adjusted_quantity = adjusted_notional_amount / current_price
             
-            logging.info(f"Level {i+1} - Rounded Quantity: {rounded_quantity}")
+            # Round up the adjusted quantity to the nearest multiple of qty_precision
+            rounded_quantity = math.ceil(adjusted_quantity / qty_precision) * qty_precision
+            
+            # Recalculate the adjusted notional amount based on the rounded quantity
+            adjusted_notional_amount = rounded_quantity * current_price
+            
+            logging.info(f"Level {i+1} - Adjusted Notional Amount: {adjusted_notional_amount}, Adjusted Quantity: {adjusted_quantity}, Rounded Quantity: {rounded_quantity}")
             
             amounts.append(rounded_quantity)
-            remaining_amount -= rounded_quantity * current_price
+            remaining_amount -= adjusted_notional_amount
             logging.info(f"Level {i+1} - Remaining amount: {remaining_amount}")
         
         # If enforce_full_grid is True and there is remaining amount, distribute it among the levels
@@ -2667,8 +2674,11 @@ class BybitStrategy(BaseStrategy):
                 # Calculate the additional quantity to add to the current level based on the remaining amount and current price
                 additional_quantity = min(remaining_amount, min_notional_value) / current_price
                 
-                # Round the additional quantity to the nearest multiple of qty_precision
-                rounded_additional_quantity = round(additional_quantity / qty_precision) * qty_precision
+                # Round up the additional quantity to the nearest multiple of qty_precision
+                rounded_additional_quantity = math.ceil(additional_quantity / qty_precision) * qty_precision
+                
+                # Recalculate the additional notional amount based on the rounded additional quantity
+                additional_notional_amount = rounded_additional_quantity * current_price
                 
                 # Find the index of the current amount in the original amounts list
                 index = amounts.index(sorted_amounts[i])
@@ -2676,11 +2686,11 @@ class BybitStrategy(BaseStrategy):
                 # Update the quantity in the original amounts list
                 amounts[index] += rounded_additional_quantity
                 
-                remaining_amount -= rounded_additional_quantity * current_price
+                remaining_amount -= additional_notional_amount
         
         logging.info(f"Calculated order amounts: {amounts}")
         return amounts
-        
+
     def calculate_total_amount_notional(self, symbol: str, total_equity: float, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float, side: str, levels: int, enforce_full_grid: bool) -> float:
         logging.info(f"Calculating total amount for {symbol} with total_equity: {total_equity}, best_ask_price: {best_ask_price}, best_bid_price: {best_bid_price}, wallet_exposure_limit: {wallet_exposure_limit}, user_defined_leverage: {user_defined_leverage}, side: {side}, levels: {levels}, enforce_full_grid: {enforce_full_grid}")
         
@@ -2690,18 +2700,18 @@ class BybitStrategy(BaseStrategy):
         elif symbol in ["ETHUSDT", "ETH-PERP"] or symbol.endswith("USDC"):
             min_notional_value = 20.1  # Slightly above 20 to ensure orders are above the minimum
         else:
-            min_notional_value = 5.1  # Slightly above 5 to ensure orders are above the minimum
+            min_notional_value = 6  # Slightly above 5 to ensure orders are above the minimum
         
         # Calculate the maximum position value based on total equity, wallet exposure limit, and user-defined leverage
         max_position_value = total_equity * wallet_exposure_limit * user_defined_leverage
         logging.info(f"Maximum position value for {symbol}: {max_position_value}")
         
         if enforce_full_grid:
-            # Calculate the total notional amount based on the maximum position value and number of levels
-            total_notional_amount = max(max_position_value, min_notional_value * levels)
+            # Calculate the total notional amount based on the maximum position value and the minimum notional value multiplied by the number of levels
+            total_notional_amount = max(max_position_value, math.ceil(min_notional_value * levels / min_notional_value) * min_notional_value)
         else:
-            # Calculate the total notional amount as a multiple of the minimum notional value
-            total_notional_amount = max(max_position_value, min_notional_value)
+            # Calculate the total notional amount as the maximum position value
+            total_notional_amount = max_position_value
         
         logging.info(f"Calculated total notional amount for {symbol}: {total_notional_amount}")
         
