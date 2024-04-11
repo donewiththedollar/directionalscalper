@@ -329,7 +329,7 @@ def start_threads_for_new_symbols(new_symbols, args, manager, account_name, symb
         time.sleep(1)
         start_thread_for_symbol(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized)
 
-def rotate_inactive_symbols(active_symbols, rotator_symbols_queue, thread_start_time, rotation_threshold=60, max_symbols_allowed=5):
+def rotate_inactive_symbols(active_symbols, rotator_symbols_queue, thread_start_time, rotation_threshold=160, max_symbols_allowed=5):
     current_time = time.time()
     rotated_out_symbols = []
     added_symbols = []
@@ -371,6 +371,8 @@ def update_rotator_queue(rotator_queue, latest_symbols):
     return deque(rotator_set)
 
 last_rotator_update_time = 0
+
+rotation_threshold = 160  # Adjust as necessary
 
 def bybit_auto_rotation(args, manager, symbols_allowed):
     global latest_rotator_symbols, last_rotator_update_time
@@ -422,6 +424,21 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                     potential_symbols = potential_bullish_symbols + potential_bearish_symbols
                     logging.info(f"Potential bullish and bearish symbols with MFIRSI signal for BybitBasicGridMFIRSI: {potential_symbols}")
             elif strategy_name == 'basicgridmfipersist':
+                if long_mode and not short_mode:
+                    # Fetching only bullish symbols with MFIRSI signal from manager for BybitBasicGridMFIPersist strategy
+                    potential_symbols = manager.get_bullish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+                    logging.info(f"Potential bullish symbols with MFIRSI signal for BybitBasicGridMFIPersist: {potential_symbols}")
+                elif short_mode and not long_mode:
+                    # Fetching only bearish symbols with MFIRSI signal from manager for BybitBasicGridMFIPersist strategy
+                    potential_symbols = manager.get_bullish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+                    logging.info(f"Potential bearish symbols with MFIRSI signal for BybitBasicGridMFIPersist: {potential_symbols}")
+                else:
+                    # Fetching both bullish and bearish symbols with MFIRSI signal from manager for BybitBasicGridMFIPersist strategy
+                    potential_bullish_symbols = manager.get_bullish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+                    potential_bearish_symbols = manager.get_bearish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+                    potential_symbols = potential_bullish_symbols + potential_bearish_symbols
+                    logging.info(f"Potential bullish and bearish symbols with MFIRSI signal for BybitBasicGridMFIPersist: {potential_symbols}")
+            elif strategy_name == 'basicgridpersistnotional':
                 if long_mode and not short_mode:
                     # Fetching only bullish symbols with MFIRSI signal from manager for BybitBasicGridMFIPersist strategy
                     potential_symbols = manager.get_bullish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
@@ -509,7 +526,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                                 logging.info(f"Rotating out inactive symbol {symbol} for new symbol {new_symbol}")
                                 if threads.get(symbol):
                                     thread = threads[symbol]
-                                    thread.join(timeout=330)
+                                    thread.join(timeout=170)
                                     if thread.is_alive():
                                         logging.warning(f"Thread {symbol} still running after timeout. Skipping termination.")
                                 active_symbols.discard(symbol)
@@ -678,8 +695,6 @@ if __name__ == '__main__':
     symbols_to_trade = list(set(open_positions_symbols + all_symbols_standardized[:symbols_allowed]))
 
     print(f"Symbols to trade: {symbols_to_trade}")
-
-    rotation_threshold = 30  # Adjust as necessary
 
     while True:
         try:
