@@ -28,7 +28,7 @@ from directionalscalper.core.exchanges.hyperliquid import HyperLiquidExchange
 from directionalscalper.core.exchanges.bybit import BybitExchange
 from directionalscalper.core.exchanges.exchange import Exchange
 
-
+import directionalscalper.core.strategies.bybit.notional as bybit_notional
 import directionalscalper.core.strategies.bybit.scalping as bybit_scalping
 import directionalscalper.core.strategies.bybit.hedging as bybit_hedging
 from directionalscalper.core.strategies.binance import *
@@ -219,7 +219,7 @@ class DirectionalMarketMaker:
             strategy = bybit_scalping.BybitQuickScalpTrendSpot(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'basicgridpersistnotional':
-            strategy = bybit_scalping.BybitBasicGridMFIRSIPersisentNotional(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy = bybit_notional.BybitBasicGridMFIRSIPersisentNotional(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
             
 
