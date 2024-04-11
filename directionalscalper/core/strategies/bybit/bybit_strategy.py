@@ -915,11 +915,11 @@ class BybitStrategy(BaseStrategy):
         """
         # Calculate the minimum notional value based on the symbol
         if symbol in ["BTCUSDT", "BTC-PERP"]:
-            min_notional_value = 100.5  # Slightly above 100 to ensure orders are above the minimum
+            min_notional_value = 101  # Slightly above 100 to ensure orders are above the minimum
         elif symbol in ["ETHUSDT", "ETH-PERP"] or symbol.endswith("USDC"):
-            min_notional_value = 20.1  # Slightly above 20 to ensure orders are above the minimum
+            min_notional_value = 21  # Slightly above 20 to ensure orders are above the minimum
         else:
-            min_notional_value = 5.1  # Slightly above 5 to ensure orders are above the minimum
+            min_notional_value = 6  # Slightly above 5 to ensure orders are above the minimum
 
         # Calculate dynamic entry sizes based on risk parameters
         max_equity_for_long_trade = total_equity * self.wallet_exposure_limit
@@ -935,11 +935,15 @@ class BybitStrategy(BaseStrategy):
         # Adjusting entry sizes based on the symbol's minimum quantity precision
         qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
         if qty_precision is None:
-            long_entry_size_adjusted = round(long_entry_size)
-            short_entry_size_adjusted = round(short_entry_size)
+            long_entry_size_adjusted = math.ceil(long_entry_size)
+            short_entry_size_adjusted = math.ceil(short_entry_size)
         else:
-            long_entry_size_adjusted = round(long_entry_size, -int(math.log10(qty_precision)))
-            short_entry_size_adjusted = round(short_entry_size, -int(math.log10(qty_precision)))
+            long_entry_size_adjusted = math.ceil(long_entry_size / qty_precision) * qty_precision
+            short_entry_size_adjusted = math.ceil(short_entry_size / qty_precision) * qty_precision
+
+        # Ensure the adjusted entry sizes meet the minimum notional value requirement
+        long_entry_size_adjusted = max(long_entry_size_adjusted, math.ceil(min_notional_value / best_ask_price / qty_precision) * qty_precision)
+        short_entry_size_adjusted = max(short_entry_size_adjusted, math.ceil(min_notional_value / best_bid_price / qty_precision) * qty_precision)
 
         logging.info(f"Calculated long entry size for {symbol}: {long_entry_size_adjusted} units")
         logging.info(f"Calculated short entry size for {symbol}: {short_entry_size_adjusted} units")
