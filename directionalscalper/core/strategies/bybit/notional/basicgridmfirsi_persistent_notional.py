@@ -267,11 +267,12 @@ class BybitBasicGridMFIRSIPersisentNotional(BybitStrategy):
 
                 logging.info(f"Max USD value: {self.max_usd_value}")
 
+
                 # Check if the symbol should terminate
-                if self.should_terminate(symbol, current_time):
+                if self.should_terminate(symbol, current_time, previous_long_pos_qty, long_pos_qty, previous_short_pos_qty, short_pos_qty):
                     self.cleanup_before_termination(symbol)
                     break  # Exit the while loop, thus ending the thread
-
+            
                 # Log which thread is running this part of the code
                 thread_id = threading.get_ident()
                 logging.info(f"[Thread ID: {thread_id}] In while true loop {symbol}")
@@ -458,11 +459,15 @@ class BybitBasicGridMFIRSIPersisentNotional(BybitStrategy):
                     if previous_long_pos_qty > 0 and long_pos_qty == 0:
                         logging.info(f"Long position closed for {symbol}. Canceling long grid orders.")
                         self.cancel_grid_orders(symbol, "buy")
+                        self.cleanup_before_termination(symbol)
+                        break  # Exit the while loop, thus ending the thread
 
                     if previous_short_pos_qty > 0 and short_pos_qty == 0:
                         logging.info(f"Short position closed for {symbol}. Canceling short grid orders.")
                         self.cancel_grid_orders(symbol, "sell")
-
+                        self.cleanup_before_termination(symbol)
+                        break  # Exit the while loop, thus ending the thread
+                    
                     # Update the previous position quantities
                     previous_long_pos_qty = long_pos_qty
                     previous_short_pos_qty = short_pos_qty
