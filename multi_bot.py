@@ -64,6 +64,7 @@ def get_available_strategies():
         'qstrend_notional',
         'qsematrend',
         'qstrendemas',
+        'qstrendemasnotional',
         'mfieritrend',
         'qstrendob',
         'qstrendlongonly',
@@ -180,7 +181,7 @@ class DirectionalMarketMaker:
             strategy = bybit_scalping.BybitQuickScalpTrend(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'qstrend_notional':
-            strategy = bybit_scalping.BybitQuickScalpTrendNotional(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy = bybit_notional.BybitQuickScalpTrendNotional(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'qsematrend':
             strategy = bybit_scalping.BybitQuickScalpEMATrend(self.exchange, self.manager, config.bot, symbols_allowed)
@@ -205,6 +206,9 @@ class DirectionalMarketMaker:
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'qstrendemas':
             strategy = bybit_scalping.BybitQSTrendDoubleMA(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
+        elif strategy_name.lower() == 'qstrendemasnotional':
+            strategy = bybit_notional.BybitQSTrendDoubleMANotional(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'basicgrid':
             strategy = bybit_scalping.BybitBasicGrid(self.exchange, self.manager, config.bot, symbols_allowed)
