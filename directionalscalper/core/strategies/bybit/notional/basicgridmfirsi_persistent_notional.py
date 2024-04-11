@@ -266,12 +266,6 @@ class BybitBasicGridMFIRSIPersisentNotional(BybitStrategy):
 
 
                 logging.info(f"Max USD value: {self.max_usd_value}")
-
-
-                # Check if the symbol should terminate
-                if self.should_terminate(symbol, current_time, previous_long_pos_qty, long_pos_qty, previous_short_pos_qty, short_pos_qty):
-                    self.cleanup_before_termination(symbol)
-                    break  # Exit the while loop, thus ending the thread
             
                 # Log which thread is running this part of the code
                 thread_id = threading.get_ident()
@@ -455,19 +449,6 @@ class BybitBasicGridMFIRSIPersisentNotional(BybitStrategy):
                     long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
                     short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
 
-                    # Check if a position has been closed
-                    if previous_long_pos_qty > 0 and long_pos_qty == 0:
-                        logging.info(f"Long position closed for {symbol}. Canceling long grid orders.")
-                        self.cancel_grid_orders(symbol, "buy")
-                        self.cleanup_before_termination(symbol)
-                        break  # Exit the while loop, thus ending the thread
-
-                    if previous_short_pos_qty > 0 and short_pos_qty == 0:
-                        logging.info(f"Short position closed for {symbol}. Canceling short grid orders.")
-                        self.cancel_grid_orders(symbol, "sell")
-                        self.cleanup_before_termination(symbol)
-                        break  # Exit the while loop, thus ending the thread
-                    
                     # Update the previous position quantities
                     previous_long_pos_qty = long_pos_qty
                     previous_short_pos_qty = short_pos_qty
@@ -761,6 +742,24 @@ class BybitBasicGridMFIRSIPersisentNotional(BybitStrategy):
                             self.helperv2(symbol, short_dynamic_amount, long_dynamic_amount)
                         else:
                             logging.info(f"Skipping test orders for {symbol} as it's not in open symbols list.")
+                    
+                    # Check if the symbol should terminate
+                    if self.should_terminate_full(symbol, current_time, previous_long_pos_qty, long_pos_qty, previous_short_pos_qty, short_pos_qty):
+                        self.cleanup_before_termination(symbol)
+                        break  # Exit the while loop, thus ending the thread
+                    
+                    # Check if a position has been closed
+                    if previous_long_pos_qty > 0 and long_pos_qty == 0:
+                        logging.info(f"Long position closed for {symbol}. Canceling long grid orders.")
+                        self.cancel_grid_orders(symbol, "buy")
+                        self.cleanup_before_termination(symbol)
+                        break  # Exit the while loop, thus ending the thread
+
+                    if previous_short_pos_qty > 0 and short_pos_qty == 0:
+                        logging.info(f"Short position closed for {symbol}. Canceling short grid orders.")
+                        self.cancel_grid_orders(symbol, "sell")
+                        self.cleanup_before_termination(symbol)
+                        break  # Exit the while loop, thus ending the thread
                     
 
                     # self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
