@@ -1965,51 +1965,29 @@ class BybitStrategy(BaseStrategy):
                                 self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                                 self.active_grids.add(symbol)  # Mark the symbol as having active grids
                         else:
-                            if long_mode:
-                                if mfi_signal_long:
-                                    logging.info(f"[{symbol}] MFI signal is long.")
-                                    # Cancel existing long grid orders
+                            if long_mode and (mfi_signal_long or long_pos_qty > 0):
+                                if should_reissue or (long_pos_qty > 0 and not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)):
+                                    # Cancel existing long grid orders if should_reissue or long position exists but no buy orders (excluding TP orders)
                                     self.cancel_grid_orders(symbol, "buy")
                                     self.filled_levels[symbol]["buy"].clear()
 
-                                    # Place new long grid orders
+                                # Place new long grid orders if there are no existing buy orders (excluding TP orders) and no active long grid, or if there is a long position
+                                if not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders) and not long_grid_active:
                                     logging.info(f"[{symbol}] Placing new long grid orders.")
                                     self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                                     self.active_grids.add(symbol)  # Mark the symbol as having an active grid
-                                elif long_pos_qty > 0 and not long_grid_active:
-                                    if should_reissue or not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders):
-                                        # Cancel existing long grid orders if should_reissue or long position exists but no buy orders (excluding TP orders)
-                                        self.cancel_grid_orders(symbol, "buy")
-                                        self.filled_levels[symbol]["buy"].clear()
 
-                                    # Place new long grid orders if there are no existing buy orders (excluding TP orders) and no active long grid, or if there is a long position
-                                    if (not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders) and not long_grid_active) or long_pos_qty > 0:
-                                        logging.info(f"[{symbol}] Placing new long grid orders.")
-                                        self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                                        self.active_grids.add(symbol)  # Mark the symbol as having an active grid
-
-                            if short_mode:
-                                if mfi_signal_short:
-                                    logging.info(f"[{symbol}] MFI signal is short.")
-                                    # Cancel existing short grid orders
+                            if short_mode and (mfi_signal_short or short_pos_qty > 0):
+                                if should_reissue or (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)):
+                                    # Cancel existing short grid orders if should_reissue or short position exists but no sell orders (excluding TP orders)
                                     self.cancel_grid_orders(symbol, "sell")
                                     self.filled_levels[symbol]["sell"].clear()
 
-                                    # Place new short grid orders
+                                # Place new short grid orders if there are no existing sell orders (excluding TP orders) and no active short grid, or if there is a short position
+                                if not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders) and not short_grid_active:
                                     logging.info(f"[{symbol}] Placing new short grid orders.")
                                     self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                                     self.active_grids.add(symbol)  # Mark the symbol as having an active grid
-                                elif short_pos_qty > 0 and not short_grid_active:
-                                    if should_reissue or not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders):
-                                        # Cancel existing short grid orders if should_reissue or short position exists but no sell orders (excluding TP orders)
-                                        self.cancel_grid_orders(symbol, "sell")
-                                        self.filled_levels[symbol]["sell"].clear()
-
-                                    # Place new short grid orders if there are no existing sell orders (excluding TP orders) and no active short grid, or if there is a short position
-                                    if (not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders) and not short_grid_active) or short_pos_qty > 0:
-                                        logging.info(f"[{symbol}] Placing new short grid orders.")
-                                        self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                                        self.active_grids.add(symbol)  # Mark the symbol as having an active grid
                     else:
                         if not self.auto_reduce_active_long.get(symbol, False):
                             logging.info(f"Auto-reduce for long position on {symbol} is not active")
