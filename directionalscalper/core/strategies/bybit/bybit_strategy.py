@@ -89,38 +89,74 @@ class BybitStrategy(BaseStrategy):
                 position_symbols.add(position_symbol.replace("/", ""))
         return position_symbols
 
+    # Threading locks
     def should_terminate_full(self, symbol, current_time, previous_long_pos_qty, long_pos_qty, previous_short_pos_qty, short_pos_qty):
         open_symbols = self.get_open_symbols()  # Fetch open symbols
-        
-        if symbol not in open_symbols:
-            if not hasattr(self, 'position_closed_time'):
-                self.position_closed_time = current_time
-            elif current_time - self.position_closed_time > self.position_inactive_threshold:
-                logging.info(f"Position for {symbol} has been inactive for more than {self.position_inactive_threshold} seconds.")
-                return True
-            
-            # Check if there has been no entry signal for a certain duration
+
+        if symbol not in self.symbol_locks:
+            self.symbol_locks[symbol] = threading.Lock()
+
+        with self.symbol_locks[symbol]:
+            if symbol not in open_symbols:
+                if not hasattr(self, 'position_closed_time'):
+                    self.position_closed_time = current_time
+                elif current_time - self.position_closed_time > self.position_inactive_threshold:
+                    logging.info(f"Position for {symbol} has been inactive for more than {self.position_inactive_threshold} seconds.")
+                    return True
+
             if not hasattr(self, 'last_entry_signal_time'):
                 self.last_entry_signal_time = current_time
             elif current_time - self.last_entry_signal_time > self.no_entry_signal_threshold:
                 logging.info(f"No entry signal for {symbol} in the last {self.no_entry_signal_threshold} seconds.")
                 return True
-        else:
-            if hasattr(self, 'position_closed_time'):
-                del self.position_closed_time
-        
-        # Check if a position has been closed
-        if previous_long_pos_qty > 0 and long_pos_qty == 0:
-            logging.info(f"Long position closed for {symbol}. Canceling long grid orders.")
-            self.cancel_grid_orders(symbol, "buy")
-            return True
-        
-        if previous_short_pos_qty > 0 and short_pos_qty == 0:
-            logging.info(f"Short position closed for {symbol}. Canceling short grid orders.")
-            self.cancel_grid_orders(symbol, "sell")
-            return True
-        
+            else:
+                if hasattr(self, 'position_closed_time'):
+                    del self.position_closed_time
+
+            if previous_long_pos_qty > 0 and long_pos_qty == 0:
+                logging.info(f"Long position closed for {symbol}. Canceling long grid orders.")
+                self.cancel_grid_orders(symbol, "buy")
+                return True
+
+            if previous_short_pos_qty > 0 and short_pos_qty == 0:
+                logging.info(f"Short position closed for {symbol}. Canceling short grid orders.")
+                self.cancel_grid_orders(symbol, "sell")
+                return True
+
         return False
+        
+    # def should_terminate_full(self, symbol, current_time, previous_long_pos_qty, long_pos_qty, previous_short_pos_qty, short_pos_qty):
+    #     open_symbols = self.get_open_symbols()  # Fetch open symbols
+        
+    #     if symbol not in open_symbols:
+    #         if not hasattr(self, 'position_closed_time'):
+    #             self.position_closed_time = current_time
+    #         elif current_time - self.position_closed_time > self.position_inactive_threshold:
+    #             logging.info(f"Position for {symbol} has been inactive for more than {self.position_inactive_threshold} seconds.")
+    #             return True
+            
+    #         # Check if there has been no entry signal for a certain duration
+    #         if not hasattr(self, 'last_entry_signal_time'):
+    #             self.last_entry_signal_time = current_time
+    #         elif current_time - self.last_entry_signal_time > self.no_entry_signal_threshold:
+    #             logging.info(f"No entry signal for {symbol} in the last {self.no_entry_signal_threshold} seconds.")
+    #             return True
+    #     else:
+    #         if hasattr(self, 'position_closed_time'):
+    #             del self.position_closed_time
+        
+    #     # Check if a position has been closed
+    #     if previous_long_pos_qty > 0 and long_pos_qty == 0:
+    #         logging.info(f"Long position closed for {symbol}. Canceling long grid orders.")
+    #         self.cancel_grid_orders(symbol, "buy")
+    #         return True
+        
+    #     if previous_short_pos_qty > 0 and short_pos_qty == 0:
+    #         logging.info(f"Short position closed for {symbol}. Canceling short grid orders.")
+    #         self.cancel_grid_orders(symbol, "sell")
+    #         return True
+        
+    #     return False
         
     def should_terminate(self, symbol, current_time):
         open_symbols = self.get_open_symbols()  # Fetch open symbols
