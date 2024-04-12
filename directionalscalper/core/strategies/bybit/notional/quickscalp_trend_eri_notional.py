@@ -11,11 +11,11 @@ from datetime import datetime, timedelta
 from directionalscalper.core.strategies.bybit.bybit_strategy import BybitStrategy
 from directionalscalper.core.strategies.logger import Logger
 from live_table_manager import shared_symbols_data
-logging = Logger(logger_name="BybitQSTrendDoubleMANotional", filename="BybitQSTrendDoubleMANotional.log", stream=True)
+logging = Logger(logger_name="BybitQuickScalpTrendERINotional", filename="BybitQuickScalpTrendERINotional.log", stream=True)
 
 symbol_locks = {}
 
-class BybitQSTrendDoubleMANotional(BybitStrategy):
+class BybitQuickScalpTrendERINotional(BybitStrategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
         self.is_order_history_populated = False
@@ -30,7 +30,6 @@ class BybitQSTrendDoubleMANotional(BybitStrategy):
         self.helper_wall_size = 5
         self.helper_duration = 5
         self.helper_interval = 1
-        self.position_inactive_threshold = 120
         try:
             self.upnl_threshold_pct = self.config.upnl_threshold_pct
             self.volume_check = self.config.volume_check
@@ -81,11 +80,10 @@ class BybitQSTrendDoubleMANotional(BybitStrategy):
             logging.info(f"Starting to process symbol: {symbol}")
             logging.info(f"Initializing default values for symbol: {symbol}")
 
-            # position_inactive_threshold = 60
 
             previous_long_pos_qty = 0
             previous_short_pos_qty = 0
-            
+
             min_qty = None
             current_price = None
             total_equity = None
@@ -238,6 +236,11 @@ class BybitQSTrendDoubleMANotional(BybitStrategy):
 
                 logging.info(f"Max USD value: {self.max_usd_value}")
 
+                # Check if the symbol should terminate
+                if self.should_terminate(symbol, current_time):
+                    self.cleanup_before_termination(symbol)
+                    break  # Exit the while loop, thus ending the thread
+
                 # Log which thread is running this part of the code
                 thread_id = threading.get_ident()
                 logging.info(f"[Thread ID: {thread_id}] In while true loop {symbol}")
@@ -245,6 +248,7 @@ class BybitQSTrendDoubleMANotional(BybitStrategy):
                 # Fetch open symbols every loop
                 open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
 
+                
                 #logging.info(f"Open position data: {open_position_data}")
 
                 position_details = {}
@@ -389,17 +393,13 @@ class BybitQSTrendDoubleMANotional(BybitStrategy):
 
                     #mfirsi_signal = metrics['MFI']
                     #mfirsi_signal = self.get_mfirsi_ema(symbol, limit=100, lookback=5, ema_period=5)
-                    mfirsi_signal = self.get_mfirsi_ema_secondary_ema_l(
-                        symbol, 
-                        limit=100,
-                        lookback=1,
-                        ema_period=6,
-                        secondary_ema_period=4
-                    )
-                    
+                    mfirsi_signal = self.get_mfirsi_ema_secondary_ema(symbol, limit=100, lookback=1, ema_period=5, secondary_ema_period=3)
+
                     funding_rate = metrics['Funding']
                     hma_trend = metrics['HMA Trend']
                     eri_trend = metrics['ERI Trend']
+
+                    logging.info(f"{symbol} ERI Trend {eri_trend}")
 
                     logging.info(f"{symbol} MFIRSI Signal: {mfirsi_signal}")
 
@@ -430,7 +430,6 @@ class BybitQSTrendDoubleMANotional(BybitStrategy):
 
                     # short_liq_price = position_data["short"]["liq_price"]
                     # long_liq_price = position_data["long"]["liq_price"]
-
 
                     # Adjust risk parameters based on the maximum leverage allowed by the exchange
                     self.adjust_risk_parameters(exchange_max_leverage=self.max_leverage)
@@ -610,7 +609,7 @@ class BybitQSTrendDoubleMANotional(BybitStrategy):
                     long_tp_counts = tp_order_counts['long_tp_count']
                     short_tp_counts = tp_order_counts['short_tp_count']
 
-                    self.bybit_1m_mfi_quickscalp_trend(
+                    self.bybit_1m_mfi_quickscalp_trend_eri(
                         open_orders,
                         symbol,
                         min_vol,
@@ -702,7 +701,7 @@ class BybitQSTrendDoubleMANotional(BybitStrategy):
                             self.helperv2(symbol, short_dynamic_amount, long_dynamic_amount)
                         else:
                             logging.info(f"Skipping test orders for {symbol} as it's not in open symbols list.")
-    
+                    
                     # Check if the symbol should terminate
                     if self.should_terminate_full(symbol, current_time, previous_long_pos_qty, long_pos_qty, previous_short_pos_qty, short_pos_qty):
                         self.cleanup_before_termination(symbol)
