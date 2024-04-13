@@ -2701,8 +2701,11 @@ class BybitStrategy(BaseStrategy):
             adjusted_notional_amount = max(notional_amount, min_notional_value)
             adjusted_quantity = adjusted_notional_amount / current_price
             
-            # Round up the adjusted quantity to the nearest multiple of qty_precision
-            rounded_quantity = math.ceil(adjusted_quantity / qty_precision) * qty_precision
+            # Round the adjusted quantity to the nearest multiple of qty_precision
+            rounded_quantity = round(adjusted_quantity / qty_precision) * qty_precision
+            
+            # Ensure the rounded quantity is not zero
+            rounded_quantity = max(rounded_quantity, qty_precision)
             
             # Recalculate the adjusted notional amount based on the rounded quantity
             adjusted_notional_amount = rounded_quantity * current_price
@@ -2723,22 +2726,22 @@ class BybitStrategy(BaseStrategy):
                 if remaining_amount <= 0:
                     break
                 
+                # Find the index of the current amount in the original amounts list
+                index = amounts.index(sorted_amounts[i])
+                
                 # Calculate the additional quantity to add to the current level based on the remaining amount and current price
                 additional_quantity = min(remaining_amount, min_notional_value) / current_price
                 
-                # Round up the additional quantity to the nearest multiple of qty_precision
-                rounded_additional_quantity = math.ceil(additional_quantity / qty_precision) * qty_precision
+                # Round the additional quantity to the nearest multiple of qty_precision
+                rounded_additional_quantity = round(additional_quantity / qty_precision) * qty_precision
                 
-                # Recalculate the additional notional amount based on the rounded additional quantity
-                additional_notional_amount = rounded_additional_quantity * current_price
-                
-                # Find the index of the current amount in the original amounts list
-                index = amounts.index(sorted_amounts[i])
+                # Ensure the rounded additional quantity is not zero
+                rounded_additional_quantity = max(rounded_additional_quantity, qty_precision)
                 
                 # Update the quantity in the original amounts list
                 amounts[index] += rounded_additional_quantity
                 
-                remaining_amount -= additional_notional_amount
+                remaining_amount -= rounded_additional_quantity * current_price
         
         logging.info(f"Calculated order amounts: {amounts}")
         return amounts
@@ -2768,7 +2771,6 @@ class BybitStrategy(BaseStrategy):
         logging.info(f"Calculated total notional amount for {symbol}: {total_notional_amount}")
         
         return total_notional_amount
-
 
     def initiate_spread_entry(self, symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty):
         order_book = self.exchange.get_orderbook(symbol)
