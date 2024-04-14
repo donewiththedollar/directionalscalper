@@ -733,6 +733,18 @@ class BybitExchange(Exchange):
         
         return tp_orders
 
+    def get_all_open_orders(self):
+        """Fetches open orders for all symbols."""
+        for _ in range(self.max_retries):
+            try:
+                open_orders = self.exchange.fetch_open_orders()
+                return open_orders
+            except ccxt.RateLimitExceeded:
+                logging.info(f"Rate limit exceeded when fetching open orders. Retrying in {self.retry_wait} seconds...")
+                time.sleep(self.retry_wait)
+        logging.error(f"Failed to fetch open orders after {self.max_retries} retries.")
+        return []
+
     def get_open_orders(self, symbol):
         """Fetches open orders for the given symbol."""
         for _ in range(self.max_retries):
