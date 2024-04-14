@@ -49,6 +49,8 @@
       "short_mode": false,
       "reissue_threshold": 0.001,
       "buffer_percentage": 0.069,
+      "min_buffer_percentage": 0.069,
+      "max_buffer_percentage": 0.01,
       "enforce_full_grid": true
     }
   },
