@@ -648,32 +648,35 @@ class BybitBasicGridBuffered(BybitStrategy):
                     long_tp_counts = tp_order_counts['long_tp_count']
                     short_tp_counts = tp_order_counts['short_tp_count']
 
-                    self.linear_grid_handle_positions_mfirsi_persistent_notional_dynamic_buffer(
-                        symbol,
-                        open_symbols,
-                        total_equity,
-                        long_pos_price,
-                        short_pos_price,
-                        long_pos_qty,
-                        short_pos_qty,
-                        levels,
-                        strength,
-                        outer_price_distance,
-                        reissue_threshold,
-                        self.wallet_exposure_limit,
-                        self.user_defined_leverage_long,
-                        self.user_defined_leverage_short,
-                        long_mode,
-                        short_mode,
-                        min_buffer_percentage,
-                        max_buffer_percentage,
-                        self.symbols_allowed,
-                        enforce_full_grid,
-                        mfirsi_signal,
-                        upnl_profit_pct,
-                        tp_order_counts,
-                        entry_during_autoreduce
-                    )
+                    try:
+                        self.linear_grid_handle_positions_mfirsi_persistent_notional_dynamic_buffer(
+                            symbol,
+                            open_symbols,
+                            total_equity,
+                            long_pos_price,
+                            short_pos_price,
+                            long_pos_qty,
+                            short_pos_qty,
+                            levels,
+                            strength,
+                            outer_price_distance,
+                            reissue_threshold,
+                            self.wallet_exposure_limit,
+                            self.user_defined_leverage_long,
+                            self.user_defined_leverage_short,
+                            long_mode,
+                            short_mode,
+                            min_buffer_percentage,
+                            max_buffer_percentage,
+                            self.symbols_allowed,
+                            enforce_full_grid,
+                            mfirsi_signal,
+                            upnl_profit_pct,
+                            tp_order_counts,
+                            entry_during_autoreduce
+                        )
+                    except Exception as e:
+                        logging.info("Something is up with variables for the grid")
 
 
                     logging.info(f"Long tp counts: {long_tp_counts}")

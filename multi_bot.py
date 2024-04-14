@@ -269,6 +269,8 @@ class DirectionalMarketMaker:
 
 BALANCE_REFRESH_INTERVAL = 600  # in seconds
 
+orders_canceled = False
+
 def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized):
     current_thread = threading.current_thread()
 
@@ -303,8 +305,16 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         market_maker = DirectionalMarketMaker(config, exchange_name, account_name)
         market_maker.manager = manager
         
-        # Pass rotator_symbols_standardized to the run_strategy method
-        market_maker.run_strategy(symbol, strategy_name, config, account_name, symbols_to_trade=symbols_allowed, rotator_symbols_standardized=rotator_symbols_standardized)
+        try:
+            # Cancel all open orders at the startup of the first thread only
+            if not orders_canceled and hasattr(market_maker.exchange, 'cancel_all_open_orders_bybit'):
+                market_maker.exchange.cancel_all_open_orders_bybit()
+                logging.info(f"Cleared all open orders on the exchange upon initialization.")
+                orders_canceled = True  # Set the flag to True to prevent future cancellations
+        except Exception as e:
+            logging.info(f"Excetion caught {e}")
+        
+        market_maker.run_strategy(symbol, args.strategy, config, account_name, symbols_to_trade=symbols_allowed, rotator_symbols_standardized=rotator_symbols_standardized)
 
         quote = "USDT"
         current_time = time.time()
