@@ -272,6 +272,7 @@ BALANCE_REFRESH_INTERVAL = 600  # in seconds
 orders_canceled = False
 
 def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized):
+    global orders_canceled
     current_thread = threading.current_thread()
 
     try:
