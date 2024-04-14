@@ -403,6 +403,19 @@ class BybitBasicGridMFIRSIPersisentNotional(BybitStrategy):
 
                 logging.info(f"Symbol precision for {symbol} : {symbol_precision}")
 
+                long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
+                short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
+
+                # Update the previous position quantities
+                previous_long_pos_qty = long_pos_qty
+                previous_short_pos_qty = short_pos_qty
+                
+                # Check if the symbol should terminate
+                if self.should_terminate_full(symbol, current_time, previous_long_pos_qty, long_pos_qty, previous_short_pos_qty, short_pos_qty):
+                    self.cleanup_before_termination(symbol)
+                    break  # Exit the while loop, thus ending the thread
+                
+
                 # If the symbol is in rotator_symbols and either it's already being traded or trading is allowed.
                 if symbol in rotator_symbols_standardized or (symbol in open_symbols or trading_allowed): # and instead of or
 
@@ -446,12 +459,6 @@ class BybitBasicGridMFIRSIPersisentNotional(BybitStrategy):
                     logging.info(f"Long liquidation price for {symbol}: {long_liquidation_price}")
                     logging.info(f"Short liquidation price for {symbol}: {short_liquidation_price}")
 
-                    long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
-                    short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
-
-                    # Update the previous position quantities
-                    previous_long_pos_qty = long_pos_qty
-                    previous_short_pos_qty = short_pos_qty
 
                     logging.info(f"Rotator symbol trading: {symbol}")
                                 

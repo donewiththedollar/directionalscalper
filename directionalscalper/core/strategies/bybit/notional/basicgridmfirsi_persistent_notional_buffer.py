@@ -747,7 +747,7 @@ class BybitBasicGridBuffered(BybitStrategy):
                             self.helperv2(symbol, short_dynamic_amount, long_dynamic_amount)
                         else:
                             logging.info(f"Skipping test orders for {symbol} as it's not in open symbols list.")
-                    
+                            
                     # Check if the symbol should terminate
                     if self.should_terminate_full(symbol, current_time, previous_long_pos_qty, long_pos_qty, previous_short_pos_qty, short_pos_qty):
                         self.cleanup_before_termination(symbol)
