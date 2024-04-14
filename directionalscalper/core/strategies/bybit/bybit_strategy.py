@@ -1878,31 +1878,36 @@ class BybitStrategy(BaseStrategy):
             with self.symbol_locks[symbol]:
                 should_reissue = self.should_reissue_orders(symbol, reissue_threshold)
                 open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
-
                 logging.info(f"Open orders: {open_orders}")
 
-                # Initialize filled_levels dictionary for the current symbol if it doesn't exist
                 if symbol not in self.filled_levels:
                     self.filled_levels[symbol] = {"buy": set(), "sell": set()}
 
-                # Check if long and short grids are active separately
                 long_grid_active = symbol in self.active_grids and "buy" in self.filled_levels[symbol]
                 short_grid_active = symbol in self.active_grids and "sell" in self.filled_levels[symbol]
 
                 current_price = self.exchange.get_current_price(symbol)
                 logging.info(f"[{symbol}] Current price: {current_price}")
 
-                # Calculate the distance from the entry price for long and short positions
-                long_distance_from_entry = abs(current_price - long_pos_price) / long_pos_price if long_pos_price and long_pos_price > 0 else 0
-                short_distance_from_entry = abs(current_price - short_pos_price) / short_pos_price if short_pos_price and short_pos_price > 0 else 0
+                # Handle non-existing positions by applying default buffer percentages if positions are not active
+                default_buffer = min_buffer_percentage  # Could set to a reasonable default like the min_buffer_percentage
 
-                # Calculate the buffer percentage based on the distance from the entry price
-                buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * long_distance_from_entry
-                buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * short_distance_from_entry
+                if long_pos_price and long_pos_price > 0:
+                    long_distance_from_entry = abs(current_price - long_pos_price) / long_pos_price
+                    buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * long_distance_from_entry
+                else:
+                    buffer_percentage_long = default_buffer  # Use default buffer if no valid long position
 
-                # Calculate the buffer distance based on the buffer percentage and current price
+                if short_pos_price and short_pos_price > 0:
+                    short_distance_from_entry = abs(current_price - short_pos_price) / short_pos_price
+                    buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * short_distance_from_entry
+                else:
+                    buffer_percentage_short = default_buffer  # Use default buffer if no valid short position
+
                 buffer_distance_long = current_price * buffer_percentage_long
                 buffer_distance_short = current_price * buffer_percentage_short
+
+                logging.info(f"[{symbol}] Long buffer distance: {buffer_distance_long}, Short buffer distance: {buffer_distance_short}")
 
                 order_book = self.exchange.get_orderbook(symbol)
                 best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol, current_price)
