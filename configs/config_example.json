@@ -46,11 +46,11 @@
       "strength": 1.6,
       "outer_price_distance": 0.059,
       "long_mode": true,
-      "short_mode": false,
+      "short_mode": true,
       "reissue_threshold": 0.001,
-      "buffer_percentage": 0.069,
-      "min_buffer_percentage": 0.069,
-      "max_buffer_percentage": 0.01,
+      "buffer_percentage": 0.10,
+      "min_buffer_percentage": 0.01,
+      "max_buffer_percentage": 0.05,
       "enforce_full_grid": true
     }
   },
