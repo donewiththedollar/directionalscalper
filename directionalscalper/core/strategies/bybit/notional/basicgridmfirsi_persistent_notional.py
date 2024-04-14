@@ -453,6 +453,9 @@ class BybitBasicGridMFIRSIPersisentNotional(BybitStrategy):
 
                     position_data = self.retry_api_call(self.exchange.get_positions_bybit, symbol)
 
+                    long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
+                    short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
+
                     long_liquidation_price = position_details.get(symbol, {}).get('long', {}).get('liq_price')
                     short_liquidation_price = position_details.get(symbol, {}).get('short', {}).get('liq_price')
 

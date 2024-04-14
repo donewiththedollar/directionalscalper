@@ -2879,6 +2879,8 @@ class BaseStrategy:
                 (data.get('long_upnl', 0) or 0) + (data.get('short_upnl', 0) or 0)
                 for data in shared_symbols_data.values()
             )
+            
+            logging.info(f"Total uPNL : {total_upnl}")
 
             # Correct calculation for total UPnL percentage
             total_upnl_pct = total_upnl / total_equity if total_equity else 0
