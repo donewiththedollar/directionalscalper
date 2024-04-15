@@ -90,6 +90,111 @@ class BybitStrategy(BaseStrategy):
                 position_symbols.add(position_symbol.replace("/", ""))
         return position_symbols
 
+    def execute_grid_auto_reduce(self, position_type, symbol, pos_qty, dynamic_amount, market_price, total_equity, long_pos_price, short_pos_price, min_qty):
+        """
+        Executes auto-reduction of positions by placing tagged limit orders.
+        """
+        amount_precision, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
+        price_precision_level = -int(math.log10(price_precision))
+        qty_precision_level = -int(math.log10(amount_precision))
+        
+        market_price = Decimal(str(market_price))
+        max_levels, price_interval = self.calculate_dynamic_auto_reduce_levels(symbol, pos_qty, market_price, total_equity, long_pos_price, short_pos_price)
+        
+        for i in range(1, max_levels + 1):
+            step_price = self.calculate_step_price(position_type, market_price, price_interval, i)
+            if not self.is_price_valid(position_type, step_price, market_price):
+                continue
+            
+            step_price = round(step_price, price_precision_level)
+            adjusted_dynamic_amount = max(dynamic_amount, min_qty)
+            adjusted_dynamic_amount = round(adjusted_dynamic_amount, qty_precision_level)
+            
+            tag = f"auto_reduce_{position_type}_{symbol}_{step_price}_{i}"
+            self.place_tagged_limit_order(symbol, 'sell' if position_type == 'long' else 'buy', adjusted_dynamic_amount, step_price, True, tag)
+
+    def calculate_step_price(self, position_type, market_price, price_interval, level):
+        """
+        Calculates the step price for auto-reduce orders.
+        """
+        return market_price + (price_interval * level) if position_type == 'long' else market_price - (price_interval * level)
+
+    def is_price_valid(self, position_type, step_price, market_price):
+        """
+        Checks if the calculated step price is valid for the given position type.
+        """
+        return step_price > market_price if position_type == 'long' else step_price < market_price
+
+    def place_tagged_limit_order(self, symbol, side, amount, price, reduce_only, tag):
+        """
+        Places a tagged limit order with the option for it to be a reduce-only order.
+        """
+        try:
+            order = self.exchange.create_tagged_limit_order_bybit(symbol, side, amount, price, reduceOnly=reduce_only, orderLinkId=tag)
+            logging.info(f"Placed {side} order at {price} with tag {tag} and amount {amount}")
+            return order.get('id', None) if order else None
+        except Exception as e:
+            logging.error(f"Error placing {side} order at {price} with tag {tag}: {e}")
+            return None
+
+    def auto_reduce_logic_grid(self, symbol, min_qty, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
+                                auto_reduce_enabled, total_equity, available_equity, current_market_price,
+                                long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct,
+                                max_pos_balance_pct, upnl_threshold_pct, shared_symbols_data):
+        logging.info(f"Starting auto-reduce logic for symbol: {symbol}")
+        if not auto_reduce_enabled:
+            logging.info(f"Auto-reduce is disabled for {symbol}.")
+            return
+
+        try:
+            #total_upnl = sum(data['long_upnl'] + data['short_upnl'] for data in shared_symbols_data.values())
+            # Possibly has issues w/ calculation above
+
+            # Testing fix
+
+            total_upnl = sum(
+                (data.get('long_upnl', 0) or 0) + (data.get('short_upnl', 0) or 0)
+                for data in shared_symbols_data.values()
+            )
+            
+            logging.info(f"Total uPNL : {total_upnl}")
+
+            # Correct calculation for total UPnL percentage
+            total_upnl_pct = total_upnl / total_equity if total_equity else 0
+
+            # Correcting the UPnL threshold exceeded logic to compare absolute UPnL against the threshold value of total equity
+            upnl_threshold_exceeded = abs(total_upnl) > (total_equity * upnl_threshold_pct)
+
+            symbol_data = shared_symbols_data.get(symbol, {})
+            long_position_value_pct = (symbol_data.get('long_pos_qty', 0) * current_market_price / total_equity) if total_equity else 0
+            short_position_value_pct = (symbol_data.get('short_pos_qty', 0) * current_market_price / total_equity) if total_equity else 0
+
+            long_loss_exceeded = long_pos_price is not None and current_market_price < long_pos_price * (1 - auto_reduce_start_pct)
+            short_loss_exceeded = short_pos_price is not None and current_market_price > short_pos_price * (1 + auto_reduce_start_pct)
+
+            trigger_auto_reduce_long = long_pos_qty > 0 and long_loss_exceeded and long_position_value_pct > max_pos_balance_pct and upnl_threshold_exceeded
+            trigger_auto_reduce_short = short_pos_qty > 0 and short_loss_exceeded and short_position_value_pct > max_pos_balance_pct and upnl_threshold_exceeded
+
+            logging.info(f"Total UPnL for all symbols: {total_upnl}, which is {total_upnl_pct * 100}% of total equity")
+            logging.info(f"{symbol} Long Position Value %: {long_position_value_pct * 100}, Short Position Value %: {short_position_value_pct * 100}")
+            logging.info(f"{symbol} Long Loss Exceeded: {long_loss_exceeded}, Short Loss Exceeded: {short_loss_exceeded}, UPnL Threshold Exceeded: {upnl_threshold_exceeded}")
+            logging.info(f"{symbol} Trigger Auto-Reduce Long: {trigger_auto_reduce_long}, Trigger Auto-Reduce Short: {trigger_auto_reduce_short}")
+
+            if trigger_auto_reduce_long:
+                logging.info(f"Executing auto-reduce for long position in {symbol}.")
+                self.execute_grid_auto_reduce('long', symbol, long_pos_qty, long_dynamic_amount, current_market_price, total_equity, long_pos_price, short_pos_price, min_qty)
+            else:
+                logging.info(f"No auto-reduce executed for long position in {symbol}.")
+
+            if trigger_auto_reduce_short:
+                logging.info(f"Executing auto-reduce for short position in {symbol}.")
+                self.execute_grid_auto_reduce('short', symbol, short_pos_qty, short_dynamic_amount, current_market_price, total_equity, long_pos_price, short_pos_price, min_qty)
+            else:
+                logging.info(f"No auto-reduce executed for short position in {symbol}.")
+
+        except Exception as e:
+            logging.error(f"Error in auto-reduce logic for {symbol}: {e}")
+
     # Threading locks
     def should_terminate_full(self, symbol, current_time, previous_long_pos_qty, long_pos_qty, previous_short_pos_qty, short_pos_qty):
         open_symbols = self.get_open_symbols()  # Fetch open symbols
