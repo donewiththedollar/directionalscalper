@@ -1966,9 +1966,9 @@ class BybitStrategy(BaseStrategy):
                     open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
                     logging.info(f"Open orders for {symbol}: {open_orders}")
 
-                    # Flags to check existence of buy or sell orders
-                    has_open_long_order = any(order['side'].lower() == 'buy' for order in open_orders)
-                    has_open_short_order = any(order['side'].lower() == 'sell' for order in open_orders)
+                    # Flags to check existence of buy or sell orders, excluding reduce-only orders
+                    has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
+                    has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
 
                     if not long_pos_qty and long_mode:  # Only enter this block if there are no long positions and long trading is enabled
                         if symbol in self.active_grids and "buy" in self.filled_levels[symbol] and has_open_long_order:
