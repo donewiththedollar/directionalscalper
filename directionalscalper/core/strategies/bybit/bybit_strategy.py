@@ -1961,6 +1961,53 @@ class BybitStrategy(BaseStrategy):
                 mfi_signal_long = mfirsi_signal.lower() == "long"
                 mfi_signal_short = mfirsi_signal.lower() == "short"
 
+                # Initialize the signal tracking dictionary
+                self.triggered_signals = defaultdict(lambda: {"long": False, "short": False})
+
+                # Update the signal tracking dictionary when an MFIRSI signal is triggered
+                if mfi_signal_long:
+                    self.triggered_signals[symbol]["long"] = True
+                if mfi_signal_short:
+                    self.triggered_signals[symbol]["short"] = True
+
+                if not long_pos_qty and not short_pos_qty:
+                    if self.should_reissue_orders(symbol, reissue_threshold):
+                        long_open_orders = [order for order in open_orders if order['symbol'] == symbol and order['side'] == 'buy']
+                        short_open_orders = [order for order in open_orders if order['symbol'] == symbol and order['side'] == 'sell']
+                        
+                        if long_open_orders and not short_open_orders and long_mode and self.triggered_signals[symbol]["long"]:
+                            logging.info(f"[{symbol}] Reissuing long orders due to price movement beyond the threshold.")
+                            self.cancel_grid_orders(symbol, "buy")
+                            self.filled_levels[symbol]["buy"].clear()
+                            logging.info(f"[{symbol}] Placing new long orders.")
+                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                            self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+                        elif not long_open_orders and self.triggered_signals[symbol]["long"]:
+                            logging.info(f"[{symbol}] No open long orders for the symbol. Skipping long grid reissue.")
+                            self.triggered_signals[symbol]["long"] = False  # Reset the long signal trigger
+                            if symbol in self.active_grids:
+                                self.active_grids.remove(symbol)  # Remove the symbol from active grids
+                        
+                        if short_open_orders and not long_open_orders and short_mode and self.triggered_signals[symbol]["short"]:
+                            logging.info(f"[{symbol}] Reissuing short orders due to price movement beyond the threshold.")
+                            self.cancel_grid_orders(symbol, "sell")
+                            self.filled_levels[symbol]["sell"].clear()
+                            logging.info(f"[{symbol}] Placing new short orders.")
+                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                            self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+                        elif not short_open_orders and self.triggered_signals[symbol]["short"]:
+                            logging.info(f"[{symbol}] No open short orders for the symbol. Skipping short grid reissue.")
+                            self.triggered_signals[symbol]["short"] = False  # Reset the short signal trigger
+                            if symbol in self.active_grids:
+                                self.active_grids.remove(symbol)  # Remove the symbol from active grids
+                    else:
+                        logging.info(f"[{symbol}] Reissue not needed")
+                        if not long_open_orders and not short_open_orders:
+                            self.triggered_signals[symbol]["long"] = False  # Reset the long signal trigger
+                            self.triggered_signals[symbol]["short"] = False  # Reset the short signal trigger
+                            if symbol in self.active_grids:
+                                self.active_grids.remove(symbol)  # Remove the symbol from active grids
+                                
                 if symbol in open_symbols or trading_allowed:
                     if not self.auto_reduce_active_long.get(symbol, False) and not self.auto_reduce_active_short.get(symbol, False):
                         logging.info(f"Auto-reduce for long and short positions on {symbol} is not active")
@@ -2094,6 +2141,7 @@ class BybitStrategy(BaseStrategy):
                     time.sleep(5)
         except Exception as e:
             logging.info(f"Exception caught in grid {e}")
+            
             
     def linear_grid_handle_positions_mfirsi_persistent_notional(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float, short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, buffer_percentage: float, symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool):
         try:
