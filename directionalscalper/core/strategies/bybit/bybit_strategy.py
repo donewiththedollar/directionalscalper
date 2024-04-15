@@ -17,6 +17,7 @@ import traceback
 import ccxt
 import pytz
 import sqlite3
+from collections import defaultdict
 from ..logger import Logger
 from datetime import datetime, timedelta
 from threading import Thread, Lock
