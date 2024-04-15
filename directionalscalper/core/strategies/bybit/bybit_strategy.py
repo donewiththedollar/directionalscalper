@@ -1963,6 +1963,7 @@ class BybitStrategy(BaseStrategy):
                 mfi_signal_short = mfirsi_signal.lower() == "short"
 
                 if self.should_reissue_orders(symbol, reissue_threshold):
+                    open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
                     logging.info(f"Open orders for {symbol}: {open_orders}")
 
                     # Flags to check existence of buy or sell orders
@@ -1970,7 +1971,7 @@ class BybitStrategy(BaseStrategy):
                     has_open_short_order = any(order['side'].lower() == 'sell' for order in open_orders)
 
                     if not long_pos_qty and long_mode:  # Only enter this block if there are no long positions and long trading is enabled
-                        if symbol in self.active_grids and "buy" in self.filled_levels[symbol] and not has_open_long_order:
+                        if symbol in self.active_grids and "buy" in self.filled_levels[symbol] and has_open_long_order:
                             logging.info(f"[{symbol}] Reissuing long orders due to price movement beyond the threshold.")
                             self.cancel_grid_orders(symbol, "buy")
                             self.filled_levels[symbol]["buy"].clear()
@@ -1980,7 +1981,7 @@ class BybitStrategy(BaseStrategy):
                             logging.info(f"[{symbol}] No active long grid for the symbol. Skipping long grid reissue.")
 
                     if not short_pos_qty and short_mode:  # Only enter this block if there are no short positions and short trading is enabled
-                        if symbol in self.active_grids and "sell" in self.filled_levels[symbol] and not has_open_short_order:
+                        if symbol in self.active_grids and "sell" in self.filled_levels[symbol] and has_open_short_order:
                             logging.info(f"[{symbol}] Reissuing short orders due to price movement beyond the threshold.")
                             self.cancel_grid_orders(symbol, "sell")
                             self.filled_levels[symbol]["sell"].clear()
