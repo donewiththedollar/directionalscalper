@@ -1962,32 +1962,28 @@ class BybitStrategy(BaseStrategy):
                 mfi_signal_long = mfirsi_signal.lower() == "long"
                 mfi_signal_short = mfirsi_signal.lower() == "short"
 
-                if not long_pos_qty or not short_pos_qty:
-                    # Individual checks for long and short grids
-                    if long_mode and not long_pos_qty:  # Check if long positions need to be reissued
-                        if self.should_reissue_orders(symbol, reissue_threshold, grid_type="long"):  # Assuming this method can now take a grid_type argument
-                            if symbol in self.active_grids and "buy" in self.filled_levels[symbol]:
-                                logging.info(f"[{symbol}] Reissuing long orders due to price movement beyond the threshold.")
-                                self.cancel_grid_orders(symbol, "buy")
-                                self.filled_levels[symbol]["buy"].clear()
-                                logging.info(f"[{symbol}] Placing new long orders.")
-                                self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                            else:
-                                logging.info(f"[{symbol}] No active long grid for the symbol. Skipping long grid reissue.")
-
-                    if short_mode and not short_pos_qty:  # Check if short positions need to be reissued
-                        if self.should_reissue_orders(symbol, reissue_threshold, grid_type="short"):
-                            if symbol in self.active_grids and "sell" in self.filled_levels[symbol]:
-                                logging.info(f"[{symbol}] Reissuing short orders due to price movement beyond the threshold.")
-                                self.cancel_grid_orders(symbol, "sell")
-                                self.filled_levels[symbol]["sell"].clear()
-                                logging.info(f"[{symbol}] Placing new short orders.")
-                                self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                            else:
-                                logging.info(f"[{symbol}] No active short grid for the symbol. Skipping short grid reissue.")
-                else:
-                    logging.info(f"[{symbol}] Reissue not needed as positions are active.")
-
+                if not long_pos_qty and not short_pos_qty:
+                    if self.should_reissue_orders(symbol, reissue_threshold):
+                        if long_mode and symbol in self.active_grids and "buy" in self.filled_levels[symbol]:
+                            logging.info(f"[{symbol}] Reissuing long orders due to price movement beyond the threshold.")
+                            self.cancel_grid_orders(symbol, "buy")
+                            self.filled_levels[symbol]["buy"].clear()
+                            logging.info(f"[{symbol}] Placing new long orders.")
+                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                        elif long_mode and symbol not in self.active_grids:
+                            logging.info(f"[{symbol}] No active long grid for the symbol. Skipping long grid reissue.")
+                        
+                        if short_mode and symbol in self.active_grids and "sell" in self.filled_levels[symbol]:
+                            logging.info(f"[{symbol}] Reissuing short orders due to price movement beyond the threshold.")
+                            self.cancel_grid_orders(symbol, "sell")
+                            self.filled_levels[symbol]["sell"].clear()
+                            logging.info(f"[{symbol}] Placing new short orders.")
+                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                        elif short_mode and symbol not in self.active_grids:
+                            logging.info(f"[{symbol}] No active short grid for the symbol. Skipping short grid reissue.")
+                    else:
+                        logging.info(f"[{symbol}] Reissue not needed")
+                        
                 if symbol in open_symbols or trading_allowed:
                     if not self.auto_reduce_active_long.get(symbol, False) and not self.auto_reduce_active_short.get(symbol, False):
                         logging.info(f"Auto-reduce for long and short positions on {symbol} is not active")
