@@ -261,6 +261,11 @@ class BybitBasicGridBuffered(BybitStrategy):
 
                 iteration_start_time = time.time()
 
+                # Check if the symbol should terminate
+                if self.should_terminate(symbol, current_time):
+                    self.cleanup_before_termination(symbol)
+                    break  # Exit the while loop, thus ending the thread
+
                 leverage_tiers = self.exchange.fetch_leverage_tiers(symbol)
 
                 if leverage_tiers:

@@ -44,8 +44,8 @@ class BybitStrategy(BaseStrategy):
         self.filled_order_levels = {}
         self.filled_levels = {}
         self.active_grids = set()
-        self.position_inactive_threshold = 600
-        self.no_entry_signal_threshold = 600
+        self.position_inactive_threshold = 300
+        self.no_entry_signal_threshold = 300
         pass
 
     TAKER_FEE_RATE = 0.00055

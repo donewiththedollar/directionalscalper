@@ -398,7 +398,7 @@ def update_rotator_queue(rotator_queue, latest_symbols):
     # Return a new deque from the updated set
     return deque(rotator_set)
 
-rotation_threshold = 600  # Adjust as necessary
+rotation_threshold = 300  # Adjust as necessary
 
 def bybit_auto_rotation(args, manager, symbols_allowed):
     global latest_rotator_symbols, last_rotator_update_time, tried_symbols
