@@ -43,7 +43,7 @@
     "shared_data_path": "data/",
     "linear_grid": {
       "levels": 6,
-      "strength": 1.6,
+      "strength": 1.5,
       "outer_price_distance": 0.059,
       "long_mode": true,
       "short_mode": true,
