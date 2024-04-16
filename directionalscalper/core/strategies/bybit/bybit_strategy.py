@@ -1975,6 +1975,7 @@ class BybitStrategy(BaseStrategy):
 
         except Exception as e:
             logging.error(f"Exception caught in bybit_1m_mfi_quickscalp_trend_long_only_spot: {e}")
+            
     def linear_grid_handle_positions_mfirsi_persistent_notional_dynamic_buffer(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float, short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, min_buffer_percentage: float, max_buffer_percentage: float, symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool):
         try:
             if symbol not in self.symbol_locks:
