@@ -266,6 +266,13 @@ class BybitBasicGridBufferedQS(BybitStrategy):
                     self.cleanup_before_termination(symbol)
                     break  # Exit the while loop, thus ending the thread
 
+                if self.should_terminate_open_orders(
+                    symbol,
+                    current_time
+                ):
+                    self.cleanup_before_termination(symbol)
+                    break
+
                 leverage_tiers = self.exchange.fetch_leverage_tiers(symbol)
 
                 if leverage_tiers:
