@@ -108,7 +108,7 @@ class BybitQuickScalpTrendERINotional(BybitStrategy):
             equity_refresh_interval = 1800  # 30 minutes in seconds
 
             # Clean out orders
-            self.exchange.cancel_all_orders_for_symbol_bybit(symbol)
+            # self.exchange.cancel_all_orders_for_symbol_bybit(symbol)
 
             # Check leverages only at startup
             self.current_leverage = self.exchange.get_current_max_leverage_bybit(symbol)
@@ -420,6 +420,10 @@ class BybitQuickScalpTrendERINotional(BybitStrategy):
                     long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
                     short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
 
+                    # Update the previous position quantities
+                    previous_long_pos_qty = long_pos_qty
+                    previous_short_pos_qty = short_pos_qty
+
                     logging.info(f"Rotator symbol trading: {symbol}")
                                 
                     logging.info(f"Rotator symbols: {rotator_symbols_standardized}")
@@ -704,18 +708,6 @@ class BybitQuickScalpTrendERINotional(BybitStrategy):
                     
                     # Check if the symbol should terminate
                     if self.should_terminate_full(symbol, current_time, previous_long_pos_qty, long_pos_qty, previous_short_pos_qty, short_pos_qty):
-                        self.cleanup_before_termination(symbol)
-                        break  # Exit the while loop, thus ending the thread
-                    
-                    # Check if a position has been closed
-                    if previous_long_pos_qty > 0 and long_pos_qty == 0:
-                        logging.info(f"Long position closed for {symbol}.")
-                        self.cleanup_before_termination(symbol)
-                        break  # Exit the while loop, thus ending the thread
-
-                    if previous_short_pos_qty > 0 and short_pos_qty == 0:
-                        logging.info(f"Short position closed for {symbol}.")
-                        self.cancel_grid_orders(symbol, "sell")
                         self.cleanup_before_termination(symbol)
                         break  # Exit the while loop, thus ending the thread
                     

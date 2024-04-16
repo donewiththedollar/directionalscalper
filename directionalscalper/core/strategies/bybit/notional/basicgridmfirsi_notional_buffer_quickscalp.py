@@ -125,9 +125,9 @@ class BybitBasicGridBufferedQS(BybitStrategy):
             last_equity_fetch_time = 0
             equity_refresh_interval = 1800  # 30 minutes in seconds
 
-            # Clean out orders
-            self.exchange.cancel_all_orders_for_symbol_bybit(symbol)
-            logging.info(f"Canceled all orders for {symbol}")
+            # # Clean out orders
+            # self.exchange.cancel_all_orders_for_symbol_bybit(symbol)
+            # logging.info(f"Canceled all orders for {symbol}")
 
             # Check leverages only at startup
             self.current_leverage = self.exchange.get_current_max_leverage_bybit(symbol)
@@ -422,23 +422,6 @@ class BybitBasicGridBufferedQS(BybitStrategy):
                 long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
                 short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
 
-                # Update the previous position quantities
-                previous_long_pos_qty = long_pos_qty
-                previous_short_pos_qty = short_pos_qty
-            
-                # Check if a position has been closed
-                if previous_long_pos_qty > 0 and long_pos_qty == 0:
-                    logging.info(f"Long position closed for {symbol}. Canceling long grid orders.")
-                    self.cancel_grid_orders(symbol, "buy")
-                    self.cleanup_before_termination(symbol)
-                    break  # Exit the while loop, thus ending the thread
-
-                if previous_short_pos_qty > 0 and short_pos_qty == 0:
-                    logging.info(f"Short position closed for {symbol}. Canceling short grid orders.")
-                    self.cancel_grid_orders(symbol, "sell")
-                    self.cleanup_before_termination(symbol)
-                    break  # Exit the while loop, thus ending the thread
-            
                 # If the symbol is in rotator_symbols and either it's already being traded or trading is allowed.
                 if symbol in rotator_symbols_standardized or (symbol in open_symbols or trading_allowed): # and instead of or
 
@@ -488,7 +471,7 @@ class BybitBasicGridBufferedQS(BybitStrategy):
                     # Update the previous position quantities
                     previous_long_pos_qty = long_pos_qty
                     previous_short_pos_qty = short_pos_qty
-
+                
                     logging.info(f"Rotator symbol trading: {symbol}")
                                 
                     logging.info(f"Rotator symbols: {rotator_symbols_standardized}")
@@ -556,28 +539,6 @@ class BybitBasicGridBufferedQS(BybitStrategy):
                         )
                     except Exception as e:
                         logging.info(f"Exception caught in auto_reduce_logic_grid {e}")
-
-                    # try:
-                    #     self.auto_reduce_logic_simple(
-                    #         symbol,
-                    #         min_qty,
-                    #         long_pos_price,
-                    #         short_pos_price,
-                    #         long_pos_qty,
-                    #         short_pos_qty,
-                    #         auto_reduce_enabled,
-                    #         total_equity,
-                    #         available_equity,
-                    #         current_market_price=current_price,
-                    #         long_dynamic_amount=long_dynamic_amount,
-                    #         short_dynamic_amount=short_dynamic_amount,
-                    #         auto_reduce_start_pct=auto_reduce_start_pct,
-                    #         max_pos_balance_pct=max_pos_balance_pct,
-                    #         upnl_threshold_pct=upnl_threshold_pct,
-                    #         shared_symbols_data=shared_symbols_data
-                    #     )
-                    # except Exception as e:
-                    #     logging.info(f"Exception caught in autoreduce {e}")
 
                     self.auto_reduce_percentile_logic(
                         symbol,
@@ -810,6 +771,19 @@ class BybitBasicGridBufferedQS(BybitStrategy):
                         self.cleanup_before_termination(symbol)
                         break  # Exit the while loop, thus ending the thread
 
+                    # Check if a position has been closed
+                    if previous_long_pos_qty > 0 and long_pos_qty == 0:
+                        logging.info(f"Long position closed for {symbol}. Canceling long grid orders.")
+                        self.cancel_grid_orders(symbol, "buy")
+                        self.cleanup_before_termination(symbol)
+                        break  # Exit the while loop, thus ending the thread
+
+                    if previous_short_pos_qty > 0 and short_pos_qty == 0:
+                        logging.info(f"Short position closed for {symbol}. Canceling short grid orders.")
+                        self.cancel_grid_orders(symbol, "sell")
+                        self.cleanup_before_termination(symbol)
+                        break  # Exit the while loop, thus ending the thread
+                
                     # self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
                     # self.cancel_stale_orders_bybit(symbol)
 

@@ -124,8 +124,8 @@ class BybitQSGridNotional(BybitStrategy):
             equity_refresh_interval = 1800  # 30 minutes in seconds
 
             # Clean out orders
-            self.exchange.cancel_all_orders_for_symbol_bybit(symbol)
-            logging.info(f"Canceled all orders for {symbol}")
+            # self.exchange.cancel_all_orders_for_symbol_bybit(symbol)
+            # logging.info(f"Canceled all orders for {symbol}")
 
             # Check leverages only at startup
             self.current_leverage = self.exchange.get_current_max_leverage_bybit(symbol)
