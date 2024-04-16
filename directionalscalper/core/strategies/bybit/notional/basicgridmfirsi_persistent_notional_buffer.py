@@ -266,6 +266,13 @@ class BybitBasicGridBuffered(BybitStrategy):
                     self.cleanup_before_termination(symbol)
                     break  # Exit the while loop, thus ending the thread
 
+                if self.should_terminate_open_orders(
+                    symbol,
+                    current_time
+                ):
+                    self.cleanup_before_termination(symbol)
+                    break
+
                 leverage_tiers = self.exchange.fetch_leverage_tiers(symbol)
 
                 if leverage_tiers:
@@ -412,6 +419,26 @@ class BybitBasicGridBuffered(BybitStrategy):
 
                 logging.info(f"Symbol precision for {symbol} : {symbol_precision}")
 
+                long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
+                short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
+
+                # Update the previous position quantities
+                previous_long_pos_qty = long_pos_qty
+                previous_short_pos_qty = short_pos_qty
+                
+                # Check if a position has been closed
+                if previous_long_pos_qty > 0 and long_pos_qty == 0:
+                    logging.info(f"Long position closed for {symbol}. Canceling long grid orders.")
+                    self.cancel_grid_orders(symbol, "buy")
+                    self.cleanup_before_termination(symbol)
+                    break  # Exit the while loop, thus ending the thread
+
+                if previous_short_pos_qty > 0 and short_pos_qty == 0:
+                    logging.info(f"Short position closed for {symbol}. Canceling short grid orders.")
+                    self.cancel_grid_orders(symbol, "sell")
+                    self.cleanup_before_termination(symbol)
+                    break  # Exit the while loop, thus ending the thread
+            
                 # If the symbol is in rotator_symbols and either it's already being traded or trading is allowed.
                 if symbol in rotator_symbols_standardized or (symbol in open_symbols or trading_allowed): # and instead of or
 
@@ -529,28 +556,6 @@ class BybitBasicGridBuffered(BybitStrategy):
                         )
                     except Exception as e:
                         logging.info(f"Exception caught in auto_reduce_logic_grid {e}")
-
-                    # try:
-                    #     self.auto_reduce_logic_simple(
-                    #         symbol,
-                    #         min_qty,
-                    #         long_pos_price,
-                    #         short_pos_price,
-                    #         long_pos_qty,
-                    #         short_pos_qty,
-                    #         auto_reduce_enabled,
-                    #         total_equity,
-                    #         available_equity,
-                    #         current_market_price=current_price,
-                    #         long_dynamic_amount=long_dynamic_amount,
-                    #         short_dynamic_amount=short_dynamic_amount,
-                    #         auto_reduce_start_pct=auto_reduce_start_pct,
-                    #         max_pos_balance_pct=max_pos_balance_pct,
-                    #         upnl_threshold_pct=upnl_threshold_pct,
-                    #         shared_symbols_data=shared_symbols_data
-                    #     )
-                    # except Exception as e:
-                    #     logging.info(f"Exception caught in autoreduce {e}")
 
                     self.auto_reduce_percentile_logic(
                         symbol,
