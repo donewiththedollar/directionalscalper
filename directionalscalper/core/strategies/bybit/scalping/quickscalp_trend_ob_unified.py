@@ -612,7 +612,7 @@ class BybitQuickScalpTrendOB(BybitStrategy):
                     long_tp_counts = tp_order_counts['long_tp_count']
                     short_tp_counts = tp_order_counts['short_tp_count']
 
-                    self.bybit_1m_mfi_quickscalp_trend(
+                    self.bybit_1m_mfi_quickscalp_trend_noeri(
                         open_orders,
                         symbol,
                         min_vol,
@@ -631,6 +631,7 @@ class BybitQuickScalpTrendOB(BybitStrategy):
                         upnl_profit_pct,
                         tp_order_counts
                     )
+                
                     
                     
                     logging.info(f"Long tp counts: {long_tp_counts}")
