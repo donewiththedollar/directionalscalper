@@ -406,7 +406,13 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
         active_symbols = manage_threads(args, manager, symbols_allowed, open_position_symbols)
 
         # Rotate out inactive symbols and start threads for new active symbols
-        rotate_and_refresh_threads(args, manager, symbols_allowed, active_symbols, open_position_symbols)
+        for symbol in latest_rotator_symbols:
+            if symbol not in active_symbols and len(active_symbols) < symbols_allowed:
+                if symbol not in threads or not threads[symbol].is_alive():
+                    start_thread_for_symbol(symbol, args, manager, symbols_allowed)
+                    active_symbols.add(symbol)
+                else:
+                    logging.info(f"Thread for symbol {symbol} is already active. Skipping.")
 
     except Exception as e:
         logging.error(f"Exception caught in bybit_auto_rotation: {str(e)}")
