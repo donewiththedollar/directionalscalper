@@ -500,7 +500,7 @@ class BybitQSGridNotional(BybitStrategy):
                     initial_long_stop_loss = None
 
                     try:
-                        self.auto_reduce_logic_simple(
+                        self.auto_reduce_logic_grid(
                             symbol,
                             min_qty,
                             long_pos_price,
@@ -519,7 +519,8 @@ class BybitQSGridNotional(BybitStrategy):
                             shared_symbols_data=shared_symbols_data
                         )
                     except Exception as e:
-                        logging.info(f"Exception caught in autoreduce {e}")
+                        logging.info(f"Exception caught in auto_reduce_logic_grid {e}")
+
 
                     self.auto_reduce_percentile_logic(
                         symbol,

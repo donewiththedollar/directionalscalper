@@ -70,6 +70,7 @@ def get_available_strategies():
         'basicgridpersistnotional',
         'qstrend',
         'qstrendnotional',
+        'qstrendobnotional',
         'qstrenderinotional',
         'qsematrend',
         'qstrendemas',
@@ -241,6 +242,9 @@ class DirectionalMarketMaker:
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'basicgridbufferedqs':
             strategy = bybit_notional.BybitBasicGridBufferedQS(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
+        elif strategy_name.lower() == 'qstrendobnotional':
+            strategy = bybit_notional.BybitQuickScalpTrendOBNotional(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
             
 
