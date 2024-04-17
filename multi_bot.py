@@ -406,17 +406,21 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
         active_symbols = manage_threads(args, manager, symbols_allowed, open_position_symbols)
 
         # Rotate out inactive symbols and start threads for new active symbols
+        remaining_slots = symbols_allowed - len(active_symbols)
         for symbol in latest_rotator_symbols:
-            if symbol not in active_symbols and len(active_symbols) < symbols_allowed:
+            if symbol not in active_symbols and remaining_slots > 0:
                 if symbol not in threads or not threads[symbol].is_alive():
                     start_thread_for_symbol(symbol, args, manager, symbols_allowed)
                     active_symbols.add(symbol)
+                    remaining_slots -= 1
                 else:
                     logging.info(f"Thread for symbol {symbol} is already active. Skipping.")
+            else:
+                logging.info(f"Skipping symbol {symbol} as the maximum allowed symbols ({symbols_allowed}) are already running.")
 
     except Exception as e:
         logging.error(f"Exception caught in bybit_auto_rotation: {str(e)}")
-
+        
 def fetch_updated_symbols(args, manager):
     """Fetches and logs potential symbols based on the current trading strategy."""
     strategy = args.strategy.lower()

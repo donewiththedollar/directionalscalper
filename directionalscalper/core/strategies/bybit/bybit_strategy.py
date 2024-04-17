@@ -2086,6 +2086,33 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"[{symbol}] Long grid levels: {grid_levels_long}")
                 logging.info(f"[{symbol}] Short grid levels: {grid_levels_short}")
 
+                # Check if grid levels need to be updated based on dynamic buffer
+                replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer(
+                    symbol,
+                    long_pos_price,
+                    short_pos_price,
+                    long_pos_qty,
+                    short_pos_qty,
+                    min_buffer_percentage,
+                    max_buffer_percentage
+                )
+
+                if replace_long_grid:
+                    long_distance_from_entry = abs(current_price - long_pos_price) / long_pos_price
+                    buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * long_distance_from_entry
+                    buffer_distance_long = current_price * buffer_percentage_long
+                    price_range_long = current_price - outer_price_long
+                    grid_levels_long = [current_price - buffer_distance_long - price_range_long * factor for factor in factors]
+                    logging.info(f"[{symbol}] Recalculated long grid levels with updated buffer: {grid_levels_long}")
+
+                if replace_short_grid:
+                    short_distance_from_entry = abs(current_price - short_pos_price) / short_pos_price
+                    buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * short_distance_from_entry
+                    buffer_distance_short = current_price * buffer_percentage_short
+                    price_range_short = outer_price_short - current_price
+                    grid_levels_short = [current_price + buffer_distance_short + price_range_short * factor for factor in factors]
+                    logging.info(f"[{symbol}] Recalculated short grid levels with updated buffer: {grid_levels_short}")
+                    
                 qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
                 min_qty = float(self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
                 logging.info(f"[{symbol}] Quantity precision: {qty_precision}, Minimum quantity: {min_qty}")
@@ -3234,6 +3261,41 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.info(f"Exception caught in grid {e}")
 
+    def should_replace_grid_updated_buffer(self, symbol: str, long_pos_price: float, short_pos_price: float, long_pos_qty: float, short_pos_qty: float, min_buffer_percentage: float, max_buffer_percentage: float) -> tuple:
+        try:
+            current_price = self.exchange.get_current_price(symbol)
+            
+            replace_long_grid = False
+            replace_short_grid = False
+            
+            if long_pos_qty > 0:
+                long_distance_from_entry = abs(current_price - long_pos_price) / long_pos_price
+                buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * long_distance_from_entry
+                buffer_distance_long = current_price * buffer_percentage_long
+                
+                if abs(current_price - long_pos_price) > buffer_distance_long:
+                    replace_long_grid = True
+                    logging.info(f"[{symbol}] Price change exceeds updated buffer distance for long position. Replacing long grid.")
+                else:
+                    logging.info(f"[{symbol}] Price change does not exceed updated buffer distance for long position. No need to replace long grid.")
+            
+            if short_pos_qty > 0:
+                short_distance_from_entry = abs(current_price - short_pos_price) / short_pos_price
+                buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * short_distance_from_entry
+                buffer_distance_short = current_price * buffer_percentage_short
+                
+                if abs(current_price - short_pos_price) > buffer_distance_short:
+                    replace_short_grid = True
+                    logging.info(f"[{symbol}] Price change exceeds updated buffer distance for short position. Replacing short grid.")
+                else:
+                    logging.info(f"[{symbol}] Price change does not exceed updated buffer distance for short position. No need to replace short grid.")
+            
+            return replace_long_grid, replace_short_grid
+        
+        except Exception as e:
+            logging.exception(f"Exception caught in should_replace_grid_updated_buffer: {e}")
+            return False, False
+        
     def should_reissue_orders_revised(self, symbol: str, reissue_threshold: float, long_pos_qty: float, short_pos_qty: float) -> tuple:
         try:
             current_price = self.exchange.get_current_price(symbol)
