@@ -384,7 +384,7 @@ def update_rotator_queue(rotator_queue, latest_symbols):
     return deque(rotator_set)
 
 def bybit_auto_rotation(args, manager, symbols_allowed):
-    global latest_rotator_symbols, last_rotator_update_time
+    global latest_rotator_symbols, last_rotator_update_time, active_symbols
 
     try:
         current_time = time.time()
@@ -404,19 +404,26 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
 
         # Thread management for existing and new symbols
         active_symbols = manage_threads(args, manager, symbols_allowed, open_position_symbols)
+        logging.info(f"Active symbols: {active_symbols}")
+
+        # Start threads for open position symbols not already active, up to symbols_allowed limit
+        remaining_slots = symbols_allowed - len(active_symbols)
+        for symbol in open_position_symbols:
+            if symbol not in active_symbols and remaining_slots > 0:
+                if symbol not in threads or not threads[symbol].is_alive():
+                    start_thread_for_symbol(symbol, args, manager, symbols_allowed)
+                    active_symbols.add(symbol)
+                    remaining_slots -= 1
 
         # Rotate out inactive symbols and start threads for new active symbols
-        remaining_slots = symbols_allowed - len(active_symbols)
         for symbol in latest_rotator_symbols:
-            if symbol not in active_symbols and remaining_slots > 0:
+            if symbol not in active_symbols and symbol not in open_position_symbols and remaining_slots > 0:
                 if symbol not in threads or not threads[symbol].is_alive():
                     start_thread_for_symbol(symbol, args, manager, symbols_allowed)
                     active_symbols.add(symbol)
                     remaining_slots -= 1
                 else:
                     logging.info(f"Thread for symbol {symbol} is already active. Skipping.")
-            else:
-                logging.info(f"Skipping symbol {symbol} as the maximum allowed symbols ({symbols_allowed}) are already running.")
 
     except Exception as e:
         logging.error(f"Exception caught in bybit_auto_rotation: {str(e)}")
@@ -463,7 +470,8 @@ def log_symbol_details(strategy, symbols):
 
 def manage_threads(args, manager, symbols_allowed, open_position_symbols):
     """Ensure that every open position symbol has an active thread and handle thread lifecycle."""
-    active_symbols = set()
+    global active_symbols  # Use the global active_symbols variable
+    active_symbols.clear()  # Clear the active_symbols set before updating it
     for symbol in open_position_symbols:
         if symbol not in threads or not threads[symbol].is_alive():
             logging.warning(f"No active thread for open position symbol: {symbol}. Starting a new thread.")
