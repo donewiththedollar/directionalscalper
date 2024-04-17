@@ -246,7 +246,7 @@ class BybitBasicGridBufferedQS(BybitStrategy):
             since_timestamp = int((datetime.now() - timedelta(days=1)).timestamp() * 1000)  # 24 hours ago in milliseconds
             recent_trades = self.fetch_recent_trades_for_symbol(symbol, since=since_timestamp, limit=20)
 
-            logging.info(f"Recent trades for {symbol} : {recent_trades}")
+            #logging.info(f"Recent trades for {symbol} : {recent_trades}")
 
             # Check if there are any trades in the last 24 hours
             recent_activity = any(trade['timestamp'] >= since_timestamp for trade in recent_trades)
