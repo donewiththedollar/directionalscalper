@@ -64,22 +64,22 @@ def standardize_symbol(symbol):
 
 def get_available_strategies():
     return [
+        'basicgridbuffered',
+        'basicgridbufferedqs',
+        'basicgridmfipersist',
+        'basicgridpersistnotional',
         'qstrend',
         'qstrendnotional',
         'qstrenderinotional',
         'qsematrend',
         'qstrendemas',
         'qstrendemasnotional',
+        'qsgridnotional',
         'mfieritrend',
         'qstrendob',
         'qstrendlongonly',
         'qstrendshortonly',
         'qstrend_unified',
-        'basicgridmfipersist',
-        'basicgridpersistnotional',
-        'qsgridnotional',
-        'basicgridbuffered',
-        'basicgridbufferedqs',
         'qstrendspot',
     ]
 
