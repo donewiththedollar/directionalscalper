@@ -413,7 +413,12 @@ def update_active_threads(open_position_symbols, args, manager, symbols_allowed)
 def manage_rotator_symbols(rotator_symbols, args, manager, symbols_allowed):
     global active_symbols
     needed_slots = symbols_allowed - len(active_symbols)
-    for symbol in rotator_symbols:
+    
+    # Convert set to list and shuffle for random selection
+    random_rotator_symbols = list(rotator_symbols)
+    random.shuffle(random_rotator_symbols)
+    
+    for symbol in random_rotator_symbols:
         if needed_slots <= 0:
             break
         if symbol not in active_symbols and (symbol not in threads or not threads[symbol][0].is_alive()):
@@ -422,7 +427,7 @@ def manage_rotator_symbols(rotator_symbols, args, manager, symbols_allowed):
                 needed_slots -= 1
                 logging.info(f"Added new thread for rotator symbol: {symbol}")
         manage_excess_threads(symbols_allowed)
-
+        
 def manage_excess_threads(symbols_allowed):
     global active_symbols
     while len(active_symbols) > symbols_allowed:
