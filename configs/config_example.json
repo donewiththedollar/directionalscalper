@@ -42,6 +42,8 @@
     "dashboard_enabled": false,
     "shared_data_path": "data/",
     "linear_grid": {
+      "wallet_exposure_limit_long": 0.001,
+      "wallet_exposure_limit_short": 0.001,
       "levels": 6,
       "strength": 1.5,
       "outer_price_distance": 0.059,

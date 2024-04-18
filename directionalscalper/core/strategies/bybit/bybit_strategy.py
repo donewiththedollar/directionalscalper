@@ -2015,7 +2015,7 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.error(f"Exception caught in bybit_1m_mfi_quickscalp_trend_long_only_spot: {e}")
 
-    def linear_grid_handle_positions_mfirsi_persistent_notional_dynamic_buffer_qs(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float, short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, min_buffer_percentage: float, max_buffer_percentage: float, symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool):
+    def linear_grid_handle_positions_mfirsi_persistent_notional_dynamic_buffer_qs(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float, short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, wallet_exposure_limit_long: float, wallet_exposure_limit_short: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, min_buffer_percentage: float, max_buffer_percentage: float, symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool):
         try:
             if symbol not in self.symbol_locks:
                 self.symbol_locks[symbol] = threading.Lock()
@@ -2117,8 +2117,12 @@ class BybitStrategy(BaseStrategy):
                 min_qty = float(self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
                 logging.info(f"[{symbol}] Quantity precision: {qty_precision}, Minimum quantity: {min_qty}")
 
-                total_amount_long = self.calculate_total_amount_notional(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_long, "buy", levels, enforce_full_grid) if long_mode else 0
-                total_amount_short = self.calculate_total_amount_notional(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_short, "sell", levels, enforce_full_grid) if short_mode else 0
+                # total_amount_long = self.calculate_total_amount_notional(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_long, "buy", levels, enforce_full_grid) if long_mode else 0
+                # total_amount_short = self.calculate_total_amount_notional(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_short, "sell", levels, enforce_full_grid) if short_mode else 0
+                # logging.info(f"[{symbol}] Total amount long: {total_amount_long}, Total amount short: {total_amount_short}")
+
+                total_amount_long = self.calculate_total_amount_notional_ls(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit_long, wallet_exposure_limit_short, user_defined_leverage_long, "buy", levels, enforce_full_grid) if long_mode else 0
+                total_amount_short = self.calculate_total_amount_notional_ls(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit_long, wallet_exposure_limit_short, user_defined_leverage_short, "sell", levels, enforce_full_grid) if short_mode else 0
                 logging.info(f"[{symbol}] Total amount long: {total_amount_long}, Total amount short: {total_amount_short}")
 
                 amounts_long = self.calculate_order_amounts_notional(symbol, total_amount_long, levels, strength, qty_precision, enforce_full_grid)
@@ -3499,7 +3503,25 @@ class BybitStrategy(BaseStrategy):
         
         logging.info(f"Calculated order amounts: {amounts}")
         return amounts
-    
+
+    def calculate_total_amount_notional_ls(self, symbol: str, total_equity: float, best_ask_price: float, best_bid_price: float, wallet_exposure_limit_long: float, wallet_exposure_limit_short: float, user_defined_leverage: float, side: str, levels: int, enforce_full_grid: bool) -> float:
+        logging.info(f"Calculating total amount for {symbol} with total_equity: {total_equity}, best_ask_price: {best_ask_price}, best_bid_price: {best_bid_price}, side: {side}, levels: {levels}, enforce_full_grid: {enforce_full_grid}")
+        
+        # Selecting the appropriate wallet exposure limit based on the side of the order
+        wallet_exposure_limit = wallet_exposure_limit_long if side == 'buy' else wallet_exposure_limit_short
+
+        min_notional_value = 100.5 if symbol in ["BTCUSDT", "BTC-PERP"] else 20.1 if symbol in ["ETHUSDT", "ETH-PERP"] or symbol.endswith("USDC") else 6
+        max_position_value = total_equity * wallet_exposure_limit * user_defined_leverage
+        logging.info(f"Maximum position value for {symbol}: {max_position_value}")
+
+        if enforce_full_grid:
+            total_notional_amount = math.ceil(min_notional_value * levels)  # Ensures all levels are fully funded
+        else:
+            total_notional_amount = max_position_value
+
+        logging.info(f"Calculated total notional amount for {symbol}: {total_notional_amount}")
+        return total_notional_amount
+
     def calculate_total_amount_notional(self, symbol: str, total_equity: float, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float, side: str, levels: int, enforce_full_grid: bool) -> float:
         logging.info(f"Calculating total amount for {symbol} with total_equity: {total_equity}, best_ask_price: {best_ask_price}, best_bid_price: {best_bid_price}, wallet_exposure_limit: {wallet_exposure_limit}, user_defined_leverage: {user_defined_leverage}, side: {side}, levels: {levels}, enforce_full_grid: {enforce_full_grid}")
         

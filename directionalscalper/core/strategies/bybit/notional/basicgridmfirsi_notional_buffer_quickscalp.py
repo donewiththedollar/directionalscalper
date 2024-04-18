@@ -45,6 +45,8 @@ class BybitBasicGridBufferedQS(BybitStrategy):
             self.enforce_full_grid = self.config.linear_grid['enforce_full_grid']
             self.min_buffer_percentage = self.config.linear_grid['min_buffer_percentage']
             self.max_buffer_percentage = self.config.linear_grid['max_buffer_percentage']
+            self.wallet_exposure_limit_long = self.config.linear_grid['wallet_exposure_limit_long']
+            self.wallet_exposure_limit_short = self.config.linear_grid['wallet_exposure_limit_short']
             # self.reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
             self.upnl_threshold_pct = self.config.upnl_threshold_pct
             self.volume_check = self.config.volume_check
@@ -161,6 +163,8 @@ class BybitBasicGridBufferedQS(BybitStrategy):
             enforce_full_grid = self.config.linear_grid['enforce_full_grid']
             min_buffer_percentage = self.config.linear_grid['min_buffer_percentage']
             max_buffer_percentage = self.config.linear_grid['max_buffer_percentage']
+            wallet_exposure_limit_long = self.config.linear_grid['wallet_exposure_limit_long']
+            wallet_exposure_limit_short = self.config.linear_grid['wallet_exposure_limit_short']
             # reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
 
             volume_check = self.config.volume_check
@@ -330,9 +334,9 @@ class BybitBasicGridBufferedQS(BybitStrategy):
                 logging.info(f"Open symbols: {open_symbols}")
                 open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
-                logging.info(f"Open symbols: {open_symbols}")
+                #logging.info(f"Open symbols: {open_symbols}")
 
-                logging.info(f"Open orders: {open_orders}")
+                #logging.info(f"Open orders: {open_orders}")
 
                 market_data = self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)
                 min_qty = float(market_data["min_qty"])
@@ -677,6 +681,8 @@ class BybitBasicGridBufferedQS(BybitStrategy):
                             outer_price_distance,
                             reissue_threshold,
                             self.wallet_exposure_limit,
+                            wallet_exposure_limit_long,
+                            wallet_exposure_limit_short,
                             self.user_defined_leverage_long,
                             self.user_defined_leverage_short,
                             long_mode,
