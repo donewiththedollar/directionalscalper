@@ -188,7 +188,7 @@ class DirectionalMarketMaker:
         elif strategy_name.lower() == 'qstrend':
             strategy = bybit_scalping.BybitQuickScalpTrend(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'qstrend_notional':
+        elif strategy_name.lower() == 'qstrendnotional':
             strategy = bybit_notional.BybitQuickScalpTrendNotional(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'qsematrend':
