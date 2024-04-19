@@ -66,20 +66,17 @@ def standardize_symbol(symbol):
 
 def get_available_strategies():
     return [
-        'basicgridbuffered',
-        'basicgridbufferedqs',
-        'basicgridmfipersist',
-        'basicgridpersistnotional',
+        'qsgridbasic',
+        'qsgriddynamic',
+        'basicgridpersist',
         'qstrend',
-        'qstrendnotional',
-        'qstrendobnotional',
-        'qstrenderinotional',
+        'qstrendob',
+        'qstrenderi',
+        'qstrendemas',
+        'qstrend',
         'qsematrend',
         'qstrendemas',
-        'qstrendemasnotional',
-        'qsgridnotional',
         'mfieritrend',
-        'qstrendob',
         'qstrendlongonly',
         'qstrendshortonly',
         'qstrend_unified',
@@ -186,9 +183,6 @@ class DirectionalMarketMaker:
             strategy = bybit_scalping.BybitMFIRSIQuickScalp(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'qstrend':
-            strategy = bybit_scalping.BybitQuickScalpTrend(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'qstrendnotional':
             strategy = bybit_notional.BybitQuickScalpTrendNotional(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'qsematrend':
@@ -206,46 +200,34 @@ class DirectionalMarketMaker:
         elif strategy_name.lower() == 'qstrendshortonly':
             strategy = bybit_scalping.BybitMFIRSIQuickScalpShort(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'qstrendob':
-            strategy = bybit_scalping.BybitQuickScalpTrendOB(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'qstrend_unified':
             strategy = bybit_scalping.BybitQuickScalpUnified(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'qstrendemas':
-            strategy = bybit_scalping.BybitQSTrendDoubleMA(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'qstrendemasnotional':
             strategy = bybit_notional.BybitQSTrendDoubleMANotional(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'basicgrid':
             strategy = bybit_scalping.BybitBasicGrid(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'basicgridmfirsi':
-            strategy = bybit_scalping.BybitBasicGridMFIRSI(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'basicgridmfipersist':
-            strategy = bybit_scalping.BybitBasicGridMFIRSIPersisent(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'qstrendspot':
             strategy = bybit_scalping.BybitQuickScalpTrendSpot(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'basicgridpersistnotional':
+        elif strategy_name.lower() == 'basicgridpersist':
             strategy = bybit_notional.BybitBasicGridMFIRSIPersisentNotional(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'qstrenderinotional':
+        elif strategy_name.lower() == 'qstrenderi':
             strategy = bybit_notional.BybitQuickScalpTrendERINotional(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'qsgridnotional':
             strategy = bybit_notional.BybitQSGridNotional(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'basicgridbuffered':
+        elif strategy_name.lower() == 'qsgridbasic':
             strategy = bybit_notional.BybitBasicGridBuffered(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'basicgridbufferedqs':
+        elif strategy_name.lower() == 'qsgriddynamic':
             strategy = bybit_notional.BybitBasicGridBufferedQS(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'qstrendobnotional':
+        elif strategy_name.lower() == 'qstrendob':
             strategy = bybit_notional.BybitQuickScalpTrendOBNotional(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
             
