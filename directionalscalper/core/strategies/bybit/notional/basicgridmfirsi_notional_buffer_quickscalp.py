@@ -47,6 +47,10 @@ class BybitBasicGridBufferedQS(BybitStrategy):
             self.max_buffer_percentage = self.config.linear_grid['max_buffer_percentage']
             self.wallet_exposure_limit_long = self.config.linear_grid['wallet_exposure_limit_long']
             self.wallet_exposure_limit_short = self.config.linear_grid['wallet_exposure_limit_short']
+            self.min_buffer_percentage_ar = self.config.linear_grid['min_buffer_percentage_ar']
+            self.max_buffer_percentage_ar = self.config.linear_grid['max_buffer_percentage_ar']
+            self.upnl_auto_reduce_threshold_long = self.config.linear_grid['upnl_auto_reduce_threshold_long']
+            self.upnl_auto_reduce_threshold_short = self.config.linear_grid['upnl_auto_reduce_threshold_short']
             # self.reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
             self.upnl_threshold_pct = self.config.upnl_threshold_pct
             self.volume_check = self.config.volume_check
@@ -135,6 +139,8 @@ class BybitBasicGridBufferedQS(BybitStrategy):
             self.current_leverage = self.exchange.get_current_max_leverage_bybit(symbol)
             self.max_leverage = self.exchange.get_current_max_leverage_bybit(symbol)
 
+            logging.info(f"Current leverage: {self.current_leverage}")
+
             logging.info(f"Max leverage for {symbol}: {self.max_leverage}")
 
             self.adjust_risk_parameters(exchange_max_leverage=self.max_leverage)
@@ -165,6 +171,10 @@ class BybitBasicGridBufferedQS(BybitStrategy):
             max_buffer_percentage = self.config.linear_grid['max_buffer_percentage']
             wallet_exposure_limit_long = self.config.linear_grid['wallet_exposure_limit_long']
             wallet_exposure_limit_short = self.config.linear_grid['wallet_exposure_limit_short']
+            min_buffer_percentage_ar = self.config.linear_grid['min_buffer_percentage_ar']
+            max_buffer_percentage_ar = self.config.linear_grid['max_buffer_percentage_ar']
+            upnl_auto_reduce_threshold_long = self.config.linear_grid['upnl_auto_reduce_threshold_long']
+            upnl_auto_reduce_threshold_short = self.config.linear_grid['upnl_auto_reduce_threshold_short']
             # reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
 
             volume_check = self.config.volume_check
@@ -492,7 +502,7 @@ class BybitBasicGridBufferedQS(BybitStrategy):
                     self.adjust_risk_parameters(exchange_max_leverage=self.max_leverage)
 
                     # Calculate dynamic entry sizes for long and short positions
-                    long_dynamic_amount, short_dynamic_amount = self.calculate_dynamic_amounts(
+                    long_dynamic_amount, short_dynamic_amount = self.calculate_dynamic_amounts_notional(
                         symbol=symbol,
                         total_equity=total_equity,
                         best_ask_price=best_ask_price,
@@ -523,26 +533,29 @@ class BybitBasicGridBufferedQS(BybitStrategy):
                     initial_long_stop_loss = None
 
                     try:
-                        self.auto_reduce_logic_grid(
+                        self.auto_reduce_logic_grid_hardened(
                             symbol,
                             min_qty,
                             long_pos_price,
                             short_pos_price,
                             long_pos_qty,
                             short_pos_qty,
+                            long_upnl,
+                            short_upnl,
                             auto_reduce_enabled,
                             total_equity,
-                            available_equity,
-                            current_market_price=current_price,
-                            long_dynamic_amount=long_dynamic_amount,
-                            short_dynamic_amount=short_dynamic_amount,
-                            auto_reduce_start_pct=auto_reduce_start_pct,
-                            max_pos_balance_pct=max_pos_balance_pct,
-                            upnl_threshold_pct=upnl_threshold_pct,
-                            shared_symbols_data=shared_symbols_data
+                            current_price,
+                            long_dynamic_amount,
+                            short_dynamic_amount,
+                            auto_reduce_start_pct,
+                            min_buffer_percentage_ar,
+                            max_buffer_percentage_ar,
+                            upnl_auto_reduce_threshold_long,
+                            upnl_auto_reduce_threshold_short,
+                            self.current_leverage
                         )
                     except Exception as e:
-                        logging.info(f"Exception caught in auto_reduce_logic_grid {e}")
+                        logging.info(f"Hardened grid AR exception caught {e}")
 
                     self.auto_reduce_percentile_logic(
                         symbol,
