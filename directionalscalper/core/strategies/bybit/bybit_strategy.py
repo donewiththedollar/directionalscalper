@@ -173,8 +173,11 @@ class BybitStrategy(BaseStrategy):
             # upnl_long_exceeded = long_upnl_pct < -abs(upnl_auto_reduce_threshold_long)
             # upnl_short_exceeded = short_upnl_pct < -abs(upnl_auto_reduce_threshold_short)
 
-            upnl_long_exceeded = long_upnl_pct < upnl_auto_reduce_threshold_long
-            upnl_short_exceeded = short_upnl_pct < upnl_auto_reduce_threshold_short
+            # upnl_long_exceeded = long_upnl_pct < upnl_auto_reduce_threshold_long
+            # upnl_short_exceeded = short_upnl_pct < upnl_auto_reduce_threshold_short
+
+            upnl_long_exceeded = abs(long_upnl_pct) > upnl_auto_reduce_threshold_long
+            upnl_short_exceeded = abs(short_upnl_pct) > upnl_auto_reduce_threshold_short
 
             logging.info(f"{symbol} UPnL Exceeded - Long: {upnl_long_exceeded}, Short: {upnl_short_exceeded}")
 
