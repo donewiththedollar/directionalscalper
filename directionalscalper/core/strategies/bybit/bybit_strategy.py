@@ -3633,9 +3633,9 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"Placed {side} order at level {level} for {symbol} with amount {amount}")
                         filled_levels.add(level)  # Add the level to filled_levels
                     else:
-                        logging.error(f"Failed to place {side} order at level {level} for {symbol} with amount {amount}")
+                        logging.info(f"Failed to place {side} order at level {level} for {symbol} with amount {amount}")
                 except Exception as e:
-                    logging.error(f"Exception when placing {side} order at level {level} for {symbol}: {e}")
+                    logging.info(f"Exception when placing {side} order at level {level} for {symbol}: {e}")
             else:
                 logging.info(f"Skipping {side} order at level {level} for {symbol} as it is already filled.")
 
