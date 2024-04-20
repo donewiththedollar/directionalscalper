@@ -166,6 +166,19 @@ class BybitStrategy(BaseStrategy):
             short_loss_exceeded = short_pos_price is not None and short_pos_price != 0 and current_market_price > short_pos_price * (1 + auto_reduce_start_pct)
 
             logging.info(f"{symbol} Price Loss Exceeded - Long: {long_loss_exceeded}, Short: {short_loss_exceeded}")
+            logging.info(f"{symbol} Auto-Reduce Start %: {auto_reduce_start_pct * 100:.2f}")
+
+            if long_pos_price is not None and long_pos_price != 0:
+                long_loss_pct = (long_pos_price - current_market_price) / long_pos_price * 100
+                logging.info(f"{symbol} Long Loss %: {long_loss_pct:.2f}")
+            else:
+                logging.info(f"{symbol} Long position price is None or zero, skipping long loss percentage calculation.")
+
+            if short_pos_price is not None and short_pos_price != 0:
+                short_loss_pct = (current_market_price - short_pos_price) / short_pos_price * 100
+                logging.info(f"{symbol} Short Loss %: {short_loss_pct:.2f}")
+            else:
+                logging.info(f"{symbol} Short position price is None or zero, skipping short loss percentage calculation.")
 
             upnl_long_exceeded = abs(long_upnl_pct) > upnl_auto_reduce_threshold_long
             upnl_short_exceeded = abs(short_upnl_pct) > upnl_auto_reduce_threshold_short
@@ -192,34 +205,47 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.error(f"Error in auto-reduce logic for {symbol}: {e}")
             raise  # Optionally re-raise exception after logging for external handling or fail-safe mechanisms.
-        
+
     def execute_grid_auto_reduce_hardened(self, position_type, symbol, pos_qty, dynamic_amount, market_price, total_equity, long_pos_price, short_pos_price, min_qty, min_buffer_percentage_ar, max_buffer_percentage_ar):
         """
-        Executes a single auto-reduction order for a position based on dynamic buffer percentages,
-        placing further orders as needed only when conditions are re-evaluated and still justify it.
+        Executes a single auto-reduction order for a position based on the best market price available,
+        aiming to ensure a higher probability of order execution.
         """
         amount_precision, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
         price_precision_level = -int(math.log10(price_precision))
         qty_precision_level = -int(math.log10(amount_precision))
-        
-        # Calculate dynamic buffer based on the current market price deviation from the entry price
-        entry_price = long_pos_price if position_type == 'long' else short_pos_price
-        price_deviation = abs(market_price - entry_price) / entry_price
-        buffer_percentage = min_buffer_percentage_ar + (max_buffer_percentage_ar - min_buffer_percentage_ar) * price_deviation
-        price_interval = market_price * buffer_percentage  # Dynamic interval based on the calculated buffer
 
-        # Calculate a single order placement price
-        step_price = market_price - price_interval if position_type == 'long' else market_price + price_interval
-        step_price = round(step_price, price_precision_level)
+        # Fetch current best bid and ask prices to place the order as close as possible to the market
+        # best_bid, best_ask = self.exchange.get_best_bid_ask(symbol)
+
+        current_price = self.exchange.get_current_price(symbol)
+
+        order_book = self.exchange.get_orderbook(symbol)
+        best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol, current_price)
+        best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol, current_price)
+        
+        # Determine the appropriate price to place the order based on position type
+        order_price = best_bid_price if position_type == 'long' else best_ask_price
+        order_price = round(order_price, price_precision_level)
         adjusted_dynamic_amount = max(dynamic_amount, min_qty)
         adjusted_dynamic_amount = round(adjusted_dynamic_amount, qty_precision_level)
 
-        # Tag the order for easy identification and management
-        tag = f"auto_reduce_{position_type}_{symbol}_{step_price}"
-        self.place_tagged_limit_order(symbol, 'sell' if position_type == 'long' else 'buy', adjusted_dynamic_amount, step_price, True, tag)
+        # Determine the positionIdx based on the position_type
+        positionIdx = 1 if position_type == 'long' else 2
+
+        logging.info(f"Attempting to place auto-reduce order: Symbol={symbol}, Type={'sell' if position_type == 'long' else 'buy'}, Qty={adjusted_dynamic_amount}, Price={order_price}")
+
+        # Try placing the order using the provided utility method
+        try:
+            order_result = self.postonly_limit_order_bybit_nolimit(symbol, 'sell' if position_type == 'long' else 'buy', adjusted_dynamic_amount, order_price, positionIdx, reduceOnly=True)
+            logging.info(f"Auto-reduce order placed successfully: {order_result}")
+        except Exception as e:
+            logging.error(f"Failed to place auto-reduce order for {symbol}: {e}")
+            raise
 
         # Log the order details for monitoring
-        logging.info(f"Placed auto-reduce order for {symbol} at {step_price} for {adjusted_dynamic_amount} with tag {tag}")
+        logging.info(f"Placed auto-reduce order for {symbol} at {order_price} for {adjusted_dynamic_amount}")
+
 
     def auto_reduce_logic_grid(self, symbol, min_qty, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
                                 auto_reduce_enabled, total_equity, available_equity, current_market_price,

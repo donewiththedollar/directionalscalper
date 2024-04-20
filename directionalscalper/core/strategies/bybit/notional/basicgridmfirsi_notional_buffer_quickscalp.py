@@ -556,7 +556,7 @@ class BybitBasicGridBufferedQS(BybitStrategy):
                         )
                     except Exception as e:
                         logging.info(f"Hardened grid AR exception caught {e}")
-
+                        
                     self.auto_reduce_percentile_logic(
                         symbol,
                         long_pos_qty,
