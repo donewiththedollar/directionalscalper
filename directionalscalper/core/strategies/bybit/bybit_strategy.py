@@ -138,6 +138,70 @@ class BybitStrategy(BaseStrategy):
             logging.error(f"Error placing {side} order at {price} with tag {tag}: {e}")
             return None
 
+    # def auto_reduce_logic_grid_hardened(self, symbol, min_qty, long_pos_price, short_pos_price, 
+    #                                     long_pos_qty, short_pos_qty, long_upnl, short_upnl,
+    #                                     auto_reduce_enabled, total_equity, current_market_price,
+    #                                     long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct,
+    #                                     min_buffer_percentage_ar, max_buffer_percentage_ar,
+    #                                     upnl_auto_reduce_threshold_long, upnl_auto_reduce_threshold_short, current_leverage):
+    #     logging.info(f"Starting auto-reduce logic for symbol: {symbol}")
+    #     if not auto_reduce_enabled:
+    #         logging.info(f"Auto-reduce is disabled for {symbol}.")
+    #         return
+
+    #     try:
+    #         # Calculating margin used for positions based on the leverage
+    #         long_margin_used = (long_pos_qty * long_pos_price) / current_leverage if long_pos_qty else 0
+    #         short_margin_used = (short_pos_qty * short_pos_price) / current_leverage if short_pos_qty else 0
+            
+    #         logging.info(f"{symbol} Margin used for Long: {long_margin_used:.2f}, for Short: {short_margin_used:.2f}")
+            
+    #         # Adjusting uPNL percentage calculations to use margin used
+    #         long_upnl_pct = (long_upnl / long_margin_used) * 100 if long_margin_used else 0
+    #         short_upnl_pct = (short_upnl / short_margin_used) * 100 if short_margin_used else 0
+
+    #         logging.info(f"{symbol} Long uPNL %: {long_upnl_pct:.2f}, Short uPNL %: {short_upnl_pct:.2f}")
+
+    #         long_loss_exceeded = long_pos_price is not None and current_market_price < long_pos_price * (1 - auto_reduce_start_pct)
+    #         short_loss_exceeded = short_pos_price is not None and current_market_price > short_pos_price * (1 + auto_reduce_start_pct)
+
+    #         logging.info(f"{symbol} Price Loss Exceeded - Long: {long_loss_exceeded}, Short: {short_loss_exceeded}")
+
+    #         # upnl_long_exceeded = long_upnl_pct < -upnl_auto_reduce_threshold_long
+    #         # upnl_short_exceeded = short_upnl_pct < -upnl_auto_reduce_threshold_short
+
+    #         # upnl_long_exceeded = long_upnl_pct < -abs(upnl_auto_reduce_threshold_long)
+    #         # upnl_short_exceeded = short_upnl_pct < -abs(upnl_auto_reduce_threshold_short)
+
+    #         # upnl_long_exceeded = long_upnl_pct < upnl_auto_reduce_threshold_long
+    #         # upnl_short_exceeded = short_upnl_pct < upnl_auto_reduce_threshold_short
+
+    #         upnl_long_exceeded = abs(long_upnl_pct) > upnl_auto_reduce_threshold_long
+    #         upnl_short_exceeded = abs(short_upnl_pct) > upnl_auto_reduce_threshold_short
+
+    #         logging.info(f"{symbol} UPnL Exceeded - Long: {upnl_long_exceeded}, Short: {upnl_short_exceeded}")
+
+    #         trigger_auto_reduce_long = long_pos_qty > 0 and long_loss_exceeded and upnl_long_exceeded
+    #         trigger_auto_reduce_short = short_pos_qty > 0 and short_loss_exceeded and upnl_short_exceeded
+
+    #         logging.info(f"{symbol} Trigger Auto-Reduce - Long: {trigger_auto_reduce_long}, Short: {trigger_auto_reduce_short}")
+
+    #         if trigger_auto_reduce_long:
+    #             logging.info(f"Executing auto-reduce for long position in {symbol}.")
+    #             self.execute_grid_auto_reduce_hardened('long', symbol, long_pos_qty, long_dynamic_amount, current_market_price, total_equity, long_pos_price, short_pos_price, min_qty, min_buffer_percentage_ar, max_buffer_percentage_ar)
+    #         else:
+    #             logging.info(f"No auto-reduce executed for long position in {symbol}.")
+
+    #         if trigger_auto_reduce_short:
+    #             logging.info(f"Executing auto-reduce for short position in {symbol}.")
+    #             self.execute_grid_auto_reduce_hardened('short', symbol, short_pos_qty, short_dynamic_amount, current_market_price, total_equity, long_pos_price, short_pos_price, min_qty, min_buffer_percentage_ar, max_buffer_percentage_ar)
+    #         else:
+    #             logging.info(f"No auto-reduce executed for short position in {symbol}.")
+
+    #     except Exception as e:
+    #         logging.error(f"Error in auto-reduce logic for {symbol}: {e}")
+    #         raise  # Optionally re-raise exception after logging for external handling or fail-safe mechanisms.
+
     def auto_reduce_logic_grid_hardened(self, symbol, min_qty, long_pos_price, short_pos_price, 
                                         long_pos_qty, short_pos_qty, long_upnl, short_upnl,
                                         auto_reduce_enabled, total_equity, current_market_price,
@@ -162,19 +226,10 @@ class BybitStrategy(BaseStrategy):
 
             logging.info(f"{symbol} Long uPNL %: {long_upnl_pct:.2f}, Short uPNL %: {short_upnl_pct:.2f}")
 
-            long_loss_exceeded = long_pos_price is not None and current_market_price < long_pos_price * (1 - auto_reduce_start_pct)
-            short_loss_exceeded = short_pos_price is not None and current_market_price > short_pos_price * (1 + auto_reduce_start_pct)
+            long_loss_exceeded = long_pos_price is not None and long_pos_price != 0 and current_market_price < long_pos_price * (1 - auto_reduce_start_pct)
+            short_loss_exceeded = short_pos_price is not None and short_pos_price != 0 and current_market_price > short_pos_price * (1 + auto_reduce_start_pct)
 
             logging.info(f"{symbol} Price Loss Exceeded - Long: {long_loss_exceeded}, Short: {short_loss_exceeded}")
-
-            # upnl_long_exceeded = long_upnl_pct < -upnl_auto_reduce_threshold_long
-            # upnl_short_exceeded = short_upnl_pct < -upnl_auto_reduce_threshold_short
-
-            # upnl_long_exceeded = long_upnl_pct < -abs(upnl_auto_reduce_threshold_long)
-            # upnl_short_exceeded = short_upnl_pct < -abs(upnl_auto_reduce_threshold_short)
-
-            # upnl_long_exceeded = long_upnl_pct < upnl_auto_reduce_threshold_long
-            # upnl_short_exceeded = short_upnl_pct < upnl_auto_reduce_threshold_short
 
             upnl_long_exceeded = abs(long_upnl_pct) > upnl_auto_reduce_threshold_long
             upnl_short_exceeded = abs(short_upnl_pct) > upnl_auto_reduce_threshold_short
@@ -201,7 +256,7 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.error(f"Error in auto-reduce logic for {symbol}: {e}")
             raise  # Optionally re-raise exception after logging for external handling or fail-safe mechanisms.
-
+        
     def execute_grid_auto_reduce_hardened(self, position_type, symbol, pos_qty, dynamic_amount, market_price, total_equity, long_pos_price, short_pos_price, min_qty, min_buffer_percentage_ar, max_buffer_percentage_ar):
         """
         Executes a single auto-reduction order for a position based on dynamic buffer percentages,
