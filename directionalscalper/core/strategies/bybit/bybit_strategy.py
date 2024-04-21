@@ -3705,32 +3705,40 @@ class BybitStrategy(BaseStrategy):
         unique_id = f"{symbol[:3]}_{side[0]}_{level_str}_{timestamp}"  # Build a compact OrderLinkedID
         return unique_id[:45]  # Ensure the ID does not exceed 45 characters
 
-
     def issue_grid_orders(self, symbol: str, side: str, grid_levels: list, amounts: list, is_long: bool, filled_levels: set):
         """
         Check the status of existing grid orders and place new orders for unfilled levels.
+        This function assumes that a lock object exists for each symbol as self.symbol_locks[symbol].
         """
-        open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
-        logging.info(f"Open orders data for {symbol}: {open_orders}")
+        if symbol not in self.symbol_locks:
+            self.symbol_locks[symbol] = threading.Lock()
 
-        # Place new grid orders for unfilled levels
-        for level, amount in zip(grid_levels, amounts):
-            if level not in filled_levels:
-                order_link_id = self.generate_order_link_id(symbol, side, level)
-                position_idx = 1 if is_long else 2
-                try:
-                    order = self.exchange.create_tagged_limit_order_bybit(symbol, side, amount, level, positionIdx=position_idx, orderLinkId=order_link_id)
-                    if order and 'id' in order:
-                        logging.info(f"Placed {side} order at level {level} for {symbol} with amount {amount}")
-                        filled_levels.add(level)  # Add the level to filled_levels
-                    else:
-                        logging.info(f"Failed to place {side} order at level {level} for {symbol} with amount {amount}")
-                except Exception as e:
-                    logging.info(f"Exception when placing {side} order at level {level} for {symbol}: {e}")
-            else:
-                logging.info(f"Skipping {side} order at level {level} for {symbol} as it is already filled.")
+        with self.symbol_locks[symbol]:  # Use the lock for this symbol
+            open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+            logging.info(f"Open orders data for {symbol}: {open_orders}")
 
-        logging.info(f"[{symbol}] {side.capitalize()} grid orders issued for unfilled levels.")
+            # Clear the filled_levels set before placing new orders
+            filled_levels.clear()
+
+            # Place new grid orders for unfilled levels
+            for level, amount in zip(grid_levels, amounts):
+                order_exists = any(order['price'] == level and order['side'].lower() == side.lower() for order in open_orders)
+                if not order_exists:
+                    order_link_id = self.generate_order_link_id(symbol, side, level)
+                    position_idx = 1 if is_long else 2
+                    try:
+                        order = self.exchange.create_tagged_limit_order_bybit(symbol, side, amount, level, positionIdx=position_idx, orderLinkId=order_link_id)
+                        if order and 'id' in order:
+                            logging.info(f"Placed {side} order at level {level} for {symbol} with amount {amount}")
+                            filled_levels.add(level)  # Add the level to filled_levels
+                        else:
+                            logging.info(f"Failed to place {side} order at level {level} for {symbol} with amount {amount}")
+                    except Exception as e:
+                        logging.info(f"Exception when placing {side} order at level {level} for {symbol}: {e}")
+                else:
+                    logging.info(f"Skipping {side} order at level {level} for {symbol} as it already exists.")
+
+            logging.info(f"[{symbol}] {side.capitalize()} grid orders issued for unfilled levels.")
 
     def cancel_grid_orders(self, symbol: str, side: str):
         try:
