@@ -649,6 +649,73 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.info(f"An error occurred while canceling entry orders: {e}")
 
+    def update_quickscalp_tp_dynamic(self, symbol, pos_qty, upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, tp_order_counts, max_retries=10):
+        # Fetch the current open TP orders and TP order counts for the symbol
+        long_tp_orders, short_tp_orders = self.exchange.get_open_tp_orders(symbol)
+        long_tp_count = tp_order_counts['long_tp_count']
+        short_tp_count = tp_order_counts['short_tp_count']
+
+        # Dynamic Take Profit Scaling Factor
+        scaling_factor = max(1, pos_qty / 1000)  # Example scaling factor, adjust as appropriate for your trading strategy
+
+        # Calculate the new TP values using quickscalp method scaled by position size
+        new_short_tp = self.calculate_quickscalp_short_take_profit(short_pos_price, symbol, upnl_profit_pct) * scaling_factor
+        new_long_tp = self.calculate_quickscalp_long_take_profit(long_pos_price, symbol, upnl_profit_pct) * scaling_factor
+
+        # Ensure the TP does not fall below the minimum configured profit percentage
+        min_short_tp = short_pos_price * (1 + upnl_profit_pct)
+        min_long_tp = long_pos_price * (1 - upnl_profit_pct)
+        final_short_tp = max(new_short_tp, min_short_tp)
+        final_long_tp = max(new_long_tp, min_long_tp)
+
+        # Determine the relevant TP orders based on the order side
+        relevant_tp_orders = long_tp_orders if order_side == "sell" else short_tp_orders
+
+        # Check if there's an existing TP order with a mismatched quantity
+        mismatched_qty_orders = [order for order in relevant_tp_orders if order['qty'] != pos_qty and order['id'] not in self.auto_reduce_order_ids.get(symbol, [])]
+
+        # Cancel mismatched TP orders if any
+        for order in mismatched_qty_orders:
+            try:
+                self.exchange.cancel_order_by_id(order['id'], symbol)
+                logging.info(f"Cancelled TP order {order['id']} for update.")
+            except Exception as e:
+                logging.error(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
+
+        now = datetime.now()
+        if now >= last_tp_update or mismatched_qty_orders:
+            # Check if a TP order already exists
+            tp_order_exists = (order_side == "sell" and long_tp_count > 0) or (order_side == "buy" and short_tp_count > 0)
+
+            # Set new TP order with updated prices only if no TP order exists
+            if not tp_order_exists:
+                new_tp_price = final_long_tp if order_side == "sell" else final_short_tp
+                current_price = self.exchange.get_current_price(symbol)
+
+                if (order_side == "sell" and current_price >= new_tp_price) or (order_side == "buy" and current_price <= new_tp_price):
+                    # If the current price has surpassed the new TP price, use a normal limit order
+                    try:
+                        self.exchange.create_normal_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, new_tp_price, positionIdx=positionIdx, reduce_only=True)
+                        logging.info(f"New {order_side.capitalize()} TP set at {new_tp_price} using a normal limit order")
+                    except Exception as e:
+                        logging.error(f"Failed to set new {order_side} TP for {symbol} using a normal limit order. Error: {e}")
+                else:
+                    # If the current price hasn't surpassed the new TP price, use a post-only order
+                    try:
+                        self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, new_tp_price, positionIdx=positionIdx, reduce_only=True)
+                        logging.info(f"New {order_side.capitalize()} TP set at {new_tp_price} using a post-only order")
+                    except Exception as e:
+                        logging.error(f"Failed to set new {order_side} TP for {symbol} using a post-only order. Error: {e}")
+            else:
+                logging.info(f"Skipping TP update as a TP order already exists for {symbol}")
+
+            # Calculate and return the next update time
+            return self.calculate_next_update_time()
+        else:
+            logging.info(f"No immediate update needed for TP orders for {symbol}. Last update at: {last_tp_update}")
+            return last_tp_update
+
+
     def update_quickscalp_tp(self, symbol, pos_qty, upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, tp_order_counts, max_retries=10):
         # Fetch the current open TP orders and TP order counts for the symbol
         long_tp_orders, short_tp_orders = self.exchange.get_open_tp_orders(symbol)
@@ -939,15 +1006,21 @@ class BybitStrategy(BaseStrategy):
         
         :param exchange_max_leverage: The maximum leverage allowed by the exchange.
         """
-        # Ensure the wallet exposure limit is within a practical range (1% to 100%)
-        # self.wallet_exposure_limit = max(0.01, min(self.wallet_exposure_limit, 1.0))
-        
         # Ensure the wallet exposure limit is within a practical range (0.1% to 100%)
         self.wallet_exposure_limit = min(self.wallet_exposure_limit, 1.0)
 
-        # Adjust user-defined leverage for long and short positions to not exceed exchange maximum
-        self.user_defined_leverage_long = max(1, min(self.user_defined_leverage_long, exchange_max_leverage))
-        self.user_defined_leverage_short = max(1, min(self.user_defined_leverage_short, exchange_max_leverage))
+        # Check if user-defined leverage is zero and adjust to use exchange's maximum if true
+        if self.user_defined_leverage_long == 0:
+            self.user_defined_leverage_long = exchange_max_leverage
+        else:
+            # Otherwise, ensure it's between 1 and the exchange maximum
+            self.user_defined_leverage_long = max(1, min(self.user_defined_leverage_long, exchange_max_leverage))
+
+        if self.user_defined_leverage_short == 0:
+            self.user_defined_leverage_short = exchange_max_leverage
+        else:
+            # Otherwise, ensure it's between 1 and the exchange maximum
+            self.user_defined_leverage_short = max(1, min(self.user_defined_leverage_short, exchange_max_leverage))
         
         logging.info(f"Wallet exposure limit set to {self.wallet_exposure_limit*100}%")
         logging.info(f"User-defined leverage for long positions set to {self.user_defined_leverage_long}x")
@@ -2357,8 +2430,37 @@ class BybitStrategy(BaseStrategy):
                 # total_amount_short = self.calculate_total_amount_notional(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_short, "sell", levels, enforce_full_grid) if short_mode else 0
                 # logging.info(f"[{symbol}] Total amount long: {total_amount_long}, Total amount short: {total_amount_short}")
 
-                total_amount_long = self.calculate_total_amount_notional_ls(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit_long, wallet_exposure_limit_short, user_defined_leverage_long, "buy", levels, enforce_full_grid) if long_mode else 0
-                total_amount_short = self.calculate_total_amount_notional_ls(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit_long, wallet_exposure_limit_short, user_defined_leverage_short, "sell", levels, enforce_full_grid) if short_mode else 0
+                # total_amount_long = self.calculate_total_amount_notional_ls(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit_long, wallet_exposure_limit_short, user_defined_leverage_long, "buy", levels, enforce_full_grid) if long_mode else 0
+                # total_amount_short = self.calculate_total_amount_notional_ls(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit_long, wallet_exposure_limit_short, user_defined_leverage_short, "sell", levels, enforce_full_grid) if short_mode else 0
+
+                total_amount_long = self.calculate_total_amount_notional_ls(
+                    symbol=symbol,
+                    total_equity=total_equity,
+                    best_ask_price=best_ask_price,
+                    best_bid_price=best_bid_price,
+                    wallet_exposure_limit_long=wallet_exposure_limit_long,
+                    wallet_exposure_limit_short=wallet_exposure_limit_short,  # This is passed but not used directly for buying
+                    side="buy",
+                    levels=levels,
+                    enforce_full_grid=enforce_full_grid,
+                    user_defined_leverage_long=user_defined_leverage_long,  # Assuming there's a variable holding this value
+                    user_defined_leverage_short=None  # Not used for buying, so set to None
+                ) if long_mode else 0
+
+                total_amount_short = self.calculate_total_amount_notional_ls(
+                    symbol=symbol,
+                    total_equity=total_equity,
+                    best_ask_price=best_ask_price,
+                    best_bid_price=best_bid_price,
+                    wallet_exposure_limit_long=wallet_exposure_limit_long,  # This is passed but not used directly for selling
+                    wallet_exposure_limit_short=wallet_exposure_limit_short,
+                    side="sell",
+                    levels=levels,
+                    enforce_full_grid=enforce_full_grid,
+                    user_defined_leverage_long=None,  # Not used for selling, so set to None
+                    user_defined_leverage_short=user_defined_leverage_short  # Assuming there's a variable holding this value
+                ) if short_mode else 0
+
                 logging.info(f"[{symbol}] Total amount long: {total_amount_long}, Total amount short: {total_amount_short}")
 
                 amounts_long = self.calculate_order_amounts_notional(symbol, total_amount_long, levels, strength, qty_precision, enforce_full_grid)
@@ -3752,58 +3854,57 @@ class BybitStrategy(BaseStrategy):
         logging.info(f"Calculated order amounts: {amounts}")
         return amounts
 
-    def calculate_total_amount_notional_ls(self, symbol: str, total_equity: float, best_ask_price: float, best_bid_price: float, wallet_exposure_limit_long: float, wallet_exposure_limit_short: float, user_defined_leverage: float, side: str, levels: int, enforce_full_grid: bool) -> float:
-        logging.info(f"Calculating total amount for {symbol} with total_equity: {total_equity}, best_ask_price: {best_ask_price}, best_bid_price: {best_bid_price}, side: {side}, levels: {levels}, enforce_full_grid: {enforce_full_grid}")
+    def calculate_total_amount_notional_ls(self, symbol, total_equity, best_ask_price, best_bid_price, 
+                                            wallet_exposure_limit_long, wallet_exposure_limit_short, 
+                                            side, levels, enforce_full_grid, 
+                                            user_defined_leverage_long=None, user_defined_leverage_short=None):
+        logging.info(f"Calculating total amount for {symbol} with total_equity: {total_equity}, side: {side}, levels: {levels}, enforce_full_grid: {enforce_full_grid}")
         
-        # Selecting the appropriate wallet exposure limit based on the side of the order
+
+        current_leverage = self.exchange.get_current_max_leverage_bybit(symbol)
+        logging.info(f"Current leverage for {symbol} : {current_leverage}")
+
+        # Fetch the current maximum leverage from the exchange if user-defined leverage is set to 0 or not provided
+        if side == 'buy':
+            leverage_used = user_defined_leverage_long if user_defined_leverage_long not in (0, None) else self.exchange.get_current_max_leverage_bybit(symbol)
+        else:
+            leverage_used = user_defined_leverage_short if user_defined_leverage_short not in (0, None) else self.exchange.get_current_max_leverage_bybit(symbol)
+        
+        logging.info(f"Using leverage for {symbol}: {leverage_used}")
+
+        # Calculate the wallet exposure limit based on the side
         wallet_exposure_limit = wallet_exposure_limit_long if side == 'buy' else wallet_exposure_limit_short
-
-        min_notional_value = 100.5 if symbol in ["BTCUSDT", "BTC-PERP"] else 20.1 if symbol in ["ETHUSDT", "ETH-PERP"] or symbol.endswith("USDC") else 6
-        max_position_value = total_equity * wallet_exposure_limit * user_defined_leverage
+        max_position_value = total_equity * wallet_exposure_limit * leverage_used
         logging.info(f"Maximum position value for {symbol}: {max_position_value}")
 
-        if enforce_full_grid:
-            total_notional_amount = math.ceil(min_notional_value * levels)  # Ensures all levels are fully funded
-        else:
-            total_notional_amount = max_position_value
+        # Calculate the total required notional amount if enforcing a full grid
+        required_notional = sum(self.min_notional(i, symbol) for i in range(levels)) if enforce_full_grid else max_position_value
+        total_notional_amount = min(required_notional, max_position_value)
 
         logging.info(f"Calculated total notional amount for {symbol}: {total_notional_amount}")
         return total_notional_amount
 
-    def calculate_total_amount_notional(self, symbol: str, total_equity: float, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float, side: str, levels: int, enforce_full_grid: bool) -> float:
-        logging.info(f"Calculating total amount for {symbol} with total_equity: {total_equity}, best_ask_price: {best_ask_price}, best_bid_price: {best_bid_price}, wallet_exposure_limit: {wallet_exposure_limit}, user_defined_leverage: {user_defined_leverage}, side: {side}, levels: {levels}, enforce_full_grid: {enforce_full_grid}")
-        
-        min_notional_value = 100.5 if symbol in ["BTCUSDT", "BTC-PERP"] else 20.1 if symbol in ["ETHUSDT", "ETH-PERP"] or symbol.endswith("USDC") else 6
-        max_position_value = total_equity * wallet_exposure_limit * user_defined_leverage
-        logging.info(f"Maximum position value for {symbol}: {max_position_value}")
-        
-        if enforce_full_grid:
-            total_notional_amount = math.ceil(min_notional_value * levels)  # Ensures all levels are fully funded
-        else:
-            total_notional_amount = max_position_value
-        
-        logging.info(f"Calculated total notional amount for {symbol}: {total_notional_amount}")
-        return total_notional_amount
+    def min_notional(self, level, symbol):
+        base_notional_values = {"BTCUSDT": 100.5, "ETHUSDT": 20.1, "default": 6}
+        base_notional = base_notional_values.get(symbol, base_notional_values["default"])
+        return base_notional * (level + 1)
 
     def calculate_order_amounts_notional(self, symbol: str, total_amount: float, levels: int, strength: float, qty_precision: float, enforce_full_grid: bool) -> List[float]:
         logging.info(f"Calculating order amounts for {symbol} with total_amount: {total_amount}, levels: {levels}, strength: {strength}, qty_precision: {qty_precision}, enforce_full_grid: {enforce_full_grid}")
         
         current_price = self.exchange.get_current_price(symbol)
-        min_notional_value = 100.5 if symbol in ["BTCUSDT", "BTC-PERP"] else 20.1 if symbol in ["ETHUSDT", "ETH-PERP"] or symbol.endswith("USDC") else 6
-        
         amounts = []
         total_ratio = sum([(i + 1) ** strength for i in range(levels)])  # Total sum of ratios for normalization
         level_notional = [(i + 1) ** strength for i in range(levels)]  # Individual level ratios
         
         for i in range(levels):
             notional_amount = (level_notional[i] / total_ratio) * total_amount
-            quantity = max(notional_amount, min_notional_value) / current_price
+            quantity = notional_amount / current_price
             rounded_quantity = round(quantity / qty_precision) * qty_precision
             amounts.append(rounded_quantity)
-        
+
         logging.info(f"Calculated order amounts for {symbol}: {amounts}")
         return amounts
-
 
     def initiate_spread_entry(self, symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty):
         order_book = self.exchange.get_orderbook(symbol)
