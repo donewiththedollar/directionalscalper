@@ -150,53 +150,28 @@ class BybitStrategy(BaseStrategy):
             return
 
         try:
-            # Calculating margin used for positions based on the leverage
-            long_margin_used = (long_pos_qty * long_pos_price) / current_leverage if long_pos_qty else 0
-            short_margin_used = (short_pos_qty * short_pos_price) / current_leverage if short_pos_qty else 0
-            
-            logging.info(f"{symbol} Margin used for Long: {long_margin_used:.2f}, for Short: {short_margin_used:.2f}")
-            
-            # Adjusting uPNL percentage calculations to use margin used
-            long_upnl_pct = (long_upnl / long_margin_used) * 100 if long_margin_used else 0
-            short_upnl_pct = (short_upnl / short_margin_used) * 100 if short_margin_used else 0
-
-            logging.info(f"{symbol} Long uPNL %: {long_upnl_pct:.2f}, Short uPNL %: {short_upnl_pct:.2f}")
-
             # Calculate the uPNL percentage relative to the total equity
-            long_upnl_pct_equity = (long_upnl / (total_equity * current_leverage)) * 100
-            short_upnl_pct_equity = (short_upnl / (total_equity * current_leverage)) * 100
+            long_upnl_pct_equity = (long_upnl / total_equity) * 100
+            short_upnl_pct_equity = (short_upnl / total_equity) * 100
 
             logging.info(f"{symbol} Long uPNL % of Equity: {long_upnl_pct_equity:.2f}, Short uPNL % of Equity: {short_upnl_pct_equity:.2f}")
 
+            # Determine if the market price loss exceeded the start percentage threshold
             long_loss_exceeded = long_pos_price is not None and long_pos_price != 0 and current_market_price < long_pos_price * (1 - auto_reduce_start_pct)
             short_loss_exceeded = short_pos_price is not None and short_pos_price != 0 and current_market_price > short_pos_price * (1 + auto_reduce_start_pct)
 
             logging.info(f"{symbol} Price Loss Exceeded - Long: {long_loss_exceeded}, Short: {short_loss_exceeded}")
-            logging.info(f"{symbol} Auto-Reduce Start %: {auto_reduce_start_pct * 100:.2f}")
 
-            if long_pos_price is not None and long_pos_price != 0:
-                long_loss_pct = (long_pos_price - current_market_price) / long_pos_price * 100
-                logging.info(f"{symbol} Long Loss %: {long_loss_pct:.2f}")
-            else:
-                logging.info(f"{symbol} Long position price is None or zero, skipping long loss percentage calculation.")
+            # Log the actual loss thresholds being used
+            logging.info(f"Loss thresholds - Long: {upnl_auto_reduce_threshold_long}%, Short: {upnl_auto_reduce_threshold_short}%")
 
-            if short_pos_price is not None and short_pos_price != 0:
-                short_loss_pct = (current_market_price - short_pos_price) / short_pos_price * 100
-                logging.info(f"{symbol} Short Loss %: {short_loss_pct:.2f}")
-            else:
-                logging.info(f"{symbol} Short position price is None or zero, skipping short loss percentage calculation.")
-
-            # # Compare uPNL percentage of equity with the threshold
-            # upnl_long_exceeded = abs(long_upnl_pct_equity) > upnl_auto_reduce_threshold_long
-            # upnl_short_exceeded = abs(short_upnl_pct_equity) > upnl_auto_reduce_threshold_short
-
-            # Compare uPNL percentage of equity with the threshold
-            upnl_long_exceeded = abs(long_upnl_pct_equity) > (upnl_auto_reduce_threshold_long * 100)
-            upnl_short_exceeded = abs(short_upnl_pct_equity) > (upnl_auto_reduce_threshold_short * 100)
-
+            # Check if the uPNL percentage of equity exceeds the loss thresholds
+            upnl_long_exceeded = long_upnl_pct_equity < -upnl_auto_reduce_threshold_long
+            upnl_short_exceeded = short_upnl_pct_equity < -upnl_auto_reduce_threshold_short
 
             logging.info(f"{symbol} UPnL Exceeded - Long: {upnl_long_exceeded}, Short: {upnl_short_exceeded}")
 
+            # Determine if auto-reduce conditions are met
             trigger_auto_reduce_long = long_pos_qty > 0 and long_loss_exceeded and upnl_long_exceeded
             trigger_auto_reduce_short = short_pos_qty > 0 and short_loss_exceeded and upnl_short_exceeded
 
@@ -217,7 +192,8 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.error(f"Error in auto-reduce logic for {symbol}: {e}")
             raise  # Optionally re-raise exception after logging for external handling or fail-safe mechanisms.
-        
+
+
         
     def execute_grid_auto_reduce_hardened(self, position_type, symbol, pos_qty, dynamic_amount, market_price, total_equity, long_pos_price, short_pos_price, min_qty, min_buffer_percentage_ar, max_buffer_percentage_ar):
         """

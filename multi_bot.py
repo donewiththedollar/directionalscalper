@@ -348,7 +348,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
         logging.info(f"Open position symbols: {open_position_symbols}")
         
         # Periodically fetch and update latest rotation symbols
-        if current_time - last_rotator_update_time >= 50:
+        if current_time - last_rotator_update_time >= 60:
             latest_rotator_symbols = fetch_updated_symbols(args, manager)
             last_rotator_update_time = current_time
             logging.info(f"Latest rotator symbols: {latest_rotator_symbols}")

@@ -32,8 +32,8 @@ class Manager:
         exchange_name: str = 'bybit',  # Defaulting to 'bybit'
         data_source_exchange: str = 'bybit',
         api: str = "remote",
-        cache_life_seconds: int = 30,
-        asset_value_cache_life_seconds: int = 10,
+        cache_life_seconds: int = 60,
+        asset_value_cache_life_seconds: int = 60,
         path: Path | None = None,
         url: str = "",
     ):
@@ -64,6 +64,10 @@ class Manager:
         self.rotator_symbols_cache = None
         self.rotator_symbols_cache_expiry = datetime.now() - timedelta(seconds=1)  # Initialize to an old timestamp to force first fetch
 
+        # Initialize the API data cache and its expiry
+        self.api_data_cache = None
+        self.api_data_cache_expiry = datetime.now() - timedelta(seconds=self.cache_life_seconds)
+        
         # # Attributes for caching API data
         # self.api_data_cache = None
         # self.api_data_cache_expiry = datetime.now() - timedelta(seconds=1)
