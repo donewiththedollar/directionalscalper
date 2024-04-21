@@ -3900,7 +3900,8 @@ class BybitStrategy(BaseStrategy):
         for i in range(levels):
             notional_amount = (level_notional[i] / total_ratio) * total_amount
             quantity = notional_amount / current_price
-            rounded_quantity = round(quantity / qty_precision) * qty_precision
+            min_level_notional = self.min_notional(i, symbol) / current_price  # Calculate min quantity for this level based on notional
+            rounded_quantity = max(round(quantity / qty_precision) * qty_precision, min_level_notional)
             amounts.append(rounded_quantity)
 
         logging.info(f"Calculated order amounts for {symbol}: {amounts}")
