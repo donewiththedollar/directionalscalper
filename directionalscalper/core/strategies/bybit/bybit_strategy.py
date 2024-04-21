@@ -162,6 +162,12 @@ class BybitStrategy(BaseStrategy):
 
             logging.info(f"{symbol} Long uPNL %: {long_upnl_pct:.2f}, Short uPNL %: {short_upnl_pct:.2f}")
 
+            # Calculate the uPNL percentage relative to the total equity
+            long_upnl_pct_equity = (long_upnl / (total_equity * current_leverage)) * 100
+            short_upnl_pct_equity = (short_upnl / (total_equity * current_leverage)) * 100
+
+            logging.info(f"{symbol} Long uPNL % of Equity: {long_upnl_pct_equity:.2f}, Short uPNL % of Equity: {short_upnl_pct_equity:.2f}")
+
             long_loss_exceeded = long_pos_price is not None and long_pos_price != 0 and current_market_price < long_pos_price * (1 - auto_reduce_start_pct)
             short_loss_exceeded = short_pos_price is not None and short_pos_price != 0 and current_market_price > short_pos_price * (1 + auto_reduce_start_pct)
 
@@ -180,8 +186,14 @@ class BybitStrategy(BaseStrategy):
             else:
                 logging.info(f"{symbol} Short position price is None or zero, skipping short loss percentage calculation.")
 
-            upnl_long_exceeded = abs(long_upnl_pct) > upnl_auto_reduce_threshold_long
-            upnl_short_exceeded = abs(short_upnl_pct) > upnl_auto_reduce_threshold_short
+            # # Compare uPNL percentage of equity with the threshold
+            # upnl_long_exceeded = abs(long_upnl_pct_equity) > upnl_auto_reduce_threshold_long
+            # upnl_short_exceeded = abs(short_upnl_pct_equity) > upnl_auto_reduce_threshold_short
+
+            # Compare uPNL percentage of equity with the threshold
+            upnl_long_exceeded = abs(long_upnl_pct_equity) > (upnl_auto_reduce_threshold_long * 100)
+            upnl_short_exceeded = abs(short_upnl_pct_equity) > (upnl_auto_reduce_threshold_short * 100)
+
 
             logging.info(f"{symbol} UPnL Exceeded - Long: {upnl_long_exceeded}, Short: {upnl_short_exceeded}")
 
@@ -205,7 +217,8 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.error(f"Error in auto-reduce logic for {symbol}: {e}")
             raise  # Optionally re-raise exception after logging for external handling or fail-safe mechanisms.
-
+        
+        
     def execute_grid_auto_reduce_hardened(self, position_type, symbol, pos_qty, dynamic_amount, market_price, total_equity, long_pos_price, short_pos_price, min_qty, min_buffer_percentage_ar, max_buffer_percentage_ar):
         """
         Executes a single auto-reduction order for a position based on the best market price available,
