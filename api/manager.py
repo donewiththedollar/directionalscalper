@@ -504,6 +504,8 @@ class Manager:
         funding_data_url = f"https://api.quantumvoid.org/volumedata/funding_{self.data_source_exchange}.json"
         funding_data = self.fetch_data_from_url(funding_data_url)
 
+        logging.info(f"Funding data: {funding_data}")
+
         api_data = {
             '1mVol': self.get_asset_value(symbol, data, "1mVol"),
             '5mVol': self.get_asset_value(symbol, data, "5mVol"),
