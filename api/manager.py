@@ -439,53 +439,55 @@ class Manager:
 
     def get_asset_value(self, symbol: str, data, value: str):
         try:
-            asset_data = self.get_asset_data(symbol, data)
-            if asset_data is not None:
-                # Remove the conditions for 'Trend' and 'MA Trend'
-                if value == "Price" and "Price" in asset_data:
-                    return asset_data["Price"]
-                if value == "1mVol" and "1m 1x Volume (USDT)" in asset_data:
-                    return asset_data["1m 1x Volume (USDT)"]
-                if value == "5mVol" and "5m 1x Volume (USDT)" in asset_data:
-                    return asset_data["5m 1x Volume (USDT)"]
-                if value == "1hVol" and "1m 1h Volume (USDT)" in asset_data:
-                    return asset_data["1h 1x Volume (USDT)"]
-                if value == "1mSpread" and "1m Spread" in asset_data:
-                    return asset_data["1m Spread"]
-                if value == "5mSpread" and "5m Spread" in asset_data:
-                    return asset_data["5m Spread"]
-                if value == "15mSpread" and "15m Spread" in asset_data:
-                    return asset_data["15m Spread"]
-                if value == "30mSpread" and "30m Spread" in asset_data:
-                    return asset_data["30m Spread"]
-                if value == "1hSpread" and "1h Spread" in asset_data:
-                    return asset_data["1h Spread"]
-                if value == "4hSpread" and "4h Spread" in asset_data:
-                    return asset_data["4h Spread"]
-                if value == "Funding" and "Funding" in asset_data:
-                    return asset_data["Funding"]
-                if value == "MFI" and "MFI" in asset_data:
-                    return asset_data["MFI"]
-                if value == "ERI Bull Power" in asset_data:
-                    return asset_data["ERI Bull Power"]
-                if value == "ERI Bear Power" in asset_data:
-                    return asset_data["ERI Bear Power"]
-                if value == "ERI Trend" in asset_data:
-                    return asset_data["ERI Trend"]
-                if value == "HMA Trend" in asset_data:
-                    return asset_data["HMA Trend"]
-                if value == "Top Signal 5m" in asset_data:
-                    return asset_data["Top Signal 5m"]
-                if value == "Bottom Signal 5m" in asset_data:
-                    return asset_data["Bottom signal 5m"]
-                if value == "Top Signal 1m" in asset_data:
-                    return asset_data["Top Signal 1m"]
-                if value == "Bottom Signal 1m" in asset_data:
-                    return asset_data["Bottom signal 1m"]
-                if value == "MA Trend" in asset_data:
-                    return asset_data["MA Trend"]
-                if value == "EMA Trend" in asset_data:
-                    return asset_data["EMA Trend"]
+            if value == "Funding":
+                for asset_data in data:
+                    if asset_data.get("Asset") == symbol:
+                        return asset_data.get("Funding", 0)
+            else:
+                asset_data = self.get_asset_data(symbol, data)
+                if asset_data is not None:
+                    if value == "Price" and "Price" in asset_data:
+                        return asset_data["Price"]
+                    if value == "1mVol" and "1m 1x Volume (USDT)" in asset_data:
+                        return asset_data["1m 1x Volume (USDT)"]
+                    if value == "5mVol" and "5m 1x Volume (USDT)" in asset_data:
+                        return asset_data["5m 1x Volume (USDT)"]
+                    if value == "1hVol" and "1m 1h Volume (USDT)" in asset_data:
+                        return asset_data["1h 1x Volume (USDT)"]
+                    if value == "1mSpread" and "1m Spread" in asset_data:
+                        return asset_data["1m Spread"]
+                    if value == "5mSpread" and "5m Spread" in asset_data:
+                        return asset_data["5m Spread"]
+                    if value == "15mSpread" and "15m Spread" in asset_data:
+                        return asset_data["15m Spread"]
+                    if value == "30mSpread" and "30m Spread" in asset_data:
+                        return asset_data["30m Spread"]
+                    if value == "1hSpread" and "1h Spread" in asset_data:
+                        return asset_data["1h Spread"]
+                    if value == "4hSpread" and "4h Spread" in asset_data:
+                        return asset_data["4h Spread"]
+                    if value == "MFI" and "MFI" in asset_data:
+                        return asset_data["MFI"]
+                    if value == "ERI Bull Power" in asset_data:
+                        return asset_data["ERI Bull Power"]
+                    if value == "ERI Bear Power" in asset_data:
+                        return asset_data["ERI Bear Power"]
+                    if value == "ERI Trend" in asset_data:
+                        return asset_data["ERI Trend"]
+                    if value == "HMA Trend" in asset_data:
+                        return asset_data["HMA Trend"]
+                    if value == "Top Signal 5m" in asset_data:
+                        return asset_data["Top Signal 5m"]
+                    if value == "Bottom Signal 5m" in asset_data:
+                        return asset_data["Bottom signal 5m"]
+                    if value == "Top Signal 1m" in asset_data:
+                        return asset_data["Top Signal 1m"]
+                    if value == "Bottom Signal 1m" in asset_data:
+                        return asset_data["Bottom signal 1m"]
+                    if value == "MA Trend" in asset_data:
+                        return asset_data["MA Trend"]
+                    if value == "EMA Trend" in asset_data:
+                        return asset_data["EMA Trend"]
         except Exception as e:
             logging.info(f"{e}")
         return None
@@ -496,9 +498,12 @@ class Manager:
     def get_api_data(self, symbol):
         api_data_url = f"https://api.quantumvoid.org/volumedata/quantdatav2_{self.data_source_exchange}.json"
         data = self.fetch_data_from_url(api_data_url)
-
         symbols = [asset.get("Asset", "") for asset in data if "Asset" in asset]
-        
+
+        # Fetch funding rate data from the new URL
+        funding_data_url = f"https://api.quantumvoid.org/volumedata/funding_{self.data_source_exchange}.json"
+        funding_data = self.fetch_data_from_url(funding_data_url)
+
         api_data = {
             '1mVol': self.get_asset_value(symbol, data, "1mVol"),
             '5mVol': self.get_asset_value(symbol, data, "5mVol"),
@@ -512,7 +517,7 @@ class Manager:
             'HMA Trend': self.get_asset_value(symbol, data, "HMA Trend"),
             'MFI': self.get_asset_value(symbol, data, "MFI"),
             'ERI Trend': self.get_asset_value(symbol, data, "ERI Trend"),
-            'Funding': self.get_asset_value(symbol, data, "Funding"),
+            'Funding': self.get_asset_value(symbol, funding_data, "Funding"),  # Use funding_data instead of data
             'Symbols': symbols,
             'Top Signal 5m': self.get_asset_value(symbol, data, "Top Signal 5m"),
             'Bottom Signal 5m': self.get_asset_value(symbol, data, "Bottom Signal 5m"),
