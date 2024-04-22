@@ -3018,9 +3018,9 @@ class BybitStrategy(BaseStrategy):
                     long_take_profit = None
 
                     # Calculate take profit for short and long positions using quickscalp method
-                    short_take_profit = self.calculate_quickscalp_short_take_profit_dynamic_distance(short_pos_price, symbol, upnl_profit_pct)
-                    long_take_profit = self.calculate_quickscalp_long_take_profit_dynamic_distance(long_pos_price, symbol, upnl_profit_pct)
-                    
+                    short_take_profit = self.calculate_quickscalp_short_take_profit_dynamic_distance(short_pos_price, symbol, min_upnl_profit_pct=upnl_profit_pct, max_upnl_profit_pct=max_upnl_profit_pct)
+                    long_take_profit = self.calculate_quickscalp_long_take_profit_dynamic_distance(long_pos_price, symbol, min_upnl_profit_pct=upnl_profit_pct, max_upnl_profit_pct=max_upnl_profit_pct)
+
                     # Update TP for long position
                     if long_pos_qty > 0:
                         self.next_long_tp_update = self.update_quickscalp_tp_dynamic(
