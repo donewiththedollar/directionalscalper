@@ -44,9 +44,9 @@ class BybitStrategy(BaseStrategy):
         self.filled_order_levels = {}
         self.filled_levels = {}
         self.active_grids = set()
-        self.position_inactive_threshold = 300
-        self.no_entry_signal_threshold = 300
-        self.order_inactive_threshold = 300
+        self.position_inactive_threshold = 150
+        self.no_entry_signal_threshold = 150
+        self.order_inactive_threshold = 150
         pass
 
     TAKER_FEE_RATE = 0.00055
@@ -2666,24 +2666,6 @@ class BybitStrategy(BaseStrategy):
                     short_take_profit = self.calculate_quickscalp_short_take_profit(short_pos_price, symbol, upnl_profit_pct)
                     long_take_profit = self.calculate_quickscalp_long_take_profit(long_pos_price, symbol, upnl_profit_pct)
                     
-                    # self.place_long_tp_order(
-                    #     symbol,
-                    #     best_ask_price,
-                    #     long_pos_price,
-                    #     long_pos_qty,
-                    #     long_take_profit,
-                    #     open_orders
-                    # )
-
-                    # self.place_short_tp_order(
-                    #     symbol,
-                    #     best_bid_price,
-                    #     short_pos_price,
-                    #     short_pos_qty,
-                    #     short_take_profit,
-                    #     open_orders
-                    # )
-
                     # Update TP for long position
                     if long_pos_qty > 0:
                         self.next_long_tp_update = self.update_quickscalp_tp(
