@@ -135,7 +135,7 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"Placed {side} order at {price} with tag {tag} and amount {amount}")
             return order.get('id', None) if order else None
         except Exception as e:
-            logging.error(f"Error placing {side} order at {price} with tag {tag}: {e}")
+            logging.info(f"Error placing {side} order at {price} with tag {tag}: {e}")
             return None
 
     def auto_reduce_logic_grid_hardened(self, symbol, min_qty, long_pos_price, short_pos_price, 
@@ -190,11 +190,9 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"No auto-reduce executed for short position in {symbol}.")
 
         except Exception as e:
-            logging.error(f"Error in auto-reduce logic for {symbol}: {e}")
+            logging.info(f"Error in auto-reduce logic for {symbol}: {e}")
             raise  # Optionally re-raise exception after logging for external handling or fail-safe mechanisms.
 
-
-        
     def execute_grid_auto_reduce_hardened(self, position_type, symbol, pos_qty, dynamic_amount, market_price, total_equity, long_pos_price, short_pos_price, min_qty, min_buffer_percentage_ar, max_buffer_percentage_ar):
         """
         Executes a single auto-reduction order for a position based on the best market price available,
@@ -229,7 +227,7 @@ class BybitStrategy(BaseStrategy):
             order_result = self.postonly_limit_order_bybit_nolimit(symbol, 'sell' if position_type == 'long' else 'buy', adjusted_dynamic_amount, order_price, positionIdx, reduceOnly=True)
             logging.info(f"Auto-reduce order placed successfully: {order_result}")
         except Exception as e:
-            logging.error(f"Failed to place auto-reduce order for {symbol}: {e}")
+            logging.info(f"Failed to place auto-reduce order for {symbol}: {e}")
             raise
 
         # Log the order details for monitoring
@@ -292,7 +290,7 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"No auto-reduce executed for short position in {symbol}.")
 
         except Exception as e:
-            logging.error(f"Error in auto-reduce logic for {symbol}: {e}")
+            logging.info(f"Error in auto-reduce logic for {symbol}: {e}")
 
     def execute_auto_reduce(self, position_type, symbol, pos_qty, dynamic_amount, market_price, total_equity, long_pos_price, short_pos_price, min_qty):
         # Fetch precision for the symbol
@@ -343,8 +341,8 @@ class BybitStrategy(BaseStrategy):
                 else:
                     logging.warning(f"{symbol} {position_type.capitalize()} Auto-Reduce Order Not Filled Immediately at {step_price} with amount {adjusted_dynamic_amount}")
             except Exception as e:
-                logging.error(f"Error in executing auto-reduce {position_type} order for {symbol}: {e}")
-                logging.error("Traceback:", traceback.format_exc())
+                logging.info(f"Error in executing auto-reduce {position_type} order for {symbol}: {e}")
+                logging.info("Traceback:", traceback.format_exc())
 
     def cancel_all_auto_reduce_orders_bybit(self, symbol: str) -> None:
         try:
@@ -418,7 +416,7 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"No auto-reduce executed for short position in {symbol}.")
 
         except Exception as e:
-            logging.error(f"Error in auto-reduce logic for {symbol}: {e}")
+            logging.info(f"Error in auto-reduce logic for {symbol}: {e}")
 
 
     def should_terminate_open_orders(self, symbol, current_time):
@@ -613,7 +611,7 @@ class BybitStrategy(BaseStrategy):
             self.exchange.cancel_all_open_orders_bybit(symbol)
             logging.info(f"All orders for {symbol} canceled")
         except Exception as e:
-            logging.error(f"An error occurred while canceling all orders for {symbol}: {e}")
+            logging.info(f"An error occurred while canceling all orders for {symbol}: {e}")
 
     def get_all_open_orders_bybit(self):
         """
@@ -664,7 +662,7 @@ class BybitStrategy(BaseStrategy):
                 self.exchange.cancel_order_by_id(order['id'], symbol)
                 logging.info(f"Cancelled TP order {order['id']} for update.")
             except Exception as e:
-                logging.error(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
+                logging.info(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
 
         now = datetime.now()
         if now >= last_tp_update or mismatched_qty_orders:
@@ -683,14 +681,14 @@ class BybitStrategy(BaseStrategy):
                         self.exchange.create_normal_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, new_tp_price_min, positionIdx=positionIdx, reduce_only=True)
                         logging.info(f"New {order_side.capitalize()} TP set at {new_tp_price_min} using a normal limit order")
                     except Exception as e:
-                        logging.error(f"Failed to set new {order_side} TP for {symbol} using a normal limit order. Error: {e}")
+                        logging.info(f"Failed to set new {order_side} TP for {symbol} using a normal limit order. Error: {e}")
                 else:
                     # If the current price hasn't surpassed the new TP price range, use a post-only order
                     try:
                         self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, new_tp_price_max, positionIdx=positionIdx, reduce_only=True)
                         logging.info(f"New {order_side.capitalize()} TP set at {new_tp_price_max} using a post-only order")
                     except Exception as e:
-                        logging.error(f"Failed to set new {order_side} TP for {symbol} using a post-only order. Error: {e}")
+                        logging.info(f"Failed to set new {order_side} TP for {symbol} using a post-only order. Error: {e}")
             else:
                 logging.info(f"Skipping TP update as a TP order already exists for {symbol}")
 
@@ -722,7 +720,7 @@ class BybitStrategy(BaseStrategy):
                 self.exchange.cancel_order_by_id(order['id'], symbol)
                 logging.info(f"Cancelled TP order {order['id']} for update.")
             except Exception as e:
-                logging.error(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
+                logging.info(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
 
         now = datetime.now()
         if now >= last_tp_update or mismatched_qty_orders:
@@ -740,14 +738,14 @@ class BybitStrategy(BaseStrategy):
                         self.exchange.create_normal_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, new_tp_price, positionIdx=positionIdx, reduce_only=True)
                         logging.info(f"New {order_side.capitalize()} TP set at {new_tp_price} using a normal limit order")
                     except Exception as e:
-                        logging.error(f"Failed to set new {order_side} TP for {symbol} using a normal limit order. Error: {e}")
+                        logging.info(f"Failed to set new {order_side} TP for {symbol} using a normal limit order. Error: {e}")
                 else:
                     # If the current price hasn't surpassed the new TP price, use a post-only order
                     try:
                         self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, new_tp_price, positionIdx=positionIdx, reduce_only=True)
                         logging.info(f"New {order_side.capitalize()} TP set at {new_tp_price} using a post-only order")
                     except Exception as e:
-                        logging.error(f"Failed to set new {order_side} TP for {symbol} using a post-only order. Error: {e}")
+                        logging.info(f"Failed to set new {order_side} TP for {symbol} using a post-only order. Error: {e}")
             else:
                 logging.info(f"Skipping TP update as a TP order already exists for {symbol}")
 
@@ -777,7 +775,7 @@ class BybitStrategy(BaseStrategy):
                 Decimal('1e-{}'.format(price_precision)), rounding=ROUND_HALF_UP
             )
         except InvalidOperation as e:
-            logging.error(f"Error when quantizing target_profit_prices. {e}")
+            logging.info(f"Error when quantizing target_profit_prices. {e}")
             return None
 
         # Return the minimum and maximum target profit prices as a tuple
@@ -803,7 +801,7 @@ class BybitStrategy(BaseStrategy):
                 Decimal('1e-{}'.format(price_precision)), rounding=ROUND_HALF_UP
             )
         except InvalidOperation as e:
-            logging.error(f"Error when quantizing target_profit_prices. {e}")
+            logging.info(f"Error when quantizing target_profit_prices. {e}")
             return None
 
         # Return the minimum and maximum target profit prices as a tuple
@@ -826,7 +824,7 @@ class BybitStrategy(BaseStrategy):
                 rounding=ROUND_HALF_UP
             )
         except InvalidOperation as e:
-            logging.error(f"Error when quantizing target_profit_price. {e}")
+            logging.info(f"Error when quantizing target_profit_price. {e}")
             return None
 
         return float(target_profit_price)
@@ -848,7 +846,7 @@ class BybitStrategy(BaseStrategy):
                 rounding=ROUND_HALF_UP
             )
         except InvalidOperation as e:
-            logging.error(f"Error when quantizing target_profit_price. {e}")
+            logging.info(f"Error when quantizing target_profit_price. {e}")
             return None
 
         return float(target_profit_price)
@@ -856,7 +854,7 @@ class BybitStrategy(BaseStrategy):
 # price_precision, qty_precision = self.exchange.get_symbol_precision_bybit(symbol)
     def calculate_dynamic_long_take_profit(self, best_bid_price, long_pos_price, symbol, upnl_profit_pct, max_deviation_pct=0.0040):
         if long_pos_price is None:
-            logging.error("Long position price is None for symbol: " + symbol)
+            logging.info("Long position price is None for symbol: " + symbol)
             return None
 
         _, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
@@ -894,7 +892,7 @@ class BybitStrategy(BaseStrategy):
 
     def calculate_dynamic_short_take_profit(self, best_ask_price, short_pos_price, symbol, upnl_profit_pct, max_deviation_pct=0.05):
         if short_pos_price is None:
-            logging.error("Short position price is None for symbol: " + symbol)
+            logging.info("Short position price is None for symbol: " + symbol)
             return None
 
         _, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
@@ -1261,7 +1259,7 @@ class BybitStrategy(BaseStrategy):
                 logging.warning(f"Order result is None for {side} limit order on {symbol}")
             return order
         except Exception as e:
-            logging.error(f"Error placing order: {str(e)}")
+            logging.info(f"Error placing order: {str(e)}")
             logging.exception("Stack trace for error in placing order:")
             return None
             
@@ -1275,7 +1273,7 @@ class BybitStrategy(BaseStrategy):
                 logging.warning(f"Order result is None for {side} limit order on {symbol}")
             return order
         except Exception as e:
-            logging.error(f"Error placing order: {str(e)}")
+            logging.info(f"Error placing order: {str(e)}")
             logging.exception("Stack trace for error in placing order:")  # This will log the full stack trace
 
     def postonly_limit_order_bybit_s(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
@@ -1288,7 +1286,7 @@ class BybitStrategy(BaseStrategy):
                 logging.warning(f"Order result is None for {side} limit order on {symbol}")
             return order
         except Exception as e:
-            logging.error(f"Error placing order: {str(e)}")
+            logging.info(f"Error placing order: {str(e)}")
             logging.exception("Stack trace for error in placing order:")  # This will log the full stack trace
 
     def limit_order_bybit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
@@ -1357,7 +1355,7 @@ class BybitStrategy(BaseStrategy):
                             logging.info(f"Updated take profit for {side} position on {symbol} to {take_profit_price}")
 
         except Exception as e:
-            logging.error(f"Error in updating take profit: {e}")
+            logging.info(f"Error in updating take profit: {e}")
 
     def update_dynamic_quickscalp_tp(self, symbol, best_ask_price, best_bid_price, pos_qty, upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, tp_order_counts, max_retries=10):
         # Fetch the current open TP orders and TP order counts for the symbol
@@ -1394,7 +1392,7 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"Cancelled TP order {order['id']} for update.")
                 time.sleep(0.05)
             except Exception as e:
-                logging.error(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
+                logging.info(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
 
         now = datetime.now()
         if now >= last_tp_update or mismatched_qty_orders:
@@ -1408,7 +1406,7 @@ class BybitStrategy(BaseStrategy):
                     self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, new_tp_price, positionIdx=positionIdx, reduce_only=True)
                     logging.info(f"New {order_side.capitalize()} TP set at {new_tp_price}")
                 except Exception as e:
-                    logging.error(f"Failed to set new {order_side} TP for {symbol}. Error: {e}")
+                    logging.info(f"Failed to set new {order_side} TP for {symbol}. Error: {e}")
             else:
                 logging.info(f"Skipping TP update as a TP order already exists for {symbol}")
 
@@ -1432,7 +1430,7 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"Placing long TP order for {symbol} at {long_take_profit} with {long_pos_qty}")
                         self.bybit_hedge_placetp_maker(symbol, long_pos_qty, long_take_profit, positionIdx=1, order_side="sell", open_orders=open_orders)
         except Exception as e:
-            logging.error(f"Exception caught in placing long TP order for {symbol}: {e}")
+            logging.info(f"Exception caught in placing long TP order for {symbol}: {e}")
 
     def place_short_tp_order(self, symbol, best_bid_price, short_pos_price, short_pos_qty, short_take_profit, open_orders):
         try:
@@ -1447,7 +1445,7 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"Placing short TP order for {symbol} at {short_take_profit} with {short_pos_qty}")
                         self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
         except Exception as e:
-            logging.error(f"Exception caught in placing short TP order for {symbol}: {e}")
+            logging.info(f"Exception caught in placing short TP order for {symbol}: {e}")
             
     def entry_order_exists(self, open_orders, side):
         for order in open_orders:
@@ -2358,7 +2356,7 @@ class BybitStrategy(BaseStrategy):
                     time.sleep(5)
 
         except Exception as e:
-            logging.error(f"Exception caught in bybit_1m_mfi_quickscalp_trend_long_only_spot: {e}")
+            logging.info(f"Exception caught in bybit_1m_mfi_quickscalp_trend_long_only_spot: {e}")
 
     def linear_grid_handle_positions_mfirsi_persistent_notional_dynamic_buffer_qs(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float, short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, wallet_exposure_limit_long: float, wallet_exposure_limit_short: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, min_buffer_percentage: float, max_buffer_percentage: float, symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool):
         try:

@@ -50,7 +50,7 @@ class BybitExchange(Exchange):
             return positions
 
         except Exception as e:
-            logging.error(f"Error fetching symbol info and positions: {e}")
+            logging.info(f"Error fetching symbol info and positions: {e}")
             return []
         
     def get_market_data_bybit(self, symbol: str) -> dict:
@@ -121,7 +121,7 @@ class BybitExchange(Exchange):
                 else:
                     logging.info(f"Balance for {quote} not found in the response.")
             except Exception as e:
-                logging.error(f"Error fetching balance from Bybit: {e}")
+                logging.info(f"Error fetching balance from Bybit: {e}")
 
         return None
 
@@ -141,7 +141,7 @@ class BybitExchange(Exchange):
                 else:
                     logging.info(f"Balance for {quote} not found in the response.")
             except Exception as e:
-                logging.error(f"Error fetching balance from Bybit: {e}")
+                logging.info(f"Error fetching balance from Bybit: {e}")
 
         return None
 
@@ -162,7 +162,7 @@ class BybitExchange(Exchange):
                     logging.warning(f"Available balance for {quote} not found in the response.")
 
             except Exception as e:
-                logging.error(f"Error fetching available balance from Bybit: {e}")
+                logging.info(f"Error fetching available balance from Bybit: {e}")
 
         return None
     
@@ -224,7 +224,7 @@ class BybitExchange(Exchange):
             
             return order
         except Exception as e:
-            logging.error(f"An error occurred while creating limit order on Bybit: {e}")
+            logging.info(f"An error occurred while creating limit order on Bybit: {e}")
             return None
 
     def create_tagged_limit_order_bybit(self, symbol: str, side: str, qty: float, price: float, positionIdx=0, isLeverage=False, orderLinkId=None, postOnly=True, params={}):
@@ -332,7 +332,7 @@ class BybitExchange(Exchange):
             logging.info(f"Order {order_id} for {symbol} cancelled successfully.")
             return response
         except Exception as e:
-            logging.error(f"An error occurred while cancelling order {order_id} for {symbol}: {str(e)}")
+            logging.info(f"An error occurred while cancelling order {order_id} for {symbol}: {str(e)}")
             # Handle the exception as needed (e.g., retry, raise, etc.)
             return None
         
@@ -390,11 +390,11 @@ class BybitExchange(Exchange):
                 logging.info(f"Funds transfer successful. Details: {transfer}")
                 return transfer
             else:
-                logging.error(f"Error occurred during funds transfer.")
+                logging.info(f"Error occurred during funds transfer.")
                 return None
 
         except Exception as e:
-            logging.error(f"Error occurred during funds transfer: {e}")
+            logging.info(f"Error occurred during funds transfer: {e}")
             return None
         
     def transfer_funds(self, code: str, amount: float, from_account: str, to_account: str, params={}):
@@ -415,10 +415,10 @@ class BybitExchange(Exchange):
                 logging.info(f"Funds transfer successful. Details: {transfer}")
                 return transfer
             else:
-                logging.error("Error occurred during funds transfer.")
+                logging.info("Error occurred during funds transfer.")
                 return None
         except Exception as e:
-            logging.error(f"Error occurred during funds transfer: {e}")
+            logging.info(f"Error occurred during funds transfer: {e}")
             return None
 
     def get_bybit_wallet_balance(self, coin: str):
@@ -435,7 +435,7 @@ class BybitExchange(Exchange):
                 logging.info(f"Coin {coin} not found in Bybit wallet balance.")
                 return None
         except Exception as e:
-            logging.error(f"Error occurred while fetching Bybit wallet balance: {e}")
+            logging.info(f"Error occurred while fetching Bybit wallet balance: {e}")
             return None
 
     def get_futures_balance_bybit(self, quote):
@@ -454,7 +454,7 @@ class BybitExchange(Exchange):
                 else:
                     logging.info(f"Balance for {quote} not found in the response.")
             except Exception as e:
-                logging.error(f"Error fetching balance from Bybit: {e}")
+                logging.info(f"Error fetching balance from Bybit: {e}")
 
         return None
     
@@ -535,7 +535,7 @@ class BybitExchange(Exchange):
             #logging.info(f"Result: {cancel_result}")
             return cancel_result
         except Exception as e:
-            logging.error(f"Error cancelling open orders for {symbol}: {e}")
+            logging.info(f"Error cancelling open orders for {symbol}: {e}")
             return None
         
     def get_current_max_leverage_bybit(self, symbol):
@@ -550,7 +550,7 @@ class BybitExchange(Exchange):
             return max_leverage
 
         except Exception as e:
-            logging.error(f"Error retrieving leverage tiers for {symbol}: {e}")
+            logging.info(f"Error retrieving leverage tiers for {symbol}: {e}")
             return None
 
     def set_leverage_bybit(self, leverage, symbol):
@@ -622,7 +622,7 @@ class BybitExchange(Exchange):
                         time.sleep(delay)
                         continue
                     else:
-                        logging.error(f"Error fetching open positions: {e}")
+                        logging.info(f"Error fetching open positions: {e}")
                         return []
                     
     def get_all_open_positions_bybit(self, retries=10, delay_factor=10, max_delay=60) -> List[dict]:
@@ -658,7 +658,7 @@ class BybitExchange(Exchange):
                         time.sleep(delay)
                         continue
                     else:
-                        logging.error(f"Error fetching open positions: {e}")
+                        logging.info(f"Error fetching open positions: {e}")
                         return []
 
     def get_all_open_positions_bybit_spot(self, retries=10, delay_factor=10, max_delay=60) -> List[dict]:
@@ -694,7 +694,7 @@ class BybitExchange(Exchange):
                         time.sleep(delay)
                         continue
                     else:
-                        logging.error(f"Error fetching open positions: {e}")
+                        logging.info(f"Error fetching open positions: {e}")
                         return []
                     
     def fetch_leverage_tiers(self, symbol: str) -> dict:
@@ -709,7 +709,7 @@ class BybitExchange(Exchange):
             leverage_tiers = self.exchange.fetch_derivatives_market_leverage_tiers(symbol, params)
             return leverage_tiers
         except Exception as e:
-            logging.error(f"Error fetching leverage tiers for {symbol}: {e}")
+            logging.info(f"Error fetching leverage tiers for {symbol}: {e}")
             return None
 
     def get_open_take_profit_orders(self, symbol, side):
@@ -742,7 +742,7 @@ class BybitExchange(Exchange):
             except ccxt.RateLimitExceeded:
                 logging.info(f"Rate limit exceeded when fetching open orders. Retrying in {self.retry_wait} seconds...")
                 time.sleep(self.retry_wait)
-        logging.error(f"Failed to fetch open orders after {self.max_retries} retries.")
+        logging.info(f"Failed to fetch open orders after {self.max_retries} retries.")
         return []
 
     def get_open_orders(self, symbol):
@@ -755,7 +755,7 @@ class BybitExchange(Exchange):
             except ccxt.RateLimitExceeded:
                 logging.info(f"Rate limit exceeded when fetching open orders for {symbol}. Retrying in {self.retry_wait} seconds...")
                 time.sleep(self.retry_wait)
-        logging.error(f"Failed to fetch open orders for {symbol} after {self.max_retries} retries.")
+        logging.info(f"Failed to fetch open orders for {symbol} after {self.max_retries} retries.")
         return []
 
     def get_open_orders_bybit_unified(self, symbol: str) -> list:
@@ -805,7 +805,7 @@ class BybitExchange(Exchange):
             except ccxt.RateLimitExceeded:
                 logging.info(f"Rate limit exceeded when fetching TP orders for {symbol}. Retrying in {self.retry_wait} seconds...")
                 time.sleep(self.retry_wait)
-        logging.error(f"Failed to fetch TP orders for {symbol} after {self.max_retries} retries.")
+        logging.info(f"Failed to fetch TP orders for {symbol} after {self.max_retries} retries.")
         return long_tp_orders, short_tp_orders
     
     def get_open_tp_order_count(self, symbol):
@@ -927,7 +927,7 @@ class BybitExchange(Exchange):
             
             return order
         except Exception as e:
-            logging.error(f"An error occurred while creating limit order on Bybit: {e}")
+            logging.info(f"An error occurred while creating limit order on Bybit: {e}")
             return None
         
     def create_market_order_bybit_spot(self, symbol: str, side: str, qty: float, marketUnit=None, isLeverage=0, orderLinkId=None, orderFilter=None, takeProfit=None, stopLoss=None, tpOrderType=None, slOrderType=None, tpLimitPrice=None, slLimitPrice=None):
@@ -968,7 +968,7 @@ class BybitExchange(Exchange):
 
             return order
         except Exception as e:
-            logging.error(f"An error occurred while creating market order on Bybit: {e}")
+            logging.info(f"An error occurred while creating market order on Bybit: {e}")
             return None
         
     def cancel_order_by_id(self, order_id, symbol):
@@ -977,7 +977,7 @@ class BybitExchange(Exchange):
             result = self.exchange.cancel_order(id=order_id, symbol=symbol)
             logging.info(f"Canceled order - ID: {order_id}, Response: {result}")
         except Exception as e:
-            logging.error(f"Error occurred in cancel_order_by_id: {e}")
+            logging.info(f"Error occurred in cancel_order_by_id: {e}")
            
     def cancel_take_profit_orders_bybit(self, symbol, side):
         side = side.lower()
@@ -999,7 +999,7 @@ class BybitExchange(Exchange):
                     logging.info(f"Canceled take profit order - ID: {order_id}")
 
         except Exception as e:
-            logging.error(f"An unknown error occurred in cancel_take_profit_orders: {e}")
+            logging.info(f"An unknown error occurred in cancel_take_profit_orders: {e}")
 
     def get_take_profit_order_quantity_bybit(self, symbol, side):
         side = side.lower()
@@ -1019,7 +1019,7 @@ class BybitExchange(Exchange):
                 ):
                     total_qty += order.get('amount', 0)  # Assuming 'amount' contains the order quantity
         except Exception as e:
-            logging.error(f"An unknown error occurred in get_take_profit_order_quantity_bybit: {e}")
+            logging.info(f"An unknown error occurred in get_take_profit_order_quantity_bybit: {e}")
 
         return total_qty
     
@@ -1040,7 +1040,7 @@ class BybitExchange(Exchange):
 
             except (RateLimitExceeded, NetworkError) as e:  # Include NetworkError
                 # Log the exception
-                logging.error(f"An error occurred while fetching max leverage: {str(e)}")
+                logging.info(f"An error occurred while fetching max leverage: {str(e)}")
 
                 # Wait and retry if not the last attempt
                 if retry < max_retries - 1:  
@@ -1049,7 +1049,7 @@ class BybitExchange(Exchange):
 
             except Exception as e:
                 # For any other types of exceptions, log and re-raise.
-                logging.error(f"An unknown error occurred: {str(e)}")
+                logging.info(f"An unknown error occurred: {str(e)}")
                 raise e
 
         raise Exception(f"Failed to get max leverage for {symbol} after {max_retries} retries.")
@@ -1109,7 +1109,7 @@ class BybitExchange(Exchange):
             trades = self.exchange.fetch_trades(symbol, since=since, limit=limit)
             return trades
         except Exception as e:
-            logging.error(f"Error fetching recent trades for {symbol}: {e}")
+            logging.info(f"Error fetching recent trades for {symbol}: {e}")
             return []
 
     def fetch_unrealized_pnl(self, symbol):
@@ -1150,7 +1150,7 @@ class BybitExchange(Exchange):
                     else:
                         logging.warning(f"Unknown side value for {symbol}: {side}")
                 except (ValueError, TypeError) as e:
-                    logging.error(f"Error converting unrealisedPnl to float for {symbol}: {e}")
+                    logging.info(f"Error converting unrealisedPnl to float for {symbol}: {e}")
                     # Set the PNL value to None if there's an error
                     if side == 'buy':
                         unrealized_pnl['long'] = None

@@ -133,7 +133,7 @@ class BaseStrategy:
             return adg
 
         except Exception as e:
-            logging.error(f"Error in calculate_adg: {e}")
+            logging.info(f"Error in calculate_adg: {e}")
             return None
 
     def fetch_closed_trades_history(self, days):
@@ -236,7 +236,7 @@ class BaseStrategy:
         try:
             max_trade_qty = self.calc_max_trade_qty(symbol, total_equity, best_ask_price, max_leverage)
         except Exception as e:
-            logging.error(f"Error calculating max trade quantity for {symbol}: {e}")
+            logging.info(f"Error calculating max trade quantity for {symbol}: {e}")
             return
 
         self.max_long_trade_qty_per_symbol[symbol] = max_trade_qty
@@ -285,7 +285,7 @@ class BaseStrategy:
             order = self.exchange.create_contract_v3_order(symbol, 'Market', side, amount, params=params)
             logging.info(f"Market order to {side} {amount} of {symbol} placed successfully.")
         except Exception as e:
-            logging.error(f"Failed to place market order: {e}")
+            logging.info(f"Failed to place market order: {e}")
 
     def market_close_order(self, symbol: str, side: str, amount: float, position_idx: int):
         """
@@ -297,7 +297,7 @@ class BaseStrategy:
             order = self.exchange.create_contract_v3_order(symbol, 'Market', side, amount, params=params)
             logging.info(f"Market order to close {side} position of {amount} {symbol} placed successfully.")
         except Exception as e:
-            logging.error(f"Failed to place market close order: {e}")
+            logging.info(f"Failed to place market close order: {e}")
 
     def get_position_update_time(self, symbol):
         try:
@@ -329,7 +329,7 @@ class BaseStrategy:
             logging.info(f"Recent trades fetched for {symbol}: {recent_trades}")
             return recent_trades
         except Exception as e:
-            logging.error(f"Error fetching recent trades for {symbol}: {e}")
+            logging.info(f"Error fetching recent trades for {symbol}: {e}")
             return []
 
     # def fetch_recent_trades_for_symbol(self, symbol, since=None, limit=100):
@@ -487,7 +487,7 @@ class BaseStrategy:
                 logging.info(f"Max trade qty for {symbol} calculated: {max_trade_qty}")
                 return max_trade_qty
             except Exception as e:
-                logging.error(f"An error occurred in calc_max_trade_qty: {e}. Retrying...")
+                logging.info(f"An error occurred in calc_max_trade_qty: {e}. Retrying...")
                 time.sleep(retry_delay)
 
         raise Exception("Failed to calculate maximum trade quantity after maximum retries.")
@@ -1495,7 +1495,7 @@ class BaseStrategy:
                     if order is not None:
                         placed_orders.append(order)
                 except Exception as e:
-                    logging.error(f"Error placing QS order: {e}")
+                    logging.info(f"Error placing QS order: {e}")
 
         # Place L orders
         if random.randint(1, 10) > 7:
@@ -1513,7 +1513,7 @@ class BaseStrategy:
                     if order is not None:
                         placed_orders.append(order)
                 except Exception as e:
-                    logging.error(f"Error placing L order: {e}")
+                    logging.info(f"Error placing L order: {e}")
 
         try:
             for _ in range(50):
@@ -1533,7 +1533,7 @@ class BaseStrategy:
                 order = self.limit_order_bybit(symbol, "buy" if larger_position == "long" else "sell", order_amount, stuffing_price, positionIdx=1 if larger_position == "long" else 2, reduceOnly=False)
                 self.exchange.cancel_order_by_id(order['order_id'], symbol)
         except Exception as e:
-            logging.error(f"Error in quote stuffing: {e}")
+            logging.info(f"Error in quote stuffing: {e}")
 
         # Cancel orders
         for order in placed_orders:
@@ -1561,7 +1561,7 @@ class BaseStrategy:
                     if order and 'id' in order:
                         self.exchange.cancel_order_by_id(order['id'], symbol)  # Immediate cancellation
                 except Exception as e:
-                    logging.error(f"Error in extreme market distortion: {e}")
+                    logging.info(f"Error in extreme market distortion: {e}")
 
             time.sleep(0.01)  # Minimal delay before next cycle
 
@@ -1584,7 +1584,7 @@ class BaseStrategy:
                     if order is not None:
                         placed_orders.append(order)
                 except Exception as e:
-                    logging.error(f"Error placing order: {e}")
+                    logging.info(f"Error placing order: {e}")
 
         # Place L orders
         if random.randint(1, 10) > 7:
@@ -1596,7 +1596,7 @@ class BaseStrategy:
                     if order is not None:
                         placed_orders.append(order)
                 except Exception as e:
-                    logging.error(f"Error placing order: {e}")
+                    logging.info(f"Error placing order: {e}")
 
         # Cancel orders
         for order in placed_orders:
@@ -2538,7 +2538,7 @@ class BaseStrategy:
                             logging.info(f"Placing short stop loss order for {symbol} at {short_stop_loss_price}")
                             self.postonly_limit_order_bybit_nolimit(symbol, "buy", short_pos_qty, short_stop_loss_price, positionIdx=2, reduceOnly=True)
             except Exception as e:
-                logging.error(f"Exception caught in liquidation stop loss logic for {symbol}: {e}")
+                logging.info(f"Exception caught in liquidation stop loss logic for {symbol}: {e}")
 
 
     def stop_loss_logic(self, long_pos_qty, long_pos_price, short_pos_qty, short_pos_price, stoploss_enabled, symbol, stoploss_upnl_pct):
@@ -2569,7 +2569,7 @@ class BaseStrategy:
                         logging.info(f"Setting short stop loss for {symbol} at {adjusted_short_stop_loss}")
                         self.postonly_limit_order_bybit_nolimit(symbol, "buy", short_pos_qty, adjusted_short_stop_loss, positionIdx=2, reduceOnly=True)
             except Exception as e:
-                logging.error(f"Exception caught in stop loss functionality for {symbol}: {e}")
+                logging.info(f"Exception caught in stop loss functionality for {symbol}: {e}")
 
 
     def auto_reduce_marginbased_logic(self, auto_reduce_marginbased_enabled, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price, symbol, total_equity, auto_reduce_wallet_exposure_pct, open_position_data, current_market_price, long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct, auto_reduce_maxloss_pct):
@@ -2648,7 +2648,7 @@ class BaseStrategy:
                             self.auto_reduce_orders[symbol].append(order_id)
 
             except Exception as e:
-                logging.error(f"{symbol} Exception caught in margin auto reduce: {e}")
+                logging.info(f"{symbol} Exception caught in margin auto reduce: {e}")
 
     def auto_reduce_percentile_logic(self, symbol, long_pos_qty, long_pos_price, short_pos_qty, short_pos_price, percentile_auto_reduce_enabled, auto_reduce_start_pct, auto_reduce_maxloss_pct, long_dynamic_amount, short_dynamic_amount):
         if percentile_auto_reduce_enabled:
@@ -2697,7 +2697,7 @@ class BaseStrategy:
                             order_id = self.auto_reduce_short(symbol, short_dynamic_amount, step_price)
                             self.auto_reduce_orders[symbol].append(order_id)
             except Exception as e:
-                logging.error(f"{symbol} Exception caught in auto reduce: {e}")
+                logging.info(f"{symbol} Exception caught in auto reduce: {e}")
 
     def cancel_auto_reduce_orders_bybit(self, symbol, total_equity, max_pos_balance_pct, open_position_data, long_pos_qty, short_pos_qty):
         try:
@@ -2728,7 +2728,7 @@ class BaseStrategy:
                 self.auto_reduce_orders[symbol].clear()  # Clear the list after cancellation
 
         except Exception as e:
-            logging.error(f"An error occurred while canceling auto-reduce orders for {symbol}: {e}")
+            logging.info(f"An error occurred while canceling auto-reduce orders for {symbol}: {e}")
             
 
     def calculate_dynamic_auto_reduce_levels(self, symbol, pos_qty, market_price, total_equity, long_pos_price, short_pos_price):
@@ -2788,7 +2788,7 @@ class BaseStrategy:
             logging.info(f"Auto-reduce {position_type} order placed for {symbol} at {step_price} with amount {dynamic_amount}")
             return order_id
         except Exception as e:
-            logging.error(f"Error in placing auto-reduce {position_type} order for {symbol}: {e}")
+            logging.info(f"Error in placing auto-reduce {position_type} order for {symbol}: {e}")
             return None
 
     # This worked until it does not. The max_loss_pct is used to calculate the grid and causes issues giving you further AR entries
@@ -2875,7 +2875,7 @@ class BaseStrategy:
 
             return max_levels, price_interval
         except Exception as e:
-            logging.error(f"Error calculating auto-reduce levels for long position in {symbol}: {e}")
+            logging.info(f"Error calculating auto-reduce levels for long position in {symbol}: {e}")
             return None, None
 
     def calculate_auto_reduce_levels_short(self, symbol, current_market_price, short_pos_qty, short_dynamic_amount, auto_reduce_start_pct, max_loss_pct):
@@ -2898,7 +2898,7 @@ class BaseStrategy:
 
             return max_levels, price_interval
         except Exception as e:
-            logging.error(f"Error calculating auto-reduce levels for short position in {symbol}: {e}")
+            logging.info(f"Error calculating auto-reduce levels for short position in {symbol}: {e}")
             return None, None
 
     def auto_reduce_long(self, symbol, long_dynamic_amount, step_price):
@@ -2907,8 +2907,8 @@ class BaseStrategy:
             logging.info(f"Auto-reduce long order placed for {symbol} at {step_price} with amount {long_dynamic_amount}")
             return order.get('id', None) if order else None
         except Exception as e:
-            logging.error(f"Error in auto-reduce long order for {symbol}: {e}")
-            logging.error("Traceback:", traceback.format_exc())
+            logging.info(f"Error in auto-reduce long order for {symbol}: {e}")
+            logging.info("Traceback:", traceback.format_exc())
             return None
 
     def auto_reduce_short(self, symbol, short_dynamic_amount, step_price):
@@ -2917,8 +2917,8 @@ class BaseStrategy:
             logging.info(f"Auto-reduce short order placed for {symbol} at {step_price} with amount {short_dynamic_amount}")
             return order.get('id', None) if order else None
         except Exception as e:
-            logging.error(f"Error in auto-reduce short order for {symbol}: {e}")
-            logging.error("Traceback:", traceback.format_exc())
+            logging.info(f"Error in auto-reduce short order for {symbol}: {e}")
+            logging.info("Traceback:", traceback.format_exc())
             return None
 
 
@@ -2963,7 +2963,7 @@ class BaseStrategy:
                 rounding=ROUND_HALF_DOWN
             )
         except InvalidOperation as e:
-            logging.error(f"Error when quantizing stop_loss_price. {e}")
+            logging.info(f"Error when quantizing stop_loss_price. {e}")
             return None
 
         return float(stop_loss_price)
@@ -2985,7 +2985,7 @@ class BaseStrategy:
                 rounding=ROUND_HALF_DOWN
             )
         except InvalidOperation as e:
-            logging.error(f"Error when quantizing stop_loss_price. {e}")
+            logging.info(f"Error when quantizing stop_loss_price. {e}")
             return None
 
         return float(stop_loss_price)
@@ -4251,7 +4251,7 @@ class BaseStrategy:
                     logging.info(f"{order_side.capitalize()} take profit {order['id']} canceled due to mismatched quantity.")
                     time.sleep(0.05)
                 except Exception as e:
-                    logging.error(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
+                    logging.info(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
 
         # Proceed to set or update TP orders
         now = datetime.now()
@@ -4270,13 +4270,13 @@ class BaseStrategy:
 
                         success = True
                     except Exception as e:
-                        logging.error(f"Failed to set {order_side} TP for {symbol}. Retry {retries + 1}/{max_retries}. Error: {e}")
+                        logging.info(f"Failed to set {order_side} TP for {symbol}. Retry {retries + 1}/{max_retries}. Error: {e}")
                         retries += 1
                         time.sleep(1)  # Wait for a moment before retrying
 
                 next_tp_update = self.calculate_next_update_time()  # Calculate the next update time after placing the order
             except Exception as e:
-                logging.error(f"Error in updating {order_side} TP: {e}")
+                logging.info(f"Error in updating {order_side} TP: {e}")
         else:
             logging.info(f"Take profit already exists for {symbol} {order_side} with correct quantity. Skipping update.")
 
@@ -4320,7 +4320,7 @@ class BaseStrategy:
                         time.sleep(0.05)  # Delay to ensure orders are cancelled
                         orders_updated = True
                     except Exception as e:
-                        logging.error(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
+                        logging.info(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
 
                 # Set new TP order at the updated market price
                 try:
@@ -4328,7 +4328,7 @@ class BaseStrategy:
                     logging.info(f"New {order_side.capitalize()} TP set at {new_tp_price}")
                     orders_updated = True
                 except Exception as e:
-                    logging.error(f"Failed to set new {order_side} TP for {symbol}. Error: {e}")
+                    logging.info(f"Failed to set new {order_side} TP for {symbol}. Error: {e}")
 
             if orders_updated:
                 # Calculate and return the next update time
@@ -4358,7 +4358,7 @@ class BaseStrategy:
                 logging.info(f"Cancelled TP order {order['id']} for update.")
                 time.sleep(0.05)
             except Exception as e:
-                logging.error(f"Error in cancelling TP order {order['id']}. Error: {e}")
+                logging.info(f"Error in cancelling TP order {order['id']}. Error: {e}")
 
         now = datetime.now()
         if now >= last_tp_update or mismatched_qty_orders:
@@ -4367,7 +4367,7 @@ class BaseStrategy:
                 self.exchange.create_take_profit_order_bybit(symbol, "limit", "sell", pos_qty, current_market_price, positionIdx=positionIdx, reduce_only=True)
                 logging.info(f"New sell TP set at current market price {current_market_price} for {symbol}")
             except Exception as e:
-                logging.error(f"Failed to set new sell TP for {symbol}. Error: {e}")
+                logging.info(f"Failed to set new sell TP for {symbol}. Error: {e}")
 
             return datetime.now()
         else:
@@ -4397,7 +4397,7 @@ class BaseStrategy:
                 logging.info(f"Cancelled TP order {order['id']} for update.")
                 time.sleep(0.05)
             except Exception as e:
-                logging.error(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
+                logging.info(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
 
         now = datetime.now()
         if now >= next_tp_update or mismatched_qty_orders:
@@ -4411,7 +4411,7 @@ class BaseStrategy:
                     self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, new_tp_price, positionIdx=positionIdx, reduce_only=True)
                     logging.info(f"New {order_side.capitalize()} TP set at {new_tp_price}")
                 except Exception as e:
-                    logging.error(f"Failed to set new {order_side} TP for {symbol}. Error: {e}")
+                    logging.info(f"Failed to set new {order_side} TP for {symbol}. Error: {e}")
             else:
                 logging.info(f"Skipping TP update as a TP order already exists for {symbol}")
 
@@ -4616,7 +4616,7 @@ class BaseStrategy:
             if isinstance(max_trade_qty, float):
                 self.max_long_trade_qty = max_trade_qty
             else:
-                logging.error(f"Expected max_trade_qty to be float, got {type(max_trade_qty)}")
+                logging.info(f"Expected max_trade_qty to be float, got {type(max_trade_qty)}")
             self.long_leverage_increased = False
             self.long_pos_leverage = 1.0
             logging.info(f"Long leverage returned to normal {self.long_pos_leverage}x")
@@ -4637,7 +4637,7 @@ class BaseStrategy:
             if isinstance(max_trade_qty, float):
                 self.max_short_trade_qty = max_trade_qty
             else:
-                logging.error(f"Expected max_trade_qty to be float, got {type(max_trade_qty)}")
+                logging.info(f"Expected max_trade_qty to be float, got {type(max_trade_qty)}")
             self.short_leverage_increased = False
             self.short_pos_leverage = 1.0
             logging.info(f"Short leverage returned to normal {self.short_pos_leverage}x")
