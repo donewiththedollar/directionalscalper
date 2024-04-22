@@ -275,10 +275,10 @@ class BybitBasicGridBufferedQS(BybitStrategy):
 
                 iteration_start_time = time.time()
 
-                # Check if the symbol should terminate
-                if self.should_terminate(symbol, current_time):
-                    self.cleanup_before_termination(symbol)
-                    break  # Exit the while loop, thus ending the thread
+                # # Check if the symbol should terminate
+                # if self.should_terminate(symbol, current_time):
+                #     self.cleanup_before_termination(symbol)
+                #     break  # Exit the while loop, thus ending the thread
 
                 if self.should_terminate_open_orders(
                     symbol,
@@ -785,10 +785,10 @@ class BybitBasicGridBufferedQS(BybitStrategy):
                         else:
                             logging.info(f"Skipping test orders for {symbol} as it's not in open symbols list.")
                             
-                    # Check if the symbol should terminate
-                    if self.should_terminate_full(symbol, current_time, previous_long_pos_qty, long_pos_qty, previous_short_pos_qty, short_pos_qty):
-                        self.cleanup_before_termination(symbol)
-                        break  # Exit the while loop, thus ending the thread
+                    # # Check if the symbol should terminate
+                    # if self.should_terminate_full(symbol, current_time, previous_long_pos_qty, long_pos_qty, previous_short_pos_qty, short_pos_qty):
+                    #     self.cleanup_before_termination(symbol)
+                    #     break  # Exit the while loop, thus ending the thread
 
                     # Check if a position has been closed
                     if previous_long_pos_qty > 0 and long_pos_qty == 0:

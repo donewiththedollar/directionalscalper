@@ -437,7 +437,9 @@ class BybitStrategy(BaseStrategy):
                 # Fetch current position details from a method that processes position data
                 open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
                 position_details = {pos['info']['symbol'].split(':')[0]: pos for pos in open_position_data if pos['info']['size'] != 0}
+                logging.info(f"Position details: {position_details}")
                 active_positions = symbol in position_details
+                logging.info(f"Active position for {symbol}: {active_positions}")
 
                 if active_orders and not active_positions:
                     # If there are active orders but no corresponding positions
@@ -455,7 +457,6 @@ class BybitStrategy(BaseStrategy):
         
         except Exception as e:
             logging.info(f"Exception caught in should terminate open orders {e}")
-
 
     # Threading locks
     def should_terminate_full(self, symbol, current_time, previous_long_pos_qty, long_pos_qty, previous_short_pos_qty, short_pos_qty):
