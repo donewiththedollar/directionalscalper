@@ -39,6 +39,7 @@ class Bot(BaseModel):
     user_defined_leverage_long: float = 0
     user_defined_leverage_short: float = 0
     upnl_profit_pct: float = 0.003
+    max_upnl_profit_pct: float = 0.004
     stoploss_enabled: bool = False
     stoploss_upnl_pct: float = 0.070
     liq_stoploss_enabled: bool = False
@@ -77,6 +78,18 @@ class Bot(BaseModel):
         if value is None:
             raise ValueError("linear_grid must be a dictionary - check example config")
         return value
+
+    @validator("upnl_profit_pct")
+    def minimum_upnl_profit_pct(cls, v):
+        if v < 0.0:
+            raise ValueError("upnl_profit_pct must be greater than 0")
+        return v
+    
+    @validator("max_upnl_profit_pct")
+    def minimum_max_upnl_profit_pct(cls, v):
+        if v < 0.0:
+            raise ValueError("max_upnl_profit_pct must be greater than 0")
+        return v
     
     @validator("min_volume")
     def minimum_min_volume(cls, v):

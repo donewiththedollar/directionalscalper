@@ -6,3 +6,4 @@ from .qsgrid_notional import BybitQSGridNotional
 from .basicgridmfirsi_persistent_notional_buffer import BybitBasicGridBuffered
 from .basicgridmfirsi_notional_buffer_quickscalp import BybitBasicGridBufferedQS
 from .quickscalp_trend_ob_notional import BybitQuickScalpTrendOBNotional
+from .basicgridmfirsi_notional_buffer_quickscalp_dynamictp import BybitBasicGridBufferedQSDTP
