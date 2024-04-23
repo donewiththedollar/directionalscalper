@@ -3977,27 +3977,23 @@ class BybitStrategy(BaseStrategy):
             price_change_percentage = abs(current_price - last_price) / last_price * 100
             logging.info(f"[{symbol}] Last recorded price: {last_price}, Current price: {current_price}, Price change: {price_change_percentage:.2f}%")
             
-            reissue_long = long_pos_qty == 0 and price_change_percentage >= reissue_threshold * 100
-            reissue_short = short_pos_qty == 0 and price_change_percentage >= reissue_threshold * 100
+            # Reissue if the price change percentage exceeds the threshold
+            reissue_long = price_change_percentage >= reissue_threshold
+            reissue_short = price_change_percentage >= reissue_threshold
             
             if reissue_long or reissue_short:
                 self.last_price[symbol] = current_price
             
             if reissue_long:
-                logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) exceeds reissue threshold ({reissue_threshold*100:.2f}%) and no open long position. Reissuing long orders.")
-            else:
-                logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) does not exceed reissue threshold ({reissue_threshold*100:.2f}%) or there is an open long position. No reissue required for long orders.")
-            
+                logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) exceeds reissue threshold ({reissue_threshold:.2f}%). Reissuing long orders.")
             if reissue_short:
-                logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) exceeds reissue threshold ({reissue_threshold*100:.2f}%) and no open short position. Reissuing short orders.")
-            else:
-                logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) does not exceed reissue threshold ({reissue_threshold*100:.2f}%) or there is an open short position. No reissue required for short orders.")
+                logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) exceeds reissue threshold ({reissue_threshold:.2f}%). Reissuing short orders.")
             
             return reissue_long, reissue_short
         
         except Exception as e:
             logging.exception(f"Exception caught in should_reissue_orders: {e}")
-            return False, False            
+            return False, False
 
     def should_reissue_orders(self, symbol: str, reissue_threshold: float) -> bool:
         try:

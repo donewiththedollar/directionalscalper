@@ -48,10 +48,13 @@ class LiveTableManager:
             table.caption = f"Loading... {len(shared_symbols_data)} symbols loaded | Updated: {current_time}"
 
         # Sorting symbols
-        sorted_symbols = sorted(shared_symbols_data.values(), key=lambda x: (
-            -(x.get('long_pos_qty', 0) > 0 or x.get('short_pos_qty', 0) > 0),  # Prioritize symbols with quantities > 0
-            x['symbol']  # Then sort by symbol name
-        ))
+        sorted_symbols = sorted(
+            [symbol_data for symbol_data in shared_symbols_data.values() if symbol_data['symbol'] in shared_symbols_data],
+            key=lambda x: (
+                -(x.get('long_pos_qty', 0) > 0 or x.get('short_pos_qty', 0) > 0),  # Prioritize symbols with quantities > 0
+                x['symbol']  # Then sort by symbol name
+            )
+        )
         
         for symbol_data in sorted_symbols:
             long_pos_qty = symbol_data.get('long_pos_qty', 0)

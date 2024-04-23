@@ -392,15 +392,17 @@ class BybitBasicGridBuffered(BybitStrategy):
                         logging.info(f"Should terminate long orders for {symbol}")
                         self.cancel_grid_orders(symbol, "buy")
                         self.cleanup_before_termination(symbol)
+                        shared_symbols_data.pop(symbol, None)  # Remove the symbol from shared_symbols_data
                         break
                     elif terminate_side == "short":
                         logging.info(f"Should terminate short orders for {symbol}")
                         self.cancel_grid_orders(symbol, "sell")
                         self.cleanup_before_termination(symbol)
+                        shared_symbols_data.pop(symbol, None)  # Remove the symbol from shared_symbols_data
                         break
                 except Exception as e:
                     logging.info(f"Exception caught in termination {e}")
-
+                            
 
                 # If the symbol is in rotator_symbols and either it's already being traded or trading is allowed.
                 if symbol in rotator_symbols_standardized or (symbol in open_symbols or trading_allowed): # and instead of or
