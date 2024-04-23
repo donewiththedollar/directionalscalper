@@ -47,6 +47,8 @@ class BybitStrategy(BaseStrategy):
         self.position_inactive_threshold = 150
         self.no_entry_signal_threshold = 150
         self.order_inactive_threshold = 150
+        self.last_active_long_order_time = {}
+        self.last_active_short_order_time = {}
         pass
 
     TAKER_FEE_RATE = 0.00055
@@ -418,46 +420,49 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.info(f"Error in auto-reduce logic for {symbol}: {e}")
 
-
-    def should_terminate_open_orders(self, symbol, current_time):
+    def should_terminate_open_orders(self, symbol, long_pos_qty, short_pos_qty, open_positions_data, open_orders, current_time):
         try:
-            if symbol not in self.symbol_locks:
-                self.symbol_locks[symbol] = threading.Lock()
+            # Check if there are any open positions for the symbol
+            has_position = any(pos['symbol'].split(':')[0] == symbol for pos in open_positions_data)
 
-            with self.symbol_locks[symbol]:
-                open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
-                
-                logging.info(f"[SHOULD TERMINATE] Open orders from should terminate: {open_orders}")
+            # Filter active orders (non-reduce-only orders)
+            active_orders = [order for order in open_orders if not order.get('reduceOnly', False)]
 
-                # Filter out reduce-only orders, which are typically used for take-profits and stop-losses
-                active_orders = [order for order in open_orders if not order.get('reduceOnly', False)]
-                
-                #logging.info(f"[SHOULD TERMINATE] Active orders: {active_orders}")
+            # Check if there are any active long or short orders for the symbol
+            long_orders = [order for order in active_orders if order['side'] == 'buy']
+            short_orders = [order for order in active_orders if order['side'] == 'sell']
 
-                # Fetch current position details from a method that processes position data
-                open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
-                position_details = {pos['info']['symbol'].split(':')[0]: pos for pos in open_position_data if pos['info']['size'] != 0}
-                logging.info(f"Position details: {position_details}")
-                active_positions = symbol in position_details
-                logging.info(f"Active position for {symbol}: {active_positions}")
+            # Determine if long or short orders should be terminated
+            should_terminate_long = long_orders and not has_position and long_pos_qty == 0
+            should_terminate_short = short_orders and not has_position and short_pos_qty == 0
 
-                if active_orders and not active_positions:
-                    # If there are active orders but no corresponding positions
-                    if not hasattr(self, 'last_active_order_without_position_time'):
-                        self.last_active_order_without_position_time = current_time
-                    elif current_time - self.last_active_order_without_position_time > self.order_inactive_threshold:
-                        logging.info(f"Active orders without corresponding positions for {symbol} have been present for more than {self.order_inactive_threshold} seconds.")
-                        return True
+            result = None
+            if should_terminate_long:
+                if symbol not in self.last_active_long_order_time:
+                    self.last_active_long_order_time[symbol] = current_time
+                elif current_time - self.last_active_long_order_time[symbol] > self.order_inactive_threshold:
+                    logging.info(f"Long orders for {symbol} have been active without matching positions for more than {self.order_inactive_threshold} seconds.")
+                    result = "long"
                 else:
-                    # Reset the timer since there are either no active orders or there are corresponding positions
-                    if hasattr(self, 'last_active_order_without_position_time'):
-                        del self.last_active_order_without_position_time
+                    if symbol in self.last_active_long_order_time:
+                        del self.last_active_long_order_time[symbol]
 
-            return False
-        
+            if should_terminate_short:
+                if symbol not in self.last_active_short_order_time:
+                    self.last_active_short_order_time[symbol] = current_time
+                elif current_time - self.last_active_short_order_time[symbol] > self.order_inactive_threshold:
+                    logging.info(f"Short orders for {symbol} have been active without matching positions for more than {self.order_inactive_threshold} seconds.")
+                    result = "short" if result is None else "both"
+                else:
+                    if symbol in self.last_active_short_order_time:
+                        del self.last_active_short_order_time[symbol]
+
+            return result
+
         except Exception as e:
-            logging.info(f"Exception caught in should terminate open orders {e}")
-
+            logging.info(f"Exception caught in should terminate open orders: {e}")
+            return None
+        
     # Threading locks
     def should_terminate_full(self, symbol, current_time, previous_long_pos_qty, long_pos_qty, previous_short_pos_qty, short_pos_qty):
         open_symbols = self.get_open_symbols()  # Fetch open symbols
@@ -493,39 +498,6 @@ class BybitStrategy(BaseStrategy):
                 return True
 
         return False
-        
-    # def should_terminate_full(self, symbol, current_time, previous_long_pos_qty, long_pos_qty, previous_short_pos_qty, short_pos_qty):
-    #     open_symbols = self.get_open_symbols()  # Fetch open symbols
-        
-    #     if symbol not in open_symbols:
-    #         if not hasattr(self, 'position_closed_time'):
-    #             self.position_closed_time = current_time
-    #         elif current_time - self.position_closed_time > self.position_inactive_threshold:
-    #             logging.info(f"Position for {symbol} has been inactive for more than {self.position_inactive_threshold} seconds.")
-    #             return True
-            
-    #         # Check if there has been no entry signal for a certain duration
-    #         if not hasattr(self, 'last_entry_signal_time'):
-    #             self.last_entry_signal_time = current_time
-    #         elif current_time - self.last_entry_signal_time > self.no_entry_signal_threshold:
-    #             logging.info(f"No entry signal for {symbol} in the last {self.no_entry_signal_threshold} seconds.")
-    #             return True
-    #     else:
-    #         if hasattr(self, 'position_closed_time'):
-    #             del self.position_closed_time
-        
-    #     # Check if a position has been closed
-    #     if previous_long_pos_qty > 0 and long_pos_qty == 0:
-    #         logging.info(f"Long position closed for {symbol}. Canceling long grid orders.")
-    #         self.cancel_grid_orders(symbol, "buy")
-    #         return True
-        
-    #     if previous_short_pos_qty > 0 and short_pos_qty == 0:
-    #         logging.info(f"Short position closed for {symbol}. Canceling short grid orders.")
-    #         self.cancel_grid_orders(symbol, "sell")
-    #         return True
-        
-    #     return False
         
     def should_terminate(self, symbol, current_time):
         open_symbols = self.get_open_symbols()  # Fetch open symbols
