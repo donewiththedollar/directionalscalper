@@ -241,19 +241,6 @@ class BybitBasicGridBufferedQS(BybitStrategy):
                 current_time = time.time()
                 iteration_start_time = time.time()
                             
-                # terminate_side = self.should_terminate_open_orders(symbol, current_time)
-                
-                # if terminate_side == "long":
-                #     logging.info(f"Should terminate long orders for {symbol}")
-                #     self.cancel_grid_orders(symbol, "buy")
-                #     self.cleanup_before_termination(symbol)
-                #     break
-                # elif terminate_side == "short":
-                #     logging.info(f"Should terminate short orders for {symbol}")
-                #     self.cancel_grid_orders(symbol, "sell")
-                #     self.cleanup_before_termination(symbol)
-                #     break
-
                 leverage_tiers = self.exchange.fetch_leverage_tiers(symbol)
 
                 if leverage_tiers:

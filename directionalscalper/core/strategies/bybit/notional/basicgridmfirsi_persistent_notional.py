@@ -199,39 +199,6 @@ class BybitBasicGridMFIRSIPersisentNotional(BybitStrategy):
 
             # Hedge price diff
             price_difference_threshold = self.config.hedge_price_difference_threshold
-
-            if self.config.dashboard_enabled:
-                try:
-                    dashboard_path = os.path.join(self.config.shared_data_path, "shared_data.json")
-                    logging.info(f"Dashboard path: {dashboard_path}")
-
-                    # Ensure the directory exists
-                    os.makedirs(os.path.dirname(dashboard_path), exist_ok=True)
-                    logging.info(f"Directory created: {os.path.dirname(dashboard_path)}")
-
-                    if os.path.exists(dashboard_path):
-                        with open(dashboard_path, "r") as file:
-                            # Read or process file data
-                            data = json.load(file)
-                            logging.info("Loaded existing data from shared_data.json")
-                    else:
-                        logging.warning("shared_data.json does not exist. Creating a new file.")
-                        data = {}  # Initialize data as an empty dictionary
-
-                    # Save the updated data to the JSON file
-                    with open(dashboard_path, "w") as file:
-                        json.dump(data, file)
-                        logging.info("Data saved to shared_data.json")
-
-                except FileNotFoundError:
-                    logging.error(f"File not found: {dashboard_path}")
-                    # Handle the absence of the file, e.g., by creating it or using default data
-                except IOError as e:
-                    logging.error(f"I/O error occurred: {e}")
-                    # Handle other I/O errors
-                except Exception as e:
-                    logging.error(f"An unexpected error occurred: {e}")
-                    
                     
             logging.info("Setting up exchange")
             self.exchange.setup_exchange_bybit(symbol)
@@ -403,12 +370,26 @@ class BybitBasicGridMFIRSIPersisentNotional(BybitStrategy):
 
                 logging.info(f"Symbol precision for {symbol} : {symbol_precision}")
 
-                if self.should_terminate_open_orders(
-                    symbol,
-                    current_time
-                ):
-                    self.cleanup_before_termination(symbol)
-                    break
+                long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
+                short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
+
+                terminate_side = self.should_terminate_open_orders(symbol, long_pos_qty, short_pos_qty, open_position_data, open_orders, current_time)
+
+                logging.info(f"Terminate side: {terminate_side}")
+
+                try:
+                    if terminate_side == "long":
+                        logging.info(f"Should terminate long orders for {symbol}")
+                        self.cancel_grid_orders(symbol, "buy")
+                        self.cleanup_before_termination(symbol)
+                        break
+                    elif terminate_side == "short":
+                        logging.info(f"Should terminate short orders for {symbol}")
+                        self.cancel_grid_orders(symbol, "sell")
+                        self.cleanup_before_termination(symbol)
+                        break
+                except Exception as e:
+                    logging.info(f"Exception caught in termination {e}")
 
                 # If the symbol is in rotator_symbols and either it's already being traded or trading is allowed.
                 if symbol in rotator_symbols_standardized or (symbol in open_symbols or trading_allowed): # and instead of or
@@ -819,13 +800,13 @@ class BybitBasicGridMFIRSIPersisentNotional(BybitStrategy):
                             logging.info("Data saved to shared_data.json")
 
                     except FileNotFoundError:
-                        logging.error(f"File not found: {dashboard_path}")
+                        logging.info(f"File not found: {dashboard_path}")
                         # Handle the absence of the file, e.g., by creating it or using default data
                     except IOError as e:
-                        logging.error(f"I/O error occurred: {e}")
+                        logging.info(f"I/O error occurred: {e}")
                         # Handle other I/O errors
                     except Exception as e:
-                        logging.error(f"An unexpected error occurred: {e}")
+                        logging.info(f"An unexpected error occurred in saving json: {e}")
                         
                 iteration_end_time = time.time()  # Record the end time of the iteration
                 iteration_duration = iteration_end_time - iteration_start_time
