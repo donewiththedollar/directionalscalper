@@ -19,7 +19,22 @@ class BybitExchange(Exchange):
 
         self.max_retries = 100  # Maximum retries for rate-limited requests
         self.retry_wait = 5  # Seconds to wait between retries
+        self.last_active_long_order_time = {}
+        self.last_active_short_order_time = {}
 
+    def log_order_active_times(self):
+        try:
+            current_time = time.time()
+            for symbol, last_active_long in self.last_active_long_order_time.items():
+                time_since_active_long = current_time - last_active_long
+                logging.info(f"Long orders for symbol {symbol} were last active {time_since_active_long:.2f} seconds ago.")
+
+            for symbol, last_active_short in self.last_active_short_order_time.items():
+                time_since_active_short = current_time - last_active_short
+                logging.info(f"Short orders for symbol {symbol} were last active {time_since_active_short:.2f} seconds ago.")
+        except Exception as e:
+            logging.info(f"Last order time exception {e}")
+            
     def get_symbol_info_and_positions(self, symbol: str):
         try:
             # Fetch the market info for the given symbol

@@ -31,6 +31,7 @@ logging = Logger(logger_name="BybitBaseStrategy", filename="BybitBaseStrategy.lo
 class BybitStrategy(BaseStrategy):
     def __init__(self, exchange, config, manager, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
+        self.exchange = exchange
         self.grid_levels = {}
         self.linear_grid_orders = {}
         self.last_price = {}
@@ -47,8 +48,6 @@ class BybitStrategy(BaseStrategy):
         self.position_inactive_threshold = 150
         self.no_entry_signal_threshold = 150
         self.order_inactive_threshold = 150
-        self.last_active_long_order_time = {}
-        self.last_active_short_order_time = {}
         pass
 
     TAKER_FEE_RATE = 0.00055
@@ -422,55 +421,62 @@ class BybitStrategy(BaseStrategy):
 
     def should_terminate_open_orders(self, symbol, long_pos_qty, short_pos_qty, open_positions_data, open_orders, current_time):
         try:
-            # Normalize symbol input to match the expected format in open_positions_data
-            normalized_symbol = symbol.replace('/', '')  # Assuming input is like 'ZILUSDT', we adjust the check accordingly
-
-            logging.info(f"Normalized symbol: {normalized_symbol}")
-            
-            # Log the open positions data for debugging
-            logging.info(f"Open position data: {open_positions_data}")
+            # Assuming input is normalized
+            normalized_symbol = symbol.replace('/', '')
 
             # Check for the presence of the symbol in open positions
             has_position = any(normalized_symbol in pos['symbol'].replace('/', '') for pos in open_positions_data)
-            logging.info(f"Symbol {symbol} has position {has_position}")
 
-            # Filter active orders (non-reduce-only orders)
+            logging.info(f"{symbol} has position: {has_position}")
+
+            # Filter active orders
             active_orders = [order for order in open_orders if not order.get('reduceOnly', False)]
 
-            # Check if there are any active long or short orders for the symbol
+            logging.info(f"Active orders for {symbol}: {active_orders}")
+
+            # Identify active long and short orders
             long_orders = [order for order in active_orders if order['side'] == 'buy']
             short_orders = [order for order in active_orders if order['side'] == 'sell']
 
-            # Determine if long or short orders should be terminated
+            logging.info(f"Long orders for {symbol} {long_orders}")
+            logging.info(f"Short orders for {symbol} {short_orders}")
+            
+            # Determine if orders should be terminated
             should_terminate_long = long_orders and not has_position and long_pos_qty == 0
             should_terminate_short = short_orders and not has_position and short_pos_qty == 0
 
-            result = None
+            logging.info(f"Should terminate long for {symbol} {should_terminate_long}")
+            logging.info(f"Should terminate short for {symbol} {should_terminate_short}")
+
+            terminate_long = False
+            terminate_short = False
+
+            # Manage termination based on stored last active times
             if should_terminate_long:
-                if symbol not in self.last_active_long_order_time:
-                    self.last_active_long_order_time[symbol] = current_time
-                elif current_time - self.last_active_long_order_time[symbol] > self.order_inactive_threshold:
-                    logging.info(f"Long orders for {symbol} have been active without matching positions for more than {self.order_inactive_threshold} seconds.")
-                    result = "long"
-                else:
-                    if symbol in self.last_active_long_order_time:
-                        del self.last_active_long_order_time[symbol]
+                if symbol not in self.exchange.last_active_long_order_time:
+                    self.exchange.last_active_long_order_time[symbol] = current_time
+                elif current_time - self.exchange.last_active_long_order_time[symbol] > self.order_inactive_threshold:
+                    terminate_long = True
+                    logging.info(f"Terminate long for {symbol} : {terminate_long}")
+            else:
+                if symbol in self.exchange.last_active_long_order_time:
+                    del self.exchange.last_active_long_order_time[symbol]
 
             if should_terminate_short:
-                if symbol not in self.last_active_short_order_time:
-                    self.last_active_short_order_time[symbol] = current_time
-                elif current_time - self.last_active_short_order_time[symbol] > self.order_inactive_threshold:
-                    logging.info(f"Short orders for {symbol} have been active without matching positions for more than {self.order_inactive_threshold} seconds.")
-                    result = "short" if result is None else "both"
-                else:
-                    if symbol in self.last_active_short_order_time:
-                        del self.last_active_short_order_time[symbol]
+                if symbol not in self.exchange.last_active_short_order_time:
+                    self.exchange.last_active_short_order_time[symbol] = current_time
+                elif current_time - self.exchange.last_active_short_order_time[symbol] > self.order_inactive_threshold:
+                    terminate_short = True
+                    logging.info(f"Terminate short for {symbol} : {terminate_short}")
+            else:
+                if symbol in self.exchange.last_active_short_order_time:
+                    del self.exchange.last_active_short_order_time[symbol]
 
-            return result
+            return terminate_long, terminate_short
 
         except Exception as e:
-            logging.info(f"Exception caught in should terminate open orders: {e}")
-            return None
+            logging.error(f"Exception caught in should terminate open orders: {e}")
+            return False, False
         
     # Threading locks
     def should_terminate_full(self, symbol, current_time, previous_long_pos_qty, long_pos_qty, previous_short_pos_qty, short_pos_qty):
