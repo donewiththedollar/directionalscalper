@@ -241,7 +241,7 @@ class BybitExchange(Exchange):
         except Exception as e:
             logging.info(f"An error occurred while creating limit order on Bybit: {e}")
             return None
-
+        
     def create_tagged_limit_order_bybit(self, symbol: str, side: str, qty: float, price: float, positionIdx=0, isLeverage=False, orderLinkId=None, postOnly=True, params={}):
         try:
             # Directly prepare the parameters required by the `create_order` method
@@ -270,10 +270,21 @@ class BybitExchange(Exchange):
                 price=price,
                 params=extra_params  # Pass extra params here
             )
+
+            # Log the time of order creation for side-specific tracking
+            current_time = time.time()
+            if side.lower() == 'buy':
+                self.last_active_long_order_time[symbol] = current_time
+                logging.info(f"Logged long order time for {symbol}")
+            elif side.lower() == 'sell':
+                self.last_active_short_order_time[symbol] = current_time
+                logging.info(f"Logged short order time for {symbol}")
+
             return order
         except Exception as e:
             logging.info(f"An error occurred in create_tagged_limit_order_bybit() for {symbol}: {e}")
             return {"error": str(e)}
+
         
     def create_limit_order_bybit_unified(self, symbol: str, side: str, qty: float, price: float, positionIdx=0, params={}):
         try:
