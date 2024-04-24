@@ -422,8 +422,17 @@ class BybitStrategy(BaseStrategy):
 
     def should_terminate_open_orders(self, symbol, long_pos_qty, short_pos_qty, open_positions_data, open_orders, current_time):
         try:
-            # Check if there are any open positions for the symbol
-            has_position = any(pos['symbol'].split(':')[0] == symbol for pos in open_positions_data)
+            # Normalize symbol input to match the expected format in open_positions_data
+            normalized_symbol = symbol.replace('/', '')  # Assuming input is like 'ZILUSDT', we adjust the check accordingly
+
+            logging.info(f"Normalized symbol: {normalized_symbol}")
+            
+            # Log the open positions data for debugging
+            logging.info(f"Open position data: {open_positions_data}")
+
+            # Check for the presence of the symbol in open positions
+            has_position = any(normalized_symbol in pos['symbol'].replace('/', '') for pos in open_positions_data)
+            logging.info(f"Symbol {symbol} has position {has_position}")
 
             # Filter active orders (non-reduce-only orders)
             active_orders = [order for order in open_orders if not order.get('reduceOnly', False)]
