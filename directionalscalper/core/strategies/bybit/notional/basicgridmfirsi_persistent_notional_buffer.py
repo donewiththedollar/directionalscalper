@@ -229,7 +229,7 @@ class BybitBasicGridBuffered(BybitStrategy):
 
             logging.info(f"Terminate side: {terminate_side}")
 
-            while True:
+            while self.running_long or self.running_short:
                 current_time = time.time()
 
                 iteration_start_time = time.time()

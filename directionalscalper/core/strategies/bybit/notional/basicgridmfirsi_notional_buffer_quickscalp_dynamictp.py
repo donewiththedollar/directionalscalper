@@ -239,7 +239,7 @@ class BybitBasicGridBufferedQSDTP(BybitStrategy):
                 logging.info(f"No recent trading activity for {symbol} in the last 24 hours")
 
 
-            while True:
+            while self.running_long or self.running_short:
                 current_time = time.time()
 
                 iteration_start_time = time.time()
