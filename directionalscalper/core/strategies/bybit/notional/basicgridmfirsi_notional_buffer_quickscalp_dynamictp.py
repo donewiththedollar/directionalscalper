@@ -106,6 +106,9 @@ class BybitBasicGridBufferedQSDTP(BybitStrategy):
             logging.info(f"Starting to process symbol: {symbol}")
             logging.info(f"Initializing default values for symbol: {symbol}")
 
+            self.running_long = True
+            self.running_short = True
+            
             previous_long_pos_qty = 0
             previous_short_pos_qty = 0
 
