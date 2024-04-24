@@ -53,7 +53,7 @@
       "reissue_threshold": 0.001,
       "buffer_percentage": 0.10,
       "min_buffer_percentage": 0.002,
-      "max_buffer_percentage": 0.03,
+      "max_buffer_percentage": 0.005,
       "enforce_full_grid": true,
       "min_buffer_percentage_ar": 0.002,
       "max_buffer_percentage_ar": 0.005,
