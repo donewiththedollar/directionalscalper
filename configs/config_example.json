@@ -14,7 +14,7 @@
     "wallet_exposure_limit": 0.001,
     "user_defined_leverage_long": 0,
     "user_defined_leverage_short": 0,
-    "upnl_profit_pct": 0.0024,
+    "upnl_profit_pct": 0.0022,
     "max_upnl_profit_pct": 0.0034,
     "stoploss_enabled": false,
     "stoploss_upnl_pct": 0.05,
