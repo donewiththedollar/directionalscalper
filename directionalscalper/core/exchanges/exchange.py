@@ -502,35 +502,38 @@ class Exchange:
         # If no 'LOT_SIZE' filter was found, return None
         return None
 
-    def get_moving_averages(self, symbol: str, timeframe: str = "1m", num_bars: int = 20, max_retries=3, retry_delay=5) -> dict:
+    def get_moving_averages(self, symbol: str, timeframe: str = "1m", num_bars: int = 20, max_retries=100, retry_delay=5) -> dict:
         values = {"MA_3_H": 0.0, "MA_3_L": 0.0, "MA_6_H": 0.0, "MA_6_L": 0.0}
-
         for i in range(max_retries):
             try:
-                bars = self.exchange.fetch_ohlcv(
-                    symbol=symbol, timeframe=timeframe, limit=num_bars
-                )
-                df = pd.DataFrame(
-                    bars, columns=["Time", "Open", "High", "Low", "Close", "Volume"]
-                )
+                bars = self.exchange.fetch_ohlcv(symbol=symbol, timeframe=timeframe, limit=num_bars)
+                if not bars:
+                    logging.info(f"No data returned for {symbol} on {timeframe}. Retrying...")
+                    time.sleep(retry_delay)
+                    continue
+                
+                df = pd.DataFrame(bars, columns=["Time", "Open", "High", "Low", "Close", "Volume"])
                 df["Time"] = pd.to_datetime(df["Time"], unit="ms")
-                df["MA_3_High"] = df.High.rolling(3).mean()
-                df["MA_3_Low"] = df.Low.rolling(3).mean()
-                df["MA_6_High"] = df.High.rolling(6).mean()
-                df["MA_6_Low"] = df.Low.rolling(6).mean()
-                values["MA_3_H"] = df["MA_3_High"].iat[-1]
-                values["MA_3_L"] = df["MA_3_Low"].iat[-1]
-                values["MA_6_H"] = df["MA_6_High"].iat[-1]
-                values["MA_6_L"] = df["MA_6_Low"].iat[-1]
-                break  # If the fetch was successful, break out of the loop
+                df["MA_3_High"] = df["High"].rolling(3).mean()
+                df["MA_3_Low"] = df["Low"].rolling(3).mean()
+                df["MA_6_High"] = df["High"].rolling(6).mean()
+                df["MA_6_Low"] = df["Low"].rolling(6).mean()
+                
+                values["MA_3_H"] = df["MA_3_High"].iat[-1] if len(df["MA_3_High"]) > 0 else None
+                values["MA_3_L"] = df["MA_3_Low"].iat[-1] if len(df["MA_3_Low"]) > 0 else None
+                values["MA_6_H"] = df["MA_6_High"].iat[-1] if len(df["MA_6_High"]) > 0 else None
+                values["MA_6_L"] = df["MA_6_Low"].iat[-1] if len(df["MA_6_Low"]) > 0 else None
+
+                if None not in values.values():
+                    break
             except Exception as e:
-                if i < max_retries - 1:  # If not the last attempt
+                if i < max_retries - 1:
                     logging.info(f"An unknown error occurred in get_moving_averages(): {e}. Retrying in {retry_delay} seconds...")
                     time.sleep(retry_delay)
                 else:
                     logging.info(f"Failed to fetch moving averages after {max_retries} attempts: {e}")
-                    raise e  # If it's still failing after max_retries, re-raise the exception.
-        
+                    return values  # Return whatever we have, even if incomplete
+
         return values
 
     def get_order_status(self, order_id, symbol):

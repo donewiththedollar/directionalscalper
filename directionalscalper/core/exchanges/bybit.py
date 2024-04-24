@@ -21,6 +21,8 @@ class BybitExchange(Exchange):
         self.retry_wait = 5  # Seconds to wait between retries
         self.last_active_long_order_time = {}
         self.last_active_short_order_time = {}
+        self.last_active_time = {}
+
 
     def log_order_active_times(self):
         try:
@@ -34,7 +36,13 @@ class BybitExchange(Exchange):
                 logging.info(f"Short orders for symbol {symbol} were last active {time_since_active_short:.2f} seconds ago.")
         except Exception as e:
             logging.info(f"Last order time exception {e}")
-            
+
+    # Assuming you have an initializer or a specific method where symbols start being monitored
+    def initialize_symbol_monitoring(self, symbol):
+        if symbol not in self.last_active_time:
+            self.last_active_time[symbol] = time.time()
+            logging.info(f"Started monitoring {symbol} at {self.last_active_time[symbol]}")
+     
     def get_symbol_info_and_positions(self, symbol: str):
         try:
             # Fetch the market info for the given symbol

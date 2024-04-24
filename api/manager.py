@@ -14,7 +14,7 @@ import requests  # type: ignore
 from directionalscalper.core.utils import send_public_request
 from directionalscalper.core.strategies.logger import Logger
 
-logging = Logger(logger_name="Exchange", filename="Exchange.log", stream=True)
+logging = Logger(logger_name="Manager", filename="Manager.log", stream=True)
 
 #log = logging.getLogger(__name__)
 
