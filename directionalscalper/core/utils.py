@@ -87,7 +87,7 @@ def send_public_request(
     payload: dict | None = None,
     json_in: dict | None = None,
     json_out: bool = True,
-    max_retries: int = 5,
+    max_retries: int = 100,
     base_delay: float = 0.5  # base delay for exponential backoff
 ):
     empty_response = BlankResponse().content
@@ -106,7 +106,7 @@ def send_public_request(
             response = dispatch_request(method)(
                 url=url,
                 json=json_in,
-                timeout=10,  # Increased timeout
+                timeout=30,  # Increased timeout
             )
             headers = response.headers
             if not json_out:
