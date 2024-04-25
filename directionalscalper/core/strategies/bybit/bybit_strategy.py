@@ -2405,7 +2405,7 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.info(f"Exception caught in bybit_1m_mfi_quickscalp_trend_long_only_spot: {e}")
 
-    def linear_grid_handle_positions_mfirsi_persistent_notional_dynamic_buffer_qs(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float, short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, wallet_exposure_limit_long: float, wallet_exposure_limit_short: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, min_buffer_percentage: float, max_buffer_percentage: float, symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool):
+    def linear_grid_handle_positions_mfirsi_persistent_notional_dynamic_buffer_qs_dynamictp(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float, short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, wallet_exposure_limit_long: float, wallet_exposure_limit_short: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, min_buffer_percentage: float, max_buffer_percentage: float, symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float, max_upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool):
         try:
             should_reissue_long, should_reissue_short = self.should_reissue_orders_revised(symbol, reissue_threshold, long_pos_qty, short_pos_qty)
             open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
@@ -2471,44 +2471,10 @@ class BybitStrategy(BaseStrategy):
 
             logging.info(f"[{symbol}] Long grid levels: {grid_levels_long}")
             logging.info(f"[{symbol}] Short grid levels: {grid_levels_short}")
-
-            # Check if grid levels need to be updated based on dynamic buffer
-            replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer(
-                symbol,
-                long_pos_price,
-                short_pos_price,
-                long_pos_qty,
-                short_pos_qty,
-                min_buffer_percentage,
-                max_buffer_percentage
-            )
-
-            if replace_long_grid:
-                long_distance_from_entry = abs(current_price - long_pos_price) / long_pos_price
-                buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * long_distance_from_entry
-                buffer_distance_long = current_price * buffer_percentage_long
-                price_range_long = current_price - outer_price_long
-                grid_levels_long = [current_price - buffer_distance_long - price_range_long * factor for factor in factors]
-                logging.info(f"[{symbol}] Recalculated long grid levels with updated buffer: {grid_levels_long}")
-
-            if replace_short_grid:
-                short_distance_from_entry = abs(current_price - short_pos_price) / short_pos_price
-                buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * short_distance_from_entry
-                buffer_distance_short = current_price * buffer_percentage_short
-                price_range_short = outer_price_short - current_price
-                grid_levels_short = [current_price + buffer_distance_short + price_range_short * factor for factor in factors]
-                logging.info(f"[{symbol}] Recalculated short grid levels with updated buffer: {grid_levels_short}")
                 
             qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
             min_qty = float(self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
             logging.info(f"[{symbol}] Quantity precision: {qty_precision}, Minimum quantity: {min_qty}")
-
-            # total_amount_long = self.calculate_total_amount_notional(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_long, "buy", levels, enforce_full_grid) if long_mode else 0
-            # total_amount_short = self.calculate_total_amount_notional(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit, user_defined_leverage_short, "sell", levels, enforce_full_grid) if short_mode else 0
-            # logging.info(f"[{symbol}] Total amount long: {total_amount_long}, Total amount short: {total_amount_short}")
-
-            # total_amount_long = self.calculate_total_amount_notional_ls(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit_long, wallet_exposure_limit_short, user_defined_leverage_long, "buy", levels, enforce_full_grid) if long_mode else 0
-            # total_amount_short = self.calculate_total_amount_notional_ls(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit_long, wallet_exposure_limit_short, user_defined_leverage_short, "sell", levels, enforce_full_grid) if short_mode else 0
 
             total_amount_long = self.calculate_total_amount_notional_ls(
                 symbol=symbol,
@@ -2545,6 +2511,40 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"[{symbol}] Long order amounts: {amounts_long}")
             logging.info(f"[{symbol}] Short order amounts: {amounts_short}")
 
+            # Check if grid levels need to be updated based on dynamic buffer
+            replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer(
+                symbol,
+                long_pos_price,
+                short_pos_price,
+                long_pos_qty,
+                short_pos_qty,
+                min_buffer_percentage,
+                max_buffer_percentage
+            )
+
+            if replace_long_grid:
+                logging.info(f"[{symbol}] Replacing long grid orders due to updated buffer.")
+                self.clear_grid(symbol, 'buy')  # Cancel existing long grid orders
+                long_distance_from_entry = abs(current_price - long_pos_price) / long_pos_price
+                buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * long_distance_from_entry
+                buffer_distance_long = current_price * buffer_percentage_long
+                price_range_long = current_price - outer_price_long
+                grid_levels_long = [current_price - buffer_distance_long - price_range_long * factor for factor in factors]
+                self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])  # Place new long grid orders
+                logging.info(f"[{symbol}] Recalculated long grid levels with updated buffer: {grid_levels_long}")
+
+            if replace_short_grid:
+                logging.info(f"[{symbol}] Replacing short grid orders due to updated buffer.")
+                self.clear_grid(symbol, 'sell')  # Cancel existing short grid orders
+                short_distance_from_entry = abs(current_price - short_pos_price) / short_pos_price
+                buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * short_distance_from_entry
+                buffer_distance_short = current_price * buffer_percentage_short
+                price_range_short = outer_price_short - current_price
+                grid_levels_short = [current_price + buffer_distance_short + price_range_short * factor for factor in factors]
+                self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])  # Place new short grid orders
+                logging.info(f"[{symbol}] Recalculated short grid levels with updated buffer: {grid_levels_short}")
+                        
+                        
             trading_allowed = self.can_trade_new_symbol(open_symbols, symbols_allowed, symbol)
             logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
             logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
@@ -2706,37 +2706,46 @@ class BybitStrategy(BaseStrategy):
                 long_take_profit = None
 
                 # Calculate take profit for short and long positions using quickscalp method
-                short_take_profit = self.calculate_quickscalp_short_take_profit(short_pos_price, symbol, upnl_profit_pct)
-                long_take_profit = self.calculate_quickscalp_long_take_profit(long_pos_price, symbol, upnl_profit_pct)
-                
+                short_take_profit = self.calculate_quickscalp_short_take_profit_dynamic_distance(short_pos_price, symbol, min_upnl_profit_pct=upnl_profit_pct, max_upnl_profit_pct=max_upnl_profit_pct)
+                long_take_profit = self.calculate_quickscalp_long_take_profit_dynamic_distance(long_pos_price, symbol, min_upnl_profit_pct=upnl_profit_pct, max_upnl_profit_pct=max_upnl_profit_pct)
+
                 # Update TP for long position
                 if long_pos_qty > 0:
-                    self.next_long_tp_update = self.update_quickscalp_tp(
-                        symbol=symbol,
-                        pos_qty=long_pos_qty,
-                        upnl_profit_pct=upnl_profit_pct,
-                        short_pos_price=short_pos_price,
-                        long_pos_price=long_pos_price,
-                        positionIdx=1,
-                        order_side="sell",
-                        last_tp_update=self.next_long_tp_update,
-                        tp_order_counts=tp_order_counts
+                    new_long_tp_min, new_long_tp_max = self.calculate_quickscalp_long_take_profit_dynamic_distance(
+                        long_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
                     )
+                    if new_long_tp_min is not None and new_long_tp_max is not None:
+                        self.next_long_tp_update = self.update_quickscalp_tp_dynamic(
+                            symbol=symbol,
+                            pos_qty=long_pos_qty,
+                            upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
+                            max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
+                            short_pos_price=None,  # Not relevant for long TP settings
+                            long_pos_price=long_pos_price,
+                            positionIdx=1,
+                            order_side="sell",
+                            last_tp_update=self.next_long_tp_update,
+                            tp_order_counts=tp_order_counts
+                        )
 
                 # Update TP for short position
                 if short_pos_qty > 0:
-                    self.next_short_tp_update = self.update_quickscalp_tp(
-                        symbol=symbol,
-                        pos_qty=short_pos_qty,
-                        upnl_profit_pct=upnl_profit_pct,
-                        short_pos_price=short_pos_price,
-                        long_pos_price=long_pos_price,
-                        positionIdx=2,
-                        order_side="buy",
-                        last_tp_update=self.next_short_tp_update,
-                        tp_order_counts=tp_order_counts
+                    new_short_tp_min, new_short_tp_max = self.calculate_quickscalp_short_take_profit_dynamic_distance(
+                        short_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
                     )
-
+                    if new_short_tp_min is not None and new_short_tp_max is not None:
+                        self.next_short_tp_update = self.update_quickscalp_tp_dynamic(
+                            symbol=symbol,
+                            pos_qty=short_pos_qty,
+                            upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
+                            max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
+                            short_pos_price=short_pos_price,
+                            long_pos_price=None,  # Not relevant for short TP settings
+                            positionIdx=2,
+                            order_side="buy",
+                            last_tp_update=self.next_short_tp_update,
+                            tp_order_counts=tp_order_counts
+                        )
             else:
                 logging.info(f"[{symbol}] Trading not allowed. Skipping grid placement.")
                 time.sleep(5)
