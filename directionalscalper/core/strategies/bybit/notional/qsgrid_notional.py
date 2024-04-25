@@ -133,7 +133,7 @@ class BybitQSGridNotional(BybitStrategy):
 
             logging.info(f"Max leverage for {symbol}: {self.max_leverage}")
 
-            self.adjust_risk_parameters(exchange_max_leverage=self.max_leverage)
+            self.adjust_risk_parameters_qstrend(exchange_max_leverage=self.max_leverage)
 
             self.exchange.set_leverage_bybit(self.max_leverage, symbol)
             self.exchange.set_symbol_to_cross_margin(symbol, self.max_leverage)
@@ -385,8 +385,6 @@ class BybitQSGridNotional(BybitStrategy):
                 trading_allowed = self.can_trade_new_symbol(open_symbols, self.symbols_allowed, symbol)
                 logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
                 logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
-
-                # self.adjust_risk_parameters()
 
                 # self.initialize_symbol(symbol, total_equity, best_ask_price, self.max_leverage)
 

@@ -1022,6 +1022,26 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"{symbol} is already initialized.")
                 return False
 
+    def adjust_risk_parameters_qstrend(self, exchange_max_leverage):
+        """
+        Adjust risk parameters based on user preferences.
+        
+        :param exchange_max_leverage: The maximum leverage allowed by the exchange.
+        """
+        # Ensure the wallet exposure limit is within a practical range (1% to 100%)
+        # self.wallet_exposure_limit = max(0.01, min(self.wallet_exposure_limit, 1.0))
+        
+        # Ensure the wallet exposure limit is within a practical range (0.1% to 100%)
+        self.wallet_exposure_limit = min(self.wallet_exposure_limit, 1.0)
+
+        # Adjust user-defined leverage for long and short positions to not exceed exchange maximum
+        self.user_defined_leverage_long = max(1, min(self.user_defined_leverage_long, exchange_max_leverage))
+        self.user_defined_leverage_short = max(1, min(self.user_defined_leverage_short, exchange_max_leverage))
+        
+        logging.info(f"Wallet exposure limit set to {self.wallet_exposure_limit*100}%")
+        logging.info(f"User-defined leverage for long positions set to {self.user_defined_leverage_long}x")
+        logging.info(f"User-defined leverage for short positions set to {self.user_defined_leverage_short}x")
+
     def adjust_risk_parameters(self, exchange_max_leverage):
         """
         Adjust risk parameters based on user preferences.

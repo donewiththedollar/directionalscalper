@@ -116,7 +116,7 @@ class BybitQuickScalpTrendERINotional(BybitStrategy):
 
             logging.info(f"Max leverage for {symbol}: {self.max_leverage}")
 
-            self.adjust_risk_parameters(exchange_max_leverage=self.max_leverage)
+            self.adjust_risk_parameters_qstrend(exchange_max_leverage=self.max_leverage)
 
             self.exchange.set_leverage_bybit(self.max_leverage, symbol)
             self.exchange.set_symbol_to_cross_margin(symbol, self.max_leverage)

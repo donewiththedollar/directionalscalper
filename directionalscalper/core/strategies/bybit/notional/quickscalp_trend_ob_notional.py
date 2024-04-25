@@ -409,7 +409,7 @@ class BybitQuickScalpTrendOBNotional(BybitStrategy):
                     # long_liq_price = position_data["long"]["liq_price"]
 
                     # Adjust risk parameters based on the maximum leverage allowed by the exchange
-                    self.adjust_risk_parameters(exchange_max_leverage=self.max_leverage)
+                    self.adjust_risk_parameters_qstrend(exchange_max_leverage=self.max_leverage)
 
                     # Calculate dynamic entry sizes for long and short positions
                     long_dynamic_amount, short_dynamic_amount = self.calculate_dynamic_amounts_notional(
