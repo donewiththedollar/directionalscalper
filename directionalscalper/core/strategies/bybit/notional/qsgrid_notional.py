@@ -252,7 +252,7 @@ class BybitQSGridNotional(BybitStrategy):
                 logging.info(f"No recent trading activity for {symbol} in the last 24 hours")
 
 
-            while True:
+            while self.running_long or self.running_short:
                 current_time = time.time()
 
                 iteration_start_time = time.time()
@@ -401,6 +401,52 @@ class BybitQSGridNotional(BybitStrategy):
 
                 logging.info(f"Symbol precision for {symbol} : {symbol_precision}")
 
+                long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
+                short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
+                # Update the previous position quantities
+                previous_long_pos_qty = long_pos_qty
+                previous_short_pos_qty = short_pos_qty
+
+                terminate_long, terminate_short = self.should_terminate_open_orders(symbol, long_pos_qty, short_pos_qty, open_position_data, open_orders, current_time)
+                logging.info(f"Terminate long: {terminate_long}, Terminate short: {terminate_short}")
+
+                global thread_termination_status
+
+                try:
+                    if terminate_long:
+                        logging.info(f"Should terminate long orders for {symbol}")
+                        self.cancel_grid_orders(symbol, "buy")
+                        self.cleanup_before_termination(symbol)
+                        self.running_long = False  # Set the flag to stop the long thread
+                        thread_termination_status[symbol] = True  # Update the termination status
+
+                    if terminate_short:
+                        logging.info(f"Should terminate short orders for {symbol}")
+                        self.cancel_grid_orders(symbol, "sell")
+                        self.cleanup_before_termination(symbol)
+                        self.running_short = False  # Set the flag to stop the short thread
+                        thread_termination_status[symbol] = True  # Update the termination status
+
+                except Exception as e:
+                    logging.info(f"Exception caught in termination {e}")
+
+                if not self.running_long and not self.running_short:
+                    logging.info("Both long and short operations have ended. Preparing to exit loop.")
+                    shared_symbols_data.pop(symbol, None)  # Remove the symbol from shared_symbols_data
+
+                    # Check if a position has been closed
+                    if previous_long_pos_qty > 0 and long_pos_qty == 0:
+                        logging.info(f"Long position closed for {symbol}. Canceling long grid orders.")
+                        self.cancel_grid_orders(symbol, "buy")
+                        self.cleanup_before_termination(symbol)
+                        self.running_long = False  # Set the flag to stop the long thread
+
+                    if previous_short_pos_qty > 0 and short_pos_qty == 0:
+                        logging.info(f"Short position closed for {symbol}. Canceling short grid orders.")
+                        self.cancel_grid_orders(symbol, "sell")
+                        self.cleanup_before_termination(symbol)
+                        self.running_short = False  # Set the flag to stop the short thread
+                    
                 # If the symbol is in rotator_symbols and either it's already being traded or trading is allowed.
                 if symbol in rotator_symbols_standardized or (symbol in open_symbols or trading_allowed): # and instead of or
 
