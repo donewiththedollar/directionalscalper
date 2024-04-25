@@ -262,7 +262,15 @@ class DirectionalMarketMaker:
     def get_symbols(self):
         return self.exchange.symbols
 
-
+    def get_open_orders_by_symbol(self, symbol):
+        try:
+            open_orders = self.exchange.retry_api_call(self.exchange.get_open_orders, symbol)
+            logging.info(f"Open orders from thread killer {open_orders}")
+            return open_orders
+        except Exception as e:
+            logging.error(f"Error fetching open orders for symbol {symbol}: {e}")
+            return []
+        
 BALANCE_REFRESH_INTERVAL = 600  # in seconds
 
 orders_canceled = False
@@ -338,6 +346,8 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
                 del thread_to_symbol[current_thread]
         logging.info(f"Thread for symbol {symbol} has completed.")
 
+thread_start_time = {}
+
 def bybit_auto_rotation(args, manager, symbols_allowed):
     global latest_rotator_symbols, threads, active_symbols, last_rotator_update_time
 
@@ -349,7 +359,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
             standardize_symbol(pos['symbol'])
             for pos in getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
         }
-        logging.info(f"Open position symbols: {open_position_symbols}")
+        logging.info(f"Open position symbols from auto rotation: {open_position_symbols}")
         
         # Periodically fetch and update latest rotation symbols
         if current_time - last_rotator_update_time >= 60:
@@ -376,6 +386,23 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
             
             # Remove completed symbols from active_symbols and threads
             for symbol in completed_symbols:
+                active_symbols.discard(symbol)
+                del threads[symbol]
+                del thread_start_time[symbol]
+            
+            # Check for threads that have exceeded the time threshold and don't have open positions or open orders
+            timed_out_symbols = []
+            for symbol, start_time in thread_start_time.items():
+                if current_time - start_time > 300 and symbol not in open_position_symbols:  # 5 minutes in seconds
+                    open_orders = market_maker.get_open_orders_by_symbol(symbol)
+                    logging.info(f"Open orders: {open_orders}")
+                    if not open_orders:
+                        timed_out_symbols.append(symbol)
+                        logging.info(f"Timed out symbol {symbol} added to timed out symbols {timed_out_symbols}")
+            
+            # Remove timed-out threads, symbols, and start times
+            for symbol in timed_out_symbols:
+                remove_thread_for_symbol(symbol)
                 active_symbols.discard(symbol)
                 del threads[symbol]
                 del thread_start_time[symbol]
@@ -437,7 +464,7 @@ def start_thread_for_symbol(symbol, args, manager):
         new_thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols, thread_completed))
         new_thread.start()
         threads[symbol] = (new_thread, thread_completed)
-        thread_start_time[symbol] = time.time()
+        thread_start_time[symbol] = time.time()  # Record the start time
         return True  # Successfully started thread
     except Exception as e:
         logging.error(f"Error starting thread for symbol {symbol}: {e}")
