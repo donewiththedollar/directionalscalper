@@ -59,6 +59,8 @@ latest_rotator_symbols = set()
 last_rotator_update_time = time.time()
 tried_symbols = set()
 
+thread_termination_status = {}
+
 logging = Logger(logger_name="MultiBot", filename="MultiBot.log", stream=True)
 
 def standardize_symbol(symbol):
@@ -275,7 +277,9 @@ BALANCE_REFRESH_INTERVAL = 600  # in seconds
 
 orders_canceled = False
 
-def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized, thread_completed):
+thread_termination_status = {}
+
+def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized):
     global orders_canceled
     current_thread = threading.current_thread()
     try:
@@ -318,7 +322,8 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         except Exception as e:
             logging.info(f"Exception caught {e}")
 
-        market_maker.run_strategy(symbol, args.strategy, config, account_name, symbols_to_trade=symbols_allowed, rotator_symbols_standardized=rotator_symbols_standardized)
+        market_maker.run_strategy(symbol, args.strategy, config, account_name, symbols_to_trade=symbols_allowed,
+                                   rotator_symbols_standardized=rotator_symbols_standardized)
 
         quote = "USDT"
         current_time = time.time()
@@ -333,12 +338,13 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         #         print(f"Futures balance: {cached_balance}")
         #     last_balance_fetch_time = current_time
 
-        # Signal thread completion
-        thread_completed.set()
+        # Signal thread termination
+        thread_termination_status[symbol] = True
 
     except Exception as e:
         logging.error(f"An error occurred in run_bot for symbol {symbol}: {e}")
-        thread_completed.set()  # Signal thread completion even in case of an exception
+        # Signal thread termination even in case of an exception
+        thread_termination_status[symbol] = True
 
     finally:
         with thread_to_symbol_lock:
@@ -346,50 +352,49 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
                 del thread_to_symbol[current_thread]
         logging.info(f"Thread for symbol {symbol} has completed.")
 
-thread_start_time = {}
-
 def bybit_auto_rotation(args, manager, symbols_allowed):
     global latest_rotator_symbols, threads, active_symbols, last_rotator_update_time
 
     try:
         current_time = time.time()
-        
+
         # Fetch current open positions and update symbol sets
         open_position_symbols = {
             standardize_symbol(pos['symbol'])
             for pos in getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
         }
         logging.info(f"Open position symbols from auto rotation: {open_position_symbols}")
-        
+
         # Periodically fetch and update latest rotation symbols
         if current_time - last_rotator_update_time >= 60:
             latest_rotator_symbols = fetch_updated_symbols(args, manager)
             last_rotator_update_time = current_time
             logging.info(f"Latest rotator symbols: {latest_rotator_symbols}")
-        
+
         with thread_management_lock:
             # Update active symbols based on thread status
             update_active_symbols()
-            
+
             # Start new threads for open positions not currently active
             update_active_threads(open_position_symbols, args, manager, symbols_allowed)
-            
+
             # Handle new symbols from the rotator within the allowed limits
             manage_rotator_symbols(latest_rotator_symbols, args, manager, symbols_allowed)
-            
+
             # Check for completed threads and perform cleanup
             completed_symbols = []
-            for symbol, (thread, thread_completed) in threads.items():
-                if thread_completed.is_set():
-                    thread.join()  # Wait for the thread to complete
+            for symbol in list(threads.keys()):
+                if symbol in thread_termination_status:
+                    threads[symbol].join()  # Wait for the thread to complete
                     completed_symbols.append(symbol)
-            
+
             # Remove completed symbols from active_symbols and threads
             for symbol in completed_symbols:
                 active_symbols.discard(symbol)
                 del threads[symbol]
                 del thread_start_time[symbol]
-            
+                thread_termination_status.pop(symbol, None)
+
             # Check for threads that have exceeded the time threshold and don't have open positions or open orders
             timed_out_symbols = []
             for symbol, start_time in thread_start_time.items():
@@ -399,7 +404,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                     if not open_orders:
                         timed_out_symbols.append(symbol)
                         logging.info(f"Timed out symbol {symbol} added to timed out symbols {timed_out_symbols}")
-            
+
             # Remove timed-out threads, symbols, and start times
             for symbol in timed_out_symbols:
                 remove_thread_for_symbol(symbol)
@@ -408,16 +413,19 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                 del thread_start_time[symbol]
 
     except Exception as e:
-        logging.error(f"Exception caught in bybit_auto_rotation: {str(e)}")
-
+        trace_info = traceback.format_exc()  # Get the complete traceback information
+        logging.error(f"Exception caught in autorotate: {e}\nTraceback: {trace_info}")
+        return None  # In case of exception, we default to no termination
+    
 def update_active_symbols():
     global active_symbols
-    active_symbols = {symbol for symbol in active_symbols if symbol in threads and threads[symbol][0].is_alive()}
-
+    active_symbols = {symbol for symbol in active_symbols
+                      if symbol in threads and symbol not in thread_termination_status}
+    
 def update_active_threads(open_position_symbols, args, manager, symbols_allowed):
     global active_symbols
     for symbol in open_position_symbols:
-        if symbol not in active_symbols or (symbol in threads and not threads[symbol][0].is_alive()):
+        if symbol not in active_symbols or (symbol in threads and threads[symbol].is_alive()):
             if start_thread_for_symbol(symbol, args, manager):
                 active_symbols.add(symbol)
                 logging.info(f"Started or restarted thread for symbol: {symbol}")
@@ -426,21 +434,21 @@ def update_active_threads(open_position_symbols, args, manager, symbols_allowed)
 def manage_rotator_symbols(rotator_symbols, args, manager, symbols_allowed):
     global active_symbols
     needed_slots = symbols_allowed - len(active_symbols)
-    
+
     # Convert set to list and shuffle for random selection
     random_rotator_symbols = list(rotator_symbols)
     random.shuffle(random_rotator_symbols)
-    
+
     for symbol in random_rotator_symbols:
         if needed_slots <= 0:
             break
-        if symbol not in active_symbols and (symbol not in threads or not threads[symbol][0].is_alive()):
+        if symbol not in active_symbols and (symbol not in threads or threads[symbol].is_alive()):
             if start_thread_for_symbol(symbol, args, manager):
                 active_symbols.add(symbol)
                 needed_slots -= 1
                 logging.info(f"Added new thread for rotator symbol: {symbol}")
         manage_excess_threads(symbols_allowed)
-        
+
 def manage_excess_threads(symbols_allowed):
     global active_symbols
     while len(active_symbols) > symbols_allowed:
@@ -450,20 +458,17 @@ def manage_excess_threads(symbols_allowed):
 
 def remove_thread_for_symbol(symbol):
     """Safely removes a thread associated with a symbol."""
-    thread, thread_completed = threads.get(symbol, (None, None))
+    thread = threads.pop(symbol, None)
     if thread:
-        thread_completed.set()  # Signal thread completion
         thread.join()
-    threads.pop(symbol, None)
 
 def start_thread_for_symbol(symbol, args, manager):
     """Start a new thread for a given symbol."""
     logging.info(f"Starting thread for symbol: {symbol}")
     try:
-        thread_completed = threading.Event()
-        new_thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols, thread_completed))
+        new_thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols))
         new_thread.start()
-        threads[symbol] = (new_thread, thread_completed)
+        threads[symbol] = new_thread
         thread_start_time[symbol] = time.time()  # Record the start time
         return True  # Successfully started thread
     except Exception as e:
