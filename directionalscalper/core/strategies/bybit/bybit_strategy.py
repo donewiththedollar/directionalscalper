@@ -744,8 +744,8 @@ class BybitStrategy(BaseStrategy):
             return last_tp_update
 
     def calculate_quickscalp_long_take_profit_dynamic_distance(self, long_pos_price, symbol, min_upnl_profit_pct, max_upnl_profit_pct):
-        if long_pos_price is None:
-            return None
+        if long_pos_price is None or long_pos_price <= 0:
+            return None, None
 
         price_precision = int(self.exchange.get_price_precision(symbol))
         logging.info(f"Price precision for {symbol}: {price_precision}")
@@ -764,14 +764,14 @@ class BybitStrategy(BaseStrategy):
             )
         except InvalidOperation as e:
             logging.info(f"Error when quantizing target_profit_prices. {e}")
-            return None
+            return None, None
 
         # Return the minimum and maximum target profit prices as a tuple
         return float(min_target_profit_price), float(max_target_profit_price)
 
     def calculate_quickscalp_short_take_profit_dynamic_distance(self, short_pos_price, symbol, min_upnl_profit_pct, max_upnl_profit_pct):
-        if short_pos_price is None:
-            return None
+        if short_pos_price is None or short_pos_price <= 0:
+            return None, None
 
         price_precision = int(self.exchange.get_price_precision(symbol))
         logging.info(f"Price precision for {symbol}: {price_precision}")
@@ -790,11 +790,11 @@ class BybitStrategy(BaseStrategy):
             )
         except InvalidOperation as e:
             logging.info(f"Error when quantizing target_profit_prices. {e}")
-            return None
+            return None, None
 
         # Return the minimum and maximum target profit prices as a tuple
         return float(min_target_profit_price), float(max_target_profit_price)
-            
+    
     def calculate_quickscalp_long_take_profit(self, long_pos_price, symbol, upnl_profit_pct):
         if long_pos_price is None:
             return None
@@ -2990,33 +2990,41 @@ class BybitStrategy(BaseStrategy):
 
                 # Update TP for long position
                 if long_pos_qty > 0:
-                    self.next_long_tp_update = self.update_quickscalp_tp_dynamic(
-                        symbol=symbol,
-                        pos_qty=long_pos_qty,
-                        upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
-                        max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
-                        short_pos_price=None,  # Not relevant for long TP settings
-                        long_pos_price=long_pos_price,
-                        positionIdx=1,
-                        order_side="sell",
-                        last_tp_update=self.next_long_tp_update,
-                        tp_order_counts=tp_order_counts
+                    new_long_tp_min, new_long_tp_max = self.calculate_quickscalp_long_take_profit_dynamic_distance(
+                        long_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
                     )
+                    if new_long_tp_min is not None and new_long_tp_max is not None:
+                        self.next_long_tp_update = self.update_quickscalp_tp_dynamic(
+                            symbol=symbol,
+                            pos_qty=long_pos_qty,
+                            upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
+                            max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
+                            short_pos_price=None,  # Not relevant for long TP settings
+                            long_pos_price=long_pos_price,
+                            positionIdx=1,
+                            order_side="sell",
+                            last_tp_update=self.next_long_tp_update,
+                            tp_order_counts=tp_order_counts
+                        )
 
                 # Update TP for short position
                 if short_pos_qty > 0:
-                    self.next_short_tp_update = self.update_quickscalp_tp_dynamic(
-                        symbol=symbol,
-                        pos_qty=short_pos_qty,
-                        upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
-                        max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
-                        short_pos_price=short_pos_price,
-                        long_pos_price=None,  # Not relevant for short TP settings
-                        positionIdx=2,
-                        order_side="buy",
-                        last_tp_update=self.next_short_tp_update,
-                        tp_order_counts=tp_order_counts
+                    new_short_tp_min, new_short_tp_max = self.calculate_quickscalp_short_take_profit_dynamic_distance(
+                        short_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
                     )
+                    if new_short_tp_min is not None and new_short_tp_max is not None:
+                        self.next_short_tp_update = self.update_quickscalp_tp_dynamic(
+                            symbol=symbol,
+                            pos_qty=short_pos_qty,
+                            upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
+                            max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
+                            short_pos_price=short_pos_price,
+                            long_pos_price=None,  # Not relevant for short TP settings
+                            positionIdx=2,
+                            order_side="buy",
+                            last_tp_update=self.next_short_tp_update,
+                            tp_order_counts=tp_order_counts
+                        )
             else:
                 logging.info(f"[{symbol}] Trading not allowed. Skipping grid placement.")
                 time.sleep(5)
