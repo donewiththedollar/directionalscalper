@@ -241,6 +241,15 @@ class BybitBasicGridBufferedQS(BybitStrategy):
 
 
             while self.running_long or self.running_short:
+
+                # Check for symbol inactivity
+                inactive_time_threshold = 160  # 3 minutes in seconds
+                if self.check_symbol_inactivity(symbol, inactive_time_threshold):
+                    logging.info(f"No open positions or orders for {symbol} in the last {inactive_time_threshold} seconds. Terminating the thread.")
+                    self.running_long = False
+                    self.running_short = False
+                    break
+                
                 current_time = time.time()
                 iteration_start_time = time.time()
                             
@@ -303,7 +312,7 @@ class BybitBasicGridBufferedQS(BybitStrategy):
                 logging.info(f"Open symbols: {open_symbols}")
                 open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
-                #logging.info(f"Open symbols: {open_symbols}")
+                logging.info(f"Open symbols: {open_symbols}")
 
                 logging.info(f"Open orders: {open_orders}")
 
