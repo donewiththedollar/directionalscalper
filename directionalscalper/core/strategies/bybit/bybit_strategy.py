@@ -235,7 +235,6 @@ class BybitStrategy(BaseStrategy):
         # Log the order details for monitoring
         logging.info(f"Placed auto-reduce order for {symbol} at {order_price} for {adjusted_dynamic_amount}")
 
-
     def auto_reduce_logic_grid(self, symbol, min_qty, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
                                 auto_reduce_enabled, total_equity, available_equity, current_market_price,
                                 long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct,
@@ -2404,6 +2403,344 @@ class BybitStrategy(BaseStrategy):
 
         except Exception as e:
             logging.info(f"Exception caught in bybit_1m_mfi_quickscalp_trend_long_only_spot: {e}")
+
+    def linear_grid_handle_positions_mfirsi_persistent_notional_dynamic_buffer_qs(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float, short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, wallet_exposure_limit_long: float, wallet_exposure_limit_short: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, min_buffer_percentage: float, max_buffer_percentage: float, symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool):
+        try:
+            should_reissue_long, should_reissue_short = self.should_reissue_orders_revised(symbol, reissue_threshold, long_pos_qty, short_pos_qty)
+            open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+            #logging.info(f"Open orders: {open_orders}")
+
+            if symbol not in self.filled_levels:
+                self.filled_levels[symbol] = {"buy": set(), "sell": set()}
+
+            long_grid_active = symbol in self.active_grids and "buy" in self.filled_levels[symbol]
+            short_grid_active = symbol in self.active_grids and "sell" in self.filled_levels[symbol]
+
+            current_price = self.exchange.get_current_price(symbol)
+            logging.info(f"[{symbol}] Current price: {current_price}")
+
+            # Handle non-existing positions by applying default buffer percentages if positions are not active
+            default_buffer = min_buffer_percentage  # Could set to a reasonable default like the min_buffer_percentage
+
+            if long_pos_price and long_pos_price > 0:
+                long_distance_from_entry = abs(current_price - long_pos_price) / long_pos_price
+                buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * long_distance_from_entry
+            else:
+                buffer_percentage_long = default_buffer  # Use default buffer if no valid long position
+
+            if short_pos_price and short_pos_price > 0:
+                short_distance_from_entry = abs(current_price - short_pos_price) / short_pos_price
+                buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * short_distance_from_entry
+            else:
+                buffer_percentage_short = default_buffer  # Use default buffer if no valid short position
+
+            buffer_distance_long = current_price * buffer_percentage_long
+            buffer_distance_short = current_price * buffer_percentage_short
+
+            logging.info(f"[{symbol}] Long buffer distance: {buffer_distance_long}, Short buffer distance: {buffer_distance_short}")
+
+            order_book = self.exchange.get_orderbook(symbol)
+            best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol, current_price)
+            best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol, current_price)
+            logging.info(f"[{symbol}] Best ask price: {best_ask_price}, Best bid price: {best_bid_price}")
+
+            outer_price_long = current_price * (1 - outer_price_distance)
+            outer_price_short = current_price * (1 + outer_price_distance)
+            logging.info(f"[{symbol}] Outer price long: {outer_price_long}, Outer price short: {outer_price_short}")
+
+            price_range_long = current_price - outer_price_long
+            price_range_short = outer_price_short - current_price
+
+            factors = np.linspace(0.0, 1.0, num=levels) ** strength
+            grid_levels_long = [current_price - buffer_distance_long - price_range_long * factor for factor in factors]
+            grid_levels_short = [current_price + buffer_distance_short + price_range_short * factor for factor in factors]
+
+            # Check if long and short grid levels overlap
+            if grid_levels_long[-1] >= grid_levels_short[0]:
+                logging.warning(f"[{symbol}] Long and short grid levels overlap. Adjusting outer_price_distance.")
+                # Adjust outer_price_distance to prevent overlap
+                outer_price_distance = (grid_levels_short[0] - grid_levels_long[-1]) / (2 * current_price)
+                # Recalculate grid levels
+                outer_price_long = current_price * (1 - outer_price_distance)
+                outer_price_short = current_price * (1 + outer_price_distance)
+                price_range_long = current_price - outer_price_long
+                price_range_short = outer_price_short - current_price
+                grid_levels_long = [current_price - buffer_distance_long - price_range_long * factor for factor in factors]
+                grid_levels_short = [current_price + buffer_distance_short + price_range_short * factor for factor in factors]
+
+            logging.info(f"[{symbol}] Long grid levels: {grid_levels_long}")
+            logging.info(f"[{symbol}] Short grid levels: {grid_levels_short}")
+                
+            qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
+            min_qty = float(self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
+            logging.info(f"[{symbol}] Quantity precision: {qty_precision}, Minimum quantity: {min_qty}")
+
+            total_amount_long = self.calculate_total_amount_notional_ls(
+                symbol=symbol,
+                total_equity=total_equity,
+                best_ask_price=best_ask_price,
+                best_bid_price=best_bid_price,
+                wallet_exposure_limit_long=wallet_exposure_limit_long,
+                wallet_exposure_limit_short=wallet_exposure_limit_short,  # This is passed but not used directly for buying
+                side="buy",
+                levels=levels,
+                enforce_full_grid=enforce_full_grid,
+                user_defined_leverage_long=user_defined_leverage_long,  # Assuming there's a variable holding this value
+                user_defined_leverage_short=None  # Not used for buying, so set to None
+            ) if long_mode else 0
+
+            total_amount_short = self.calculate_total_amount_notional_ls(
+                symbol=symbol,
+                total_equity=total_equity,
+                best_ask_price=best_ask_price,
+                best_bid_price=best_bid_price,
+                wallet_exposure_limit_long=wallet_exposure_limit_long,  # This is passed but not used directly for selling
+                wallet_exposure_limit_short=wallet_exposure_limit_short,
+                side="sell",
+                levels=levels,
+                enforce_full_grid=enforce_full_grid,
+                user_defined_leverage_long=None,  # Not used for selling, so set to None
+                user_defined_leverage_short=user_defined_leverage_short  # Assuming there's a variable holding this value
+            ) if short_mode else 0
+
+            logging.info(f"[{symbol}] Total amount long: {total_amount_long}, Total amount short: {total_amount_short}")
+
+            amounts_long = self.calculate_order_amounts_notional(symbol, total_amount_long, levels, strength, qty_precision, enforce_full_grid)
+            amounts_short = self.calculate_order_amounts_notional(symbol, total_amount_short, levels, strength, qty_precision, enforce_full_grid)
+            logging.info(f"[{symbol}] Long order amounts: {amounts_long}")
+            logging.info(f"[{symbol}] Short order amounts: {amounts_short}")
+
+            # Check if grid levels need to be updated based on dynamic buffer
+            replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer(
+                symbol,
+                long_pos_price,
+                short_pos_price,
+                long_pos_qty,
+                short_pos_qty,
+                min_buffer_percentage,
+                max_buffer_percentage
+            )
+
+            if replace_long_grid:
+                logging.info(f"[{symbol}] Replacing long grid orders due to updated buffer.")
+                self.clear_grid(symbol, 'buy')  # Cancel existing long grid orders
+                long_distance_from_entry = abs(current_price - long_pos_price) / long_pos_price
+                buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * long_distance_from_entry
+                buffer_distance_long = current_price * buffer_percentage_long
+                price_range_long = current_price - outer_price_long
+                grid_levels_long = [current_price - buffer_distance_long - price_range_long * factor for factor in factors]
+                self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])  # Place new long grid orders
+                logging.info(f"[{symbol}] Recalculated long grid levels with updated buffer: {grid_levels_long}")
+
+            if replace_short_grid:
+                logging.info(f"[{symbol}] Replacing short grid orders due to updated buffer.")
+                self.clear_grid(symbol, 'sell')  # Cancel existing short grid orders
+                short_distance_from_entry = abs(current_price - short_pos_price) / short_pos_price
+                buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * short_distance_from_entry
+                buffer_distance_short = current_price * buffer_percentage_short
+                price_range_short = outer_price_short - current_price
+                grid_levels_short = [current_price + buffer_distance_short + price_range_short * factor for factor in factors]
+                self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])  # Place new short grid orders
+                logging.info(f"[{symbol}] Recalculated short grid levels with updated buffer: {grid_levels_short}")
+                        
+                        
+            trading_allowed = self.can_trade_new_symbol(open_symbols, symbols_allowed, symbol)
+            logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
+            logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
+
+            mfi_signal_long = mfirsi_signal.lower() == "long"
+            mfi_signal_short = mfirsi_signal.lower() == "short"
+
+            if self.should_reissue_orders_revised(symbol, reissue_threshold, long_pos_qty, short_pos_qty):
+                open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+                logging.info(f"Open orders for {symbol}: {open_orders}")
+
+                # Flags to check existence of buy or sell orders, excluding reduce-only orders
+                has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
+                has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
+
+                # Handling reissue for long orders
+                if not long_pos_qty and long_mode:  # Only enter this block if there are no long positions and long trading is enabled
+                    if symbol in self.active_grids and "buy" in self.filled_levels[symbol] and has_open_long_order:
+                        logging.info(f"[{symbol}] Reissuing long orders due to price movement beyond the threshold.")
+                        self.clear_grid(symbol, 'buy')  # Clear existing long orders
+                        logging.info(f"[{symbol}] Placing new long orders.")
+                        self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                    elif symbol not in self.active_grids:
+                        logging.info(f"[{symbol}] No active long grid for the symbol. Skipping long grid reissue.")
+
+                # Handling reissue for short orders
+                if not short_pos_qty and short_mode:  # Only enter this block if there are no short positions and short trading is enabled
+                    if symbol in self.active_grids and "sell" in self.filled_levels[symbol] and has_open_short_order:
+                        logging.info(f"[{symbol}] Reissuing short orders due to price movement beyond the threshold.")
+                        self.clear_grid(symbol, 'sell')  # Clear existing short orders
+                        logging.info(f"[{symbol}] Placing new short orders.")
+                        self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                    elif symbol not in self.active_grids:
+                        logging.info(f"[{symbol}] No active short grid for the symbol. Skipping short grid reissue.")
+
+            if symbol in open_symbols or trading_allowed:
+                # Check if there are open positions and no active grids
+                if (long_pos_qty > 0 and not long_grid_active) or (short_pos_qty > 0 and not short_grid_active):
+                    logging.info(f"[{symbol}] Open positions found without active grids. Issuing grid orders.")
+                    if long_pos_qty > 0 and not long_grid_active:
+                        logging.info(f"[{symbol}] Placing long grid orders for existing open position.")
+                        self.clear_grid(symbol, 'buy')  # Ensure no previous orders conflict
+                        self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                        self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+                    if short_pos_qty > 0 and not short_grid_active:
+                        logging.info(f"[{symbol}] Placing short grid orders for existing open position.")
+                        self.clear_grid(symbol, 'sell')  # Ensure no previous orders conflict
+                        self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                        self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+
+                if not long_pos_qty and not short_pos_qty and symbol in self.active_grids:
+                    logging.info(f"[{symbol}] No open positions. Canceling leftover grid orders.")
+                    self.clear_grid(symbol, 'buy')  # Clear any lingering buy grid orders
+                    self.clear_grid(symbol, 'sell')  # Clear any lingering sell grid orders
+                    self.active_grids.discard(symbol)  # Remove the symbol from active grids
+
+
+                if not self.auto_reduce_active_long.get(symbol, False) and not self.auto_reduce_active_short.get(symbol, False):
+                    logging.info(f"Auto-reduce for long and short positions on {symbol} is not active")
+                    if long_mode and short_mode and ((mfi_signal_long or long_pos_qty > 0) and (mfi_signal_short or short_pos_qty > 0)):
+                        if should_reissue_long or should_reissue_short or (long_pos_qty > 0 and not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)) or (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)):
+                            # Cancel existing long and short grid orders if should_reissue or positions exist but no corresponding orders
+                            self.cancel_grid_orders(symbol, "buy")
+                            self.cancel_grid_orders(symbol, "sell")
+                            self.filled_levels[symbol]["buy"].clear()
+                            self.filled_levels[symbol]["sell"].clear()
+
+                        # Place new long and short grid orders only if there are no existing orders (excluding TP orders) and no active grids
+                        if not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders) and not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders) and not long_grid_active and not short_grid_active:
+                            logging.info(f"[{symbol}] Placing new long and short grid orders.")
+                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                            self.active_grids.add(symbol)  # Mark the symbol as having active grids
+                    else:
+                        if long_mode and (mfi_signal_long or long_pos_qty > 0):
+                            if should_reissue_long or (long_pos_qty > 0 and not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)):
+                                # Cancel existing long grid orders if should_reissue or long position exists but no buy orders (excluding TP orders)
+                                self.cancel_grid_orders(symbol, "buy")
+                                self.filled_levels[symbol]["buy"].clear()
+
+                            # Place new long grid orders if there are no existing buy orders (excluding TP orders) and no active long grid, or if there is a long position
+                            if not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders) and not long_grid_active:
+                                logging.info(f"[{symbol}] Placing new long grid orders.")
+                                self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                                self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+
+                        if short_mode and (mfi_signal_short or short_pos_qty > 0):
+                            if should_reissue_short or (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)):
+                                # Cancel existing short grid orders if should_reissue or short position exists but no sell orders (excluding TP orders)
+                                self.cancel_grid_orders(symbol, "sell")
+                                self.filled_levels[symbol]["sell"].clear()
+
+                            # Place new short grid orders if there are no existing sell orders (excluding TP orders) and no active short grid, or if there is a short position
+                            if not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders) and not short_grid_active:
+                                logging.info(f"[{symbol}] Placing new short grid orders.")
+                                self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                                self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+                                
+                else:
+                    if not self.auto_reduce_active_long.get(symbol, False):
+                        logging.info(f"Auto-reduce for long position on {symbol} is not active")
+                        if long_mode and (mfi_signal_long or (long_pos_qty > 0 and not long_grid_active)):
+                            if should_reissue_long or (long_pos_qty > 0 and not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)):
+                                # Cancel existing long grid orders if should_reissue or long position exists but no buy orders (excluding TP orders)
+                                self.cancel_grid_orders(symbol, "buy")
+                                self.filled_levels[symbol]["buy"].clear()
+
+                            # Place new long grid orders if there are no existing buy orders (excluding TP orders) and no active long grid, or if there is a long position
+                            if (not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders) and not long_grid_active) or long_pos_qty > 0:
+                                if entry_during_autoreduce:
+                                    logging.info(f"[{symbol}] Placing new long grid orders (entry during auto-reduce).")
+                                    self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                                    self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+                                else:
+                                    logging.info(f"[{symbol}] Skipping new long grid orders due to active auto-reduce.")
+                    else:
+                        logging.info(f"Auto-reduce for long position on {symbol} is active, skipping entry")
+
+                    if not self.auto_reduce_active_short.get(symbol, False):
+                        logging.info(f"Auto-reduce for short position on {symbol} is not active")
+                        if short_mode and (mfi_signal_short or (short_pos_qty > 0 and not short_grid_active)):
+                            if should_reissue_short or (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)):
+                                # Cancel existing short grid orders if should_reissue or short position exists but no sell orders (excluding TP orders)
+                                self.cancel_grid_orders(symbol, "sell")
+                                self.filled_levels[symbol]["sell"].clear()
+
+                            # Place new short grid orders if there are no existing sell orders (excluding TP orders) and no active short grid, or if there is a short position
+                            if (not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders) and not short_grid_active) or short_pos_qty > 0:
+                                if entry_during_autoreduce:
+                                    logging.info(f"[{symbol}] Placing new short grid orders (entry during auto-reduce).")
+                                    self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                                    self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+                                else:
+                                    logging.info(f"[{symbol}] Skipping new short grid orders due to active auto-reduce.")
+                    else:
+                        logging.info(f"Auto-reduce for short position on {symbol} is active, skipping entry")
+
+                # Check if there is room for trading new symbols
+                logging.info(f"[{symbol}] Number of open symbols: {len(open_symbols)}, Symbols allowed: {symbols_allowed}")
+                if len(open_symbols) < symbols_allowed and symbol not in self.active_grids:
+                    logging.info(f"[{symbol}] No active grids. Checking for new symbols to trade.")
+                    # Place grid orders for the new symbol
+                    if long_mode and mfi_signal_long:
+                        if entry_during_autoreduce or not self.auto_reduce_active_long.get(symbol, False):
+                            logging.info(f"[{symbol}] Placing new long orders.")
+                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                            self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+                        else:
+                            logging.info(f"[{symbol}] Skipping new long orders due to active auto-reduce.")
+                    if short_mode and mfi_signal_short:
+                        if entry_during_autoreduce or not self.auto_reduce_active_short.get(symbol, False):
+                            logging.info(f"[{symbol}] Placing new short orders.")
+                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                            self.active_grids.add(symbol)  # Mark the symbol as having an active grid
+                        else:
+                            logging.info(f"[{symbol}] Skipping new short orders due to active auto-reduce.")
+
+                short_take_profit = None
+                long_take_profit = None
+
+                # Calculate take profit for short and long positions using quickscalp method
+                short_take_profit = self.calculate_quickscalp_short_take_profit(short_pos_price, symbol, upnl_profit_pct)
+                long_take_profit = self.calculate_quickscalp_long_take_profit(long_pos_price, symbol, upnl_profit_pct)
+                
+                # Update TP for long position
+                if long_pos_qty > 0:
+                    self.next_long_tp_update = self.update_quickscalp_tp(
+                        symbol=symbol,
+                        pos_qty=long_pos_qty,
+                        upnl_profit_pct=upnl_profit_pct,
+                        short_pos_price=short_pos_price,
+                        long_pos_price=long_pos_price,
+                        positionIdx=1,
+                        order_side="sell",
+                        last_tp_update=self.next_long_tp_update,
+                        tp_order_counts=tp_order_counts
+                    )
+
+                # Update TP for short position
+                if short_pos_qty > 0:
+                    self.next_short_tp_update = self.update_quickscalp_tp(
+                        symbol=symbol,
+                        pos_qty=short_pos_qty,
+                        upnl_profit_pct=upnl_profit_pct,
+                        short_pos_price=short_pos_price,
+                        long_pos_price=long_pos_price,
+                        positionIdx=2,
+                        order_side="buy",
+                        last_tp_update=self.next_short_tp_update,
+                        tp_order_counts=tp_order_counts
+                    )
+
+            else:
+                logging.info(f"[{symbol}] Trading not allowed. Skipping grid placement.")
+                time.sleep(5)
+        except Exception as e:
+            logging.info(f"Exception caught in grid {e}")
 
     def linear_grid_handle_positions_mfirsi_persistent_notional_dynamic_buffer_qs_dynamictp(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float, short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, wallet_exposure_limit_long: float, wallet_exposure_limit_short: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, min_buffer_percentage: float, max_buffer_percentage: float, symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float, max_upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool):
         try:
