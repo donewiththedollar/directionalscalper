@@ -393,32 +393,58 @@ class BybitBasicGridBufferedQSDTP(BybitStrategy):
 
                 logging.info(f"Symbol precision for {symbol} : {symbol_precision}")
 
+                # long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
+                # short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
+                # # Update the previous position quantities
+                # previous_long_pos_qty = long_pos_qty
+                # previous_short_pos_qty = short_pos_qty
+
+                # terminate_long, terminate_short = self.should_terminate_open_orders(symbol, long_pos_qty, short_pos_qty, open_position_data, open_orders, current_time)
+                # logging.info(f"Terminate long: {terminate_long}, Terminate short: {terminate_short}")
+
+                # # global thread_termination_status
+
+                # try:
+                #     if terminate_long:
+                #         logging.info(f"Should terminate long orders for {symbol}")
+                #         self.cancel_grid_orders(symbol, "buy")
+                #         self.cleanup_before_termination(symbol)
+                #         self.running_long = False  # Set the flag to stop the long thread
+                #         thread_termination_status[symbol] = True  # Update the termination status
+
+                #     if terminate_short:
+                #         logging.info(f"Should terminate short orders for {symbol}")
+                #         self.cancel_grid_orders(symbol, "sell")
+                #         self.cleanup_before_termination(symbol)
+                #         self.running_short = False  # Set the flag to stop the short thread
+                #         thread_termination_status[symbol] = True  # Update the termination status
+
+                # except Exception as e:
+                #     logging.info(f"Exception caught in termination {e}")
+
                 long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
                 short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
-                # Update the previous position quantities
+
                 previous_long_pos_qty = long_pos_qty
                 previous_short_pos_qty = short_pos_qty
+                
+                terminate_side = self.should_terminate_open_orders(symbol, long_pos_qty, short_pos_qty, open_position_data, open_orders, current_time)
 
-                terminate_long, terminate_short = self.should_terminate_open_orders(symbol, long_pos_qty, short_pos_qty, open_position_data, open_orders, current_time)
-                logging.info(f"Terminate long: {terminate_long}, Terminate short: {terminate_short}")
-
-                global thread_termination_status
+                logging.info(f"Terminate side: {terminate_side}")
 
                 try:
-                    if terminate_long:
+                    if terminate_side == "long":
                         logging.info(f"Should terminate long orders for {symbol}")
                         self.cancel_grid_orders(symbol, "buy")
                         self.cleanup_before_termination(symbol)
-                        self.running_long = False  # Set the flag to stop the long thread
-                        thread_termination_status[symbol] = True  # Update the termination status
-
-                    if terminate_short:
+                        shared_symbols_data.pop(symbol, None)  # Remove the symbol from shared_symbols_data
+                        break
+                    elif terminate_side == "short":
                         logging.info(f"Should terminate short orders for {symbol}")
                         self.cancel_grid_orders(symbol, "sell")
                         self.cleanup_before_termination(symbol)
-                        self.running_short = False  # Set the flag to stop the short thread
-                        thread_termination_status[symbol] = True  # Update the termination status
-
+                        shared_symbols_data.pop(symbol, None)  # Remove the symbol from shared_symbols_data
+                        break
                 except Exception as e:
                     logging.info(f"Exception caught in termination {e}")
 
