@@ -4316,54 +4316,47 @@ class BybitStrategy(BaseStrategy):
         logging.info(f"Calculated order amounts: {amounts}")
         return amounts
 
+    def min_notional(self, symbol):
+        base_notional_values = {"BTCUSDT": 100.5, "ETHUSDT": 20.1, "default": 6}
+        return base_notional_values.get(symbol, base_notional_values["default"])
+
     def calculate_total_amount_notional_ls(self, symbol, total_equity, best_ask_price, best_bid_price, 
                                             wallet_exposure_limit_long, wallet_exposure_limit_short, 
                                             side, levels, enforce_full_grid, 
                                             user_defined_leverage_long=None, user_defined_leverage_short=None):
         logging.info(f"Calculating total amount for {symbol} with total_equity: {total_equity}, side: {side}, levels: {levels}, enforce_full_grid: {enforce_full_grid}")
-        
 
-        current_leverage = self.exchange.get_current_max_leverage_bybit(symbol)
-        logging.info(f"Current leverage for {symbol} : {current_leverage}")
-
-        # Fetch the current maximum leverage from the exchange if user-defined leverage is set to 0 or not provided
-        if side == 'buy':
-            leverage_used = user_defined_leverage_long if user_defined_leverage_long not in (0, None) else self.exchange.get_current_max_leverage_bybit(symbol)
-        else:
-            leverage_used = user_defined_leverage_short if user_defined_leverage_short not in (0, None) else self.exchange.get_current_max_leverage_bybit(symbol)
-        
+        leverage_used = user_defined_leverage_long if side == 'buy' and user_defined_leverage_long not in (0, None) else \
+                        user_defined_leverage_short if side == 'sell' and user_defined_leverage_short not in (0, None) else \
+                        self.exchange.get_current_max_leverage_bybit(symbol)
         logging.info(f"Using leverage for {symbol}: {leverage_used}")
 
-        # Calculate the wallet exposure limit based on the side
         wallet_exposure_limit = wallet_exposure_limit_long if side == 'buy' else wallet_exposure_limit_short
         max_position_value = total_equity * wallet_exposure_limit * leverage_used
         logging.info(f"Maximum position value for {symbol}: {max_position_value}")
 
-        # Calculate the total required notional amount if enforcing a full grid
-        required_notional = sum(self.min_notional(i, symbol) for i in range(levels)) if enforce_full_grid else max_position_value
+        base_notional = self.min_notional(symbol)
+        required_notional = base_notional * levels if enforce_full_grid else max_position_value
         total_notional_amount = min(required_notional, max_position_value)
 
         logging.info(f"Calculated total notional amount for {symbol}: {total_notional_amount}")
         return total_notional_amount
-
-    def min_notional(self, level, symbol):
-        base_notional_values = {"BTCUSDT": 100.5, "ETHUSDT": 20.1, "default": 6}
-        base_notional = base_notional_values.get(symbol, base_notional_values["default"])
-        return base_notional * (level + 1)
 
     def calculate_order_amounts_notional(self, symbol: str, total_amount: float, levels: int, strength: float, qty_precision: float, enforce_full_grid: bool) -> List[float]:
         logging.info(f"Calculating order amounts for {symbol} with total_amount: {total_amount}, levels: {levels}, strength: {strength}, qty_precision: {qty_precision}, enforce_full_grid: {enforce_full_grid}")
         
         current_price = self.exchange.get_current_price(symbol)
         amounts = []
-        total_ratio = sum([(i + 1) ** strength for i in range(levels)])  # Total sum of ratios for normalization
-        level_notional = [(i + 1) ** strength for i in range(levels)]  # Individual level ratios
+        total_ratio = sum([(i + 1) ** strength for i in range(levels)])
+        level_notional = [(i + 1) ** strength for i in range(levels)]
+        
+        base_notional = self.min_notional(symbol)
+        min_base_notional = base_notional / current_price
         
         for i in range(levels):
             notional_amount = (level_notional[i] / total_ratio) * total_amount
             quantity = notional_amount / current_price
-            min_level_notional = self.min_notional(i, symbol) / current_price  # Calculate min quantity for this level based on notional
-            rounded_quantity = max(round(quantity / qty_precision) * qty_precision, min_level_notional)
+            rounded_quantity = max(round(quantity / qty_precision) * qty_precision, min_base_notional)
             amounts.append(rounded_quantity)
 
         logging.info(f"Calculated order amounts for {symbol}: {amounts}")
