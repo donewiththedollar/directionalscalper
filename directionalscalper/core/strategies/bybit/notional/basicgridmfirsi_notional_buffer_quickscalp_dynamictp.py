@@ -719,7 +719,7 @@ class BybitBasicGridBufferedQSDTP(BybitStrategy):
                     short_tp_counts = tp_order_counts['short_tp_count']
 
                     try:
-                        self.linear_grid_handle_positions_mfirsi_persistent_notional_dynamic_buffer_qs_dynamictp_arfull(
+                        self.linear_grid_handle_positions_mfirsi_persistent_notional_dynamic_buffer_qs_dynamictp(
                             symbol,
                             open_symbols,
                             total_equity,
