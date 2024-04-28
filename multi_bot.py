@@ -66,9 +66,9 @@ def standardize_symbol(symbol):
 
 def get_available_strategies():
     return [
-        'qsgridbasic',
-        'qsgriddynamic',
         'qsgriddynamictp',
+        'qsgriddynamic',
+        'qsgridbasic',
         'basicgridpersist',
         'qstrend',
         'qstrendob',
