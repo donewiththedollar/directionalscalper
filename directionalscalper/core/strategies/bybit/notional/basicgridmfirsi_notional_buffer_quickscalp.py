@@ -43,6 +43,7 @@ class BybitBasicGridBufferedQS(BybitStrategy):
             self.reissue_threshold = self.config.linear_grid['reissue_threshold']
             self.buffer_percentage = self.config.linear_grid['buffer_percentage']
             self.enforce_full_grid = self.config.linear_grid['enforce_full_grid']
+            self.initial_entry_buffer_pct = self.config.linear_grid['initial_entry_buffer_pct']
             self.min_buffer_percentage = self.config.linear_grid['min_buffer_percentage']
             self.max_buffer_percentage = self.config.linear_grid['max_buffer_percentage']
             self.wallet_exposure_limit_long = self.config.linear_grid['wallet_exposure_limit_long']
@@ -170,6 +171,7 @@ class BybitBasicGridBufferedQS(BybitStrategy):
             reissue_threshold = self.config.linear_grid['reissue_threshold']
             buffer_percentage = self.config.linear_grid['buffer_percentage']
             enforce_full_grid = self.config.linear_grid['enforce_full_grid']
+            initial_entry_buffer_pct = self.config.linear_grid['initial_entry_buffer_pct']
             min_buffer_percentage = self.config.linear_grid['min_buffer_percentage']
             max_buffer_percentage = self.config.linear_grid['max_buffer_percentage']
             wallet_exposure_limit_long = self.config.linear_grid['wallet_exposure_limit_long']
@@ -707,6 +709,7 @@ class BybitBasicGridBufferedQS(BybitStrategy):
                             self.user_defined_leverage_short,
                             long_mode,
                             short_mode,
+                            initial_entry_buffer_pct,
                             min_buffer_percentage,
                             max_buffer_percentage,
                             self.symbols_allowed,

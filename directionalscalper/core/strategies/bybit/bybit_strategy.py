@@ -2410,13 +2410,13 @@ class BybitStrategy(BaseStrategy):
         strength: float, outer_price_distance: float, reissue_threshold: float,
         wallet_exposure_limit: float, wallet_exposure_limit_long: float, wallet_exposure_limit_short: float,
         user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool,
-        short_mode: bool, min_buffer_percentage: float, max_buffer_percentage: float,
+        short_mode: bool, initial_entry_buffer_pct: float, min_buffer_percentage: float, max_buffer_percentage: float,
         symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float,
         tp_order_counts: dict, entry_during_autoreduce: bool
     ):
         try:
             should_reissue_long, should_reissue_short = self.should_reissue_orders_revised(
-                symbol, reissue_threshold, long_pos_qty, short_pos_qty)
+                symbol, reissue_threshold, long_pos_qty, short_pos_qty, initial_entry_buffer_pct)
             open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
             if symbol not in self.filled_levels:
@@ -2682,14 +2682,14 @@ class BybitStrategy(BaseStrategy):
         strength: float, outer_price_distance: float, reissue_threshold: float,
         wallet_exposure_limit: float, wallet_exposure_limit_long: float, wallet_exposure_limit_short: float,
         user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool,
-        short_mode: bool, min_buffer_percentage: float, max_buffer_percentage: float,
+        short_mode: bool, initial_entry_buffer_pct: float, min_buffer_percentage: float, max_buffer_percentage: float,
         symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float,
         max_upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool
     ):
         try:
             # Check reissue necessity for both long and short positions
             should_reissue_long, should_reissue_short = self.should_reissue_orders_revised(
-                symbol, reissue_threshold, long_pos_qty, short_pos_qty)
+                symbol, reissue_threshold, long_pos_qty, short_pos_qty, initial_entry_buffer_pct)
             open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
             # Initialize filled levels if not already present
@@ -2786,32 +2786,6 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"[{symbol}] Long grid levels: {grid_levels_long}")
             logging.info(f"[{symbol}] Short grid levels: {grid_levels_short}")
 
-            # if len(open_symbols) < symbols_allowed and symbol not in self.active_grids:
-            #     if not self.auto_reduce_active_long.get(symbol, False):
-            #         logging.info(f"Auto-reduce for long position on {symbol} is not active.")
-            #         if long_mode and entry_during_autoreduce:
-            #             logging.info(f"[{symbol}] Placing new long orders despite active auto-reduce.")
-            #             self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-            #             self.active_grids.add(symbol)  # Mark as having an active grid
-            #         if short_mode:
-            #             logging.info(f"[{symbol}] Placing new short orders independently of long auto-reduce status.")
-            #             self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-            #             self.active_grids.add(symbol)
-
-            #     if not self.auto_reduce_active_short.get(symbol, False):
-            #         logging.info(f"Auto-reduce for short position on {symbol} is not active.")
-            #         if short_mode and entry_during_autoreduce:
-            #             logging.info(f"[{symbol}] Placing new short orders despite active auto-reduce.")
-            #             self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-            #             self.active_grids.add(symbol)  # Mark as having an active grid
-            #         if long_mode:
-            #             logging.info(f"[{symbol}] Placing new long orders independently of short auto-reduce status.")
-            #             self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-            #             self.active_grids.add(symbol)
-
-            #     if not self.auto_reduce_active_long.get(symbol, False) and not self.auto_reduce_active_short.get(symbol, False):
-            #         # If no auto-reduce is active, handle entries as usual based on other conditions
-            #         logging.info(f"[{symbol}] No auto-reduce active, handling normal entry conditions.")
 
             # Check precision and minimum quantity for trading on Bybit
             qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
@@ -4031,40 +4005,44 @@ class BybitStrategy(BaseStrategy):
             logging.exception(f"Exception caught in should_replace_grid_updated_buffer: {e}")
             return False, False
         
-    def should_reissue_orders_revised(self, symbol: str, reissue_threshold: float, long_pos_qty: float, short_pos_qty: float) -> tuple:
+    def should_reissue_orders_revised(self, symbol: str, reissue_threshold: float, long_pos_qty: float, short_pos_qty: float, initial_entry_buffer_pct: float) -> tuple:
         try:
             current_price = self.exchange.get_current_price(symbol)
             last_price = self.last_price.get(symbol)
             
             if last_price is None:
                 self.last_price[symbol] = current_price
-                logging.info(f"[{symbol}] No last price recorded. Current price {current_price} set as last price. No reissue required.")
+                logging.info(f"[{symbol}] No last price recorded. Setting current price {current_price} as last price. No reissue required.")
                 return False, False
             
             price_change_percentage = abs(current_price - last_price) / last_price * 100
             logging.info(f"[{symbol}] Last recorded price: {last_price}, Current price: {current_price}, Price change: {price_change_percentage:.2f}%")
             
-            reissue_long = long_pos_qty == 0 and price_change_percentage >= reissue_threshold * 100
-            reissue_short = short_pos_qty == 0 and price_change_percentage >= reissue_threshold * 100
+            # Adjust threshold by initial buffer percentage
+            adjusted_reissue_threshold = reissue_threshold * 100 + initial_entry_buffer_pct
+            
+            reissue_long = long_pos_qty == 0 and price_change_percentage >= adjusted_reissue_threshold
+            reissue_short = short_pos_qty == 0 and price_change_percentage >= adjusted_reissue_threshold
             
             if reissue_long or reissue_short:
                 self.last_price[symbol] = current_price
-            
+
             if reissue_long:
-                logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) exceeds reissue threshold ({reissue_threshold*100:.2f}%) and no open long position. Reissuing long orders.")
+                logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) exceeds adjusted reissue threshold ({adjusted_reissue_threshold:.2f}%). Reissuing long orders.")
             else:
-                logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) does not exceed reissue threshold ({reissue_threshold*100:.2f}%) or there is an open long position. No reissue required for long orders.")
+                logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) does not exceed adjusted reissue threshold ({adjusted_reissue_threshold:.2f}%) or long position is open. No reissue required for long orders.")
             
             if reissue_short:
-                logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) exceeds reissue threshold ({reissue_threshold*100:.2f}%) and no open short position. Reissuing short orders.")
+                logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) exceeds adjusted reissue threshold ({adjusted_reissue_threshold:.2f}%). Reissuing short orders.")
             else:
-                logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) does not exceed reissue threshold ({reissue_threshold*100:.2f}%) or there is an open short position. No reissue required for short orders.")
+                logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) does not exceed adjusted reissue threshold ({adjusted_reissue_threshold:.2f}%) or short position is open. No reissue required for short orders.")
             
             return reissue_long, reissue_short
         
         except Exception as e:
             logging.exception(f"Exception caught in should_reissue_orders: {e}")
-            return False, False            
+            return False, False
+
 
     def should_reissue_orders(self, symbol: str, reissue_threshold: float) -> bool:
         try:
