@@ -195,7 +195,7 @@ class BybitStrategy(BaseStrategy):
             except Exception as e:
                 logging.info(f"Error in auto-reduce logic for {symbol}: {e}")
                 raise
-            
+
     def execute_grid_auto_reduce_hardened(self, position_type, symbol, pos_qty, dynamic_amount, market_price, total_equity, long_pos_price, short_pos_price, min_qty, min_buffer_percentage_ar, max_buffer_percentage_ar):
         """
         Executes a single auto-reduction order for a position based on the best market price available,
@@ -2819,23 +2819,37 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"[{symbol}] Long order amounts: {amounts_long}")
             logging.info(f"[{symbol}] Short order amounts: {amounts_short}")
 
+            # Log auto-reduce status for long position
+            if self.auto_reduce_active_long.get(symbol, False):
+                logging.info(f"Auto-reduce for long position on {symbol} is active")
+                self.clear_grid(symbol, 'buy')
+            else:
+                logging.info(f"Auto-reduce for long position on {symbol} is not active")
+
+            # Log auto-reduce status for short position
+            if self.auto_reduce_active_short.get(symbol, False):
+                logging.info(f"Auto-reduce for short position on {symbol} is active")
+                self.clear_grid(symbol, 'sell')
+            else:
+                logging.info(f"Auto-reduce for short position on {symbol} is not active")
+
+
             # Determine if the grid needs to be replaced based on the dynamic buffer adjustments
             replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer(
                 symbol, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
-                min_buffer_percentage, max_buffer_percentage)
+                min_buffer_percentage, max_buffer_percentage
+            )
 
             # Replace long grid if necessary
             if replace_long_grid:
                 logging.info(f"[{symbol}] Replacing long grid orders due to updated buffer.")
-                if not self.auto_reduce_active_long.get(symbol, False):
-                    logging.info(f"Auto-reduce for long position on {symbol} is not active.")
+                if self.auto_reduce_active_long.get(symbol, False) and not entry_during_autoreduce:
+                    logging.info(f"Auto-reduce for long position on {symbol} is active and entry during auto-reduce is disabled. Skipping.")
                 else:
-                    logging.info(f"Auto-reduce for long position on {symbol} is active.")
-                if not self.auto_reduce_active_long.get(symbol, False) or entry_during_autoreduce:
                     self.clear_grid(symbol, 'buy')  # Cancel existing long grid orders
                     long_distance_from_entry = abs(current_price - long_pos_price) / long_pos_price
                     buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * long_distance_from_entry
-                    buffer_distance_long = current_price * buffer_percentage_long
+                    buffer_distance_long = long_pos_price * buffer_percentage_long  # Updated calculation
                     price_range_long = current_price - outer_price_long
                     grid_levels_long = [current_price - buffer_distance_long - price_range_long * factor for factor in factors]
                     self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])  # Place new long grid orders
@@ -2844,15 +2858,13 @@ class BybitStrategy(BaseStrategy):
             # Replace short grid if necessary
             if replace_short_grid:
                 logging.info(f"[{symbol}] Replacing short grid orders due to updated buffer.")
-                if not self.auto_reduce_active_short.get(symbol, False):
-                    logging.info(f"Auto-reduce for short position on {symbol} is not active.")
+                if self.auto_reduce_active_short.get(symbol, False) and not entry_during_autoreduce:
+                    logging.info(f"Auto-reduce for short position on {symbol} is active and entry during auto-reduce is disabled. Skipping.")
                 else:
-                    logging.info(f"Auto-reduce for short position on {symbol} is active.")
-                if not self.auto_reduce_active_short.get(symbol, False) or entry_during_autoreduce:
                     self.clear_grid(symbol, 'sell')  # Cancel existing short grid orders
                     short_distance_from_entry = abs(current_price - short_pos_price) / short_pos_price
                     buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * short_distance_from_entry
-                    buffer_distance_short = current_price * buffer_percentage_short
+                    buffer_distance_short = short_pos_price * buffer_percentage_short  # Updated calculation
                     price_range_short = outer_price_short - current_price
                     grid_levels_short = [current_price + buffer_distance_short + price_range_short * factor for factor in factors]
                     self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])  # Place new short grid orders
@@ -3974,34 +3986,30 @@ class BybitStrategy(BaseStrategy):
     def should_replace_grid_updated_buffer(self, symbol: str, long_pos_price: float, short_pos_price: float, long_pos_qty: float, short_pos_qty: float, min_buffer_percentage: float, max_buffer_percentage: float) -> tuple:
         try:
             current_price = self.exchange.get_current_price(symbol)
-            
             replace_long_grid = False
             replace_short_grid = False
-            
+
             if long_pos_qty > 0:
                 long_distance_from_entry = abs(current_price - long_pos_price) / long_pos_price
                 buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * long_distance_from_entry
-                buffer_distance_long = current_price * buffer_percentage_long
-                
+                buffer_distance_long = long_pos_price * buffer_percentage_long
                 if abs(current_price - long_pos_price) > buffer_distance_long:
                     replace_long_grid = True
                     logging.info(f"[{symbol}] Price change exceeds updated buffer distance for long position. Replacing long grid.")
                 else:
                     logging.info(f"[{symbol}] Price change does not exceed updated buffer distance for long position. No need to replace long grid.")
-            
+
             if short_pos_qty > 0:
                 short_distance_from_entry = abs(current_price - short_pos_price) / short_pos_price
                 buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * short_distance_from_entry
-                buffer_distance_short = current_price * buffer_percentage_short
-                
+                buffer_distance_short = short_pos_price * buffer_percentage_short
                 if abs(current_price - short_pos_price) > buffer_distance_short:
                     replace_short_grid = True
                     logging.info(f"[{symbol}] Price change exceeds updated buffer distance for short position. Replacing short grid.")
                 else:
                     logging.info(f"[{symbol}] Price change does not exceed updated buffer distance for short position. No need to replace short grid.")
-            
+
             return replace_long_grid, replace_short_grid
-        
         except Exception as e:
             logging.exception(f"Exception caught in should_replace_grid_updated_buffer: {e}")
             return False, False
