@@ -2515,7 +2515,7 @@ class BybitStrategy(BaseStrategy):
 
             if len(open_symbols) < symbols_allowed:
                 logging.info(f"Allowed symbol: {symbol}")
-                if self.should_reissue_orders_revised(symbol, reissue_threshold, long_pos_qty, short_pos_qty):
+                if self.should_reissue_orders_revised(symbol, reissue_threshold, long_pos_qty, short_pos_qty, initial_entry_buffer_pct):
                     open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
                     logging.info(f"Open orders for {symbol}: {open_orders}")
 
@@ -2869,7 +2869,7 @@ class BybitStrategy(BaseStrategy):
             if len(open_symbols) < symbols_allowed:
                 logging.info(f"Allowed symbol: {symbol}")
                 # Reissue orders if necessary based on the reissue threshold and current orders
-                if self.should_reissue_orders_revised(symbol, reissue_threshold, long_pos_qty, short_pos_qty):
+                if self.should_reissue_orders_revised(symbol, reissue_threshold, long_pos_qty, short_pos_qty, initial_entry_buffer_pct):
                     open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
                     logging.info(f"Open orders for {symbol}: {open_orders}")
 
