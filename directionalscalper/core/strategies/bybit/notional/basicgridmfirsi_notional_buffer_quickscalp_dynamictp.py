@@ -772,37 +772,47 @@ class BybitBasicGridBufferedQSDTP(BybitStrategy):
                     logging.info(f"Next long TP update time: {self.next_long_tp_update}")
                     logging.info(f"Next short TP update time: {self.next_short_tp_update}")
 
-                    # Check for long positions
+                    # Calculate take profit for short and long positions using quickscalp method
+                    short_take_profit = self.calculate_quickscalp_short_take_profit_dynamic_distance(short_pos_price, symbol, min_upnl_profit_pct=upnl_profit_pct, max_upnl_profit_pct=max_upnl_profit_pct)
+                    long_take_profit = self.calculate_quickscalp_long_take_profit_dynamic_distance(long_pos_price, symbol, min_upnl_profit_pct=upnl_profit_pct, max_upnl_profit_pct=max_upnl_profit_pct)
+
+                    # Update TP for long position
                     if long_pos_qty > 0:
-                        if current_latest_time >= self.next_long_tp_update:
+                        new_long_tp_min, new_long_tp_max = self.calculate_quickscalp_long_take_profit_dynamic_distance(
+                            long_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
+                        )
+                        if new_long_tp_min is not None and new_long_tp_max is not None:
                             self.next_long_tp_update = self.update_quickscalp_tp_dynamic(
-                                symbol=symbol, 
-                                pos_qty=long_pos_qty, 
+                                symbol=symbol,
+                                pos_qty=long_pos_qty,
                                 upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
-                                max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage
-                                short_pos_price=short_pos_price,  # Might not be necessary for long TP calculation
+                                max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
+                                short_pos_price=None,  # Not relevant for long TP settings
                                 long_pos_price=long_pos_price,
-                                positionIdx=1,  # For long positions
-                                order_side="sell",  # TP order side for long positions
+                                positionIdx=1,
+                                order_side="sell",
                                 last_tp_update=self.next_long_tp_update,
                                 tp_order_counts=tp_order_counts
                             )
 
-                    # Check for short positions
                     if short_pos_qty > 0:
-                        if current_latest_time >= self.next_short_tp_update:
+                        new_short_tp_min, new_short_tp_max = self.calculate_quickscalp_short_take_profit_dynamic_distance(
+                            short_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
+                        )
+                        if new_short_tp_min is not None and new_short_tp_max is not None:
                             self.next_short_tp_update = self.update_quickscalp_tp_dynamic(
-                                symbol=symbol, 
-                                pos_qty=short_pos_qty, 
+                                symbol=symbol,
+                                pos_qty=short_pos_qty,
                                 upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
-                                max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage
+                                max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
                                 short_pos_price=short_pos_price,
-                                long_pos_price=long_pos_price,  # Might not be necessary for short TP calculation
-                                positionIdx=2,  # For short positions
-                                order_side="buy",  # TP order side for short positions
+                                long_pos_price=None,  # Not relevant for short TP settings
+                                positionIdx=2,
+                                order_side="buy",
                                 last_tp_update=self.next_short_tp_update,
                                 tp_order_counts=tp_order_counts
                             )
+                            
 
                     if self.test_orders_enabled and current_time - self.last_helper_order_cancel_time >= self.helper_interval:
                         if symbol in open_symbols:
