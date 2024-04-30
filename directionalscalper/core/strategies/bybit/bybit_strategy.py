@@ -2832,6 +2832,7 @@ class BybitStrategy(BaseStrategy):
             if self.auto_reduce_active_long.get(symbol, False):
                 logging.info(f"Auto-reduce for long position on {symbol} is active")
                 self.clear_grid(symbol, 'buy')
+                self.active_grids.discard(symbol)
             else:
                 logging.info(f"Auto-reduce for long position on {symbol} is not active")
 
@@ -2839,6 +2840,7 @@ class BybitStrategy(BaseStrategy):
             if self.auto_reduce_active_short.get(symbol, False):
                 logging.info(f"Auto-reduce for short position on {symbol} is active")
                 self.clear_grid(symbol, 'sell')
+                self.active_grids.discard(symbol)
             else:
                 logging.info(f"Auto-reduce for short position on {symbol} is not active")
 
@@ -2852,24 +2854,28 @@ class BybitStrategy(BaseStrategy):
             if replace_long_grid and not (self.auto_reduce_active_long.get(symbol, False) and not entry_during_autoreduce):
                 logging.info(f"[{symbol}] Replacing long grid orders due to updated buffer.")
                 self.clear_grid(symbol, 'buy')  # Cancel existing long grid orders
+                self.active_grids.discard(symbol)
                 long_distance_from_entry = abs(current_price - long_pos_price) / long_pos_price
                 buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * long_distance_from_entry
                 buffer_distance_long = long_pos_price * buffer_percentage_long  # Updated calculation
                 price_range_long = current_price - outer_price_long
                 grid_levels_long = [current_price - buffer_distance_long - price_range_long * factor for factor in factors]
                 self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])  # Place new long grid orders
+                self.active_grids.add(symbol)  # Add this line
                 logging.info(f"[{symbol}] Recalculated long grid levels with updated buffer: {grid_levels_long}")
 
             # Replace short grid if necessary
             if replace_short_grid and not (self.auto_reduce_active_short.get(symbol, False) and not entry_during_autoreduce):
                 logging.info(f"[{symbol}] Replacing short grid orders due to updated buffer.")
                 self.clear_grid(symbol, 'sell')  # Cancel existing short grid orders
+                self.active_grids.discard(symbol)
                 short_distance_from_entry = abs(current_price - short_pos_price) / short_pos_price
                 buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * short_distance_from_entry
                 buffer_distance_short = short_pos_price * buffer_percentage_short  # Updated calculation
                 price_range_short = outer_price_short - current_price
                 grid_levels_short = [current_price + buffer_distance_short + price_range_short * factor for factor in factors]
                 self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])  # Place new short grid orders
+                self.active_grids.add(symbol)  # Add this line
                 logging.info(f"[{symbol}] Recalculated short grid levels with updated buffer: {grid_levels_short}")
 
             # Check if trading a new symbol is allowed based on open symbols and allowed count
@@ -2897,8 +2903,10 @@ class BybitStrategy(BaseStrategy):
                         if symbol in self.active_grids and "buy" in self.filled_levels[symbol] and has_open_long_order:
                             logging.info(f"[{symbol}] Reissuing long orders due to price movement beyond the threshold.")
                             self.clear_grid(symbol, 'buy')  # Clear existing long orders
+                            self.active_grids.discard(symbol)  # Add this line
                             logging.info(f"[{symbol}] Placing new long orders.")
                             self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                            self.active_grids.add(symbol)  # Add this line
                         elif symbol not in self.active_grids:
                             logging.info(f"[{symbol}] No active long grid for the symbol. Skipping long grid reissue.")
 
@@ -2907,8 +2915,10 @@ class BybitStrategy(BaseStrategy):
                         if symbol in self.active_grids and "sell" in self.filled_levels[symbol] and has_open_short_order:
                             logging.info(f"[{symbol}] Reissuing short orders due to price movement beyond the threshold.")
                             self.clear_grid(symbol, 'sell')  # Clear existing short orders
+                            self.active_grids.discard(symbol)  # Add this line
                             logging.info(f"[{symbol}] Placing new short orders.")
                             self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                            self.active_grids.add(symbol)  # Add this line
                         elif symbol not in self.active_grids:
                             logging.info(f"[{symbol}] No active short grid for the symbol. Skipping short grid reissue.")
 
@@ -2921,12 +2931,14 @@ class BybitStrategy(BaseStrategy):
                         if not self.auto_reduce_active_long.get(symbol, False) or entry_during_autoreduce:
                             logging.info(f"[{symbol}] Placing long grid orders for existing open position.")
                             self.clear_grid(symbol, 'buy')  # Ensure no previous orders conflict
+                            self.active_grids.discard(symbol)  # Add this line
                             self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                             self.active_grids.add(symbol)  # Mark the symbol as having an active grid
                     if short_pos_qty > 0 and not short_grid_active:
                         if not self.auto_reduce_active_short.get(symbol, False) or entry_during_autoreduce:
                             logging.info(f"[{symbol}] Placing short grid orders for existing open position.")
                             self.clear_grid(symbol, 'sell')  # Ensure no previous orders conflict
+                            self.active_grids.discard(symbol)  # Add this line
                             self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                             self.active_grids.add(symbol)  # Mark the symbol as having an active grid
 
@@ -2942,11 +2954,13 @@ class BybitStrategy(BaseStrategy):
                         if (should_reissue_long or long_pos_qty > 0) and not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders):
                             # Cancel existing long grid orders if should_reissue or long position exists but no buy orders (excluding TP orders)
                             self.cancel_grid_orders(symbol, "buy")
+                            self.active_grids.discard(symbol)  # Add this line
                             self.filled_levels[symbol]["buy"].clear()
 
                         if (should_reissue_short or short_pos_qty > 0) and not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders):
                             # Cancel existing short grid orders if should_reissue or short position exists but no sell orders (excluding TP orders)
                             self.cancel_grid_orders(symbol, "sell")
+                            self.active_grids.discard(symbol)  # Add this line
                             self.filled_levels[symbol]["sell"].clear()
 
                         # Place new long and short grid orders only if there are no existing orders (excluding TP orders) and no active grids
@@ -2960,6 +2974,7 @@ class BybitStrategy(BaseStrategy):
                             if should_reissue_long or (long_pos_qty > 0 and not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)):
                                 # Cancel existing long grid orders if should_reissue or long position exists but no buy orders (excluding TP orders)
                                 self.cancel_grid_orders(symbol, "buy")
+                                self.active_grids.discard(symbol)  # Add this line
                                 self.filled_levels[symbol]["buy"].clear()
 
                             # Place new long grid orders if there are no existing buy orders (excluding TP orders) and no active long grid, or if there is a long position
@@ -2972,6 +2987,7 @@ class BybitStrategy(BaseStrategy):
                             if should_reissue_short or (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)):
                                 # Cancel existing short grid orders if should_reissue or short position exists but no sell orders (excluding TP orders)
                                 self.cancel_grid_orders(symbol, "sell")
+                                self.active_grids.discard(symbol)  # Add this line
                                 self.filled_levels[symbol]["sell"].clear()
 
                             # Place new short grid orders if there are no existing sell orders (excluding TP orders) and no active short grid, or if there is a short position
