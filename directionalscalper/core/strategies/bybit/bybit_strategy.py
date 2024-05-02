@@ -670,8 +670,12 @@ class BybitStrategy(BaseStrategy):
         short_tp_count = tp_order_counts['short_tp_count']
 
         # Calculate the dynamic TP range based on position size
+        scaling_factor = (pos_qty / 1000) * 0.01
         min_tp_pct = upnl_profit_pct
-        max_tp_pct = min(max_upnl_profit_pct, upnl_profit_pct + (pos_qty / 1000) * 0.01)  # Adjust the scaling factor as needed
+        if order_side == "sell":  # Long position
+            max_tp_pct = max_upnl_profit_pct + scaling_factor
+        else:  # Short position, increase the absolute value of max TP
+            max_tp_pct = max_upnl_profit_pct - scaling_factor
 
         # Calculate the new TP values using quickscalp method and the dynamic TP range
         new_short_tp_min, new_short_tp_max = self.calculate_quickscalp_short_take_profit_dynamic_distance(short_pos_price, symbol, min_tp_pct, max_tp_pct)
