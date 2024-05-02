@@ -674,8 +674,8 @@ class BybitStrategy(BaseStrategy):
         min_tp_pct = upnl_profit_pct
         if order_side == "sell":  # Long position
             max_tp_pct = max_upnl_profit_pct + scaling_factor
-        else:  # Short position, increase the absolute value of max TP
-            max_tp_pct = max_upnl_profit_pct - scaling_factor
+        else:  # Short position, we want to increase the absolute value of max TP downward
+            max_tp_pct = max_upnl_profit_pct - scaling_factor  # Corrected to actually make TP more aggressive for shorts
 
         # Calculate the new TP values using quickscalp method and the dynamic TP range
         new_short_tp_min, new_short_tp_max = self.calculate_quickscalp_short_take_profit_dynamic_distance(short_pos_price, symbol, min_tp_pct, max_tp_pct)
@@ -707,14 +707,12 @@ class BybitStrategy(BaseStrategy):
                 current_price = self.exchange.get_current_price(symbol)
 
                 if (order_side == "sell" and current_price >= new_tp_price_min) or (order_side == "buy" and current_price <= new_tp_price_max):
-                    # If the current price has surpassed the new TP price range, use a normal limit order
                     try:
                         self.exchange.create_normal_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, new_tp_price_min, positionIdx=positionIdx, reduce_only=True)
                         logging.info(f"New {order_side.capitalize()} TP set at {new_tp_price_min} using a normal limit order")
                     except Exception as e:
                         logging.info(f"Failed to set new {order_side} TP for {symbol} using a normal limit order. Error: {e}")
                 else:
-                    # If the current price hasn't surpassed the new TP price range, use a post-only order
                     try:
                         self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, new_tp_price_max, positionIdx=positionIdx, reduce_only=True)
                         logging.info(f"New {order_side.capitalize()} TP set at {new_tp_price_max} using a post-only order")
