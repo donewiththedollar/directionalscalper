@@ -194,10 +194,6 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.error(f"Error in failsafe_method for {symbol}: {e}")
             raise
-        
-    except Exception as e:
-        logging.error(f"Error in failsafe_method for {symbol}: {e}")
-        raise
 
     def execute_failsafe_order(self, symbol, position_type, pos_qty, market_price):
         amount_precision, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
