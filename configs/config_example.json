@@ -64,7 +64,6 @@
       "failsafe_start_pct": 0.05,
       "long_failsafe_upnl_pct": 10.0,
       "short_failsafe_upnl_pct": 10.0
-
     }
   },
   "exchanges": [
