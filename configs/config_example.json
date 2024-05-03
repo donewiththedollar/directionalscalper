@@ -15,7 +15,7 @@
     "user_defined_leverage_long": 0,
     "user_defined_leverage_short": 0,
     "upnl_profit_pct": 0.0022,
-    "max_upnl_profit_pct": 0.0034,
+    "max_upnl_profit_pct": 0.0037,
     "auto_reduce_enabled": true,
     "auto_reduce_start_pct": 0.068,
     "entry_during_autoreduce": false,
@@ -53,13 +53,18 @@
       "reissue_threshold": 0.001,
       "buffer_percentage": 0.10,
       "initial_entry_buffer_pct": 0.001,
-      "min_buffer_percentage": 0.0035,
-      "max_buffer_percentage": 0.015,
+      "min_buffer_percentage": 0.0045,
+      "max_buffer_percentage": 0.020,
       "enforce_full_grid": true,
       "min_buffer_percentage_ar": 0.002,
       "max_buffer_percentage_ar": 0.004,
       "upnl_auto_reduce_threshold_long": 20.0,
-      "upnl_auto_reduce_threshold_short": 20.0
+      "upnl_auto_reduce_threshold_short": 20.0,
+      "failsafe_enabled": true,
+      "failsafe_start_pct": 0.05,
+      "long_failsafe_upnl_pct": 10.0,
+      "short_failsafe_upnl_pct": 10.0
+
     }
   },
   "exchanges": [

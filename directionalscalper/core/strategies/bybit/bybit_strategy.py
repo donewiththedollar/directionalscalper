@@ -140,6 +140,70 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"Error placing {side} order at {price} with tag {tag}: {e}")
             return None
 
+    def failsafe_method(self, symbol, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price,
+                        long_upnl, short_upnl, total_equity, current_price,
+                        failsafe_enabled, long_failsafe_upnl_pct, short_failsafe_upnl_pct, failsafe_start_pct):
+        if not failsafe_enabled:
+            return
+
+        try:
+            long_upnl_pct_equity = (long_upnl / total_equity) * 100
+            short_upnl_pct_equity = (short_upnl / total_equity) * 100
+
+            logging.info(f"FAILSAFE: {symbol} Long UPNL % of Equity: {long_upnl_pct_equity:.2f}, Short UPNL % of Equity: {short_upnl_pct_equity:.2f}")
+
+            long_failsafe_triggered = (
+                long_pos_qty > 0
+                and current_price < long_pos_price * (1 - failsafe_start_pct)
+                and long_upnl_pct_equity < long_failsafe_upnl_pct
+            )
+
+            short_failsafe_triggered = (
+                short_pos_qty > 0
+                and current_price > short_pos_price * (1 + failsafe_start_pct)
+                and short_upnl_pct_equity < short_failsafe_upnl_pct
+            )
+
+            if long_failsafe_triggered:
+                logging.info(f"Triggering failsafe for long position on {symbol}. Cutting position in half.")
+                half_long_pos_qty = long_pos_qty // 2
+                logging.info(f"Half position {symbol} long: {half_long_pos_qty}")
+                #self.execute_failsafe_order(symbol, "long", half_long_pos_qty, current_price)
+
+            if short_failsafe_triggered:
+                logging.info(f"Triggering failsafe for short position on {symbol}. Cutting position in half.")
+                half_short_pos_qty = short_pos_qty // 2
+                logging.info(f"Half position {symbol} short: {half_short_pos_qty}")
+                #self.execute_failsafe_order(symbol, "short", half_short_pos_qty, current_price)
+
+        except Exception as e:
+            logging.error(f"Error in failsafe_method for {symbol}: {e}")
+            raise
+
+    def execute_failsafe_order(self, symbol, position_type, pos_qty, market_price):
+        amount_precision, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
+        price_precision_level = -int(math.log10(price_precision))
+        qty_precision_level = -int(math.log10(amount_precision))
+
+        order_book = self.exchange.get_orderbook(symbol)
+        best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol, market_price)
+        best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol, market_price)
+
+        order_price = best_bid_price if position_type == 'long' else best_ask_price
+        order_price = round(order_price, price_precision_level)
+        adjusted_pos_qty = round(pos_qty, qty_precision_level)
+
+        positionIdx = 1 if position_type == 'long' else 2
+
+        logging.info(f"Attempting to place failsafe order: Symbol={symbol}, Type={'sell' if position_type == 'long' else 'buy'}, Qty={adjusted_pos_qty}, Price={order_price}")
+
+        try:
+            #order_result = self.postonly_limit_order_bybit_nolimit(symbol, 'sell' if position_type == 'long' else 'buy', adjusted_pos_qty, order_price, positionIdx, reduceOnly=True)
+            logging.info(f"Failsafe order placed successfully for {symbol}: {order_result}")
+        except Exception as e:
+            logging.info(f"Failed to place failsafe order for {symbol}: {e}")
+            raise
+
     def auto_reduce_logic_grid_hardened(self, symbol, min_qty, long_pos_price, short_pos_price, 
                                             long_pos_qty, short_pos_qty, long_upnl, short_upnl,
                                             auto_reduce_enabled, total_equity, current_market_price,
@@ -669,17 +733,23 @@ class BybitStrategy(BaseStrategy):
         long_tp_count = tp_order_counts['long_tp_count']
         short_tp_count = tp_order_counts['short_tp_count']
 
-        # Calculate the dynamic TP range based on position size
-        scaling_factor = (pos_qty / 1000) * 0.01
-        min_tp_pct = upnl_profit_pct
-        if order_side == "sell":  # Long position
-            max_tp_pct = max_upnl_profit_pct + scaling_factor
-        else:  # Short position, we want to increase the absolute value of max TP downward
-            max_tp_pct = max_upnl_profit_pct - scaling_factor  # Corrected to actually make TP more aggressive for shorts
+        # Determine the minimum notional value for dynamic scaling
+        min_notional_value = self.min_notional(symbol)
+        current_price = self.exchange.get_current_price(symbol)
 
-        # Calculate the new TP values using quickscalp method and the dynamic TP range
-        new_short_tp_min, new_short_tp_max = self.calculate_quickscalp_short_take_profit_dynamic_distance(short_pos_price, symbol, min_tp_pct, max_tp_pct)
-        new_long_tp_min, new_long_tp_max = self.calculate_quickscalp_long_take_profit_dynamic_distance(long_pos_price, symbol, min_tp_pct, max_tp_pct)
+        # Calculate the position's market value
+        position_market_value = pos_qty * current_price
+
+        # Calculate the dynamic TP range based on how many minimum notional units fit in the position's market value
+        num_units = position_market_value / min_notional_value
+        scaling_factor = (num_units * 0.01)  # Smaller scaling factor
+
+        # Calculate scaled TP percentage within the defined range
+        scaled_tp_pct = upnl_profit_pct + (max_upnl_profit_pct - upnl_profit_pct) * min(scaling_factor, 1)  # Cap scaling at 100%
+
+        # Calculate the new TP values using quickscalp method
+        new_short_tp_min, new_short_tp_max = self.calculate_quickscalp_short_take_profit_dynamic_distance(short_pos_price, symbol, upnl_profit_pct, scaled_tp_pct)
+        new_long_tp_min, new_long_tp_max = self.calculate_quickscalp_long_take_profit_dynamic_distance(long_pos_price, symbol, upnl_profit_pct, scaled_tp_pct)
 
         # Determine the relevant TP orders based on the order side
         relevant_tp_orders = long_tp_orders if order_side == "sell" else short_tp_orders
@@ -2853,7 +2923,7 @@ class BybitStrategy(BaseStrategy):
             )
 
             # Replace long grid if necessary
-            if replace_long_grid and not (self.auto_reduce_active_long.get(symbol, False) and not entry_during_autoreduce):
+            if replace_long_grid and not self.auto_reduce_active_long.get(symbol, False):
                 logging.info(f"[{symbol}] Replacing long grid orders due to updated buffer.")
                 self.clear_grid(symbol, 'buy')  # Cancel existing long grid orders
                 self.active_grids.discard(symbol)
@@ -2867,7 +2937,7 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"[{symbol}] Recalculated long grid levels with updated buffer: {grid_levels_long}")
 
             # Replace short grid if necessary
-            if replace_short_grid and not (self.auto_reduce_active_short.get(symbol, False) and not entry_during_autoreduce):
+            if replace_short_grid and not self.auto_reduce_active_short.get(symbol, False):
                 logging.info(f"[{symbol}] Replacing short grid orders due to updated buffer.")
                 self.clear_grid(symbol, 'sell')  # Cancel existing short grid orders
                 self.active_grids.discard(symbol)
@@ -2894,37 +2964,38 @@ class BybitStrategy(BaseStrategy):
                 # Reissue orders if necessary based on the reissue threshold and current orders
                 if self.should_reissue_orders_revised(symbol, reissue_threshold, long_pos_qty, short_pos_qty, initial_entry_buffer_pct):
                     open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
-                    logging.info(f"Open orders for {symbol}: {open_orders}")
+                    #logging.info(f"Open orders for {symbol}: {open_orders}")
 
                     # Flags to check for existing buy or sell orders, excluding reduce-only orders
                     has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
                     has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
 
                     # Handling reissue for long orders
-                    if not long_pos_qty and long_mode and not self.auto_reduce_active_long.get(symbol, False) or entry_during_autoreduce:  # Only enter this block if there are no long positions and long trading is enabled
-                        if symbol in self.active_grids and "buy" in self.filled_levels[symbol] and has_open_long_order:
-                            logging.info(f"[{symbol}] Reissuing long orders due to price movement beyond the threshold.")
-                            self.clear_grid(symbol, 'buy')  # Clear existing long orders
-                            self.active_grids.discard(symbol)  # Add this line
-                            logging.info(f"[{symbol}] Placing new long orders.")
-                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                            self.active_grids.add(symbol)  # Add this line
-                        elif symbol not in self.active_grids:
-                            logging.info(f"[{symbol}] No active long grid for the symbol. Skipping long grid reissue.")
+                    if not long_pos_qty and long_mode and not self.auto_reduce_active_long.get(symbol, False):
+                        if entry_during_autoreduce or not self.auto_reduce_active_long.get(symbol, False):
+                            if symbol in self.active_grids and "buy" in self.filled_levels[symbol] and has_open_long_order:
+                                logging.info(f"[{symbol}] Reissuing long orders due to price movement beyond the threshold.")
+                                self.clear_grid(symbol, 'buy')  # Clear existing long orders
+                                self.active_grids.discard(symbol)  # Add this line
+                                logging.info(f"[{symbol}] Placing new long orders.")
+                                self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                                self.active_grids.add(symbol)  # Add this line
+                            elif symbol not in self.active_grids:
+                                logging.info(f"[{symbol}] No active long grid for the symbol. Skipping long grid reissue.")
 
                     # Handling reissue for short orders
-                    if not short_pos_qty and short_mode and not self.auto_reduce_active_short.get(symbol, False) or entry_during_autoreduce:  # Only enter this block if there are no short positions and short trading is enabled
-                        if symbol in self.active_grids and "sell" in self.filled_levels[symbol] and has_open_short_order:
-                            logging.info(f"[{symbol}] Reissuing short orders due to price movement beyond the threshold.")
-                            self.clear_grid(symbol, 'sell')  # Clear existing short orders
-                            self.active_grids.discard(symbol)  # Add this line
-                            logging.info(f"[{symbol}] Placing new short orders.")
-                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                            self.active_grids.add(symbol)  # Add this line
-                        elif symbol not in self.active_grids:
-                            logging.info(f"[{symbol}] No active short grid for the symbol. Skipping short grid reissue.")
+                    if not short_pos_qty and short_mode and not self.auto_reduce_active_short.get(symbol, False):
+                        if entry_during_autoreduce or not self.auto_reduce_active_short.get(symbol, False):
+                            if symbol in self.active_grids and "sell" in self.filled_levels[symbol] and has_open_short_order:
+                                logging.info(f"[{symbol}] Reissuing short orders due to price movement beyond the threshold.")
+                                self.clear_grid(symbol, 'sell')  # Clear existing short orders
+                                self.active_grids.discard(symbol)  # Add this line
+                                logging.info(f"[{symbol}] Placing new short orders.")
+                                self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                                self.active_grids.add(symbol)  # Add this line
+                            elif symbol not in self.active_grids:
+                                logging.info(f"[{symbol}] No active short grid for the symbol. Skipping short grid reissue.")
 
-            # Check if the symbol is in open symbols or trading is otherwise allowed
             if symbol in open_symbols or trading_allowed:
                 # Check if there are open positions and no active grids
                 if (long_pos_qty > 0 and not long_grid_active) or (short_pos_qty > 0 and not short_grid_active):
@@ -3084,7 +3155,6 @@ class BybitStrategy(BaseStrategy):
         else:
             logging.info(f"[{symbol}] Trading not allowed. Skipping grid placement.")
             time.sleep(5)
-
                                                 
     def linear_grid_handle_positions_mfirsi_persistent_notional_dynamic_buffer(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float, short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int, strength: float, outer_price_distance: float, reissue_threshold: float, wallet_exposure_limit: float, user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool, short_mode: bool, min_buffer_percentage: float, max_buffer_percentage: float, symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool):
         try:

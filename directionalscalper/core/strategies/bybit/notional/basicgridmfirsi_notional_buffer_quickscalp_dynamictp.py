@@ -52,7 +52,15 @@ class BybitBasicGridBufferedQSDTP(BybitStrategy):
             self.max_buffer_percentage_ar = self.config.linear_grid['max_buffer_percentage_ar']
             self.upnl_auto_reduce_threshold_long = self.config.linear_grid['upnl_auto_reduce_threshold_long']
             self.upnl_auto_reduce_threshold_short = self.config.linear_grid['upnl_auto_reduce_threshold_short']
+            self.failsafe_enabled = self.config.linear_grid['failsafe_enabled']
+            self.long_failsafe_upnl_pct = self.config.linear_grid['long_failsafe_upnl_pct']
+            self.short_failsafe_upnl_pct = self.config.linear_grid['short_failsafe_upnl_pct']
+            self.failsafe_start_pct = self.config.linear_grid['failsafe_start_pct']
             # self.reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
+                                            #  failsafe_enabled,
+                                            #  long_failsafe_upnl_pct,
+                                            #  short_failsafe_upnl_pct,
+                                            #  failsafe_start_pct)
             self.upnl_threshold_pct = self.config.upnl_threshold_pct
             self.volume_check = self.config.volume_check
             self.max_usd_value = self.config.max_usd_value
@@ -181,6 +189,11 @@ class BybitBasicGridBufferedQSDTP(BybitStrategy):
             max_buffer_percentage_ar = self.config.linear_grid['max_buffer_percentage_ar']
             upnl_auto_reduce_threshold_long = self.config.linear_grid['upnl_auto_reduce_threshold_long']
             upnl_auto_reduce_threshold_short = self.config.linear_grid['upnl_auto_reduce_threshold_short']
+            failsafe_enabled = self.config.linear_grid['failsafe_enabled']
+            long_failsafe_upnl_pct = self.config.linear_grid['long_failsafe_upnl_pct']
+            short_failsafe_upnl_pct = self.config.linear_grid['short_failsafe_upnl_pct']
+            failsafe_start_pct = self.config.linear_grid['failsafe_start_pct']
+
             # reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
 
             volume_check = self.config.volume_check
@@ -573,6 +586,23 @@ class BybitBasicGridBufferedQSDTP(BybitStrategy):
                     initial_long_stop_loss = None
 
                     try:
+                        self.failsafe_method(symbol,
+                                             long_pos_qty,
+                                             short_pos_qty,
+                                             long_pos_price,
+                                             short_pos_price,
+                                             long_upnl,
+                                             short_upnl,
+                                             total_equity,
+                                             current_price,
+                                             failsafe_enabled,
+                                             long_failsafe_upnl_pct,
+                                             short_failsafe_upnl_pct,
+                                             failsafe_start_pct)
+                    except Exception as e:
+                        logging.info(f"Failsafe failed: {e}")
+
+                    try:
                         self.auto_reduce_logic_grid_hardened(
                             symbol,
                             min_qty,
@@ -719,6 +749,7 @@ class BybitBasicGridBufferedQSDTP(BybitStrategy):
 
                     long_tp_counts = tp_order_counts['long_tp_count']
                     short_tp_counts = tp_order_counts['short_tp_count']
+
 
                     try:
                         self.linear_grid_handle_positions_mfirsi_persistent_notional_dynamic_buffer_qs_dynamictp(
