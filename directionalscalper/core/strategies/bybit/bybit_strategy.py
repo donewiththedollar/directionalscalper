@@ -535,7 +535,7 @@ class BybitStrategy(BaseStrategy):
             # Filter active orders
             active_orders = [order for order in open_orders if not order.get('reduceOnly', False)]
 
-            logging.info(f"Active orders for {symbol}: {active_orders}")
+            #logging.info(f"Active orders for {symbol}: {active_orders}")
 
             # Identify active long and short orders
             long_orders = [order for order in active_orders if order['side'] == 'buy']
