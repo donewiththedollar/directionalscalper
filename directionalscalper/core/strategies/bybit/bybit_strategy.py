@@ -147,6 +147,20 @@ class BybitStrategy(BaseStrategy):
             return
 
         try:
+
+            logging.info(f"Failsafe method called for {symbol}")
+            logging.info(f"Long position quantity: {long_pos_qty}")
+            logging.info(f"Short position quantity: {short_pos_qty}")
+            logging.info(f"Long position price: {long_pos_price}")
+            logging.info(f"Short position price: {short_pos_price}")
+            logging.info(f"Long UPNL: {long_upnl}")
+            logging.info(f"Short UPNL: {short_upnl}")
+            logging.info(f"Total equity: {total_equity}")
+            logging.info(f"Current price: {current_price}")
+            logging.info(f"Long failsafe UPNL %: {long_failsafe_upnl_pct}")
+            logging.info(f"Short failsafe UPNL %: {short_failsafe_upnl_pct}")
+            logging.info(f"Failsafe start %: {failsafe_start_pct}")
+            
             long_upnl_pct_equity = (long_upnl / total_equity) * 100
             short_upnl_pct_equity = (short_upnl / total_equity) * 100
 
@@ -161,8 +175,9 @@ class BybitStrategy(BaseStrategy):
             short_failsafe_triggered = (
                 short_pos_qty > 0
                 and current_price > short_pos_price * (1 + failsafe_start_pct)
-                and short_upnl_pct_equity < short_failsafe_upnl_pct
+                and short_upnl_pct_equity < -short_failsafe_upnl_pct
             )
+
 
             if long_failsafe_triggered:
                 logging.info(f"Triggering failsafe for long position on {symbol}. Cutting position in half.")
@@ -179,6 +194,10 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.error(f"Error in failsafe_method for {symbol}: {e}")
             raise
+        
+    except Exception as e:
+        logging.error(f"Error in failsafe_method for {symbol}: {e}")
+        raise
 
     def execute_failsafe_order(self, symbol, position_type, pos_qty, market_price):
         amount_precision, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
