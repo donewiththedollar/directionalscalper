@@ -2510,20 +2510,21 @@ class BybitStrategy(BaseStrategy):
         max_upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool
     ):
         try:
-            # Check reissue necessity for both long and short positions
-            should_reissue_long, should_reissue_short = self.should_reissue_orders_revised(
-                symbol, reissue_threshold, long_pos_qty, short_pos_qty, initial_entry_buffer_pct)
-            open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
-
-            # Initialize filled levels if not already present
+            # Ensure all necessary data structures are initialized
             if symbol not in self.filled_levels:
                 self.filled_levels[symbol] = {"buy": set(), "sell": set()}
             if symbol not in self.last_open_position_timestamp:
                 self.last_open_position_timestamp[symbol] = {"buy": None, "sell": None}
 
+            # Check reissue necessity for both long and short positions
+            should_reissue_long, should_reissue_short = self.should_reissue_orders_revised(
+                symbol, reissue_threshold, long_pos_qty, short_pos_qty, initial_entry_buffer_pct)
+            open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+
             # Check if grids for buying or selling are active
             long_grid_active = symbol in self.active_grids and "buy" in self.filled_levels[symbol]
             short_grid_active = symbol in self.active_grids and "sell" in self.filled_levels[symbol]
+
 
             # Get current market price and log it
             current_price = self.exchange.get_current_price(symbol)
@@ -2538,7 +2539,7 @@ class BybitStrategy(BaseStrategy):
             buffer_distance_short = current_price * buffer_percentage_short
 
             # Log the calculated buffer distances
-            logging.info(f"[{symbol}] Long buffer distance: {buffer_distance_long}, Short buffer_distance: {buffer_distance_short}")
+            logging.info(f"[{symbol}] Long buffer distance: {buffer_distance_long}, Short buffer distance: {buffer_distance_short}")
 
             # Fetch order book data to get best ask and bid prices
             order_book = self.exchange.get_orderbook(symbol)
@@ -2753,7 +2754,7 @@ class BybitStrategy(BaseStrategy):
                             if not self.filled_levels[symbol].get("buy"):
                                 self.active_grids.discard(symbol)
                                 logging.info(f"[{symbol}] No active orders left. Removing symbol from active grids.")
-                                
+                                    
                 if not self.auto_reduce_active_long.get(symbol, False) and not self.auto_reduce_active_short.get(symbol, False):
                     logging.info(f"Auto-reduce for long and short positions on {symbol} is not active")
                     if long_mode or short_mode and ((mfi_signal_long and long_pos_qty > 0) or (mfi_signal_short and short_pos_qty > 0)):
@@ -2882,12 +2883,11 @@ class BybitStrategy(BaseStrategy):
                         last_tp_update=self.next_short_tp_update,
                         tp_order_counts=tp_order_counts
                     )
+                        
         except Exception as e:
-            logging.info(f"Error in executing gridstrategy: {e}")
-            logging.info("Traceback: %s", traceback.format_exc())
-        else:
-            logging.info(f"[{symbol}] Trading not allowed. Skipping grid placement.")
-            time.sleep(5)
+            logging.error(f"Error in executing gridstrategy: {e}")
+            logging.error("Traceback: %s", traceback.format_exc())
+
 
     def linear_grid_handle_positions_mfirsi_persistent_notional_dynamic_buffer_qs_dynamictp(
         self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
