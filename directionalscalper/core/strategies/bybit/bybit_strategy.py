@@ -506,7 +506,7 @@ class BybitStrategy(BaseStrategy):
 
         # Check if the symbol has an open position
         open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
-        logging.info(f"Open position data from check_symbol_inactivity: {open_position_data}")
+        #logging.info(f"Open position data from check_symbol_inactivity: {open_position_data}")
         
         # Modify the symbol format to match the one in open_position_data
         symbol_formatted = f"{symbol.split('USDT')[0]}/USDT:USDT"
