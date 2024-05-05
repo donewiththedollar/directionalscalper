@@ -689,6 +689,7 @@ class BybitBasicGridBufferedQS(BybitStrategy):
                     long_tp_counts = tp_order_counts['long_tp_count']
                     short_tp_counts = tp_order_counts['short_tp_count']
 
+            
                     try:
                         self.linear_grid_handle_positions_mfirsi_persistent_notional_dynamic_buffer_qs(
                             symbol,

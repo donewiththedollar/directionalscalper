@@ -749,7 +749,7 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.info(f"An error occurred while canceling entry orders: {e}")
 
-    def update_quickscalp_tp_dynamic(self, symbol, pos_qty, upnl_profit_pct, max_upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, tp_order_counts, max_retries=10):
+    def update_quickscalp_tp_dynamic(self, symbol, pos_qty, upnl_profit_pct, max_upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, tp_order_counts):
         # Fetch the current open TP orders and TP order counts for the symbol
         long_tp_orders, short_tp_orders = self.exchange.get_open_tp_orders(symbol)
         long_tp_count = tp_order_counts['long_tp_count']
@@ -764,12 +764,14 @@ class BybitStrategy(BaseStrategy):
 
         # Calculate the dynamic TP range based on how many minimum notional units fit in the position's market value
         num_units = position_market_value / min_notional_value
-        scaling_factor = (num_units * 0.01)  # Smaller scaling factor
+
+        # Modify scaling factor calculation using logarithmic scaling for a smoother increase
+        scaling_factor = math.log10(num_units + 1)  # Logarithmic scaling to smooth out the scaling progression
 
         # Calculate scaled TP percentage within the defined range
-        scaled_tp_pct = upnl_profit_pct + (max_upnl_profit_pct - upnl_profit_pct) * min(scaling_factor, 1)  # Cap scaling at 100%
+        scaled_tp_pct = upnl_profit_pct + (max_upnl_profit_pct - upnl_profit_pct) * min(scaling_factor, 1)  # Cap scaling at 100% to avoid excessive TP targets
 
-        # Calculate the new TP values using quickscalp method
+        # Calculate the new TP values using the quickscalp method
         new_short_tp_min, new_short_tp_max = self.calculate_quickscalp_short_take_profit_dynamic_distance(short_pos_price, symbol, upnl_profit_pct, scaled_tp_pct)
         new_long_tp_min, new_long_tp_max = self.calculate_quickscalp_long_take_profit_dynamic_distance(long_pos_price, symbol, upnl_profit_pct, scaled_tp_pct)
 
@@ -787,6 +789,7 @@ class BybitStrategy(BaseStrategy):
             except Exception as e:
                 logging.info(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
 
+        # Using datetime.now() for checking if update is needed
         now = datetime.now()
         if now >= last_tp_update or mismatched_qty_orders:
             # Check if a TP order already exists
@@ -798,6 +801,7 @@ class BybitStrategy(BaseStrategy):
                 new_tp_price_max = new_long_tp_max if order_side == "sell" else new_short_tp_max
                 current_price = self.exchange.get_current_price(symbol)
 
+                # Ensure TP setting checks are correct for direction
                 if (order_side == "sell" and current_price >= new_tp_price_min) or (order_side == "buy" and current_price <= new_tp_price_max):
                     try:
                         self.exchange.create_normal_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, new_tp_price_min, positionIdx=positionIdx, reduce_only=True)
