@@ -66,7 +66,8 @@ def standardize_symbol(symbol):
 
 def get_available_strategies():
     return [
-        'qsgriddynamictpv2'
+        'qsdynamicgridspan'
+        'qsgriddynamictplinspaced'
         'qsgriddynamictp',
         'qsgriddynamic',
         'qsgridbasic',
@@ -235,8 +236,11 @@ class DirectionalMarketMaker:
         elif strategy_name.lower() == 'qsgriddynamictp':
             strategy = bybit_notional.BybitBasicGridBufferedQSDTP(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'qsgriddynamictpv2':
-            strategy = bybit_notional.BybitDynamicGridDynamicTP(self.exchange, self.manager, config.bot, symbols_allowed)
+        elif strategy_name.lower() == 'qsgriddynamictplinspaced':
+            strategy = bybit_notional.BybitDynamicGridDynamicTPLinSpaced(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
+        elif strategy_name.lower() == 'qsdynamicgridspan':
+            strategy = bybit_notional.BybitDynamicGridSpan(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
             
 

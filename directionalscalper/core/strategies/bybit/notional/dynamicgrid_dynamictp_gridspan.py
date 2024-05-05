@@ -12,11 +12,11 @@ from directionalscalper.core.strategies.bybit.bybit_strategy import BybitStrateg
 from directionalscalper.core.exchanges.bybit import BybitExchange
 from directionalscalper.core.strategies.logger import Logger
 from live_table_manager import shared_symbols_data
-logging = Logger(logger_name="BybitDynamicGridDynamicTP", filename="BybitDynamicGridDynamicTP.log", stream=True)
+logging = Logger(logger_name="BybitDynamicGridSpan", filename="BybitDynamicGridSpan.log", stream=True)
 
 symbol_locks = {}
 
-class BybitDynamicGridDynamicTP(BybitStrategy):
+class BybitDynamicGridSpan(BybitStrategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
         self.is_order_history_populated = False
@@ -750,9 +750,8 @@ class BybitDynamicGridDynamicTP(BybitStrategy):
                     long_tp_counts = tp_order_counts['long_tp_count']
                     short_tp_counts = tp_order_counts['short_tp_count']
 
-
                     try:
-                        self.linear_grid_dynamictp_hardened(
+                        self.linear_grid_hardened_gridspan(
                             symbol,
                             open_symbols,
                             total_equity,
