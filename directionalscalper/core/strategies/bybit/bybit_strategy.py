@@ -2730,32 +2730,30 @@ class BybitStrategy(BaseStrategy):
                     self.clear_grid(symbol, 'buy')
                     self.clear_grid(symbol, 'sell')
                     self.active_grids.discard(symbol)
-                    self.filled_levels[symbol].clear()
+                    self.filled_levels.pop(symbol, None)  # Remove the symbol from filled_levels
                 else:
                     current_timestamp = time.time()
 
-                    if not long_pos_qty and symbol in self.active_grids and "buy" in self.filled_levels[symbol]:
+                    if not long_pos_qty and symbol in self.active_grids and symbol in self.filled_levels and "buy" in self.filled_levels[symbol]:
                         last_long_position_timestamp = self.last_open_position_timestamp.get(symbol, {}).get("buy")
                         if last_long_position_timestamp is not None and current_timestamp - last_long_position_timestamp >= clear_grid_threshold:
                             logging.info(f"[{symbol}] No open long position for {clear_grid_threshold} seconds. Canceling leftover long grid orders.")
                             self.clear_grid(symbol, 'buy')
-                            self.filled_levels[symbol]["buy"].clear()
-
-                            if not self.filled_levels[symbol]["sell"]:
+                            self.filled_levels[symbol].pop("buy", None)  # Remove the "buy" key if it exists
+                            if not self.filled_levels[symbol].get("sell"):
                                 self.active_grids.discard(symbol)
                                 logging.info(f"[{symbol}] No active orders left. Removing symbol from active grids.")
 
-                    if not short_pos_qty and symbol in self.active_grids and "sell" in self.filled_levels[symbol]:
+                    if not short_pos_qty and symbol in self.active_grids and symbol in self.filled_levels and "sell" in self.filled_levels[symbol]:
                         last_short_position_timestamp = self.last_open_position_timestamp.get(symbol, {}).get("sell")
                         if last_short_position_timestamp is not None and current_timestamp - last_short_position_timestamp >= clear_grid_threshold:
                             logging.info(f"[{symbol}] No open short position for {clear_grid_threshold} seconds. Canceling leftover short grid orders.")
                             self.clear_grid(symbol, 'sell')
-                            self.filled_levels[symbol]["sell"].clear()
-
-                            if not self.filled_levels[symbol]["buy"]:
+                            self.filled_levels[symbol].pop("sell", None)  # Remove the "sell" key if it exists
+                            if not self.filled_levels[symbol].get("buy"):
                                 self.active_grids.discard(symbol)
                                 logging.info(f"[{symbol}] No active orders left. Removing symbol from active grids.")
-
+                                
                 if not self.auto_reduce_active_long.get(symbol, False) and not self.auto_reduce_active_short.get(symbol, False):
                     logging.info(f"Auto-reduce for long and short positions on {symbol} is not active")
                     if long_mode or short_mode and ((mfi_signal_long and long_pos_qty > 0) or (mfi_signal_short and short_pos_qty > 0)):
