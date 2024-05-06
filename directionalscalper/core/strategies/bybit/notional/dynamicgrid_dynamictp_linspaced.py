@@ -259,14 +259,6 @@ class BybitDynamicGridDynamicTPLinSpaced(BybitStrategy):
 
             while self.running_long or self.running_short:
 
-                # Check for symbol inactivity
-                inactive_time_threshold = 160  # 3 minutes in seconds
-                if self.check_symbol_inactivity(symbol, inactive_time_threshold):
-                    logging.info(f"No open positions or orders for {symbol} in the last {inactive_time_threshold} seconds. Terminating the thread.")
-                    self.running_long = False
-                    self.running_short = False
-                    break
-                
                 current_time = time.time()
 
                 iteration_start_time = time.time()
@@ -417,41 +409,61 @@ class BybitDynamicGridDynamicTPLinSpaced(BybitStrategy):
 
                 logging.info(f"Symbol precision for {symbol} : {symbol_precision}")
 
-                # long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
-                # short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
-                # # Update the previous position quantities
-                # previous_long_pos_qty = long_pos_qty
-                # previous_short_pos_qty = short_pos_qty
-
-                # terminate_long, terminate_short = self.should_terminate_open_orders(symbol, long_pos_qty, short_pos_qty, open_position_data, open_orders, current_time)
-                # logging.info(f"Terminate long: {terminate_long}, Terminate short: {terminate_short}")
-
-                # # global thread_termination_status
-
-                # try:
-                #     if terminate_long:
-                #         logging.info(f"Should terminate long orders for {symbol}")
-                #         self.cancel_grid_orders(symbol, "buy")
-                #         self.cleanup_before_termination(symbol)
-                #         self.running_long = False  # Set the flag to stop the long thread
-                #         thread_termination_status[symbol] = True  # Update the termination status
-
-                #     if terminate_short:
-                #         logging.info(f"Should terminate short orders for {symbol}")
-                #         self.cancel_grid_orders(symbol, "sell")
-                #         self.cleanup_before_termination(symbol)
-                #         self.running_short = False  # Set the flag to stop the short thread
-                #         thread_termination_status[symbol] = True  # Update the termination status
-
-                # except Exception as e:
-                #     logging.info(f"Exception caught in termination {e}")
 
                 long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
                 short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
 
-                # Update the previous position quantities
+
+                # Position side for symbol recently closed
+                logging.info(f"Previous long pos qty for {symbol} : {previous_long_pos_qty}")
+                logging.info(f"Previous short pos qty for {symbol} : {previous_short_pos_qty}")
+
+                logging.info(f"Current long pos qty for {symbol} {long_pos_qty}")
+                logging.info(f"Current short pos qty for {symbol} {short_pos_qty}")
+                # Determine if positions have just been closed
+                if previous_long_pos_qty > 0 and long_pos_qty == 0:
+                    logging.info(f"All long positions for {symbol} were recently closed. Checking for inactivity.")
+                    inactive_long = True
+                else:
+                    inactive_long = False
+
+                if previous_short_pos_qty > 0 and short_pos_qty == 0:
+                    logging.info(f"All short positions for {symbol} were recently closed. Checking for inactivity.")
+                    inactive_short = True
+                else:
+                    inactive_short = False
+
+                # Update previous quantities for the next iteration
                 previous_long_pos_qty = long_pos_qty
                 previous_short_pos_qty = short_pos_qty
+
+                # Actions based on inactivity
+                if inactive_long:
+                    logging.info(f"No active long positions and previous positions were closed for {symbol}. Terminating long operations.")
+                    self.running_long = False
+                    self.cancel_grid_orders(symbol, "buy")
+                    self.clear_grid(symbol, 'buy')
+                    self.active_grids.discard(symbol)
+                    #self.cleanup_before_termination(symbol)
+                    break
+
+                if inactive_short:
+                    logging.info(f"No active short positions and previous positions were closed for {symbol}. Terminating short operations.")
+                    self.cancel_grid_orders(symbol, "sell")
+                    self.clear_grid(symbol, 'sell')
+                    self.active_grids.discard(symbol)
+                    #self.cleanup_before_termination(symbol)
+                    self.running_short = False
+                    break
+
+                # Optionally, break out of the loop if all trading sides are closed
+                if not self.running_long and not self.running_short:
+                    self.cancel_grid_orders(symbol, "buy")
+                    self.cancel_grid_orders(symbol, "sell")
+                    self.active_grids.discard(symbol)
+                    self.cleanup_before_termination(symbol)
+                    logging.info("Both long and short operations have terminated. Exiting the loop.")
+                    break
             
                 terminate_long, terminate_short = self.should_terminate_open_orders(symbol, long_pos_qty, short_pos_qty, open_position_data, open_orders, current_time)
 
@@ -532,13 +544,6 @@ class BybitDynamicGridDynamicTPLinSpaced(BybitStrategy):
                     logging.info(f"Long liquidation price for {symbol}: {long_liquidation_price}")
                     logging.info(f"Short liquidation price for {symbol}: {short_liquidation_price}")
 
-                    long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
-                    short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
-
-                    # Update the previous position quantities
-                    previous_long_pos_qty = long_pos_qty
-                    previous_short_pos_qty = short_pos_qty
-                
                     logging.info(f"Rotator symbol trading: {symbol}")
                                 
                     logging.info(f"Rotator symbols: {rotator_symbols_standardized}")
@@ -749,7 +754,6 @@ class BybitDynamicGridDynamicTPLinSpaced(BybitStrategy):
 
                     long_tp_counts = tp_order_counts['long_tp_count']
                     short_tp_counts = tp_order_counts['short_tp_count']
-
 
                     try:
                         self.linear_grid_dynamictp_linspaced(
