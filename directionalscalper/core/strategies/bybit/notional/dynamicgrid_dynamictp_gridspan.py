@@ -441,15 +441,22 @@ class BybitDynamicGridSpan(BybitStrategy):
                 if inactive_long:
                     logging.info(f"No active long positions and previous positions were closed for {symbol}. Terminating long operations.")
                     self.running_long = False
+                    self.cancel_grid_orders(symbol, "buy")
+                    #self.cleanup_before_termination(symbol)
                     break
 
                 if inactive_short:
                     logging.info(f"No active short positions and previous positions were closed for {symbol}. Terminating short operations.")
+                    self.cancel_grid_orders(symbol, "sell")
+                    #self.cleanup_before_termination(symbol)
                     self.running_short = False
                     break
 
                 # Optionally, break out of the loop if all trading sides are closed
                 if not self.running_long and not self.running_short:
+                    self.cancel_grid_orders(symbol, "buy")
+                    self.cancel_grid_orders(symbol, "sell")
+                    self.cleanup_before_termination(symbol)
                     logging.info("Both long and short operations have terminated. Exiting the loop.")
                     break
             
