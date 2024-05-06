@@ -281,7 +281,7 @@ class BybitDynamicGridSpan(BybitStrategy):
                 open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
 
                 
-                logging.info(f"Open position data for {symbol}: {open_position_data}")
+                #logging.info(f"Open position data for {symbol}: {open_position_data}")
 
                 position_details = {}
 
