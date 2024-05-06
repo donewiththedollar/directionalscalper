@@ -50,6 +50,8 @@ class BybitStrategy(BaseStrategy):
         self.order_inactive_threshold = 150
         self.last_activity_time = {}
         self.last_open_position_timestamp = defaultdict(lambda: {"buy": None, "sell": None})
+        self.last_cleared_time = {}  # Dictionary to store last cleared time for symbols
+        self.clear_interval = timedelta(minutes=30)  # Time interval threshold for clearing grids
         pass
 
     TAKER_FEE_RATE = 0.00055
@@ -2718,11 +2720,19 @@ class BybitStrategy(BaseStrategy):
                             self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                             self.active_grids.add(symbol)  # Mark the symbol as having an active grid
 
+                current_time = datetime.now()
+                
+                # Logic to clear grids if there are no open positions and it's time to clear them
                 if not long_pos_qty and not short_pos_qty and symbol in self.active_grids:
-                    logging.info(f"[{symbol}] No open positions. Canceling leftover grid orders.")
-                    self.clear_grid(symbol, 'buy')  # Clear any lingering buy grid orders
-                    self.clear_grid(symbol, 'sell')  # Clear any lingering sell grid orders
-                    self.active_grids.discard(symbol)  # Remove the symbol from active grids
+                    last_cleared = self.last_cleared_time.get(symbol, datetime.min)
+                    if current_time - last_cleared > self.clear_interval:
+                        logging.info(f"[{symbol}] No open positions and time interval passed. Canceling leftover grid orders.")
+                        self.clear_grid(symbol, 'buy')  # Clear any lingering buy grid orders
+                        self.clear_grid(symbol, 'sell')  # Clear any lingering sell grid orders
+                        self.active_grids.discard(symbol)  # Remove the symbol from active grids
+                        self.last_cleared_time[symbol] = current_time  # Update the last cleared time
+                    else:
+                        logging.info(f"[{symbol}] No open positions, but time interval not passed. Skipping grid clearing.")
 
                 if not self.auto_reduce_active_long.get(symbol, False) and not self.auto_reduce_active_short.get(symbol, False):
                     logging.info(f"Auto-reduce for long and short positions on {symbol} is not active")
@@ -3539,11 +3549,19 @@ class BybitStrategy(BaseStrategy):
                             self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                             self.active_grids.add(symbol)  # Mark the symbol as having an active grid
 
+                current_time = datetime.now()
+                
+                # Logic to clear grids if there are no open positions and it's time to clear them
                 if not long_pos_qty and not short_pos_qty and symbol in self.active_grids:
-                    logging.info(f"[{symbol}] No open positions. Canceling leftover grid orders.")
-                    self.clear_grid(symbol, 'buy')  # Clear any lingering buy grid orders
-                    self.clear_grid(symbol, 'sell')  # Clear any lingering sell grid orders
-                    self.active_grids.discard(symbol)  # Remove the symbol from active grids
+                    last_cleared = self.last_cleared_time.get(symbol, datetime.min)
+                    if current_time - last_cleared > self.clear_interval:
+                        logging.info(f"[{symbol}] No open positions and time interval passed. Canceling leftover grid orders.")
+                        self.clear_grid(symbol, 'buy')  # Clear any lingering buy grid orders
+                        self.clear_grid(symbol, 'sell')  # Clear any lingering sell grid orders
+                        self.active_grids.discard(symbol)  # Remove the symbol from active grids
+                        self.last_cleared_time[symbol] = current_time  # Update the last cleared time
+                    else:
+                        logging.info(f"[{symbol}] No open positions, but time interval not passed. Skipping grid clearing.")
 
                 if not self.auto_reduce_active_long.get(symbol, False) and not self.auto_reduce_active_short.get(symbol, False):
                     logging.info(f"Auto-reduce for long and short positions on {symbol} is not active")
@@ -3889,11 +3907,19 @@ class BybitStrategy(BaseStrategy):
                             self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                             self.active_grids.add(symbol)  # Mark the symbol as having an active grid
 
+                current_time = datetime.now()
+                
+                # Logic to clear grids if there are no open positions and it's time to clear them
                 if not long_pos_qty and not short_pos_qty and symbol in self.active_grids:
-                    logging.info(f"[{symbol}] No open positions. Canceling leftover grid orders.")
-                    self.clear_grid(symbol, 'buy')  # Clear any lingering buy grid orders
-                    self.clear_grid(symbol, 'sell')  # Clear any lingering sell grid orders
-                    self.active_grids.discard(symbol)  # Remove the symbol from active grids
+                    last_cleared = self.last_cleared_time.get(symbol, datetime.min)
+                    if current_time - last_cleared > self.clear_interval:
+                        logging.info(f"[{symbol}] No open positions and time interval passed. Canceling leftover grid orders.")
+                        self.clear_grid(symbol, 'buy')  # Clear any lingering buy grid orders
+                        self.clear_grid(symbol, 'sell')  # Clear any lingering sell grid orders
+                        self.active_grids.discard(symbol)  # Remove the symbol from active grids
+                        self.last_cleared_time[symbol] = current_time  # Update the last cleared time
+                    else:
+                        logging.info(f"[{symbol}] No open positions, but time interval not passed. Skipping grid clearing.")
 
                 if not self.auto_reduce_active_long.get(symbol, False) and not self.auto_reduce_active_short.get(symbol, False):
                     logging.info(f"Auto-reduce for long and short positions on {symbol} is not active")
