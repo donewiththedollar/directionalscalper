@@ -504,10 +504,6 @@ class BybitDynamicGridSpan(BybitStrategy):
 
                     long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
                     short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
-
-                    # Update the previous position quantities
-                    previous_long_pos_qty = long_pos_qty
-                    previous_short_pos_qty = short_pos_qty
                 
                     logging.info(f"Rotator symbol trading: {symbol}")
                                 
