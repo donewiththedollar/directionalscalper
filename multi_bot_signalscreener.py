@@ -412,18 +412,20 @@ def update_active_symbols():
 
 
 def update_active_threads(open_position_symbols, args, manager, symbols_allowed):
-    global active_symbols
+    global active_symbols, threads
     for symbol in open_position_symbols:
         if symbol not in active_symbols or (symbol in threads and not threads[symbol][0].is_alive()):
-            # Always maintain threads for open positions
-            start_thread_for_symbol(symbol, args, manager, check_signal=False)
-            active_symbols.add(symbol)
-            logging.info(f"Maintained or restarted thread for open position: {symbol}")
+            # Always maintain threads for open positions, restart if necessary
+            if start_thread_for_symbol(symbol, args, manager, check_signal=False):
+                active_symbols.add(symbol)
+                logging.info(f"Maintained or restarted thread for open position: {symbol}")
+            else:
+                logging.info(f"Failed to restart thread for: {symbol}")
         else:
             logging.info(f"Thread already active for open position: {symbol}")
 
-    # Check for new signals only for symbols not in open_position_symbols
-    for symbol in (set(latest_rotator_symbols) - open_position_symbols):
+    # Include logic to handle symbols that are in latest_rotator_symbols but might have been dropped
+    for symbol in (set(latest_rotator_symbols) - set(open_position_symbols)):
         if symbol not in active_symbols and start_thread_for_symbol(symbol, args, manager, check_signal=True):
             active_symbols.add(symbol)
             logging.info(f"Started new thread for symbol with valid signal: {symbol}")
@@ -483,49 +485,79 @@ def remove_thread_for_symbol(symbol):
         thread.join()
     threads.pop(symbol, None)
 
-
+# Adjust the starting of threads directly in the `update_active_threads` function
 def start_thread_for_symbol(symbol, args, manager, check_signal=True):
     """Start or maintain a thread for a given symbol, optionally checking for a trading signal."""
     logging.info(f"Attempting to start/maintain thread for symbol: {symbol}")
     try:
+        if symbol in threads and threads[symbol][0].is_alive():
+            return True  # Thread is already active and doesn't need to be restarted
+
         config_file_path = Path('configs') / args.config
         if not config_file_path.is_file():
             logging.error(f"Configuration file not found: {config_file_path}")
             return False
 
-        config = load_config(config_file_path)
-        market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
-        market_maker.manager = manager
-
+        # Optionally check for a trading signal
         if check_signal:
             mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
-            mfi_signal_long = mfirsi_signal.lower() == "long"
-            mfi_signal_short = mfirsi_signal.lower() == "short"
-            if not (mfi_signal_long or mfi_signal_short):
+            if mfirsi_signal.lower() not in ["long", "short"]:
                 logging.info(f"No valid signal for {symbol}, signal was {mfirsi_signal}")
                 return False
-            else:
-                logging.info(f"Valid signal '{mfirsi_signal}' detected for {symbol}, initiating thread.")
-                # Start a new thread for the symbol with the valid signal
-                thread_completed = threading.Event()
-                new_thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols, thread_completed))
-                new_thread.start()
-                threads[symbol] = (new_thread, thread_completed)
-                thread_start_time[symbol] = time.time()
-                logging.info(f"Thread started for {symbol} with valid signal")
-                return True
-        else:
-            # Thread is started regardless of the signal if check_signal is False
-            thread_completed = threading.Event()
-            new_thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols, thread_completed))
-            new_thread.start()
-            threads[symbol] = (new_thread, thread_completed)
-            thread_start_time[symbol] = time.time()
-            logging.info(f"Thread started for {symbol} without signal check")
-            return True
+
+        # Restart or start the thread
+        thread_completed = threading.Event()
+        new_thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols, thread_completed))
+        new_thread.start()
+        threads[symbol] = (new_thread, thread_completed)
+        logging.info(f"Thread (re)started for {symbol} with or without signal check")
+        return True
     except Exception as e:
         logging.error(f"Error processing thread for symbol {symbol}: {e}")
         return False
+    
+# def start_thread_for_symbol(symbol, args, manager, check_signal=True):
+#     """Start or maintain a thread for a given symbol, optionally checking for a trading signal."""
+#     logging.info(f"Attempting to start/maintain thread for symbol: {symbol}")
+#     try:
+#         config_file_path = Path('configs') / args.config
+#         if not config_file_path.is_file():
+#             logging.error(f"Configuration file not found: {config_file_path}")
+#             return False
+
+#         config = load_config(config_file_path)
+#         market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
+#         market_maker.manager = manager
+
+#         if check_signal:
+#             mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
+#             mfi_signal_long = mfirsi_signal.lower() == "long"
+#             mfi_signal_short = mfirsi_signal.lower() == "short"
+#             if not (mfi_signal_long or mfi_signal_short):
+#                 logging.info(f"No valid signal for {symbol}, signal was {mfirsi_signal}")
+#                 return False
+#             else:
+#                 logging.info(f"Valid signal '{mfirsi_signal}' detected for {symbol}, initiating thread.")
+#                 # Start a new thread for the symbol with the valid signal
+#                 thread_completed = threading.Event()
+#                 new_thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols, thread_completed))
+#                 new_thread.start()
+#                 threads[symbol] = (new_thread, thread_completed)
+#                 thread_start_time[symbol] = time.time()
+#                 logging.info(f"Thread started for {symbol} with valid signal")
+#                 return True
+#         else:
+#             # Thread is started regardless of the signal if check_signal is False
+#             thread_completed = threading.Event()
+#             new_thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols, thread_completed))
+#             new_thread.start()
+#             threads[symbol] = (new_thread, thread_completed)
+#             thread_start_time[symbol] = time.time()
+#             logging.info(f"Thread started for {symbol} without signal check")
+#             return True
+#     except Exception as e:
+#         logging.error(f"Error processing thread for symbol {symbol}: {e}")
+#         return False
     
 def fetch_updated_symbols(args, manager):
     """Fetches and logs potential symbols based on the current trading strategy."""
