@@ -377,10 +377,13 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
         with thread_management_lock:
             # Update active symbols based on thread status
             update_active_symbols()
+
+            logging.info(f"Active symbols: {active_symbols}")
             
             # Start new threads for open positions not currently active
             update_active_threads(open_position_symbols, args, manager, symbols_allowed)
             
+            logging.info(f"Threads: {threads}")
             # Handle new symbols from the rotator within the allowed limits
             manage_rotator_symbols(latest_rotator_symbols, args, manager, symbols_allowed)
             
@@ -390,6 +393,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                 if thread_completed.is_set():
                     thread.join()
                     completed_symbols.append(symbol)
+                    logging.info(f"Completed symbols: {completed_symbols}")
             
             # Remove completed symbols from active_symbols and threads
             for symbol in completed_symbols:
