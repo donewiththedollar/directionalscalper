@@ -19,6 +19,8 @@ from config import load_config, Config
 from config import VERSION
 from api.manager import Manager
 
+from concurrent.futures import Future
+
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from directionalscalper.core.exchanges.lbank import LBankExchange
@@ -359,7 +361,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
         current_time = time.time()
 
         open_pos = manager.exchange.get_all_open_positions_bybit()
-        logging.info(f"Open pos: {open_pos}")
+        #logging.info(f"Open pos: {open_pos}")
         
         # Fetch current open positions and update symbol sets
         open_position_symbols = {
@@ -400,10 +402,14 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
         traceback_details = traceback.format_exc()
         logging.error(f"Exception caught in bybit_auto_rotation: {str(e)}\nTraceback details:\n{traceback_details}")
 
-
 def update_active_symbols():
     global active_symbols
     active_symbols = {symbol for symbol in active_symbols if symbol in threads and threads[symbol][0].is_alive()}
+
+# def update_active_symbols():
+#     global active_symbols
+#     active_symbols = {symbol for symbol in active_symbols if symbol in threads and threads[symbol][0].is_alive()}
+
 
 def update_active_threads(open_position_symbols, args, manager, symbols_allowed):
     global active_symbols
@@ -421,7 +427,6 @@ def update_active_threads(open_position_symbols, args, manager, symbols_allowed)
         if symbol not in active_symbols and start_thread_for_symbol(symbol, args, manager, check_signal=True):
             active_symbols.add(symbol)
             logging.info(f"Started new thread for symbol with valid signal: {symbol}")
-
 
 def manage_rotator_symbols(rotator_symbols, args, manager, symbols_allowed):
     global active_symbols
@@ -447,11 +452,20 @@ def manage_rotator_symbols(rotator_symbols, args, manager, symbols_allowed):
     manage_excess_threads(symbols_allowed)
 
 
+
 def check_and_start_thread(symbol, args, manager):
     """Check signal and start thread if valid."""
-    return start_thread_for_symbol(symbol, args, manager, check_signal=True)
+    future = Future()
 
+    def run_thread():
+        try:
+            result = start_thread_for_symbol(symbol, args, manager, check_signal=True)
+            future.set_result(result)
+        except Exception as e:
+            future.set_exception(e)
 
+    threading.Thread(target=run_thread).start()
+    return future
 
 def manage_excess_threads(symbols_allowed):
     global active_symbols
@@ -492,19 +506,27 @@ def start_thread_for_symbol(symbol, args, manager, check_signal=True):
                 return False
             else:
                 logging.info(f"Valid signal '{mfirsi_signal}' detected for {symbol}, initiating thread.")
-
-        # Thread is started regardless of the signal if check_signal is False
-        thread_completed = threading.Event()
-        new_thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols, thread_completed))
-        new_thread.start()
-        threads[symbol] = (new_thread, thread_completed)
-        thread_start_time[symbol] = time.time()
-        logging.info(f"Thread started for {symbol} with or without signal check")
-        return True
+                # Start a new thread for the symbol with the valid signal
+                thread_completed = threading.Event()
+                new_thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols, thread_completed))
+                new_thread.start()
+                threads[symbol] = (new_thread, thread_completed)
+                thread_start_time[symbol] = time.time()
+                logging.info(f"Thread started for {symbol} with valid signal")
+                return True
+        else:
+            # Thread is started regardless of the signal if check_signal is False
+            thread_completed = threading.Event()
+            new_thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols, thread_completed))
+            new_thread.start()
+            threads[symbol] = (new_thread, thread_completed)
+            thread_start_time[symbol] = time.time()
+            logging.info(f"Thread started for {symbol} without signal check")
+            return True
     except Exception as e:
         logging.error(f"Error processing thread for symbol {symbol}: {e}")
         return False
-
+    
 def fetch_updated_symbols(args, manager):
     """Fetches and logs potential symbols based on the current trading strategy."""
     strategy = args.strategy.lower()
