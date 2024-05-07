@@ -458,6 +458,7 @@ class BybitDynamicGridSpan(BybitStrategy):
 
                 # Optionally, break out of the loop if all trading sides are closed
                 if not self.running_long and not self.running_short:
+                    shared_symbols_data.pop(symbol, None)
                     self.cancel_grid_orders(symbol, "buy")
                     self.cancel_grid_orders(symbol, "sell")
                     self.active_grids.discard(symbol)
