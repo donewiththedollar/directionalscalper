@@ -487,27 +487,36 @@ def scan_for_signals(args, manager, symbols_allowed):
     actionable_signals_count = 0  # Initialize a counter for actionable signals
 
     for symbol in latest_rotator_symbols:
+        logging.info(f"Processing symbol: {symbol}")
+
         market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
         market_maker.manager = manager
         mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
         mfi_signal_long = mfirsi_signal.lower() == "long"
         mfi_signal_short = mfirsi_signal.lower() == "short"
-
         open_position_data = market_maker.exchange.get_all_open_positions_bybit()
-        logging.info(f"Open pos data: {open_position_data}")
-        has_long_position = any(position['symbol'] == symbol and position['side'] == 'Buy' for position in open_position_data)
-        has_short_position = any(position['symbol'] == symbol and position['side'] == 'Sell' for position in open_position_data)
-        logging.info(f"{symbol} has open long position {has_long_position}")
-        logging.info(f"{symbol} has open short position {has_short_position}")
+        #logging.info(f"Open position data for {symbol}: {open_position_data}")
+
+        has_long_position = any(position['info']['symbol'] == symbol and position['info']['side'] == 'Buy' for position in open_position_data)
+        has_short_position = any(position['info']['symbol'] == symbol and position['info']['side'] == 'Sell' for position in open_position_data)
+
+        logging.info(f"{symbol} has open long position: {has_long_position}")
+        logging.info(f"{symbol} has open short position: {has_short_position}")
 
         # Adjusted condition to allow adding opposite position type if symbol is already active
         if (mfi_signal_long and not has_long_position) or (mfi_signal_short and not has_short_position):
             logging.info(f"Valid signal '{mfirsi_signal}' detected for {symbol}, initiating thread.")
+
             # Continue processing if it's a new position type even when active symbols are maxed out
             if symbol not in active_symbols or len(active_symbols) < symbols_allowed or (symbol in active_symbols and ((mfi_signal_long and not has_long_position) or (mfi_signal_short and not has_short_position))):
                 if start_thread_for_symbol(symbol, args, manager):
                     active_symbols.add(symbol)
                     actionable_signals_count += 1  # Only increment if a new action can be taken
+                    logging.info(f"New thread started for {symbol}")
+                else:
+                    logging.error(f"Failed to start thread for {symbol}")
+            else:
+                logging.info(f"Cannot start new thread for {symbol} as the limit of active symbols has been reached.")
         else:
             logging.info(f"No valid signal for {symbol}, signal was {mfirsi_signal}")
 
@@ -516,25 +525,7 @@ def scan_for_signals(args, manager, symbols_allowed):
 
     # This log will tell if the loop was able to check beyond active symbols limit
     logging.info(f"Total actionable signals processed: {actionable_signals_count}")
-
-# def scan_for_signals(args, manager, symbols_allowed):
-#     global active_symbols
-#     for symbol in latest_rotator_symbols:
-#         if len(active_symbols) >= symbols_allowed:
-#             break
-#         if symbol not in active_symbols and (symbol not in threads or not threads[symbol][0].is_alive()):
-#             market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
-#             market_maker.manager = manager
-#             mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
-#             mfi_signal_long = mfirsi_signal.lower() == "long"
-#             mfi_signal_short = mfirsi_signal.lower() == "short"
-#             if mfi_signal_long or mfi_signal_short:
-#                 logging.info(f"Valid signal '{mfirsi_signal}' detected for {symbol}, initiating thread.")
-#                 if start_thread_for_symbol(symbol, args, manager):
-#                     active_symbols.add(symbol)
-#             else:
-#                 logging.info(f"No valid signal for {symbol}, signal was {mfirsi_signal}")
-
+ 
 def fetch_updated_symbols(args, manager):
     """Fetches and logs potential symbols based on the current trading strategy."""
     strategy = args.strategy.lower()
