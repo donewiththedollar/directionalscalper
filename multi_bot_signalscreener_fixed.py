@@ -322,23 +322,38 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         except Exception as e:
             logging.info(f"Exception caught {e}")
 
-        market_maker.run_strategy(symbol, args.strategy, config, account_name, symbols_to_trade=symbols_allowed, rotator_symbols_standardized=rotator_symbols_standardized)
+        signal_check_interval = 60  # Check signal every 60 seconds
+        last_signal_check_time = time.time()
 
-        quote = "USDT"
-        current_time = time.time()
-        # if current_time - last_balance_fetch_time > BALANCE_REFRESH_INTERVAL or not cached_balance:
-        #     if exchange_name.lower() == 'huobi':
-        #         print(f"Loading huobi strategy..")
-        #     elif exchange_name.lower() == 'mexc':
-        #         cached_balance = market_maker.get_balance(quote, type='swap')
-        #         print(f"Futures balance: {cached_balance}")
-        #     else:
-        #         cached_balance = market_maker.get_balance(quote)
-        #         print(f"Futures balance: {cached_balance}")
-        #     last_balance_fetch_time = current_time
+        while True:
+            current_time = time.time()
 
-        # Signal thread completion
-        thread_completed.set()
+            # Check the signal periodically
+            if current_time - last_signal_check_time >= signal_check_interval:
+                mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
+                mfi_signal_long = mfirsi_signal.lower() == "long"
+                mfi_signal_short = mfirsi_signal.lower() == "short"
+
+                if not (mfi_signal_long or mfi_signal_short):
+                    logging.info(f"Signal for {symbol} is neutral. Terminating thread.")
+                    break
+
+                last_signal_check_time = current_time
+
+            # Run the strategy
+            market_maker.run_strategy(symbol, args.strategy, config, account_name, symbols_to_trade=symbols_allowed, rotator_symbols_standardized=rotator_symbols_standardized)
+
+            quote = "USDT"
+            # if current_time - last_balance_fetch_time > BALANCE_REFRESH_INTERVAL or not cached_balance:
+            #     if exchange_name.lower() == 'huobi':
+            #         print(f"Loading huobi strategy..")
+            #     elif exchange_name.lower() == 'mexc':
+            #         cached_balance = market_maker.get_balance(quote, type='swap')
+            #         print(f"Futures balance: {cached_balance}")
+            #     else:
+            #         cached_balance = market_maker.get_balance(quote)
+            #         print(f"Futures balance: {cached_balance}")
+            #     last_balance_fetch_time = current_time
 
     except Exception as e:
         logging.error(f"An error occurred in run_bot for symbol {symbol}: {e}")
@@ -349,6 +364,7 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
             if current_thread in thread_to_symbol:
                 del thread_to_symbol[current_thread]
         logging.info(f"Thread for symbol {symbol} has completed.")
+        thread_completed.set()  # Signal thread completion
 
 def bybit_auto_rotation(args, manager, symbols_allowed):
     global latest_rotator_symbols, threads, active_symbols, last_rotator_update_time
