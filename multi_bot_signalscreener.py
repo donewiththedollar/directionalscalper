@@ -315,7 +315,7 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         else:
             config_file_path = Path(args.config)
 
-        logging.info("Loading config from:", config_file_path)
+        logging.info(f"Loading config from: {config_file_path}")
         config = load_config(config_file_path)
 
         # Initialize balance cache and last fetch time at the beginning
