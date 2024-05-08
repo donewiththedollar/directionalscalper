@@ -554,7 +554,7 @@ def scan_for_signals(args, manager, symbols_allowed):
 
     # This log will tell if the loop was able to check beyond active symbols limit
     logging.info(f"Total actionable signals processed: {actionable_signals_count}")
- 
+
 def fetch_updated_symbols(args, manager):
     """Fetches and logs potential symbols based on the current trading strategy."""
     strategy = args.strategy.lower()
