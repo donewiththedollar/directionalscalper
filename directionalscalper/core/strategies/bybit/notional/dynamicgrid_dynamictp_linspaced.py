@@ -259,6 +259,15 @@ class BybitDynamicGridDynamicTPLinSpaced(BybitStrategy):
 
             while self.running_long or self.running_short:
 
+                # Check for symbol inactivity
+                inactive_time_threshold = 60  # 3 minutes in seconds
+                if self.check_symbol_inactivity(symbol, inactive_time_threshold):
+                    logging.info(f"No open positions or orders for {symbol} in the last {inactive_time_threshold} seconds. Terminating the thread.")
+                    shared_symbols_data.pop(symbol, None)
+                    self.running_long = False
+                    self.running_short = False
+                    break
+
                 current_time = time.time()
 
                 iteration_start_time = time.time()
@@ -420,6 +429,17 @@ class BybitDynamicGridDynamicTPLinSpaced(BybitStrategy):
 
                 logging.info(f"Current long pos qty for {symbol} {long_pos_qty}")
                 logging.info(f"Current short pos qty for {symbol} {short_pos_qty}")
+
+                # Optionally, break out of the loop if all trading sides are closed
+                if not self.running_long and not self.running_short:
+                    shared_symbols_data.pop(symbol, None)
+                    self.cancel_grid_orders(symbol, "buy")
+                    self.cancel_grid_orders(symbol, "sell")
+                    self.active_grids.discard(symbol)
+                    self.cleanup_before_termination(symbol)
+                    logging.info("Both long and short operations have terminated. Exiting the loop.")
+                    break
+
                 # Determine if positions have just been closed
                 if previous_long_pos_qty > 0 and long_pos_qty == 0:
                     logging.info(f"All long positions for {symbol} were recently closed. Checking for inactivity.")
@@ -445,7 +465,11 @@ class BybitDynamicGridDynamicTPLinSpaced(BybitStrategy):
                     self.clear_grid(symbol, 'buy')
                     self.active_grids.discard(symbol)
                     #self.cleanup_before_termination(symbol)
-                    break
+                    
+                    # Remove symbol from shared_symbols_data if there are no active short positions
+                    if short_pos_qty == 0:
+                        shared_symbols_data.pop(symbol, None)
+                        break
 
                 if inactive_short:
                     logging.info(f"No active short positions and previous positions were closed for {symbol}. Terminating short operations.")
@@ -454,7 +478,11 @@ class BybitDynamicGridDynamicTPLinSpaced(BybitStrategy):
                     self.active_grids.discard(symbol)
                     #self.cleanup_before_termination(symbol)
                     self.running_short = False
-                    break
+                    
+                    # Remove symbol from shared_symbols_data if there are no active long positions
+                    if long_pos_qty == 0:
+                        shared_symbols_data.pop(symbol, None)
+                        break
 
                 # Optionally, break out of the loop if all trading sides are closed
                 if not self.running_long and not self.running_short:
@@ -486,20 +514,6 @@ class BybitDynamicGridDynamicTPLinSpaced(BybitStrategy):
                 if not self.running_long and not self.running_short:
                     logging.info("Both long and short operations have ended. Preparing to exit loop.")
                     shared_symbols_data.pop(symbol, None)  # Remove the symbol from shared_symbols_data
-
-                # Check if a position has been closed
-                if previous_long_pos_qty > 0 and long_pos_qty == 0:
-                    logging.info(f"Long position closed for {symbol}. Canceling long grid orders.")
-                    self.cancel_grid_orders(symbol, "buy")
-                    self.cleanup_before_termination(symbol)
-                    self.running_long = False  # Set the flag to stop the long thread
-
-                if previous_short_pos_qty > 0 and short_pos_qty == 0:
-                    logging.info(f"Short position closed for {symbol}. Canceling short grid orders.")
-                    self.cancel_grid_orders(symbol, "sell")
-                    self.cleanup_before_termination(symbol)
-                    self.running_short = False  # Set the flag to stop the short thread
-
 
                 # If the symbol is in rotator_symbols and either it's already being traded or trading is allowed.
                 if symbol in rotator_symbols_standardized or (symbol in open_symbols or trading_allowed): # and instead of or
@@ -861,6 +875,12 @@ class BybitDynamicGridDynamicTPLinSpaced(BybitStrategy):
                     #     self.cleanup_before_termination(symbol)
                     #     break  # Exit the while loop, thus ending the thread
 
+                    # Check to terminate the loop if both long and short are no longer running
+                    if not self.running_long and not self.running_short:
+                        logging.info("Both long and short operations have ended. Preparing to exit loop.")
+                        shared_symbols_data.pop(symbol, None)  # Remove the symbol from shared symbols data
+                        # This will cause the loop condition to fail naturally without a break, making the code flow cleaner
+                                
                     # Check if a position has been closed
                     if previous_long_pos_qty > 0 and long_pos_qty == 0:
                         logging.info(f"Long position closed for {symbol}. Canceling long grid orders.")
