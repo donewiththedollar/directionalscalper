@@ -307,9 +307,9 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
     try:
         with thread_to_symbol_lock:
             thread_to_symbol[current_thread] = symbol
+            logging.info(f"Thread {current_thread.name} assigned to symbol {symbol}")
             time.sleep(1)
 
-        # Correct the path for the configuration file
         if not args.config.startswith('configs/'):
             config_file_path = Path('configs/' + args.config)
         else:
@@ -318,134 +318,138 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         logging.info(f"Loading config from: {config_file_path}")
         config = load_config(config_file_path)
 
-        # Initialize balance cache and last fetch time at the beginning
         cached_balance = None
         last_balance_fetch_time = 0
+        logging.info(f"Initialized balance cache and last fetch time for {symbol}")
 
-        exchange_name = args.exchange  # These are now guaranteed to be non-None
+        exchange_name = args.exchange
         strategy_name = args.strategy
-        account_name = args.account_name  # Get the account_name from args
+        account_name = args.account_name
 
-        print(f"Trading symbol: {symbol}")
-        print(f"Exchange name: {exchange_name}")
-        print(f"Strategy name: {strategy_name}")
-        print(f"Account name: {account_name}")
+        logging.info(f"Trading symbol: {symbol}")
+        logging.info(f"Exchange name: {exchange_name}")
+        logging.info(f"Strategy name: {strategy_name}")
+        logging.info(f"Account name: {account_name}")
 
-        # Pass account_name to DirectionalMarketMaker constructor
         market_maker = DirectionalMarketMaker(config, exchange_name, account_name)
         market_maker.manager = manager
+        logging.info(f"Created DirectionalMarketMaker instance for {symbol}")
 
         try:
-            # Cancel all open orders at the startup of the first thread only
             if not orders_canceled and hasattr(market_maker.exchange, 'cancel_all_open_orders_bybit'):
                 market_maker.exchange.cancel_all_open_orders_bybit()
                 logging.info(f"Cleared all open orders on the exchange upon initialization.")
-                orders_canceled = True  # Set the flag to True to prevent future cancellations
+                orders_canceled = True
         except Exception as e:
-            logging.info(f"Exception caught {e}")
+            logging.info(f"Exception caught while canceling open orders: {e}")
 
-        signal_check_interval = 60  # Check signal every 60 seconds
+        signal_check_interval = 60
         last_signal_check_time = time.time()
+        logging.info(f"Initialized signal check interval and last check time for {symbol}")
 
         while True:
+            logging.info(f"Starting loop iteration for {symbol}")
 
             try:
                 print_cool_trading_info(symbol, exchange_name, strategy_name, account_name)
+                logging.info(f"Printed trading info for {symbol}")
                 time.sleep(3)
             except Exception as e:
-                logging.info(f"Error in printing info {e}")
+                logging.info(f"Error in printing info: {e}")
 
             current_time = time.time()
+            logging.info(f"Current time: {current_time}")
 
-            # Check the signal periodically
             if current_time - last_signal_check_time >= signal_check_interval:
                 mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
                 mfi_signal_long = mfirsi_signal.lower() == "long"
                 mfi_signal_short = mfirsi_signal.lower() == "short"
+                logging.info(f"Checked MFIRSI signal for {symbol}: {mfirsi_signal}")
 
                 if not (mfi_signal_long or mfi_signal_short):
                     logging.info(f"Signal for {symbol} is neutral. Terminating thread.")
                     break
 
                 last_signal_check_time = current_time
+                logging.info(f"Updated last signal check time for {symbol}")
 
-            # Run the strategy
             market_maker.run_strategy(symbol, args.strategy, config, account_name, symbols_to_trade=symbols_allowed, rotator_symbols_standardized=rotator_symbols_standardized)
+            logging.info(f"Ran strategy for {symbol}")
 
             quote = "USDT"
-            # if current_time - last_balance_fetch_time > BALANCE_REFRESH_INTERVAL or not cached_balance:
-            #     if exchange_name.lower() == 'huobi':
-            #         print(f"Loading huobi strategy..")
-            #     elif exchange_name.lower() == 'mexc':
-            #         cached_balance = market_maker.get_balance(quote, type='swap')
-            #         print(f"Futures balance: {cached_balance}")
-            #     else:
-            #         cached_balance = market_maker.get_balance(quote)
-            #         print(f"Futures balance: {cached_balance}")
-            #     last_balance_fetch_time = current_time
 
     except Exception as e:
         logging.error(f"An error occurred in run_bot for symbol {symbol}: {e}")
-        thread_completed.set()  # Signal thread completion even in case of an exception
+        thread_completed.set()
 
     finally:
         with thread_to_symbol_lock:
             if current_thread in thread_to_symbol:
                 del thread_to_symbol[current_thread]
+                logging.info(f"Removed thread {current_thread.name} from thread_to_symbol mapping")
         logging.info(f"Thread for symbol {symbol} has completed.")
-        thread_completed.set()  # Signal thread completion
+        thread_completed.set()
+        remove_thread_for_symbol(symbol)
 
 def bybit_auto_rotation(args, manager, symbols_allowed):
     global latest_rotator_symbols, threads, active_symbols, last_rotator_update_time
 
     try:
         current_time = time.time()
+        logging.info(f"Current time in bybit_auto_rotation: {current_time}")
         
-        # Fetch current open positions and update symbol sets
         open_position_symbols = {
             standardize_symbol(pos['symbol'])
             for pos in getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
         }
         logging.info(f"Open position symbols: {open_position_symbols}")
         
-        # Periodically fetch and update latest rotation symbols
         if current_time - last_rotator_update_time >= 60:
             latest_rotator_symbols = fetch_updated_symbols(args, manager)
             last_rotator_update_time = current_time
             logging.info(f"Latest rotator symbols: {latest_rotator_symbols}")
         
         with thread_management_lock:
-            # Update active symbols based on thread status
             update_active_symbols()
+            logging.info(f"Updated active symbols: {active_symbols}")
             
-            # Start new threads for open positions not currently active
             update_active_threads(open_position_symbols, args, manager, symbols_allowed)
+            logging.info(f"Updated active threads")
             
-            # Handle new symbols from the rotator within the allowed limits
             manage_rotator_symbols(latest_rotator_symbols, args, manager, symbols_allowed)
+            logging.info(f"Managed rotator symbols")
             
-            # Check for completed threads and perform cleanup
             completed_symbols = []
             for symbol, (thread, thread_completed) in threads.items():
                 if thread_completed.is_set():
-                    thread.join()  # Wait for the thread to complete
+                    thread.join()
                     completed_symbols.append(symbol)
+                    logging.info(f"Completed thread for symbol: {symbol}")
             
-            # Remove completed symbols from active_symbols and threads
             for symbol in completed_symbols:
                 active_symbols.discard(symbol)
                 del threads[symbol]
                 del thread_start_time[symbol]
+                logging.info(f"Removed completed symbol: {symbol}")
                 
-            # Scan for signals and start threads for symbols with long or short signals
-            scan_for_signals(args, manager, symbols_allowed)
+            signal_scanning_thread = threading.Thread(target=scan_for_signals, args=(args, manager, symbols_allowed))
+            signal_scanning_thread.start()
+            logging.info("Started signal scanning thread")
 
     except Exception as e:
         logging.error(f"Exception caught in bybit_auto_rotation: {str(e)}")
 
+# def update_active_symbols():
+#     global active_symbols
+#     active_symbols = {symbol for symbol in active_symbols if symbol in threads and threads[symbol][0].is_alive()}
+#     logging.info(f"Updated active symbols: {active_symbols}")
+
 def update_active_symbols():
     global active_symbols
     active_symbols = {symbol for symbol in active_symbols if symbol in threads and threads[symbol][0].is_alive()}
+    logging.info(f"Updated active symbols: {active_symbols}")
+
+
 
 def update_active_threads(open_position_symbols, args, manager, symbols_allowed):
     global active_symbols
@@ -455,14 +459,17 @@ def update_active_threads(open_position_symbols, args, manager, symbols_allowed)
                 active_symbols.add(symbol)
                 logging.info(f"Started or restarted thread for symbol: {symbol}")
         manage_excess_threads(symbols_allowed)
+    logging.info(f"Updated active threads: {active_symbols}")
+
 
 def manage_rotator_symbols(rotator_symbols, args, manager, symbols_allowed):
     global active_symbols
     needed_slots = symbols_allowed - len(active_symbols)
+    logging.info(f"Needed slots: {needed_slots}")
     
-    # Convert set to list and shuffle for random selection
     random_rotator_symbols = list(rotator_symbols)
     random.shuffle(random_rotator_symbols)
+    logging.info(f"Random rotator symbols: {random_rotator_symbols}")
     
     for symbol in random_rotator_symbols:
         if needed_slots <= 0:
@@ -473,24 +480,23 @@ def manage_rotator_symbols(rotator_symbols, args, manager, symbols_allowed):
                 needed_slots -= 1
                 logging.info(f"Added new thread for rotator symbol: {symbol}")
         manage_excess_threads(symbols_allowed)
-        
+
 def manage_excess_threads(symbols_allowed):
     global active_symbols
     while len(active_symbols) > symbols_allowed:
-        symbol_to_remove = active_symbols.pop()  # Adjust the strategy to select which symbol to remove
+        symbol_to_remove = active_symbols.pop()
         remove_thread_for_symbol(symbol_to_remove)
         logging.info(f"Removed excess thread for symbol: {symbol_to_remove}")
 
 def remove_thread_for_symbol(symbol):
-    """Safely removes a thread associated with a symbol."""
     thread, thread_completed = threads.get(symbol, (None, None))
     if thread:
-        thread_completed.set()  # Signal thread completion
+        thread_completed.set()
         thread.join()
+        logging.info(f"Removed thread for symbol: {symbol}")
     threads.pop(symbol, None)
 
 def start_thread_for_symbol(symbol, args, manager):
-    """Start a new thread for a given symbol."""
     logging.info(f"Starting thread for symbol: {symbol}")
     try:
         config_file_path = Path('configs') / args.config
@@ -506,14 +512,17 @@ def start_thread_for_symbol(symbol, args, manager):
         new_thread.start()
         threads[symbol] = (new_thread, thread_completed)
         thread_start_time[symbol] = time.time()
-        return True  # Successfully started thread
+        logging.info(f"Started new thread for symbol: {symbol}")
+        return True
     except Exception as e:
         logging.error(f"Error starting thread for symbol {symbol}: {e}")
-        return False  # Failed to start thread
+        return False
+    
 
 def scan_for_signals(args, manager, symbols_allowed):
     global active_symbols
-    actionable_signals_count = 0  # Initialize a counter for actionable signals
+    actionable_signals_count = 0
+    logging.info(f"Scanning for signals in {len(latest_rotator_symbols)} symbols")
 
     for symbol in latest_rotator_symbols:
         logging.info(f"Processing symbol: {symbol}")
@@ -524,7 +533,6 @@ def scan_for_signals(args, manager, symbols_allowed):
         mfi_signal_long = mfirsi_signal.lower() == "long"
         mfi_signal_short = mfirsi_signal.lower() == "short"
         open_position_data = market_maker.exchange.get_all_open_positions_bybit()
-        #logging.info(f"Open position data for {symbol}: {open_position_data}")
 
         has_long_position = any(position['info']['symbol'] == symbol and position['info']['side'] == 'Buy' for position in open_position_data)
         has_short_position = any(position['info']['symbol'] == symbol and position['info']['side'] == 'Sell' for position in open_position_data)
@@ -532,15 +540,13 @@ def scan_for_signals(args, manager, symbols_allowed):
         logging.info(f"{symbol} has open long position: {has_long_position}")
         logging.info(f"{symbol} has open short position: {has_short_position}")
 
-        # Adjusted condition to allow adding opposite position type if symbol is already active
         if (mfi_signal_long and not has_long_position) or (mfi_signal_short and not has_short_position):
             logging.info(f"Valid signal '{mfirsi_signal}' detected for {symbol}, initiating thread.")
 
-            # Continue processing if it's a new position type even when active symbols are maxed out
             if symbol not in active_symbols or len(active_symbols) < symbols_allowed or (symbol in active_symbols and ((mfi_signal_long and not has_long_position) or (mfi_signal_short and not has_short_position))):
                 if start_thread_for_symbol(symbol, args, manager):
                     active_symbols.add(symbol)
-                    actionable_signals_count += 1  # Only increment if a new action can be taken
+                    actionable_signals_count += 1
                     logging.info(f"New thread started for {symbol}")
                 else:
                     logging.error(f"Failed to start thread for {symbol}")
@@ -552,8 +558,10 @@ def scan_for_signals(args, manager, symbols_allowed):
     if actionable_signals_count >= symbols_allowed:
         logging.info("Reached the limit of actionable signals, or no more new actions possible.")
 
-    # This log will tell if the loop was able to check beyond active symbols limit
     logging.info(f"Total actionable signals processed: {actionable_signals_count}")
+
+    logging.info("Signal scanning thread completed.")
+    remove_thread_for_symbol(threading.current_thread().name)
 
 def fetch_updated_symbols(args, manager):
     """Fetches and logs potential symbols based on the current trading strategy."""
