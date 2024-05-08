@@ -2,6 +2,8 @@ import sys
 import time
 import threading
 import random
+import colorama
+from colorama import Fore, Style
 from pathlib import Path
 
 project_dir = str(Path(__file__).resolve().parent)
@@ -60,6 +62,27 @@ last_rotator_update_time = time.time()
 tried_symbols = set()
 
 logging = Logger(logger_name="MultiBot", filename="MultiBot.log", stream=True)
+
+colorama.init()
+
+def print_cool_trading_info(symbol, exchange_name, strategy_name, account_name):
+    ascii_art = r"""
+    ______  _____ 
+    |  _  \/  ___|
+    | | | |\ `--. 
+    | | | | `--. \
+    | |/ / /\__/ /
+    |___/  \____/ 
+                 
+        Created by Tyler Simpson
+    """
+    print(Fore.GREEN + ascii_art)
+    print(Style.BRIGHT + Fore.YELLOW + "DirectionalScalper is trading..")
+    print(Fore.CYAN + f"Trading symbol: {symbol}")
+    print(Fore.MAGENTA + f"Exchange name: {exchange_name}")
+    print(Fore.BLUE + f"Strategy name: {strategy_name}")
+    print(Fore.GREEN + f"Account name: {account_name}")
+    print(Style.RESET_ALL)
 
 def standardize_symbol(symbol):
     return symbol.replace('/', '').split(':')[0]
@@ -164,13 +187,13 @@ class DirectionalMarketMaker:
             #print(f"Checking: {exch.name} vs {self.exchange_name} and {exch.account_name} vs {account_name}")
             if exch.name == self.exchange_name and exch.account_name == account_name:
                 symbols_allowed = exch.symbols_allowed
-                print(f"Matched exchange: {exchange_name}, account: {args.account_name}. Symbols allowed: {symbols_allowed}")
+                logging.info(f"Matched exchange: {exchange_name}, account: {args.account_name}. Symbols allowed: {symbols_allowed}")
                 break
 
-        print(f"Multibot.py: symbols_allowed from config: {symbols_allowed}")
+        logging.info(f"[DirectionalScalper] symbols_allowed from config: {symbols_allowed}")
         
         if symbols_to_trade:
-            print(f"Calling run method with symbols: {symbols_to_trade}")
+            logging.info(f"Trading with symbols allowed: {symbols_to_trade}")
 
         # Pass symbols_allowed to the strategy constructors
         if strategy_name.lower() == 'bybit_1m_qfl_mfi_eri_walls':
@@ -242,7 +265,6 @@ class DirectionalMarketMaker:
         elif strategy_name.lower() == 'qsdynamicgridspan':
             strategy = bybit_notional.BybitDynamicGridSpan(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-            
 
     def get_balance(self, quote, market_type=None, sub_type=None):
         if self.exchange_name == 'bitget':
@@ -293,7 +315,7 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         else:
             config_file_path = Path(args.config)
 
-        print("Loading config from:", config_file_path)
+        logging.info("Loading config from:", config_file_path)
         config = load_config(config_file_path)
 
         # Initialize balance cache and last fetch time at the beginning
@@ -326,6 +348,13 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         last_signal_check_time = time.time()
 
         while True:
+
+            try:
+                print_cool_trading_info(symbol, exchange_name, strategy_name, account_name)
+                time.sleep(3)
+            except Exception as e:
+                logging.info(f"Error in printing info {e}")
+
             current_time = time.time()
 
             # Check the signal periodically
@@ -673,7 +702,7 @@ if __name__ == '__main__':
         url=f"{config.api.url}{config.api.filename}"
     )
 
-    print(f"Using exchange {config.api.data_source_exchange} for API data")
+    logging.info(f"Using exchange {config.api.data_source_exchange} for API data")
 
     whitelist = config.bot.whitelist
     blacklist = config.bot.blacklist
@@ -706,12 +735,12 @@ if __name__ == '__main__':
     open_position_data = market_maker.exchange.get_all_open_positions_bybit()
     open_positions_symbols = [standardize_symbol(position['symbol']) for position in open_position_data]
 
-    print(f"Open positions symbols: {open_positions_symbols}")
+    logging.info(f"Open positions symbols: {open_positions_symbols}")
 
     # Combine open positions symbols with potential new symbols
     symbols_to_trade = list(set(open_positions_symbols + all_symbols_standardized[:symbols_allowed]))
 
-    print(f"Symbols to trade: {symbols_to_trade}")
+    logging.info(f"Symbols to trade: {symbols_to_trade}")
 
     while True:
         try:
