@@ -89,8 +89,8 @@ def standardize_symbol(symbol):
 
 def get_available_strategies():
     return [
-        'qsdynamicgridspan'
-        'qsgriddynamictplinspaced'
+        'qsdynamicgridspan',
+        'qsgriddynamictplinspaced',
         'qsgriddynamictp',
         'qsgriddynamic',
         'qsgridbasic',
