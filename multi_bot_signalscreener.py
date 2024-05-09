@@ -195,6 +195,12 @@ class DirectionalMarketMaker:
         if symbols_to_trade:
             print(f"Calling run method with symbols: {symbols_to_trade}")
 
+            try:
+                print_cool_trading_info(symbol, exchange_name, strategy_name, account_name)
+                logging.info(f"Printed trading info for {symbol}")
+            except Exception as e:
+                logging.info(f"Error in printing info: {e}")
+
         # Pass symbols_allowed to the strategy constructors
         if strategy_name.lower() == 'bybit_1m_qfl_mfi_eri_walls':
             strategy = bybit_scalping.BybitMMOneMinuteQFLMFIERIWalls(self.exchange, self.manager, config.bot, symbols_allowed)
@@ -347,12 +353,6 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
             logging.info(f"Exception caught {e}")
 
         market_maker.run_strategy(symbol, args.strategy, config, account_name, symbols_to_trade=symbols_allowed, rotator_symbols_standardized=rotator_symbols_standardized)
-
-        try:
-            print_cool_trading_info(symbol, exchange_name, strategy_name, account_name)
-            logging.info(f"Printed trading info for {symbol}")
-        except Exception as e:
-            logging.info(f"Error in printing info: {e}")
 
         quote = "USDT"
         current_time = time.time()
