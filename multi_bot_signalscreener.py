@@ -45,6 +45,7 @@ from collections import deque
 
 thread_management_lock = threading.Lock()
 thread_to_symbol = {}
+active_screener_symbols = set()
 thread_to_symbol_lock = threading.Lock()
 active_symbols = set()
 active_threads = []
@@ -379,10 +380,18 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
                 del thread_to_symbol[current_thread]
         logging.info(f"Thread for symbol {symbol} has completed.")
 
+# Function to terminate a thread
+def terminate_thread_for_symbol(symbol):
+    if symbol in threads:
+        thread, thread_completed = threads[symbol]
+        thread_completed.set()  # Signal the thread to complete its execution
+        thread.join()  # Ensure the thread is properly joined
+        del threads[symbol]  # Remove from thread dictionary
+        logging.info(f"Thread for {symbol} has been terminated.")
 
 def scan_for_signals(args, manager, symbols_allowed):
     try:
-        global latest_rotator_symbols, active_symbols
+        global latest_rotator_symbols, active_screener_symbols, active_symbols
         actionable_signals_count = 0
 
         for symbol in latest_rotator_symbols:
@@ -396,7 +405,10 @@ def scan_for_signals(args, manager, symbols_allowed):
             mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
             mfi_signal_long = mfirsi_signal.lower() == "long"
             mfi_signal_short = mfirsi_signal.lower() == "short"
+            mfi_signal_neutral = mfirsi_signal.lower() == "neutral"
 
+            active_screener_symbols.add(symbol)
+            
             open_position_data = market_maker.exchange.get_all_open_positions_bybit()
             has_long_position = any(pos['info']['symbol'] == symbol and pos['info']['side'] == 'Buy' for pos in open_position_data)
             has_short_position = any(pos['info']['symbol'] == symbol and pos['info']['side'] == 'Sell' for pos in open_position_data)
@@ -404,25 +416,33 @@ def scan_for_signals(args, manager, symbols_allowed):
             logging.info(f"{symbol} has open long position: {has_long_position}")
             logging.info(f"{symbol} has open short position: {has_short_position}")
 
-            # Manage threads based on existing positions
+            # Terminate thread if signal is neutral and no open positions
+            if mfi_signal_neutral and not (has_long_position or has_short_position):
+                if symbol in active_screener_symbols:
+                    terminate_thread_for_symbol(symbol)  # custom function to safely terminate a thread
+                    active_screener_symbols.remove(symbol)
+                    logging.info(f"Thread for {symbol} terminated due to neutral signal with no open positions.")
+
             if mfi_signal_long and not has_long_position:
-                if symbol not in active_symbols and start_thread_for_symbol(symbol, args, manager):
-                    active_symbols.add(symbol)
-                    actionable_signals_count += 1
-                    logging.info(f"Started thread for {symbol} based on signal 'long'")
-                else:
-                    logging.info(f"Failed to start thread for {symbol}")
+                if symbol not in active_symbols:
+                    if start_thread_for_symbol(symbol, args, manager):
+                        active_symbols.add(symbol)
+                        active_screener_symbols.discard(symbol)  # Move from screener to active management
+                        actionable_signals_count += 1
+                        logging.info(f"Started management thread for {symbol} based on signal 'long'")
 
             if mfi_signal_short and not has_short_position:
-                if symbol not in active_symbols and start_thread_for_symbol(symbol, args, manager):
-                    active_symbols.add(symbol)
-                    actionable_signals_count += 1
-                    logging.info(f"Started thread for {symbol} based on signal 'short'")
-                else:
-                    logging.info(f"Failed to start thread for {symbol}")
+                if symbol not in active_symbols:
+                    if start_thread_for_symbol(symbol, args, manager):
+                        active_symbols.add(symbol)
+                        active_screener_symbols.discard(symbol)  # Move from screener to active management
+                        actionable_signals_count += 1
+                        logging.info(f"Started management thread for {symbol} based on signal 'short'")
 
     except Exception as e:
         logging.error(f"Exception caught in scan_for_signals: {e}")
+
+
 
 def bybit_auto_rotation(args, manager, symbols_allowed):
     global latest_rotator_symbols, threads, active_symbols, last_rotator_update_time
