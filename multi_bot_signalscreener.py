@@ -2,6 +2,8 @@ import sys
 import time
 import threading
 import random
+import colorama
+from colorama import Fore, Style
 from pathlib import Path
 
 project_dir = str(Path(__file__).resolve().parent)
@@ -60,6 +62,27 @@ last_rotator_update_time = time.time()
 tried_symbols = set()
 
 logging = Logger(logger_name="MultiBot", filename="MultiBot.log", stream=True)
+
+colorama.init()
+
+def print_cool_trading_info(symbol, exchange_name, strategy_name, account_name):
+    ascii_art = r"""
+    ______  _____ 
+    |  _  \/  ___|
+    | | | |\ `--. 
+    | | | | `--. \
+    | |/ / /\__/ /
+    |___/  \____/ 
+                 
+        Created by Tyler Simpson
+    """
+    print(Fore.GREEN + ascii_art)
+    print(Style.BRIGHT + Fore.YELLOW + "DirectionalScalper is trading..")
+    print(Fore.CYAN + f"Trading symbol: {symbol}")
+    print(Fore.MAGENTA + f"Exchange name: {exchange_name}")
+    print(Fore.BLUE + f"Strategy name: {strategy_name}")
+    print(Fore.GREEN + f"Account name: {account_name}")
+    print(Style.RESET_ALL)
 
 def standardize_symbol(symbol):
     return symbol.replace('/', '').split(':')[0]
@@ -322,6 +345,12 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         except Exception as e:
             logging.info(f"Exception caught {e}")
 
+        try:
+            print_cool_trading_info(symbol, exchange_name, strategy_name, account_name)
+            logging.info(f"Printed trading info for {symbol}")
+        except Exception as e:
+            logging.info(f"Error in printing info: {e}")
+            
         market_maker.run_strategy(symbol, args.strategy, config, account_name, symbols_to_trade=symbols_allowed, rotator_symbols_standardized=rotator_symbols_standardized)
 
         quote = "USDT"
