@@ -426,9 +426,9 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
             
             # Check for completed threads and perform cleanup
             completed_symbols = []
-            for symbol, (thread, thread_completed) in threads.items():
-                if thread_completed.is_set():
-                    thread.join()  # Wait for the thread to complete
+            for symbol in list(threads.keys()):  # Change to list for safe iteration
+                if threads[symbol][1].is_set():
+                    threads[symbol][0].join()  # Wait for the thread to complete
                     completed_symbols.append(symbol)
             
             # Remove completed symbols from active_symbols and threads
@@ -442,6 +442,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
 
     except Exception as e:
         logging.error(f"Exception caught in bybit_auto_rotation: {str(e)}")
+        logging.error("Traceback details: " + traceback.format_exc())  # Log traceback
 
 def update_active_symbols():
     global active_symbols
