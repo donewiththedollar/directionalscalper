@@ -389,50 +389,55 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
 
     try:
         current_time = time.time()
-        
+
         # Fetch current open positions and update symbol sets
         open_position_symbols = {
             standardize_symbol(pos['symbol'])
             for pos in getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
         }
         logging.info(f"Open position symbols: {open_position_symbols}")
-        
+
         # Fetch the updated symbols if latest_rotator_symbols is empty
-        if not latest_rotator_symbols:
-            latest_rotator_symbols = fetch_updated_symbols(args, manager)
-        
-        # Periodically fetch and update latest rotation symbols
-        if current_time - last_rotator_update_time >= 60:
+        if not latest_rotator_symbols or current_time - last_rotator_update_time >= 60:
             latest_rotator_symbols = fetch_updated_symbols(args, manager)
             last_rotator_update_time = current_time
-        
-        logging.info(f"Latest rotator symbols: {latest_rotator_symbols}")
+            logging.info(f"Refreshed latest rotator symbols: {latest_rotator_symbols}")
+        else:
+            logging.info(f"No refresh needed yet. Last update was at {last_rotator_update_time}, less than 60 seconds ago.")
 
         with thread_management_lock:
             # Update active symbols based on thread status
             update_active_symbols()
-            
+
             # Start new threads for open positions not currently active
             update_active_threads(open_position_symbols, args, manager, symbols_allowed)
-            
+
             # Handle new symbols from the rotator within the allowed limits
             manage_rotator_symbols(latest_rotator_symbols, args, manager, symbols_allowed)
-            
+
             # Check for completed threads and perform cleanup
             completed_symbols = []
             for symbol, (thread, thread_completed) in threads.items():
                 if thread_completed.is_set():
                     thread.join()  # Wait for the thread to complete
                     completed_symbols.append(symbol)
-            
+
             # Remove completed symbols from active_symbols and threads
             for symbol in completed_symbols:
                 active_symbols.discard(symbol)
                 del threads[symbol]
                 del thread_start_time[symbol]
+                logging.info(f"Thread and symbol management completed for: {symbol}")
 
     except Exception as e:
         logging.error(f"Exception caught in bybit_auto_rotation: {str(e)}")
+
+def fetch_updated_symbols(args, manager):
+    """Fetches and logs potential symbols based on the current trading strategy."""
+    strategy = args.strategy.lower()
+    potential_symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=[], whitelist=[], max_usd_value=None)
+    logging.info(f"Fetched updated symbols for strategy '{strategy}': {potential_symbols}")
+    return set(standardize_symbol(sym) for sym in potential_symbols)
 
 
 def update_active_symbols():
