@@ -182,6 +182,7 @@ class DirectionalMarketMaker:
             self.exchange = Exchange(self.exchange_name, api_key, secret_key, passphrase)
 
     def run_strategy(self, symbol, strategy_name, config, account_name, symbols_to_trade=None, rotator_symbols_standardized=None):
+        logging.info(f"Received rotator symbols in run_strategy for {symbol}: {rotator_symbols_standardized}")
         symbols_allowed = None
         for exch in config.exchanges:
             #print(f"Checking: {exch.name} vs {self.exchange_name} and {exch.account_name} vs {account_name}")
@@ -352,7 +353,10 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         except Exception as e:
             logging.info(f"Exception caught {e}")
 
-        market_maker.run_strategy(symbol, args.strategy, config, account_name, symbols_to_trade=symbols_allowed, rotator_symbols_standardized=rotator_symbols_standardized)
+        logging.info(f"Rotator symbols in run_bot {rotator_symbols_standardized}")
+        logging.info(f"Latest rotator symbols in run bot {latest_rotator_symbols}")
+
+        market_maker.run_strategy(symbol, args.strategy, config, account_name, symbols_to_trade=symbols_allowed, rotator_symbols_standardized=latest_rotator_symbols)
 
         quote = "USDT"
         current_time = time.time()
@@ -393,12 +397,17 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
         }
         logging.info(f"Open position symbols: {open_position_symbols}")
         
+        # Fetch the updated symbols if latest_rotator_symbols is empty
+        if not latest_rotator_symbols:
+            latest_rotator_symbols = fetch_updated_symbols(args, manager)
+        
         # Periodically fetch and update latest rotation symbols
         if current_time - last_rotator_update_time >= 60:
             latest_rotator_symbols = fetch_updated_symbols(args, manager)
             last_rotator_update_time = current_time
-            logging.info(f"Latest rotator symbols: {latest_rotator_symbols}")
         
+        logging.info(f"Latest rotator symbols: {latest_rotator_symbols}")
+
         with thread_management_lock:
             # Update active symbols based on thread status
             update_active_symbols()
@@ -425,6 +434,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
     except Exception as e:
         logging.error(f"Exception caught in bybit_auto_rotation: {str(e)}")
 
+
 def update_active_symbols():
     global active_symbols
     active_symbols = {symbol for symbol in active_symbols if symbol in threads and threads[symbol][0].is_alive()}
@@ -441,7 +451,7 @@ def update_active_threads(open_position_symbols, args, manager, symbols_allowed)
         
 
 def manage_rotator_symbols(rotator_symbols, args, manager, symbols_allowed):
-    global active_symbols
+    global active_symbols, latest_rotator_symbols
     needed_slots = symbols_allowed - len(active_symbols)
     
     logging.info(f"Starting symbol management. Total slots allowed: {symbols_allowed}. Current active symbols: {len(active_symbols)}")
