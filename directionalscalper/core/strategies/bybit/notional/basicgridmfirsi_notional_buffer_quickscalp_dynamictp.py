@@ -57,6 +57,7 @@ class BybitBasicGridBufferedQSDTP(BybitStrategy):
             self.short_failsafe_upnl_pct = self.config.linear_grid['short_failsafe_upnl_pct']
             self.failsafe_start_pct = self.config.linear_grid['failsafe_start_pct']
             self.auto_reduce_cooldown_enabled = self.config.linear_grid['auto_reduce_cooldown_enabled']
+            self.auto_reduce_cooldown_start_pct = self.config.linear_grid['auto_reduce_cooldown_start_pct']
             # self.reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
                                             #  failsafe_enabled,
                                             #  long_failsafe_upnl_pct,
@@ -195,6 +196,7 @@ class BybitBasicGridBufferedQSDTP(BybitStrategy):
             short_failsafe_upnl_pct = self.config.linear_grid['short_failsafe_upnl_pct']
             failsafe_start_pct = self.config.linear_grid['failsafe_start_pct']
             auto_reduce_cooldown_enabled = self.config.linear_grid['auto_reduce_cooldown_enabled']
+            auto_reduce_cooldown_start_pct = self.config.linear_grid['auto_reduce_cooldown_start_pct']
             # reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
 
             volume_check = self.config.volume_check
@@ -634,7 +636,7 @@ class BybitBasicGridBufferedQSDTP(BybitStrategy):
                             current_price,
                             long_dynamic_amount,
                             short_dynamic_amount,
-                            auto_reduce_start_pct,
+                            auto_reduce_cooldown_start_pct,
                             min_buffer_percentage_ar,
                             max_buffer_percentage_ar,
                             upnl_auto_reduce_threshold_long,

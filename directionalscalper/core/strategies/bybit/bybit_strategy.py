@@ -236,7 +236,7 @@ class BybitStrategy(BaseStrategy):
     def auto_reduce_logic_grid_hardened_cooldown(self, symbol, min_qty, long_pos_price, short_pos_price, 
                                         long_pos_qty, short_pos_qty, long_upnl, short_upnl,
                                         auto_reduce_cooldown_enabled, total_equity, current_market_price,
-                                        long_dynamic_amount, short_dynamic_amount, auto_reduce_start_pct,
+                                        long_dynamic_amount, short_dynamic_amount, auto_reduce_cooldown_start_pct,
                                         min_buffer_percentage_ar, max_buffer_percentage_ar,
                                         upnl_auto_reduce_threshold_long, upnl_auto_reduce_threshold_short, current_leverage):
         logging.info(f"Starting auto-reduce logic for symbol: {symbol}")
@@ -254,8 +254,8 @@ class BybitStrategy(BaseStrategy):
 
             logging.info(f"{symbol} Long uPNL % of Equity: {long_upnl_pct_equity:.2f}, Short uPNL % of Equity: {short_upnl_pct_equity:.2f}")
 
-            long_loss_exceeded = long_pos_price is not None and long_pos_price != 0 and current_market_price < long_pos_price * (1 - auto_reduce_start_pct)
-            short_loss_exceeded = short_pos_price is not None and short_pos_price != 0 and current_market_price > short_pos_price * (1 + auto_reduce_start_pct)
+            long_loss_exceeded = long_pos_price is not None and long_pos_price != 0 and current_market_price < long_pos_price * (1 - auto_reduce_cooldown_start_pct)
+            short_loss_exceeded = short_pos_price is not None and short_pos_price != 0 and current_market_price > short_pos_price * (1 + auto_reduce_cooldown_start_pct)
 
             logging.info(f"{symbol} Price Loss Exceeded - Long: {long_loss_exceeded}, Short: {short_loss_exceeded}")
 
@@ -267,8 +267,8 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"{symbol} UPnL Exceeded - Long: {upnl_long_exceeded}, Short: {upnl_short_exceeded}")
 
             # Calculate dynamic cooldown period
-            cooldown_long = self.calculate_dynamic_cooldown(current_market_price, long_pos_price, auto_reduce_start_pct)
-            cooldown_short = self.calculate_dynamic_cooldown(current_market_price, short_pos_price, auto_reduce_start_pct)
+            cooldown_long = self.calculate_dynamic_cooldown(current_market_price, long_pos_price, auto_reduce_cooldown_start_pct)
+            cooldown_short = self.calculate_dynamic_cooldown(current_market_price, short_pos_price, auto_reduce_cooldown_start_pct)
 
             # Check for cooldown and trigger conditions
             trigger_auto_reduce_long = long_pos_qty > 0 and long_loss_exceeded and upnl_long_exceeded and (current_time - self.last_auto_reduce_time.get(key_long, 0) > cooldown_long)

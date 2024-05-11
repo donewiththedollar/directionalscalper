@@ -53,6 +53,7 @@ class BybitBasicGridBufferedQS(BybitStrategy):
             self.upnl_auto_reduce_threshold_long = self.config.linear_grid['upnl_auto_reduce_threshold_long']
             self.upnl_auto_reduce_threshold_short = self.config.linear_grid['upnl_auto_reduce_threshold_short']
             self.auto_reduce_cooldown_enabled = self.config.linear_grid['auto_reduce_cooldown_enabled']
+            self.auto_reduce_cooldown_start_pct = self.config.linear_grid['auto_reduce_cooldown_start_pct']
             # self.reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
             self.upnl_threshold_pct = self.config.upnl_threshold_pct
             self.volume_check = self.config.volume_check
@@ -182,6 +183,7 @@ class BybitBasicGridBufferedQS(BybitStrategy):
             upnl_auto_reduce_threshold_long = self.config.linear_grid['upnl_auto_reduce_threshold_long']
             upnl_auto_reduce_threshold_short = self.config.linear_grid['upnl_auto_reduce_threshold_short']
             auto_reduce_cooldown_enabled = self.config.linear_grid['auto_reduce_cooldown_enabled']
+            auto_reduce_cooldown_start_pct = self.config.linear_grid['auto_reduce_cooldown_start_pct']
             # reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
 
             volume_check = self.config.volume_check
@@ -542,6 +544,31 @@ class BybitBasicGridBufferedQS(BybitStrategy):
 
                     initial_short_stop_loss = None
                     initial_long_stop_loss = None
+
+                    try:
+                        self.auto_reduce_logic_grid_hardened_cooldown(
+                            symbol,
+                            min_qty,
+                            long_pos_price,
+                            short_pos_price,
+                            long_pos_qty,
+                            short_pos_qty,
+                            long_upnl,
+                            short_upnl,
+                            auto_reduce_cooldown_enabled,
+                            total_equity,
+                            current_price,
+                            long_dynamic_amount,
+                            short_dynamic_amount,
+                            auto_reduce_cooldown_start_pct,
+                            min_buffer_percentage_ar,
+                            max_buffer_percentage_ar,
+                            upnl_auto_reduce_threshold_long,
+                            upnl_auto_reduce_threshold_short,
+                            self.current_leverage
+                        )
+                    except Exception as e:
+                        logging.info(f"Hardened grid AR exception caught {e}")
 
                     try:
                         self.auto_reduce_logic_grid_hardened(
