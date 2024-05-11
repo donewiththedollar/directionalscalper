@@ -266,10 +266,10 @@ class BybitStrategy(BaseStrategy):
 
             logging.info(f"{symbol} UPnL Exceeded - Long: {upnl_long_exceeded}, Short: {upnl_short_exceeded}")
 
-            # Calculate dynamic cooldown period
-            cooldown_long = self.calculate_dynamic_cooldown(current_market_price, long_pos_price, auto_reduce_cooldown_start_pct)
-            cooldown_short = self.calculate_dynamic_cooldown(current_market_price, short_pos_price, auto_reduce_cooldown_start_pct)
-
+            # Calculate dynamic cooldown period only if there is a position and the position price is not zero
+            cooldown_long = self.calculate_dynamic_cooldown(current_market_price, long_pos_price, auto_reduce_cooldown_start_pct) if long_pos_qty > 0 and long_pos_price > 0 else 1800
+            cooldown_short = self.calculate_dynamic_cooldown(current_market_price, short_pos_price, auto_reduce_cooldown_start_pct) if short_pos_qty > 0 and short_pos_price > 0 else 1800
+            
             # Check for cooldown and trigger conditions
             trigger_auto_reduce_long = long_pos_qty > 0 and long_loss_exceeded and upnl_long_exceeded and (current_time - self.last_auto_reduce_time.get(key_long, 0) > cooldown_long)
             trigger_auto_reduce_short = short_pos_qty > 0 and short_loss_exceeded and upnl_short_exceeded and (current_time - self.last_auto_reduce_time.get(key_short, 0) > cooldown_short)
