@@ -56,6 +56,7 @@ class BybitDynamicGridDynamicTPLinSpaced(BybitStrategy):
             self.long_failsafe_upnl_pct = self.config.linear_grid['long_failsafe_upnl_pct']
             self.short_failsafe_upnl_pct = self.config.linear_grid['short_failsafe_upnl_pct']
             self.failsafe_start_pct = self.config.linear_grid['failsafe_start_pct']
+            self.auto_reduce_cooldown_enabled = self.config.linear_grid['auto_reduce_cooldown_enabled']
             # self.reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
                                             #  failsafe_enabled,
                                             #  long_failsafe_upnl_pct,
@@ -193,6 +194,7 @@ class BybitDynamicGridDynamicTPLinSpaced(BybitStrategy):
             long_failsafe_upnl_pct = self.config.linear_grid['long_failsafe_upnl_pct']
             short_failsafe_upnl_pct = self.config.linear_grid['short_failsafe_upnl_pct']
             failsafe_start_pct = self.config.linear_grid['failsafe_start_pct']
+            auto_reduce_cooldown_enabled = self.config.linear_grid['auto_reduce_cooldown_enabled']
 
             # reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
 
@@ -620,6 +622,32 @@ class BybitDynamicGridDynamicTPLinSpaced(BybitStrategy):
                                              failsafe_start_pct)
                     except Exception as e:
                         logging.info(f"Failsafe failed: {e}")
+
+                    try:
+                        self.auto_reduce_logic_grid_hardened_cooldown(
+                            symbol,
+                            min_qty,
+                            long_pos_price,
+                            short_pos_price,
+                            long_pos_qty,
+                            short_pos_qty,
+                            long_upnl,
+                            short_upnl,
+                            auto_reduce_cooldown_enabled,
+                            total_equity,
+                            current_price,
+                            long_dynamic_amount,
+                            short_dynamic_amount,
+                            auto_reduce_start_pct,
+                            min_buffer_percentage_ar,
+                            max_buffer_percentage_ar,
+                            upnl_auto_reduce_threshold_long,
+                            upnl_auto_reduce_threshold_short,
+                            self.current_leverage
+                        )
+                    except Exception as e:
+                        logging.info(f"Hardened grid AR exception caught {e}")
+
 
                     try:
                         self.auto_reduce_logic_grid_hardened(

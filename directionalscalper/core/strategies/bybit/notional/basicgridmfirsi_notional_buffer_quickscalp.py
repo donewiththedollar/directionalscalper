@@ -52,6 +52,7 @@ class BybitBasicGridBufferedQS(BybitStrategy):
             self.max_buffer_percentage_ar = self.config.linear_grid['max_buffer_percentage_ar']
             self.upnl_auto_reduce_threshold_long = self.config.linear_grid['upnl_auto_reduce_threshold_long']
             self.upnl_auto_reduce_threshold_short = self.config.linear_grid['upnl_auto_reduce_threshold_short']
+            self.auto_reduce_cooldown_enabled = self.config.linear_grid['auto_reduce_cooldown_enabled']
             # self.reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
             self.upnl_threshold_pct = self.config.upnl_threshold_pct
             self.volume_check = self.config.volume_check
@@ -180,6 +181,7 @@ class BybitBasicGridBufferedQS(BybitStrategy):
             max_buffer_percentage_ar = self.config.linear_grid['max_buffer_percentage_ar']
             upnl_auto_reduce_threshold_long = self.config.linear_grid['upnl_auto_reduce_threshold_long']
             upnl_auto_reduce_threshold_short = self.config.linear_grid['upnl_auto_reduce_threshold_short']
+            auto_reduce_cooldown_enabled = self.config.linear_grid['auto_reduce_cooldown_enabled']
             # reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
 
             volume_check = self.config.volume_check
