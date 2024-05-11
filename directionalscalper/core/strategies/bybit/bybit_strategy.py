@@ -623,6 +623,40 @@ class BybitStrategy(BaseStrategy):
 
         return False
 
+    def check_position_inactivity(self, symbol, inactive_pos_time_threshold):
+        current_time = time.time()
+        logging.info(f"Checking position inactivity for {symbol} at {current_time}")
+
+        # Retrieve all open positions and check if there's an open position for the symbol
+        open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
+        # Modify the symbol format to match the one in open_position_data
+        symbol_formatted = f"{symbol.split('USDT')[0]}/USDT:USDT"
+        has_open_position = any(pos['symbol'] == symbol_formatted for pos in open_position_data)
+
+        logging.info(f"Open positions status for {symbol}: {'found' if has_open_position else 'none'}")
+
+        # If there are no open positions for the symbol
+        if not has_open_position:
+            logging.info(f"No open positions for {symbol}")
+            # Check if the inactive time threshold has been exceeded
+            if symbol in self.last_activity_time:
+                last_activity_time = self.last_activity_time[symbol]
+                inactive_time = current_time - last_activity_time
+                logging.info(f"{symbol} was last active {inactive_time} seconds ago")
+                if inactive_time >= inactive_pos_time_threshold:
+                    # Signal that the symbol has been inactive longer than the threshold
+                    logging.info(f"{symbol} has been inactive for {inactive_time} seconds, exceeding threshold of {inactive_time_threshold} seconds")
+                    return True
+            else:
+                # If the symbol is encountered for the first time, store the current time
+                self.last_activity_time[symbol] = current_time
+                logging.info(f"Recording initial activity time for {symbol}")
+        else:
+            # If there are open positions, update the last activity time
+            self.last_activity_time[symbol] = current_time
+            logging.info(f"Updated last activity time for {symbol}")
+
+        return False
     
     def should_terminate_open_orders(self, symbol, long_pos_qty, short_pos_qty, open_positions_data, open_orders, current_time):
         try:

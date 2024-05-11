@@ -273,6 +273,15 @@ class BybitDynamicGridSpan(BybitStrategy):
                     self.running_short = False
                     break
 
+                # Check for symbol inactivity
+                inactive_pos_time_threshold = 180  # 3 minutes in seconds
+                if self.check_position_inactivity(symbol, inactive_pos_time_threshold):
+                    logging.info(f"No open positions for {symbol} in the last {inactive_time_threshold} seconds. Terminating the thread.")
+                    shared_symbols_data.pop(symbol, None)
+                    self.running_long = False
+                    self.running_short = False
+                    break
+
                 current_time = time.time()
 
                 iteration_start_time = time.time()
