@@ -2617,6 +2617,41 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.info(f"Exception caught in bybit_1m_mfi_quickscalp_trend_long_only_spot: {e}")
 
+    def adjust_distance_based_on_order_book(order_book, target_volume_percent):
+        """
+        Adjust the outer price distance based on order book to cover a certain percentage of volume.
+        """
+        total_volume = sum([order['quantity'] for order in order_book['asks']] + [order['quantity'] for order in order_book['bids']])
+        cumulative_volume = 0
+        target_volume = total_volume * target_volume_percent
+
+        for order in order_book['asks']:
+            cumulative_volume += order['quantity']
+            if cumulative_volume >= target_volume:
+                max_ask_distance = abs(order['price'] - order_book['mid_price']) / order_book['mid_price']
+                break
+
+        cumulative_volume = 0
+        for order in order_book['bids']:
+            cumulative_volume += order['quantity']
+            if cumulative_volume >= target_volume:
+                max_bid_distance = abs(order['price'] - order_book['mid_price']) / order_book['mid_price']
+                break
+
+        return max(max_ask_distance, max_bid_distance)
+
+    def adjust_distance_based_on_momentum(current_price, previous_prices, momentum_threshold=0.05):
+        """
+        Adjust the outer price distance based on price momentum.
+        """
+        average_previous_price = sum(previous_prices) / len(previous_prices)
+        momentum = (current_price - average_previous_price) / average_previous_price
+
+        if abs(momentum) > momentum_threshold:
+            # Increase distance if momentum is strong
+            return 0.1  # Example of an increased distance
+        return 0.05  # Normal distance
+
     def linear_grid_hardened_gridspan(
         self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
         short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
