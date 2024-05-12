@@ -10,3 +10,4 @@ from .basicgridmfirsi_notional_buffer_quickscalp_dynamictp import BybitBasicGrid
 from .dynamicgrid_dynamictp_linspaced import BybitDynamicGridDynamicTPLinSpaced
 from .dynamicgrid_dynamictp_gridspan import BybitDynamicGridSpan
 from .dynamicgrid_orderbook import BybitDynamicGridSpanOB
+from .dynamicgrid_orderbook_sr import BybitDynamicGridSpanOBSR
