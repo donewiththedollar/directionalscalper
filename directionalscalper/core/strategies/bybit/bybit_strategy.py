@@ -2687,9 +2687,14 @@ class BybitStrategy(BaseStrategy):
         asks = order_book['asks']
         bids = order_book['bids']
 
-        # Calculate the buffer percentages dynamically based on position prices
-        buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
-        buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - short_pos_price) / short_pos_price)
+        # Calculate the buffer percentages dynamically based on position prices, ensuring no division by zero
+        buffer_percentage_long = min_buffer_percentage
+        if long_pos_price != 0:
+            buffer_percentage_long += (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
+        
+        buffer_percentage_short = min_buffer_percentage
+        if short_pos_price != 0:
+            buffer_percentage_short += (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - short_pos_price) / short_pos_price)
 
         # Calculate volume-weighted price levels
         def volume_weighted_price(levels, side, buffer_percentage):
@@ -2720,6 +2725,7 @@ class BybitStrategy(BaseStrategy):
         }
         
         return grid_levels
+
 
 
     def linear_grid_hardened_gridspan_orderbook_levels(
