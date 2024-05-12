@@ -2688,16 +2688,17 @@ class BybitStrategy(BaseStrategy):
             asks = order_book['asks']
             bids = order_book['bids']
 
-            # Calculate the buffer percentages dynamically based on position prices, ensuring no division by zero
+            # Initialize buffer percentages
             buffer_percentage_long = min_buffer_percentage
-            if long_pos_price != 0:
-                buffer_percentage_long += (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
-            
             buffer_percentage_short = min_buffer_percentage
-            if short_pos_price != 0:
+
+            # Update buffer percentages if position prices are non-zero
+            if long_pos_price:
+                buffer_percentage_long += (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
+            if short_pos_price:
                 buffer_percentage_short += (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - short_pos_price) / short_pos_price)
 
-            # Calculate volume-weighted price levels
+            # Function to calculate volume-weighted price levels
             def volume_weighted_price(levels, side, buffer_percentage):
                 weighted_prices = []
                 cumulative_volume = 0
@@ -2712,7 +2713,7 @@ class BybitStrategy(BaseStrategy):
                         if current_index == 0 or abs(price - current_price) / current_price <= buffer_percentage:
                             weighted_prices.append(price)
                         current_index += 1
-                
+
                 return weighted_prices
 
             # Calculate weighted prices for asks and bids considering the dynamic buffer
@@ -2721,14 +2722,15 @@ class BybitStrategy(BaseStrategy):
 
             # Determine grid levels within max distance and ensure they are within the max_outer_price_distance
             grid_levels = {
-                'long': [p for p in bid_prices if abs(p - current_price) / current_price <= max_outer_price_distance and p <= current_price * (1 - buffer_percentage_long)],
-                'short': [p for p in ask_prices if abs(p - current_price) / current_price <= max_outer_price_distance and p >= current_price * (1 + buffer_percentage_short)]
+                'long': [p for p in bid_prices if p <= current_price and abs(p - current_price) / current_price <= max_outer_price_distance],
+                'short': [p for p in ask_prices if p >= current_price and abs(p - current_price) / current_price <= max_outer_price_distance]
             }
-            
+
             return grid_levels
         except Exception as e:
-            logging.info(f"Error in executing orderbook_based_grid_levels: {e}")
-            logging.info("Traceback: %s", traceback.format_exc())
+            logging.error(f"Error calculating orderbook based grid levels: {e}")
+            return {'long': [], 'short': []}
+
 
 
     def linear_grid_hardened_gridspan_orderbook_levels(
