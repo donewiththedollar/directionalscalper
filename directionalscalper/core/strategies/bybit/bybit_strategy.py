@@ -2684,48 +2684,51 @@ class BybitStrategy(BaseStrategy):
         return 0.05  # Normal distance
 
     def calculate_orderbook_based_grid_levels(self, order_book, current_price, long_pos_price, short_pos_price, levels, max_outer_price_distance, min_buffer_percentage, max_buffer_percentage):
-        asks = order_book['asks']
-        bids = order_book['bids']
+        try:
+            asks = order_book['asks']
+            bids = order_book['bids']
 
-        # Calculate the buffer percentages dynamically based on position prices, ensuring no division by zero
-        buffer_percentage_long = min_buffer_percentage
-        if long_pos_price != 0:
-            buffer_percentage_long += (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
-        
-        buffer_percentage_short = min_buffer_percentage
-        if short_pos_price != 0:
-            buffer_percentage_short += (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - short_pos_price) / short_pos_price)
-
-        # Calculate volume-weighted price levels
-        def volume_weighted_price(levels, side, buffer_percentage):
-            weighted_prices = []
-            cumulative_volume = 0
-            total_volume = sum(float(level[1]) for level in side)
-            volume_thresholds = np.linspace(0.1, 1, levels) * total_volume
-            current_index = 0
-
-            for threshold in volume_thresholds:
-                while cumulative_volume < threshold and current_index < len(side):
-                    price, volume = float(side[current_index][0]), float(side[current_index][1])
-                    cumulative_volume += volume
-                    if current_index == 0 or abs(price - current_price) / current_price <= buffer_percentage:
-                        weighted_prices.append(price)
-                    current_index += 1
+            # Calculate the buffer percentages dynamically based on position prices, ensuring no division by zero
+            buffer_percentage_long = min_buffer_percentage
+            if long_pos_price != 0:
+                buffer_percentage_long += (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
             
-            return weighted_prices
+            buffer_percentage_short = min_buffer_percentage
+            if short_pos_price != 0:
+                buffer_percentage_short += (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - short_pos_price) / short_pos_price)
 
-        # Calculate weighted prices for asks and bids considering the dynamic buffer
-        ask_prices = volume_weighted_price(levels, asks, buffer_percentage_short)
-        bid_prices = volume_weighted_price(levels, bids[::-1], buffer_percentage_long)  # Reverse bids for ascending order
+            # Calculate volume-weighted price levels
+            def volume_weighted_price(levels, side, buffer_percentage):
+                weighted_prices = []
+                cumulative_volume = 0
+                total_volume = sum(float(level[1]) for level in side)
+                volume_thresholds = np.linspace(0.1, 1, levels) * total_volume
+                current_index = 0
 
-        # Determine grid levels within max distance and ensure they are within the max_outer_price_distance
-        grid_levels = {
-            'long': [p for p in bid_prices if abs(p - current_price) / current_price <= max_outer_price_distance and p <= current_price * (1 - buffer_percentage_long)],
-            'short': [p for p in ask_prices if abs(p - current_price) / current_price <= max_outer_price_distance and p >= current_price * (1 + buffer_percentage_short)]
-        }
-        
-        return grid_levels
+                for threshold in volume_thresholds:
+                    while cumulative_volume < threshold and current_index < len(side):
+                        price, volume = float(side[current_index][0]), float(side[current_index][1])
+                        cumulative_volume += volume
+                        if current_index == 0 or abs(price - current_price) / current_price <= buffer_percentage:
+                            weighted_prices.append(price)
+                        current_index += 1
+                
+                return weighted_prices
 
+            # Calculate weighted prices for asks and bids considering the dynamic buffer
+            ask_prices = volume_weighted_price(levels, asks, buffer_percentage_short)
+            bid_prices = volume_weighted_price(levels, bids[::-1], buffer_percentage_long)  # Reverse bids for ascending order
+
+            # Determine grid levels within max distance and ensure they are within the max_outer_price_distance
+            grid_levels = {
+                'long': [p for p in bid_prices if abs(p - current_price) / current_price <= max_outer_price_distance and p <= current_price * (1 - buffer_percentage_long)],
+                'short': [p for p in ask_prices if abs(p - current_price) / current_price <= max_outer_price_distance and p >= current_price * (1 + buffer_percentage_short)]
+            }
+            
+            return grid_levels
+        except Exception as e:
+            logging.info(f"Error in executing orderbook_based_grid_levels: {e}")
+            logging.info("Traceback: %s", traceback.format_exc())
 
 
     def linear_grid_hardened_gridspan_orderbook_levels(
@@ -2783,17 +2786,19 @@ class BybitStrategy(BaseStrategy):
             grid_levels_long = grid_levels['long']
             grid_levels_short = grid_levels['short']
 
-
-            # Check if long and short grid levels overlap and adjust if necessary
-            if grid_levels_long[-1] >= grid_levels_short[0]:
-                logging.warning(f"[{symbol}] Long and short grid levels overlap. Adjusting dynamic outer price distance.")
-                adjustment_factor = (grid_levels_short[0] - grid_levels_long[-1]) / (2 * current_price)
-                outer_price_long = current_price * (1 - adjustment_factor)
-                outer_price_short = current_price * (1 + adjustment_factor)
-                price_range_long = current_price - outer_price_long
-                price_range_short = outer_price_short - current_price
-                grid_levels_long = [current_price - buffer_distance_long - price_range_long * factor for factor in factors]
-                grid_levels_short = [current_price + buffer_distance_short + price_range_short * factor for factor in factors]
+            # Ensure both long and short grid levels are not empty before comparing
+            if grid_levels_long and grid_levels_short:
+                # Check if long and short grid levels overlap and adjust if necessary
+                if grid_levels_long[-1] >= grid_levels_short[0]:
+                    logging.warning(f"[{symbol}] Long and short grid levels overlap. Adjusting dynamic outer price distance.")
+                    adjustment_factor = (grid_levels_short[0] - grid_levels_long[-1]) / (2 * current_price)
+                    outer_price_long = current_price * (1 - adjustment_factor)
+                    outer_price_short = current_price * (1 + adjustment_factor)
+                    price_range_long = current_price - outer_price_long
+                    price_range_short = outer_price_short - current_price
+                    factors = np.linspace(0.0, 1.0, num=levels) ** strength
+                    grid_levels_long = [current_price - buffer_distance_long - price_range_long * factor for factor in factors]
+                    grid_levels_short = [current_price + buffer_distance_short + price_range_short * factor for factor in factors]
 
             # Log calculated grid levels
             logging.info(f"[{symbol}] Long grid levels: {grid_levels_long}")
