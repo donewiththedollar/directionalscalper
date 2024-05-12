@@ -2619,8 +2619,8 @@ class BybitStrategy(BaseStrategy):
 
     def calculate_dynamic_outer_price_distance(self, order_book, current_price, max_outer_price_distance):
         # Calculate cumulative volume thresholds for asks and bids
-        total_ask_volume = sum(ask['quantity'] for ask in order_book['asks'])
-        total_bid_volume = sum(bid['quantity'] for bid in order_book['bids'])
+        total_ask_volume = sum(float(ask[1]) for ask in order_book['asks'])
+        total_bid_volume = sum(float(bid[1]) for bid in order_book['bids'])
         target_ask_volume = total_ask_volume * 0.1  # Target 10% of total ask volume
         target_bid_volume = total_bid_volume * 0.1  # Target 10% of total bid volume
 
@@ -2630,22 +2630,23 @@ class BybitStrategy(BaseStrategy):
         # Calculate maximum distance for asks
         cumulative_volume = 0
         for ask in order_book['asks']:
-            cumulative_volume += ask['quantity']
+            cumulative_volume += float(ask[1])
             if cumulative_volume >= target_ask_volume:
-                max_ask_distance = abs(ask['price'] - current_price) / current_price
+                max_ask_distance = abs(float(ask[0]) - current_price) / current_price
                 break
 
         # Calculate maximum distance for bids
         cumulative_volume = 0
         for bid in order_book['bids']:
-            cumulative_volume += bid['quantity']
+            cumulative_volume += float(bid[1])
             if cumulative_volume >= target_bid_volume:
-                max_bid_distance = abs(bid['price'] - current_price) / current_price
+                max_bid_distance = abs(float(bid[0]) - current_price) / current_price
                 break
 
         # Determine the dynamic distance based on the deepest part of the book covered by the target volume
         dynamic_distance = min(max(max_ask_distance, max_bid_distance), max_outer_price_distance)
         return dynamic_distance
+
 
     def adjust_distance_based_on_order_book(order_book, target_volume_percent):
         """
