@@ -58,6 +58,8 @@ class BybitDynamicGridDynamicTPLinSpaced(BybitStrategy):
             self.failsafe_start_pct = self.config.linear_grid['failsafe_start_pct']
             self.auto_reduce_cooldown_enabled = self.config.linear_grid['auto_reduce_cooldown_enabled']
             self.auto_reduce_cooldown_start_pct = self.config.linear_grid['auto_reduce_cooldown_start_pct']
+            self.max_qty_percent_long = self.config.linear_grid['max_qty_percent_long']
+            self.max_qty_percent_short = self.config.linear_grid['max_qty_percent_short']
             # self.reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
                                             #  failsafe_enabled,
                                             #  long_failsafe_upnl_pct,
@@ -197,7 +199,8 @@ class BybitDynamicGridDynamicTPLinSpaced(BybitStrategy):
             failsafe_start_pct = self.config.linear_grid['failsafe_start_pct']
             auto_reduce_cooldown_enabled = self.config.linear_grid['auto_reduce_cooldown_enabled']
             auto_reduce_cooldown_start_pct = self.config.linear_grid['auto_reduce_cooldown_start_pct']
-
+            max_qty_percent_long = self.config.linear_grid['max_qty_percent_long']
+            max_qty_percent_short = self.config.linear_grid['max_qty_percent_short']
             # reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
 
             volume_check = self.config.volume_check
@@ -809,7 +812,7 @@ class BybitDynamicGridDynamicTPLinSpaced(BybitStrategy):
                     short_tp_counts = tp_order_counts['short_tp_count']
 
                     try:
-                        self.linear_grid_dynamictp_linspaced(
+                        self.linear_grid_dynamictp_linspaced_maxtradeqty(
                             symbol,
                             open_symbols,
                             total_equity,
@@ -837,7 +840,9 @@ class BybitDynamicGridDynamicTPLinSpaced(BybitStrategy):
                             upnl_profit_pct,
                             max_upnl_profit_pct,
                             tp_order_counts,
-                            entry_during_autoreduce
+                            entry_during_autoreduce,
+                            max_qty_percent_long,
+                            max_qty_percent_short
                         )
                     except Exception as e:
                         logging.info("Something is up with variables for the grid")
