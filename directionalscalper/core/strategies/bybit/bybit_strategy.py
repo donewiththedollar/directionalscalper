@@ -3955,26 +3955,7 @@ class BybitStrategy(BaseStrategy):
             mfi_signal_long = mfirsi_signal.lower() == "long"
             mfi_signal_short = mfirsi_signal.lower() == "short"
 
-            max_qty_long = total_equity * (max_qty_percent_long / 100) / current_price
-            max_qty_short = total_equity * (max_qty_percent_short / 100) / current_price
-
-            if long_pos_qty > max_qty_long:
-                logging.info(f"[{symbol}] Long position quantity exceeds the maximum allowed. Clearing long grid.")
-                self.clear_grid(symbol, 'buy')
-                self.active_grids.discard(symbol)
-                self.max_qty_reached_symbol_long.add(symbol)
-            elif symbol in self.max_qty_reached_symbol_long and long_pos_qty <= max_qty_long:
-                logging.info(f"[{symbol}] Long position quantity is below the maximum allowed. Removing from max_qty_reached_symbol_long.")
-                self.max_qty_reached_symbol_long.discard(symbol)
-
-            if short_pos_qty > max_qty_short:
-                logging.info(f"[{symbol}] Short position quantity exceeds the maximum allowed. Clearing short grid.")
-                self.clear_grid(symbol, 'sell')
-                self.active_grids.discard(symbol)
-                self.max_qty_reached_symbol_short.add(symbol)
-            elif symbol in self.max_qty_reached_symbol_short and short_pos_qty <= max_qty_short:
-                logging.info(f"[{symbol}] Short position quantity is below the maximum allowed. Removing from max_qty_reached_symbol_short.")
-                self.max_qty_reached_symbol_short.discard(symbol)
+            self.check_and_manage_positions(long_pos_qty, short_pos_qty, symbol, total_equity, current_price, max_qty_percent_long, max_qty_percent_short)
 
             if len(open_symbols) < symbols_allowed:
                 logging.info(f"Allowed symbol: {symbol}")
@@ -4165,7 +4146,7 @@ class BybitStrategy(BaseStrategy):
                         last_tp_update=self.next_short_tp_update,
                         tp_order_counts=tp_order_counts
                     )
-                    
+
         except Exception as e:
             logging.info(f"Error in executing gridstrategy: {e}")
             logging.info("Traceback: %s", traceback.format_exc())
