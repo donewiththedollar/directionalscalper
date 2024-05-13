@@ -43,6 +43,8 @@
     "dashboard_enabled": false,
     "shared_data_path": "data/",
     "linear_grid": {
+      "max_qty_percent_long": 10,
+      "max_qty_percent_short": 10,
       "auto_reduce_cooldown_enabled": false,
       "auto_reduce_cooldown_start_pct": 0.068,
       "wallet_exposure_limit_long": 0.001,
