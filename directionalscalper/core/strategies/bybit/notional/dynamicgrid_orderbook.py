@@ -58,8 +58,8 @@ class BybitDynamicGridSpanOB(BybitStrategy):
             self.failsafe_start_pct = self.config.linear_grid['failsafe_start_pct']
             self.auto_reduce_cooldown_enabled = self.config.linear_grid['auto_reduce_cooldown_enabled']
             self.auto_reduce_cooldown_start_pct = self.config.linear_grid['auto_reduce_cooldown_start_pct']
-            max_qty_percent_long = self.config.linear_grid['max_qty_percent_long']
-            max_qty_percent_short = self.config.linear_grid['max_qty_percent_short']
+            self.max_qty_percent_long = self.config.linear_grid['max_qty_percent_long']
+            self.max_qty_percent_short = self.config.linear_grid['max_qty_percent_short']
             # self.reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
                                             #  failsafe_enabled,
                                             #  long_failsafe_upnl_pct,
