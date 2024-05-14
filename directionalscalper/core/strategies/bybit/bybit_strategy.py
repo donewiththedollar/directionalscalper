@@ -2755,7 +2755,32 @@ class BybitStrategy(BaseStrategy):
         best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol, current_price)
         return best_ask_price, best_bid_price
 
-    def calculate_buffers(self, symbol, current_price, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty, initial_entry_buffer_pct, min_buffer_percentage, max_buffer_percentage):
+    # def calculate_buffers(self, symbol, current_price, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty, initial_entry_buffer_pct, min_buffer_percentage, max_buffer_percentage):
+    #     if long_pos_qty == 0:
+    #         buffer_percentage_long = initial_entry_buffer_pct
+    #     else:
+    #         buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
+
+    #     if short_pos_qty == 0:
+    #         buffer_percentage_short = initial_entry_buffer_pct
+    #     else:
+    #         buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - short_pos_price) / short_pos_price)
+
+    #     buffer_distance_long = current_price * buffer_percentage_long
+    #     buffer_distance_short = current_price * buffer_percentage_short
+
+    #     logging.info(f"[{symbol}] Buffer percentage long: {buffer_percentage_long}, Buffer percentage short: {buffer_percentage_short}")
+    #     logging.info(f"[{symbol}] Buffer distance long: {buffer_distance_long}, Buffer distance short: {buffer_distance_short}")
+
+    #     return buffer_distance_long, buffer_distance_short
+
+    def calculate_buffers(self, symbol, current_price, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty, initial_entry_buffer_pct, min_buffer_percentage, max_buffer_percentage, order_book):
+        # Calculate the average spread between best bid and ask prices
+        best_ask_price = float(order_book['asks'][0][0])
+        best_bid_price = float(order_book['bids'][0][0])
+        average_spread = (best_ask_price - best_bid_price) / current_price
+
+        # Determine buffer percentages dynamically based on the order book
         if long_pos_qty == 0:
             buffer_percentage_long = initial_entry_buffer_pct
         else:
@@ -2766,8 +2791,9 @@ class BybitStrategy(BaseStrategy):
         else:
             buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - short_pos_price) / short_pos_price)
 
-        buffer_distance_long = current_price * buffer_percentage_long
-        buffer_distance_short = current_price * buffer_percentage_short
+        # Adjust buffer distances using the average spread
+        buffer_distance_long = current_price * buffer_percentage_long * average_spread
+        buffer_distance_short = current_price * buffer_percentage_short * average_spread
 
         logging.info(f"[{symbol}] Buffer percentage long: {buffer_percentage_long}, Buffer percentage short: {buffer_percentage_short}")
         logging.info(f"[{symbol}] Buffer distance long: {buffer_distance_long}, Buffer distance short: {buffer_distance_short}")
@@ -2891,15 +2917,21 @@ class BybitStrategy(BaseStrategy):
             min_qty = float(self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
             logging.info(f"[{symbol}] Quantity precision: {qty_precision}, Minimum quantity: {min_qty}")
 
+            order_book = self.exchange.get_orderbook(symbol)
+            best_ask_price, best_bid_price = self.get_best_prices(order_book, current_price)
+
+            # buffer_distance_long, buffer_distance_short = self.calculate_buffers(
+            #     symbol, current_price, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty, 
+            #     initial_entry_buffer_pct, min_buffer_percentage, max_buffer_percentage
+            # )
+
+            # Calculate buffers with dynamic adjustment based on order book
             buffer_distance_long, buffer_distance_short = self.calculate_buffers(
                 symbol, current_price, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty, 
-                initial_entry_buffer_pct, min_buffer_percentage, max_buffer_percentage
+                initial_entry_buffer_pct, min_buffer_percentage, max_buffer_percentage, order_book
             )
 
             logging.info(f"[{symbol}] Long buffer distance: {buffer_distance_long}, Short buffer_distance: {buffer_distance_short}")
-
-            order_book = self.exchange.get_orderbook(symbol)
-            best_ask_price, best_bid_price = self.get_best_prices(order_book, current_price)
 
             grid_levels_long, grid_levels_short = self.calculate_grid_levels_based_on_order_book(
                 order_book, current_price, levels, strength, max_outer_price_distance, min_outer_price_distance)
