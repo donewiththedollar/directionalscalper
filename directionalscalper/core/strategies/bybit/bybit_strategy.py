@@ -3264,7 +3264,7 @@ class BybitStrategy(BaseStrategy):
                     has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
                     has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
 
-                    if not long_pos_qty and long_mode and not self.auto_reduce_active_long.get(symbol, False):
+                    if not long_pos_qty and long_mode and not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
                         if entry_during_autoreduce or not self.auto_reduce_active_long.get(symbol, False):
                             if symbol in self.active_grids and "buy" in self.filled_levels[symbol] and has_open_long_order:
                                 logging.info(f"[{symbol}] Reissuing long orders due to price movement beyond the threshold.")
@@ -3276,7 +3276,7 @@ class BybitStrategy(BaseStrategy):
                             elif symbol not in self.active_grids:
                                 logging.info(f"[{symbol}] No active long grid for the symbol. Skipping long grid reissue.")
 
-                    if not short_pos_qty and short_mode and not self.auto_reduce_active_short.get(symbol, False):
+                    if not short_pos_qty and short_mode and not self.auto_reduce_active_short.get(symbol, False) and symbol not in self.max_qty_reached_symbol_short:
                         if entry_during_autoreduce or not self.auto_reduce_active_short.get(symbol, False):
                             if symbol in self.active_grids and "sell" in self.filled_levels[symbol] and has_open_short_order:
                                 logging.info(f"[{symbol}] Reissuing short orders due to price movement beyond the threshold.")
@@ -3965,7 +3965,7 @@ class BybitStrategy(BaseStrategy):
                     has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
                     has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
 
-                    if not long_pos_qty and long_mode and not self.auto_reduce_active_long.get(symbol, False):
+                    if not long_pos_qty and long_mode and not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
                         if entry_during_autoreduce or not self.auto_reduce_active_long.get(symbol, False):
                             if symbol in self.active_grids and "buy" in self.filled_levels[symbol] and has_open_long_order:
                                 logging.info(f"[{symbol}] Reissuing long orders due to price movement beyond the threshold.")
@@ -3977,7 +3977,7 @@ class BybitStrategy(BaseStrategy):
                             elif symbol not in self.active_grids:
                                 logging.info(f"[{symbol}] No active long grid for the symbol. Skipping long grid reissue.")
 
-                    if not short_pos_qty and short_mode and not self.auto_reduce_active_short.get(symbol, False):
+                    if not short_pos_qty and short_mode and not self.auto_reduce_active_short.get(symbol, False) and symbol not in self.max_qty_reached_symbol_short:
                         if entry_during_autoreduce or not self.auto_reduce_active_short.get(symbol, False):
                             if symbol in self.active_grids and "sell" in self.filled_levels[symbol] and has_open_short_order:
                                 logging.info(f"[{symbol}] Reissuing short orders due to price movement beyond the threshold.")
