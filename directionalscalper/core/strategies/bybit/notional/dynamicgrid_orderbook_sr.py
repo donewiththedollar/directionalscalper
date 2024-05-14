@@ -60,6 +60,8 @@ class BybitDynamicGridSpanOBSR(BybitStrategy):
             self.auto_reduce_cooldown_start_pct = self.config.linear_grid['auto_reduce_cooldown_start_pct']
             self.max_qty_percent_long = self.config.linear_grid['max_qty_percent_long']
             self.max_qty_percent_short = self.config.linear_grid['max_qty_percent_short']
+            self.min_outer_price_distance = self.config.linear_grid['min_outer_price_distance']
+            self.max_outer_price_distance = self.config.linear_grid['max_outer_price_distance']
             # self.reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
                                             #  failsafe_enabled,
                                             #  long_failsafe_upnl_pct,
@@ -201,7 +203,8 @@ class BybitDynamicGridSpanOBSR(BybitStrategy):
             auto_reduce_cooldown_start_pct = self.config.linear_grid['auto_reduce_cooldown_start_pct']
             max_qty_percent_long = self.config.linear_grid['max_qty_percent_long']
             max_qty_percent_short = self.config.linear_grid['max_qty_percent_short']
-
+            min_outer_price_distance = self.config.linear_grid['min_outer_price_distance']
+            max_outer_price_distance = self.config.linear_grid['max_outer_price_distance']
             # reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
 
             volume_check = self.config.volume_check
@@ -814,6 +817,8 @@ class BybitDynamicGridSpanOBSR(BybitStrategy):
                             levels,
                             strength,
                             outer_price_distance,
+                            min_outer_price_distance,
+                            max_outer_price_distance,
                             reissue_threshold,
                             self.wallet_exposure_limit,
                             wallet_exposure_limit_long,

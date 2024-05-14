@@ -52,6 +52,8 @@
       "levels": 6,
       "strength": 1.5,
       "outer_price_distance": 0.059,
+      "min_outer_price_distance": 0.032,
+      "max_outer_price_distance": 0.059,
       "long_mode": true,
       "short_mode": true,
       "reissue_threshold": 0.001,
