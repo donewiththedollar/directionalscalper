@@ -800,7 +800,7 @@ class BybitDynamicGridSpanOBSR(BybitStrategy):
                     short_tp_counts = tp_order_counts['short_tp_count']
 
                     try:
-                        self.linear_grid_hardened_gridspan_orderbook_levels(
+                        self.linear_grid_hardened_gridspan_orderbook_levels_maxposqty(
                             symbol,
                             open_symbols,
                             total_equity,
