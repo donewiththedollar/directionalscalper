@@ -2649,6 +2649,22 @@ class BybitStrategy(BaseStrategy):
         dynamic_distance = min(max(max_ask_distance, max_bid_distance), max_outer_price_distance)
         return dynamic_distance
 
+    def calculate_dynamic_outer_price_distance_orderbook(self, order_book, current_price, max_outer_price_distance, min_outer_price_distance):
+        total_ask_volume = sum(float(ask[1]) for ask in order_book['asks'])
+        total_bid_volume = sum(float(bid[1]) for bid in order_book['bids'])
+        target_volume = 0.1  # Looking for the 10% volume mark
+
+        ask_distance = next((abs(float(ask[0]) - current_price) / current_price
+                            for ask, cum_vol in zip(order_book['asks'], np.cumsum([ask[1] for ask in order_book['asks']]))
+                            if cum_vol >= total_ask_volume * target_volume), max_outer_price_distance)
+
+        bid_distance = next((abs(current_price - float(bid[0])) / current_price
+                            for bid, cum_vol in zip(order_book['bids'], np.cumsum([bid[1] for bid in order_book['bids']]))
+                            if cum_vol >= total_bid_volume * target_volume), max_outer_price_distance)
+
+        dynamic_distance = max(min(max(ask_distance, bid_distance), max_outer_price_distance), min_outer_price_distance)
+        logging.info(f"Dynamic outer price distance calculated: {dynamic_distance}")
+        return dynamic_distance
 
     def adjust_distance_based_on_order_book(order_book, target_volume_percent):
         """
@@ -2762,7 +2778,7 @@ class BybitStrategy(BaseStrategy):
         """
         Calculate grid levels based on order book data while ensuring levels stay within the specified outer price distance bounds.
         """
-        dynamic_distance = self.calculate_dynamic_outer_price_distance(order_book, current_price, max_outer_price_distance, min_outer_price_distance)
+        dynamic_distance = self.calculate_dynamic_outer_price_distance_orderbook(order_book, current_price, max_outer_price_distance, min_outer_price_distance)
 
         # Calculate the price range for the grid levels
         outer_price_long = current_price * (1 - dynamic_distance)
@@ -2941,7 +2957,7 @@ class BybitStrategy(BaseStrategy):
                 self.active_grids.discard(symbol)
                 buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
                 buffer_distance_long = current_price * buffer_percentage_long
-                dynamic_outer_price_distance_long = self.calculate_dynamic_outer_price_distance(order_book, current_price, max_outer_price_distance=outer_price_distance, min_outer_price_distance=outer_price_distance)
+                dynamic_outer_price_distance_long = self.calculate_dynamic_outer_price_distance_orderbook(order_book, current_price, max_outer_price_distance=outer_price_distance, min_outer_price_distance=outer_price_distance)
                 outer_price_distance_long = current_price * dynamic_outer_price_distance_long
                 grid_levels_long = [current_price - buffer_distance_long - (outer_price_distance_long - buffer_distance_long) * factor for factor in np.linspace(0.0, 1.0, num=levels)**strength]
                 self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
@@ -2954,7 +2970,7 @@ class BybitStrategy(BaseStrategy):
                 self.active_grids.discard(symbol)
                 buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - short_pos_price) / short_pos_price)
                 buffer_distance_short = current_price * buffer_percentage_short
-                dynamic_outer_price_distance_short = self.calculate_dynamic_outer_price_distance(order_book, current_price, max_outer_price_distance=outer_price_distance, min_outer_price_distance=outer_price_distance)
+                dynamic_outer_price_distance_short = self.calculate_dynamic_outer_price_distance_orderbook(order_book, current_price, max_outer_price_distance=outer_price_distance, min_outer_price_distance=outer_price_distance)
                 outer_price_distance_short = current_price * dynamic_outer_price_distance_short
                 grid_levels_short = [current_price + buffer_distance_short + (outer_price_distance_short - buffer_distance_short) * factor for factor in np.linspace(0.0, 1.0, num=levels)**strength]
                 self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
@@ -3160,8 +3176,6 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.error(f"Error in linear_grid_hardened_gridspan_orderbook_maxposqty: {str(e)}")
             logging.info("Traceback: %s", traceback.format_exc())
-
-
 
     def linear_grid_hardened_gridspan_orderbook_maxposqty(
         self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
