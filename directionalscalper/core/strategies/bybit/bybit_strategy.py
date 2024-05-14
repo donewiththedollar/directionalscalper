@@ -647,7 +647,7 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"{symbol} was last active {inactive_time} seconds ago")
                 if inactive_time >= inactive_pos_time_threshold:
                     # Signal that the symbol has been inactive longer than the threshold
-                    logging.info(f"{symbol} has been inactive for {inactive_time} seconds, exceeding threshold of {inactive_time_threshold} seconds")
+                    logging.info(f"{symbol} has been inactive for {inactive_time} seconds, exceeding threshold of {inactive_pos_time_threshold} seconds")
                     return True
             else:
                 # If the symbol is encountered for the first time, store the current time
@@ -4533,7 +4533,7 @@ class BybitStrategy(BaseStrategy):
 
         return adjusted_outer_distance / current_price  # Convert absolute to relative distance
 
-    def linear_grid_dynamictp_linspaced_maxtradeqty(
+    def linear_grid_dynamictp_linspaced_maxposqty(
         self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
         short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
         strength: float, outer_price_distance: float, reissue_threshold: float,
@@ -4697,7 +4697,7 @@ class BybitStrategy(BaseStrategy):
                     has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
                     has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
 
-                    if not long_pos_qty and long_mode and not self.auto_reduce_active_long.get(symbol, False):
+                    if not long_pos_qty and long_mode and not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
                         if entry_during_autoreduce or not self.auto_reduce_active_long.get(symbol, False):
                             if symbol in self.active_grids and "buy" in self.filled_levels[symbol] and has_open_long_order:
                                 logging.info(f"[{symbol}] Reissuing long orders due to price movement beyond the threshold.")
@@ -4709,7 +4709,7 @@ class BybitStrategy(BaseStrategy):
                             elif symbol not in self.active_grids:
                                 logging.info(f"[{symbol}] No active long grid for the symbol. Skipping long grid reissue.")
 
-                    if not short_pos_qty and short_mode and not self.auto_reduce_active_short.get(symbol, False):
+                    if not short_pos_qty and short_mode and not self.auto_reduce_active_short.get(symbol, False) and symbol not in self.max_qty_reached_symbol_short:
                         if entry_during_autoreduce or not self.auto_reduce_active_short.get(symbol, False):
                             if symbol in self.active_grids and "sell" in self.filled_levels[symbol] and has_open_short_order:
                                 logging.info(f"[{symbol}] Reissuing short orders due to price movement beyond the threshold.")
