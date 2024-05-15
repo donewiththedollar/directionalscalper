@@ -1185,7 +1185,7 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"Detected sell walls at {ask_walls} for {symbol}")
 
         return bid_walls, ask_walls
-
+        
     def detect_significant_order_book_walls_atr(self, symbol, timeframe='1h', base_threshold_factor=5.0, atr_proximity_percentage=10.0):
         order_book = self.exchange.get_orderbook(symbol)
         bids, asks = order_book['bids'], order_book['asks']
@@ -2619,6 +2619,23 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.info(f"Exception caught in bybit_1m_mfi_quickscalp_trend_long_only_spot: {e}")
 
+    def calculate_dynamic_outer_price_distance_atr(self, atrp, max_outer_price_distance, min_outer_price_distance):
+        """
+        Calculate dynamic outer price distance using ATRP.
+
+        :param atrp: The ATRP value as a percentage
+        :param max_outer_price_distance: Maximum outer price distance as a percentage
+        :param min_outer_price_distance: Minimum outer price distance as a percentage
+        :return: Dynamic outer price distance
+        """
+        # Ensure dynamic distance falls within min and max bounds
+        dynamic_distance = max(min(atrp, max_outer_price_distance), min_outer_price_distance)
+        
+        logging.info(f"Dynamic outer price distance calculated using ATRP: {dynamic_distance}")
+        
+        return dynamic_distance
+
+
     def calculate_dynamic_outer_price_distance(self, order_book, current_price, max_outer_price_distance):
         # Calculate cumulative volume thresholds for asks and bids
         total_ask_volume = sum(float(ask[1]) for ask in order_book['asks'])
@@ -2881,6 +2898,31 @@ class BybitStrategy(BaseStrategy):
 
         return grid_levels_long, grid_levels_short
 
+    def get_atrp(self, symbol: str, timeframe: str = '1m', period: int = 14, limit: int = 1000) -> float:
+        """
+        Calculate the Average True Range Percentile (ATRP) for a given symbol and timeframe.
+        
+        :param symbol: The trading symbol
+        :param timeframe: The timeframe for the OHLCV data (e.g., '1m', '5m', '1h')
+        :param period: The period for ATR calculation
+        :param limit: The number of data points to fetch
+        :return: The ATRP value as a percentage of the current price
+        """
+        # Fetch OHLCV data
+        ohlcv_data = self.exchange.fetch_ohlcv(symbol=symbol, timeframe=timeframe, limit=limit)
+        df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+        
+        # Calculate the True Range (TR) and Average True Range (ATR)
+        df['tr'] = ta.volatility.AverageTrueRange(high=df['high'], low=df['low'], close=df['close'], window=1).true_range()
+        df['atr'] = df['tr'].rolling(window=period).mean()
+        
+        # Calculate ATRP as a percentage of the closing price
+        df['ATRP'] = (df['atr'] / df['close']) * 100
+        
+        # Return the latest ATRP value
+        atrp_value = df['ATRP'].iloc[-1]
+        
+        return atrp_value
 
     def linear_grid_hardened_gridspan_orderbook_levels_maxposqty(
         self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
@@ -4099,18 +4141,20 @@ class BybitStrategy(BaseStrategy):
                     logging.info(f"[{symbol}] Open positions found without active grids. Issuing grid orders.")
                     if long_pos_qty > 0 and not long_grid_active:
                         if not self.auto_reduce_active_long.get(symbol, False) or entry_during_autoreduce:
-                            logging.info(f"[{symbol}] Placing long grid orders for existing open position.")
-                            self.clear_grid(symbol, 'buy')
-                            self.active_grids.discard(symbol)
-                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                            self.active_grids.add(symbol)
+                            if symbol not in self.max_qty_reached_symbol_long:  # Check added here
+                                logging.info(f"[{symbol}] Placing long grid orders for existing open position.")
+                                self.clear_grid(symbol, 'buy')
+                                self.active_grids.discard(symbol)
+                                self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                                self.active_grids.add(symbol)
                     if short_pos_qty > 0 and not short_grid_active:
                         if not self.auto_reduce_active_short.get(symbol, False) or entry_during_autoreduce:
-                            logging.info(f"[{symbol}] Placing short grid orders for existing open position.")
-                            self.clear_grid(symbol, 'sell')
-                            self.active_grids.discard(symbol)
-                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                            self.active_grids.add(symbol)
+                            if symbol not in self.max_qty_reached_symbol_short:  # Check added here
+                                logging.info(f"[{symbol}] Placing short grid orders for existing open position.")
+                                self.clear_grid(symbol, 'sell')
+                                self.active_grids.discard(symbol)
+                                self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                                self.active_grids.add(symbol)
 
                 current_time = datetime.now()
 
