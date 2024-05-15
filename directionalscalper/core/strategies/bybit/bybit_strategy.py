@@ -3235,7 +3235,15 @@ class BybitStrategy(BaseStrategy):
                 self.clear_grid(symbol, 'buy')
                 self.active_grids.discard(symbol)
                 
-                # Use the already calculated grid levels
+                # Calculate the dynamic outer price distance using ATRP
+                dynamic_outer_price_distance_long = self.calculate_dynamic_outer_price_distance_atr(
+                    atrp, min_outer_price_distance=min_outer_price_distance, max_outer_price_distance=max_outer_price_distance
+                )
+                outer_price_distance_long = current_price * dynamic_outer_price_distance_long
+                
+                # Apply buffer distance when calculating grid levels
+                grid_levels_long = [current_price - buffer_distance_long - (outer_price_distance_long - buffer_distance_long) * factor for factor in np.linspace(0.0, 1.0, num=levels) ** strength]
+                
                 self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                 self.active_grids.add(symbol)
                 logging.info(f"[{symbol}] Recalculated long grid levels with updated buffer: {grid_levels_long}")
@@ -3245,10 +3253,39 @@ class BybitStrategy(BaseStrategy):
                 self.clear_grid(symbol, 'sell')
                 self.active_grids.discard(symbol)
                 
-                # Use the already calculated grid levels
+                # Calculate the dynamic outer price distance using ATRP
+                dynamic_outer_price_distance_short = self.calculate_dynamic_outer_price_distance_atr(
+                    atrp, min_outer_price_distance=min_outer_price_distance, max_outer_price_distance=max_outer_price_distance
+                )
+                outer_price_distance_short = current_price * dynamic_outer_price_distance_short
+                
+                # Apply buffer distance when calculating grid levels
+                grid_levels_short = [current_price + buffer_distance_short + (outer_price_distance_short - buffer_distance_short) * factor for factor in np.linspace(0.0, 1.0, num=levels) ** strength]
+                
                 self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                 self.active_grids.add(symbol)
                 logging.info(f"[{symbol}] Recalculated short grid levels with updated buffer: {grid_levels_short}")
+                
+                
+            # if replace_long_grid and not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
+            #     logging.info(f"[{symbol}] Replacing long grid orders due to updated buffer.")
+            #     self.clear_grid(symbol, 'buy')
+            #     self.active_grids.discard(symbol)
+                
+            #     # Use the already calculated grid levels
+            #     self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+            #     self.active_grids.add(symbol)
+            #     logging.info(f"[{symbol}] Recalculated long grid levels with updated buffer: {grid_levels_long}")
+
+            # if replace_short_grid and not self.auto_reduce_active_short.get(symbol, False) and symbol not in self.max_qty_reached_symbol_short:
+            #     logging.info(f"[{symbol}] Replacing short grid orders due to updated buffer.")
+            #     self.clear_grid(symbol, 'sell')
+            #     self.active_grids.discard(symbol)
+                
+            #     # Use the already calculated grid levels
+            #     self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+            #     self.active_grids.add(symbol)
+            #     logging.info(f"[{symbol}] Recalculated short grid levels with updated buffer: {grid_levels_short}")
                 
             # if replace_long_grid and not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
             #     logging.info(f"[{symbol}] Replacing long grid orders due to updated buffer.")
