@@ -3063,7 +3063,6 @@ class BybitStrategy(BaseStrategy):
             mfi_signal_long = mfirsi_signal.lower() == "long"
             mfi_signal_short = mfirsi_signal.lower() == "short"
 
-
             if len(open_symbols) < symbols_allowed:
                 logging.info(f"Allowed symbol: {symbol}")
                 if self.should_reissue_orders_revised(symbol, reissue_threshold, long_pos_qty, short_pos_qty, initial_entry_buffer_pct):
@@ -3103,18 +3102,20 @@ class BybitStrategy(BaseStrategy):
                     logging.info(f"[{symbol}] Open positions found without active grids. Issuing grid orders.")
                     if long_pos_qty > 0 and not long_grid_active:
                         if not self.auto_reduce_active_long.get(symbol, False) or entry_during_autoreduce:
-                            logging.info(f"[{symbol}] Placing long grid orders for existing open position.")
-                            self.clear_grid(symbol, 'buy')
-                            self.active_grids.discard(symbol)
-                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                            self.active_grids.add(symbol)
+                            if symbol not in self.max_qty_reached_symbol_long:  # Check added here
+                                logging.info(f"[{symbol}] Placing long grid orders for existing open position.")
+                                self.clear_grid(symbol, 'buy')
+                                self.active_grids.discard(symbol)
+                                self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                                self.active_grids.add(symbol)
                     if short_pos_qty > 0 and not short_grid_active:
                         if not self.auto_reduce_active_short.get(symbol, False) or entry_during_autoreduce:
-                            logging.info(f"[{symbol}] Placing short grid orders for existing open position.")
-                            self.clear_grid(symbol, 'sell')
-                            self.active_grids.discard(symbol)
-                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                            self.active_grids.add(symbol)
+                            if symbol not in self.max_qty_reached_symbol_short:  # Check added here
+                                logging.info(f"[{symbol}] Placing short grid orders for existing open position.")
+                                self.clear_grid(symbol, 'sell')
+                                self.active_grids.discard(symbol)
+                                self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                                self.active_grids.add(symbol)
 
                 current_time = datetime.now()
 
