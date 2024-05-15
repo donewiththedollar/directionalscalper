@@ -2780,6 +2780,8 @@ class BybitStrategy(BaseStrategy):
         best_bid_price = float(order_book['bids'][0][0])
         average_spread = (best_ask_price - best_bid_price) / current_price
 
+        logging.info(f"Average spread for {symbol}: {average_spread}")
+
         # Determine buffer percentages dynamically based on the order book
         if long_pos_qty == 0:
             buffer_percentage_long = initial_entry_buffer_pct
