@@ -3156,8 +3156,23 @@ class BybitStrategy(BaseStrategy):
             buffer_percentage_long = min(max(buffer_percentage_long, min_buffer_percentage), max_buffer_percentage)
             buffer_percentage_short = min(max(buffer_percentage_short, min_buffer_percentage), max_buffer_percentage)
 
+            # Use initial_entry_buffer_pct if the position quantity is zero
+            buffer_percentage_long = initial_entry_buffer_pct if long_pos_qty == 0 else buffer_percentage_long
+            buffer_percentage_short = initial_entry_buffer_pct if short_pos_qty == 0 else buffer_percentage_short
+
             buffer_distance_long = current_price * buffer_percentage_long
             buffer_distance_short = current_price * buffer_percentage_short
+
+            # # Calculate dynamic buffer percentage based on average spread
+            # buffer_percentage_long = min_buffer_percentage + (average_spread * (max_buffer_percentage - min_buffer_percentage))
+            # buffer_percentage_short = min_buffer_percentage + (average_spread * (max_buffer_percentage - min_buffer_percentage))
+
+            # # Ensure buffer percentage is within specified bounds
+            # buffer_percentage_long = min(max(buffer_percentage_long, min_buffer_percentage), max_buffer_percentage)
+            # buffer_percentage_short = min(max(buffer_percentage_short, min_buffer_percentage), max_buffer_percentage)
+
+            # buffer_distance_long = current_price * buffer_percentage_long
+            # buffer_distance_short = current_price * buffer_percentage_short
 
             logging.info(f"[{symbol}] Long buffer distance: {buffer_distance_long}, Short buffer distance: {buffer_distance_short}")
 
