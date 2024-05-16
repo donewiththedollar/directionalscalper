@@ -4032,12 +4032,12 @@ class BybitStrategy(BaseStrategy):
                 if not self.auto_reduce_active_long.get(symbol, False) and not self.auto_reduce_active_short.get(symbol, False):
                     logging.info(f"Auto-reduce for long and short positions on {symbol} is not active")
                     if long_mode and short_mode and ((mfi_signal_long or long_pos_qty > 0) and (mfi_signal_short or short_pos_qty > 0)):
-                        if (should_reissue_long or long_pos_qty > 0) and not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders):
+                        if (should_reissue_long or long_pos_qty > 0) and not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders) and symbol not in self.max_qty_reached_symbol_long:
                             self.cancel_grid_orders(symbol, "buy")
                             self.active_grids.discard(symbol)
                             self.filled_levels[symbol]["buy"].clear()
 
-                        if (should_reissue_short or short_pos_qty > 0) and not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders):
+                        if (should_reissue_short or short_pos_qty > 0) and not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders) and symbol not in self.max_qty_reached_symbol_short:
                             self.cancel_grid_orders(symbol, "sell")
                             self.active_grids.discard(symbol)
                             self.filled_levels[symbol]["sell"].clear()
