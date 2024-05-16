@@ -8172,7 +8172,7 @@ class BybitStrategy(BaseStrategy):
 
         except Exception as e:
             logging.error(f"Exception caught in check and manage positions: {e}")
-
+            logging.info("Traceback:", traceback.format_exc())
 
     def calculate_total_amount_notional_ls(self, symbol, total_equity, best_ask_price, best_bid_price, 
                                             wallet_exposure_limit_long, wallet_exposure_limit_short, 

@@ -811,8 +811,6 @@ class BybitDynamicGridDynamicTPLinSpaced(BybitStrategy):
                     long_tp_counts = tp_order_counts['long_tp_count']
                     short_tp_counts = tp_order_counts['short_tp_count']
 
-                    self.check_and_manage_positions(long_pos_qty, short_pos_qty, symbol, total_equity, current_price, max_qty_percent_long, max_qty_percent_short)
-
                     try:
                         self.linear_grid_dynamictp_linspaced_maxposqty(
                             symbol,
