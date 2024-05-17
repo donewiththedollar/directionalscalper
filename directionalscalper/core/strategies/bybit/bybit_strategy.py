@@ -3163,17 +3163,6 @@ class BybitStrategy(BaseStrategy):
             buffer_distance_long = current_price * buffer_percentage_long
             buffer_distance_short = current_price * buffer_percentage_short
 
-            # # Calculate dynamic buffer percentage based on average spread
-            # buffer_percentage_long = min_buffer_percentage + (average_spread * (max_buffer_percentage - min_buffer_percentage))
-            # buffer_percentage_short = min_buffer_percentage + (average_spread * (max_buffer_percentage - min_buffer_percentage))
-
-            # # Ensure buffer percentage is within specified bounds
-            # buffer_percentage_long = min(max(buffer_percentage_long, min_buffer_percentage), max_buffer_percentage)
-            # buffer_percentage_short = min(max(buffer_percentage_short, min_buffer_percentage), max_buffer_percentage)
-
-            # buffer_distance_long = current_price * buffer_percentage_long
-            # buffer_distance_short = current_price * buffer_percentage_short
-
             logging.info(f"[{symbol}] Long buffer distance: {buffer_distance_long}, Short buffer distance: {buffer_distance_short}")
 
             # Fetch ATRP for the specific timeframe
@@ -3247,9 +3236,9 @@ class BybitStrategy(BaseStrategy):
             else:
                 logging.info(f"Auto-reduce for short position on {symbol} is not active")
 
-            replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer(
+            replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_outerpricedist(
                 symbol, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
-                min_buffer_percentage, max_buffer_percentage
+                dynamic_outer_price_distance=outer_price_distance
             )
 
             if replace_long_grid and not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
@@ -7764,7 +7753,53 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.exception(f"Exception caught in should_replace_grid_updated_buffer: {e}")
             return False, False
+
+    def should_replace_grid_updated_buffer_outerpricedist(self, symbol: str, long_pos_price: float, short_pos_price: float, long_pos_qty: float, short_pos_qty: float, dynamic_outer_price_distance: float) -> tuple:
+        try:
+            current_price = self.exchange.get_current_price(symbol)
+            logging.info(f"[{symbol}] Current price: {current_price}")
+            
+            replace_long_grid = False
+            replace_short_grid = False
+            
+            if long_pos_qty > 0:
+                outer_price_distance_long = long_pos_price * dynamic_outer_price_distance
+                
+                logging.info(f"[{symbol}] Long position info:")
+                logging.info(f"  - Long position price: {long_pos_price}")
+                logging.info(f"  - Long position quantity: {long_pos_qty}")
+                logging.info(f"  - Long outer price distance: {outer_price_distance_long}")
+                
+                if abs(current_price - long_pos_price) > outer_price_distance_long:
+                    replace_long_grid = True
+                    logging.info(f"[{symbol}] Price change exceeds outer price distance for long position. Replacing long grid.")
+                else:
+                    logging.info(f"[{symbol}] Price change does not exceed outer price distance for long position. No need to replace long grid.")
+            
+            if short_pos_qty > 0:
+                outer_price_distance_short = short_pos_price * dynamic_outer_price_distance
+                
+                logging.info(f"[{symbol}] Short position info:")
+                logging.info(f"  - Short position price: {short_pos_price}")
+                logging.info(f"  - Short position quantity: {short_pos_qty}")
+                logging.info(f"  - Short outer price distance: {outer_price_distance_short}")
+                
+                if abs(current_price - short_pos_price) > outer_price_distance_short:
+                    replace_short_grid = True
+                    logging.info(f"[{symbol}] Price change exceeds outer price distance for short position. Replacing short grid.")
+                else:
+                    logging.info(f"[{symbol}] Price change does not exceed outer price distance for short position. No need to replace short grid.")
+            
+            logging.info(f"[{symbol}] Should replace long grid: {replace_long_grid}")
+            logging.info(f"[{symbol}] Should replace short grid: {replace_short_grid}")
+            
+            return replace_long_grid, replace_short_grid
         
+        except Exception as e:
+            logging.exception(f"Exception caught in should_replace_grid_updated_buffer: {e}")
+            return False, False
+
+
     def should_reissue_orders_revised(self, symbol: str, reissue_threshold: float, long_pos_qty: float, short_pos_qty: float, initial_entry_buffer_pct: float) -> tuple:
         try:
             current_price = self.exchange.get_current_price(symbol)
