@@ -2534,6 +2534,18 @@ class BybitStrategy(BaseStrategy):
         logging.info(f"Dynamic outer price distance calculated using scaled ATRP: {dynamic_distance}")
         
         return dynamic_distance
+    
+    def calculate_dynamic_outer_price_distance_normal(self, min_outer_price_distance: float, max_outer_price_distance: float) -> float:
+        """
+        Calculate a consistent outer price distance within specified bounds.
+
+        :param min_outer_price_distance: Minimum outer price distance as a percentage
+        :param max_outer_price_distance: Maximum outer price distance as a percentage
+        :return: Dynamic outer price distance within the specified bounds
+        """
+        dynamic_distance = (min_outer_price_distance + max_outer_price_distance) / 2.0
+        logging.info(f"Dynamic outer price distance calculated: {dynamic_distance}")
+        return dynamic_distance
 
 
     def calculate_dynamic_outer_price_distance(self, order_book, current_price, max_outer_price_distance):
@@ -3872,9 +3884,14 @@ class BybitStrategy(BaseStrategy):
             else:
                 logging.info(f"Auto-reduce for short position on {symbol} is not active")
 
-            replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer(
-                symbol, long_pos_qty, short_pos_qty, min_buffer_percentage, max_buffer_percentage
+            replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_outerpricedist(
+                symbol, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
+                dynamic_outer_price_distance=dynamic_outer_price_distance
             )
+
+            # replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer(
+            #     symbol, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty, min_buffer_percentage, max_buffer_percentage
+            # )
 
             # replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_outerpricedist(
             #     symbol, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
