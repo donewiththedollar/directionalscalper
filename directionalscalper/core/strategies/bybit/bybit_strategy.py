@@ -54,7 +54,6 @@ class BybitStrategy(BaseStrategy):
         self.last_open_position_timestamp = defaultdict(lambda: {"buy": None, "sell": None})
         self.last_cleared_time = {}  # Dictionary to store last cleared time for symbols
         self.clear_interval = timedelta(minutes=30)  # Time interval threshold for clearing grids
-        self.last_auto_reduce_time = {}
         pass
 
     TAKER_FEE_RATE = 0.00055
@@ -225,92 +224,6 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"Failed to place failsafe order for {symbol}: {e}")
             raise
 
-    def calculate_dynamic_cooldown(self, current_price, entry_price, start_pct):
-        trigger_price_long = entry_price * (1 - start_pct)
-        trigger_price_short = entry_price * (1 + start_pct)
-        distance_to_trigger_long = abs(current_price - trigger_price_long) / entry_price
-        distance_to_trigger_short = abs(current_price - trigger_price_short) / entry_price
-        distance_to_trigger = min(distance_to_trigger_long, distance_to_trigger_short)
-
-        base_cooldown = 150  # Base cooldown of 5 minutes in seconds
-        dynamic_cooldown = int(base_cooldown + (1 - distance_to_trigger) * 300)  # Scale up to 10 minutes
-        logging.info(f"base cooldown: {base_cooldown}")
-        logging.info(f"dynamic cooldown: {dynamic_cooldown}")
-        return max(base_cooldown, dynamic_cooldown)
-
-    def auto_reduce_logic_grid_hardened_cooldown(self, symbol, min_qty, long_pos_price, short_pos_price,
-                                                 long_pos_qty, short_pos_qty, long_upnl, short_upnl,
-                                                 auto_reduce_cooldown_enabled, total_equity, current_market_price,
-                                                 long_dynamic_amount, short_dynamic_amount, auto_reduce_cooldown_start_pct,
-                                                 min_buffer_percentage_ar, max_buffer_percentage_ar,
-                                                 upnl_auto_reduce_threshold_long, upnl_auto_reduce_threshold_short, current_leverage):
-        logging.info(f"Starting auto-reduce logic for symbol: {symbol}")
-        if not auto_reduce_cooldown_enabled:
-            logging.info(f"Auto-reduce is disabled for {symbol}.")
-            return
-
-        key_long = f"{symbol}_long"
-        key_short = f"{symbol}_short"
-        current_time = time.time()
-
-        try:
-            long_upnl_pct_equity = (long_upnl / total_equity) * 100
-            short_upnl_pct_equity = (short_upnl / total_equity) * 100
-
-            logging.info(f"{symbol} Long uPNL % of Equity: {long_upnl_pct_equity:.2f}, Short uPNL % of Equity: {short_upnl_pct_equity:.2f}")
-
-            long_loss_exceeded = long_pos_price is not None and long_pos_price != 0 and current_market_price < long_pos_price * (1 - auto_reduce_cooldown_start_pct)
-            short_loss_exceeded = short_pos_price is not None and short_pos_price != 0 and current_market_price > short_pos_price * (1 + auto_reduce_cooldown_start_pct)
-
-            logging.info(f"{symbol} Price Loss Exceeded - Long: {long_loss_exceeded}, Short: {short_loss_exceeded}")
-
-            logging.info(f"Loss thresholds - Long: {upnl_auto_reduce_threshold_long}%, Short: {upnl_auto_reduce_threshold_short}%")
-
-            upnl_long_exceeded = long_upnl_pct_equity < -upnl_auto_reduce_threshold_long
-            upnl_short_exceeded = short_upnl_pct_equity < -upnl_auto_reduce_threshold_short
-
-            logging.info(f"{symbol} UPnL Exceeded - Long: {upnl_long_exceeded}, Short: {upnl_short_exceeded}")
-
-            # Calculate dynamic cooldown period only if there is a position and the position price is not zero
-            cooldown_long = self.calculate_dynamic_cooldown(current_market_price, long_pos_price, auto_reduce_cooldown_start_pct) if long_pos_qty > 0 and long_pos_price > 0 else 1800
-            cooldown_short = self.calculate_dynamic_cooldown(current_market_price, short_pos_price, auto_reduce_cooldown_start_pct) if short_pos_qty > 0 and short_pos_price > 0 else 1800
-
-            # Add logging to check the cooldown values
-            logging.info(f"{symbol} Cooldown Long: {cooldown_long}, Cooldown Short: {cooldown_short}")
-            logging.info(f"{symbol} Last Auto-Reduce Time Long: {self.last_auto_reduce_time.get(key_long, 0)}, Short: {self.last_auto_reduce_time.get(key_short, 0)}")
-            logging.info(f"{symbol} Current Time: {current_time}")
-
-            # Check for cooldown and trigger conditions
-            trigger_auto_reduce_long = long_pos_qty > 0 and long_loss_exceeded and upnl_long_exceeded and (current_time - self.last_auto_reduce_time.get(key_long, 0) > cooldown_long)
-            trigger_auto_reduce_short = short_pos_qty > 0 and short_loss_exceeded and upnl_short_exceeded and (current_time - self.last_auto_reduce_time.get(key_short, 0) > cooldown_short)
-
-            logging.info(f"{symbol} Trigger Auto-Reduce - Long: {trigger_auto_reduce_long}, Short: {trigger_auto_reduce_short}")
-
-            if trigger_auto_reduce_long:
-                logging.info(f"Executing auto-reduce for long position in {symbol}.")
-                self.auto_reduce_active_long[symbol] = True
-                self.execute_grid_auto_reduce_hardened('long', symbol, long_pos_qty, long_dynamic_amount, current_market_price, total_equity, long_pos_price, short_pos_price, min_qty, min_buffer_percentage_ar, max_buffer_percentage_ar)
-                self.last_auto_reduce_time[key_long] = current_time
-            else:
-                logging.info(f"No auto-reduce executed for long position in {symbol}.")
-                if symbol in self.auto_reduce_active_long:
-                    del self.auto_reduce_active_long[symbol]
-
-            if trigger_auto_reduce_short:
-                logging.info(f"Executing auto-reduce for short position in {symbol}.")
-                self.auto_reduce_active_short[symbol] = True
-                self.execute_grid_auto_reduce_hardened('short', symbol, short_pos_qty, short_dynamic_amount, current_market_price, total_equity, long_pos_price, short_pos_price, min_qty, min_buffer_percentage_ar, max_buffer_percentage_ar)
-                self.last_auto_reduce_time[key_short] = current_time
-            else:
-                logging.info(f"No auto-reduce executed for short position in {symbol}.")
-                if symbol in self.auto_reduce_active_short:
-                    del self.auto_reduce_active_short[symbol]
-
-        except Exception as e:
-            logging.info(f"Error in auto-reduce logic for {symbol}: {e}")
-            raise
-
-
     def auto_reduce_logic_grid_hardened(self, symbol, min_qty, long_pos_price, short_pos_price, 
                                             long_pos_qty, short_pos_qty, long_upnl, short_upnl,
                                             auto_reduce_enabled, total_equity, current_market_price,
@@ -366,47 +279,6 @@ class BybitStrategy(BaseStrategy):
             except Exception as e:
                 logging.info(f"Error in auto-reduce logic for {symbol}: {e}")
                 raise
-
-    def execute_grid_auto_reduce_hardened(self, position_type, symbol, pos_qty, dynamic_amount, market_price, total_equity, long_pos_price, short_pos_price, min_qty, min_buffer_percentage_ar, max_buffer_percentage_ar):
-        """
-        Executes a single auto-reduction order for a position based on the best market price available,
-        aiming to ensure a higher probability of order execution.
-        """
-        amount_precision, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
-        price_precision_level = -int(math.log10(price_precision))
-        qty_precision_level = -int(math.log10(amount_precision))
-
-        # Fetch current best bid and ask prices to place the order as close as possible to the market
-        # best_bid, best_ask = self.exchange.get_best_bid_ask(symbol)
-
-        current_price = self.exchange.get_current_price(symbol)
-
-        order_book = self.exchange.get_orderbook(symbol)
-        best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol, current_price)
-        best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol, current_price)
-        
-        # Determine the appropriate price to place the order based on position type
-        order_price = best_bid_price if position_type == 'long' else best_ask_price
-        order_price = round(order_price, price_precision_level)
-        adjusted_dynamic_amount = max(dynamic_amount, min_qty)
-        adjusted_dynamic_amount = round(adjusted_dynamic_amount, qty_precision_level)
-
-        # Determine the positionIdx based on the position_type
-        positionIdx = 1 if position_type == 'long' else 2
-
-        logging.info(f"Attempting to place auto-reduce order: Symbol={symbol}, Type={'sell' if position_type == 'long' else 'buy'}, Qty={adjusted_dynamic_amount}, Price={order_price}")
-
-        # Try placing the order using the provided utility method
-        try:
-            #order_result = self.postonly_limit_order_bybit_nolimit(symbol, 'sell' if position_type == 'long' else 'buy', adjusted_dynamic_amount, order_price, positionIdx, reduceOnly=True)
-            order_result = self.limit_order_bybit_nolimit(symbol, 'sell' if position_type == 'long' else 'buy', adjusted_dynamic_amount, order_price, positionIdx, reduceOnly=True)
-            logging.info(f"Auto-reduce order placed successfully: {order_result}")
-        except Exception as e:
-            logging.info(f"Failed to place auto-reduce order for {symbol}: {e}")
-            raise
-
-        # Log the order details for monitoring
-        logging.info(f"Placed auto-reduce order for {symbol} at {order_price} for {adjusted_dynamic_amount}")
 
     def auto_reduce_logic_grid(self, symbol, min_qty, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
                                 auto_reduce_enabled, total_equity, available_equity, current_market_price,
