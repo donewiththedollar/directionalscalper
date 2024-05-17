@@ -7763,7 +7763,7 @@ class BybitStrategy(BaseStrategy):
             replace_short_grid = False
             
             if long_pos_qty > 0:
-                outer_price_distance_long = long_pos_price * dynamic_outer_price_distance
+                outer_price_distance_long = long_pos_price * (dynamic_outer_price_distance / 100.0)
                 
                 logging.info(f"[{symbol}] Long position info:")
                 logging.info(f"  - Long position price: {long_pos_price}")
@@ -7777,7 +7777,7 @@ class BybitStrategy(BaseStrategy):
                     logging.info(f"[{symbol}] Price change does not exceed outer price distance for long position. No need to replace long grid.")
             
             if short_pos_qty > 0:
-                outer_price_distance_short = short_pos_price * dynamic_outer_price_distance
+                outer_price_distance_short = short_pos_price * (dynamic_outer_price_distance / 100.0)
                 
                 logging.info(f"[{symbol}] Short position info:")
                 logging.info(f"  - Short position price: {short_pos_price}")
