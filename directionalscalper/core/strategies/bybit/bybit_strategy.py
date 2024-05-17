@@ -1547,6 +1547,19 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"Error placing order: {str(e)}")
             logging.exception("Stack trace for error in placing order:")  # This will log the full stack trace
 
+    def limit_order_bybit_nolimit(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
+        params = {"reduceOnly": reduceOnly, "postOnly": False}
+        logging.info(f"Placing {side} limit order for {symbol} at {price} with qty {amount} and params {params}...")
+        try:
+            order = self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
+            logging.info(f"Nolimit postonly order result for {symbol}: {order}")
+            if order is None:
+                logging.warning(f"Order result is None for {side} limit order on {symbol}")
+            return order
+        except Exception as e:
+            logging.info(f"Error placing order: {str(e)}")
+            logging.exception("Stack trace for error in placing order:")  # This will log the full stack trace
+
     def postonly_limit_order_bybit_s(self, symbol, side, amount, price, positionIdx, reduceOnly=False):
         params = {"reduceOnly": reduceOnly, "postOnly": True}
         logging.info(f"Placing {side} limit order for {symbol} at {price} with qty {amount} and params {params}...")
