@@ -3244,10 +3244,10 @@ class BybitStrategy(BaseStrategy):
             has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
             has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
 
-            replace_empty_grid_for_position = ((long_pos_qty > 0 and not has_open_long_order) or 
-                                            (short_pos_qty > 0 and not has_open_short_order))
+            replace_empty_long_grid = (long_pos_qty > 0 and not has_open_long_order)
+            replace_empty_short_grid = (short_pos_qty > 0 and not has_open_short_order)
 
-            if (replace_long_grid or replace_empty_grid_for_position) and not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
+            if (replace_long_grid or replace_empty_long_grid) and not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
                 logging.info(f"[{symbol}] Replacing long grid orders due to updated buffer or empty grid for open position.")
                 self.clear_grid(symbol, 'buy')
                 buffer_percentage_long = min_buffer_percentage + (average_spread * (max_buffer_percentage - min_buffer_percentage))
@@ -3261,7 +3261,7 @@ class BybitStrategy(BaseStrategy):
                 self.active_grids.add(symbol)
                 logging.info(f"[{symbol}] Recalculated long grid levels with updated buffer: {grid_levels_long}")
 
-            if (replace_short_grid or replace_empty_grid_for_position) and not self.auto_reduce_active_short.get(symbol, False) and symbol not in self.max_qty_reached_symbol_short:
+            if (replace_short_grid or replace_empty_short_grid) and not self.auto_reduce_active_short.get(symbol, False) and symbol not in self.max_qty_reached_symbol_short:
                 logging.info(f"[{symbol}] Replacing short grid orders due to updated buffer or empty grid for open position.")
                 self.clear_grid(symbol, 'sell')
                 buffer_percentage_short = min_buffer_percentage + (average_spread * (max_buffer_percentage - min_buffer_percentage))
