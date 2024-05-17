@@ -54,6 +54,7 @@ class BybitStrategy(BaseStrategy):
         self.last_open_position_timestamp = defaultdict(lambda: {"buy": None, "sell": None})
         self.last_cleared_time = {}  # Dictionary to store last cleared time for symbols
         self.clear_interval = timedelta(minutes=30)  # Time interval threshold for clearing grids
+        self.last_empty_grid_time = {}
         pass
 
     TAKER_FEE_RATE = 0.00055
@@ -3142,33 +3143,82 @@ class BybitStrategy(BaseStrategy):
             replace_empty_long_grid = (long_pos_qty > 0 and not has_open_long_order)
             replace_empty_short_grid = (short_pos_qty > 0 and not has_open_short_order)
 
-            if (replace_long_grid or replace_empty_long_grid) and not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
-                logging.info(f"[{symbol}] Replacing long grid orders due to updated buffer or empty grid for open position.")
-                self.clear_grid(symbol, 'buy')
-                buffer_percentage_long = min_buffer_percentage + (average_spread * (max_buffer_percentage - min_buffer_percentage))
-                buffer_percentage_long = min(max(buffer_percentage_long, min_buffer_percentage), max_buffer_percentage)
-                buffer_distance_long = current_price * buffer_percentage_long
-                outer_price_distance_long = current_price * outer_price_distance
-                grid_levels_long = self.calculate_grid_levels_orderbook_based(
-                    symbol, current_price, buffer_distance_long, levels, 'buy', min_outer_price_distance, max_outer_price_distance, strength
-                )
-                self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                self.active_grids.add(symbol)
-                logging.info(f"[{symbol}] Recalculated long grid levels with updated buffer: {grid_levels_long}")
+            # Track the last time the grid was emptied
+            if replace_empty_long_grid and symbol not in self.last_empty_grid_time:
+                self.last_empty_grid_time[symbol] = {}
+            if replace_empty_short_grid and symbol not in self.last_empty_grid_time:
+                self.last_empty_grid_time[symbol] = {}
+            
+            current_time = time.time()
 
-            if (replace_short_grid or replace_empty_short_grid) and not self.auto_reduce_active_short.get(symbol, False) and symbol not in self.max_qty_reached_symbol_short:
-                logging.info(f"[{symbol}] Replacing short grid orders due to updated buffer or empty grid for open position.")
-                self.clear_grid(symbol, 'sell')
-                buffer_percentage_short = min_buffer_percentage + (average_spread * (max_buffer_percentage - min_buffer_percentage))
-                buffer_percentage_short = min(max(buffer_percentage_short, min_buffer_percentage), max_buffer_percentage)
-                buffer_distance_short = current_price * buffer_percentage_short
-                outer_price_distance_short = current_price * outer_price_distance
-                grid_levels_short = self.calculate_grid_levels_orderbook_based(
-                    symbol, current_price, buffer_distance_short, levels, 'sell', min_outer_price_distance, max_outer_price_distance, strength
-                )
-                self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                self.active_grids.add(symbol)
-                logging.info(f"[{symbol}] Recalculated short grid levels with updated buffer: {grid_levels_short}")
+            # Replace long grid if conditions are met and it has been more than 5 minutes since it was last emptied
+            if replace_long_grid or (replace_empty_long_grid and (current_time - self.last_empty_grid_time[symbol].get('long', 0) > 240)):
+                if not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
+                    logging.info(f"[{symbol}] Replacing long grid orders due to updated buffer or empty grid for open position.")
+                    self.clear_grid(symbol, 'buy')
+                    buffer_percentage_long = min_buffer_percentage + (average_spread * (max_buffer_percentage - min_buffer_percentage))
+                    buffer_percentage_long = min(max(buffer_percentage_long, min_buffer_percentage), max_buffer_percentage)
+                    buffer_distance_long = current_price * buffer_percentage_long
+                    outer_price_distance_long = current_price * outer_price_distance
+                    grid_levels_long = self.calculate_grid_levels_orderbook_based(
+                        symbol, current_price, buffer_distance_long, levels, 'buy', min_outer_price_distance, max_outer_price_distance, strength
+                    )
+                    self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                    self.active_grids.add(symbol)
+                    logging.info(f"[{symbol}] Recalculated long grid levels with updated buffer: {grid_levels_long}")
+                    self.last_empty_grid_time[symbol]['long'] = current_time
+
+            # Replace short grid if conditions are met and it has been more than 5 minutes since it was last emptied
+            if replace_short_grid or (replace_empty_short_grid and (current_time - self.last_empty_grid_time[symbol].get('short', 0) > 240)):
+                if not self.auto_reduce_active_short.get(symbol, False) and symbol not in self.max_qty_reached_symbol_short:
+                    logging.info(f"[{symbol}] Replacing short grid orders due to updated buffer or empty grid for open position.")
+                    self.clear_grid(symbol, 'sell')
+                    buffer_percentage_short = min_buffer_percentage + (average_spread * (max_buffer_percentage - min_buffer_percentage))
+                    buffer_percentage_short = min(max(buffer_percentage_short, min_buffer_percentage), max_buffer_percentage)
+                    buffer_distance_short = current_price * buffer_percentage_short
+                    outer_price_distance_short = current_price * outer_price_distance
+                    grid_levels_short = self.calculate_grid_levels_orderbook_based(
+                        symbol, current_price, buffer_distance_short, levels, 'sell', min_outer_price_distance, max_outer_price_distance, strength
+                    )
+                    self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                    self.active_grids.add(symbol)
+                    logging.info(f"[{symbol}] Recalculated short grid levels with updated buffer: {grid_levels_short}")
+                    self.last_empty_grid_time[symbol]['short'] = current_time
+
+
+            # has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
+            # has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
+
+            # replace_empty_long_grid = (long_pos_qty > 0 and not has_open_long_order)
+            # replace_empty_short_grid = (short_pos_qty > 0 and not has_open_short_order)
+
+            # if (replace_long_grid or replace_empty_long_grid) and not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
+            #     logging.info(f"[{symbol}] Replacing long grid orders due to updated buffer or empty grid for open position.")
+            #     self.clear_grid(symbol, 'buy')
+            #     buffer_percentage_long = min_buffer_percentage + (average_spread * (max_buffer_percentage - min_buffer_percentage))
+            #     buffer_percentage_long = min(max(buffer_percentage_long, min_buffer_percentage), max_buffer_percentage)
+            #     buffer_distance_long = current_price * buffer_percentage_long
+            #     outer_price_distance_long = current_price * outer_price_distance
+            #     grid_levels_long = self.calculate_grid_levels_orderbook_based(
+            #         symbol, current_price, buffer_distance_long, levels, 'buy', min_outer_price_distance, max_outer_price_distance, strength
+            #     )
+            #     self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+            #     self.active_grids.add(symbol)
+            #     logging.info(f"[{symbol}] Recalculated long grid levels with updated buffer: {grid_levels_long}")
+
+            # if (replace_short_grid or replace_empty_short_grid) and not self.auto_reduce_active_short.get(symbol, False) and symbol not in self.max_qty_reached_symbol_short:
+            #     logging.info(f"[{symbol}] Replacing short grid orders due to updated buffer or empty grid for open position.")
+            #     self.clear_grid(symbol, 'sell')
+            #     buffer_percentage_short = min_buffer_percentage + (average_spread * (max_buffer_percentage - min_buffer_percentage))
+            #     buffer_percentage_short = min(max(buffer_percentage_short, min_buffer_percentage), max_buffer_percentage)
+            #     buffer_distance_short = current_price * buffer_percentage_short
+            #     outer_price_distance_short = current_price * outer_price_distance
+            #     grid_levels_short = self.calculate_grid_levels_orderbook_based(
+            #         symbol, current_price, buffer_distance_short, levels, 'sell', min_outer_price_distance, max_outer_price_distance, strength
+            #     )
+            #     self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+            #     self.active_grids.add(symbol)
+            #     logging.info(f"[{symbol}] Recalculated short grid levels with updated buffer: {grid_levels_short}")
 
 
             # if replace_long_grid and not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
