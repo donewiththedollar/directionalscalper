@@ -12,3 +12,4 @@ from .dynamicgrid_dynamictp_gridspan import BybitDynamicGridSpan
 from .dynamicgrid_orderbook import BybitDynamicGridSpanOB
 from .dynamicgrid_orderbook_sr import BybitDynamicGridSpanOBSR
 from .dynamicgrid_orderbook_sr_atrp import BybitDynamicGridSpanOBSRATRP
+from .dynamicgrid_sr_ob import BybitDynamicGridSpanOBSR
