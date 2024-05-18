@@ -12,7 +12,7 @@ from directionalscalper.core.strategies.bybit.bybit_strategy import BybitStrateg
 from directionalscalper.core.exchanges.bybit import BybitExchange
 from directionalscalper.core.strategies.logger import Logger
 from live_table_manager import shared_symbols_data
-logging = Logger(logger_name="BybitGridDynamicOBSR", filename="BybitGridDynamicOBSR.log", stream=True)
+logging = Logger(logger_name="BybitDynamicGridSpanOBSRStatic", filename="BybitDynamicGridSpanOBSRStatic.log", stream=True)
 
 symbol_locks = {}
 
