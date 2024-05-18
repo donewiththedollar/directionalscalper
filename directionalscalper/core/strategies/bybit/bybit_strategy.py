@@ -3133,17 +3133,15 @@ class BybitStrategy(BaseStrategy):
         high_low_spread = df['high'].iloc[0] - df['low'].iloc[0]
         return high_low_spread
     
-    def linear_grid_hardened_gridspan_ob_volumes(
-        self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
-        short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
-        strength: float, outer_price_distance: float, min_outer_price_distance: float, max_outer_price_distance: float, reissue_threshold: float,
-        wallet_exposure_limit: float, wallet_exposure_limit_long: float, wallet_exposure_limit_short: float,
-        user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool,
-        short_mode: bool, initial_entry_buffer_pct: float, min_buffer_percentage: float, max_buffer_percentage: float,
-        symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float,
-        max_upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool,
-        max_qty_percent_long: float, max_qty_percent_short: float
-    ):
+    def linear_grid_hardened_gridspan_ob_volumes(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
+                                                short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
+                                                strength: float, outer_price_distance: float, min_outer_price_distance: float, max_outer_price_distance: float, reissue_threshold: float,
+                                                wallet_exposure_limit: float, wallet_exposure_limit_long: float, wallet_exposure_limit_short: float,
+                                                user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool,
+                                                short_mode: bool, initial_entry_buffer_pct: float, min_buffer_percentage: float, max_buffer_percentage: float,
+                                                symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float,
+                                                max_upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool,
+                                                max_qty_percent_long: float, max_qty_percent_short: float):
         try:
             # Calculate dynamic outer price distance based on 4h candle spread
             spread = self.get_4h_candle_spread(symbol)
@@ -3156,7 +3154,7 @@ class BybitStrategy(BaseStrategy):
             dynamic_outer_price_distance = max(min_outer_price_distance, min(max_outer_price_distance, spread))
             
             logging.info(f"Dynamic outer price distance for {symbol} : {dynamic_outer_price_distance}")
-
+            
             # Ensure the outer price distance can span all levels
             required_distance = outer_price_distance / levels
             if dynamic_outer_price_distance < required_distance:
@@ -3258,7 +3256,7 @@ class BybitStrategy(BaseStrategy):
 
             replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist_v2(
                 symbol, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
-                dynamic_outer_price_distance
+                dynamic_outer_price_distance=dynamic_outer_price_distance
             )
 
             # Replace long grid if conditions are met
@@ -3287,6 +3285,7 @@ class BybitStrategy(BaseStrategy):
                 self.last_empty_grid_time[symbol]['short'] = current_time
                 logging.info(f"[{symbol}] Recalculated short grid levels with updated buffer: {grid_levels_short}")
 
+            # Additional logic for managing open symbols and checking trading permissions
             open_symbols = list(set(open_symbols))
             logging.info(f"Open symbols {open_symbols}")
 
@@ -8555,10 +8554,10 @@ class BybitStrategy(BaseStrategy):
         return user_defined_leverage
 
     def calculate_total_amount_notional_ls_properdca(self, symbol, total_equity, best_ask_price, best_bid_price, 
-                                        wallet_exposure_limit_long, wallet_exposure_limit_short, 
-                                        side, levels, enforce_full_grid, 
-                                        long_pos_qty=0, short_pos_qty=0,
-                                        user_defined_leverage_long=None, user_defined_leverage_short=None):
+                                                    wallet_exposure_limit_long, wallet_exposure_limit_short, 
+                                                    side, levels, enforce_full_grid, 
+                                                    long_pos_qty=0, short_pos_qty=0,
+                                                    user_defined_leverage_long=None, user_defined_leverage_short=None):
         logging.info(f"Calculating total amount for {symbol} with total_equity: {total_equity}, side: {side}, levels: {levels}, enforce_full_grid: {enforce_full_grid}")
 
         leverage_used = user_defined_leverage_long if side == 'buy' and user_defined_leverage_long not in (0, None) else \
@@ -8580,8 +8579,9 @@ class BybitStrategy(BaseStrategy):
         logging.info(f"Calculated total notional amount for {symbol}: {total_notional_amount}")
         return total_notional_amount
 
+
     def calculate_order_amounts_notional_properdca(self, symbol: str, total_amount: float, levels: int, strength: float, qty_precision: float, enforce_full_grid: bool,
-                                        long_pos_qty=0, short_pos_qty=0) -> List[float]:
+                                                long_pos_qty=0, short_pos_qty=0) -> List[float]:
         logging.info(f"Calculating order amounts for {symbol} with total_amount: {total_amount}, levels: {levels}, strength: {strength}, qty_precision: {qty_precision}, enforce_full_grid: {enforce_full_grid}")
         
         current_price = self.exchange.get_current_price(symbol)
@@ -8603,6 +8603,7 @@ class BybitStrategy(BaseStrategy):
 
         logging.info(f"Calculated order amounts for {symbol}: {amounts}")
         return amounts
+
 
 
     def calculate_max_positions(self, symbol, total_equity, current_price, max_qty_percent_long, max_qty_percent_short):
