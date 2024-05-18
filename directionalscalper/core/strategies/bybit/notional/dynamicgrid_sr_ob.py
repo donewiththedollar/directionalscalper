@@ -998,4 +998,4 @@ class BybitDynamicGridSpanOBSRStatic(BybitStrategy):
                 time.sleep(3)
         except Exception as e:
             traceback_info = traceback.format_exc()  # Get the full traceback
-            logging.error(f"Exception caught in quickscalp strategy '{symbol}': {e}\nTraceback:\n{traceback_info}")
+            logging.info(f"Exception caught in quickscalp strategy '{symbol}': {e}\nTraceback:\n{traceback_info}")
