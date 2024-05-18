@@ -750,7 +750,8 @@ class BybitStrategy(BaseStrategy):
 
     def update_quickscalp_tp_dynamic(self, symbol, pos_qty, upnl_profit_pct, max_upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, tp_order_counts):
         # Fetch the current open TP orders and TP order counts for the symbol
-        long_tp_orders, short_tp_orders = self.exchange.get_open_tp_orders(symbol)
+        # long_tp_orders, short_tp_orders = self.exchange.get_open_tp_orders(symbol)
+        long_tp_orders, short_tp_orders = self.retry_api_call(self.exchange.get_open_tp_orders, symbol)
         long_tp_count = tp_order_counts['long_tp_count']
         short_tp_count = tp_order_counts['short_tp_count']
 

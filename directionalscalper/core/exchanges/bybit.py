@@ -2,6 +2,7 @@ import uuid
 from .exchange import Exchange
 import logging
 import time
+import random
 from datetime import datetime, timedelta
 from typing import Optional, Tuple, List
 from ccxt.base.errors import RateLimitExceeded, NetworkError
@@ -1056,7 +1057,19 @@ class BybitExchange(Exchange):
             logging.info(f"An unknown error occurred in get_take_profit_order_quantity_bybit: {e}")
 
         return total_qty
-    
+
+    def retry_api_call(self, function, *args, max_retries=100, base_delay=10, max_delay=60, **kwargs):
+        retries = 0
+        while retries < max_retries:
+            try:
+                return function(*args, **kwargs)
+            except Exception as e:  # Catch all exceptions
+                retries += 1
+                delay = min(base_delay * (2 ** retries) + random.uniform(0, 0.1 * (2 ** retries)), max_delay)
+                logging.info(f"Error occurred: {e}. Retrying in {delay:.2f} seconds...")
+                time.sleep(delay)
+        raise Exception(f"Failed to execute the API function after {max_retries} retries.")
+
     def get_contract_size_bybit(self, symbol):
         positions = self.exchange.fetch_derivatives_positions([symbol])
         return positions[0]['contractSize']
