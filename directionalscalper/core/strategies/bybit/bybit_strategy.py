@@ -4337,7 +4337,7 @@ class BybitStrategy(BaseStrategy):
             else:
                 logging.info(f"Auto-reduce for short position on {symbol} is not active")
 
-            replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_outerpricedist(
+            replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist_v2(
                 symbol, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
                 dynamic_outer_price_distance=dynamic_outer_price_distance
             )
