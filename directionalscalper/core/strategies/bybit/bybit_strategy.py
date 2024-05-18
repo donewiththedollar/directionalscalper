@@ -3145,7 +3145,6 @@ class BybitStrategy(BaseStrategy):
         max_qty_percent_long: float, max_qty_percent_short: float
     ):
         try:
-
             # Calculate dynamic outer price distance based on 4h candle spread
             spread = self.get_4h_candle_spread(symbol)
             logging.info(f"4h Candle spread for {symbol}: {spread}")
@@ -3156,6 +3155,8 @@ class BybitStrategy(BaseStrategy):
             # Ensure dynamic outer price distance is not too tight
             dynamic_outer_price_distance = max(min_outer_price_distance, min(max_outer_price_distance, spread))
             
+            logging.info(f"Dynamic outer price distance for {symbol} : {dynamic_outer_price_distance}")
+
             # Ensure the outer price distance can span all levels
             required_distance = outer_price_distance / levels
             if dynamic_outer_price_distance < required_distance:
@@ -3203,26 +3204,26 @@ class BybitStrategy(BaseStrategy):
             min_qty = float(self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
             logging.info(f"[{symbol}] Quantity precision: {qty_precision}, Minimum quantity: {min_qty}")
 
-            total_amount_long = self.calculate_total_amount_notional_ls(
+            total_amount_long = self.calculate_total_amount_notional_ls_properdca(
                 symbol=symbol, total_equity=total_equity, best_ask_price=best_ask_price,
                 best_bid_price=best_bid_price, wallet_exposure_limit_long=wallet_exposure_limit_long,
                 wallet_exposure_limit_short=wallet_exposure_limit_short, side="buy", levels=levels,
                 enforce_full_grid=enforce_full_grid, user_defined_leverage_long=user_defined_leverage_long,
-                user_defined_leverage_short=None
+                user_defined_leverage_short=None, long_pos_qty=long_pos_qty, short_pos_qty=short_pos_qty
             ) if long_mode else 0
 
-            total_amount_short = self.calculate_total_amount_notional_ls(
+            total_amount_short = self.calculate_total_amount_notional_ls_properdca(
                 symbol=symbol, total_equity=total_equity, best_ask_price=best_ask_price,
                 best_bid_price=best_bid_price, wallet_exposure_limit_long=wallet_exposure_limit_long,
                 wallet_exposure_limit_short=wallet_exposure_limit_short, side="sell", levels=levels,
                 enforce_full_grid=enforce_full_grid, user_defined_leverage_long=None,
-                user_defined_leverage_short=user_defined_leverage_short
+                user_defined_leverage_short=user_defined_leverage_short, long_pos_qty=long_pos_qty, short_pos_qty=short_pos_qty
             ) if short_mode else 0
 
             logging.info(f"[{symbol}] Total amount long: {total_amount_long}, Total amount short: {total_amount_short}")
 
-            amounts_long = self.calculate_order_amounts_notional(symbol, total_amount_long, levels, strength, qty_precision, enforce_full_grid)
-            amounts_short = self.calculate_order_amounts_notional(symbol, total_amount_short, levels, strength, qty_precision, enforce_full_grid)
+            amounts_long = self.calculate_order_amounts_notional_properdca(symbol, total_amount_long, levels, strength, qty_precision, enforce_full_grid, long_pos_qty, short_pos_qty)
+            amounts_short = self.calculate_order_amounts_notional_properdca(symbol, total_amount_short, levels, strength, qty_precision, enforce_full_grid, long_pos_qty, short_pos_qty)
             logging.info(f"[{symbol}] Long order amounts: {amounts_long}")
             logging.info(f"[{symbol}] Short order amounts: {amounts_short}")
 
@@ -3255,9 +3256,9 @@ class BybitStrategy(BaseStrategy):
 
             current_time = time.time()
 
-            replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist(
+            replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist_v2(
                 symbol, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
-                min_outer_price_distance=min_outer_price_distance
+                dynamic_outer_price_distance
             )
 
             # Replace long grid if conditions are met
@@ -8193,6 +8194,68 @@ class BybitStrategy(BaseStrategy):
             logging.exception(f"Exception caught in should_replace_grid_updated_buffer: {e}")
             return False, False
 
+    def should_replace_grid_updated_buffer_min_outerpricedist_v2(self, symbol: str, long_pos_price: float, short_pos_price: float, long_pos_qty: float, short_pos_qty: float, dynamic_outer_price_distance: float) -> tuple:
+        try:
+            current_price = self.exchange.get_current_price(symbol)
+            logging.info(f"[{symbol}] Current price: {current_price}")
+
+            # Retrieve last recorded price
+            last_price = self.last_price.get(symbol)
+            if last_price is None:
+                self.last_price[symbol] = current_price
+                logging.info(f"[{symbol}] No last price recorded. Setting current price {current_price} as last price. No reissue required.")
+                return False, False
+
+            logging.info(f"[{symbol}] Last recorded price: {last_price}")
+
+            replace_long_grid = False
+            replace_short_grid = False
+
+            if long_pos_qty > 0:
+                required_price_move_long_pct = dynamic_outer_price_distance * 100.0
+                price_change_pct_long = abs(current_price - last_price) / last_price * 100.0
+
+                logging.info(f"[{symbol}] Long position info:")
+                logging.info(f"Dynamic outer price distance: {dynamic_outer_price_distance * 100.0:.2f}%")
+                logging.info(f"  - Long position price: {long_pos_price}")
+                logging.info(f"  - Long position quantity: {long_pos_qty}")
+                logging.info(f"  - Required price move for reissue (long): {required_price_move_long_pct:.2f}%")
+                logging.info(f"  - Current price change percentage: {price_change_pct_long:.2f}%")
+
+                if price_change_pct_long > required_price_move_long_pct:
+                    replace_long_grid = True
+                    logging.info(f"[{symbol}] Price change exceeds dynamic outer price distance percentage for long position. Replacing long grid.")
+                    self.last_price[symbol] = current_price  # Update last price after condition is met
+                else:
+                    logging.info(f"[{symbol}] Price change does not exceed dynamic outer price distance percentage for long position. No need to replace long grid.")
+
+            if short_pos_qty > 0:
+                required_price_move_short_pct = dynamic_outer_price_distance * 100.0
+                price_change_pct_short = abs(current_price - last_price) / last_price * 100.0
+
+                logging.info(f"[{symbol}] Short position info:")
+                logging.info(f"Dynamic outer price distance: {dynamic_outer_price_distance * 100.0:.2f}%")
+                logging.info(f"  - Short position price: {short_pos_price}")
+                logging.info(f"  - Short position quantity: {short_pos_qty}")
+                logging.info(f"  - Required price move for reissue (short): {required_price_move_short_pct:.2f}%")
+                logging.info(f"  - Current price change percentage: {price_change_pct_short:.2f}%")
+
+                if price_change_pct_short > required_price_move_short_pct:
+                    replace_short_grid = True
+                    logging.info(f"[{symbol}] Price change exceeds dynamic outer price distance percentage for short position. Replacing short grid.")
+                    self.last_price[symbol] = current_price  # Update last price after condition is met
+                else:
+                    logging.info(f"[{symbol}] Price change does not exceed dynamic outer price distance percentage for short position. No need to replace short grid.")
+
+            logging.info(f"[{symbol}] Should replace long grid: {replace_long_grid}")
+            logging.info(f"[{symbol}] Should replace short grid: {replace_short_grid}")
+
+            return replace_long_grid, replace_short_grid
+
+        except Exception as e:
+            logging.exception(f"Exception caught in should_replace_grid_updated_buffer: {e}")
+            return False, False
+        
     def should_replace_grid_updated_buffer_min_outerpricedist(self, symbol: str, long_pos_price: float, short_pos_price: float, long_pos_qty: float, short_pos_qty: float, min_outer_price_distance: float) -> tuple:
         try:
             current_price = self.exchange.get_current_price(symbol)
@@ -8490,6 +8553,57 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"No user-defined leverage specified for {symbol} on {side} side, using exchange max leverage: {max_leverage}")
             return max_leverage
         return user_defined_leverage
+
+    def calculate_total_amount_notional_ls_properdca(self, symbol, total_equity, best_ask_price, best_bid_price, 
+                                        wallet_exposure_limit_long, wallet_exposure_limit_short, 
+                                        side, levels, enforce_full_grid, 
+                                        long_pos_qty=0, short_pos_qty=0,
+                                        user_defined_leverage_long=None, user_defined_leverage_short=None):
+        logging.info(f"Calculating total amount for {symbol} with total_equity: {total_equity}, side: {side}, levels: {levels}, enforce_full_grid: {enforce_full_grid}")
+
+        leverage_used = user_defined_leverage_long if side == 'buy' and user_defined_leverage_long not in (0, None) else \
+                        user_defined_leverage_short if side == 'sell' and user_defined_leverage_short not in (0, None) else \
+                        self.exchange.get_current_max_leverage_bybit(symbol)
+        logging.info(f"Using leverage for {symbol}: {leverage_used}")
+
+        wallet_exposure_limit = wallet_exposure_limit_long if side == 'buy' else wallet_exposure_limit_short
+        max_position_value = total_equity * wallet_exposure_limit * leverage_used
+        logging.info(f"Maximum position value for {symbol}: {max_position_value}")
+
+        base_notional = self.min_notional(symbol)
+        required_notional = base_notional * levels if enforce_full_grid else max_position_value
+
+        current_pos_value = (long_pos_qty if side == 'buy' else short_pos_qty) * (best_ask_price if side == 'buy' else best_bid_price)
+        adjusted_max_position_value = max_position_value - current_pos_value
+
+        total_notional_amount = min(required_notional, adjusted_max_position_value)
+        logging.info(f"Calculated total notional amount for {symbol}: {total_notional_amount}")
+        return total_notional_amount
+
+    def calculate_order_amounts_notional_properdca(self, symbol: str, total_amount: float, levels: int, strength: float, qty_precision: float, enforce_full_grid: bool,
+                                        long_pos_qty=0, short_pos_qty=0) -> List[float]:
+        logging.info(f"Calculating order amounts for {symbol} with total_amount: {total_amount}, levels: {levels}, strength: {strength}, qty_precision: {qty_precision}, enforce_full_grid: {enforce_full_grid}")
+        
+        current_price = self.exchange.get_current_price(symbol)
+        amounts = []
+        total_ratio = sum([(i + 1) ** strength for i in range(levels)])
+        level_notional = [(i + 1) ** strength for i in range(levels)]
+        
+        base_notional = self.min_notional(symbol)
+        min_base_notional = base_notional / current_price
+
+        current_position_qty = long_pos_qty if long_pos_qty > 0 else short_pos_qty
+        total_amount_adjusted = total_amount + (current_position_qty * current_price)
+
+        for i in range(levels):
+            notional_amount = (level_notional[i] / total_ratio) * total_amount_adjusted
+            quantity = notional_amount / current_price
+            rounded_quantity = max(round(quantity / qty_precision) * qty_precision, min_base_notional)
+            amounts.append(rounded_quantity)
+
+        logging.info(f"Calculated order amounts for {symbol}: {amounts}")
+        return amounts
+
 
     def calculate_max_positions(self, symbol, total_equity, current_price, max_qty_percent_long, max_qty_percent_short):
         leverage_long = self.get_effective_leverage(self.user_defined_leverage_long, symbol, 'buy')
