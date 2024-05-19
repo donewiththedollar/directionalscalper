@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Tuple, List
 from ccxt.base.errors import RateLimitExceeded, NetworkError
 import ccxt
+import traceback
 from directionalscalper.core.strategies.logger import Logger
 
 logging = Logger(logger_name="BybitExchange", filename="BybitExchange.log", stream=True)
@@ -492,7 +493,7 @@ class BybitExchange(Exchange):
                 logging.info(f"Error fetching balance from Bybit: {e}")
 
         return None
-    
+
     def get_symbol_precision_bybit(self, symbol):
         try:
             # Use fetch_markets to retrieve data for all markets
@@ -510,7 +511,8 @@ class BybitExchange(Exchange):
                 print(f"Market data not found for {symbol}")
                 return None, None
         except Exception as e:
-            print(f"An error occurred: {e}")
+            logging.info(f"An error occurred in get_symbol_precision_bybit: {e}")
+            logging.info("Traceback: %s", traceback.format_exc())
             return None, None
 
     def get_positions_bybit(self, symbol, max_retries=100, retry_delay=5) -> dict:
