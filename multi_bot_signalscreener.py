@@ -90,6 +90,7 @@ def standardize_symbol(symbol):
 def get_available_strategies():
     return [
         'qsgriddynamicstatic',
+        'qsgridobdca',
         'qsdynamicgridspan',
         'qsgriddynamictplinspaced',
         'dynamicgridob',
@@ -288,7 +289,10 @@ class DirectionalMarketMaker:
         elif strategy_name.lower() == 'qsgriddynamicstatic':
             strategy = bybit_notional.BybitDynamicGridSpanOBSRStatic(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-                            
+        elif strategy_name.lower() == 'qsgridobdca':
+            strategy = bybit_notional.BybitDynamicGridOBDCA(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
+           
     def get_balance(self, quote, market_type=None, sub_type=None):
         if self.exchange_name == 'bitget':
             return self.exchange.get_balance_bitget(quote)
