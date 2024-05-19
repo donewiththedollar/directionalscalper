@@ -3844,26 +3844,33 @@ class BybitStrategy(BaseStrategy):
             else:
                 logging.info(f"Symbol {symbol} not in open_symbols: {open_symbols} or trading not allowed")
 
+            # Determine if there are open long and short positions based on provided quantities
+            has_open_long_position = long_pos_qty > 0
+            has_open_short_position = short_pos_qty > 0
+
+            logging.info(f"{symbol} has long position: {has_open_long_position}, has short position: {has_open_short_position}")
+
             logging.info(f"[{symbol}] Number of open symbols: {len(open_symbols)}, Symbols allowed: {symbols_allowed}")
-            if len(open_symbols) < symbols_allowed and symbol not in self.active_grids:
-                logging.info(f"[{symbol}] No active grids. Checking for new symbols to trade.")
-                if long_mode and mfi_signal_long and symbol not in self.max_qty_reached_symbol_long:
+
+            if (len(open_symbols) < symbols_allowed and symbol not in self.active_grids) or (symbol in open_symbols and (not has_open_long_position or not has_open_short_position)):
+                logging.info(f"[{symbol}] Checking for new trading opportunities.")
+
+                if long_mode and mfi_signal_long and not has_open_long_position and symbol not in self.max_qty_reached_symbol_long:
                     if not self.auto_reduce_active_long.get(symbol, False) or entry_during_autoreduce:
                         logging.info(f"[{symbol}] Placing new long orders (either no active long auto-reduce or entry during auto-reduce is allowed).")
                         self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                         self.active_grids.add(symbol)
                     else:
                         logging.info(f"[{symbol}] Skipping new long orders due to active long auto-reduce and entry_during_autoreduce set to False.")
-                if short_mode and mfi_signal_short and symbol not in self.max_qty_reached_symbol_short:
+
+                if short_mode and mfi_signal_short and not has_open_short_position and symbol not in self.max_qty_reached_symbol_short:
                     if not self.auto_reduce_active_short.get(symbol, False) or entry_during_autoreduce:
                         logging.info(f"[{symbol}] Placing new short orders (either no active short auto-reduce or entry during auto-reduce is allowed).")
                         self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                         self.active_grids.add(symbol)
                     else:
                         logging.info(f"[{symbol}] Skipping new short orders due to active short auto-reduce and entry_during_autoreduce set to False.")
-            else:
-                logging.info(f"[{symbol}] Trading not allowed or MFIRSI Signal not met. Skipping grid placement.")
-                time.sleep(5)
+                        
 
             # Calculate take profit for short and long positions using quickscalp method
             short_take_profit = self.calculate_quickscalp_short_take_profit_dynamic_distance(short_pos_price, symbol, min_upnl_profit_pct=upnl_profit_pct, max_upnl_profit_pct=max_upnl_profit_pct)
@@ -4178,26 +4185,33 @@ class BybitStrategy(BaseStrategy):
             else:
                 logging.info(f"Symbol {symbol} not in open_symbols: {open_symbols} or trading not allowed")
 
+            # Determine if there are open long and short positions based on provided quantities
+            has_open_long_position = long_pos_qty > 0
+            has_open_short_position = short_pos_qty > 0
+
+            logging.info(f"{symbol} has long position: {has_open_long_position}, has short position: {has_open_short_position}")
+
             logging.info(f"[{symbol}] Number of open symbols: {len(open_symbols)}, Symbols allowed: {symbols_allowed}")
-            if len(open_symbols) < symbols_allowed and symbol not in self.active_grids:
-                logging.info(f"[{symbol}] No active grids. Checking for new symbols to trade.")
-                if long_mode and mfi_signal_long and symbol not in self.max_qty_reached_symbol_long:
+
+            if (len(open_symbols) < symbols_allowed and symbol not in self.active_grids) or (symbol in open_symbols and (not has_open_long_position or not has_open_short_position)):
+                logging.info(f"[{symbol}] Checking for new trading opportunities.")
+
+                if long_mode and mfi_signal_long and not has_open_long_position and symbol not in self.max_qty_reached_symbol_long:
                     if not self.auto_reduce_active_long.get(symbol, False) or entry_during_autoreduce:
                         logging.info(f"[{symbol}] Placing new long orders (either no active long auto-reduce or entry during auto-reduce is allowed).")
                         self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                         self.active_grids.add(symbol)
                     else:
                         logging.info(f"[{symbol}] Skipping new long orders due to active long auto-reduce and entry_during_autoreduce set to False.")
-                if short_mode and mfi_signal_short and symbol not in self.max_qty_reached_symbol_short:
+
+                if short_mode and mfi_signal_short and not has_open_short_position and symbol not in self.max_qty_reached_symbol_short:
                     if not self.auto_reduce_active_short.get(symbol, False) or entry_during_autoreduce:
                         logging.info(f"[{symbol}] Placing new short orders (either no active short auto-reduce or entry during auto-reduce is allowed).")
                         self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                         self.active_grids.add(symbol)
                     else:
                         logging.info(f"[{symbol}] Skipping new short orders due to active short auto-reduce and entry_during_autoreduce set to False.")
-            else:
-                logging.info(f"[{symbol}] Trading not allowed or MFIRSI Signal not met. Skipping grid placement.")
-                time.sleep(5)
+                        
 
             if long_pos_qty > 0:
                 new_long_tp_min, new_long_tp_max = self.calculate_quickscalp_long_take_profit_dynamic_distance(
@@ -4523,23 +4537,33 @@ class BybitStrategy(BaseStrategy):
             else:
                 logging.info(f"Symbol {symbol} not in open_symbols: {open_symbols} or trading not allowed")
 
+            # Determine if there are open long and short positions based on provided quantities
+            has_open_long_position = long_pos_qty > 0
+            has_open_short_position = short_pos_qty > 0
+
+            logging.info(f"{symbol} has long position: {has_open_long_position}, has short position: {has_open_short_position}")
+
             logging.info(f"[{symbol}] Number of open symbols: {len(open_symbols)}, Symbols allowed: {symbols_allowed}")
-            if len(open_symbols) < symbols_allowed and symbol not in self.active_grids:
-                logging.info(f"[{symbol}] No active grids. Checking for new symbols to trade.")
-                if long_mode and mfi_signal_long and symbol not in self.max_qty_reached_symbol_long:
+
+            if (len(open_symbols) < symbols_allowed and symbol not in self.active_grids) or (symbol in open_symbols and (not has_open_long_position or not has_open_short_position)):
+                logging.info(f"[{symbol}] Checking for new trading opportunities.")
+
+                if long_mode and mfi_signal_long and not has_open_long_position and symbol not in self.max_qty_reached_symbol_long:
                     if not self.auto_reduce_active_long.get(symbol, False) or entry_during_autoreduce:
                         logging.info(f"[{symbol}] Placing new long orders (either no active long auto-reduce or entry during auto-reduce is allowed).")
                         self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                         self.active_grids.add(symbol)
                     else:
                         logging.info(f"[{symbol}] Skipping new long orders due to active long auto-reduce and entry_during_autoreduce set to False.")
-                if short_mode and mfi_signal_short and symbol not in self.max_qty_reached_symbol_short:
+
+                if short_mode and mfi_signal_short and not has_open_short_position and symbol not in self.max_qty_reached_symbol_short:
                     if not self.auto_reduce_active_short.get(symbol, False) or entry_during_autoreduce:
                         logging.info(f"[{symbol}] Placing new short orders (either no active short auto-reduce or entry during auto-reduce is allowed).")
                         self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                         self.active_grids.add(symbol)
                     else:
                         logging.info(f"[{symbol}] Skipping new short orders due to active short auto-reduce and entry_during_autoreduce set to False.")
+                        
             else:
                 logging.info(f"[{symbol}] Trading not allowed or MFIRSI Signal not met. Skipping grid placement.")
                 time.sleep(5)
@@ -5225,23 +5249,33 @@ class BybitStrategy(BaseStrategy):
             else:
                 logging.info(f"Symbol {symbol} not in open_symbols: {open_symbols} or trading not allowed")
 
+            # Determine if there are open long and short positions based on provided quantities
+            has_open_long_position = long_pos_qty > 0
+            has_open_short_position = short_pos_qty > 0
+
+            logging.info(f"{symbol} has long position: {has_open_long_position}, has short position: {has_open_short_position}")
+
             logging.info(f"[{symbol}] Number of open symbols: {len(open_symbols)}, Symbols allowed: {symbols_allowed}")
-            if len(open_symbols) < symbols_allowed and symbol not in self.active_grids:
-                logging.info(f"[{symbol}] No active grids. Checking for new symbols to trade.")
-                if long_mode and mfi_signal_long and symbol not in self.max_qty_reached_symbol_long:
+
+            if (len(open_symbols) < symbols_allowed and symbol not in self.active_grids) or (symbol in open_symbols and (not has_open_long_position or not has_open_short_position)):
+                logging.info(f"[{symbol}] Checking for new trading opportunities.")
+
+                if long_mode and mfi_signal_long and not has_open_long_position and symbol not in self.max_qty_reached_symbol_long:
                     if not self.auto_reduce_active_long.get(symbol, False) or entry_during_autoreduce:
                         logging.info(f"[{symbol}] Placing new long orders (either no active long auto-reduce or entry during auto-reduce is allowed).")
                         self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                         self.active_grids.add(symbol)
                     else:
                         logging.info(f"[{symbol}] Skipping new long orders due to active long auto-reduce and entry_during_autoreduce set to False.")
-                if short_mode and mfi_signal_short and symbol not in self.max_qty_reached_symbol_short:
+
+                if short_mode and mfi_signal_short and not has_open_short_position and symbol not in self.max_qty_reached_symbol_short:
                     if not self.auto_reduce_active_short.get(symbol, False) or entry_during_autoreduce:
                         logging.info(f"[{symbol}] Placing new short orders (either no active short auto-reduce or entry during auto-reduce is allowed).")
                         self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                         self.active_grids.add(symbol)
                     else:
                         logging.info(f"[{symbol}] Skipping new short orders due to active short auto-reduce and entry_during_autoreduce set to False.")
+                        
             else:
                 logging.info(f"[{symbol}] Trading not allowed or MFIRSI Signal not met. Skipping grid placement.")
                 time.sleep(5)
@@ -5957,23 +5991,33 @@ class BybitStrategy(BaseStrategy):
             else:
                 logging.info(f"Symbol {symbol} not in open_symbols: {open_symbols} or trading not allowed")
 
+            # Determine if there are open long and short positions based on provided quantities
+            has_open_long_position = long_pos_qty > 0
+            has_open_short_position = short_pos_qty > 0
+
+            logging.info(f"{symbol} has long position: {has_open_long_position}, has short position: {has_open_short_position}")
+
             logging.info(f"[{symbol}] Number of open symbols: {len(open_symbols)}, Symbols allowed: {symbols_allowed}")
-            if len(open_symbols) < symbols_allowed and symbol not in self.active_grids:
-                logging.info(f"[{symbol}] No active grids. Checking for new symbols to trade.")
-                if long_mode and mfi_signal_long and symbol not in self.max_qty_reached_symbol_long:
+
+            if (len(open_symbols) < symbols_allowed and symbol not in self.active_grids) or (symbol in open_symbols and (not has_open_long_position or not has_open_short_position)):
+                logging.info(f"[{symbol}] Checking for new trading opportunities.")
+
+                if long_mode and mfi_signal_long and not has_open_long_position and symbol not in self.max_qty_reached_symbol_long:
                     if not self.auto_reduce_active_long.get(symbol, False) or entry_during_autoreduce:
                         logging.info(f"[{symbol}] Placing new long orders (either no active long auto-reduce or entry during auto-reduce is allowed).")
                         self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                         self.active_grids.add(symbol)
                     else:
                         logging.info(f"[{symbol}] Skipping new long orders due to active long auto-reduce and entry_during_autoreduce set to False.")
-                if short_mode and mfi_signal_short and symbol not in self.max_qty_reached_symbol_short:
+
+                if short_mode and mfi_signal_short and not has_open_short_position and symbol not in self.max_qty_reached_symbol_short:
                     if not self.auto_reduce_active_short.get(symbol, False) or entry_during_autoreduce:
                         logging.info(f"[{symbol}] Placing new short orders (either no active short auto-reduce or entry during auto-reduce is allowed).")
                         self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                         self.active_grids.add(symbol)
                     else:
                         logging.info(f"[{symbol}] Skipping new short orders due to active short auto-reduce and entry_during_autoreduce set to False.")
+                        
             else:
                 logging.info(f"[{symbol}] Trading not allowed or MFIRSI Signal not met. Skipping grid placement.")
                 time.sleep(5)
