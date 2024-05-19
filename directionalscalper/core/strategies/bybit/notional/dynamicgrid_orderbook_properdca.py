@@ -817,8 +817,6 @@ class BybitDynamicGridOBDCA(BybitStrategy):
                             levels,
                             strength,
                             outer_price_distance,
-                            min_outer_price_distance,
-                            max_outer_price_distance,
                             reissue_threshold,
                             self.wallet_exposure_limit,
                             wallet_exposure_limit_long,
@@ -840,8 +838,9 @@ class BybitDynamicGridOBDCA(BybitStrategy):
                             max_qty_percent_long,
                             max_qty_percent_short
                         )
+
                     except Exception as e:
-                        logging.info("Something is up with variables for the grid")
+                        logging.info(f"Error in grid {e}")
 
 
                     logging.info(f"Long tp counts: {long_tp_counts}")
