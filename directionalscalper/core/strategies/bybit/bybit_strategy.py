@@ -3412,7 +3412,7 @@ class BybitStrategy(BaseStrategy):
 
             logging.info(f"[{symbol}] Number of open symbols: {len(open_symbols)}, Symbols allowed: {symbols_allowed}")
             # if len(open_symbols) < symbols_allowed and symbol not in self.active_grids:
-            if len(open_symbols) < symbols_allowed and symbol not in self.active_grids or symbol in open_symbols:
+            if len(open_symbols) < symbols_allowed and symbol not in self.active_grids:
                 logging.info(f"[{symbol}] No active grids. Checking for new symbols to trade.")
                 if long_mode and mfi_signal_long and symbol not in self.max_qty_reached_symbol_long:
                     if not self.auto_reduce_active_long.get(symbol, False) or entry_during_autoreduce:
