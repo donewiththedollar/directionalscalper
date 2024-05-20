@@ -1172,7 +1172,7 @@ class BybitExchange(Exchange):
         """
         # Fetch positions for the symbol
         response = self.exchange.fetch_positions([symbol])
-        logging.info(f"Response from unrealized pnl: {response}")
+        #logging.info(f"Response from unrealized pnl: {response}")
 
         unrealized_pnl = {'long': None, 'short': None}
 
