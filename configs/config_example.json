@@ -49,7 +49,7 @@
       "auto_reduce_cooldown_start_pct": 0.032,
       "wallet_exposure_limit_long": 0.001,
       "wallet_exposure_limit_short": 0.001,
-      "levels": 4,
+      "levels": 3,
       "strength": 1.2,
       "outer_price_distance": 0.059,
       "min_outer_price_distance": 0.019,

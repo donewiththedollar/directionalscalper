@@ -3267,7 +3267,7 @@ class BybitStrategy(BaseStrategy):
             )
 
             # Replace long grid if conditions are met
-            if (replace_long_grid or (replace_empty_long_grid and (current_time - self.last_empty_grid_time[symbol].get('long', 0) > 240))) and not self.auto_reduce_active_long.get(symbol, False):
+            if (replace_long_grid or (replace_empty_long_grid and (current_time - self.last_empty_grid_time[symbol].get('long', 0) > 240))) and not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
                 logging.info(f"[{symbol}] Replacing long grid orders due to updated buffer or empty grid timeout.")
                 self.clear_grid(symbol, 'buy')
                 buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
@@ -3280,7 +3280,7 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"[{symbol}] Recalculated long grid levels with updated buffer: {grid_levels_long}")
 
             # Replace short grid if conditions are met
-            if (replace_short_grid or (replace_empty_short_grid and (current_time - self.last_empty_grid_time[symbol].get('short', 0) > 240))) and not self.auto_reduce_active_short.get(symbol, False):
+            if (replace_short_grid or (replace_empty_short_grid and (current_time - self.last_empty_grid_time[symbol].get('short', 0) > 240))) and not self.auto_reduce_active_short.get(symbol, False) and symbol not in self.max_qty_reached_symbol_short:
                 logging.info(f"[{symbol}] Replacing short grid orders due to updated buffer or empty grid timeout.")
                 self.clear_grid(symbol, 'sell')
                 buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - short_pos_price) / short_pos_price)
@@ -3616,7 +3616,7 @@ class BybitStrategy(BaseStrategy):
             )
 
             # Replace long grid if conditions are met
-            if (replace_long_grid or (replace_empty_long_grid and (current_time - self.last_empty_grid_time[symbol].get('long', 0) > 240))) and not self.auto_reduce_active_long.get(symbol, False):
+            if (replace_long_grid or (replace_empty_long_grid and (current_time - self.last_empty_grid_time[symbol].get('long', 0) > 240))) and not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
                 logging.info(f"[{symbol}] Replacing long grid orders due to updated buffer or empty grid timeout.")
                 self.clear_grid(symbol, 'buy')
                 buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
@@ -3629,7 +3629,7 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"[{symbol}] Recalculated long grid levels with updated buffer: {grid_levels_long}")
 
             # Replace short grid if conditions are met
-            if (replace_short_grid or (replace_empty_short_grid and (current_time - self.last_empty_grid_time[symbol].get('short', 0) > 240))) and not self.auto_reduce_active_short.get(symbol, False):
+            if (replace_short_grid or (replace_empty_short_grid and (current_time - self.last_empty_grid_time[symbol].get('short', 0) > 240))) and not self.auto_reduce_active_short.get(symbol, False) and symbol not in self.max_qty_reached_symbol_short:
                 logging.info(f"[{symbol}] Replacing short grid orders due to updated buffer or empty grid timeout.")
                 self.clear_grid(symbol, 'sell')
                 buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - short_pos_price) / short_pos_price)
