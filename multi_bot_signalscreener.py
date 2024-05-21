@@ -346,10 +346,6 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         print("Loading config from:", config_file_path)
         config = load_config(config_file_path)
 
-        # Initialize balance cache and last fetch time at the beginning
-        cached_balance = None
-        last_balance_fetch_time = 0
-
         exchange_name = args.exchange  # These are now guaranteed to be non-None
         strategy_name = args.strategy
         account_name = args.account_name  # Get the account_name from args
@@ -376,19 +372,6 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         logging.info(f"Latest rotator symbols in run bot {latest_rotator_symbols}")
 
         market_maker.run_strategy(symbol, args.strategy, config, account_name, symbols_to_trade=symbols_allowed, rotator_symbols_standardized=latest_rotator_symbols)
-
-        quote = "USDT"
-        current_time = time.time()
-        # if current_time - last_balance_fetch_time > BALANCE_REFRESH_INTERVAL or not cached_balance:
-        #     if exchange_name.lower() == 'huobi':
-        #         print(f"Loading huobi strategy..")
-        #     elif exchange_name.lower() == 'mexc':
-        #         cached_balance = market_maker.get_balance(quote, type='swap')
-        #         print(f"Futures balance: {cached_balance}")
-        #     else:
-        #         cached_balance = market_maker.get_balance(quote)
-        #         print(f"Futures balance: {cached_balance}")
-        #     last_balance_fetch_time = current_time
 
         # Signal thread completion
         thread_completed.set()
@@ -539,6 +522,9 @@ def manage_rotator_symbols(rotator_symbols, args, manager, symbols_allowed):
         open_position_data = getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
         open_position_symbols = {standardize_symbol(pos['symbol']) for pos in open_position_data}
 
+        current_long_positions = sum(1 for pos in open_position_data if pos['side'].lower() == 'long')
+        current_short_positions = sum(1 for pos in open_position_data if pos['side'].lower() == 'short')
+
         if current_long_positions < symbols_allowed or current_short_positions < symbols_allowed:
             for symbol in open_position_symbols:
                 process_symbol(symbol)
@@ -571,7 +557,6 @@ def remove_thread_for_symbol(symbol):
         thread_completed.set()  # Signal thread completion
         thread.join()
     threads.pop(symbol, None)
-
 
 def start_thread_for_symbol(symbol, args, manager):
     """Start a new thread for a given symbol."""
