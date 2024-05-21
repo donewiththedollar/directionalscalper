@@ -378,7 +378,7 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         thread_completed.set()
 
     except Exception as e:
-        logging.error(f"An error occurred in run_bot for symbol {symbol}: {e}")
+        logging.info(f"An error occurred in run_bot for symbol {symbol}: {e}")
         thread_completed.set()  # Signal thread completion even in case of an exception
 
     finally:
@@ -425,7 +425,8 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                         try:
                             future.result()  # This will re-raise any exceptions raised in start_thread_for_symbol
                         except Exception as e:
-                            logging.error(f"Exception in thread: {e}")
+                            logging.info(f"Exception in thread: {e}")
+                            logging.info(traceback.format_exc())
 
                 # Handle new symbols from the rotator within the allowed limits
                 signal_futures = []
@@ -867,4 +868,5 @@ if __name__ == '__main__':
 
             time.sleep(5)
         except Exception as e:
-            logging.error(f"Exception caught in main loop: {e}")
+            logging.info(f"Exception caught in main loop: {e}")
+            logging.info(traceback.format_exc())
