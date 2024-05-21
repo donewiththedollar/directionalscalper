@@ -605,7 +605,7 @@ class BybitBasicGridBufferedQSDTP(BybitStrategy):
                     initial_long_stop_loss = None
 
                     try:
-                        self.failsafe_method(symbol,
+                        self.failsafe_method_leveraged(symbol,
                                              long_pos_qty,
                                              short_pos_qty,
                                              long_pos_price,

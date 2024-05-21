@@ -389,48 +389,52 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
 def bybit_auto_rotation(args, manager, symbols_allowed):
     global latest_rotator_symbols, threads, active_symbols, last_rotator_update_time
 
-    try:
-        current_time = time.time()
+    while True:  # Ensure continuous looping
+        try:
+            current_time = time.time()
 
-        # Fetch current open positions and update symbol sets
-        open_position_data = getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
-        open_position_symbols = {standardize_symbol(pos['symbol']) for pos in open_position_data}
-        logging.info(f"Open position symbols: {open_position_symbols}")
+            # Fetch current open positions and update symbol sets
+            open_position_data = getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
+            open_position_symbols = {standardize_symbol(pos['symbol']) for pos in open_position_data}
+            logging.info(f"Open position symbols: {open_position_symbols}")
 
-        # Fetch the updated symbols if latest_rotator_symbols is empty
-        if not latest_rotator_symbols or current_time - last_rotator_update_time >= 60:
-            latest_rotator_symbols = fetch_updated_symbols(args, manager)
-            last_rotator_update_time = current_time
-            logging.info(f"Refreshed latest rotator symbols: {latest_rotator_symbols}")
-        else:
-            logging.info(f"No refresh needed yet. Last update was at {last_rotator_update_time}, less than 60 seconds ago.")
+            # Fetch the updated symbols if latest_rotator_symbols is empty
+            if not latest_rotator_symbols or current_time - last_rotator_update_time >= 60:
+                latest_rotator_symbols = fetch_updated_symbols(args, manager)
+                last_rotator_update_time = current_time
+                logging.info(f"Refreshed latest rotator symbols: {latest_rotator_symbols}")
+            else:
+                logging.info(f"No refresh needed yet. Last update was at {last_rotator_update_time}, less than 60 seconds ago.")
 
-        with thread_management_lock:
-            # Update active symbols based on thread status
-            update_active_symbols()
+            with thread_management_lock:
+                # Update active symbols based on thread status
+                update_active_symbols()
 
-            # Start new threads for open positions not currently active
-            update_active_threads(open_position_symbols, args, manager, symbols_allowed)
+                # Start new threads for open positions not currently active
+                update_active_threads(open_position_symbols, args, manager, symbols_allowed)
 
-            # Handle new symbols from the rotator within the allowed limits
-            manage_rotator_symbols(latest_rotator_symbols, args, manager, symbols_allowed)
+                # Handle new symbols from the rotator within the allowed limits
+                manage_rotator_symbols(latest_rotator_symbols, args, manager, symbols_allowed)
 
-            # Check for completed threads and perform cleanup
-            completed_symbols = []
-            for symbol, (thread, thread_completed) in threads.items():
-                if thread_completed.is_set():
-                    thread.join()  # Wait for the thread to complete
-                    completed_symbols.append(symbol)
+                # Check for completed threads and perform cleanup
+                completed_symbols = []
+                for symbol, (thread, thread_completed) in threads.items():
+                    if thread_completed.is_set():
+                        thread.join()  # Wait for the thread to complete
+                        completed_symbols.append(symbol)
 
-            # Remove completed symbols from active_symbols and threads
-            for symbol in completed_symbols:
-                active_symbols.discard(symbol)
-                del threads[symbol]
-                del thread_start_time[symbol]
-                logging.info(f"Thread and symbol management completed for: {symbol}")
+                # Remove completed symbols from active_symbols and threads
+                for symbol in completed_symbols:
+                    active_symbols.discard(symbol)
+                    del threads[symbol]
+                    del thread_start_time[symbol]
+                    logging.info(f"Thread and symbol management completed for: {symbol}")
 
-    except Exception as e:
-        logging.error(f"Exception caught in bybit_auto_rotation: {str(e)}")
+        except Exception as e:
+            logging.error(f"Exception caught in bybit_auto_rotation: {str(e)}")
+
+        # Sleep to avoid excessive CPU usage
+        time.sleep(1)
 
 def fetch_updated_symbols(args, manager):
     """Fetches and logs potential symbols based on the current trading strategy."""
@@ -518,37 +522,72 @@ def manage_rotator_symbols(rotator_symbols, args, manager, symbols_allowed):
             logging.info(f"No action taken for {symbol}.")
 
     # Process symbols with open positions first
-    while True:
-        open_position_data = getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
-        open_position_symbols = {standardize_symbol(pos['symbol']) for pos in open_position_data}
+    open_position_data = getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
+    open_position_symbols = {standardize_symbol(pos['symbol']) for pos in open_position_data}
 
-        current_long_positions = sum(1 for pos in open_position_data if pos['side'].lower() == 'long')
-        current_short_positions = sum(1 for pos in open_position_data if pos['side'].lower() == 'short')
+    current_long_positions = sum(1 for pos in open_position_data if pos['side'].lower() == 'long')
+    current_short_positions = sum(1 for pos in open_position_data if pos['side'].lower() == 'short')
 
-        if current_long_positions < symbols_allowed or current_short_positions < symbols_allowed:
-            for symbol in open_position_symbols:
-                process_symbol(symbol)
-
-        # Process new symbols from the rotator list
-        for symbol in random_rotator_symbols:
-            if current_long_positions >= symbols_allowed and current_short_positions >= symbols_allowed:
-                logging.info("Maximum number of long and short positions reached.")
-                break
+    if current_long_positions < symbols_allowed or current_short_positions < symbols_allowed:
+        for symbol in open_position_symbols:
             process_symbol(symbol)
 
-        manage_excess_threads(symbols_allowed)
-        
-        # Sleep for a short time to avoid excessive CPU usage
-        time.sleep(1)
+    # Process new symbols from the rotator list
+    for symbol in random_rotator_symbols:
+        if current_long_positions >= symbols_allowed and current_short_positions >= symbols_allowed:
+            logging.info("Maximum number of long and short positions reached.")
+            break
+        process_symbol(symbol)
+
+    manage_excess_threads(symbols_allowed)
 
 def manage_excess_threads(symbols_allowed):
     global active_symbols
-    excess_count = len(active_symbols) - 2 * symbols_allowed
-    while excess_count > 0:
-        symbol_to_remove = active_symbols.pop()  # Adjust the strategy to select which symbol to remove
+    long_positions = {symbol for symbol in active_symbols if is_long_position(symbol)}
+    short_positions = {symbol for symbol in active_symbols if is_short_position(symbol)}
+
+    logging.info(f"Manage excess threads: Total long positions: {len(long_positions)}, Total short positions: {len(short_positions)}")
+
+    excess_long_count = len(long_positions) - symbols_allowed
+    excess_short_count = len(short_positions) - symbols_allowed
+
+    while excess_long_count > 0:
+        symbol_to_remove = long_positions.pop()  # Adjust the strategy to select which symbol to remove
         remove_thread_for_symbol(symbol_to_remove)
-        logging.info(f"Removed excess thread for symbol: {symbol_to_remove}")
-        excess_count -= 1
+        logging.info(f"Removed excess long thread for symbol: {symbol_to_remove}")
+        excess_long_count -= 1
+
+    while excess_short_count > 0:
+        symbol_to_remove = short_positions.pop()  # Adjust the strategy to select which symbol to remove
+        remove_thread_for_symbol(symbol_to_remove)
+        logging.info(f"Removed excess short thread for symbol: {symbol_to_remove}")
+        excess_short_count -= 1
+
+def is_long_position(symbol):
+    """Check if the given symbol is a long position."""
+    pos_data = getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
+    for pos in pos_data:
+        if standardize_symbol(pos['symbol']) == symbol and pos['side'].lower() == 'long':
+            return True
+    return False
+
+def is_short_position(symbol):
+    """Check if the given symbol is a short position."""
+    pos_data = getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
+    for pos in pos_data:
+        if standardize_symbol(pos['symbol']) == symbol and pos['side'].lower() == 'short':
+            return True
+    return False
+
+
+# def manage_excess_threads(symbols_allowed):
+#     global active_symbols
+#     excess_count = len(active_symbols) - 2 * symbols_allowed
+#     while excess_count > 0:
+#         symbol_to_remove = active_symbols.pop()  # Adjust the strategy to select which symbol to remove
+#         remove_thread_for_symbol(symbol_to_remove)
+#         logging.info(f"Removed excess thread for symbol: {symbol_to_remove}")
+#         excess_count -= 1
 
 def remove_thread_for_symbol(symbol):
     """Safely removes a thread associated with a symbol."""
