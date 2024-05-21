@@ -472,30 +472,28 @@ def update_active_threads(open_position_symbols, args, manager, symbols_allowed)
                 logging.info(f"Started or restarted thread for symbol: {symbol}")
         manage_excess_threads(symbols_allowed)
 
-        
-
 def manage_rotator_symbols(rotator_symbols, args, manager, symbols_allowed):
     global active_symbols, latest_rotator_symbols
-    needed_slots = symbols_allowed - len(active_symbols)
-    
-    logging.info(f"Starting symbol management. Total slots allowed: {symbols_allowed}. Current active symbols: {len(active_symbols)}")
+
+    logging.info(f"Starting symbol management. Total symbols allowed: {symbols_allowed}. Current active symbols: {len(active_symbols)}")
 
     # Fetch current open positions and update symbol sets
     open_position_data = getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
     open_position_symbols = {standardize_symbol(pos['symbol']) for pos in open_position_data}
     logging.info(f"Currently open positions: {open_position_symbols}")
 
+    # Count current long and short positions
+    current_long_positions = sum(1 for pos in open_position_data if pos['side'].lower() == 'long')
+    current_short_positions = sum(1 for pos in open_position_data if pos['side'].lower() == 'short')
+    logging.info(f"Current long positions: {current_long_positions}, Current short positions: {current_short_positions}")
+
     # Convert set to list and shuffle for random selection
     random_rotator_symbols = list(rotator_symbols)
     random.shuffle(random_rotator_symbols)
     logging.info(f"Shuffled rotator symbols for processing: {random_rotator_symbols}")
-    
-    for symbol in random_rotator_symbols:
-        if needed_slots <= 0:
-            logging.info("No more slots available for starting new threads.")
-            break
 
-        logging.info(f"Processing symbol: {symbol}")
+    def process_symbol(symbol):
+        nonlocal current_long_positions, current_short_positions
 
         # Retrieve the MFI/RSI signal
         market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
@@ -507,29 +505,30 @@ def manage_rotator_symbols(rotator_symbols, args, manager, symbols_allowed):
         mfi_signal_short = mfirsi_signal.lower() == "short"
 
         # Check existing positions for the symbol
-        has_open_long = symbol in open_position_symbols and any(pos['side'] == 'Buy' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
-        has_open_short = symbol in open_position_symbols and any(pos['side'] == 'Sell' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
+        has_open_long = any(pos['side'].lower() == 'long' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
+        has_open_short = any(pos['side'].lower() == 'short' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
 
         logging.info(f"{symbol} - Open Long: {has_open_long}, Open Short: {has_open_short}")
 
         # Determine actions based on signals and existing positions
         action_taken = False
-        if mfi_signal_long and not has_open_long:
+        if mfi_signal_long and not has_open_long and current_long_positions < symbols_allowed:
             action = "long"
             action_desc = "starting a new long position"
-        elif mfi_signal_short and not has_open_short:
+            current_long_positions += 1
+        elif mfi_signal_short and not has_open_short and current_short_positions < symbols_allowed:
             action = "short"
             action_desc = "starting a new short position"
+            current_short_positions += 1
         else:
             action = None
             action_desc = "no action due to existing position or lack of clear signal"
 
         logging.info(f"Evaluated action for {symbol}: {action_desc}")
 
-        if action and (symbol not in active_symbols and (symbol not in threads or not threads[symbol][0].is_alive())):
+        if action and (symbol not in threads or not threads[symbol][0].is_alive()):
             if start_thread_for_symbol(symbol, args, manager):
                 active_symbols.add(symbol)
-                needed_slots -= 1
                 logging.info(f"Successfully started thread for {symbol} based on '{action}' signal.")
                 action_taken = True
         else:
@@ -538,8 +537,112 @@ def manage_rotator_symbols(rotator_symbols, args, manager, symbols_allowed):
         if not action_taken:
             logging.info(f"No action taken for {symbol}.")
 
-        manage_excess_threads(symbols_allowed)
+    # Process symbols with open positions first
+    while True:
+        open_position_data = getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
+        open_position_symbols = {standardize_symbol(pos['symbol']) for pos in open_position_data}
 
+        if current_long_positions < symbols_allowed or current_short_positions < symbols_allowed:
+            for symbol in open_position_symbols:
+                process_symbol(symbol)
+
+        # Process new symbols from the rotator list
+        for symbol in random_rotator_symbols:
+            if current_long_positions >= symbols_allowed and current_short_positions >= symbols_allowed:
+                logging.info("Maximum number of long and short positions reached.")
+                break
+            process_symbol(symbol)
+
+        manage_excess_threads(symbols_allowed)
+        
+        # # Sleep for a short time to avoid excessive CPU usage
+        # time.sleep(1)
+
+# def manage_rotator_symbols(rotator_symbols, args, manager, symbols_allowed):
+#     global active_symbols, latest_rotator_symbols
+
+#     # Calculate needed slots for new symbols
+#     needed_slots = symbols_allowed - len(active_symbols)
+
+#     logging.info(f"Starting symbol management. Total slots allowed: {symbols_allowed}. Current active symbols: {len(active_symbols)}")
+
+#     # Fetch current open positions and update symbol sets
+#     open_position_data = getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
+#     open_position_symbols = {standardize_symbol(pos['symbol']) for pos in open_position_data}
+#     logging.info(f"Currently open positions: {open_position_symbols}")
+
+#     # Convert set to list and shuffle for random selection
+#     random_rotator_symbols = list(rotator_symbols)
+#     random.shuffle(random_rotator_symbols)
+#     logging.info(f"Shuffled rotator symbols for processing: {random_rotator_symbols}")
+
+#     def process_symbol(symbol):
+#         nonlocal needed_slots
+#         # Retrieve the MFI/RSI signal
+#         market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
+#         market_maker.manager = manager
+#         mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
+#         logging.info(f"MFIRSI signal for {symbol}: {mfirsi_signal}")
+
+#         mfi_signal_long = mfirsi_signal.lower() == "long"
+#         mfi_signal_short = mfirsi_signal.lower() == "short"
+
+#         logging.info(f"Open position data: {open_position_data}")
+
+#         # Check existing positions for the symbol
+#         has_open_long = any(pos['side'] == 'long' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
+#         has_open_short = any(pos['side'] == 'short' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
+
+#         # # Check existing positions for the symbol
+#         # has_open_long = any(pos['side'].lower() == 'buy' and standardize_symbol(pos['symbol']) == symbol for pos in open_position_data)
+#         # has_open_short = any(pos['side'].lower() == 'sell' and standardize_symbol(pos['symbol']) == symbol for pos in open_position_data)
+
+#         logging.info(f"{symbol} - Open Long: {has_open_long}, Open Short: {has_open_short}")
+
+#         # Determine actions based on signals and existing positions
+#         action_taken = False
+#         if mfi_signal_long and not has_open_long:
+#             action = "long"
+#             action_desc = "starting a new long position"
+#         elif mfi_signal_short and not has_open_short:
+#             action = "short"
+#             action_desc = "starting a new short position"
+#         else:
+#             action = None
+#             action_desc = "no action due to existing position or lack of clear signal"
+
+#         logging.info(f"Evaluated action for {symbol}: {action_desc}")
+
+#         if action and (symbol not in active_symbols and (symbol not in threads or not threads[symbol][0].is_alive())):
+#             if start_thread_for_symbol(symbol, args, manager):
+#                 active_symbols.add(symbol)
+#                 if symbol not in open_position_symbols:  # Only decrement needed_slots if it's a new symbol
+#                     needed_slots -= 1
+#                 logging.info(f"Successfully started thread for {symbol} based on '{action}' signal.")
+#                 action_taken = True
+#         else:
+#             logging.info(f"No thread started for {symbol}: {action_desc}")
+
+#         if not action_taken:
+#             logging.info(f"No action taken for {symbol}.")
+
+#     # Process symbols with open positions first
+#     for symbol in open_position_symbols:
+#         process_symbol(symbol)
+
+#     # If there are still slots available, process the remaining rotator symbols
+#     for symbol in random_rotator_symbols:
+#         if needed_slots <= 0:
+#             logging.info("No more slots available for starting new threads.")
+#             break
+
+#         # Skip symbols that were already processed
+#         if symbol in open_position_symbols:
+#             continue
+
+#         process_symbol(symbol)
+
+#     manage_excess_threads(symbols_allowed)
 
 def manage_excess_threads(symbols_allowed):
     global active_symbols

@@ -2680,7 +2680,7 @@ class BybitStrategy(BaseStrategy):
             return {'long': [], 'short': []}
 
 
-    def get_best_prices(self, order_book, current_price):
+    def get_best_prices(self, symbol, order_book, current_price):
         best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol, current_price)
         best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol, current_price)
         return best_ask_price, best_bid_price
@@ -4338,7 +4338,7 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"[{symbol}] Quantity precision: {qty_precision}, Minimum quantity: {min_qty}")
 
             order_book = self.exchange.get_orderbook(symbol)
-            best_ask_price, best_bid_price = self.get_best_prices(order_book, current_price)
+            best_ask_price, best_bid_price = self.get_best_prices(symbol, order_book, current_price)
 
             # buffer_distance_long, buffer_distance_short = self.calculate_buffers(
             #     symbol, current_price, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty, 
