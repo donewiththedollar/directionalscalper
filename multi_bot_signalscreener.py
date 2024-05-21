@@ -410,10 +410,8 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
         current_time = time.time()
 
         # Fetch current open positions and update symbol sets
-        open_position_symbols = {
-            standardize_symbol(pos['symbol'])
-            for pos in getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
-        }
+        open_position_data = getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
+        open_position_symbols = {standardize_symbol(pos['symbol']) for pos in open_position_data}
         logging.info(f"Open position symbols: {open_position_symbols}")
 
         # Fetch the updated symbols if latest_rotator_symbols is empty
@@ -457,7 +455,6 @@ def fetch_updated_symbols(args, manager):
     potential_symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=[], whitelist=[], max_usd_value=None)
     logging.info(f"Fetched updated symbols for strategy '{strategy}': {potential_symbols}")
     return set(standardize_symbol(sym) for sym in potential_symbols)
-
 
 def update_active_symbols():
     global active_symbols
@@ -555,101 +552,17 @@ def manage_rotator_symbols(rotator_symbols, args, manager, symbols_allowed):
 
         manage_excess_threads(symbols_allowed)
         
-        # # Sleep for a short time to avoid excessive CPU usage
-        # time.sleep(1)
-
-# def manage_rotator_symbols(rotator_symbols, args, manager, symbols_allowed):
-#     global active_symbols, latest_rotator_symbols
-
-#     # Calculate needed slots for new symbols
-#     needed_slots = symbols_allowed - len(active_symbols)
-
-#     logging.info(f"Starting symbol management. Total slots allowed: {symbols_allowed}. Current active symbols: {len(active_symbols)}")
-
-#     # Fetch current open positions and update symbol sets
-#     open_position_data = getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
-#     open_position_symbols = {standardize_symbol(pos['symbol']) for pos in open_position_data}
-#     logging.info(f"Currently open positions: {open_position_symbols}")
-
-#     # Convert set to list and shuffle for random selection
-#     random_rotator_symbols = list(rotator_symbols)
-#     random.shuffle(random_rotator_symbols)
-#     logging.info(f"Shuffled rotator symbols for processing: {random_rotator_symbols}")
-
-#     def process_symbol(symbol):
-#         nonlocal needed_slots
-#         # Retrieve the MFI/RSI signal
-#         market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
-#         market_maker.manager = manager
-#         mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
-#         logging.info(f"MFIRSI signal for {symbol}: {mfirsi_signal}")
-
-#         mfi_signal_long = mfirsi_signal.lower() == "long"
-#         mfi_signal_short = mfirsi_signal.lower() == "short"
-
-#         logging.info(f"Open position data: {open_position_data}")
-
-#         # Check existing positions for the symbol
-#         has_open_long = any(pos['side'] == 'long' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
-#         has_open_short = any(pos['side'] == 'short' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
-
-#         # # Check existing positions for the symbol
-#         # has_open_long = any(pos['side'].lower() == 'buy' and standardize_symbol(pos['symbol']) == symbol for pos in open_position_data)
-#         # has_open_short = any(pos['side'].lower() == 'sell' and standardize_symbol(pos['symbol']) == symbol for pos in open_position_data)
-
-#         logging.info(f"{symbol} - Open Long: {has_open_long}, Open Short: {has_open_short}")
-
-#         # Determine actions based on signals and existing positions
-#         action_taken = False
-#         if mfi_signal_long and not has_open_long:
-#             action = "long"
-#             action_desc = "starting a new long position"
-#         elif mfi_signal_short and not has_open_short:
-#             action = "short"
-#             action_desc = "starting a new short position"
-#         else:
-#             action = None
-#             action_desc = "no action due to existing position or lack of clear signal"
-
-#         logging.info(f"Evaluated action for {symbol}: {action_desc}")
-
-#         if action and (symbol not in active_symbols and (symbol not in threads or not threads[symbol][0].is_alive())):
-#             if start_thread_for_symbol(symbol, args, manager):
-#                 active_symbols.add(symbol)
-#                 if symbol not in open_position_symbols:  # Only decrement needed_slots if it's a new symbol
-#                     needed_slots -= 1
-#                 logging.info(f"Successfully started thread for {symbol} based on '{action}' signal.")
-#                 action_taken = True
-#         else:
-#             logging.info(f"No thread started for {symbol}: {action_desc}")
-
-#         if not action_taken:
-#             logging.info(f"No action taken for {symbol}.")
-
-#     # Process symbols with open positions first
-#     for symbol in open_position_symbols:
-#         process_symbol(symbol)
-
-#     # If there are still slots available, process the remaining rotator symbols
-#     for symbol in random_rotator_symbols:
-#         if needed_slots <= 0:
-#             logging.info("No more slots available for starting new threads.")
-#             break
-
-#         # Skip symbols that were already processed
-#         if symbol in open_position_symbols:
-#             continue
-
-#         process_symbol(symbol)
-
-#     manage_excess_threads(symbols_allowed)
+        # Sleep for a short time to avoid excessive CPU usage
+        time.sleep(1)
 
 def manage_excess_threads(symbols_allowed):
     global active_symbols
-    while len(active_symbols) > symbols_allowed:
+    excess_count = len(active_symbols) - 2 * symbols_allowed
+    while excess_count > 0:
         symbol_to_remove = active_symbols.pop()  # Adjust the strategy to select which symbol to remove
         remove_thread_for_symbol(symbol_to_remove)
         logging.info(f"Removed excess thread for symbol: {symbol_to_remove}")
+        excess_count -= 1
 
 def remove_thread_for_symbol(symbol):
     """Safely removes a thread associated with a symbol."""
@@ -658,6 +571,7 @@ def remove_thread_for_symbol(symbol):
         thread_completed.set()  # Signal thread completion
         thread.join()
     threads.pop(symbol, None)
+
 
 def start_thread_for_symbol(symbol, args, manager):
     """Start a new thread for a given symbol."""
@@ -672,7 +586,7 @@ def start_thread_for_symbol(symbol, args, manager):
     except Exception as e:
         logging.error(f"Error starting thread for symbol {symbol}: {e}")
         return False  # Failed to start thread
-    
+
 def fetch_updated_symbols(args, manager):
     """Fetches and logs potential symbols based on the current trading strategy."""
     strategy = args.strategy.lower()
