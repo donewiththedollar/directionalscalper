@@ -2655,13 +2655,13 @@ class BaseStrategy:
             long_failsafe_triggered = (
                 long_pos_qty > 0
                 and current_price < long_pos_price * (1 - failsafe_start_pct)
-                and long_upnl_pct_equity < -long_failsafe_upnl_pct
+                and long_upnl_pct_equity < long_failsafe_upnl_pct
             )
 
             short_failsafe_triggered = (
                 short_pos_qty > 0
                 and current_price > short_pos_price * (1 + failsafe_start_pct)
-                and short_upnl_pct_equity < -short_failsafe_upnl_pct
+                and short_upnl_pct_equity < short_failsafe_upnl_pct
             )
 
             if long_failsafe_triggered:
@@ -2679,7 +2679,6 @@ class BaseStrategy:
         except Exception as e:
             logging.error(f"Error in failsafe_method for {symbol}: {e}")
             raise
-
 
     def execute_failsafe_order(self, symbol, position_type, pos_qty, market_price):
         amount_precision, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
