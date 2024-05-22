@@ -1317,6 +1317,99 @@ class BaseStrategy:
             logging.warning(f"Could not fetch active orders for {symbol}: {e}")
             return 0
 
+    def process_position_data(self, open_position_data):
+        position_details = {}
+
+        for position in open_position_data:
+            info = position.get('info', {})
+            symbol = info.get('symbol', '').split(':')[0]  # Splitting to get the base symbol
+
+            # Ensure 'size', 'side', and 'avgPrice' keys exist in the info dictionary
+            if 'size' in info and 'side' in info and 'avgPrice' in info:
+                size = float(info['size'])
+                side = info['side'].lower()
+                avg_price = float(info['avgPrice'])
+
+                # Initialize the nested dictionary if the symbol is not already in position_details
+                if symbol not in position_details:
+                    position_details[symbol] = {'long': {'qty': 0, 'avg_price': None}, 'short': {'qty': 0, 'avg_price': None}}
+
+                # Update the quantities and average prices based on the side of the position
+                if side == 'buy':
+                    position_details[symbol]['long']['qty'] += size
+                    position_details[symbol]['long']['avg_price'] = avg_price
+                elif side == 'sell':
+                    position_details[symbol]['short']['qty'] += size
+                    position_details[symbol]['short']['avg_price'] = avg_price
+
+        return position_details
+
+    def helperv3(self, symbol, dynamic_amount, direction):
+        if self.helper_active:
+            # Fetch orderbook and positions
+            orderbook = self.exchange.get_orderbook(symbol)
+            best_bid_price = Decimal(orderbook['bids'][0][0])
+            best_ask_price = Decimal(orderbook['asks'][0][0])
+
+            # Adjust helper_wall_size
+            base_helper_wall_size = self.helper_wall_size
+            adjusted_helper_wall_size = base_helper_wall_size + 5
+
+            # Initialize variables
+            helper_orders = []
+
+            # Dynamic safety_margin and base_gap based on asset's price
+            safety_margin = best_ask_price * Decimal('0.0060')  # 0.60% of current price
+            base_gap = best_ask_price * Decimal('0.0060')  # 0.60% of current price
+
+            for i in range(adjusted_helper_wall_size):
+                gap = base_gap + Decimal(i) * Decimal('0.002')  # Increasing gap for each subsequent order
+                unique_id = int(time.time() * 1000) + i  # Generate a unique identifier
+
+                if direction == "long":
+                    # Calculate long helper price based on best ask price
+                    helper_price = best_ask_price + gap + safety_margin
+                    helper_price = helper_price.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
+                    helper_order = self.exchange.create_tagged_limit_order_bybit(
+                        symbol,
+                        "sell",
+                        dynamic_amount * 1.5,
+                        helper_price,
+                        positionIdx=2,
+                        postOnly=True,
+                        params={"orderLinkId": f"helperOrder_{symbol}_long_{unique_id}"}
+                    )
+                    helper_orders.append(helper_order)
+
+                elif direction == "short":
+                    # Calculate short helper price based on best bid price
+                    helper_price = best_bid_price - gap - safety_margin
+                    helper_price = helper_price.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
+                    helper_order = self.exchange.create_tagged_limit_order_bybit(
+                        symbol,
+                        "buy",
+                        dynamic_amount * 1.5,
+                        helper_price,
+                        positionIdx=1,
+                        postOnly=True,
+                        params={"orderLinkId": f"helperOrder_{symbol}_short_{unique_id}"}
+                    )
+                    helper_orders.append(helper_order)
+
+            # Sleep for the helper duration and then cancel all placed orders
+            time.sleep(self.helper_duration)
+
+            # Cancel orders and handle errors
+            for order in helper_orders:
+                if 'id' in order:
+                    logging.info(f"Helper order for {symbol}: {order}")
+                    self.exchange.cancel_order_by_id(order['id'], symbol)
+                else:
+                    logging.warning(f"Could not place helper order for {symbol}: {order.get('error', 'Unknown error')}")
+
+            # Deactivate helper for the next cycle
+            self.helper_active = False
+            
     def helperv2(self, symbol, short_dynamic_amount, long_dynamic_amount):
         if self.helper_active:
             # Fetch orderbook and positions
@@ -1345,11 +1438,12 @@ class BaseStrategy:
             helper_orders = []
 
             # Dynamic safety_margin and base_gap based on asset's price
-            safety_margin = best_ask_price * Decimal('0.0060')  # 0.0030 # 0.10% of current price
-            base_gap = best_ask_price * Decimal('0.0060') #0.0030  # 0.10% of current price
+            safety_margin = best_ask_price * Decimal('0.0060')  # 0.10% of current price
+            base_gap = best_ask_price * Decimal('0.0060')  # 0.10% of current price
 
             for i in range(adjusted_helper_wall_size):
                 gap = base_gap + Decimal(i) * Decimal('0.002')  # Increasing gap for each subsequent order
+                unique_id = int(time.time() * 1000) + i  # Generate a unique identifier
 
                 if larger_position == "long":
                     # Calculate long helper price based on best ask price
@@ -1362,7 +1456,7 @@ class BaseStrategy:
                         helper_price_long,
                         positionIdx=2,
                         postOnly=True,
-                        params={"orderLinkId": f"helperOrder_{symbol}_long_{i}"}
+                        params={"orderLinkId": f"helperOrder_{symbol}_long_{unique_id}"}
                     )
                     helper_orders.append(helper_order_long)
 
@@ -1377,7 +1471,7 @@ class BaseStrategy:
                         helper_price_short,
                         positionIdx=1,
                         postOnly=True,
-                        params={"orderLinkId": f"helperOrder_{symbol}_short_{i}"}
+                        params={"orderLinkId": f"helperOrder_{symbol}_short_{unique_id}"}
                     )
                     helper_orders.append(helper_order_short)
 
