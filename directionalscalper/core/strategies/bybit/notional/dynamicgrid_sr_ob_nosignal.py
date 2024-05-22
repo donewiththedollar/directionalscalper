@@ -806,7 +806,7 @@ class BybitDynamicGridSpanOBSRStaticNoSignal(BybitStrategy):
                     short_tp_counts = tp_order_counts['short_tp_count']
 
                     try:
-                        self.linear_grid_hardened_gridspan_ob_volumes_nosignal(
+                        self.linear_grid_hardened_gridspan_orderbook_maxposqty_nosignal(
                             symbol,
                             open_symbols,
                             total_equity,
@@ -817,14 +817,12 @@ class BybitDynamicGridSpanOBSRStaticNoSignal(BybitStrategy):
                             levels,
                             strength,
                             outer_price_distance,
-                            min_outer_price_distance,
-                            max_outer_price_distance,
                             reissue_threshold,
                             self.wallet_exposure_limit,
                             wallet_exposure_limit_long,
                             wallet_exposure_limit_short,
                             self.user_defined_leverage_long,
-                            self.user_defined_leverage_short,
+                            self.user_defined_leverage_long,
                             long_mode,
                             short_mode,
                             initial_entry_buffer_pct,
@@ -832,7 +830,6 @@ class BybitDynamicGridSpanOBSRStaticNoSignal(BybitStrategy):
                             max_buffer_percentage,
                             self.symbols_allowed,
                             enforce_full_grid,
-                            mfirsi_signal,
                             upnl_profit_pct,
                             max_upnl_profit_pct,
                             tp_order_counts,
@@ -841,7 +838,7 @@ class BybitDynamicGridSpanOBSRStaticNoSignal(BybitStrategy):
                             max_qty_percent_short
                         )
                     except Exception as e:
-                        logging.info("Something is up with variables for the grid")
+                        logging.info(f"Exception in func {e}")
 
 
                     logging.info(f"Long tp counts: {long_tp_counts}")
