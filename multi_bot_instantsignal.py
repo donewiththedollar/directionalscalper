@@ -31,6 +31,7 @@ from directionalscalper.core.exchanges.hyperliquid import HyperLiquidExchange
 from directionalscalper.core.exchanges.bybit import BybitExchange
 from directionalscalper.core.exchanges.exchange import Exchange
 
+import directionalscalper.core.strategies.bybit.notional.instantsignals as instant_signals
 import directionalscalper.core.strategies.bybit.notional as bybit_notional
 import directionalscalper.core.strategies.bybit.scalping as bybit_scalping
 import directionalscalper.core.strategies.bybit.hedging as bybit_hedging
@@ -282,9 +283,6 @@ class DirectionalMarketMaker:
         elif strategy_name.lower() == 'dynamicgridob':
             strategy = bybit_notional.BybitDynamicGridSpanOB(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'dynamicgridobsr':
-            strategy = bybit_notional.BybitDynamicGridSpanOBSR(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
         elif strategy_name.lower() == 'dynamicgridobsratrp':
             strategy = bybit_notional.BybitDynamicGridSpanOBSRATRP(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
@@ -298,7 +296,7 @@ class DirectionalMarketMaker:
             strategy = bybit_notional.BybitDynamicGridSpanOBSRStaticNoSignal(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
         elif strategy_name.lower() == 'qsgridinstantsignal':
-            strategy = bybit_notional.BybitDynamicGridSpanOBSRStaticIS(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy = instant_signals.BybitDynamicGridSpanOBSRStaticIS(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
 
     def get_balance(self, quote, market_type=None, sub_type=None):

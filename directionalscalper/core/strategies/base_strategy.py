@@ -2286,6 +2286,65 @@ class BaseStrategy:
             else:
                 logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
 
+    def get_mfirsi_ema_secondary_ema_bollinger(self, symbol: str, limit: int = 100, lookback: int = 1, ema_period: int = 5, secondary_ema_period: int = 3) -> str:
+        # Fetch OHLCV data
+        ohlcv_data = self.exchange.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
+        df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+
+        # Calculate MFI and RSI
+        df['mfi'] = ta.volume.MFIIndicator(high=df['high'], low=df['low'], close=df['close'], volume=df['volume'], window=14, fillna=False).money_flow_index()
+        df['rsi'] = ta.momentum.RSIIndicator(df['close'], window=14).rsi()
+
+        # Calculate EMAs for MFI and RSI
+        df['mfi_ema'] = df['mfi'].ewm(span=ema_period, adjust=False).mean()
+        df['rsi_ema'] = df['rsi'].ewm(span=ema_period, adjust=False).mean()
+
+        # Calculate secondary EMAs for MFI and RSI
+        df['mfi_ema_secondary'] = df['mfi'].ewm(span=secondary_ema_period, adjust=False).mean()
+        df['rsi_ema_secondary'] = df['rsi'].ewm(span=secondary_ema_period, adjust=False).mean()
+
+        # Calculate MACD
+        macd = ta.trend.MACD(df['close'], window_slow=26, window_fast=12, window_sign=9)
+        df['macd'] = macd.macd()
+        df['macd_signal'] = macd.macd_signal()
+        df['macd_diff'] = macd.macd_diff()
+
+        # Calculate Bollinger Bands
+        bollinger = ta.volatility.BollingerBands(close=df['close'], window=20, window_dev=2)
+        df['bb_bbm'] = bollinger.bollinger_mavg()
+        df['bb_bbh'] = bollinger.bollinger_hband()
+        df['bb_bbl'] = bollinger.bollinger_lband()
+
+        # Determine conditions using EMAs, MACD, and Bollinger Bands
+        df['buy_condition'] = (
+            (df['mfi_ema'] < 30) &
+            (df['rsi_ema'] < 40) &
+            (df['mfi_ema_secondary'] < df['mfi_ema']) &
+            (df['rsi_ema_secondary'] < df['rsi_ema']) &
+            (df['open'] < df['close']) &
+            (df['macd'] > df['macd_signal']) &  # MACD condition
+            (df['close'] < df['bb_bbl'])        # Bollinger Bands condition
+        ).astype(int)
+        
+        df['sell_condition'] = (
+            (df['mfi_ema'] > 70) &
+            (df['rsi_ema'] > 60) &
+            (df['mfi_ema_secondary'] > df['mfi_ema']) &
+            (df['rsi_ema_secondary'] > df['rsi_ema']) &
+            (df['open'] > df['close']) &
+            (df['macd'] < df['macd_signal']) &  # MACD condition
+            (df['close'] > df['bb_bbh'])        # Bollinger Bands condition
+        ).astype(int)
+
+        # Evaluate conditions over the lookback period
+        recent_conditions = df.iloc[-lookback:]
+        if recent_conditions['buy_condition'].sum() > 0:
+            return 'long'
+        elif recent_conditions['sell_condition'].sum() > 0:
+            return 'short'
+        else:
+            return 'neutral'
+            
     def get_mfirsi_ema_secondary_ema_highfreq(self, symbol: str, limit: int = 100, lookback: int = 1, ema_period: int = 5, secondary_ema_period: int = 3) -> str:
         # Fetch OHLCV data
         ohlcv_data = self.exchange.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
