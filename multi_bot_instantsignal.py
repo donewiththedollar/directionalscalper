@@ -98,7 +98,6 @@ def get_available_strategies():
         'qsdynamicgridspan',
         'qsgriddynamictplinspaced',
         'dynamicgridob',
-        'dynamicgridobsr',
         'dynamicgridobsratrp',
         'qsgriddynamictp',
         'qsgriddynamic',
@@ -152,153 +151,93 @@ class DirectionalMarketMaker:
         self.config = config
         self.exchange_name = exchange_name
         self.account_name = account_name
-        exchange_config = None
 
-        for exch in config.exchanges:
-            if exch.name == exchange_name and exch.account_name == account_name:  # Check both fields
-                exchange_config = exch
-                break
-
+        exchange_config = next((exch for exch in config.exchanges if exch.name == exchange_name and exch.account_name == account_name), None)
+        
         if not exchange_config:
             raise ValueError(f"Exchange {exchange_name} with account {account_name} not found in the configuration file.")
-        
+
         api_key = exchange_config.api_key
         secret_key = exchange_config.api_secret
-        passphrase = exchange_config.passphrase
+        passphrase = getattr(exchange_config, 'passphrase', None)  # Use getattr to get passphrase if it exists
         
-        # if exchange_name.lower() == 'bybit' or exchange_name.lower() == 'bybit_spot':
-        #     market_type = 'spot' if exchange_name.lower() == 'bybit_spot' else 'swap'
-        #     self.exchange = BybitExchange(api_key, secret_key, passphrase, market_type)
-        if exchange_name.lower() == 'bybit':
-            market_type = 'swap'
-            self.exchange = BybitExchange(api_key, secret_key, passphrase, market_type)
+        exchange_classes = {
+            'bybit': BybitExchange,
+            'bybit_spot': BybitExchange,
+            'hyperliquid': HyperLiquidExchange,
+            'huobi': HuobiExchange,
+            'bitget': BitgetExchange,
+            'binance': BinanceExchange,
+            'mexc': MexcExchange,
+            'lbank': LBankExchange
+        }
+
+        exchange_class = exchange_classes.get(exchange_name.lower(), Exchange)
+
+        # Initialize the exchange based on whether a passphrase is required
+        if exchange_name.lower() in ['bybit', 'binance']:  # Add other exchanges here that do not require a passphrase
+            self.exchange = exchange_class(api_key, secret_key)
         elif exchange_name.lower() == 'bybit_spot':
-            market_type = 'spot'
-            self.exchange = BybitExchange(api_key, secret_key, passphrase, market_type)
-        elif exchange_name.lower() == 'hyperliquid':
-            self.exchange = HyperLiquidExchange(api_key, secret_key, passphrase)
-        elif exchange_name.lower() == 'huobi':
-            self.exchange = HuobiExchange(api_key, secret_key, passphrase)
-        elif exchange_name.lower() == 'bitget':
-            self.exchange = BitgetExchange(api_key, secret_key, passphrase)
-        elif exchange_name.lower() == 'binance':
-            self.exchange = BinanceExchange(api_key, secret_key, passphrase)
-        elif exchange_name.lower() == 'mexc':
-            self.exchange = MexcExchange(api_key, secret_key, passphrase)
-        elif exchange_name.lower() == 'lbank':
-            self.exchange = LBankExchange(api_key, secret_key, passphrase)
+            self.exchange = exchange_class(api_key, secret_key, 'spot')
         else:
-            self.exchange = Exchange(self.exchange_name, api_key, secret_key, passphrase)
+            self.exchange = exchange_class(api_key, secret_key, passphrase)
+
 
     def run_strategy(self, symbol, strategy_name, config, account_name, symbols_to_trade=None, rotator_symbols_standardized=None, mfirsi_signal=None):
         logging.info(f"Received rotator symbols in run_strategy for {symbol}: {rotator_symbols_standardized}")
-        symbols_allowed = None
-        for exch in config.exchanges:
-            if exch.name == self.exchange_name and exch.account_name == account_name:
-                symbols_allowed = exch.symbols_allowed
-                print(f"Matched exchange: {exchange_name}, account: {args.account_name}. Symbols allowed: {symbols_allowed}")
-                break
-
-        print(f"Multibot.py: symbols_allowed from config: {symbols_allowed}")
+        
+        symbols_allowed = next((exch.symbols_allowed for exch in config.exchanges if exch.name == self.exchange_name and exch.account_name == account_name), None)
+        
+        logging.info(f"Matched exchange: {self.exchange_name}, account: {account_name}. Symbols allowed: {symbols_allowed}")
 
         if symbols_to_trade:
-            print(f"Calling run method with symbols: {symbols_to_trade}")
-
+            logging.info(f"Calling run method with symbols: {symbols_to_trade}")
             try:
-                print_cool_trading_info(symbol, exchange_name, strategy_name, account_name)
+                print_cool_trading_info(symbol, self.exchange_name, strategy_name, account_name)
                 logging.info(f"Printed trading info for {symbol}")
             except Exception as e:
-                logging.info(f"Error in printing info: {e}")
+                logging.error(f"Error in printing info: {e}")
 
-        # Pass symbols_allowed to the strategy constructors
-        if strategy_name.lower() == 'bybit_1m_qfl_mfi_eri_walls':
-            strategy = bybit_scalping.BybitMMOneMinuteQFLMFIERIWalls(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'bybit_1m_qfl_mfi_eri_autohedge_walls_atr':
-            strategy = bybit_hedging.BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'bybit_mfirsi_imbalance':
-            strategy = bybit_scalping.BybitMFIRSIERIOBImbalance(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'bybit_mfirsi_quickscalp':
-            strategy = bybit_scalping.BybitMFIRSIQuickScalp(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'qstrend':
-            strategy = bybit_notional.BybitQuickScalpTrendNotional(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'qsematrend':
-            strategy = bybit_scalping.BybitQuickScalpEMATrend(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'qstrend_dca':
-            strategy = bybit_scalping.BybitQuickScalpTrendDCA(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'mfieritrend':
-            strategy = bybit_scalping.BybitMFIERILongShortTrend(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'qstrendlongonly':
-            strategy = bybit_scalping.BybitMFIRSIQuickScalpLong(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'qstrendshortonly':
-            strategy = bybit_scalping.BybitMFIRSIQuickScalpShort(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'qstrend_unified':
-            strategy = bybit_scalping.BybitQuickScalpUnified(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'qstrendemas':
-            strategy = bybit_notional.BybitQSTrendDoubleMANotional(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'basicgrid':
-            strategy = bybit_scalping.BybitBasicGrid(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'qstrendspot':
-            strategy = bybit_scalping.BybitQuickScalpTrendSpot(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'basicgridpersist':
-            strategy = bybit_notional.BybitBasicGridMFIRSIPersisentNotional(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'qstrenderi':
-            strategy = bybit_notional.BybitQuickScalpTrendERINotional(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'qsgridnotional':
-            strategy = bybit_notional.BybitQSGridNotional(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'qsgridbasic':
-            strategy = bybit_notional.BybitBasicGridBuffered(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'qsgriddynamic':
-            strategy = bybit_notional.BybitBasicGridBufferedQS(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'qstrendob':
-            strategy = bybit_notional.BybitQuickScalpTrendOBNotional(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'qsgriddynamictp':
-            strategy = bybit_notional.BybitBasicGridBufferedQSDTP(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'qsgriddynamictplinspaced':
-            strategy = bybit_notional.BybitDynamicGridDynamicTPLinSpaced(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'qsdynamicgridspan':
-            strategy = bybit_notional.BybitDynamicGridSpan(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'dynamicgridob':
-            strategy = bybit_notional.BybitDynamicGridSpanOB(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'dynamicgridobsratrp':
-            strategy = bybit_notional.BybitDynamicGridSpanOBSRATRP(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'qsgriddynamicstatic':
-            strategy = bybit_notional.BybitDynamicGridSpanOBSRStatic(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'qsgridobdca':
-            strategy = bybit_notional.BybitDynamicGridOBDCA(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'qsgridnosignalstatic':
-            strategy = bybit_notional.BybitDynamicGridSpanOBSRStaticNoSignal(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
-        elif strategy_name.lower() == 'qsgridinstantsignal':
-            strategy = instant_signals.BybitDynamicGridSpanOBSRStaticIS(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
+        strategy_classes = {
+            'bybit_1m_qfl_mfi_eri_walls': bybit_scalping.BybitMMOneMinuteQFLMFIERIWalls,
+            'bybit_1m_qfl_mfi_eri_autohedge_walls_atr': bybit_hedging.BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR,
+            'bybit_mfirsi_imbalance': bybit_scalping.BybitMFIRSIERIOBImbalance,
+            'bybit_mfirsi_quickscalp': bybit_scalping.BybitMFIRSIQuickScalp,
+            'qstrend': bybit_notional.BybitQuickScalpTrendNotional,
+            'qsematrend': bybit_scalping.BybitQuickScalpEMATrend,
+            'qstrend_dca': bybit_scalping.BybitQuickScalpTrendDCA,
+            'mfieritrend': bybit_scalping.BybitMFIERILongShortTrend,
+            'qstrendlongonly': bybit_scalping.BybitMFIRSIQuickScalpLong,
+            'qstrendshortonly': bybit_scalping.BybitMFIRSIQuickScalpShort,
+            'qstrend_unified': bybit_scalping.BybitQuickScalpUnified,
+            'qstrendemas': bybit_notional.BybitQSTrendDoubleMANotional,
+            'basicgrid': bybit_scalping.BybitBasicGrid,
+            'qstrendspot': bybit_scalping.BybitQuickScalpTrendSpot,
+            'basicgridpersist': bybit_notional.BybitBasicGridMFIRSIPersisentNotional,
+            'qstrenderi': bybit_notional.BybitQuickScalpTrendERINotional,
+            'qsgridnotional': bybit_notional.BybitQSGridNotional,
+            'qsgridbasic': bybit_notional.BybitBasicGridBuffered,
+            'qsgriddynamic': bybit_notional.BybitBasicGridBufferedQS,
+            'qstrendob': bybit_notional.BybitQuickScalpTrendOBNotional,
+            'qsgriddynamictp': bybit_notional.BybitBasicGridBufferedQSDTP,
+            'qsgriddynamictplinspaced': bybit_notional.BybitDynamicGridDynamicTPLinSpaced,
+            'qsdynamicgridspan': bybit_notional.BybitDynamicGridSpan,
+            'dynamicgridob': bybit_notional.BybitDynamicGridSpanOB,
+            'dynamicgridobsratrp': bybit_notional.BybitDynamicGridSpanOBSRATRP,
+            'qsgriddynamicstatic': bybit_notional.BybitDynamicGridSpanOBSRStatic,
+            'qsgridobdca': bybit_notional.BybitDynamicGridOBDCA,
+            'qsgridnosignalstatic': bybit_notional.BybitDynamicGridSpanOBSRStaticNoSignal,
+            'qsgridinstantsignal': instant_signals.BybitDynamicGridSpanOBSRStaticIS,
+            'qsgriddynmaicgridspaninstant' : instant_signals.BybitDynamicGridSpanIS
+        }
 
+        strategy_class = strategy_classes.get(strategy_name.lower())
+        if strategy_class:
+            strategy = strategy_class(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
+        else:
+            logging.error(f"Strategy {strategy_name} not found.")
+            
     def get_balance(self, quote, market_type=None, sub_type=None):
         if self.exchange_name == 'bitget':
             return self.exchange.get_balance_bitget(quote)
