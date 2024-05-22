@@ -452,13 +452,15 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                 for symbol in completed_symbols:
                     active_symbols.discard(symbol)
                     del threads[symbol]
-                    del thread_start_time[symbol]
+                    if symbol in thread_start_time:
+                        del thread_start_time[symbol]
                     logging.info(f"Thread and symbol management completed for: {symbol}")
 
         except Exception as e:
             logging.info(f"Exception caught in bybit_auto_rotation: {str(e)}")
             logging.info(traceback.format_exc())
         time.sleep(1)
+
 
 
 
