@@ -148,7 +148,7 @@ class BybitDynamicGridSpanOBSRStaticIS(BybitStrategy):
 
             # Initializing time trackers for less frequent API calls
             last_equity_fetch_time = 0
-            equity_refresh_interval = 1800  # 30 minutes in seconds
+            equity_refresh_interval = 30  # 30 minutes in seconds
 
             # # Clean out orders
             # self.exchange.cancel_all_orders_for_symbol_bybit(symbol)
