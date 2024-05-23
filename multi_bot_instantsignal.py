@@ -331,7 +331,7 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
 def bybit_auto_rotation(args, manager, symbols_allowed):
     global latest_rotator_symbols, threads, active_symbols, last_rotator_update_time
 
-    signal_executor = ThreadPoolExecutor(max_workers=30)
+    signal_executor = ThreadPoolExecutor(max_workers=10)
 
     # Create an instance of DirectionalMarketMaker to use its methods
     config_file_path = Path('configs/' + args.config) if not args.config.startswith('configs/') else Path(args.config)
@@ -397,7 +397,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
         except Exception as e:
             logging.info(f"Exception caught in bybit_auto_rotation: {str(e)}")
             logging.info(traceback.format_exc())
-        time.sleep(1)
+        time.sleep(10)
 
 
 
@@ -541,7 +541,7 @@ def manage_rotator_symbols(rotator_symbols, args, manager, symbols_allowed):
             manage_excess_threads(symbols_allowed)
             
             # Sleep for a short time to avoid excessive CPU usage
-            time.sleep(3)
+            time.sleep(10)
 
 def manage_excess_threads(symbols_allowed):
     global active_symbols
@@ -828,7 +828,7 @@ if __name__ == '__main__':
             logging.info(f"Active symbols: {active_symbols}")
             logging.info(f"Total active symbols: {len(active_symbols)}")
 
-            time.sleep(5)
+            time.sleep(15)
         except Exception as e:
             logging.info(f"Exception caught in main loop: {e}")
             logging.info(traceback.format_exc())

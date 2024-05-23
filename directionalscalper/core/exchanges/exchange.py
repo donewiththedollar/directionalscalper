@@ -21,6 +21,10 @@ logging = Logger(logger_name="Exchange", filename="Exchange.log", stream=True)
 
 class Exchange:
     # Shared class-level cache variables
+    symbols_cache = None
+    symbols_cache_time = None
+    symbols_cache_duration = 300  # Cache duration in seconds
+
     open_positions_shared_cache = None
     last_open_positions_time_shared = None
     open_positions_semaphore = threading.Semaphore()
@@ -173,11 +177,17 @@ class Exchange:
                 logging.error(f"Exception occurred while processing trades for {symbol}: {e}")
 
     def _get_symbols(self):
+        current_time = time.time()
+        if Exchange.symbols_cache and (current_time - Exchange.symbols_cache_time) < Exchange.symbols_cache_duration:
+            logging.info("Returning cached symbols")
+            return Exchange.symbols_cache
+
         while True:
             try:
-                #self.exchange.set_sandbox_mode(True)
                 markets = self.exchange.load_markets()
                 symbols = [market['symbol'] for market in markets.values()]
+                Exchange.symbols_cache = symbols
+                Exchange.symbols_cache_time = current_time
                 return symbols
             except ccxt.errors.RateLimitExceeded as e:
                 logging.info(f"Get symbols Rate limit exceeded: {e}, retrying in 10 seconds...")
@@ -185,6 +195,42 @@ class Exchange:
             except Exception as e:
                 logging.info(f"An error occurred while fetching symbols: {e}, retrying in 10 seconds...")
                 time.sleep(10)
+
+    # def _get_symbols(self):
+    #     current_time = time.time()
+    #     if self.symbols_cache and (current_time - self.symbols_cache_time) < self.cache_duration:
+    #         logging.info("Returning cached symbols")
+    #         return self.symbols_cache
+
+    #     while True:
+    #         try:
+    #             #self.exchange.set_sandbox_mode(True)
+    #             markets = self.exchange.load_markets()
+    #             symbols = [market['symbol'] for market in markets.values()]
+    #             self.symbols_cache = symbols
+    #             self.symbols_cache_time = current_time
+    #             logging.info(f"Get symbols accessed")
+    #             return symbols
+    #         except RateLimitExceeded as e:
+    #             logging.info(f"Get symbols Rate limit exceeded: {e}, retrying in 10 seconds...")
+    #             time.sleep(10)
+    #         except Exception as e:
+    #             logging.info(f"An error occurred while fetching symbols: {e}, retrying in 10 seconds...")
+    #             time.sleep(10)
+
+    # def _get_symbols(self):
+    #     while True:
+    #         try:
+    #             #self.exchange.set_sandbox_mode(True)
+    #             markets = self.exchange.load_markets()
+    #             symbols = [market['symbol'] for market in markets.values()]
+    #             return symbols
+    #         except ccxt.errors.RateLimitExceeded as e:
+    #             logging.info(f"Get symbols Rate limit exceeded: {e}, retrying in 10 seconds...")
+    #             time.sleep(10)
+    #         except Exception as e:
+    #             logging.info(f"An error occurred while fetching symbols: {e}, retrying in 10 seconds...")
+    #             time.sleep(10)
 
     def get_ohlc_data(self, symbol, timeframe='1H', since=None, limit=None):
         """
