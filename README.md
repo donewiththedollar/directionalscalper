@@ -21,7 +21,7 @@ Directional Scalper        |  API Scraper               |  Dashboard            
 - Clone the repo `git clone https://github.com/donewiththedollar/directionalscalper.git`
 - Install requirements `pip3.11 install -r requirements.txt`
 - Add API key(s) to config.json in /configs folder
-- Run the bot `python3.11 multi_bot.py --config config.json` to display the menu to select a strategy
+- Run the bot `python3.11 multi_bot_instantsignal.py --config config.json or the old multi_bot.py --config config.json` to display the menu to select a strategy
 
   OR via command line parameters
   
@@ -36,7 +36,7 @@ Directional Scalper        |  API Scraper               |  Dashboard            
 > Exchanges that are WIP: Huobi, Okx, Binance, Bitget, MEXC (There is still no futures API), Phemex
 
 ## Dashboard setup
-- Run multi_bot `python3.11 multi_bot.py` or with arguments `python3.11 multi_bot.py --exchange bybit --strategy bybit_mfirsi_trend_rotator --config config.json`
+- Run multi_bot `python3.11 multi_bot_instantsignal.py` or with arguments `python3.11 multi_bot_instantsignal.py --exchange bybit --account_name account_1 --strategy qsgridinstantsignal --config config.json`
 - Start a tmux session `tmux new -s dash`
 - Inside the tmux session, ensure you are in project directory and `streamlit run dashboard.py`
 - If you are having issues, you may have not ran `pip3.11 install -r requirements.txt` again as requirements have changed in recent revisions.
