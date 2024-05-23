@@ -91,6 +91,7 @@ def standardize_symbol(symbol):
 
 def get_available_strategies():
     return [
+        'longonlyhft',
         'qsgridnosignalstatic',
         'qsgriddynamicstatic',
         'qsgridobdca',
