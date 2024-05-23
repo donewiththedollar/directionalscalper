@@ -95,6 +95,7 @@ def get_available_strategies():
         'qsgridnosignalstatic',
         'qsgriddynamicstatic',
         'qsgridobdca',
+        'qsgriddynmaicgridspaninstant',
         'qsdynamicgridspan',
         'qsgriddynamictplinspaced',
         'dynamicgridob',

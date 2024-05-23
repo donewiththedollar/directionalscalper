@@ -17,7 +17,7 @@ logging = Logger(logger_name="BybitDynamicGridSpanIS", filename="BybitDynamicGri
 symbol_locks = {}
 
 class BybitDynamicGridSpanIS(BybitStrategy):
-    def __init__(self, exchange, manager, config, symbols_allowed=None):
+    def __init__(self, exchange, manager, config, symbols_allowed=None, rotator_symbols_standardized=None, mfirsi_signal=None):
         super().__init__(exchange, config, manager, symbols_allowed)
         self.is_order_history_populated = False
         self.last_health_check_time = time.time()
@@ -93,7 +93,7 @@ class BybitDynamicGridSpanIS(BybitStrategy):
             logging.error(f"Failed to initialize attributes from config: {e}")
 
 
-    def run(self, symbol, rotator_symbols_standardized=None):
+    def run(self, symbol, rotator_symbols_standardized=None, mfirsi_signal=None):
         try:
             standardized_symbol = symbol.upper()  # Standardize the symbol name
             logging.info(f"Standardized symbol: {standardized_symbol}")
@@ -105,7 +105,7 @@ class BybitDynamicGridSpanIS(BybitStrategy):
             if symbol_locks[standardized_symbol].acquire(blocking=False):
                 logging.info(f"Lock acquired for symbol {standardized_symbol} by thread {current_thread_id}")
                 try:
-                    self.run_single_symbol(standardized_symbol, rotator_symbols_standardized)
+                    self.run_single_symbol(standardized_symbol, rotator_symbols_standardized, mfirsi_signal)
                 finally:
                     symbol_locks[standardized_symbol].release()
                     logging.info(f"Lock released for symbol {standardized_symbol} by thread {current_thread_id}")
@@ -114,7 +114,7 @@ class BybitDynamicGridSpanIS(BybitStrategy):
         except Exception as e:
             logging.info(f"Exception in run function {e}")
 
-    def run_single_symbol(self, symbol, rotator_symbols_standardized=None):
+    def run_single_symbol(self, symbol, rotator_symbols_standardized=None, mfirsi_signal=None):
         try:
             logging.info(f"Starting to process symbol: {symbol}")
             logging.info(f"Initializing default values for symbol: {symbol}")
