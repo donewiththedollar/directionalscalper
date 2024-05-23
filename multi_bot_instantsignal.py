@@ -331,7 +331,7 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
 def bybit_auto_rotation(args, manager, symbols_allowed):
     global latest_rotator_symbols, threads, active_symbols, last_rotator_update_time
 
-    signal_executor = ThreadPoolExecutor(max_workers=10) # or 5
+    signal_executor = ThreadPoolExecutor(max_workers=5) # or 5
 
     # Create an instance of DirectionalMarketMaker to use its methods
     config_file_path = Path('configs/' + args.config) if not args.config.startswith('configs/') else Path(args.config)
@@ -373,6 +373,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                 signal_futures = []
                 for symbol in latest_rotator_symbols:
                     signal_futures.append(signal_executor.submit(process_signal, symbol, args, manager, symbols_allowed, open_position_data))
+                    time.sleep(2)
 
                 for future in as_completed(signal_futures):
                     try:
