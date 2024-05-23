@@ -180,7 +180,7 @@ class Exchange:
                 symbols = [market['symbol'] for market in markets.values()]
                 return symbols
             except ccxt.errors.RateLimitExceeded as e:
-                logging.info(f"Rate limit exceeded: {e}, retrying in 10 seconds...")
+                logging.info(f"Get symbols Rate limit exceeded: {e}, retrying in 10 seconds...")
                 time.sleep(10)
             except Exception as e:
                 logging.info(f"An error occurred while fetching symbols: {e}, retrying in 10 seconds...")
