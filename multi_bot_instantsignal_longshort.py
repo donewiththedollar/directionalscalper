@@ -392,8 +392,8 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                     try:
                         future.result()
                     except Exception as e:
-                        logging.error(f"Exception in signal processing: {e}")
-                        logging.debug(traceback.format_exc())
+                        logging.info(f"Exception in signal processing: {e}")
+                        logging.info(traceback.format_exc())
 
                 completed_symbols = []
                 for symbol, (thread, thread_completed) in {**long_threads, **short_threads}.items():
@@ -413,6 +413,174 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
             logging.error(f"Exception caught in bybit_auto_rotation: {str(e)}")
             logging.debug(traceback.format_exc())
         time.sleep(10)
+
+
+# def bybit_auto_rotation(args, manager, symbols_allowed):
+#     global latest_rotator_symbols, long_threads, short_threads, active_symbols, last_rotator_update_time
+
+#     signal_executor = ThreadPoolExecutor(max_workers=2)
+#     logging.info("Initialized signal executor with max workers.")
+
+#     config_file_path = Path('configs/' + args.config) if not args.config.startswith('configs/') else Path(args.config)
+#     config = load_config(config_file_path)
+#     logging.info(f"Loaded configuration from {config_file_path}.")
+
+#     market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
+#     market_maker.manager = manager
+
+#     while True:
+#         try:
+#             current_time = time.time()
+#             open_position_data = getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
+#             open_position_symbols = {standardize_symbol(pos['symbol']) for pos in open_position_data}
+#             logging.info(f"Open position symbols: {open_position_symbols}")
+
+#             if not latest_rotator_symbols or current_time - last_rotator_update_time >= 60:
+#                 latest_rotator_symbols = fetch_updated_symbols(args, manager)
+#                 last_rotator_update_time = current_time
+#                 logging.info(f"Refreshed latest rotator symbols: {latest_rotator_symbols}")
+#             else:
+#                 logging.debug(f"No refresh needed yet. Last update was at {last_rotator_update_time}, less than 60 seconds ago.")
+
+#             with thread_management_lock:
+#                 update_active_symbols(open_position_symbols)
+#                 logging.info(f"Active symbols updated. Symbols allowed: {symbols_allowed}")
+
+#                 with ThreadPoolExecutor(max_workers=symbols_allowed * 2) as trading_executor:
+#                     futures = []
+#                     for symbol in open_position_symbols:
+#                         mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
+#                         has_open_long = any(pos['side'].lower() == 'long' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
+#                         has_open_short = any(pos['side'].lower() == 'short' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
+#                         futures.append(trading_executor.submit(start_thread_for_open_symbol, symbol, args, manager, mfirsi_signal, has_open_long, has_open_short))
+#                         logging.debug(f"Submitted thread for symbol {symbol}. MFIRSI signal: {mfirsi_signal}. Has open long: {has_open_long}. Has open short: {has_open_short}.")
+#                         time.sleep(5)
+
+#                     for future in as_completed(futures):
+#                         try:
+#                             future.result()
+#                         except Exception as e:
+#                             logging.error(f"Exception in thread: {e}")
+#                             logging.debug(traceback.format_exc())
+
+#                 signal_futures = []
+#                 for symbol in latest_rotator_symbols:
+#                     if len(active_symbols) < symbols_allowed:
+#                         signal_futures.append(signal_executor.submit(process_signal, symbol, args, manager, symbols_allowed, open_position_data))
+#                         logging.info(f"Submitted signal processing for symbol {symbol}.")
+#                         time.sleep(2)
+#                     else:
+#                         logging.info("Maximum number of open positions reached.")
+#                         break
+
+#                 for future in as_completed(signal_futures):
+#                     try:
+#                         future.result()
+#                     except Exception as e:
+#                         logging.error(f"Exception in signal processing: {e}")
+#                         logging.debug(traceback.format_exc())
+
+#                 completed_symbols = []
+#                 for symbol, (thread, thread_completed) in {**long_threads, **short_threads}.items():
+#                     if thread_completed.is_set():
+#                         thread.join()
+#                         completed_symbols.append(symbol)
+
+#                 for symbol in completed_symbols:
+#                     active_symbols.discard(symbol)
+#                     if symbol in long_threads:
+#                         del long_threads[symbol]
+#                     if symbol in short_threads:
+#                         del short_threads[symbol]
+#                     logging.info(f"Thread and symbol management completed for: {symbol}")
+
+#         except Exception as e:
+#             logging.error(f"Exception caught in bybit_auto_rotation: {str(e)}")
+#             logging.debug(traceback.format_exc())
+#         time.sleep(10)
+
+# def bybit_auto_rotation(args, manager, symbols_allowed):
+#     global latest_rotator_symbols, long_threads, short_threads, active_symbols, last_rotator_update_time
+
+#     signal_executor = ThreadPoolExecutor(max_workers=2)
+#     logging.info("Initialized signal executor with max workers.")
+
+#     config_file_path = Path('configs/' + args.config) if not args.config.startswith('configs/') else Path(args.config)
+#     config = load_config(config_file_path)
+#     logging.info(f"Loaded configuration from {config_file_path}.")
+
+#     market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
+#     market_maker.manager = manager
+
+#     while True:
+#         try:
+#             current_time = time.time()
+#             open_position_data = getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
+#             open_position_symbols = {standardize_symbol(pos['symbol']) for pos in open_position_data}
+#             logging.info(f"Open position symbols: {open_position_symbols}")
+
+#             if not latest_rotator_symbols or current_time - last_rotator_update_time >= 60:
+#                 latest_rotator_symbols = fetch_updated_symbols(args, manager)
+#                 last_rotator_update_time = current_time
+#                 logging.info(f"Refreshed latest rotator symbols: {latest_rotator_symbols}")
+#             else:
+#                 logging.debug(f"No refresh needed yet. Last update was at {last_rotator_update_time}, less than 60 seconds ago.")
+
+#             with thread_management_lock:
+#                 update_active_symbols(open_position_symbols)
+#                 logging.info(f"Active symbols updated. Symbols allowed: {symbols_allowed}")
+
+#                 with ThreadPoolExecutor(max_workers=symbols_allowed * 2) as trading_executor:
+#                     futures = []
+#                     for symbol in open_position_symbols:
+#                         mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
+#                         has_open_long = any(pos['side'].lower() == 'long' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
+#                         has_open_short = any(pos['side'].lower() == 'short' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
+#                         futures.append(trading_executor.submit(start_thread_for_open_symbol, symbol, args, manager, mfirsi_signal, has_open_long, has_open_short))
+#                         logging.debug(f"Submitted thread for symbol {symbol}. MFIRSI signal: {mfirsi_signal}. Has open long: {has_open_long}. Has open short: {has_open_short}.")
+#                         time.sleep(5)
+
+#                     for future in as_completed(futures):
+#                         try:
+#                             future.result()
+#                         except Exception as e:
+#                             logging.error(f"Exception in thread: {e}")
+#                             logging.debug(traceback.format_exc())
+
+#                 signal_futures = []
+#                 for symbol in latest_rotator_symbols:
+#                     if len(open_position_symbols) >= symbols_allowed:
+#                         logging.info("Maximum number of open positions reached.")
+#                         break
+#                     signal_futures.append(signal_executor.submit(process_signal, symbol, args, manager, symbols_allowed, open_position_data))
+#                     logging.debug(f"Submitted signal processing for symbol {symbol}.")
+#                     time.sleep(2)
+
+#                 for future in as_completed(signal_futures):
+#                     try:
+#                         future.result()
+#                     except Exception as e:
+#                         logging.error(f"Exception in signal processing: {e}")
+#                         logging.debug(traceback.format_exc())
+
+#                 completed_symbols = []
+#                 for symbol, (thread, thread_completed) in {**long_threads, **short_threads}.items():
+#                     if thread_completed.is_set():
+#                         thread.join()
+#                         completed_symbols.append(symbol)
+
+#                 for symbol in completed_symbols:
+#                     active_symbols.discard(symbol)
+#                     if symbol in long_threads:
+#                         del long_threads[symbol]
+#                     if symbol in short_threads:
+#                         del short_threads[symbol]
+#                     logging.info(f"Thread and symbol management completed for: {symbol}")
+
+#         except Exception as e:
+#             logging.error(f"Exception caught in bybit_auto_rotation: {str(e)}")
+#             logging.debug(traceback.format_exc())
+#         time.sleep(10)
 
 def process_signal(symbol, args, manager, symbols_allowed, open_position_data):
     market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
