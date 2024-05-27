@@ -362,6 +362,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                 update_active_symbols(open_position_symbols)
                 logging.info(f"Active symbols updated. Symbols allowed: {symbols_allowed}")
 
+                # Processing open position symbols
                 with ThreadPoolExecutor(max_workers=symbols_allowed * 2) as trading_executor:
                     futures = []
                     for symbol in open_position_symbols:
@@ -379,14 +380,13 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                             logging.error(f"Exception in thread: {e}")
                             logging.debug(traceback.format_exc())
 
+                # Processing latest rotator symbols
                 signal_futures = []
                 for symbol in latest_rotator_symbols:
-                    if len(open_position_symbols) >= symbols_allowed:
-                        logging.info("Maximum number of open positions reached.")
-                        break
-                    signal_futures.append(signal_executor.submit(process_signal, symbol, args, manager, symbols_allowed, open_position_data))
-                    logging.debug(f"Submitted signal processing for symbol {symbol}.")
-                    time.sleep(2)
+                    if len(active_symbols) < symbols_allowed:
+                        signal_futures.append(signal_executor.submit(process_signal, symbol, args, manager, symbols_allowed, open_position_data))
+                        logging.info(f"Submitted signal processing for symbol {symbol}.")
+                        time.sleep(2)
 
                 for future in as_completed(signal_futures):
                     try:
