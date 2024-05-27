@@ -366,12 +366,13 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                 with ThreadPoolExecutor(max_workers=symbols_allowed * 2) as trading_executor:
                     futures = []
                     for symbol in open_position_symbols:
-                        mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
-                        has_open_long = any(pos['side'].lower() == 'long' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
-                        has_open_short = any(pos['side'].lower() == 'short' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
-                        futures.append(trading_executor.submit(start_thread_for_open_symbol, symbol, args, manager, mfirsi_signal, has_open_long, has_open_short))
-                        logging.info(f"Submitted thread for symbol {symbol}. MFIRSI signal: {mfirsi_signal}. Has open long: {has_open_long}. Has open short: {has_open_short}.")
-                        time.sleep(5)
+                        if symbol not in long_threads and symbol not in short_threads:  # Only start thread if not already active
+                            mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
+                            has_open_long = any(pos['side'].lower() == 'long' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
+                            has_open_short = any(pos['side'].lower() == 'short' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
+                            futures.append(trading_executor.submit(start_thread_for_open_symbol, symbol, args, manager, mfirsi_signal, has_open_long, has_open_short))
+                            logging.info(f"Submitted thread for symbol {symbol}. MFIRSI signal: {mfirsi_signal}. Has open long: {has_open_long}. Has open short: {has_open_short}.")
+                            time.sleep(5)
 
                     for future in as_completed(futures):
                         try:
