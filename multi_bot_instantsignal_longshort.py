@@ -453,8 +453,14 @@ def handle_signal(symbol, args, manager, mfirsi_signal, open_position_data, symb
 
 def update_active_symbols():
     global active_symbols
+    active_symbols = set(long_threads.keys()) | set(short_threads.keys())
     active_symbols = {symbol for symbol in active_symbols if (symbol in long_threads and long_threads[symbol][0].is_alive()) or (symbol in short_threads and short_threads[symbol][0].is_alive())}
     logging.info(f"Updated active symbols: {active_symbols}")
+    
+# def update_active_symbols():
+#     global active_symbols
+#     active_symbols = {symbol for symbol in active_symbols if (symbol in long_threads and long_threads[symbol][0].is_alive()) or (symbol in short_threads and short_threads[symbol][0].is_alive())}
+#     logging.info(f"Updated active symbols: {active_symbols}")
 
 def manage_rotator_symbols(rotator_symbols, args, manager, symbols_allowed):
     global active_symbols, latest_rotator_symbols
