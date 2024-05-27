@@ -95,7 +95,6 @@ def get_available_strategies():
     return [
         'qsgridinstantsignal',
         'qsgridobtight',
-        'qsgridnosignalstatic',
         'qsgriddynamicstatic',
         'qsgridobdca',
         'qsgriddynmaicgridspaninstant',
@@ -231,7 +230,6 @@ class DirectionalMarketMaker:
             'dynamicgridobsratrp': bybit_notional.BybitDynamicGridSpanOBSRATRP,
             'qsgriddynamicstatic': bybit_notional.BybitDynamicGridSpanOBSRStatic,
             'qsgridobdca': bybit_notional.BybitDynamicGridOBDCA,
-            'qsgridnosignalstatic': bybit_notional.BybitDynamicGridSpanOBSRStaticNoSignal,
             'qsgridinstantsignal': instant_signals.BybitDynamicGridSpanOBSRStaticIS,
             'qsgriddynmaicgridspaninstant' : instant_signals.BybitDynamicGridSpanIS,
             'qsgridobtight' : instant_signals.BybitDynamicGridSpanOBTight,
