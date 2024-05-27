@@ -31,7 +31,7 @@ from directionalscalper.core.exchanges.hyperliquid import HyperLiquidExchange
 from directionalscalper.core.exchanges.bybit import BybitExchange
 from directionalscalper.core.exchanges.exchange import Exchange
 
-import directionalscalper.core.strategies.bybit.notional.nosignal as nosignal
+import directionalscalper.core.strategies.bybit.nosignal as nosignal
 import directionalscalper.core.strategies.bybit.notional as bybit_notional
 import directionalscalper.core.strategies.bybit.scalping as bybit_scalping
 import directionalscalper.core.strategies.bybit.hedging as bybit_hedging

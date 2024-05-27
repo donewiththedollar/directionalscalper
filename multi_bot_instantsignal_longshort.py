@@ -31,7 +31,6 @@ from directionalscalper.core.exchanges.hyperliquid import HyperLiquidExchange
 from directionalscalper.core.exchanges.bybit import BybitExchange
 from directionalscalper.core.exchanges.exchange import Exchange
 
-import directionalscalper.core.strategies.bybit.notional.nosignal as no_signals
 import directionalscalper.core.strategies.bybit.notional.instantsignals as instant_signals
 import directionalscalper.core.strategies.bybit.notional as bybit_notional
 import directionalscalper.core.strategies.bybit.scalping as bybit_scalping
