@@ -31,6 +31,7 @@ from directionalscalper.core.exchanges.hyperliquid import HyperLiquidExchange
 from directionalscalper.core.exchanges.bybit import BybitExchange
 from directionalscalper.core.exchanges.exchange import Exchange
 
+import directionalscalper.core.strategies.bybit.notional.nosignal as no_signals
 import directionalscalper.core.strategies.bybit.notional.instantsignals as instant_signals
 import directionalscalper.core.strategies.bybit.notional as bybit_notional
 import directionalscalper.core.strategies.bybit.scalping as bybit_scalping
@@ -94,7 +95,7 @@ def standardize_symbol(symbol):
 def get_available_strategies():
     return [
         'qsgridinstantsignal',
-        'qsgridnosignalstatic',
+        # 'qsgridnosignalstatic',
         'qsgriddynamicstatic',
         'qsgridobdca',
         'qsgriddynmaicgridspaninstant',
@@ -230,7 +231,7 @@ class DirectionalMarketMaker:
             'dynamicgridobsratrp': bybit_notional.BybitDynamicGridSpanOBSRATRP,
             'qsgriddynamicstatic': bybit_notional.BybitDynamicGridSpanOBSRStatic,
             'qsgridobdca': bybit_notional.BybitDynamicGridOBDCA,
-            'qsgridnosignalstatic': bybit_notional.BybitDynamicGridSpanOBSRStaticNoSignal,
+            # 'qsgridnosignalstatic': no_signals.BybitDynamicGridSpanOBSRStaticNoSignal,
             'qsgridinstantsignal': instant_signals.BybitDynamicGridSpanOBSRStaticIS,
             'qsgriddynmaicgridspaninstant' : instant_signals.BybitDynamicGridSpanIS
         }
