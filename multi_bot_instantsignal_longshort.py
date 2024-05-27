@@ -359,7 +359,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                 logging.debug(f"No refresh needed yet. Last update was at {last_rotator_update_time}, less than 60 seconds ago.")
 
             with thread_management_lock:
-                update_active_symbols()
+                update_active_symbols(open_position_symbols)
                 logging.info(f"Active symbols updated. Symbols allowed: {symbols_allowed}")
 
                 with ThreadPoolExecutor(max_workers=symbols_allowed * 2) as trading_executor:
@@ -451,12 +451,17 @@ def handle_signal(symbol, args, manager, mfirsi_signal, open_position_data, symb
         logging.info(f"Evaluated action for {symbol}: No action due to existing position or lack of clear signal.")
         return False
 
-def update_active_symbols():
+def update_active_symbols(open_position_symbols):
     global active_symbols
-    active_symbols = set(long_threads.keys()) | set(short_threads.keys())
-    active_symbols = {symbol for symbol in active_symbols if (symbol in long_threads and long_threads[symbol][0].is_alive()) or (symbol in short_threads and short_threads[symbol][0].is_alive())}
+    active_symbols = open_position_symbols
     logging.info(f"Updated active symbols: {active_symbols}")
-    
+
+# def update_active_symbols():
+#     global active_symbols
+#     active_symbols = set(long_threads.keys()) | set(short_threads.keys())
+#     active_symbols = {symbol for symbol in active_symbols if (symbol in long_threads and long_threads[symbol][0].is_alive()) or (symbol in short_threads and short_threads[symbol][0].is_alive())}
+#     logging.info(f"Updated active symbols: {active_symbols}")
+
 # def update_active_symbols():
 #     global active_symbols
 #     active_symbols = {symbol for symbol in active_symbols if (symbol in long_threads and long_threads[symbol][0].is_alive()) or (symbol in short_threads and short_threads[symbol][0].is_alive())}
@@ -550,14 +555,14 @@ def start_thread_for_open_symbol(symbol, args, manager, mfirsi_signal, has_open_
     current_long_positions = len(long_threads)
     current_short_positions = len(short_threads)
 
-    logging.info(f"Starting thread for open symbol {symbol}. Current long positions: {current_long_positions}, Current short positions: {current_short_positions}")
-
     # Check if there is room to start new long or short positions
     if has_open_long and (current_long_positions < symbols_allowed):
         if symbol not in long_threads or not long_threads[symbol][0].is_alive():
+            logging.info(f"Starting thread for open symbol {symbol}. Current long positions: {current_long_positions}, Current short positions: {current_short_positions}")
             return start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "long")
     elif has_open_short and (current_short_positions < symbols_allowed):
         if symbol not in short_threads or not short_threads[symbol][0].is_alive():
+            logging.info(f"Starting thread for open symbol {symbol}. Current long positions: {current_long_positions}, Current short positions: {current_short_positions}")
             return start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "short")
     return False
 
