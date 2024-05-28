@@ -806,7 +806,7 @@ class BybitDynamicGridSpanOBSRStaticNoSignal(BybitStrategy):
                     short_tp_counts = tp_order_counts['short_tp_count']
 
                     try:
-                        self.linear_grid_hardened_gridspan_orderbook_maxposqty_nosignal(
+                        self.linear_grid_hardened_gridspan_orderbook_maxposqty_nosignal_properdca(
                             symbol,
                             open_symbols,
                             total_equity,
