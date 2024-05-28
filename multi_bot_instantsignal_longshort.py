@@ -333,7 +333,7 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
 def bybit_auto_rotation(args, manager, symbols_allowed):
     global latest_rotator_symbols, long_threads, short_threads, active_symbols, last_rotator_update_time
 
-    signal_executor = ThreadPoolExecutor(max_workers=2)
+    signal_executor = ThreadPoolExecutor(max_workers=30)
     logging.info("Initialized signal executor with max workers.")
 
     config_file_path = Path('configs/' + args.config) if not args.config.startswith('configs/') else Path(args.config)
@@ -372,7 +372,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                 logging.info(f"Active symbols updated. Symbols allowed: {symbols_allowed}")
 
                 # Processing open position symbols for starting threads
-                with ThreadPoolExecutor(max_workers=2) as trading_executor:
+                with ThreadPoolExecutor(max_workers=30) as trading_executor:
                     futures = []
                     for symbol in open_position_symbols:
                         if symbol not in long_threads or symbol not in short_threads:  # Only start thread if not already active
