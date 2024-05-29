@@ -4353,7 +4353,6 @@ class BybitStrategy(BaseStrategy):
             logging.info("Traceback: %s", traceback.format_exc())
 
 
-
     def linear_grid_hardened_gridspan_ob_volumes(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
                                                 short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
                                                 strength: float, outer_price_distance: float, min_outer_price_distance: float, max_outer_price_distance: float, reissue_threshold: float,
@@ -4529,6 +4528,7 @@ class BybitStrategy(BaseStrategy):
 
             mfi_signal_long = mfirsi_signal.lower() == "long"
             mfi_signal_short = mfirsi_signal.lower() == "short"
+            mfi_signal_neutral = mfirsi_signal.lower() == "neutral"
 
             if len(open_symbols) < symbols_allowed or symbol in open_symbols:
                 logging.info(f"Allowed symbol: {symbol}")
@@ -4652,8 +4652,11 @@ class BybitStrategy(BaseStrategy):
 
             logging.info(f"[{symbol}] Number of open symbols: {len(open_symbols)}, Symbols allowed: {symbols_allowed}")
 
-            if (len(open_symbols) < symbols_allowed and symbol not in self.active_grids) or (symbol in open_symbols and (not has_open_long_position or not has_open_short_position)):
-                logging.info(f"[{symbol}] Checking for new trading opportunities.")
+            if (len(open_symbols) < symbols_allowed and symbol not in self.active_grids) or symbol in open_symbols: #(symbol in open_symbols and (not has_open_long_position or not has_open_short_position)):
+                logging.info(f"[{symbol}] Checking for new trading opportunities with {mfirsi_signal}")
+                logging.info(f"[{symbol}] MFIRSI Long: {mfi_signal_long}")
+                logging.info(f"[{symbol}] MFIRSI Short: {mfi_signal_short}")
+                logging.info(f"[{symbol}] MFIRSI Neutral: {mfi_signal_neutral}")
 
                 if long_mode and mfi_signal_long and not has_open_long_position and symbol not in self.max_qty_reached_symbol_long:
                     if not self.auto_reduce_active_long.get(symbol, False) or entry_during_autoreduce:
@@ -4715,6 +4718,7 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.info(f"Error in executing gridstrategy: {e}")
             logging.info("Traceback: %s", traceback.format_exc())
+
 
     def linear_grid_hardened_gridspan_orderbook_levels_atrp_maxposqty(
         self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
