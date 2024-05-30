@@ -12,11 +12,11 @@ from directionalscalper.core.strategies.bybit.bybit_strategy import BybitStrateg
 from directionalscalper.core.exchanges.bybit import BybitExchange
 from directionalscalper.core.strategies.logger import Logger
 from live_table_manager import shared_symbols_data
-logging = Logger(logger_name="BybitDynamicGridSpanOBTight", filename="BybitDynamicGridSpanOBTight.log", stream=True)
+logging = Logger(logger_name="BybitDynamicGridSpanOBLevels", filename="BybitDynamicGridSpanOBLevels.log", stream=True)
 
 symbol_locks = {}
 
-class BybitDynamicGridSpanOBTight(BybitStrategy):
+class BybitDynamicGridSpanOBLevels(BybitStrategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None, rotator_symbols_standardized=None, mfirsi_signal=None):
         super().__init__(exchange, config, manager, symbols_allowed)
         self.mfirsi_signal = mfirsi_signal
@@ -806,7 +806,7 @@ class BybitDynamicGridSpanOBTight(BybitStrategy):
                     short_tp_counts = tp_order_counts['short_tp_count']
 
                     try:
-                        self.linear_grid_hardened_gridspan_ob_volumelevels(
+                        self.linear_grid_hardened_gridspan_ob_volumelevels_test(
                             symbol,
                             open_symbols,
                             total_equity,

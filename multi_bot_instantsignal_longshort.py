@@ -93,6 +93,7 @@ def standardize_symbol(symbol):
 
 def get_available_strategies():
     return [
+        'qsgridob',
         'qsgridinstantsignal',
         'qsgridobtight',
         'qsgriddynamicstatic',
@@ -233,6 +234,7 @@ class DirectionalMarketMaker:
             'qsgridinstantsignal': instant_signals.BybitDynamicGridSpanOBSRStaticIS,
             'qsgriddynmaicgridspaninstant' : instant_signals.BybitDynamicGridSpanIS,
             'qsgridobtight' : instant_signals.BybitDynamicGridSpanOBTight,
+            'qsgridob' : instant_signals.BybitDynamicGridSpanOBLevels,
         }
 
         strategy_class = strategy_classes.get(strategy_name.lower())
@@ -271,8 +273,6 @@ class DirectionalMarketMaker:
     def get_mfirsi_signal(self, symbol):
         # Retrieve the MFI/RSI signal
         return self.exchange.get_mfirsi_ema_secondary_ema(symbol, limit=100, lookback=1, ema_period=5, secondary_ema_period=3)
-
-
 
 BALANCE_REFRESH_INTERVAL = 600  # in seconds
 
@@ -317,18 +317,17 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         logging.info(f"Rotator symbols in run_bot {rotator_symbols_standardized}")
         logging.info(f"Latest rotator symbols in run bot {latest_rotator_symbols}")
 
+        # Ensure this is the correct method to call and it's running a long task
         market_maker.run_strategy(symbol, args.strategy, config, account_name, symbols_to_trade=symbols_allowed, rotator_symbols_standardized=latest_rotator_symbols, mfirsi_signal=mfirsi_signal)
-
-        thread_completed.set()
 
     except Exception as e:
         logging.info(f"An error occurred in run_bot for symbol {symbol}: {e}")
-        thread_completed.set()
     finally:
         with thread_to_symbol_lock:
             if current_thread in thread_to_symbol:
                 del thread_to_symbol[current_thread]
         logging.info(f"Thread for symbol {symbol} has completed.")
+        thread_completed.set()
 
 def bybit_auto_rotation(args, manager, symbols_allowed):
     global latest_rotator_symbols, long_threads, short_threads, active_symbols, last_rotator_update_time
