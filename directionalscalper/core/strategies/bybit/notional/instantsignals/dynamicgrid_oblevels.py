@@ -271,7 +271,7 @@ class BybitDynamicGridSpanOBLevels(BybitStrategy):
             while self.running_long or self.running_short:
 
                 # Check for symbol inactivity
-                inactive_time_threshold = 180  # 3 minutes in seconds
+                inactive_time_threshold = 60  # 3 minutes in seconds
                 if self.check_symbol_inactivity(symbol, inactive_time_threshold):
                     logging.info(f"No open positions or orders for {symbol} in the last {inactive_time_threshold} seconds. Terminating the thread.")
                     shared_symbols_data.pop(symbol, None)
