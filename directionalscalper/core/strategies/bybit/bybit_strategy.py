@@ -152,77 +152,71 @@ class BybitStrategy(BaseStrategy):
         current_time = time.time()
         logging.info(f"Checking inactivity for {symbol} at {current_time}")
 
-        # Check if the symbol has an open position
+        # Check if the symbol has open positions
         open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
-        #logging.info(f"Open position data from check_symbol_inactivity: {open_position_data}")
-        
-        # Modify the symbol format to match the one in open_position_data
         symbol_formatted = f"{symbol.split('USDT')[0]}/USDT:USDT"
-        has_open_position = any(pos['symbol'] == symbol_formatted for pos in open_position_data)
-        
-        logging.info(f"Has open position {symbol} : {has_open_position}")
-        logging.info(f"Open positions for {symbol}: {'found' if has_open_position else 'none'}")
+        long_pos_qty = sum(pos['size'] for pos in open_position_data if pos['symbol'] == symbol_formatted and pos['side'] == 'Buy')
+        short_pos_qty = sum(pos['size'] for pos in open_position_data if pos['symbol'] == symbol_formatted and pos['side'] == 'Sell')
+
+        has_open_long_position = long_pos_qty > 0
+        has_open_short_position = short_pos_qty > 0
+
+        logging.info(f"Open positions for {symbol} - Long: {'found' if has_open_long_position else 'none'}, Short: {'found' if has_open_short_position else 'none'}")
 
         # Check if the symbol has open orders
         open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
-        has_open_orders = bool(open_orders)
-        logging.info(f"Open orders for {symbol}: {'found' if has_open_orders else 'none'}")
+        has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
+        has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
 
-        # If there are no open positions or open orders
-        if not has_open_position and not has_open_orders:
-            logging.info(f"No activity for {symbol}")
-            # Check if the inactive time threshold has been exceeded
-            if symbol in self.last_activity_time:
-                last_activity_time = self.last_activity_time[symbol]
-                inactive_time = current_time - last_activity_time
-                logging.info(f"{symbol} last active {inactive_time} seconds ago")
-                if inactive_time >= inactive_time_threshold:
-                    # Signal the thread to terminate
-                    logging.info(f"{symbol} has been inactive for {inactive_time} seconds, exceeding threshold of {inactive_time_threshold} seconds")
-                    return True
-            else:
-                # If the symbol is encountered for the first time, store the current time
-                self.last_activity_time[symbol] = current_time
-                logging.info(f"Recording initial activity time for {symbol}")
-        else:
-            # If there are open positions or open orders, update the last activity time
-            self.last_activity_time[symbol] = current_time
-            logging.info(f"Updated last activity time for {symbol}")
+        logging.info(f"Open orders for {symbol} - Long: {'found' if has_open_long_order else 'none'}, Short: {'found' if has_open_short_order else 'none'}")
+
+        # Determine inactivity and handle accordingly
+        if not has_open_long_position and not has_open_long_order:
+            if self.handle_inactivity(symbol, 'long', current_time, inactive_time_threshold):
+                return True
+        
+        if not has_open_short_position and not has_open_short_order:
+            if self.handle_inactivity(symbol, 'short', current_time, inactive_time_threshold):
+                return True
 
         return False
 
-    def check_position_inactivity(self, symbol, inactive_pos_time_threshold):
+    def handle_inactivity(self, symbol, side, current_time, inactive_time_threshold):
+        if symbol in self.last_activity_time:
+            last_activity_time = self.last_activity_time[symbol]
+            inactive_time = current_time - last_activity_time
+            logging.info(f"{symbol} ({side}) last active {inactive_time} seconds ago")
+            if inactive_time >= inactive_time_threshold:
+                logging.info(f"{symbol} ({side}) has been inactive for {inactive_time} seconds, exceeding threshold of {inactive_time_threshold} seconds")
+                if side == 'long':
+                    self.cancel_grid_orders(symbol, 'buy')
+                    self.running_long = False
+                elif side == 'short':
+                    self.cancel_grid_orders(symbol, 'sell')
+                    self.running_short = False
+                return True
+        else:
+            self.last_activity_time[symbol] = current_time
+            logging.info(f"Recording initial activity time for {symbol} ({side})")
+        return False
+
+    def check_position_inactivity(self, symbol, inactive_pos_time_threshold, long_pos_qty, short_pos_qty):
         current_time = time.time()
         logging.info(f"Checking position inactivity for {symbol} at {current_time}")
 
-        # Retrieve all open positions and check if there's an open position for the symbol
-        open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
-        # Modify the symbol format to match the one in open_position_data
-        symbol_formatted = f"{symbol.split('USDT')[0]}/USDT:USDT"
-        has_open_position = any(pos['symbol'] == symbol_formatted for pos in open_position_data)
+        has_open_long_position = long_pos_qty > 0
+        has_open_short_position = short_pos_qty > 0
 
-        logging.info(f"Open positions status for {symbol}: {'found' if has_open_position else 'none'}")
+        logging.info(f"Open positions status for {symbol} - Long: {'found' if has_open_long_position else 'none'}, Short: {'found' if has_open_short_position else 'none'}")
 
-        # If there are no open positions for the symbol
-        if not has_open_position:
-            logging.info(f"No open positions for {symbol}")
-            # Check if the inactive time threshold has been exceeded
-            if symbol in self.last_activity_time:
-                last_activity_time = self.last_activity_time[symbol]
-                inactive_time = current_time - last_activity_time
-                logging.info(f"{symbol} was last active {inactive_time} seconds ago")
-                if inactive_time >= inactive_pos_time_threshold:
-                    # Signal that the symbol has been inactive longer than the threshold
-                    logging.info(f"{symbol} has been inactive for {inactive_time} seconds, exceeding threshold of {inactive_pos_time_threshold} seconds")
-                    return True
-            else:
-                # If the symbol is encountered for the first time, store the current time
-                self.last_activity_time[symbol] = current_time
-                logging.info(f"Recording initial activity time for {symbol}")
-        else:
-            # If there are open positions, update the last activity time
-            self.last_activity_time[symbol] = current_time
-            logging.info(f"Updated last activity time for {symbol}")
+        # Determine inactivity and handle accordingly
+        if not has_open_long_position:
+            if self.handle_inactivity(symbol, 'long', current_time, inactive_pos_time_threshold):
+                return True
+        
+        if not has_open_short_position:
+            if self.handle_inactivity(symbol, 'short', current_time, inactive_pos_time_threshold):
+                return True
 
         return False
     

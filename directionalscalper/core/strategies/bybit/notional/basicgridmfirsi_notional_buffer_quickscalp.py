@@ -248,13 +248,13 @@ class BybitBasicGridBufferedQS(BybitStrategy):
 
             while self.running_long or self.running_short:
 
-                # Check for symbol inactivity
-                inactive_time_threshold = 160  # 3 minutes in seconds
-                if self.check_symbol_inactivity(symbol, inactive_time_threshold):
-                    logging.info(f"No open positions or orders for {symbol} in the last {inactive_time_threshold} seconds. Terminating the thread.")
-                    self.running_long = False
-                    self.running_short = False
-                    break
+                # # Check for symbol inactivity
+                # inactive_time_threshold = 160  # 3 minutes in seconds
+                # if self.check_symbol_inactivity(symbol, inactive_time_threshold):
+                #     logging.info(f"No open positions or orders for {symbol} in the last {inactive_time_threshold} seconds. Terminating the thread.")
+                #     self.running_long = False
+                #     self.running_short = False
+                #     break
                 
                 current_time = time.time()
                 iteration_start_time = time.time()
@@ -414,6 +414,14 @@ class BybitBasicGridBufferedQS(BybitStrategy):
                 previous_long_pos_qty = long_pos_qty
                 previous_short_pos_qty = short_pos_qty
             
+                # Check for position inactivity
+                inactive_pos_time_threshold = 180  # 3 minutes in seconds
+                if self.check_position_inactivity(symbol, inactive_pos_time_threshold, long_pos_qty, short_pos_qty):
+                    logging.info(f"No open positions for {symbol} in the last {inactive_pos_time_threshold} seconds. Terminating the thread.")
+                    shared_symbols_data.pop(symbol, None)
+                    # self.cleanup_before_termination(symbol)
+                    break
+
                 terminate_long, terminate_short = self.should_terminate_open_orders(symbol, long_pos_qty, short_pos_qty, open_position_data, open_orders, current_time)
 
                 logging.info(f"Terminate long: {terminate_long}, Terminate short: {terminate_short}")
