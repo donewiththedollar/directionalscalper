@@ -416,12 +416,11 @@ class BybitBasicGridBufferedQS(BybitStrategy):
             
                 # Check for position inactivity
                 inactive_pos_time_threshold = 180  # 3 minutes in seconds
-                if self.check_position_inactivity(symbol, inactive_pos_time_threshold, long_pos_qty, short_pos_qty):
+                if self.check_position_inactivity(symbol, inactive_pos_time_threshold, long_pos_qty, short_pos_qty, previous_long_pos_qty, previous_short_pos_qty):
                     logging.info(f"No open positions for {symbol} in the last {inactive_pos_time_threshold} seconds. Terminating the thread.")
                     shared_symbols_data.pop(symbol, None)
-                    # self.cleanup_before_termination(symbol)
                     break
-
+                    
                 terminate_long, terminate_short = self.should_terminate_open_orders(symbol, long_pos_qty, short_pos_qty, open_position_data, open_orders, current_time)
 
                 logging.info(f"Terminate long: {terminate_long}, Terminate short: {terminate_short}")

@@ -181,12 +181,12 @@ class BybitStrategy(BaseStrategy):
 
         return False
 
-    def handle_inactivity(self, symbol, side, current_time, inactive_time_threshold):
+    def handle_inactivity(self, symbol, side, current_time, inactive_time_threshold, previous_qty):
         if symbol in self.last_activity_time:
             last_activity_time = self.last_activity_time[symbol]
             inactive_time = current_time - last_activity_time
             logging.info(f"{symbol} ({side}) last active {inactive_time} seconds ago")
-            if inactive_time >= inactive_time_threshold:
+            if inactive_time >= inactive_time_threshold and previous_qty > 0:
                 logging.info(f"{symbol} ({side}) has been inactive for {inactive_time} seconds, exceeding threshold of {inactive_time_threshold} seconds")
                 if side == 'long':
                     self.cancel_grid_orders(symbol, 'buy')
@@ -200,7 +200,7 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"Recording initial activity time for {symbol} ({side})")
         return False
 
-    def check_position_inactivity(self, symbol, inactive_pos_time_threshold, long_pos_qty, short_pos_qty):
+    def check_position_inactivity(self, symbol, inactive_pos_time_threshold, long_pos_qty, short_pos_qty, previous_long_pos_qty, previous_short_pos_qty):
         current_time = time.time()
         logging.info(f"Checking position inactivity for {symbol} at {current_time}")
 
@@ -211,11 +211,11 @@ class BybitStrategy(BaseStrategy):
 
         # Determine inactivity and handle accordingly
         if not has_open_long_position:
-            if self.handle_inactivity(symbol, 'long', current_time, inactive_pos_time_threshold):
+            if self.handle_inactivity(symbol, 'long', current_time, inactive_pos_time_threshold, previous_long_pos_qty):
                 return True
         
         if not has_open_short_position:
-            if self.handle_inactivity(symbol, 'short', current_time, inactive_pos_time_threshold):
+            if self.handle_inactivity(symbol, 'short', current_time, inactive_pos_time_threshold, previous_short_pos_qty):
                 return True
 
         return False
