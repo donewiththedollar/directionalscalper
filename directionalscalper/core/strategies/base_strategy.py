@@ -1489,6 +1489,45 @@ class BaseStrategy:
             # Deactivate helper for the next cycle
             self.helper_active = False
 
+    def pm(self, symbol):
+        # Fetch orderbook
+        orderbook = self.exchange.get_orderbook(symbol)
+        best_bid_price = Decimal(orderbook['bids'][0][0])
+        best_ask_price = Decimal(orderbook['asks'][0][0])
+
+        # Calculate target price movement
+        target_price_increase = best_ask_price * Decimal('0.005')  # Target 0.5% price increase
+        target_price = best_ask_price + target_price_increase
+
+        # Initialize variables
+        paint_orders = []
+
+        # Start painting the market
+        start_time = time.time()
+        while time.time() - start_time < self.paint_duration:
+            # Place buy orders to push the price up
+            buy_price = best_ask_price + Decimal('0.001')  # Slightly above the best ask price
+            buy_price = buy_price.quantize(Decimal('0.0000'), rounding=ROUND_HALF_UP)
+            buy_order = self.exchange.create_market_order(symbol, "buy", self.trade_amount)
+            paint_orders.append(buy_order)
+
+            # Update best ask price
+            orderbook = self.exchange.get_orderbook(symbol)
+            best_ask_price = Decimal(orderbook['asks'][0][0])
+
+            # Check if the target price has been reached
+            if best_ask_price >= target_price:
+                break
+
+            # Short sleep to simulate real market activity
+            time.sleep(1)
+
+        # Log the painting activity
+        logging.info(f"Market painting for {symbol} complete. Target price reached: {best_ask_price}")
+
+        # Deactivate painter for the next cycle
+        self.paint_active = False
+
     def calculate_qfl_levels(self, symbol: str, timeframe='5m', lookback_period=12):
         # Fetch historical candle data
         candles = self.exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=lookback_period)

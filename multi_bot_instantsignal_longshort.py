@@ -286,6 +286,10 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
             thread_to_symbol[current_thread] = symbol
             time.sleep(1)
 
+        # config_file_path = Path('configs/' + args.config) if not args.config.startswith('configs/') else Path(args.config)
+        # logging.info(f"Loading config from:", config_file_path)
+        # config = load_config(config_file_path)
+
         if not args.config.startswith('configs/'):
             config_file_path = Path('configs/' + args.config)
         else:
@@ -298,10 +302,10 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         strategy_name = args.strategy
         account_name = args.account_name
 
-        print(f"Trading symbol: {symbol}")
-        print(f"Exchange name: {exchange_name}")
-        print(f"Strategy name: {strategy_name}")
-        print(f"Account name: {account_name}")
+        logging.info(f"Trading symbol: {symbol}")
+        logging.info(f"Exchange name: {exchange_name}")
+        logging.info(f"Strategy name: {strategy_name}")
+        logging.info(f"Account name: {account_name}")
 
         market_maker = DirectionalMarketMaker(config, exchange_name, account_name)
         market_maker.manager = manager
@@ -317,7 +321,6 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         logging.info(f"Rotator symbols in run_bot {rotator_symbols_standardized}")
         logging.info(f"Latest rotator symbols in run bot {latest_rotator_symbols}")
 
-        # Ensure this is the correct method to call and it's running a long task
         market_maker.run_strategy(symbol, args.strategy, config, account_name, symbols_to_trade=symbols_allowed, rotator_symbols_standardized=latest_rotator_symbols, mfirsi_signal=mfirsi_signal)
 
     except Exception as e:
@@ -370,7 +373,6 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                 update_active_symbols(open_position_symbols)
                 logging.info(f"Active symbols updated. Symbols allowed: {symbols_allowed}")
 
-                # Ensure threads are running for open positions
                 open_position_futures = []
                 for symbol in open_position_symbols:
                     if symbol not in long_threads and symbol not in short_threads:
@@ -380,18 +382,15 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                         open_position_futures.append(signal_executor.submit(start_thread_for_open_symbol, symbol, args, manager, mfirsi_signal, has_open_long, has_open_short, long_mode, short_mode))
                         logging.info(f"Submitted thread for symbol {symbol}. MFIRSI signal: {mfirsi_signal}. Has open long: {has_open_long}. Has open short: {has_open_short}.")
 
-                # Process signals for open position symbols
                 signal_futures = [signal_executor.submit(process_signal_for_open_position, symbol, args, manager, symbols_allowed, open_position_data, long_mode, short_mode)
                                   for symbol in open_position_symbols]
                 logging.info(f"Submitted signal processing for open position symbols: {open_position_symbols}.")
 
-                # Process signals for latest rotator symbols
                 if len(active_symbols) < symbols_allowed:
                     for symbol in latest_rotator_symbols:
                         signal_futures.append(signal_executor.submit(process_signal, symbol, args, manager, symbols_allowed, open_position_data, False, long_mode, short_mode))
                         logging.info(f"Submitted signal processing for new rotator symbol {symbol}.")
 
-                # Wait for all futures to complete
                 for future in as_completed(open_position_futures + signal_futures):
                     try:
                         future.result()
@@ -416,7 +415,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
         except Exception as e:
             logging.error(f"Exception caught in bybit_auto_rotation: {str(e)}")
             logging.debug(traceback.format_exc())
-        time.sleep(1)  # Reduced sleep time for more responsive processing
+        time.sleep(1)
 
 def process_signal_for_open_position(symbol, args, manager, symbols_allowed, open_position_data, long_mode, short_mode):
     market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
@@ -445,18 +444,16 @@ def process_signal(symbol, args, manager, symbols_allowed, open_position_data, i
         logging.info(f"No action taken for {'open position' if is_open_position else 'new rotator'} symbol {symbol}.")
 
 def handle_signal(symbol, args, manager, mfirsi_signal, open_position_data, symbols_allowed, is_open_position, long_mode, short_mode):
-
     open_position_symbols = {standardize_symbol(pos['symbol']) for pos in open_position_data}
     logging.info(f"Open position symbols: {open_position_symbols}")
 
     mfi_signal_long = mfirsi_signal.lower() == "long"
     mfi_signal_short = mfirsi_signal.lower() == "short"
 
-    # Calculate current long and short positions based on open_position_data
     current_long_positions = sum(1 for pos in open_position_data if pos['side'].lower() == 'long')
     current_short_positions = sum(1 for pos in open_position_data if pos['side'].lower() == 'short')
 
-    unique_open_symbols = len(open_position_symbols)  # Count of unique symbols with open positions
+    unique_open_symbols = len(open_position_symbols)
 
     logging.info(f"Handling signal for {'open position' if is_open_position else 'new rotator'} symbol {symbol}. Current long positions: {current_long_positions}. Current short positions: {current_short_positions}. Unique open symbols: {unique_open_symbols}")
 
@@ -512,7 +509,6 @@ def manage_rotator_symbols(rotator_symbols, args, manager, symbols_allowed):
         process_signal(symbol, args, manager, symbols_allowed, open_position_data, False)
 
     manage_excess_threads(symbols_allowed)
-
     time.sleep(5)
 
 def manage_excess_threads(symbols_allowed):
@@ -536,7 +532,6 @@ def manage_excess_threads(symbols_allowed):
         remove_thread_for_symbol(symbol_to_remove)
         logging.info(f"Removed excess short thread for symbol: {symbol_to_remove}")
         excess_short_count -= 1
-
 
 def is_long_position(symbol):
     pos_data = getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
@@ -596,7 +591,6 @@ def start_thread_for_symbol(symbol, args, manager, mfirsi_signal, action):
     logging.info(f"Started thread for symbol {symbol} with action {action} based on MFIRSI signal.")
     return True
 
-
 def fetch_updated_symbols(args, manager):
     """Fetches and logs potential symbols based on the current trading strategy."""
     strategy = args.strategy.lower()
@@ -630,64 +624,35 @@ def fetch_updated_symbols(args, manager):
     logging.info(f"Potential symbols for {strategy}: {potential_symbols}")
     return set(standardize_symbol(sym) for sym in potential_symbols)
 
+
 def log_symbol_details(strategy, symbols):
-    """Logs details about potential symbols for each strategy."""
-    if strategy in ['basicgrid', 'basicgridmfirsi', 'basicgridmfipersist', 'basicgridpersistnotional', 'qstrendlongonly', 'qstrendshortonly']:
-        logging.info(f"Potential symbols for {strategy}: {symbols}")
-    else:
-        logging.info(f"Other strategy symbols: {symbols}")
-        
+    logging.info(f"Potential symbols for {strategy}: {symbols}")
+
 def hyperliquid_auto_rotation(args, manager, symbols_allowed):
-    # Fetching open position symbols and standardizing them
     open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_hyperliquid()}
     logging.info(f"Open position symbols: {open_position_symbols}")
 
-    # Implement HyperLiquid-specific auto-rotation logic here
-    # ...
-
 def huobi_auto_rotation(args, manager, symbols_allowed):
-    # Fetching open position symbols and standardizing them
     open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_huobi()}
     logging.info(f"Open position symbols: {open_position_symbols}")
 
-    # Implement Huobi-specific auto-rotation logic here
-    # ...
-
 def bitget_auto_rotation(args, manager, symbols_allowed):
-    # Fetching open position symbols and standardizing them
     open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_bitget()}
     logging.info(f"Open position symbols: {open_position_symbols}")
 
-    # Implement Bitget-specific auto-rotation logic here
-    # ...
-
 def binance_auto_rotation(args, manager, symbols_allowed):
-    # Fetching open position symbols and standardizing them
     open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_binance()}
     logging.info(f"Open position symbols: {open_position_symbols}")
-
-    # Implement Binance-specific auto-rotation logic here
-    # ...
 
 def mexc_auto_rotation(args, manager, symbols_allowed):
-    # Fetching open position symbols and standardizing them
     open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_binance()}
     logging.info(f"Open position symbols: {open_position_symbols}")
-
-    # Implement Binance-specific auto-rotation logic here
-    # ...
 
 def lbank_auto_rotation(args, manager, symbols_allowed):
-    # Fetching open position symbols and standardizing them
     open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_binance()}
     logging.info(f"Open position symbols: {open_position_symbols}")
 
-    # Implement Binance-specific auto-rotation logic here
-    # ...
-    
-
 if __name__ == '__main__':
-    # ASCII Art and Text
     sword = "====||====>"
 
     print("\n" + "=" * 50)
@@ -696,13 +661,11 @@ if __name__ == '__main__':
     print("=" * 50 + "\n")
 
     print("Initializing", end="")
-    # Loading animation
     for i in range(3):
         time.sleep(0.5)
         print(".", end="", flush=True)
     print("\n")
 
-    # Display the ASCII art
     print("Battle-Ready Algorithm".center(50))
     print(sword.center(50) + "\n")
 
@@ -715,32 +678,26 @@ if __name__ == '__main__':
     parser.add_argument('--amount', type=str, help='The size to use')
 
     args = parser.parse_args()
-
     args = ask_for_missing_arguments(args)
 
     print(f"DirectionalScalper {VERSION} Initialized Successfully!".center(50))
     print("=" * 50 + "\n")
 
-    # Correct the path for the configuration file
     if not args.config.startswith('configs/'):
         config_file_path = Path('configs/' + args.config)
     else:
         config_file_path = Path(args.config)
 
     config = load_config(config_file_path)
-
-    # config_file_path = Path('configs/' + args.config)
-    # config = load_config(config_file_path)
-
-    exchange_name = args.exchange  # Now it will have a value
+    exchange_name = args.exchange
     market_maker = DirectionalMarketMaker(config, exchange_name, args.account_name)
 
     manager = Manager(
-        market_maker.exchange, 
-        exchange_name=args.exchange, 
+        market_maker.exchange,
+        exchange_name=args.exchange,
         data_source_exchange=config.api.data_source_exchange,
-        api=config.api.mode, 
-        path=Path("data", config.api.filename), 
+        api=config.api.mode,
+        path=Path("data", config.api.filename),
         url=f"{config.api.url}{config.api.filename}"
     )
 
@@ -750,43 +707,31 @@ if __name__ == '__main__':
     blacklist = config.bot.blacklist
     max_usd_value = config.bot.max_usd_value
 
-    # symbols_allowed = config.bot.symbols_allowed
-
-    # Loop through the exchanges to find the correct exchange and account name
     for exch in config.exchanges:
         if exch.name == exchange_name and exch.account_name == args.account_name:
             logging.info(f"Symbols allowed changed to symbols_allowed from config")
             symbols_allowed = exch.symbols_allowed
             break
     else:
-        # Default to a reasonable value if symbols_allowed is None
         logging.info(f"Symbols allowed defaulted to 10")
-        symbols_allowed = 10  # You can choose an appropriate default value
+        symbols_allowed = 10
 
-    ### ILAY ###
     table_manager = LiveTableManager()
     display_thread = threading.Thread(target=table_manager.display_table)
     display_thread.daemon = True
     display_thread.start()
-    ### ILAY ###
 
-    # Fetch all symbols that meet your criteria and standardize them
     all_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)]
-
-    # Get symbols with open positions and standardize them
     open_position_data = market_maker.exchange.get_all_open_positions_bybit()
     open_positions_symbols = [standardize_symbol(position['symbol']) for position in open_position_data]
 
     print(f"Open positions symbols: {open_positions_symbols}")
-
-    # Combine open positions symbols with potential new symbols
     symbols_to_trade = list(set(open_positions_symbols + all_symbols_standardized[:symbols_allowed]))
 
     print(f"Symbols to trade: {symbols_to_trade}")
 
     while True:
         try:
-            # Fetching symbols from the config
             whitelist = config.bot.whitelist
             blacklist = config.bot.blacklist
             max_usd_value = config.bot.max_usd_value
@@ -815,4 +760,3 @@ if __name__ == '__main__':
         except Exception as e:
             logging.info(f"Exception caught in main loop: {e}")
             logging.info(traceback.format_exc())
-
