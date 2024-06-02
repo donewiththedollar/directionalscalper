@@ -10282,9 +10282,9 @@ class BybitStrategy(BaseStrategy):
             current_price = self.exchange.get_current_price(symbol)
             logging.info(f"[{symbol}] Current price: {current_price}")
 
-            # Retrieve the last reissue prices
-            last_reissue_price_long = self.last_reissue_price_long.get(symbol, long_pos_price)
-            last_reissue_price_short = self.last_reissue_price_short.get(symbol, short_pos_price)
+            # Retrieve the last reissue prices, ensure they are floats
+            last_reissue_price_long = self.last_reissue_price_long.get(symbol) or long_pos_price
+            last_reissue_price_short = self.last_reissue_price_short.get(symbol) or short_pos_price
 
             logging.info(f"[{symbol}] Last reissue price (long): {last_reissue_price_long}")
             logging.info(f"[{symbol}] Last reissue price (short): {last_reissue_price_short}")
@@ -10332,6 +10332,63 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.exception(f"Exception caught in should_replace_grid_updated_buffer_min_outerpricedist_v2: {e}")
             return False, False
+
+
+    # def should_replace_grid_updated_buffer_min_outerpricedist_v2(self, symbol: str, long_pos_price: float, short_pos_price: float, long_pos_qty: float, short_pos_qty: float, dynamic_outer_price_distance: float) -> tuple:
+    #     try:
+    #         current_price = self.exchange.get_current_price(symbol)
+    #         logging.info(f"[{symbol}] Current price: {current_price}")
+
+    #         # Retrieve the last reissue prices
+    #         last_reissue_price_long = self.last_reissue_price_long.get(symbol, long_pos_price)
+    #         last_reissue_price_short = self.last_reissue_price_short.get(symbol, short_pos_price)
+
+    #         logging.info(f"[{symbol}] Last reissue price (long): {last_reissue_price_long}")
+    #         logging.info(f"[{symbol}] Last reissue price (short): {last_reissue_price_short}")
+
+    #         replace_long_grid = False
+    #         replace_short_grid = False
+
+    #         if long_pos_qty > 0:
+    #             required_price_move_long_pct = dynamic_outer_price_distance * 100.0
+    #             price_change_pct_long = abs(current_price - last_reissue_price_long) / last_reissue_price_long * 100.0
+
+    #             logging.info(f"[{symbol}] Long position info:")
+    #             logging.info(f"Dynamic outer price distance: {dynamic_outer_price_distance * 100.0:.2f}%")
+    #             logging.info(f"  - Long position price: {long_pos_price}")
+    #             logging.info(f"  - Long position quantity: {long_pos_qty}")
+    #             logging.info(f"  - Required price move for reissue (long): {required_price_move_long_pct:.2f}%")
+    #             logging.info(f"  - Current price change percentage: {price_change_pct_long:.2f}%")
+
+    #             if price_change_pct_long > required_price_move_long_pct:
+    #                 replace_long_grid = True
+    #                 logging.info(f"[{symbol}] Price change exceeds dynamic outer price distance percentage for long position. Replacing long grid.")
+    #                 self.last_reissue_price_long[symbol] = current_price  # Update last reissue price for long
+
+    #         if short_pos_qty > 0:
+    #             required_price_move_short_pct = dynamic_outer_price_distance * 100.0
+    #             price_change_pct_short = abs(current_price - last_reissue_price_short) / last_reissue_price_short * 100.0
+
+    #             logging.info(f"[{symbol}] Short position info:")
+    #             logging.info(f"Dynamic outer price distance: {dynamic_outer_price_distance * 100.0:.2f}%")
+    #             logging.info(f"  - Short position price: {short_pos_price}")
+    #             logging.info(f"  - Short position quantity: {short_pos_qty}")
+    #             logging.info(f"  - Required price move for reissue (short): {required_price_move_short_pct:.2f}%")
+    #             logging.info(f"  - Current price change percentage: {price_change_pct_short:.2f}%")
+
+    #             if price_change_pct_short > required_price_move_short_pct:
+    #                 replace_short_grid = True
+    #                 logging.info(f"[{symbol}] Price change exceeds dynamic outer price distance percentage for short position. Replacing short grid.")
+    #                 self.last_reissue_price_short[symbol] = current_price  # Update last reissue price for short
+
+    #         logging.info(f"[{symbol}] Should replace long grid: {replace_long_grid}")
+    #         logging.info(f"[{symbol}] Should replace short grid: {replace_short_grid}")
+
+    #         return replace_long_grid, replace_short_grid
+
+    #     except Exception as e:
+    #         logging.exception(f"Exception caught in should_replace_grid_updated_buffer_min_outerpricedist_v2: {e}")
+    #         return False, False
         
     # def should_replace_grid_updated_buffer_min_outerpricedist_v2(self, symbol: str, long_pos_price: float, short_pos_price: float, long_pos_qty: float, short_pos_qty: float, dynamic_outer_price_distance: float) -> tuple:
     #     try:
