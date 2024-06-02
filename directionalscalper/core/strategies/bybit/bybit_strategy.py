@@ -3968,7 +3968,7 @@ class BybitStrategy(BaseStrategy):
                                                 wallet_exposure_limit: float, wallet_exposure_limit_long: float, wallet_exposure_limit_short: float,
                                                 user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool,
                                                 short_mode: bool, initial_entry_buffer_pct: float, min_buffer_percentage: float, max_buffer_percentage: float,
-                                                symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float,
+                                                symbols_allowed: int, enforce_full_grid: bool, upnl_profit_pct: float,
                                                 max_upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool,
                                                 max_qty_percent_long: float, max_qty_percent_short: float):
         try:
@@ -4137,8 +4137,6 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
             logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
 
-            mfi_signal_long = mfirsi_signal.lower() == "long"
-            mfi_signal_short = mfirsi_signal.lower() == "short"
             
             if len(open_symbols) < symbols_allowed or symbol in open_symbols:
                 logging.info(f"Allowed symbol: {symbol}")
@@ -4265,7 +4263,7 @@ class BybitStrategy(BaseStrategy):
                 # Check if auto-reduce is not active for short position
                 if not self.auto_reduce_active_short.get(symbol, False):
                     logging.info(f"Auto-reduce for short position on {symbol} is not active")
-                    if short_mode and (mfi_signal_short or short_pos_qty > 0) and symbol not in self.max_qty_reached_symbol_short:
+                    if short_mode and symbol not in self.max_qty_reached_symbol_short:
                         if should_reissue_short or (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)):
                             self.cancel_grid_orders(symbol, "sell")
                             self.active_grids.discard(symbol)
@@ -4277,7 +4275,7 @@ class BybitStrategy(BaseStrategy):
                             self.active_grids.add(symbol)
                 else:
                     logging.info(f"Auto-reduce for short position on {symbol} is active, entry during auto-reduce.")
-                    if short_mode and (mfi_signal_short or short_pos_qty > 0) and symbol not in self.max_qty_reached_symbol_short:
+                    if short_mode and symbol not in self.max_qty_reached_symbol_short:
                         if entry_during_autoreduce:
                             logging.info(f"[{symbol}] Placing new short orders despite active auto-reduce due to entry_during_autoreduce setting.")
                             self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
