@@ -270,24 +270,6 @@ class BybitDynamicGridSpanOBLevelsNoSignal(BybitStrategy):
 
             while self.running_long or self.running_short:
 
-                # Check for symbol inactivity
-                inactive_time_threshold = 180  # 3 minutes in seconds
-                if self.check_symbol_inactivity(symbol, inactive_time_threshold):
-                    logging.info(f"No open positions or orders for {symbol} in the last {inactive_time_threshold} seconds. Terminating the thread.")
-                    shared_symbols_data.pop(symbol, None)
-                    self.running_long = False
-                    self.running_short = False
-                    break
-
-                # Check for symbol inactivity
-                inactive_pos_time_threshold = 180  # 3 minutes in seconds
-                if self.check_position_inactivity(symbol, inactive_pos_time_threshold):
-                    logging.info(f"No open positions for {symbol} in the last {inactive_time_threshold} seconds. Terminating the thread.")
-                    shared_symbols_data.pop(symbol, None)
-                    self.running_long = False
-                    self.running_short = False
-                    break
-
                 current_time = time.time()
 
                 iteration_start_time = time.time()
@@ -450,6 +432,13 @@ class BybitDynamicGridSpanOBLevelsNoSignal(BybitStrategy):
                 logging.info(f"Current long pos qty for {symbol} {long_pos_qty}")
                 logging.info(f"Current short pos qty for {symbol} {short_pos_qty}")
 
+                # Check for position inactivity
+                inactive_pos_time_threshold = 180  # 3 minutes in seconds
+                if self.check_position_inactivity(symbol, inactive_pos_time_threshold, long_pos_qty, short_pos_qty, previous_long_pos_qty, previous_short_pos_qty):
+                    logging.info(f"No open positions for {symbol} in the last {inactive_pos_time_threshold} seconds. Terminating the thread.")
+                    shared_symbols_data.pop(symbol, None)
+                    break
+                
                 # Optionally, break out of the loop if all trading sides are closed
                 if not self.running_long and not self.running_short:
                     shared_symbols_data.pop(symbol, None)

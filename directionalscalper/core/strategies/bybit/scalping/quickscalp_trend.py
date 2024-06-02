@@ -432,6 +432,13 @@ class BybitQuickScalpTrend(BybitStrategy):
                         self.cleanup_before_termination(symbol)
                         break
 
+                    # Check for position inactivity
+                    inactive_pos_time_threshold = 180  # 3 minutes in seconds
+                    if self.check_position_inactivity(symbol, inactive_pos_time_threshold, long_pos_qty, short_pos_qty, previous_long_pos_qty, previous_short_pos_qty):
+                        logging.info(f"No open positions for {symbol} in the last {inactive_pos_time_threshold} seconds. Terminating the thread.")
+                        shared_symbols_data.pop(symbol, None)
+                        break
+                    
                     logging.info(f"Rotator symbol trading: {symbol}")
                                 
                     logging.info(f"Rotator symbols: {rotator_symbols_standardized}")
