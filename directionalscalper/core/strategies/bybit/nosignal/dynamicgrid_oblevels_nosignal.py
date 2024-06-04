@@ -821,7 +821,6 @@ class BybitDynamicGridSpanOBLevelsNoSignal(BybitStrategy):
                             max_buffer_percentage,
                             self.symbols_allowed,
                             enforce_full_grid,
-                            mfirsi_signal,
                             upnl_profit_pct,
                             max_upnl_profit_pct,
                             tp_order_counts,
