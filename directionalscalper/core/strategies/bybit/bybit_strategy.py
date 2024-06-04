@@ -4044,9 +4044,13 @@ class BybitStrategy(BaseStrategy):
             volume_threshold_short = np.mean(volume_histogram_short) * 1.5  # Adjust the threshold as needed
             significant_levels_short = price_range[volume_histogram_short >= volume_threshold_short]
 
-            # Place grid levels at significant price levels within the buffer distance and min outer price distance
-            grid_levels_long = [level for level in significant_levels_long if current_price - min_outer_price_distance * current_price <= level <= current_price - buffer_distance_long]
-            grid_levels_short = [level for level in significant_levels_short if current_price + buffer_distance_short <= level <= current_price + min_outer_price_distance * current_price]
+            # Calculate grid levels based on dynamic_outer_price_distance
+            grid_levels_long = [current_price - i * dynamic_outer_price_distance * current_price for i in range(1, levels + 1)]
+            grid_levels_short = [current_price + i * dynamic_outer_price_distance * current_price for i in range(1, levels + 1)]
+
+            # Ensure the grid levels are within the buffer distances
+            grid_levels_long = [level for level in grid_levels_long if current_price - min_outer_price_distance * current_price <= level <= current_price - buffer_distance_long]
+            grid_levels_short = [level for level in grid_levels_short if current_price + buffer_distance_short <= level <= current_price + min_outer_price_distance * current_price]
 
             # Ensure the desired number of grid levels is achieved
             if len(grid_levels_long) < levels:
@@ -4127,8 +4131,6 @@ class BybitStrategy(BaseStrategy):
             if symbol in self.max_qty_reached_symbol_short:
                 logging.info(f"[{symbol}] Symbol is in max_qty_reached_symbol_short")
 
-# replace grid logic used to go here 
-
             # Additional logic for managing open symbols and checking trading permissions
             open_symbols = list(set(open_symbols))
             logging.info(f"Open symbols {open_symbols}")
@@ -4137,7 +4139,7 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
             logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
 
-            
+
             if len(open_symbols) < symbols_allowed or symbol in open_symbols:
                 logging.info(f"Allowed symbol: {symbol}")
 
@@ -4173,7 +4175,7 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"[{symbol}] Recalculated short grid levels with updated buffer: {grid_levels_short}")
                     else:
                         logging.info(f"{symbol} is in max qty reached symbol short cannot replace grid")
-                        
+
                 if self.should_reissue_orders_revised(symbol, reissue_threshold, long_pos_qty, short_pos_qty, initial_entry_buffer_pct):
                     open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
