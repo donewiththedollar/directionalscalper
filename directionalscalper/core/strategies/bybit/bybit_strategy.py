@@ -3348,7 +3348,8 @@ class BybitStrategy(BaseStrategy):
                         positionIdx=1,
                         order_side="sell",
                         last_tp_update=self.next_long_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
 
             if short_pos_qty > 0:
@@ -3366,7 +3367,8 @@ class BybitStrategy(BaseStrategy):
                         positionIdx=2,
                         order_side="buy",
                         last_tp_update=self.next_short_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
 
         except Exception as e:
@@ -3546,6 +3548,7 @@ class BybitStrategy(BaseStrategy):
             short_take_profit = self.calculate_quickscalp_short_take_profit_dynamic_distance(short_pos_price, symbol, min_upnl_profit_pct=upnl_profit_pct, max_upnl_profit_pct=max_upnl_profit_pct)
             long_take_profit = self.calculate_quickscalp_long_take_profit_dynamic_distance(long_pos_price, symbol, min_upnl_profit_pct=upnl_profit_pct, max_upnl_profit_pct=max_upnl_profit_pct)
 
+            # Update TP for long position
             if long_pos_qty > 0:
                 new_long_tp_min, new_long_tp_max = self.calculate_quickscalp_long_take_profit_dynamic_distance(
                     long_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
@@ -3554,14 +3557,15 @@ class BybitStrategy(BaseStrategy):
                     self.next_long_tp_update = self.update_quickscalp_tp_dynamic(
                         symbol=symbol,
                         pos_qty=long_pos_qty,
-                        upnl_profit_pct=upnl_profit_pct,
-                        max_upnl_profit_pct=max_upnl_profit_pct,
-                        short_pos_price=None,
+                        upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
+                        max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
+                        short_pos_price=None,  # Not relevant for long TP settings
                         long_pos_price=long_pos_price,
                         positionIdx=1,
                         order_side="sell",
                         last_tp_update=self.next_long_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
 
             if short_pos_qty > 0:
@@ -3572,14 +3576,15 @@ class BybitStrategy(BaseStrategy):
                     self.next_short_tp_update = self.update_quickscalp_tp_dynamic(
                         symbol=symbol,
                         pos_qty=short_pos_qty,
-                        upnl_profit_pct=upnl_profit_pct,
-                        max_upnl_profit_pct=max_upnl_profit_pct,
+                        upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
+                        max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
                         short_pos_price=short_pos_price,
-                        long_pos_price=None,
+                        long_pos_price=None,  # Not relevant for short TP settings
                         positionIdx=2,
                         order_side="buy",
                         last_tp_update=self.next_short_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
         except Exception as e:
             logging.info(f"Error in executing gridstrategy: {e}")
@@ -3758,6 +3763,7 @@ class BybitStrategy(BaseStrategy):
             short_take_profit = self.calculate_quickscalp_short_take_profit_dynamic_distance(short_pos_price, symbol, min_upnl_profit_pct=upnl_profit_pct, max_upnl_profit_pct=max_upnl_profit_pct)
             long_take_profit = self.calculate_quickscalp_long_take_profit_dynamic_distance(long_pos_price, symbol, min_upnl_profit_pct=upnl_profit_pct, max_upnl_profit_pct=max_upnl_profit_pct)
 
+            # Update TP for long position
             if long_pos_qty > 0:
                 new_long_tp_min, new_long_tp_max = self.calculate_quickscalp_long_take_profit_dynamic_distance(
                     long_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
@@ -3766,14 +3772,15 @@ class BybitStrategy(BaseStrategy):
                     self.next_long_tp_update = self.update_quickscalp_tp_dynamic(
                         symbol=symbol,
                         pos_qty=long_pos_qty,
-                        upnl_profit_pct=upnl_profit_pct,
-                        max_upnl_profit_pct=max_upnl_profit_pct,
-                        short_pos_price=None,
+                        upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
+                        max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
+                        short_pos_price=None,  # Not relevant for long TP settings
                         long_pos_price=long_pos_price,
                         positionIdx=1,
                         order_side="sell",
                         last_tp_update=self.next_long_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
 
             if short_pos_qty > 0:
@@ -3784,15 +3791,17 @@ class BybitStrategy(BaseStrategy):
                     self.next_short_tp_update = self.update_quickscalp_tp_dynamic(
                         symbol=symbol,
                         pos_qty=short_pos_qty,
-                        upnl_profit_pct=upnl_profit_pct,
-                        max_upnl_profit_pct=max_upnl_profit_pct,
+                        upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
+                        max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
                         short_pos_price=short_pos_price,
-                        long_pos_price=None,
+                        long_pos_price=None,  # Not relevant for short TP settings
                         positionIdx=2,
                         order_side="buy",
                         last_tp_update=self.next_short_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
+
         except Exception as e:
             logging.info(f"Error in executing gridstrategy: {e}")
             logging.info("Traceback: %s", traceback.format_exc())
@@ -4131,7 +4140,8 @@ class BybitStrategy(BaseStrategy):
                         positionIdx=1,
                         order_side="sell",
                         last_tp_update=self.next_long_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
 
             if short_pos_qty > 0:
@@ -4149,7 +4159,8 @@ class BybitStrategy(BaseStrategy):
                         positionIdx=2,
                         order_side="buy",
                         last_tp_update=self.next_short_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
 
         except Exception as e:
@@ -4529,7 +4540,8 @@ class BybitStrategy(BaseStrategy):
                         positionIdx=1,
                         order_side="sell",
                         last_tp_update=self.next_long_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
 
             if short_pos_qty > 0:
@@ -4547,7 +4559,8 @@ class BybitStrategy(BaseStrategy):
                         positionIdx=2,
                         order_side="buy",
                         last_tp_update=self.next_short_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
 
         except Exception as e:
@@ -5321,7 +5334,8 @@ class BybitStrategy(BaseStrategy):
                         positionIdx=1,
                         order_side="sell",
                         last_tp_update=self.next_long_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
 
             if short_pos_qty > 0:
@@ -5339,7 +5353,8 @@ class BybitStrategy(BaseStrategy):
                         positionIdx=2,
                         order_side="buy",
                         last_tp_update=self.next_short_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
 
         except Exception as e:
@@ -5688,7 +5703,8 @@ class BybitStrategy(BaseStrategy):
                         positionIdx=1,
                         order_side="sell",
                         last_tp_update=self.next_long_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
 
             if short_pos_qty > 0:
@@ -5706,7 +5722,8 @@ class BybitStrategy(BaseStrategy):
                         positionIdx=2,
                         order_side="buy",
                         last_tp_update=self.next_short_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
 
         except Exception as e:
@@ -6124,7 +6141,8 @@ class BybitStrategy(BaseStrategy):
                         positionIdx=1,
                         order_side="sell",
                         last_tp_update=self.next_long_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
 
             if short_pos_qty > 0:
@@ -6142,7 +6160,8 @@ class BybitStrategy(BaseStrategy):
                         positionIdx=2,
                         order_side="buy",
                         last_tp_update=self.next_short_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
 
         except Exception as e:
@@ -6445,6 +6464,7 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"[{symbol}] Skipping new short orders due to active short auto-reduce and entry_during_autoreduce set to False.")
                         
 
+            # Update TP for long position
             if long_pos_qty > 0:
                 new_long_tp_min, new_long_tp_max = self.calculate_quickscalp_long_take_profit_dynamic_distance(
                     long_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
@@ -6453,14 +6473,15 @@ class BybitStrategy(BaseStrategy):
                     self.next_long_tp_update = self.update_quickscalp_tp_dynamic(
                         symbol=symbol,
                         pos_qty=long_pos_qty,
-                        upnl_profit_pct=upnl_profit_pct,
-                        max_upnl_profit_pct=max_upnl_profit_pct,
-                        short_pos_price=None,
+                        upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
+                        max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
+                        short_pos_price=None,  # Not relevant for long TP settings
                         long_pos_price=long_pos_price,
                         positionIdx=1,
                         order_side="sell",
                         last_tp_update=self.next_long_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
 
             if short_pos_qty > 0:
@@ -6471,16 +6492,16 @@ class BybitStrategy(BaseStrategy):
                     self.next_short_tp_update = self.update_quickscalp_tp_dynamic(
                         symbol=symbol,
                         pos_qty=short_pos_qty,
-                        upnl_profit_pct=upnl_profit_pct,
-                        max_upnl_profit_pct=max_upnl_profit_pct,
+                        upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
+                        max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
                         short_pos_price=short_pos_price,
-                        long_pos_price=None,
+                        long_pos_price=None,  # Not relevant for short TP settings
                         positionIdx=2,
                         order_side="buy",
                         last_tp_update=self.next_short_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
-
         except Exception as e:
             logging.error(f"Error in linear_grid_hardened_gridspan_orderbook_maxposqty: {str(e)}")
             logging.info("Traceback: %s", traceback.format_exc())
@@ -6803,6 +6824,7 @@ class BybitStrategy(BaseStrategy):
             short_take_profit = self.calculate_quickscalp_short_take_profit_dynamic_distance(short_pos_price, symbol, min_upnl_profit_pct=upnl_profit_pct, max_upnl_profit_pct=max_upnl_profit_pct)
             long_take_profit = self.calculate_quickscalp_long_take_profit_dynamic_distance(long_pos_price, symbol, min_upnl_profit_pct=upnl_profit_pct, max_upnl_profit_pct=max_upnl_profit_pct)
 
+            # Update TP for long position
             if long_pos_qty > 0:
                 new_long_tp_min, new_long_tp_max = self.calculate_quickscalp_long_take_profit_dynamic_distance(
                     long_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
@@ -6811,14 +6833,15 @@ class BybitStrategy(BaseStrategy):
                     self.next_long_tp_update = self.update_quickscalp_tp_dynamic(
                         symbol=symbol,
                         pos_qty=long_pos_qty,
-                        upnl_profit_pct=upnl_profit_pct,
-                        max_upnl_profit_pct=max_upnl_profit_pct,
-                        short_pos_price=None,
+                        upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
+                        max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
+                        short_pos_price=None,  # Not relevant for long TP settings
                         long_pos_price=long_pos_price,
                         positionIdx=1,
                         order_side="sell",
                         last_tp_update=self.next_long_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
 
             if short_pos_qty > 0:
@@ -6829,14 +6852,15 @@ class BybitStrategy(BaseStrategy):
                     self.next_short_tp_update = self.update_quickscalp_tp_dynamic(
                         symbol=symbol,
                         pos_qty=short_pos_qty,
-                        upnl_profit_pct=upnl_profit_pct,
-                        max_upnl_profit_pct=max_upnl_profit_pct,
+                        upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
+                        max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
                         short_pos_price=short_pos_price,
-                        long_pos_price=None,
+                        long_pos_price=None,  # Not relevant for short TP settings
                         positionIdx=2,
                         order_side="buy",
                         last_tp_update=self.next_short_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
         except Exception as e:
             logging.info(f"Error in executing gridstrategy: {e}")
@@ -7190,7 +7214,8 @@ class BybitStrategy(BaseStrategy):
                         positionIdx=1,
                         order_side="sell",
                         last_tp_update=self.next_long_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
 
             if short_pos_qty > 0:
@@ -7208,7 +7233,8 @@ class BybitStrategy(BaseStrategy):
                         positionIdx=2,
                         order_side="buy",
                         last_tp_update=self.next_short_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
         except Exception as e:
             logging.info(f"Error in executing gridstrategy: {e}")
@@ -7532,7 +7558,8 @@ class BybitStrategy(BaseStrategy):
                         positionIdx=1,
                         order_side="sell",
                         last_tp_update=self.next_long_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
 
             if short_pos_qty > 0:
@@ -7550,7 +7577,8 @@ class BybitStrategy(BaseStrategy):
                         positionIdx=2,
                         order_side="buy",
                         last_tp_update=self.next_short_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
 
         except Exception as e:
@@ -7902,7 +7930,8 @@ class BybitStrategy(BaseStrategy):
                         positionIdx=1,
                         order_side="sell",
                         last_tp_update=self.next_long_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
 
             if short_pos_qty > 0:
@@ -7920,7 +7949,8 @@ class BybitStrategy(BaseStrategy):
                         positionIdx=2,
                         order_side="buy",
                         last_tp_update=self.next_short_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
         except Exception as e:
             logging.info(f"Error in executing gridstrategy: {e}")
@@ -8270,7 +8300,8 @@ class BybitStrategy(BaseStrategy):
                         positionIdx=1,
                         order_side="sell",
                         last_tp_update=self.next_long_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
 
             if short_pos_qty > 0:
@@ -8288,7 +8319,8 @@ class BybitStrategy(BaseStrategy):
                         positionIdx=2,
                         order_side="buy",
                         last_tp_update=self.next_short_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
         except Exception as e:
             logging.info(f"Error in executing gridstrategy: {e}")
@@ -8713,7 +8745,8 @@ class BybitStrategy(BaseStrategy):
                         positionIdx=1,
                         order_side="sell",
                         last_tp_update=self.next_long_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
 
             if short_pos_qty > 0:
@@ -8731,7 +8764,8 @@ class BybitStrategy(BaseStrategy):
                         positionIdx=2,
                         order_side="buy",
                         last_tp_update=self.next_short_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
         except Exception as e:
             logging.info(f"Error in executing gridstrategy: {e}")
@@ -9438,7 +9472,8 @@ class BybitStrategy(BaseStrategy):
                         positionIdx=1,
                         order_side="sell",
                         last_tp_update=self.next_long_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
 
             if short_pos_qty > 0:
@@ -9456,7 +9491,8 @@ class BybitStrategy(BaseStrategy):
                         positionIdx=2,
                         order_side="buy",
                         last_tp_update=self.next_short_tp_update,
-                        tp_order_counts=tp_order_counts
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
                     )
 
         except Exception as e:
