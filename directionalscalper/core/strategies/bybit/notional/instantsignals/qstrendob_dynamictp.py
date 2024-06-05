@@ -670,7 +670,30 @@ class BybitQuickScalpTrendDynamicTP(BybitStrategy):
                         )
                     except Exception as e:
                         logging.info(f"Hardened grid AR exception caught {e}")
-                        
+
+                    # Old autoreduce logic
+                    try:
+                        self.auto_reduce_logic_simple(
+                            symbol,
+                            min_qty,
+                            long_pos_price,
+                            short_pos_price,
+                            long_pos_qty,
+                            short_pos_qty,
+                            auto_reduce_enabled,
+                            total_equity,
+                            available_equity,
+                            current_market_price=current_price,
+                            long_dynamic_amount=long_dynamic_amount,
+                            short_dynamic_amount=short_dynamic_amount,
+                            auto_reduce_start_pct=auto_reduce_start_pct,
+                            max_pos_balance_pct=max_pos_balance_pct,
+                            upnl_threshold_pct=upnl_threshold_pct,
+                            shared_symbols_data=shared_symbols_data
+                        )
+                    except Exception as e:
+                        logging.info(f"Exception caught in autoreduce {e}")
+
                     self.auto_reduce_percentile_logic(
                         symbol,
                         long_pos_qty,
