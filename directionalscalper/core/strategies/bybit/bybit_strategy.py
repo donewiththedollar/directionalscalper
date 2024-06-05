@@ -575,9 +575,9 @@ class BybitStrategy(BaseStrategy):
     #         logging.info(f"No immediate update needed for TP orders for {symbol}. Last update at: {last_tp_update}")
     #         return last_tp_update
         
-    def update_quickscalp_tp(self, symbol, pos_qty, upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, tp_order_counts, max_retries=10):
+    def update_quickscalp_tp(self, symbol, pos_qty, upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, tp_order_counts, open_orders, max_retries=10):
         # Fetch the current open TP orders and TP order counts for the symbol
-        long_tp_orders, short_tp_orders = self.exchange.get_open_tp_orders(symbol)
+        long_tp_orders, short_tp_orders = self.exchange.get_open_tp_orders(open_orders)
         long_tp_count = tp_order_counts['long_tp_count']
         short_tp_count = tp_order_counts['short_tp_count']
 

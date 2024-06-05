@@ -777,9 +777,6 @@ class BybitQuickScalpTrendDynamicTP(BybitStrategy):
                     if long_pos_price is not None:
                         should_add_to_long = long_pos_price > moving_averages["ma_6_high"] and self.long_trade_condition(best_bid_price, moving_averages["ma_6_low"])
 
-                    open_tp_order_count = self.exchange.get_open_tp_order_count(symbol)
-
-                    logging.info(f"Open TP order count {open_tp_order_count}")
 
                     logging.info(f"Five minute volume for {symbol} : {five_minute_volume}")
                         
@@ -792,7 +789,10 @@ class BybitQuickScalpTrendDynamicTP(BybitStrategy):
 
                     logging.info(f"ATR for {symbol} : {one_hour_atr_value}")
 
-                    tp_order_counts = self.exchange.get_open_tp_order_count(symbol)
+                    tp_order_counts = self.exchange.get_open_tp_order_count(open_orders)
+
+                    logging.info(f"Open TP order count {tp_order_counts}")
+
                     #print(type(tp_order_counts))
 
                     # Check for long position
@@ -879,7 +879,8 @@ class BybitQuickScalpTrendDynamicTP(BybitStrategy):
                                 positionIdx=1,
                                 order_side="sell",
                                 last_tp_update=self.next_long_tp_update,
-                                tp_order_counts=tp_order_counts
+                                tp_order_counts=tp_order_counts,
+                                open_orders=open_orders
                             )
 
                     if short_pos_qty > 0:
@@ -897,10 +898,9 @@ class BybitQuickScalpTrendDynamicTP(BybitStrategy):
                                 positionIdx=2,
                                 order_side="buy",
                                 last_tp_update=self.next_short_tp_update,
-                                tp_order_counts=tp_order_counts
+                                tp_order_counts=tp_order_counts,
+                                open_orders=open_orders
                             )
-                            
-
                     if self.test_orders_enabled and current_time - self.last_helper_order_cancel_time >= self.helper_interval:
                         if symbol in open_symbols:
                             self.helper_active = True

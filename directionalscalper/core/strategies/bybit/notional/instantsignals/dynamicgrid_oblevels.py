@@ -755,9 +755,6 @@ class BybitDynamicGridSpanOBLevels(BybitStrategy):
                     if long_pos_price is not None:
                         should_add_to_long = long_pos_price > moving_averages["ma_6_high"] and self.long_trade_condition(best_bid_price, moving_averages["ma_6_low"])
 
-                    open_tp_order_count = self.exchange.get_open_tp_order_count(open_orders)
-
-                    logging.info(f"Open TP order count {open_tp_order_count}")
 
                     logging.info(f"Five minute volume for {symbol} : {five_minute_volume}")
                         
@@ -771,7 +768,8 @@ class BybitDynamicGridSpanOBLevels(BybitStrategy):
                     logging.info(f"ATR for {symbol} : {one_hour_atr_value}")
 
                     tp_order_counts = self.exchange.get_open_tp_order_count(open_orders)
-                    #print(type(tp_order_counts))
+
+                    logging.info(f"Open TP order count {tp_order_counts}")
 
                     # Check for long position
                     if long_pos_qty > 0:
