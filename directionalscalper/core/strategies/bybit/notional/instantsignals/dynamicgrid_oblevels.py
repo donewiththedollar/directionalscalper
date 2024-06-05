@@ -755,7 +755,7 @@ class BybitDynamicGridSpanOBLevels(BybitStrategy):
                     if long_pos_price is not None:
                         should_add_to_long = long_pos_price > moving_averages["ma_6_high"] and self.long_trade_condition(best_bid_price, moving_averages["ma_6_low"])
 
-                    open_tp_order_count = self.exchange.get_open_tp_order_count(symbol)
+                    open_tp_order_count = self.exchange.get_open_tp_order_count(open_orders)
 
                     logging.info(f"Open TP order count {open_tp_order_count}")
 
@@ -770,7 +770,7 @@ class BybitDynamicGridSpanOBLevels(BybitStrategy):
 
                     logging.info(f"ATR for {symbol} : {one_hour_atr_value}")
 
-                    tp_order_counts = self.exchange.get_open_tp_order_count(symbol)
+                    tp_order_counts = self.exchange.get_open_tp_order_count(open_orders)
                     #print(type(tp_order_counts))
 
                     # Check for long position
@@ -871,7 +871,8 @@ class BybitDynamicGridSpanOBLevels(BybitStrategy):
                                 positionIdx=1,
                                 order_side="sell",
                                 last_tp_update=self.next_long_tp_update,
-                                tp_order_counts=tp_order_counts
+                                tp_order_counts=tp_order_counts,
+                                open_orders=open_orders
                             )
 
                     if short_pos_qty > 0:
@@ -889,7 +890,8 @@ class BybitDynamicGridSpanOBLevels(BybitStrategy):
                                 positionIdx=2,
                                 order_side="buy",
                                 last_tp_update=self.next_short_tp_update,
-                                tp_order_counts=tp_order_counts
+                                tp_order_counts=tp_order_counts,
+                                open_orders=open_orders
                             )
                             
 
@@ -927,7 +929,7 @@ class BybitDynamicGridSpanOBLevels(BybitStrategy):
                     # self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
                     # self.cancel_stale_orders_bybit(symbol)
                     
-                    # time.sleep(5)
+                time.sleep(5)
 
                 symbol_data = {
                     'symbol': symbol,

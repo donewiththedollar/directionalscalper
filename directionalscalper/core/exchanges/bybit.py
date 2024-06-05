@@ -10,6 +10,8 @@ import ccxt
 import traceback
 from directionalscalper.core.strategies.logger import Logger
 
+from rate_limit import RateLimit
+
 logging = Logger(logger_name="BybitExchange", filename="BybitExchange.log", stream=True)
 
 class BybitExchange(Exchange):
@@ -24,7 +26,7 @@ class BybitExchange(Exchange):
         self.last_active_long_order_time = {}
         self.last_active_short_order_time = {}
         self.last_active_time = {}
-
+        self.rate_limiter = RateLimit(10, 1)
 
     def log_order_active_times(self):
         try:
@@ -770,15 +772,44 @@ class BybitExchange(Exchange):
         
         return tp_orders
 
+    # def get_all_open_orders(self):
+    #     """Fetches open orders for all symbols."""
+    #     for _ in range(self.max_retries):
+    #         try:
+    #             open_orders = self.exchange.fetch_open_orders()
+    #             return open_orders
+    #         except ccxt.RateLimitExceeded:
+    #             logging.info(f"Rate limit exceeded when fetching open orders. Retrying in {self.retry_wait} seconds...")
+    #             time.sleep(self.retry_wait)
+    #     logging.info(f"Failed to fetch open orders after {self.max_retries} retries.")
+    #     return []
+
+    # def get_open_orders(self, symbol):
+    #     """Fetches open orders for the given symbol."""
+    #     for _ in range(self.max_retries):
+    #         try:
+    #             open_orders = self.exchange.fetch_open_orders(symbol)
+    #             #logging.info(f"Open orders {open_orders}")
+    #             return open_orders
+    #         except ccxt.RateLimitExceeded:
+    #             logging.info(f"Rate limit exceeded when fetching open orders for {symbol}. Retrying in {self.retry_wait} seconds...")
+    #             time.sleep(self.retry_wait)
+    #     logging.info(f"Failed to fetch open orders for {symbol} after {self.max_retries} retries.")
+    #     return []
+
     def get_all_open_orders(self):
         """Fetches open orders for all symbols."""
         for _ in range(self.max_retries):
             try:
-                open_orders = self.exchange.fetch_open_orders()
+                with self.rate_limiter:
+                    open_orders = self.exchange.fetch_open_orders()
                 return open_orders
-            except ccxt.RateLimitExceeded:
+            except RateLimitExceeded:
                 logging.info(f"Rate limit exceeded when fetching open orders. Retrying in {self.retry_wait} seconds...")
                 time.sleep(self.retry_wait)
+            except Exception as e:
+                logging.error(f"Error fetching open orders: {e}")
+                logging.error(traceback.format_exc())
         logging.info(f"Failed to fetch open orders after {self.max_retries} retries.")
         return []
 
@@ -786,14 +817,19 @@ class BybitExchange(Exchange):
         """Fetches open orders for the given symbol."""
         for _ in range(self.max_retries):
             try:
-                open_orders = self.exchange.fetch_open_orders(symbol)
-                #logging.info(f"Open orders {open_orders}")
+                with self.rate_limiter:
+                    open_orders = self.exchange.fetch_open_orders(symbol)
                 return open_orders
-            except ccxt.RateLimitExceeded:
+            except RateLimitExceeded:
                 logging.info(f"Rate limit exceeded when fetching open orders for {symbol}. Retrying in {self.retry_wait} seconds...")
                 time.sleep(self.retry_wait)
+            except Exception as e:
+                logging.error(f"Error fetching open orders for {symbol}: {e}")
+                logging.error(traceback.format_exc())
         logging.info(f"Failed to fetch open orders for {symbol} after {self.max_retries} retries.")
         return []
+
+
 
     def get_open_orders_bybit_unified(self, symbol: str) -> list:
         open_orders_list = []
@@ -816,47 +852,129 @@ class BybitExchange(Exchange):
         except Exception as e:
             logging.info(f"An unknown error occurred in get_open_orders(): {e}")
         return open_orders_list
-    
-    def get_open_tp_orders(self, symbol):
+
+    def get_open_tp_orders(self, open_orders):
         long_tp_orders = []
         short_tp_orders = []
-        for _ in range(self.max_retries):
-            try:
-                all_open_orders = self.exchange.fetch_open_orders(symbol)
-                #logging.info(f"All open orders for {symbol}: {all_open_orders}")
-                
-                for order in all_open_orders:
-                    order_details = {
-                        'id': order['id'],
-                        'qty': float(order['info']['qty']),
-                        'price': float(order['price'])  # Extracting the price
-                    }
-                    
-                    if order['info'].get('reduceOnly', False):
-                        if order['side'] == 'sell':
-                            long_tp_orders.append(order_details)
-                        elif order['side'] == 'buy':
-                            short_tp_orders.append(order_details)
-                
-                return long_tp_orders, short_tp_orders
-            except ccxt.RateLimitExceeded:
-                logging.info(f"Rate limit exceeded when fetching TP orders for {symbol}. Retrying in {self.retry_wait} seconds...")
-                time.sleep(self.retry_wait)
-        logging.info(f"Failed to fetch TP orders for {symbol} after {self.max_retries} retries.")
-        return long_tp_orders, short_tp_orders
-    
-    def get_open_tp_order_count(self, symbol):
-        """
-        Fetches the count of open take profit (TP) orders for the given symbol.
+
+        for order in open_orders:
+            order_details = {
+                'id': order['id'],
+                'qty': float(order['info']['qty']),
+                'price': float(order['price'])  # Extracting the price
+            }
+            
+            if order['info'].get('reduceOnly', False):
+                if order['side'] == 'sell':
+                    long_tp_orders.append(order_details)
+                elif order['side'] == 'buy':
+                    short_tp_orders.append(order_details)
         
-        :param str symbol: The trading pair symbol.
-        :return: Dictionary with counts of long and short TP orders for the symbol.
+        return long_tp_orders, short_tp_orders
+
+    # def get_open_tp_orders(self, open_orders):
+    #     long_tp_orders = []
+    #     short_tp_orders = []
+
+    #     for order in open_orders:
+    #         order_details = {
+    #             'id': order['id'],
+    #             'qty': float(order['info']['qty']),
+    #             'price': float(order['price'])  # Extracting the price
+    #         }
+            
+    #         if order['info'].get('reduceOnly', False):
+    #             if order['side'] == 'sell':
+    #                 long_tp_orders.append(order_details)
+    #             elif order['side'] == 'buy':
+    #                 short_tp_orders.append(order_details)
+        
+    #     return long_tp_orders, short_tp_orders
+        
+
+    # def get_open_tp_orders(self, symbol):
+    #     long_tp_orders = []
+    #     short_tp_orders = []
+    #     for _ in range(self.max_retries):
+    #         try:
+    #             with self.rate_limiter:
+    #                 all_open_orders = self.exchange.fetch_open_orders(symbol)
+                    
+    #                 for order in all_open_orders:
+    #                     order_details = {
+    #                         'id': order['id'],
+    #                         'qty': float(order['info']['qty']),
+    #                         'price': float(order['price'])  # Extracting the price
+    #                     }
+                        
+    #                     if order['info'].get('reduceOnly', False):
+    #                         if order['side'] == 'sell':
+    #                             long_tp_orders.append(order_details)
+    #                         elif order['side'] == 'buy':
+    #                             short_tp_orders.append(order_details)
+                    
+    #                 return long_tp_orders, short_tp_orders
+    #         except ccxt.RateLimitExceeded:
+    #             logging.info(f"Rate limit exceeded when fetching TP orders for {symbol}. Retrying in {self.retry_wait} seconds...")
+    #             time.sleep(self.retry_wait)
+    #     logging.info(f"Failed to fetch TP orders for {symbol} after {self.max_retries} retries.")
+    #     return long_tp_orders, short_tp_orders
+
+
+    # def get_open_tp_orders(self, symbol):
+    #     long_tp_orders = []
+    #     short_tp_orders = []
+    #     for _ in range(self.max_retries):
+    #         try:
+    #             all_open_orders = self.exchange.fetch_open_orders(symbol)
+    #             #logging.info(f"All open orders for {symbol}: {all_open_orders}")
+                
+    #             for order in all_open_orders:
+    #                 order_details = {
+    #                     'id': order['id'],
+    #                     'qty': float(order['info']['qty']),
+    #                     'price': float(order['price'])  # Extracting the price
+    #                 }
+                    
+    #                 if order['info'].get('reduceOnly', False):
+    #                     if order['side'] == 'sell':
+    #                         long_tp_orders.append(order_details)
+    #                     elif order['side'] == 'buy':
+    #                         short_tp_orders.append(order_details)
+                
+    #             return long_tp_orders, short_tp_orders
+    #         except ccxt.RateLimitExceeded:
+    #             logging.info(f"Rate limit exceeded when fetching TP orders for {symbol}. Retrying in {self.retry_wait} seconds...")
+    #             time.sleep(self.retry_wait)
+    #     logging.info(f"Failed to fetch TP orders for {symbol} after {self.max_retries} retries.")
+    #     return long_tp_orders, short_tp_orders
+    
+    # def get_open_tp_order_count(self, symbol):
+    #     """
+    #     Fetches the count of open take profit (TP) orders for the given symbol.
+        
+    #     :param str symbol: The trading pair symbol.
+    #     :return: Dictionary with counts of long and short TP orders for the symbol.
+    #     """
+    #     long_tp_orders, short_tp_orders = self.get_open_tp_orders(symbol)
+    #     return {
+    #         'long_tp_count': len(long_tp_orders),
+    #         'short_tp_count': len(short_tp_orders)
+    #     }
+
+    def get_open_tp_order_count(self, open_orders):
         """
-        long_tp_orders, short_tp_orders = self.get_open_tp_orders(symbol)
+        Fetches the count of open take profit (TP) orders from the given open orders.
+
+        :param list open_orders: The list of open orders.
+        :return: Dictionary with counts of long and short TP orders.
+        """
+        long_tp_orders, short_tp_orders = self.get_open_tp_orders(open_orders)
         return {
             'long_tp_count': len(long_tp_orders),
             'short_tp_count': len(short_tp_orders)
         }
+
 
     def cancel_close_bybit(self, symbol: str, side: str, max_retries: int = 3) -> None:
         side = side.lower()

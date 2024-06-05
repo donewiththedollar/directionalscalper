@@ -23,6 +23,8 @@ from threading import Thread, Lock
 
 from ..bot_metrics import BotDatabase
 
+from rate_limit import RateLimit
+
 
 logging = Logger(logger_name="BaseStrategy", filename="BaseStrategy.log", stream=True)
 
@@ -96,6 +98,7 @@ class BaseStrategy:
         self.dynamic_amount_per_symbol = {}
         self.max_trade_qty_per_symbol = {}
         self.last_auto_reduce_time = {}
+        self.rate_limiter = RateLimit(10, 1)
 
         # self.bybit = self.Bybit(self)
 
@@ -1217,13 +1220,31 @@ class BaseStrategy:
         retries = 0
         while retries < max_retries:
             try:
-                return function(*args, **kwargs)
-            except Exception as e:  # Catch all exceptions
+                with self.rate_limiter:
+                    return function(*args, **kwargs)
+            except ccxt.RateLimitExceeded as e:
+                retries += 1
+                delay = min(base_delay * (2 ** retries) + random.uniform(0, 0.1 * (2 ** retries)), max_delay)
+                logging.info(f"Rate limit exceeded: {e}. Retrying in {delay:.2f} seconds...")
+                time.sleep(delay)
+            except Exception as e:
                 retries += 1
                 delay = min(base_delay * (2 ** retries) + random.uniform(0, 0.1 * (2 ** retries)), max_delay)
                 logging.info(f"Error occurred: {e}. Retrying in {delay:.2f} seconds...")
                 time.sleep(delay)
         raise Exception(f"Failed to execute the API function after {max_retries} retries.")
+
+    # def retry_api_call(self, function, *args, max_retries=100, base_delay=10, max_delay=60, **kwargs):
+    #     retries = 0
+    #     while retries < max_retries:
+    #         try:
+    #             return function(*args, **kwargs)
+    #         except Exception as e:  # Catch all exceptions
+    #             retries += 1
+    #             delay = min(base_delay * (2 ** retries) + random.uniform(0, 0.1 * (2 ** retries)), max_delay)
+    #             logging.info(f"Error occurred: {e}. Retrying in {delay:.2f} seconds...")
+    #             time.sleep(delay)
+    #     raise Exception(f"Failed to execute the API function after {max_retries} retries.")
 
     def can_trade_new_symbol(self, open_symbols: list, symbols_allowed: int, current_symbol: str) -> bool:
         """
