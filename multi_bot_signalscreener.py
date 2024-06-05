@@ -324,6 +324,8 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         logging.info(f"Rotator symbols in run_bot {rotator_symbols_standardized}")
         logging.info(f"Latest rotator symbols in run bot {latest_rotator_symbols}")
 
+        time.sleep(2)
+
         market_maker.run_strategy(symbol, args.strategy, config, account_name, symbols_to_trade=symbols_allowed, rotator_symbols_standardized=latest_rotator_symbols, mfirsi_signal=mfirsi_signal)
 
     except Exception as e:
@@ -409,6 +411,8 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                     for symbol in latest_rotator_symbols:
                         signal_futures.append(signal_executor.submit(process_signal, symbol, args, manager, symbols_allowed, open_position_data, False, long_mode, short_mode))
                         logging.info(f"Submitted signal processing for new rotator symbol {symbol}.")
+
+                        time.sleep(2)
 
                 process_futures(open_position_futures + signal_futures)
 
@@ -767,7 +771,7 @@ if __name__ == '__main__':
             logging.info(f"Active symbols: {active_symbols}")
             logging.info(f"Total active symbols: {len(active_symbols)}")
 
-            time.sleep(15)
+            time.sleep(30)
         except Exception as e:
             logging.info(f"Exception caught in main loop: {e}")
             logging.info(traceback.format_exc())
