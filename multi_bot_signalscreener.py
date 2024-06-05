@@ -276,11 +276,13 @@ class DirectionalMarketMaker:
         return self.exchange.create_order(symbol, order_type, side, amount, price)
 
     def get_symbols(self):
-        return self.exchange.symbols
+        with general_rate_limiter:
+            return self.exchange.symbols
 
     def get_mfirsi_signal(self, symbol):
         # Retrieve the MFI/RSI signal
-        return self.exchange.get_mfirsi_ema_secondary_ema(symbol, limit=100, lookback=1, ema_period=5, secondary_ema_period=3)
+        with general_rate_limiter:
+            return self.exchange.get_mfirsi_ema_secondary_ema(symbol, limit=100, lookback=1, ema_period=5, secondary_ema_period=3)
 
 BALANCE_REFRESH_INTERVAL = 600  # in seconds
 
@@ -326,7 +328,8 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
 
         time.sleep(2)
 
-        market_maker.run_strategy(symbol, args.strategy, config, account_name, symbols_to_trade=symbols_allowed, rotator_symbols_standardized=latest_rotator_symbols, mfirsi_signal=mfirsi_signal)
+        with general_rate_limiter:
+            market_maker.run_strategy(symbol, args.strategy, config, account_name, symbols_to_trade=symbols_allowed, rotator_symbols_standardized=latest_rotator_symbols, mfirsi_signal=mfirsi_signal)
 
     except Exception as e:
         logging.info(f"An error occurred in run_bot for symbol {symbol}: {e}")
@@ -438,7 +441,8 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
 def process_signal_for_open_position(symbol, args, manager, symbols_allowed, open_position_data, long_mode, short_mode):
     market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
     market_maker.manager = manager
-    mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
+    with general_rate_limiter:
+        mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
     logging.info(f"Processing signal for open position symbol {symbol}. MFIRSI signal: {mfirsi_signal}")
 
     action_taken = handle_signal(symbol, args, manager, mfirsi_signal, open_position_data, symbols_allowed, True, long_mode, short_mode)
