@@ -775,7 +775,7 @@ if __name__ == '__main__':
             logging.info(f"Active symbols: {active_symbols}")
             logging.info(f"Total active symbols: {len(active_symbols)}")
 
-            time.sleep(30)
+            time.sleep(10)
         except Exception as e:
             logging.info(f"Exception caught in main loop: {e}")
             logging.info(traceback.format_exc())
