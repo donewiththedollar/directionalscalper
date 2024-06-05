@@ -383,7 +383,6 @@ class Exchange:
             logging.error(traceback.format_exc())
             return False
         
-    # Universal
     def fetch_ohlcv(self, symbol, timeframe='1d', limit=None):
         """
         Fetch OHLCV data for the given symbol and timeframe.
@@ -394,11 +393,6 @@ class Exchange:
         :return: DataFrame with OHLCV data.
         """
         try:
-            # Check if the symbol is valid
-            if not self.is_valid_symbol(symbol):
-                logging.info(f"Symbol {symbol} does not exist on {self.exchange.id}.")
-                return pd.DataFrame()
-
             # Fetch the OHLCV data from the exchange
             ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, limit=limit)  # Pass the limit parameter
             
@@ -412,21 +406,21 @@ class Exchange:
             df.set_index('timestamp', inplace=True)
             
             return df
-
+        
         except ccxt.BaseError as e:
             # Log the error message
-            logging.info(f"Failed to fetch OHLCV data: {self.exchange.id} {e}")
+            logging.error(f"Failed to fetch OHLCV data: {self.exchange.id} {e}")
             
             # Log the traceback for further debugging
-            logging.info(traceback.format_exc())
+            logging.error(traceback.format_exc())
             
             # Return an empty DataFrame in case of an error
             return pd.DataFrame()
-
+        
         except Exception as e:
             # Log any other unexpected errors
-            logging.info(f"Unexpected error occurred while fetching OHLCV data: {e}")
-            logging.info(traceback.format_exc())
+            logging.error(f"Unexpected error occurred while fetching OHLCV data: {e}")
+            logging.error(traceback.format_exc())
             
             return pd.DataFrame()
 
