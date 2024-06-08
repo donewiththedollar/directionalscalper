@@ -29,6 +29,12 @@ class API(BaseModel):
     url: str = "https://api.quantumvoid.org/volumedata/"
     data_source_exchange: str = "bybit"
 
+class Hotkeys(BaseModel):
+    enter_long: str = "1"
+    take_profit_long: str = "2"
+    enter_short: str = "3"
+    take_profit_short: str = "4"
+    
 
 class Bot(BaseModel):
     bot_name: str
@@ -70,6 +76,7 @@ class Bot(BaseModel):
     shared_data_path: Optional[str] = None
     #risk_management: Optional[dict] = None
     linear_grid: Optional[dict] = None
+    hotkeys: Hotkeys
     # shared_data_path: Optional[DirectoryPath] = None
 
 

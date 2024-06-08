@@ -1549,6 +1549,99 @@ class BybitStrategy(BaseStrategy):
 
         return long_dynamic_amount, short_dynamic_amount, min_qty
 
+    def hotkey_trading_strategy(self, open_orders: list, symbol: str, hotkeys: dict, total_equity: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, long_dynamic_amount: float, short_dynamic_amount: float, upnl_profit_pct: float, tp_order_counts: dict):
+        try:
+            if symbol not in self.symbol_locks:
+                self.symbol_locks[symbol] = threading.Lock()
+
+            with self.symbol_locks[symbol]:
+                current_price = self.exchange.get_current_price(symbol)
+                logging.info(f"Current price for {symbol}: {current_price}")
+
+                order_book = self.exchange.get_orderbook(symbol)
+                best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol)
+                best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol)
+
+                if hotkeys.enter_long and long_pos_qty == 0 and not self.entry_order_exists(open_orders, "buy"):
+                    logging.info(f"Placing initial long entry order for {symbol} due to hotkey")
+                    self.place_postonly_order_bybit(symbol, "buy", long_dynamic_amount, best_bid_price, positionIdx=1, reduceOnly=False)
+                    time.sleep(1)
+                    if long_pos_qty > 0:
+                        logging.info(f"Initial long entry order filled for {symbol}, placing take-profit order")
+                        self.place_long_tp_order(symbol, best_ask_price, long_pos_price, long_pos_qty, upnl_profit_pct, open_orders)
+                        # Update TP for long position
+                        self.next_long_tp_update = self.update_quickscalp_tp(
+                            symbol=symbol,
+                            pos_qty=long_pos_qty,
+                            upnl_profit_pct=upnl_profit_pct,
+                            short_pos_price=short_pos_price,
+                            long_pos_price=long_pos_price,
+                            positionIdx=1,
+                            order_side="sell",
+                            last_tp_update=self.next_long_tp_update,
+                            tp_order_counts=tp_order_counts
+                        )
+                    else:
+                        logging.info(f"Initial long entry order not filled for {symbol}")
+
+                if hotkeys.take_profit_long and long_pos_qty > 0:
+                    logging.info(f"Taking profit on long position for {symbol} due to hotkey")
+                    self.place_long_tp_order(symbol, best_ask_price, long_pos_price, long_pos_qty, upnl_profit_pct, open_orders)
+                    # Update TP for long position
+                    self.next_long_tp_update = self.update_quickscalp_tp(
+                        symbol=symbol,
+                        pos_qty=long_pos_qty,
+                        upnl_profit_pct=upnl_profit_pct,
+                        short_pos_price=short_pos_price,
+                        long_pos_price=long_pos_price,
+                        positionIdx=1,
+                        order_side="sell",
+                        last_tp_update=self.next_long_tp_update,
+                        tp_order_counts=tp_order_counts
+                    )
+
+                if hotkeys.enter_short and short_pos_qty == 0 and not self.entry_order_exists(open_orders, "sell"):
+                    logging.info(f"Placing initial short entry order for {symbol} due to hotkey")
+                    self.place_postonly_order_bybit(symbol, "sell", short_dynamic_amount, best_ask_price, positionIdx=2, reduceOnly=False)
+                    time.sleep(1)
+                    if short_pos_qty > 0:
+                        logging.info(f"Initial short entry order filled for {symbol}, placing take-profit order")
+                        self.place_short_tp_order(symbol, best_bid_price, short_pos_price, short_pos_qty, upnl_profit_pct, open_orders)
+                        # Update TP for short position
+                        self.next_short_tp_update = self.update_quickscalp_tp(
+                            symbol=symbol,
+                            pos_qty=short_pos_qty,
+                            upnl_profit_pct=upnl_profit_pct,
+                            short_pos_price=short_pos_price,
+                            long_pos_price=long_pos_price,
+                            positionIdx=2,
+                            order_side="buy",
+                            last_tp_update=self.next_short_tp_update,
+                            tp_order_counts=tp_order_counts
+                        )
+                    else:
+                        logging.info(f"Initial short entry order not filled for {symbol}")
+
+                if hotkeys.take_profit_short and short_pos_qty > 0:
+                    logging.info(f"Taking profit on short position for {symbol} due to hotkey")
+                    self.place_short_tp_order(symbol, best_bid_price, short_pos_price, short_pos_qty, upnl_profit_pct, open_orders)
+                    # Update TP for short position
+                    self.next_short_tp_update = self.update_quickscalp_tp(
+                        symbol=symbol,
+                        pos_qty=short_pos_qty,
+                        upnl_profit_pct=upnl_profit_pct,
+                        short_pos_price=short_pos_price,
+                        long_pos_price=long_pos_price,
+                        positionIdx=2,
+                        order_side="buy",
+                        last_tp_update=self.next_short_tp_update,
+                        tp_order_counts=tp_order_counts
+                    )
+
+                time.sleep(5)
+        except Exception as e:
+            logging.info(f"Exception caught in hotkey trading strategy: {e}")
+            
     def bybit_1m_mfi_quickscalp_trend_noeri_maxposbal(self, open_orders: list, symbol: str, min_vol: float, one_minute_volume: float, mfirsi: str, long_dynamic_amount: float, short_dynamic_amount: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, entry_during_autoreduce: bool, volume_check: bool, long_take_profit: float, short_take_profit: float, upnl_profit_pct: float, tp_order_counts: dict, total_equity: float, max_pos_balance_pct: float):
         try:
             if symbol not in self.symbol_locks:

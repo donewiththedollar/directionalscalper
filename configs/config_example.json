@@ -70,6 +70,12 @@
       "failsafe_start_pct": 0.05,
       "long_failsafe_upnl_pct": 10.0,
       "short_failsafe_upnl_pct": 10.0
+    },
+    "hotkeys": {
+      "enter_long": "1",
+      "take_profit_long": "2",
+      "enter_short": "3",
+      "take_profit_short": "4"
     }
   },
   "exchanges": [
