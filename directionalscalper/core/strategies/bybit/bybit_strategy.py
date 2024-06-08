@@ -59,17 +59,20 @@ class BybitStrategy(BaseStrategy):
         self.last_reissue_price_long = {}
         self.last_reissue_price_short = {}
 
-        # Hotkey-related attributes
-        self.hotkey_flags = {
-            "enter_long": False,
-            "take_profit_long": False,
-            "enter_short": False,
-            "take_profit_short": False
-        }
-        self.hotkeys = config['bot']['hotkeys'] if 'hotkeys' in config['bot'] else {}
-        self.hotkey_listener_enabled = self.hotkeys.get('hotkeys_enabled', False)
-        if self.hotkey_listener_enabled:
-            self.start_hotkey_listener()
+        try:
+            # Hotkey-related attributes
+            self.hotkey_flags = {
+                "enter_long": False,
+                "take_profit_long": False,
+                "enter_short": False,
+                "take_profit_short": False
+            }
+            self.hotkeys = config['bot']['hotkeys'] if 'hotkeys' in config['bot'] else {}
+            self.hotkey_listener_enabled = self.hotkeys.get('hotkeys_enabled', False)
+            if self.hotkey_listener_enabled:
+                self.start_hotkey_listener()
+        except Exception as e:
+            logging.info(f"Exception caught in hotkeys {e}")
 
     def start_hotkey_listener(self):
         hotkey_thread = threading.Thread(target=self.listen_hotkeys, daemon=True)
@@ -124,7 +127,7 @@ class BybitStrategy(BaseStrategy):
                 time.sleep(5)
         except Exception as e:
             logging.info(f"Exception caught in hotkey trading strategy: {e}")
-            
+
     TAKER_FEE_RATE = 0.00055
 
     def get_market_data_with_retry(self, symbol, max_retries=5, retry_delay=5):
