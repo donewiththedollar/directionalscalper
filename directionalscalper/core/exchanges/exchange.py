@@ -91,6 +91,13 @@ class Exchange:
         if self.exchange_id.lower() == 'huobi' and self.market_type == 'swap':
             exchange_params['options']['defaultSubType'] = 'linear'
 
+        # Additional condition for Blofin
+        if self.exchange_id.lower() == 'blofin':
+            exchange_params['options'] = {
+                'defaultType': self.market_type,
+                'adjustForTimeDifference': True,
+            }
+            
         # Initializing the exchange object
         self.exchange = exchange_class(exchange_params)
         

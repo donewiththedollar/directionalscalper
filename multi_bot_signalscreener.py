@@ -23,6 +23,7 @@ from config import load_config, Config
 from config import VERSION
 from api.manager import Manager
 
+from directionalscalper.core.exchanges.blofin import BlofinExchange
 from directionalscalper.core.exchanges.lbank import LBankExchange
 from directionalscalper.core.exchanges.mexc import MexcExchange
 from directionalscalper.core.exchanges.huobi import HuobiExchange
@@ -180,7 +181,8 @@ class DirectionalMarketMaker:
             'bitget': BitgetExchange,
             'binance': BinanceExchange,
             'mexc': MexcExchange,
-            'lbank': LBankExchange
+            'lbank': LBankExchange,
+            'blofin': BlofinExchange
         }
 
         exchange_class = exchange_classes.get(exchange_name.lower(), Exchange)
@@ -646,6 +648,12 @@ def fetch_updated_symbols(args, manager):
 
 def log_symbol_details(strategy, symbols):
     logging.info(f"Potential symbols for {strategy}: {symbols}")
+
+def blofin_auto_rotation(args, manager, symbols_allowed):
+    market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
+    market_maker.manager = manager
+    open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_blofin()}
+    logging.info(f"Open position symbols: {open_position_symbols}")
 
 def hyperliquid_auto_rotation(args, manager, symbols_allowed):
     open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_hyperliquid()}
