@@ -92,8 +92,7 @@ def standardize_symbol(symbol):
 
 def get_available_strategies():
     return [
-        'longonlyhftob'
-        'longonlyhft',
+        'longonlyhftob',
         'qsgridnosignalstatic',
         'qsgriddynamicstatic',
         'qsgridobdca',
@@ -300,9 +299,6 @@ class DirectionalMarketMaker:
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'qsgridnosignalstatic':
             strategy = bybit_notional.BybitDynamicGridSpanOBSRStaticNoSignal(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-        elif strategy_name.lower() == 'longonlyhft':
-            strategy = nosignal.BybitDynamicGridHFTNoSignal(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
         elif strategy_name.lower() == 'longonlyhftob':
             strategy = nosignalob.BybitDynamicGridSpanOBLevelsNoSignal(self.exchange, self.manager, config.bot, symbols_allowed)
