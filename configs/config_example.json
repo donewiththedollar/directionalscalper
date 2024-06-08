@@ -72,11 +72,12 @@
       "short_failsafe_upnl_pct": 10.0
     },
     "hotkeys": {
+      "hotkeys_enabled": True,
       "enter_long": "1",
       "take_profit_long": "2",
       "enter_short": "3",
       "take_profit_short": "4"
-    }
+  }
   },
   "exchanges": [
     {
@@ -102,6 +103,13 @@
     },
     {
       "name": "hyperliquid",
+      "account_name": "account_1",
+      "api_key": "",
+      "api_secret": "",
+      "symbols_allowed": 5
+    },
+    {
+      "name": "blofin",
       "account_name": "account_1",
       "api_key": "",
       "api_secret": "",

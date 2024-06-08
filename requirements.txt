@@ -11,3 +11,4 @@ plotly
 inquirer
 pytz
 uuid
+keyboard
