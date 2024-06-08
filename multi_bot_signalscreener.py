@@ -101,7 +101,7 @@ def standardize_symbol(symbol):
 def get_available_strategies():
     return [
         'qsgridob',
-        'qstrendobdynamictp'
+        'qstrendobdynamictp',
         'qsgridinstantsignal',
         'qsgridobtight',
         'qsgriddynamicstatic',

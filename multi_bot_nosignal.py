@@ -31,7 +31,8 @@ from directionalscalper.core.exchanges.hyperliquid import HyperLiquidExchange
 from directionalscalper.core.exchanges.bybit import BybitExchange
 from directionalscalper.core.exchanges.exchange import Exchange
 
-import directionalscalper.core.strategies.bybit.nosignal.dynamicgrid_hft_nosignal as nosignal
+
+import directionalscalper.core.strategies.bybit.nosignal.hotkeys_base_strategy as hotkeysbase
 import directionalscalper.core.strategies.bybit.nosignal.dynamicgrid_oblevels_nosignal as nosignalob
 import directionalscalper.core.strategies.bybit.notional as bybit_notional
 import directionalscalper.core.strategies.bybit.scalping as bybit_scalping
@@ -93,6 +94,7 @@ def standardize_symbol(symbol):
 def get_available_strategies():
     return [
         'longonlyhftob',
+        'hotkeysmanual',
         'qsgridnosignalstatic',
         'qsgriddynamicstatic',
         'qsgridobdca',
@@ -303,7 +305,10 @@ class DirectionalMarketMaker:
         elif strategy_name.lower() == 'longonlyhftob':
             strategy = nosignalob.BybitDynamicGridSpanOBLevelsNoSignal(self.exchange, self.manager, config.bot, symbols_allowed)
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
-                                            
+        elif strategy_name.lower() == 'hotkeysmanual':
+            strategy = hotkeysbase.BybitHotkeysBaseStrategy(self.exchange, self.manager, config.bot, symbols_allowed)
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized)
+                          
     def get_balance(self, quote, market_type=None, sub_type=None):
         if self.exchange_name == 'bitget':
             return self.exchange.get_balance_bitget(quote)
