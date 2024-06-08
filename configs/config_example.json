@@ -72,7 +72,7 @@
       "short_failsafe_upnl_pct": 10.0
     },
     "hotkeys": {
-      "hotkeys_enabled": true,
+      "hotkeys_enabled": false,
       "enter_long": "1",
       "take_profit_long": "2",
       "enter_short": "3",
