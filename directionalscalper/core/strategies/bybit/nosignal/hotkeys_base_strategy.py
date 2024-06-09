@@ -852,7 +852,8 @@ class BybitHotkeysBaseStrategy(BybitStrategy):
                                 positionIdx=1,
                                 order_side="sell",
                                 last_tp_update=self.next_long_tp_update,
-                                tp_order_counts=tp_order_counts
+                                tp_order_counts=tp_order_counts,
+                                open_orders=open_orders
                             )
 
                     if short_pos_qty > 0:
@@ -870,9 +871,9 @@ class BybitHotkeysBaseStrategy(BybitStrategy):
                                 positionIdx=2,
                                 order_side="buy",
                                 last_tp_update=self.next_short_tp_update,
-                                tp_order_counts=tp_order_counts
+                                tp_order_counts=tp_order_counts,
+                                open_orders=open_orders
                             )
-                            
 
                     if self.test_orders_enabled and current_time - self.last_helper_order_cancel_time >= self.helper_interval:
                         if symbol in open_symbols:
