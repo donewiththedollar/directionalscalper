@@ -168,6 +168,7 @@ class Manager:
         logging.warning(f"Couldn't fetch everything symbols after {max_retries} attempts. Using cached symbols.")
         return self.everything_cache or []
         
+        
     def update_last_checked(self):
         self.last_checked = datetime.now().timestamp()
 
