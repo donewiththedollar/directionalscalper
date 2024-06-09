@@ -76,14 +76,14 @@ class Manager:
             logging.info("API manager mode: remote")
             if len(self.url) < 6:
                 # Adjusting the default URL based on the exchange_name
-                self.url = f"https://api.quantumvoid.org/volumedata/quantdatav2_{self.exchange_name}.json"
+                self.url = f"https://api.quantumvoid.org/volumedata/quantdatav2_{self.exchange_name.replace('_', '')}.json"
             logging.info(f"Remote API URL: {self.url}")
             self.data = self.get_remote_data()
 
         elif self.api == "local":
             # You might also want to consider adjusting the local path based on the exchange_name in the future.
             if len(str(self.path)) < 6:
-                self.path = Path("volumedata", f"quantdatav2_{self.exchange_name}.json")
+                self.path = Path("volumedata", f"quantdatav2_{self.exchange_name.replace('_', '')}.json")
             logging.info(f"Local API directory: {self.path}")
             self.data = self.get_local_data()
 
@@ -149,7 +149,7 @@ class Manager:
         return datetime.now() > self.rotator_symbols_cache_expiry
 
     def get_all_possible_symbols(self, max_retries: int = 5):
-        url = "https://api.quantumvoid.org/volumedata/quantdatav2_bybit.json"
+        url = f"https://api.quantumvoid.org/volumedata/quantdatav2_{self.exchange_name.replace('_', '')}.json"
         
         for retry in range(max_retries):
             delay = 2**retry  # exponential backoff
@@ -184,7 +184,7 @@ class Manager:
         return []
 
     def get_atrp_sorted_rotator_symbols(self, min_qty_threshold: float = None, blacklist: list = None, whitelist: list = None, max_usd_value: float = None, max_retries: int = 5):
-        url = f"https://api.quantumvoid.org/volumedata/rotatorsymbols_{self.data_source_exchange}_atrp.json"
+        url = f"https://api.quantumvoid.org/volumedata/rotatorsymbols_{self.data_source_exchange.replace('_', '')}_atrp.json"
         
         for retry in range(max_retries):
             delay = 2**retry  # exponential backoff
@@ -242,11 +242,11 @@ class Manager:
         return []
 
     def get_bullish_rotator_symbols(self, min_qty_threshold: float = None, blacklist: list = None, whitelist: list = None, max_usd_value: float = None, max_retries: int = 5):
-        url = f"https://api.quantumvoid.org/volumedata/rotatorsymbols_{self.data_source_exchange}_bullish.json"
+        url = f"https://api.quantumvoid.org/volumedata/rotatorsymbols_{self.data_source_exchange.replace('_', '')}_bullish.json"
         return self._get_rotator_symbols(url, min_qty_threshold, blacklist, whitelist, max_usd_value, max_retries)
 
     def get_bearish_rotator_symbols(self, min_qty_threshold: float = None, blacklist: list = None, whitelist: list = None, max_usd_value: float = None, max_retries: int = 5):
-        url = f"https://api.quantumvoid.org/volumedata/rotatorsymbols_{self.data_source_exchange}_bearish.json"
+        url = f"https://api.quantumvoid.org/volumedata/rotatorsymbols_{self.data_source_exchange.replace('_', '')}_bearish.json"
         return self._get_rotator_symbols(url, min_qty_threshold, blacklist, whitelist, max_usd_value, max_retries)
 
     def _get_rotator_symbols(self, url, min_qty_threshold, blacklist, whitelist, max_usd_value, max_retries):
@@ -304,81 +304,12 @@ class Manager:
         logging.warning(f"Couldn't fetch rotator symbols after {max_retries} attempts.")
         return []
 
-
-    # def get_auto_rotate_symbols(self, min_qty_threshold: float = None, blacklist: list = None, whitelist: list = None, max_usd_value: float = None, max_retries: int = 5):
-    #     if self.rotator_symbols_cache and not self.is_cache_expired():
-    #         return self.rotator_symbols_cache
-
-    #     symbols = []
-    #     url = f"https://api.quantumvoid.org/volumedata/rotatorsymbols_{self.data_source_exchange}.json"
-        
-    #     for retry in range(max_retries):
-    #         delay = 2**retry  # exponential backoff
-    #         delay = min(58, delay)  # cap the delay to 30 seconds
-
-    #         try:
-    #             logging.info(f"Sending request to {url} (Attempt: {retry + 1})")
-    #             header, raw_json = send_public_request(url=url)
-                
-    #             if isinstance(raw_json, list):
-    #                 logging.info(f"Received {len(raw_json)} assets from API")
-                    
-    #                 for asset in raw_json:
-    #                     symbol = asset.get("Asset", "")
-    #                     min_qty = asset.get("Min qty", 0)
-    #                     usd_price = asset.get("Price", float('inf')) 
-                        
-    #                     logging.info(f"Processing symbol {symbol} with min_qty {min_qty} and USD price {usd_price}")
-
-    #                     if blacklist and any(fnmatch.fnmatch(symbol, pattern) for pattern in blacklist):
-    #                         logging.info(f"Skipping {symbol} as it's in blacklist")
-    #                         continue
-
-    #                     if whitelist and symbol not in whitelist:
-    #                         logging.info(f"Skipping {symbol} as it's not in whitelist")
-    #                         continue
-
-    #                     # Check against the max_usd_value, if provided
-    #                     if max_usd_value is not None and usd_price > max_usd_value:
-    #                         logging.info(f"Skipping {symbol} as its USD price {usd_price} is greater than the max allowed {max_usd_value}")
-    #                         continue
-
-    #                     if min_qty_threshold is None or min_qty <= min_qty_threshold:
-    #                         symbols.append(symbol)
-
-    #                 logging.info(f"Returning {len(symbols)} symbols")
-                    
-    #                 # If successfully fetched, update the cache and its expiry time
-    #                 if symbols:
-    #                     self.rotator_symbols_cache = symbols
-    #                     self.rotator_symbols_cache_expiry = datetime.now() + timedelta(seconds=self.cache_life_seconds)
-
-    #                 return symbols
-
-    #             else:
-    #                 logging.warning("Unexpected data format. Expected a list of assets.")
-                    
-    #         except requests.exceptions.RequestException as e:
-    #             logging.warning(f"Request failed: {e}")
-    #         except json.decoder.JSONDecodeError as e:
-    #             logging.warning(f"Failed to parse JSON: {e}. Response: {raw_json}")
-    #         except Exception as e:
-    #             logging.warning(f"Unexpected error occurred: {e}")
-
-    #         # Wait before the next retry
-    #         if retry < max_retries - 1:
-    #             sleep(delay)
-        
-    #     # Return cached symbols if all retries fail
-    #     logging.warning(f"Couldn't fetch rotator symbols after {max_retries} attempts. Using cached symbols.")
-    #     return self.rotator_symbols_cache or []
-
     def get_auto_rotate_symbols(self, min_qty_threshold: float = None, blacklist: list = None, whitelist: list = None, max_usd_value: float = None, max_retries: int = 5):
         if self.rotator_symbols_cache and not self.is_cache_expired():
             return self.rotator_symbols_cache
 
         symbols = []
-        url = f"https://api.quantumvoid.org/volumedata/rotatorsymbols_{self.data_source_exchange}.json"
+        url = f"https://api.quantumvoid.org/volumedata/rotatorsymbols_{self.data_source_exchange.replace('_', '')}.json"
         
         for retry in range(max_retries):
             delay = 2**retry  # exponential backoff
@@ -441,11 +372,8 @@ class Manager:
         logging.warning(f"Couldn't fetch rotator symbols after {max_retries} attempts. Using cached symbols.")
         return self.rotator_symbols_cache or []
 
-
-
-    
     def get_symbols(self):
-        url = f"https://api.quantumvoid.org/volumedata/quantdatav2_bybit.json"
+        url = f"https://api.quantumvoid.org/volumedata/quantdatav2_{self.exchange_name.replace('_', '')}.json"
         try:
             header, raw_json = send_public_request(url=url)
             if isinstance(raw_json, list):
@@ -462,14 +390,6 @@ class Manager:
         except Exception as e:
             logging.info(f"Unexpected error occurred: {e}")
             return []
-
-    # def get_remote_data(self):
-    #     if not self.check_timestamp():
-    #         return self.data
-    #     header, raw_json = send_public_request(url=self.url)
-    #     self.data = raw_json
-    #     self.update_last_checked()
-    #     return self.data
 
     def get_remote_data(self):
             if not self.check_timestamp():
@@ -566,15 +486,15 @@ class Manager:
         return datetime.now() > self.api_data_cache_expiry
 
     def get_api_data(self, symbol):
-        api_data_url = f"https://api.quantumvoid.org/volumedata/quantdatav2_{self.data_source_exchange}.json"
+        api_data_url = f"https://api.quantumvoid.org/volumedata/quantdatav2_{self.data_source_exchange.replace('_', '')}.json"
         data = self.fetch_data_from_url(api_data_url)
         symbols = [asset.get("Asset", "") for asset in data if "Asset" in asset]
 
         # Fetch funding rate data from the new URL
-        funding_data_url = f"https://api.quantumvoid.org/volumedata/funding_{self.data_source_exchange}.json"
+        funding_data_url = f"https://api.quantumvoid.org/volumedata/funding_{self.data_source_exchange.replace('_', '')}.json"
         funding_data = self.fetch_data_from_url(funding_data_url)
 
-        logging.info(f"Funding data: {funding_data}")
+        #logging.info(f"Funding data: {funding_data}")
 
         api_data = {
             '1mVol': self.get_asset_value(symbol, data, "1mVol"),
