@@ -101,7 +101,7 @@ class Manager:
         return datetime.now() > self.everything_cache_expiry
 
     def get_everything(self, min_qty_threshold: float = None, blacklist: list = None, whitelist: list = None, max_usd_value: float = None, max_retries: int = 5):
-        if self.everything_cache and not self.is_cache_expired(self.everything_cache_expiry):
+        if self.everything_cache and not self.is_everything_cache_expired():
             return self.everything_cache
 
         symbols = []
@@ -129,9 +129,11 @@ class Manager:
                             logging.info(f"Skipping {symbol} as it's in blacklist")
                             continue
 
-                        if whitelist and symbol not in whitelist:
-                            logging.info(f"Skipping {symbol} as it's not in whitelist")
-                            continue
+                        if whitelist:
+                            logging.info(f"Whitelist provided: {whitelist}")
+                            if symbol not in whitelist:
+                                logging.info(f"Skipping {symbol} as it's not in whitelist")
+                                continue
 
                         # Check against the max_usd_value, if provided
                         if max_usd_value is not None and usd_price > max_usd_value:
@@ -167,7 +169,79 @@ class Manager:
         # Return cached symbols if all retries fail
         logging.warning(f"Couldn't fetch everything symbols after {max_retries} attempts. Using cached symbols.")
         return self.everything_cache or []
-        
+
+
+    # def get_everything(self, min_qty_threshold: float = None, blacklist: list = None, whitelist: list = None, max_usd_value: float = None, max_retries: int = 5):
+    #     if self.everything_cache and not self.is_everything_cache_expired(self.everything_cache_expiry):
+    #         return self.everything_cache
+
+    #     symbols = []
+    #     url = f"https://api.quantumvoid.org/volumedata/everything_{self.exchange_name.replace('_', '')}.json"
+
+    #     for retry in range(max_retries):
+    #         delay = 2**retry  # exponential backoff
+    #         delay = min(58, delay)  # cap the delay to 58 seconds
+
+    #         try:
+    #             logging.info(f"Sending request to {url} (Attempt: {retry + 1})")
+    #             header, raw_json = send_public_request(url=url)
+
+    #             if isinstance(raw_json, list):
+    #                 logging.info(f"Received {len(raw_json)} assets from API")
+
+    #                 for asset in raw_json:
+    #                     symbol = asset.get("Asset", "")
+    #                     min_qty = asset.get("Min qty", 0)
+    #                     usd_price = asset.get("Price", float('inf'))
+
+    #                     logging.info(f"Processing symbol {symbol} with min_qty {min_qty} and USD price {usd_price}")
+
+    #                     if blacklist and any(fnmatch.fnmatch(symbol, pattern) for pattern in blacklist):
+    #                         logging.info(f"Skipping {symbol} as it's in blacklist")
+    #                         continue
+
+    #                     if whitelist:
+    #                         logging.info(f"Whitelist provided: {whitelist}")
+    #                         if symbol not in whitelist:
+    #                             logging.info(f"Skipping {symbol} as it's not in whitelist")
+    #                             continue
+
+    #                     # Check against the max_usd_value, if provided
+    #                     if max_usd_value is not None and usd_price > max_usd_value:
+    #                         logging.info(f"Skipping {symbol} as its USD price {usd_price} is greater than the max allowed {max_usd_value}")
+    #                         continue
+
+    #                     if min_qty_threshold is None or min_qty <= min_qty_threshold:
+    #                         symbols.append(symbol)
+
+    #                 logging.info(f"Returning {len(symbols)} symbols")
+
+    #                 # If successfully fetched, update the cache and its expiry time
+    #                 if symbols:
+    #                     self.everything_cache = symbols
+    #                     self.everything_cache_expiry = datetime.now() + timedelta(seconds=self.cache_life_seconds)
+
+    #                 return symbols
+
+    #             else:
+    #                 logging.warning("Unexpected data format. Expected a list of assets.")
+
+    #         except requests.exceptions.RequestException as e:
+    #             logging.warning(f"Request failed: {e}")
+    #         except json.decoder.JSONDecodeError as e:
+    #             logging.warning(f"Failed to parse JSON: {e}. Response: {raw_json}")
+    #         except Exception as e:
+    #             logging.warning(f"Unexpected error occurred: {e}")
+
+    #         # Wait before the next retry
+    #         if retry < max_retries - 1:
+    #             time.sleep(delay)
+
+    #     # Return cached symbols if all retries fail
+    #     logging.warning(f"Couldn't fetch everything symbols after {max_retries} attempts. Using cached symbols.")
+    #     return self.everything_cache or []
+
+
         
     def update_last_checked(self):
         self.last_checked = datetime.now().timestamp()

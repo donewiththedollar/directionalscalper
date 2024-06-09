@@ -478,7 +478,81 @@ def bybit_spot_auto_rotation(args, manager, symbols_allowed):
         time.sleep(1)
 
 
-def bybit_auto_rotation(args, manager, symbols_allowed):
+# def bybit_auto_rotation(args, manager, symbols_allowed):
+#     global latest_rotator_symbols, threads, active_symbols, last_rotator_update_time
+
+#     max_workers = os.cpu_count()
+#     signal_executor = ThreadPoolExecutor(max_workers=max_workers)
+
+#     while True:  # Ensure continuous looping
+#         try:
+#             current_time = time.time()
+
+#             # Fetch current open positions and update symbol sets
+#             open_position_data = getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
+#             open_position_symbols = {standardize_symbol(pos['symbol']) for pos in open_position_data}
+#             logging.info(f"Open position symbols: {open_position_symbols}")
+
+#             # Fetch the updated symbols if latest_rotator_symbols is empty
+#             if not latest_rotator_symbols or current_time - last_rotator_update_time >= 60:
+#                 latest_rotator_symbols = fetch_updated_symbols(args, manager)
+#                 last_rotator_update_time = current_time
+#                 logging.info(f"Refreshed latest rotator symbols: {latest_rotator_symbols}")
+#             else:
+#                 logging.info(f"No refresh needed yet. Last update was at {last_rotator_update_time}, less than 60 seconds ago.")
+
+#             with thread_management_lock:
+#                 # Update active symbols based on thread status
+#                 update_active_symbols()
+
+#                 logging.info(f"Symbols allowed: {symbols_allowed}")
+
+#                 # Use ThreadPoolExecutor to manage trading symbols in parallel
+#                 with ThreadPoolExecutor(max_workers=2 * symbols_allowed) as trading_executor:
+#                     futures = []
+#                     for symbol in open_position_symbols:
+#                         futures.append(trading_executor.submit(start_thread_for_symbol, symbol, args, manager))
+
+#                     for future in as_completed(futures):
+#                         try:
+#                             future.result()  # This will re-raise any exceptions raised in start_thread_for_symbol
+#                         except Exception as e:
+#                             logging.info(f"Exception in thread: {e}")
+#                             logging.info(traceback.format_exc())
+
+#                 # Handle new symbols from the rotator within the allowed limits
+#                 signal_futures = []
+#                 for symbol in latest_rotator_symbols:
+#                     signal_futures.append(signal_executor.submit(process_signal, symbol, args, manager, symbols_allowed, open_position_data))
+
+#                 for future in as_completed(signal_futures):
+#                     try:
+#                         future.result()  # This will re-raise any exceptions raised in process_signal
+#                     except Exception as e:
+#                         logging.info(f"Exception in signal processing: {e}")
+#                         logging.info(traceback.format_exc())
+
+#                 # Check for completed threads and perform cleanup
+#                 completed_symbols = []
+#                 for symbol, (thread, thread_completed) in threads.items():
+#                     if thread_completed.is_set():
+#                         thread.join()  # Wait for the thread to complete
+#                         completed_symbols.append(symbol)
+
+#                 # Remove completed symbols from active_symbols and threads
+#                 for symbol in completed_symbols:
+#                     active_symbols.discard(symbol)
+#                     del threads[symbol]
+#                     del thread_start_time[symbol]
+#                     logging.info(f"Thread and symbol management completed for: {symbol}")
+
+#         except Exception as e:
+#             logging.info(f"Exception caught in bybit_auto_rotation: {str(e)}")
+#             logging.info(traceback.format_exc())
+#         # Sleep to avoid excessive CPU usage
+#         time.sleep(1)
+
+def bybit_auto_rotation(args, manager, symbols_allowed, whitelist, blacklist, max_usd_value):
     global latest_rotator_symbols, threads, active_symbols, last_rotator_update_time
 
     max_workers = os.cpu_count()
@@ -495,7 +569,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
 
             # Fetch the updated symbols if latest_rotator_symbols is empty
             if not latest_rotator_symbols or current_time - last_rotator_update_time >= 60:
-                latest_rotator_symbols = fetch_updated_symbols(args, manager)
+                latest_rotator_symbols = fetch_updated_symbols(args, manager, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
                 last_rotator_update_time = current_time
                 logging.info(f"Refreshed latest rotator symbols: {latest_rotator_symbols}")
             else:
@@ -551,6 +625,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
             logging.info(traceback.format_exc())
         # Sleep to avoid excessive CPU usage
         time.sleep(1)
+
 
 def process_signal(symbol, args, manager, symbols_allowed, open_position_data):
     """Process trading signals for a given symbol."""
@@ -759,7 +834,6 @@ def fetch_updated_symbols(args, manager, blacklist=None, whitelist=None, max_usd
     strategy = args.strategy.lower()
     potential_symbols = []
 
-    # Assuming config is properly loaded and accessible as a global variable
     if strategy == 'basicgrid':
         potential_bullish_symbols = manager.get_bullish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
         potential_bearish_symbols = manager.get_bearish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
@@ -782,6 +856,8 @@ def fetch_updated_symbols(args, manager, blacklist=None, whitelist=None, max_usd
         potential_symbols = manager.get_bearish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
     elif strategy == 'longonlyhftob':
         potential_symbols = manager.get_everything(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+        logging.info(f"Potential symbols everything: {potential_symbols}")
+        logging.info(f"Getting everything for all symbols")
     else:
         # Fetching potential symbols from manager for other strategies
         potential_symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
@@ -951,21 +1027,21 @@ if __name__ == '__main__':
             max_usd_value = config.bot.max_usd_value
 
             if exchange_name.lower() == 'bybit':
-                bybit_auto_rotation(args, manager, symbols_allowed)
+                bybit_auto_rotation(args, manager, symbols_allowed, whitelist, blacklist, max_usd_value)
             elif exchange_name.lower() == 'bybit_spot':
-                bybit_spot_auto_rotation(args, manager, symbols_allowed)
+                bybit_spot_auto_rotation(args, manager, symbols_allowed, whitelist, blacklist, max_usd_value)
             elif exchange_name.lower() == 'hyperliquid':
-                hyperliquid_auto_rotation(args, manager, symbols_allowed)
+                hyperliquid_auto_rotation(args, manager, symbols_allowed, whitelist, blacklist, max_usd_value)
             elif exchange_name.lower() == 'huobi':
-                huobi_auto_rotation(args, manager, symbols_allowed)
+                huobi_auto_rotation(args, manager, symbols_allowed, whitelist, blacklist, max_usd_value)
             elif exchange_name.lower() == 'bitget':
-                bitget_auto_rotation(args, manager, symbols_allowed)
+                bitget_auto_rotation(args, manager, symbols_allowed, whitelist, blacklist, max_usd_value)
             elif exchange_name.lower() == 'binance':
-                binance_auto_rotation(args, manager, symbols_allowed)
+                binance_auto_rotation(args, manager, symbols_allowed, whitelist, blacklist, max_usd_value)
             elif exchange_name.lower() == 'mexc':
-                mexc_auto_rotation(args, manager, symbols_allowed)
+                mexc_auto_rotation(args, manager, symbols_allowed, whitelist, blacklist, max_usd_value)
             elif exchange_name.lower() == 'lbank':
-                lbank_auto_rotation(args, manager, symbols_allowed)
+                lbank_auto_rotation(args, manager, symbols_allowed, whitelist, blacklist, max_usd_value)
             else:
                 logging.warning(f"Auto-rotation not implemented for exchange: {exchange_name}")
 
