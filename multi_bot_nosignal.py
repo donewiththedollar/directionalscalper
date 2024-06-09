@@ -754,7 +754,7 @@ def start_thread_for_symbol(symbol, args, manager):
         logging.error(f"Error starting thread for symbol {symbol}: {e}")
         return False  # Failed to start thread
 
-def fetch_updated_symbols(args, manager):
+def fetch_updated_symbols(args, manager, blacklist=None, whitelist=None, max_usd_value=None):
     """Fetches and logs potential symbols based on the current trading strategy."""
     strategy = args.strategy.lower()
     potential_symbols = []
@@ -780,6 +780,8 @@ def fetch_updated_symbols(args, manager):
         potential_symbols = manager.get_bullish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
     elif strategy == 'qstrendshortonly':
         potential_symbols = manager.get_bearish_rotator_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
+    elif strategy == 'longonlyhftob':
+        potential_symbols = manager.get_everything(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
     else:
         # Fetching potential symbols from manager for other strategies
         potential_symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)

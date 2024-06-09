@@ -67,7 +67,11 @@ class Manager:
         # Initialize the API data cache and its expiry
         self.api_data_cache = None
         self.api_data_cache_expiry = datetime.now() - timedelta(seconds=self.cache_life_seconds)
-        
+
+        # Attributes for 'everything' data cache
+        self.everything_cache = None
+        self.everything_cache_expiry = datetime.now() - timedelta(seconds=1)  # Initialize to an old timestamp to force first fetch
+
         # # Attributes for caching API data
         # self.api_data_cache = None
         # self.api_data_cache_expiry = datetime.now() - timedelta(seconds=1)
@@ -92,6 +96,78 @@ class Manager:
             raise InvalidAPI(message="API must be 'local' or 'remote'")
 
         self.update_last_checked()
+
+    def is_everything_cache_expired(self):
+        return datetime.now() > self.everything_cache_expiry
+
+    def get_everything(self, min_qty_threshold: float = None, blacklist: list = None, whitelist: list = None, max_usd_value: float = None, max_retries: int = 5):
+        if self.everything_cache and not self.is_everything_cache_expired(self.everything_cache_expiry):
+            return self.everything_cache
+
+        symbols = []
+        file_path = f"/var/www/api/volumedata/everything_{self.data_source_exchange}.json"
+
+        for retry in range(max_retries):
+            delay = 2**retry  # exponential backoff
+            delay = min(58, delay)  # cap the delay to 58 seconds
+
+            try:
+                logging.info(f"Reading data from {file_path} (Attempt: {retry + 1})")
+                with open(file_path, 'r') as file:
+                    raw_json = json.load(file)
+
+                    if isinstance(raw_json, list):
+                        logging.info(f"Received {len(raw_json)} assets from file")
+
+                        for asset in raw_json:
+                            symbol = asset.get("Asset", "")
+                            min_qty = asset.get("Min qty", 0)
+                            usd_price = asset.get("Price", float('inf'))
+
+                            logging.info(f"Processing symbol {symbol} with min_qty {min_qty} and USD price {usd_price}")
+
+                            if blacklist and any(fnmatch.fnmatch(symbol, pattern) for pattern in blacklist):
+                                logging.info(f"Skipping {symbol} as it's in blacklist")
+                                continue
+
+                            if whitelist and symbol not in whitelist:
+                                logging.info(f"Skipping {symbol} as it's not in whitelist")
+                                continue
+
+                            # Check against the max_usd_value, if provided
+                            if max_usd_value is not None and usd_price > max_usd_value:
+                                logging.info(f"Skipping {symbol} as its USD price {usd_price} is greater than the max allowed {max_usd_value}")
+                                continue
+
+                            if min_qty_threshold is None or min_qty <= min_qty_threshold:
+                                symbols.append(symbol)
+
+                        logging.info(f"Returning {len(symbols)} symbols")
+
+                        # If successfully fetched, update the cache and its expiry time
+                        if symbols:
+                            self.everything_cache = symbols
+                            self.everything_cache_expiry = datetime.now() + timedelta(seconds=self.cache_life_seconds)
+
+                        return symbols
+
+                    else:
+                        logging.warning("Unexpected data format. Expected a list of assets.")
+
+            except FileNotFoundError:
+                logging.error(f"File not found: {file_path}")
+            except json.JSONDecodeError as e:
+                logging.error(f"Error decoding JSON from {file_path}: {e}")
+            except Exception as e:
+                logging.error(f"Unexpected error occurred while reading {file_path}: {e}")
+
+            # Wait before the next retry
+            if retry < max_retries - 1:
+                time.sleep(delay)
+
+        # Return cached symbols if all retries fail
+        logging.warning(f"Couldn't read data from {file_path} after {max_retries} attempts. Using cached data.")
+        return self.everything_cache or []
 
     def update_last_checked(self):
         self.last_checked = datetime.now().timestamp()
