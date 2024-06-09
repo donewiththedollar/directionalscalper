@@ -865,6 +865,8 @@ if __name__ == '__main__':
                 bybit_auto_rotation(args, manager, symbols_allowed)
             elif exchange_name.lower() == 'bybit_spot':
                 bybit_spot_auto_rotation(args, manager, symbols_allowed)
+            elif exchange_name.lower() == 'blofin':
+                blofin_auto_rotation(args, manager, symbols_allowed)
             elif exchange_name.lower() == 'hyperliquid':
                 hyperliquid_auto_rotation(args, manager, symbols_allowed)
             elif exchange_name.lower() == 'huobi':
