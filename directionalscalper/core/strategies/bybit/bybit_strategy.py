@@ -59,6 +59,36 @@ class BybitStrategy(BaseStrategy):
         self.last_reissue_price_long = {}
         self.last_reissue_price_short = {}
 
+class BybitStrategy(BaseStrategy):
+    def __init__(self, exchange, config, manager, symbols_allowed=None):
+        super().__init__(exchange, config, manager, symbols_allowed)
+        self.exchange = exchange
+        self.grid_levels = {}
+        self.linear_grid_orders = {}
+        self.last_price = {}
+        self.last_cancel_time = {}
+        self.cancel_all_orders_interval = 240
+        self.cancel_interval = 120
+        self.order_refresh_interval = 120  # seconds
+        self.last_order_refresh_time = 0
+        self.last_grid_cancel_time = {}
+        self.entered_grid_levels = {}
+        self.filled_order_levels = {}
+        self.filled_levels = {}
+        self.max_qty_reached_symbol_long = set()  # Tracking symbols that exceed max long position qty
+        self.max_qty_reached_symbol_short = set()  # Tracking symbols that exceed max short position qty
+        self.active_grids = set()
+        self.position_inactive_threshold = 150
+        self.no_entry_signal_threshold = 150
+        self.order_inactive_threshold = 150
+        self.last_activity_time = {}
+        self.last_open_position_timestamp = defaultdict(lambda: {"buy": None, "sell": None})
+        self.last_cleared_time = {}  # Dictionary to store last cleared time for symbols
+        self.clear_interval = timedelta(minutes=30)  # Time interval threshold for clearing grids
+        self.last_empty_grid_time = {}
+        self.last_reissue_price_long = {}
+        self.last_reissue_price_short = {}
+
         try:
             # Hotkey-related attributes
             self.hotkey_flags = {
@@ -67,8 +97,8 @@ class BybitStrategy(BaseStrategy):
                 "enter_short": False,
                 "take_profit_short": False
             }
-            self.hotkeys = config['bot']['hotkeys'] if 'hotkeys' in config['bot'] else {}
-            self.hotkey_listener_enabled = self.hotkeys.get('hotkeys_enabled', False)
+            self.hotkeys = config.hotkeys  # Accessing hotkeys directly from config
+            self.hotkey_listener_enabled = self.hotkeys.hotkeys_enabled
             if self.hotkey_listener_enabled:
                 self.start_hotkey_listener()
         except Exception as e:
@@ -80,16 +110,47 @@ class BybitStrategy(BaseStrategy):
 
     def listen_hotkeys(self):
         while True:
-            if self.hotkey_listener_enabled:
-                if keyboard.is_pressed(self.hotkeys.get('enter_long', '')):
-                    self.hotkey_flags["enter_long"] = True
-                if keyboard.is_pressed(self.hotkeys.get('take_profit_long', '')):
-                    self.hotkey_flags["take_profit_long"] = True
-                if keyboard.is_pressed(self.hotkeys.get('enter_short', '')):
-                    self.hotkey_flags["enter_short"] = True
-                if keyboard.is_pressed(self.hotkeys.get('take_profit_short', '')):
-                    self.hotkey_flags["take_profit_short"] = True
-            time.sleep(0.1)  # Prevents high CPU usage
+            if keyboard.is_pressed(self.hotkeys.enter_long):
+                self.hotkey_flags['enter_long'] = True
+            if keyboard.is_pressed(self.hotkeys.take_profit_long):
+                self.hotkey_flags['take_profit_long'] = True
+            if keyboard.is_pressed(self.hotkeys.enter_short):
+                self.hotkey_flags['enter_short'] = True
+            if keyboard.is_pressed(self.hotkeys.take_profit_short):
+                self.hotkey_flags['take_profit_short'] = True
+            time.sleep(0.1)  # Add a small delay to avoid high CPU usage
+            
+    #     try:
+    #         # Hotkey-related attributes
+    #         self.hotkey_flags = {
+    #             "enter_long": False,
+    #             "take_profit_long": False,
+    #             "enter_short": False,
+    #             "take_profit_short": False
+    #         }
+    #         self.hotkeys = config['bot']['hotkeys'] if 'hotkeys' in config['bot'] else {}
+    #         self.hotkey_listener_enabled = self.hotkeys.get('hotkeys_enabled', False)
+    #         if self.hotkey_listener_enabled:
+    #             self.start_hotkey_listener()
+    #     except Exception as e:
+    #         logging.info(f"Exception caught in hotkeys {e}")
+
+    # def start_hotkey_listener(self):
+    #     hotkey_thread = threading.Thread(target=self.listen_hotkeys, daemon=True)
+    #     hotkey_thread.start()
+
+    # def listen_hotkeys(self):
+    #     while True:
+    #         if self.hotkey_listener_enabled:
+    #             if keyboard.is_pressed(self.hotkeys.get('enter_long', '')):
+    #                 self.hotkey_flags["enter_long"] = True
+    #             if keyboard.is_pressed(self.hotkeys.get('take_profit_long', '')):
+    #                 self.hotkey_flags["take_profit_long"] = True
+    #             if keyboard.is_pressed(self.hotkeys.get('enter_short', '')):
+    #                 self.hotkey_flags["enter_short"] = True
+    #             if keyboard.is_pressed(self.hotkeys.get('take_profit_short', '')):
+    #                 self.hotkey_flags["take_profit_short"] = True
+    #         time.sleep(0.1)  # Prevents high CPU usage
 
     def hotkey_trading_strategy(self, open_orders: list, symbol: str, total_equity: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, long_dynamic_amount: float, short_dynamic_amount: float, upnl_profit_pct: float, tp_order_counts: dict):
         try:
