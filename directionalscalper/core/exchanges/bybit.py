@@ -813,21 +813,43 @@ class BybitExchange(Exchange):
         logging.info(f"Failed to fetch open orders after {self.max_retries} retries.")
         return []
 
-    def get_open_orders(self, symbol):
-        """Fetches open orders for the given symbol."""
-        for _ in range(self.max_retries):
+    def get_open_orders(self, symbol, max_retries=5, retry_wait=1):
+        """Fetches open orders for the given symbol with exponential backoff."""
+        backoff = retry_wait
+        for attempt in range(max_retries):
             try:
                 with self.rate_limiter:
                     open_orders = self.exchange.fetch_open_orders(symbol)
                 return open_orders
             except RateLimitExceeded:
-                logging.info(f"Rate limit exceeded when fetching open orders for {symbol}. Retrying in {self.retry_wait} seconds...")
-                time.sleep(self.retry_wait)
+                logging.info(f"Rate limit exceeded when fetching open orders for {symbol}. Retrying in {retry_wait} seconds...")
+                time.sleep(retry_wait)
+            except NetworkError as e:
+                logging.error(f"Network error fetching open orders for {symbol}: {e}. Retrying in {backoff} seconds...")
+                time.sleep(backoff)
+                backoff *= 2  # Exponential backoff
             except Exception as e:
                 logging.error(f"Error fetching open orders for {symbol}: {e}")
                 logging.error(traceback.format_exc())
-        logging.info(f"Failed to fetch open orders for {symbol} after {self.max_retries} retries.")
+                break
+        logging.info(f"Failed to fetch open orders for {symbol} after {max_retries} retries.")
         return []
+        
+    # def get_open_orders(self, symbol):
+    #     """Fetches open orders for the given symbol."""
+    #     for _ in range(self.max_retries):
+    #         try:
+    #             with self.rate_limiter:
+    #                 open_orders = self.exchange.fetch_open_orders(symbol)
+    #             return open_orders
+    #         except RateLimitExceeded:
+    #             logging.info(f"Rate limit exceeded when fetching open orders for {symbol}. Retrying in {self.retry_wait} seconds...")
+    #             time.sleep(self.retry_wait)
+    #         except Exception as e:
+    #             logging.error(f"Error fetching open orders for {symbol}: {e}")
+    #             logging.error(traceback.format_exc())
+    #     logging.info(f"Failed to fetch open orders for {symbol} after {self.max_retries} retries.")
+    #     return []
 
 
 
