@@ -813,7 +813,7 @@ class BybitExchange(Exchange):
         logging.info(f"Failed to fetch open orders after {self.max_retries} retries.")
         return []
 
-    def get_open_orders(self, symbol, max_retries=5, retry_wait=1):
+    def get_open_orders(self, symbol, max_retries=100, retry_wait=1):
         """Fetches open orders for the given symbol with exponential backoff."""
         backoff = retry_wait
         for attempt in range(max_retries):
@@ -834,7 +834,7 @@ class BybitExchange(Exchange):
                 break
         logging.info(f"Failed to fetch open orders for {symbol} after {max_retries} retries.")
         return []
-        
+
     # def get_open_orders(self, symbol):
     #     """Fetches open orders for the given symbol."""
     #     for _ in range(self.max_retries):
