@@ -30,6 +30,7 @@ class API(BaseModel):
     data_source_exchange: str = "bybit"
 
 class Hotkeys(BaseModel):
+    hotkeys_enabled: bool = False
     enter_long: str = "1"
     take_profit_long: str = "2"
     enter_short: str = "3"
