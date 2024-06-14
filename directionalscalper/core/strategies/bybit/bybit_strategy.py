@@ -10940,8 +10940,11 @@ class BybitStrategy(BaseStrategy):
         max_position_value = total_equity * wallet_exposure_limit * leverage_used
         logging.info(f"Maximum position value for {symbol}: {max_position_value}")
 
-        base_notional = self.min_notional(symbol)
-        required_notional = base_notional * levels if enforce_full_grid else max_position_value
+        if enforce_full_grid:
+            # Scale the required notional with the total equity
+            required_notional = max_position_value / levels
+        else:
+            required_notional = max_position_value
 
         if side == 'buy':
             current_pos_value = long_pos_qty * best_ask_price
@@ -10963,8 +10966,13 @@ class BybitStrategy(BaseStrategy):
         total_ratio = sum([(i + 1) ** strength for i in range(levels)])
         level_notional = [(i + 1) ** strength for i in range(levels)]
         
-        base_notional = self.min_notional(symbol)
+        if enforce_full_grid:
+            base_notional = self.min_notional(symbol) * total_amount / self.min_notional(symbol)
+        else:
+            base_notional = self.min_notional(symbol)
         min_base_notional = base_notional / current_price
+
+        min_qty = self.get_min_qty(symbol)  # Retrieve the min_qty for the symbol
 
         if side == 'buy':
             current_position_qty = long_pos_qty
@@ -10976,11 +10984,154 @@ class BybitStrategy(BaseStrategy):
         for i in range(levels):
             notional_amount = (level_notional[i] / total_ratio) * total_amount_adjusted
             quantity = notional_amount / current_price
-            rounded_quantity = max(round(quantity / qty_precision) * qty_precision, min_base_notional)
+            
+            # Determine the minimum quantity to use (either min_notional or min_qty)
+            min_quantity = max(min_base_notional, min_qty)
+            
+            # Apply the minimum quantity requirement
+            rounded_quantity = max(round(quantity / qty_precision) * qty_precision, min_quantity)
+            
             amounts.append(rounded_quantity)
 
         logging.info(f"Calculated order amounts for {symbol}: {amounts}")
+        
+        # Verify the sum of amounts matches the total_amount
+        total_distributed_amount = sum(amounts) * current_price
+        if not enforce_full_grid and total_distributed_amount < total_amount:
+            discrepancy = total_amount - total_distributed_amount
+            amounts[-1] += discrepancy / current_price  # Adjust the last amount to match total_amount
+        
         return amounts
+
+
+
+    ######### Possibly does not scale properly
+    # def calculate_total_amount_notional_ls_properdca(self, symbol, total_equity, best_ask_price, best_bid_price, 
+    #                                                 wallet_exposure_limit_long, wallet_exposure_limit_short, 
+    #                                                 side, levels, enforce_full_grid, 
+    #                                                 long_pos_qty=0, short_pos_qty=0,
+    #                                                 user_defined_leverage_long=None, user_defined_leverage_short=None):
+    #     logging.info(f"Calculating total amount for {symbol} with total_equity: {total_equity}, side: {side}, levels: {levels}, enforce_full_grid: {enforce_full_grid}")
+
+    #     leverage_used = user_defined_leverage_long if side == 'buy' and user_defined_leverage_long not in (0, None) else \
+    #                     user_defined_leverage_short if side == 'sell' and user_defined_leverage_short not in (0, None) else \
+    #                     self.exchange.get_current_max_leverage_bybit(symbol)
+    #     logging.info(f"Using leverage for {symbol}: {leverage_used}")
+
+    #     wallet_exposure_limit = wallet_exposure_limit_long if side == 'buy' else wallet_exposure_limit_short
+    #     max_position_value = total_equity * wallet_exposure_limit * leverage_used
+    #     logging.info(f"Maximum position value for {symbol}: {max_position_value}")
+
+    #     base_notional = self.min_notional(symbol)
+    #     required_notional = base_notional * levels if enforce_full_grid else max_position_value
+
+    #     if side == 'buy':
+    #         current_pos_value = long_pos_qty * best_ask_price
+    #     else:
+    #         current_pos_value = short_pos_qty * best_bid_price
+
+    #     adjusted_max_position_value = max_position_value - current_pos_value
+    #     total_notional_amount = min(required_notional, adjusted_max_position_value)
+        
+    #     logging.info(f"Calculated total notional amount for {symbol}: {total_notional_amount}")
+    #     return total_notional_amount
+
+
+    # def calculate_order_amounts_notional_properdca(self, symbol: str, total_amount: float, levels: int, strength: float, qty_precision: float, enforce_full_grid: bool,
+    #                                             long_pos_qty=0, short_pos_qty=0, side='buy') -> List[float]:
+    #     logging.info(f"Calculating order amounts for {symbol} with total_amount: {total_amount}, levels: {levels}, strength: {strength}, qty_precision: {qty_precision}, enforce_full_grid: {enforce_full_grid}")
+        
+    #     current_price = self.exchange.get_current_price(symbol)
+    #     amounts = []
+    #     total_ratio = sum([(i + 1) ** strength for i in range(levels)])
+    #     level_notional = [(i + 1) ** strength for i in range(levels)]
+        
+    #     base_notional = self.min_notional(symbol)
+    #     min_base_notional = base_notional / current_price
+
+    #     min_qty = self.get_min_qty(symbol)  # Retrieve the min_qty for the symbol
+
+    #     if side == 'buy':
+    #         current_position_qty = long_pos_qty
+    #     else:
+    #         current_position_qty = short_pos_qty
+
+    #     total_amount_adjusted = total_amount + (current_position_qty * current_price)
+
+    #     for i in range(levels):
+    #         notional_amount = (level_notional[i] / total_ratio) * total_amount_adjusted
+    #         quantity = notional_amount / current_price
+            
+    #         # Determine the minimum quantity to use (either min_notional or min_qty)
+    #         min_quantity = max(min_base_notional, min_qty)
+            
+    #         # Apply the minimum quantity requirement
+    #         rounded_quantity = max(round(quantity / qty_precision) * qty_precision, min_quantity)
+            
+    #         amounts.append(rounded_quantity)
+
+    #     logging.info(f"Calculated order amounts for {symbol}: {amounts}")
+    #     return amounts
+
+### 
+    
+    # def calculate_total_amount_notional_ls_properdca(self, symbol, total_equity, best_ask_price, best_bid_price, 
+    #                                                 wallet_exposure_limit_long, wallet_exposure_limit_short, 
+    #                                                 side, levels, enforce_full_grid, 
+    #                                                 long_pos_qty=0, short_pos_qty=0,
+    #                                                 user_defined_leverage_long=None, user_defined_leverage_short=None):
+    #     logging.info(f"Calculating total amount for {symbol} with total_equity: {total_equity}, side: {side}, levels: {levels}, enforce_full_grid: {enforce_full_grid}")
+
+    #     leverage_used = user_defined_leverage_long if side == 'buy' and user_defined_leverage_long not in (0, None) else \
+    #                     user_defined_leverage_short if side == 'sell' and user_defined_leverage_short not in (0, None) else \
+    #                     self.exchange.get_current_max_leverage_bybit(symbol)
+    #     logging.info(f"Using leverage for {symbol}: {leverage_used}")
+
+    #     wallet_exposure_limit = wallet_exposure_limit_long if side == 'buy' else wallet_exposure_limit_short
+    #     max_position_value = total_equity * wallet_exposure_limit * leverage_used
+    #     logging.info(f"Maximum position value for {symbol}: {max_position_value}")
+
+    #     base_notional = self.min_notional(symbol)
+    #     required_notional = base_notional * levels if enforce_full_grid else max_position_value
+
+    #     if side == 'buy':
+    #         current_pos_value = long_pos_qty * best_ask_price
+    #     else:
+    #         current_pos_value = short_pos_qty * best_bid_price
+
+    #     adjusted_max_position_value = max_position_value - current_pos_value
+    #     total_notional_amount = min(required_notional, adjusted_max_position_value)
+        
+    #     logging.info(f"Calculated total notional amount for {symbol}: {total_notional_amount}")
+    #     return total_notional_amount
+
+    # def calculate_order_amounts_notional_properdca(self, symbol: str, total_amount: float, levels: int, strength: float, qty_precision: float, enforce_full_grid: bool,
+    #                                             long_pos_qty=0, short_pos_qty=0, side='buy') -> List[float]:
+    #     logging.info(f"Calculating order amounts for {symbol} with total_amount: {total_amount}, levels: {levels}, strength: {strength}, qty_precision: {qty_precision}, enforce_full_grid: {enforce_full_grid}")
+        
+    #     current_price = self.exchange.get_current_price(symbol)
+    #     amounts = []
+    #     total_ratio = sum([(i + 1) ** strength for i in range(levels)])
+    #     level_notional = [(i + 1) ** strength for i in range(levels)]
+        
+    #     base_notional = self.min_notional(symbol)
+    #     min_base_notional = base_notional / current_price
+
+    #     if side == 'buy':
+    #         current_position_qty = long_pos_qty
+    #     else:
+    #         current_position_qty = short_pos_qty
+
+    #     total_amount_adjusted = total_amount + (current_position_qty * current_price)
+
+    #     for i in range(levels):
+    #         notional_amount = (level_notional[i] / total_ratio) * total_amount_adjusted
+    #         quantity = notional_amount / current_price
+    #         rounded_quantity = max(round(quantity / qty_precision) * qty_precision, min_base_notional)
+    #         amounts.append(rounded_quantity)
+
+    #     logging.info(f"Calculated order amounts for {symbol}: {amounts}")
+    #     return amounts
 
     def calculate_max_positions(self, symbol, total_equity, current_price, max_qty_percent_long, max_qty_percent_short):
         leverage_long = self.get_effective_leverage(self.user_defined_leverage_long, symbol, 'buy')
