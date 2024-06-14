@@ -10923,6 +10923,10 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"No user-defined leverage specified for {symbol} on {side} side, using exchange max leverage: {max_leverage}")
             return max_leverage
         return user_defined_leverage
+    
+    def get_min_qty(self, symbol):
+        market_data = self.get_market_data_with_retry(symbol, max_retries=5, retry_delay=5)
+        return float(market_data["min_qty"])
 
     def calculate_total_amount_notional_ls_properdca(self, symbol, total_equity, best_ask_price, best_bid_price, 
                                                     wallet_exposure_limit_long, wallet_exposure_limit_short, 
