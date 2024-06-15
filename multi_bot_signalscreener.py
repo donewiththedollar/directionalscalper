@@ -346,7 +346,8 @@ def bybit_spot_auto_rotation(args, manager, symbols_allowed):
     global latest_rotator_symbols, long_threads, short_threads, active_symbols, last_rotator_update_time
 
     # Set max_workers to the number of CPUs
-    max_workers = os.cpu_count()
+    #max_workers = os.cpu_count()
+    max_workers = 1
     signal_executor = ThreadPoolExecutor(max_workers=max_workers)
     logging.info(f"Initialized signal executor with max workers: {max_workers}")
 
@@ -444,7 +445,8 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
     global latest_rotator_symbols, long_threads, short_threads, active_symbols, last_rotator_update_time
 
     # Set max_workers to the number of CPUs
-    max_workers = os.cpu_count()
+    #max_workers = os.cpu_count()
+    max_workers = 1
     signal_executor = ThreadPoolExecutor(max_workers=max_workers)
     logging.info(f"Initialized signal executor with max workers: {max_workers}")
 
