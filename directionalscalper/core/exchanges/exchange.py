@@ -425,11 +425,63 @@ class Exchange:
             return pd.DataFrame()
         
         except Exception as e:
+            # Check if the error is related to response parsing
+            if 'response' in locals() and isinstance(response, str):
+                logging.info(f"Response is a string: {response}")
+                try:
+                    # Attempt to parse the response
+                    response = json.loads(response)
+                    logging.info("Parsed response into a dictionary")
+                except json.JSONDecodeError as json_error:
+                    logging.error(f"Failed to parse response: {json_error}")
+            
             # Log any other unexpected errors
-            logging.error(f"Unexpected error occurred while fetching OHLCV data: {e}")
-            logging.error(traceback.format_exc())
+            logging.info(f"Unexpected error occurred while fetching OHLCV data: {e}")
+            logging.info(traceback.format_exc())
             
             return pd.DataFrame()
+
+
+    # def fetch_ohlcv(self, symbol, timeframe='1d', limit=None):
+    #     """
+    #     Fetch OHLCV data for the given symbol and timeframe.
+        
+    #     :param symbol: Trading symbol.
+    #     :param timeframe: Timeframe string.
+    #     :param limit: Limit the number of returned data points.
+    #     :return: DataFrame with OHLCV data.
+    #     """
+    #     try:
+    #         # Fetch the OHLCV data from the exchange
+    #         ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, limit=limit)  # Pass the limit parameter
+            
+    #         # Create a DataFrame from the OHLCV data
+    #         df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+            
+    #         # Convert the timestamp to datetime
+    #         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+            
+    #         # Set the timestamp as the index
+    #         df.set_index('timestamp', inplace=True)
+            
+    #         return df
+        
+    #     except ccxt.BaseError as e:
+    #         # Log the error message
+    #         logging.error(f"Failed to fetch OHLCV data: {self.exchange.id} {e}")
+            
+    #         # Log the traceback for further debugging
+    #         logging.error(traceback.format_exc())
+            
+    #         # Return an empty DataFrame in case of an error
+    #         return pd.DataFrame()
+        
+    #     except Exception as e:
+    #         # Log any other unexpected errors
+    #         logging.error(f"Unexpected error occurred while fetching OHLCV data: {e}")
+    #         logging.error(traceback.format_exc())
+            
+    #         return pd.DataFrame()
 
     def get_orderbook(self, symbol, max_retries=3, retry_delay=5) -> dict:
         values = {"bids": [], "asks": []}
