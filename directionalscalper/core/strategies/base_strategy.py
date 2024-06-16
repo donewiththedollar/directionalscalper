@@ -2721,6 +2721,123 @@ class BaseStrategy:
 
         return volatility_metric
 
+    def lorentzian_distance(self, x1, x2):
+        try:
+            """
+            Calculate the Lorentzian distance between two points.
+            """
+            return np.sum(np.log(1 + np.abs(x1 - x2)))
+        except Exception as e:
+            logging.info(f"Exception caught in lorentzian_distance {e}")
+
+    def get_lorentzian_distance(self, feature_series, feature_arrays, feature_count, index):
+        try:
+            """
+            Calculate the Lorentzian distance for the specified index and feature count.
+            """
+            distances = [
+                self.lorentzian_distance(feature_series[f'f{i+1}'], feature_arrays[f'f{i+1}'][index])
+                for i in range(feature_count)
+            ]
+            return sum(distances)
+        except Exception as e:
+            logging.info(f"Exception caught in get_lorentzian_distance {e}")
+
+    def calculate_features(self, df, feature_params):
+        try:
+            """
+            Calculate the required features for machine learning.
+            """
+            features = {}
+            features['RSI'] = ta.momentum.RSIIndicator(df['close'], window=feature_params['RSI']).rsi()
+            features['ADX'] = ta.trend.ADXIndicator(df['high'], df['low'], df['close'], window=feature_params['ADX']).adx()
+            features['CCI'] = ta.trend.CCIIndicator(df['high'], df['low'], df['close'], window=feature_params['CCI']).cci()
+            features['WT'] = ta.momentum.WilliamsRIndicator(df['high'], df['low'], df['close'], lbp=feature_params['WT']).williams_r()
+            
+            feature_series = {f'f{i+1}': features[feature] for i, feature in enumerate(features.keys())}
+            feature_arrays = {f'f{i+1}': features[feature].values for i, feature in enumerate(features.keys())}
+            
+            return feature_series, feature_arrays
+        except Exception as e:
+            logging.info(f"Exception caught in calculate_features {e}")
+
+    def find_nearest_neighbors(self, df, feature_series, feature_arrays, feature_count, neighbors_count, max_bars_back):
+        """
+        Find the nearest neighbors using Lorentzian distance.
+        """
+        predictions = []
+        distances = []
+        last_distance = -1
+        size = min(max_bars_back - 1, len(df) - 1)
+
+        for i in range(size):
+            distance = self.get_lorentzian_distance(feature_series, feature_arrays, feature_count, i)
+            if distance >= last_distance and i % 4 == 0:
+                last_distance = distance
+                distances.append(distance)
+                predictions.append(df['close'].iloc[i])
+                if len(predictions) > neighbors_count:
+                    last_distance = np.percentile(distances, 25)
+                    distances.pop(0)
+                    predictions.pop(0)
+
+        prediction = np.mean(predictions)
+        return prediction
+    
+    def get_lorentzian_prediction(self, symbol: str, limit: int = 240, lookback: int = 1, neighbors_count: int = 8, max_bars_back: int = 2000) -> str:
+        try:
+            """
+            Generate a trading signal based on Lorentzian distance prediction.
+            """
+            # Fetch OHLCV data
+            ohlcv_data = self.exchange.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
+            df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+
+            # Calculate Features
+            feature_params = {
+                'RSI': 14,
+                'ADX': 14,
+                'CCI': 20,
+                'WT': 14
+            }
+            feature_series, feature_arrays = self.calculate_features(df, feature_params)
+
+            # Get Lorentzian Prediction
+            lorentzian_prediction = self.find_nearest_neighbors(df, feature_series, feature_arrays, len(feature_params), neighbors_count, max_bars_back)
+            
+            # Define thresholds for trading signals
+            if lorentzian_prediction > df['close'].iloc[-1] * 1.01:  # Example threshold: 1% higher than the current close price
+                return 'long'
+            elif lorentzian_prediction < df['close'].iloc[-1] * 0.99:  # Example threshold: 1% lower than the current close price
+                return 'short'
+            else:
+                return 'neutral'
+        except Exception as e:
+            logging.info(f"Exception caught in lorentzian prediction {e}")
+
+    def get_mfirsi_v1(self, symbol: str, limit: int = 100, lookback: int = 5) -> str:
+        # Fetch OHLCV data using CCXT
+        ohlcv_data = self.exchange.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
+        df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+
+        # Calculate MFI and RSI
+        df['mfi'] = ta.volume.MFIIndicator(high=df['high'], low=df['low'], close=df['close'], volume=df['volume'], window=14, fillna=False).money_flow_index()
+        df['rsi'] = ta.momentum.rsi(df['close'], window=14)
+        df['open_less_close'] = (df['open'] < df['close']).astype(int)
+
+        # Calculate conditions
+        df['buy_condition'] = ((df['mfi'] < 30) & (df['rsi'] < 40) & (df['open_less_close'] == 1)).astype(int)
+        df['sell_condition'] = ((df['mfi'] > 80) & (df['rsi'] > 70) & (df['open_less_close'] == 0)).astype(int)
+
+        # Evaluate conditions over the lookback period
+        recent_conditions = df.iloc[-lookback:]
+        if recent_conditions['buy_condition'].any():
+            return 'long'
+        elif recent_conditions['sell_condition'].any():
+            return 'short'
+        else:
+            return 'neutral'
+
     def liq_stop_loss_logic(self, long_pos_qty, long_pos_price, long_liquidation_price, short_pos_qty, short_pos_price, short_liquidation_price, liq_stoploss_enabled, symbol, liq_price_stop_pct):
         if liq_stoploss_enabled:
             try:
