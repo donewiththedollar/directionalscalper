@@ -2749,29 +2749,6 @@ class BaseStrategy:
         except Exception as e:
             logging.info(f"Exception caught in lorentzian prediction {e}")
 
-    def get_mfirsi_v1(self, symbol: str, limit: int = 100, lookback: int = 5) -> str:
-        # Fetch OHLCV data using CCXT
-        ohlcv_data = self.exchange.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
-        df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
-
-        # Calculate MFI and RSI
-        df['mfi'] = ta.volume.MFIIndicator(high=df['high'], low=df['low'], close=df['close'], volume=df['volume'], window=14, fillna=False).money_flow_index()
-        df['rsi'] = ta.momentum.rsi(df['close'], window=14)
-        df['open_less_close'] = (df['open'] < df['close']).astype(int)
-
-        # Calculate conditions
-        df['buy_condition'] = ((df['mfi'] < 30) & (df['rsi'] < 40) & (df['open_less_close'] == 1)).astype(int)
-        df['sell_condition'] = ((df['mfi'] > 80) & (df['rsi'] > 70) & (df['open_less_close'] == 0)).astype(int)
-
-        # Evaluate conditions over the lookback period
-        recent_conditions = df.iloc[-lookback:]
-        if recent_conditions['buy_condition'].any():
-            return 'long'
-        elif recent_conditions['sell_condition'].any():
-            return 'short'
-        else:
-            return 'neutral'
-
     def liq_stop_loss_logic(self, long_pos_qty, long_pos_price, long_liquidation_price, short_pos_qty, short_pos_price, short_liquidation_price, liq_stoploss_enabled, symbol, liq_price_stop_pct):
         if liq_stoploss_enabled:
             try:
