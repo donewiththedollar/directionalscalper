@@ -1256,7 +1256,7 @@ class BaseStrategy:
         logging.info(f"Open symbols count (unique): {self.open_symbols_count}")
 
         if symbols_allowed is None:
-            logging.info(f"Symbols alloweed is none")
+            logging.info(f"Symbols alloweed is none, defaulting to 10")
             symbols_allowed = 10  # Use a default value if symbols_allowed is not specified
 
         # If we haven't reached the symbol limit or the current symbol is already being traded, allow the trade
