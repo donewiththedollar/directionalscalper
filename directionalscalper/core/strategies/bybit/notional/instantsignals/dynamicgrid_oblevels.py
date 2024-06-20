@@ -16,6 +16,7 @@ logging = Logger(logger_name="BybitDynamicGridSpanOBLevels", filename="BybitDyna
 
 symbol_locks = {}
 
+
 class BybitDynamicGridSpanOBLevels(BybitStrategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None, rotator_symbols_standardized=None, mfirsi_signal=None):
         super().__init__(exchange, config, manager, symbols_allowed)
@@ -32,6 +33,8 @@ class BybitDynamicGridSpanOBLevels(BybitStrategy):
         self.helper_wall_size = 5
         self.helper_duration = 5
         self.helper_interval = 1
+        self.running_long = False  # Initialize running_long
+        self.running_short = False  # Initialize running_short
         try:
             self.wallet_exposure_limit = self.config.wallet_exposure_limit
             self.user_defined_leverage_long = self.config.user_defined_leverage_long
@@ -63,11 +66,6 @@ class BybitDynamicGridSpanOBLevels(BybitStrategy):
             self.max_qty_percent_short = self.config.linear_grid['max_qty_percent_short']
             self.min_outer_price_distance = self.config.linear_grid['min_outer_price_distance']
             self.max_outer_price_distance = self.config.linear_grid['max_outer_price_distance']
-            # self.reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
-                                            #  failsafe_enabled,
-                                            #  long_failsafe_upnl_pct,
-                                            #  short_failsafe_upnl_pct,
-                                            #  failsafe_start_pct)
             self.upnl_threshold_pct = self.config.upnl_threshold_pct
             self.volume_check = self.config.volume_check
             self.max_usd_value = self.config.max_usd_value
@@ -95,7 +93,7 @@ class BybitDynamicGridSpanOBLevels(BybitStrategy):
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
 
-    def run(self, symbol, rotator_symbols_standardized=None, mfirsi_signal=None):
+    def run(self, symbol, rotator_symbols_standardized=None, mfirsi_signal=None, action=None):
         try:
             standardized_symbol = symbol.upper()  # Standardize the symbol name
             logging.info(f"Standardized symbol: {standardized_symbol}")
@@ -107,7 +105,10 @@ class BybitDynamicGridSpanOBLevels(BybitStrategy):
             if symbol_locks[standardized_symbol].acquire(blocking=False):
                 logging.info(f"Lock acquired for symbol {standardized_symbol} by thread {current_thread_id}")
                 try:
-                    self.run_single_symbol(standardized_symbol, rotator_symbols_standardized, mfirsi_signal)
+                    if action == "long":
+                        self.run_long_trades(standardized_symbol, rotator_symbols_standardized, mfirsi_signal)
+                    elif action == "short":
+                        self.run_short_trades(standardized_symbol, rotator_symbols_standardized, mfirsi_signal)
                 finally:
                     symbol_locks[standardized_symbol].release()
                     logging.info(f"Lock released for symbol {standardized_symbol} by thread {current_thread_id}")
@@ -116,14 +117,19 @@ class BybitDynamicGridSpanOBLevels(BybitStrategy):
         except Exception as e:
             logging.info(f"Exception in run function {e}")
 
-    def run_single_symbol(self, symbol, rotator_symbols_standardized=None, mfirsi_signal=None):
+    def run_long_trades(self, symbol, rotator_symbols_standardized=None, mfirsi_signal=None):
+        self.running_long = True
+        self.run_single_symbol(symbol, rotator_symbols_standardized, mfirsi_signal, "long")
+
+    def run_short_trades(self, symbol, rotator_symbols_standardized=None, mfirsi_signal=None):
+        self.running_short = True
+        self.run_single_symbol(symbol, rotator_symbols_standardized, mfirsi_signal, "short")
+
+    def run_single_symbol(self, symbol, rotator_symbols_standardized=None, mfirsi_signal=None, action=None):
         try:
             logging.info(f"Starting to process symbol: {symbol}")
             logging.info(f"Initializing default values for symbol: {symbol}")
 
-            self.running_long = True
-            self.running_short = True
-            
             previous_long_pos_qty = 0
             previous_short_pos_qty = 0
 
@@ -270,6 +276,16 @@ class BybitDynamicGridSpanOBLevels(BybitStrategy):
 
             while self.running_long or self.running_short:
 
+                logging.info(f"Trading {symbol} in while loop in obstrategy with long: {self.running_long}")
+                logging.info(f"Trading {symbol} in while loop in obstrategy with short: {self.running_short}")
+
+                # Example condition to stop the loop
+                if action == "long" and not self.running_long:
+                    logging.info(f"Killing thread for {symbol} because not running long")
+                    break
+                if action == "short" and not self.running_short:
+                    logging.info(f"Killing thread for {symbol} because not running short")
+                    break
 
                 current_time = time.time()
 
@@ -467,50 +483,50 @@ class BybitDynamicGridSpanOBLevels(BybitStrategy):
                 previous_long_pos_qty = long_pos_qty
                 previous_short_pos_qty = short_pos_qty
 
-                # Actions based on inactivity
-                if inactive_long:
-                    logging.info(f"No active long positions and previous positions were closed for {symbol}. Terminating long operations.")
-                    self.running_long = False
-                    self.cancel_grid_orders(symbol, "buy")
-                    self.clear_grid(symbol, 'buy')
-                    self.active_grids.discard(symbol)
-                    #self.cleanup_before_termination(symbol)
+                # # Actions based on inactivity
+                # if inactive_long:
+                #     logging.info(f"No active long positions and previous positions were closed for {symbol}. Terminating long operations.")
+                #     self.running_long = False
+                #     self.cancel_grid_orders(symbol, "buy")
+                #     self.clear_grid(symbol, 'buy')
+                #     self.active_grids.discard(symbol)
+                #     #self.cleanup_before_termination(symbol)
                     
-                    # Remove symbol from shared_symbols_data if there are no active short positions
-                    if short_pos_qty == 0:
-                        shared_symbols_data.pop(symbol, None)
-                        break
+                #     # Remove symbol from shared_symbols_data if there are no active short positions
+                #     if short_pos_qty == 0:
+                #         shared_symbols_data.pop(symbol, None)
+                #         break
 
-                if inactive_short:
-                    logging.info(f"No active short positions and previous positions were closed for {symbol}. Terminating short operations.")
-                    self.cancel_grid_orders(symbol, "sell")
-                    self.clear_grid(symbol, 'sell')
-                    self.active_grids.discard(symbol)
-                    #self.cleanup_before_termination(symbol)
-                    self.running_short = False
+                # if inactive_short:
+                #     logging.info(f"No active short positions and previous positions were closed for {symbol}. Terminating short operations.")
+                #     self.cancel_grid_orders(symbol, "sell")
+                #     self.clear_grid(symbol, 'sell')
+                #     self.active_grids.discard(symbol)
+                #     #self.cleanup_before_termination(symbol)
+                #     self.running_short = False
                     
-                    # Remove symbol from shared_symbols_data if there are no active long positions
-                    if long_pos_qty == 0:
-                        shared_symbols_data.pop(symbol, None)
-                        break
+                #     # Remove symbol from shared_symbols_data if there are no active long positions
+                #     if long_pos_qty == 0:
+                #         shared_symbols_data.pop(symbol, None)
+                #         break
             
-                terminate_long, terminate_short = self.should_terminate_open_orders(symbol, long_pos_qty, short_pos_qty, open_position_data, open_orders, current_time)
+                # terminate_long, terminate_short = self.should_terminate_open_orders(symbol, long_pos_qty, short_pos_qty, open_position_data, open_orders, current_time)
 
-                logging.info(f"Terminate long: {terminate_long}, Terminate short: {terminate_short}")
+                # logging.info(f"Terminate long: {terminate_long}, Terminate short: {terminate_short}")
 
-                try:
-                    if terminate_long:
-                        logging.info(f"Should terminate long orders for {symbol}")
-                        self.cancel_grid_orders(symbol, "buy")
-                        self.cleanup_before_termination(symbol)
-                        self.running_long = False  # Set the flag to stop the long thread
-                    if terminate_short:
-                        logging.info(f"Should terminate short orders for {symbol}")
-                        self.cancel_grid_orders(symbol, "sell")
-                        self.cleanup_before_termination(symbol)
-                        self.running_short = False  # Set the flag to stop the short thread
-                except Exception as e:
-                    logging.info(f"Exception caught in termination {e}")
+                # try:
+                #     if terminate_long:
+                #         logging.info(f"Should terminate long orders for {symbol}")
+                #         self.cancel_grid_orders(symbol, "buy")
+                #         self.cleanup_before_termination(symbol)
+                #         self.running_long = False  # Set the flag to stop the long thread
+                #     if terminate_short:
+                #         logging.info(f"Should terminate short orders for {symbol}")
+                #         self.cancel_grid_orders(symbol, "sell")
+                #         self.cleanup_before_termination(symbol)
+                #         self.running_short = False  # Set the flag to stop the short thread
+                # except Exception as e:
+                #     logging.info(f"Exception caught in termination {e}")
 
                 if not self.running_long and not self.running_short:
                     logging.info("Both long and short operations have ended. Preparing to exit loop.")
