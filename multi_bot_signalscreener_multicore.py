@@ -714,6 +714,20 @@ def handle_signal_spot(symbol, args, manager, mfirsi_signal, open_position_data,
 
     return action_taken_long
 
+def process_signal_for_open_position_spot(symbol, args, manager, symbols_allowed, open_position_data, long_mode, short_mode):
+    market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
+    market_maker.manager = manager
+    with general_rate_limiter:
+        mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
+    logging.info(f"Processing signal for open position symbol {symbol}. MFIRSI signal: {mfirsi_signal}")
+
+    action_taken = handle_signal_spot(symbol, args, manager, mfirsi_signal, open_position_data, symbols_allowed, True, long_mode, short_mode)
+
+    if action_taken:
+        logging.info(f"Action taken for open position symbol {symbol}.")
+    else:
+        logging.info(f"No action taken for open position symbol {symbol}.")
+
 def process_signal_spot(symbol, args, manager, symbols_allowed, open_position_data, is_open_position, long_mode, short_mode):
     market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
     market_maker.manager = manager
