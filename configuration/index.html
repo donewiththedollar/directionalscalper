@@ -69,6 +69,11 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
+        
+        <a href="#configuration" class="md-skip">
+          Skip to content
+        </a>
+      
     </div>
     <div data-md-component="announce">
       
@@ -407,6 +412,19 @@
       <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
       
       
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Configuration
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
       
       <a href="./" class="md-nav__link md-nav__link--active">
         
@@ -417,6 +435,82 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#account-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      Account Section
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Account Section">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Parameters:
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bot-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bot Section
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Bot Section">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#linear-grid-strategy-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Linear Grid Strategy Parameters
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-configuration-snippet" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example Configuration Snippet
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -519,6 +613,73 @@
   
   
   
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#account-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      Account Section
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Account Section">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Parameters:
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bot-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bot Section
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Bot Section">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#linear-grid-strategy-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Linear Grid Strategy Parameters
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-configuration-snippet" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example Configuration Snippet
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
   
 </nav>
                   </div>
@@ -533,9 +694,88 @@
                   
 
 
-  <h1>Configuration</h1>
-
-
+<h1 id="configuration">Configuration</h1>
+<h2 id="account-section">Account Section</h2>
+<p>Configure your account settings in the <code>config.json</code> file under the <code>account</code> section. This includes API keys, account names, and other related settings.</p>
+<h3 id="parameters">Parameters:</h3>
+<ul>
+<li><strong>api_key</strong>: Your exchange API key.</li>
+<li><strong>api_secret</strong>: Your exchange API secret.</li>
+<li><strong>account_name</strong>: A name to identify your account configuration.</li>
+</ul>
+<h2 id="bot-section">Bot Section</h2>
+<p>Configure your bot settings in the <code>config.json</code> file under the <code>bot</code> section. This includes strategy parameters, risk management settings, and other related settings.</p>
+<h3 id="linear-grid-strategy-parameters">Linear Grid Strategy Parameters</h3>
+<p>Here are the parameters for the <code>linear_grid</code> strategy in your <code>config.json</code> file:</p>
+<ul>
+<li><strong>max_qty_percent_long</strong>: Defines the maximum percentage of your wallet balance that can be used for long positions.</li>
+<li><strong>max_qty_percent_short</strong>: Defines the maximum percentage of your wallet balance that can be used for short positions.</li>
+<li><strong>auto_reduce_cooldown_enabled</strong>: Boolean parameter that determines whether the auto-reduce cooldown feature is enabled. This feature automatically reduces the size of your positions after a certain period.</li>
+<li><strong>auto_reduce_cooldown_start_pct</strong>: Defines the percentage at which the auto-reduce cooldown feature starts.</li>
+<li><strong>wallet_exposure_limit_long</strong>: Defines the maximum exposure limit for long positions as a percentage of your wallet balance.</li>
+<li><strong>wallet_exposure_limit_short</strong>: Defines the maximum exposure limit for short positions as a percentage of your wallet balance.</li>
+<li><strong>levels</strong>: Defines the number of grid levels, representing the total number of buy and sell orders placed above and below the current price level.</li>
+<li><strong>strength</strong>: Defines the strength of the grid. A higher value means the grid levels are spaced further apart.</li>
+<li><strong>outer_price_distance</strong>: Defines the distance from the current price to the outermost grid levels.</li>
+<li><strong>min_outer_price_distance</strong>: Defines the minimum distance from the current price to the outermost grid levels.</li>
+<li><strong>max_outer_price_distance</strong>: Defines the maximum distance from the current price to the outermost grid levels.</li>
+<li><strong>long_mode</strong>: Boolean parameter that determines whether the bot can open long positions.</li>
+<li><strong>short_mode</strong>: Boolean parameter that determines whether the bot can open short positions.</li>
+<li><strong>reissue_threshold</strong>: Defines the threshold at which the bot will reissue orders that have been partially filled.</li>
+<li><strong>buffer_percentage</strong>: Defines the buffer percentage for the grid. This is the percentage of the price range kept empty between the outermost grid levels and the upper and lower price limits.</li>
+<li><strong>initial_entry_buffer_pct</strong>: Defines the buffer percentage for the initial entry.</li>
+<li><strong>min_buffer_percentage</strong>: Defines the minimum buffer percentage for the grid.</li>
+<li><strong>max_buffer_percentage</strong>: Defines the maximum buffer percentage for the grid.</li>
+<li><strong>enforce_full_grid</strong>: Boolean parameter that determines whether the bot should always maintain a full grid of orders.</li>
+<li><strong>min_buffer_percentage_ar</strong>: Defines the minimum buffer percentage for auto-reduce.</li>
+<li><strong>max_buffer_percentage_ar</strong>: Defines the maximum buffer percentage for auto-reduce.</li>
+<li><strong>upnl_auto_reduce_threshold_long</strong>: Defines the unrealized profit and loss (UPNL) threshold for auto-reducing long positions.</li>
+<li><strong>upnl_auto_reduce_threshold_short</strong>: Defines the UPNL threshold for auto-reducing short positions.</li>
+<li><strong>failsafe_enabled</strong>: Boolean parameter that determines whether the failsafe feature is enabled. This feature automatically closes all positions if the UPNL reaches a certain threshold.</li>
+<li><strong>failsafe_start_pct</strong>: Defines the percentage at which the failsafe feature starts.</li>
+<li><strong>long_failsafe_upnl_pct</strong>: Defines the UPNL percentage for the long failsafe.</li>
+<li><strong>short_failsafe_upnl_pct</strong>: Defines the UPNL percentage for the short failsafe.</li>
+</ul>
+<h3 id="example-configuration-snippet">Example Configuration Snippet</h3>
+<pre><code class="language-json">{
+  &quot;account&quot;: {
+    &quot;api_key&quot;: &quot;your_api_key&quot;,
+    &quot;api_secret&quot;: &quot;your_api_secret&quot;,
+    &quot;account_name&quot;: &quot;account_1&quot;
+  },
+  &quot;bot&quot;: {
+    &quot;linear_grid&quot;: {
+      &quot;max_qty_percent_long&quot;: 50,
+      &quot;max_qty_percent_short&quot;: 50,
+      &quot;auto_reduce_cooldown_enabled&quot;: true,
+      &quot;auto_reduce_cooldown_start_pct&quot;: 10,
+      &quot;wallet_exposure_limit_long&quot;: 30,
+      &quot;wallet_exposure_limit_short&quot;: 30,
+      &quot;levels&quot;: 10,
+      &quot;strength&quot;: 2,
+      &quot;outer_price_distance&quot;: 5,
+      &quot;min_outer_price_distance&quot;: 2,
+      &quot;max_outer_price_distance&quot;: 10,
+      &quot;long_mode&quot;: true,
+      &quot;short_mode&quot;: true,
+      &quot;reissue_threshold&quot;: 5,
+      &quot;buffer_percentage&quot;: 1,
+      &quot;initial_entry_buffer_pct&quot;: 0.5,
+      &quot;min_buffer_percentage&quot;: 0.2,
+      &quot;max_buffer_percentage&quot;: 2,
+      &quot;enforce_full_grid&quot;: true,
+      &quot;min_buffer_percentage_ar&quot;: 0.2,
+      &quot;max_buffer_percentage_ar&quot;: 2,
+      &quot;upnl_auto_reduce_threshold_long&quot;: 10,
+      &quot;upnl_auto_reduce_threshold_short&quot;: 10,
+      &quot;failsafe_enabled&quot;: true,
+      &quot;failsafe_start_pct&quot;: 50,
+      &quot;long_failsafe_upnl_pct&quot;: -20,
+      &quot;short_failsafe_upnl_pct&quot;: -20
+    }
+  }
+}
+</code></pre>
 
 
 
