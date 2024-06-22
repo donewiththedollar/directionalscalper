@@ -1,0 +1,28 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+charset_normalizer = "*"
+colorama = "*"
+ccxt = "==3.0.78"
+pandas = "*"
+pydantic = "*"
+python-pidfile = "*"
+requests = "*"
+rich = "*"
+ta = "*"
+
+[dev-packages]
+bandit = "*"
+black = "*"
+cfgv = "*"
+flake8 = "*"
+isort = "*"
+mypy = "*"
+pre-commit = "*"
+pytest = "*"
+
+[requires]
+python_version = "3.11"

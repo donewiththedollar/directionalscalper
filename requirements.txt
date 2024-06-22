@@ -1,0 +1,14 @@
+colorama
+ccxt==4.3.40
+pandas
+pydantic
+python-pidfile
+requests
+rich
+ta
+streamlit
+plotly
+inquirer
+pytz
+uuid
+keyboard
