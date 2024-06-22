@@ -486,6 +486,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#risk-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      Risk management
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#linear-grid-strategy-parameters" class="md-nav__link">
     <span class="md-ellipsis">
       Linear Grid Strategy Parameters
@@ -657,6 +666,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#risk-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      Risk management
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#linear-grid-strategy-parameters" class="md-nav__link">
     <span class="md-ellipsis">
       Linear Grid Strategy Parameters
@@ -705,6 +723,11 @@
 </ul>
 <h2 id="bot-section">Bot Section</h2>
 <p>Configure your bot settings in the <code>config.json</code> file under the <code>bot</code> section. This includes strategy parameters, risk management settings, and other related settings.</p>
+<h3 id="risk-management">Risk management</h3>
+<ul>
+<li><strong>user_defined_leverage_long</strong>: This parameter defines the leverage to use for long positions. Leverage is a multiplier that increases the size of the position and the potential profit/loss. For example, a leverage of 10 means that for every $1 you have, you can place a trade worth $10. Be careful with this setting as higher leverage also increases the risk.</li>
+<li><strong>user_defined_leverage_short</strong>: This parameter defines the leverage to use for short positions. Similar to <code>user_defined_leverage_long</code>, it's a multiplier that increases the size of the position and the potential profit/loss.</li>
+</ul>
 <h3 id="linear-grid-strategy-parameters">Linear Grid Strategy Parameters</h3>
 <p>Here are the parameters for the <code>linear_grid</code> strategy in your <code>config.json</code> file:</p>
 <ul>
