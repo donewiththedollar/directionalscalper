@@ -8,7 +8,7 @@ An algorithmic trading framework built using CCXT for multiple exchanges<br>
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
 </p>
 
-### Documentation
+## Documentation
 [Documentation](https://donewiththedollar.github.io/directionalscalper/)
 
 
