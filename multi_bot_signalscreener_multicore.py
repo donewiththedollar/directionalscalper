@@ -2,7 +2,9 @@ import sys
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import Future
 import threading
+from threading import Thread
 import random
 import colorama
 from colorama import Fore, Style
@@ -41,6 +43,7 @@ from directionalscalper.core.strategies.binance import *
 from directionalscalper.core.strategies.huobi import *
 
 from live_table_manager import LiveTableManager, shared_symbols_data
+
 
 from directionalscalper.core.strategies.logger import Logger
 
@@ -194,12 +197,154 @@ class DirectionalMarketMaker:
         else:
             self.exchange = exchange_class(api_key, secret_key, passphrase)
 
+    # def run_strategy(self, symbol, strategy_name, config, account_name, symbols_to_trade=None, rotator_symbols_standardized=None, mfirsi_signal=None, action=None):
+    #     logging.info(f"Received rotator symbols in run_strategy for {symbol}: {rotator_symbols_standardized}")
+        
+    #     symbols_allowed = next((exch.symbols_allowed for exch in config.exchanges if exch.name == self.exchange_name and exch.account_name == account_name), None)
 
-    def run_strategy(self, symbol, strategy_name, config, account_name, symbols_to_trade=None, rotator_symbols_standardized=None, mfirsi_signal=None):
+    #     logging.info(f"Matched exchange: {self.exchange_name}, account: {account_name}. Symbols allowed: {symbols_allowed}")
+
+    #     if symbols_to_trade:
+    #         logging.info(f"Calling run method with symbols: {symbols_to_trade}")
+    #         try:
+    #             print_cool_trading_info(symbol, self.exchange_name, strategy_name, account_name)
+    #             logging.info(f"Printed trading info for {symbol}")
+    #         except Exception as e:
+    #             logging.error(f"Error in printing info: {e}")
+
+    #     strategy_classes = {
+    #         'bybit_1m_qfl_mfi_eri_walls': bybit_scalping.BybitMMOneMinuteQFLMFIERIWalls,
+    #         'bybit_1m_qfl_mfi_eri_autohedge_walls_atr': bybit_hedging.BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR,
+    #         'bybit_mfirsi_imbalance': bybit_scalping.BybitMFIRSIERIOBImbalance,
+    #         'bybit_mfirsi_quickscalp': bybit_scalping.BybitMFIRSIQuickScalp,
+    #         'qstrend': bybit_notional.BybitQuickScalpTrendNotional,
+    #         'qsematrend': bybit_scalping.BybitQuickScalpEMATrend,
+    #         'qstrend_dca': bybit_scalping.BybitQuickScalpTrendDCA,
+    #         'mfieritrend': bybit_scalping.BybitMFIERILongShortTrend,
+    #         'qstrendlongonly': bybit_scalping.BybitMFIRSIQuickScalpLong,
+    #         'qstrendshortonly': bybit_scalping.BybitMFIRSIQuickScalpShort,
+    #         'qstrend_unified': bybit_scalping.BybitQuickScalpUnified,
+    #         'qstrendemas': bybit_notional.BybitQSTrendDoubleMANotional,
+    #         'basicgrid': bybit_scalping.BybitBasicGrid,
+    #         'qstrendspot': bybit_scalping.BybitQuickScalpTrendSpot,
+    #         'basicgridpersist': bybit_notional.BybitBasicGridMFIRSIPersisentNotional,
+    #         'qstrenderi': bybit_notional.BybitQuickScalpTrendERINotional,
+    #         'qsgridnotional': bybit_notional.BybitQSGridNotional,
+    #         'qsgridbasic': bybit_notional.BybitBasicGridBuffered,
+    #         'qsgriddynamic': bybit_notional.BybitBasicGridBufferedQS,
+    #         'qstrendob': bybit_notional.BybitQuickScalpTrendOBNotional,
+    #         'qsgriddynamictp': bybit_notional.BybitBasicGridBufferedQSDTP,
+    #         'qsgriddynamictplinspaced': bybit_notional.BybitDynamicGridDynamicTPLinSpaced,
+    #         'qsdynamicgridspan': bybit_notional.BybitDynamicGridSpan,
+    #         'dynamicgridob': bybit_notional.BybitDynamicGridSpanOB,
+    #         'dynamicgridobsratrp': bybit_notional.BybitDynamicGridSpanOBSRATRP,
+    #         'qsgriddynamicstatic': bybit_notional.BybitDynamicGridSpanOBSRStatic,
+    #         'qsgridobdca': bybit_notional.BybitDynamicGridOBDCA,
+    #         'qsgridinstantsignal': instant_signals.BybitDynamicGridSpanOBSRStaticIS,
+    #         'qsgriddynmaicgridspaninstant' : instant_signals.BybitDynamicGridSpanIS,
+    #         'qsgridobtight' : instant_signals.BybitDynamicGridSpanOBTight,
+    #         'qsgridob' : instant_signals.BybitDynamicGridSpanOBLevels,
+    #         'qstrendobdynamictp' : instant_signals.BybitQuickScalpTrendDynamicTP,
+    #     }
+
+    #     strategy_class = strategy_classes.get(strategy_name.lower())
+    #     if strategy_class:
+    #         strategy = strategy_class(self.exchange, self.manager, config.bot, symbols_allowed)
+    #         future = Future()
+    #         try:
+    #             if action == "long":
+    #                 strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal, action="long")
+    #             elif action == "short":
+    #                 strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal, action="short")
+    #             future.set_result(True)
+    #         except Exception as e:
+    #             future.set_exception(e)
+    #         return future
+    #     else:
+    #         logging.error(f"Strategy {strategy_name} not found.")
+    #         future = Future()
+    #         future.set_exception(ValueError(f"Strategy {strategy_name} not found."))
+    #         return future
+
+    # def run_strategy(self, symbol, strategy_name, config, account_name, symbols_to_trade=None, rotator_symbols_standardized=None, mfirsi_signal=None, action=None):
+    #     logging.info(f"Received rotator symbols in run_strategy for {symbol}: {rotator_symbols_standardized}")
+        
+    #     symbols_allowed = next((exch.symbols_allowed for exch in config.exchanges if exch.name == self.exchange_name and exch.account_name == account_name), None)
+
+    #     logging.info(f"Matched exchange: {self.exchange_name}, account: {account_name}. Symbols allowed: {symbols_allowed}")
+
+    #     if symbols_to_trade:
+    #         logging.info(f"Calling run method with symbols: {symbols_to_trade}")
+    #         try:
+    #             print_cool_trading_info(symbol, self.exchange_name, strategy_name, account_name)
+    #             logging.info(f"Printed trading info for {symbol}")
+    #         except Exception as e:
+    #             logging.error(f"Error in printing info: {e}")
+
+    #     strategy_classes = {
+    #         'bybit_1m_qfl_mfi_eri_walls': bybit_scalping.BybitMMOneMinuteQFLMFIERIWalls,
+    #         'bybit_1m_qfl_mfi_eri_autohedge_walls_atr': bybit_hedging.BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR,
+    #         'bybit_mfirsi_imbalance': bybit_scalping.BybitMFIRSIERIOBImbalance,
+    #         'bybit_mfirsi_quickscalp': bybit_scalping.BybitMFIRSIQuickScalp,
+    #         'qstrend': bybit_notional.BybitQuickScalpTrendNotional,
+    #         'qsematrend': bybit_scalping.BybitQuickScalpEMATrend,
+    #         'qstrend_dca': bybit_scalping.BybitQuickScalpTrendDCA,
+    #         'mfieritrend': bybit_scalping.BybitMFIERILongShortTrend,
+    #         'qstrendlongonly': bybit_scalping.BybitMFIRSIQuickScalpLong,
+    #         'qstrendshortonly': bybit_scalping.BybitMFIRSIQuickScalpShort,
+    #         'qstrend_unified': bybit_scalping.BybitQuickScalpUnified,
+    #         'qstrendemas': bybit_notional.BybitQSTrendDoubleMANotional,
+    #         'basicgrid': bybit_scalping.BybitBasicGrid,
+    #         'qstrendspot': bybit_scalping.BybitQuickScalpTrendSpot,
+    #         'basicgridpersist': bybit_notional.BybitBasicGridMFIRSIPersisentNotional,
+    #         'qstrenderi': bybit_notional.BybitQuickScalpTrendERINotional,
+    #         'qsgridnotional': bybit_notional.BybitQSGridNotional,
+    #         'qsgridbasic': bybit_notional.BybitBasicGridBuffered,
+    #         'qsgriddynamic': bybit_notional.BybitBasicGridBufferedQS,
+    #         'qstrendob': bybit_notional.BybitQuickScalpTrendOBNotional,
+    #         'qsgriddynamictp': bybit_notional.BybitBasicGridBufferedQSDTP,
+    #         'qsgriddynamictplinspaced': bybit_notional.BybitDynamicGridDynamicTPLinSpaced,
+    #         'qsdynamicgridspan': bybit_notional.BybitDynamicGridSpan,
+    #         'dynamicgridob': bybit_notional.BybitDynamicGridSpanOB,
+    #         'dynamicgridobsratrp': bybit_notional.BybitDynamicGridSpanOBSRATRP,
+    #         'qsgriddynamicstatic': bybit_notional.BybitDynamicGridSpanOBSRStatic,
+    #         'qsgridobdca': bybit_notional.BybitDynamicGridOBDCA,
+    #         'qsgridinstantsignal': instant_signals.BybitDynamicGridSpanOBSRStaticIS,
+    #         'qsgriddynmaicgridspaninstant': instant_signals.BybitDynamicGridSpanIS,
+    #         'qsgridobtight': instant_signals.BybitDynamicGridSpanOBTight,
+    #         'qsgridob': instant_signals.BybitDynamicGridSpanOBLevels,
+    #         'qstrendobdynamictp': instant_signals.BybitQuickScalpTrendDynamicTP,
+    #     }
+
+    #     strategy_class = strategy_classes.get(strategy_name.lower())
+    #     if strategy_class:
+    #         strategy = strategy_class(self.exchange, self.manager, config.bot, symbols_allowed)
+    #         future = Future()
+    #         try:
+    #             logging.info(f"Running strategy for symbol {symbol} with action {action}")
+    #             if action == "long":
+    #                 future_long = Future()
+    #                 Thread(target=self.run_with_future, args=(strategy, symbol, rotator_symbols_standardized, mfirsi_signal, "long", future_long)).start()
+    #                 return future_long
+    #             elif action == "short":
+    #                 future_short = Future()
+    #                 Thread(target=self.run_with_future, args=(strategy, symbol, rotator_symbols_standardized, mfirsi_signal, "short", future_short)).start()
+    #                 return future_short
+    #             else:
+    #                 future.set_result(True)
+    #         except Exception as e:
+    #             future.set_exception(e)
+    #         return future
+    #     else:
+    #         logging.error(f"Strategy {strategy_name} not found.")
+    #         future = Future()
+    #         future.set_exception(ValueError(f"Strategy {strategy_name} not found."))
+    #         return future
+
+    def run_strategy(self, symbol, strategy_name, config, account_name, symbols_to_trade=None, rotator_symbols_standardized=None, mfirsi_signal=None, action=None):
         logging.info(f"Received rotator symbols in run_strategy for {symbol}: {rotator_symbols_standardized}")
         
         symbols_allowed = next((exch.symbols_allowed for exch in config.exchanges if exch.name == self.exchange_name and exch.account_name == account_name), None)
-
 
         logging.info(f"Matched exchange: {self.exchange_name}, account: {account_name}. Symbols allowed: {symbols_allowed}")
 
@@ -240,19 +385,46 @@ class DirectionalMarketMaker:
             'qsgriddynamicstatic': bybit_notional.BybitDynamicGridSpanOBSRStatic,
             'qsgridobdca': bybit_notional.BybitDynamicGridOBDCA,
             'qsgridinstantsignal': instant_signals.BybitDynamicGridSpanOBSRStaticIS,
-            'qsgriddynmaicgridspaninstant' : instant_signals.BybitDynamicGridSpanIS,
-            'qsgridobtight' : instant_signals.BybitDynamicGridSpanOBTight,
-            'qsgridob' : instant_signals.BybitDynamicGridSpanOBLevels,
-            'qstrendobdynamictp' : instant_signals.BybitQuickScalpTrendDynamicTP,
+            'qsgriddynmaicgridspaninstant': instant_signals.BybitDynamicGridSpanIS,
+            'qsgridobtight': instant_signals.BybitDynamicGridSpanOBTight,
+            'qsgridob': instant_signals.BybitDynamicGridSpanOBLevels,
+            'qstrendobdynamictp': instant_signals.BybitQuickScalpTrendDynamicTP,
         }
 
         strategy_class = strategy_classes.get(strategy_name.lower())
         if strategy_class:
             strategy = strategy_class(self.exchange, self.manager, config.bot, symbols_allowed)
-            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal)
+            try:
+                logging.info(f"Running strategy for symbol {symbol} with action {action}")
+                if action == "long":
+                    future_long = Future()
+                    Thread(target=self.run_with_future, args=(strategy, symbol, rotator_symbols_standardized, mfirsi_signal, "long", future_long)).start()
+                    return future_long
+                elif action == "short":
+                    future_short = Future()
+                    Thread(target=self.run_with_future, args=(strategy, symbol, rotator_symbols_standardized, mfirsi_signal, "short", future_short)).start()
+                    return future_short
+                else:
+                    future = Future()
+                    future.set_result(True)
+                    return future
+            except Exception as e:
+                future = Future()
+                future.set_exception(e)
+                return future
         else:
             logging.error(f"Strategy {strategy_name} not found.")
-            
+            future = Future()
+            future.set_exception(ValueError(f"Strategy {strategy_name} not found."))
+            return future
+
+    def run_with_future(self, strategy, symbol, rotator_symbols_standardized, mfirsi_signal, action, future):
+        try:
+            strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal, action=action)
+            future.set_result(True)
+        except Exception as e:
+            future.set_exception(e)
+
     def get_balance(self, quote, market_type=None, sub_type=None):
         if self.exchange_name == 'bitget':
             return self.exchange.get_balance_bitget(quote)
@@ -289,7 +461,7 @@ BALANCE_REFRESH_INTERVAL = 600  # in seconds
 
 orders_canceled = False
 
-def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized, thread_completed, mfirsi_signal):
+def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized, thread_completed, mfirsi_signal, action):
     global orders_canceled
     current_thread = threading.current_thread()
     try:
@@ -301,7 +473,7 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         else:
             config_file_path = Path(args.config)
 
-        print("Loading config from:", config_file_path)
+        logging.info(f"Loading config from: {config_file_path}")
         config = load_config(config_file_path)
 
         exchange_name = args.exchange
@@ -322,27 +494,29 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
                 logging.info(f"Cleared all open orders on the exchange upon initialization.")
                 orders_canceled = True
         except Exception as e:
-            logging.info(f"Exception caught {e}")
+            logging.error(f"Exception caught while cancelling orders: {e}")
 
-        logging.info(f"Rotator symbols in run_bot {rotator_symbols_standardized}")
-        logging.info(f"Latest rotator symbols in run bot {latest_rotator_symbols}")
+        logging.info(f"Rotator symbols in run_bot: {rotator_symbols_standardized}")
+        logging.info(f"Latest rotator symbols in run bot: {latest_rotator_symbols}")
 
         time.sleep(2)
 
         with general_rate_limiter:
-            market_maker.run_strategy(symbol, args.strategy, config, account_name, symbols_to_trade=symbols_allowed, rotator_symbols_standardized=latest_rotator_symbols, mfirsi_signal=mfirsi_signal)
+            future = market_maker.run_strategy(symbol, args.strategy, config, account_name, symbols_to_trade=symbols_allowed, rotator_symbols_standardized=latest_rotator_symbols, mfirsi_signal=mfirsi_signal, action=action)
+            future.result()  # Wait for the strategy to complete
 
     except Exception as e:
-        logging.info(f"An error occurred in run_bot for symbol {symbol}: {e}")
+        logging.error(f"An error occurred in run_bot for symbol {symbol}: {e}")
+        logging.debug(traceback.format_exc())
     finally:
         with thread_to_symbol_lock:
             if current_thread in thread_to_symbol:
                 del thread_to_symbol[current_thread]
-        logging.info(f"Thread for symbol {symbol} has completed.")
+        logging.info(f"Thread for symbol {symbol} with action {action} has completed.")
         thread_completed.set()
 
-def bybit_auto_rotation(args, manager, symbols_allowed):
-    global latest_rotator_symbols, long_threads, short_threads, active_symbols, last_rotator_update_time
+def bybit_auto_rotation_spot(args, manager, symbols_allowed):
+    global latest_rotator_symbols, active_symbols, last_rotator_update_time
 
     # Set max_workers to the number of CPUs
     max_workers_signals = 1
@@ -350,7 +524,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
 
     signal_executor = ThreadPoolExecutor(max_workers=max_workers_signals)
     trading_executor = ThreadPoolExecutor(max_workers=max_workers_trading)
-    
+
     logging.info(f"Initialized signal executor with max workers: {max_workers_signals}")
     logging.info(f"Initialized trading executor with max workers: {max_workers_trading}")
 
@@ -386,10 +560,6 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
             open_position_symbols = {standardize_symbol(pos['symbol']) for pos in open_position_data}
             logging.info(f"Open position symbols: {open_position_symbols}")
 
-            current_long_positions = sum(1 for pos in open_position_data if pos['side'].lower() == 'long')
-            current_short_positions = sum(1 for pos in open_position_data if pos['side'].lower() == 'short')
-            logging.info(f"Current long positions: {current_long_positions}, Current short positions: {current_short_positions}")
-
             if not latest_rotator_symbols or current_time - last_rotator_update_time >= 60:
                 with general_rate_limiter:
                     latest_rotator_symbols = fetch_updated_symbols(args, manager)
@@ -404,24 +574,143 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
 
                 open_position_futures = []
                 for symbol in open_position_symbols:
-                    if symbol not in long_threads and symbol not in short_threads:
-                        with general_rate_limiter:
-                            mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
-                        has_open_long = any(pos['side'].lower() == 'long' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
-                        has_open_short = any(pos['side'].lower() == 'short' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
-                        open_position_futures.append(trading_executor.submit(start_thread_for_open_symbol, symbol, args, manager, mfirsi_signal, has_open_long, has_open_short, long_mode, short_mode))
-                        logging.info(f"Submitted thread for symbol {symbol}. MFIRSI signal: {mfirsi_signal}. Has open long: {has_open_long}. Has open short: {has_open_short}.")
+                    with general_rate_limiter:
+                        mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
+                    has_open_long = any(pos['side'].lower() == 'long' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
+                    open_position_futures.append(trading_executor.submit(start_thread_for_open_symbol_spot, symbol, args, manager, mfirsi_signal, has_open_long, long_mode, short_mode))
+                    logging.info(f"Submitted thread for symbol {symbol}. MFIRSI signal: {mfirsi_signal}. Has open long: {has_open_long}.")
 
-                signal_futures = [signal_executor.submit(process_signal_for_open_position, symbol, args, manager, symbols_allowed, open_position_data, long_mode, short_mode)
+                signal_futures = [signal_executor.submit(process_signal_for_open_position_spot, symbol, args, manager, symbols_allowed, open_position_data, long_mode, short_mode)
                                 for symbol in open_position_symbols]
                 logging.info(f"Submitted signal processing for open position symbols: {open_position_symbols}.")
 
                 if len(active_symbols) < symbols_allowed:
                     for symbol in latest_rotator_symbols:
-                        signal_futures.append(signal_executor.submit(process_signal, symbol, args, manager, symbols_allowed, open_position_data, False, long_mode, short_mode))
+                        signal_futures.append(signal_executor.submit(process_signal_spot, symbol, args, manager, symbols_allowed, open_position_data, False, long_mode, short_mode))
                         logging.info(f"Submitted signal processing for new rotator symbol {symbol}.")
 
                         time.sleep(2)
+
+                process_futures(open_position_futures + signal_futures)
+
+                completed_symbols = []
+                for symbol, (thread, thread_completed) in long_threads.items():
+                    if thread_completed.is_set():
+                        thread.join()
+                        completed_symbols.append(symbol)
+
+                for symbol in completed_symbols:
+                    active_symbols.discard(symbol)
+                    if symbol in long_threads:
+                        del long_threads[symbol]
+                    logging.info(f"Thread and symbol management completed for: {symbol}")
+
+        except Exception as e:
+            logging.error(f"Exception caught in bybit_auto_rotation_spot: {str(e)}")
+            logging.debug(traceback.format_exc())
+        time.sleep(1)
+
+def bybit_auto_rotation(args, manager, symbols_allowed):
+    global latest_rotator_symbols, long_threads, short_threads, active_symbols, last_rotator_update_time
+
+    max_workers_signals = 1
+    max_workers_trading = 1
+
+    signal_executor = ThreadPoolExecutor(max_workers=max_workers_signals)
+    trading_executor = ThreadPoolExecutor(max_workers=max_workers_trading)
+    
+    logging.info(f"Initialized signal executor with max workers: {max_workers_signals}")
+    logging.info(f"Initialized trading executor with max workers: {max_workers_trading}")
+
+    config_file_path = Path('configs/' + args.config) if not args.config.startswith('configs/') else Path(args.config)
+    config = load_config(config_file_path)
+    logging.info(f"Loaded configuration from {config_file_path}.")
+
+    market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
+    market_maker.manager = manager
+
+    long_mode = config.bot.linear_grid['long_mode']
+    short_mode = config.bot.linear_grid['short_mode']
+
+    logging.info(f"Long mode: {long_mode}")
+    logging.info(f"Short mode: {short_mode}")
+
+    def fetch_open_positions():
+        with general_rate_limiter:
+            return getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
+
+    def process_futures(futures):
+        for future in as_completed(futures):
+            try:
+                future.result()
+            except Exception as e:
+                logging.error(f"Exception in thread: {e}")
+                logging.debug(traceback.format_exc())
+
+    processed_symbols = set()
+    while True:
+        try:
+            current_time = time.time()
+            open_position_data = fetch_open_positions()
+            open_position_symbols = {standardize_symbol(pos['symbol']) for pos in open_position_data}
+            logging.info(f"Open position symbols: {open_position_symbols}")
+
+            current_long_positions = sum(1 for pos in open_position_data if pos['side'].lower() == 'long')
+            current_short_positions = sum(1 for pos in open_position_data if pos['side'].lower() == 'short')
+            logging.info(f"Current long positions: {current_long_positions}, Current short positions: {current_short_positions}")
+
+            if not latest_rotator_symbols or current_time - last_rotator_update_time >= 60:
+                with general_rate_limiter:
+                    latest_rotator_symbols = fetch_updated_symbols(args, manager)
+                last_rotator_update_time = current_time
+                processed_symbols.clear()
+                logging.info(f"Refreshed latest rotator symbols: {latest_rotator_symbols}")
+            else:
+                logging.debug(f"No refresh needed yet. Last update was at {last_rotator_update_time}, less than 60 seconds ago.")
+
+            with thread_management_lock:
+                update_active_symbols(open_position_symbols)
+                logging.info(f"Active symbols updated. Symbols allowed: {symbols_allowed}")
+
+                open_position_futures = []
+                signal_futures = []
+
+                # Always check signals for open symbols
+                for symbol in open_position_symbols:
+                    has_open_long = any(pos['side'].lower() == 'long' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
+                    has_open_short = any(pos['side'].lower() == 'short' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
+                    
+                    long_thread_running = symbol in long_threads and long_threads[symbol][0].is_alive()
+                    short_thread_running = symbol in short_threads and short_threads[symbol][0].is_alive()
+
+                    signal_futures.append(signal_executor.submit(process_signal_for_open_position, symbol, args, manager, symbols_allowed, open_position_data, long_mode, short_mode))
+                    
+                    if (has_open_long and not long_thread_running) or (has_open_short and not short_thread_running):
+                        with general_rate_limiter:
+                            mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
+                        if has_open_long and not long_thread_running:
+                            logging.info(f"Open symbol {symbol} has open long: {has_open_long} and long thread not running {long_thread_running}")
+                            open_position_futures.append(trading_executor.submit(start_thread_for_open_symbol, symbol, args, manager, mfirsi_signal, True, False, long_mode, short_mode))
+                            logging.info(f"Submitted long thread for open symbol {symbol}. MFIRSI signal: {mfirsi_signal}. Has open long: {has_open_long}.")
+                        if has_open_short and not short_thread_running:
+                            logging.info(f"Open symbol {symbol} has open short: {has_open_short} and short thread not running {short_thread_running}")
+                            open_position_futures.append(trading_executor.submit(start_thread_for_open_symbol, symbol, args, manager, mfirsi_signal, False, True, long_mode, short_mode))
+                            logging.info(f"Submitted short thread for open symbol {symbol}. MFIRSI signal: {mfirsi_signal}. Has open short: {has_open_short}.")
+                
+                logging.info(f"Submitted signal processing for open position symbols: {open_position_symbols}.")
+                logging.info(f"Active symbols count: {len(active_symbols)}")
+
+                # Process new symbols only if there is capacity
+                if len(active_symbols) < symbols_allowed:
+                    logging.info(f"Active symbols are less than symbols allowed, scanning for new symbols")
+                    for symbol in latest_rotator_symbols:
+                        if symbol not in processed_symbols:
+                            signal_futures.append(signal_executor.submit(process_signal, symbol, args, manager, symbols_allowed, open_position_data, False, long_mode, short_mode))
+                            logging.info(f"Submitted signal processing for new rotator symbol {symbol}.")
+                            processed_symbols.add(symbol)
+                            time.sleep(2)
+                else:
+                    logging.info(f"Active symbols are greater or equal to symbols allowed, will not process new symbols")
 
                 process_futures(open_position_futures + signal_futures)
 
@@ -443,6 +732,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
             logging.error(f"Exception caught in bybit_auto_rotation: {str(e)}")
             logging.debug(traceback.format_exc())
         time.sleep(1)
+
 
 def process_signal_for_open_position(symbol, args, manager, symbols_allowed, open_position_data, long_mode, short_mode):
     market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
@@ -489,21 +779,118 @@ def handle_signal(symbol, args, manager, mfirsi_signal, open_position_data, symb
     has_open_short = any(pos['side'].lower() == 'short' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
 
     logging.info(f"{'Open position' if is_open_position else 'New rotator'} symbol {symbol} - Has open long: {has_open_long}, Has open short: {has_open_short}")
+    logging.info(f"MFIRSI Signal: {mfirsi_signal}, Long Mode: {long_mode}, Short Mode: {short_mode}")
 
-    if is_open_position:
-        if mfi_signal_long and not has_open_long and long_mode:
-            return start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "long")
-        elif mfi_signal_short and not has_open_short and short_mode:
-            return start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "short")
+    action_taken_long = False
+    action_taken_short = False
+
+    # Allow starting a new long position even if there is an open short position
+    if mfi_signal_long and long_mode:
+        if not (symbol in long_threads and long_threads[symbol][0].is_alive()):
+            logging.info(f"Starting long thread for symbol {symbol}.")
+            action_taken_long = start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "long")
+        else:
+            logging.info(f"Long thread already running for symbol {symbol}. Skipping.")
     else:
-        if unique_open_symbols < symbols_allowed:
-            if mfi_signal_long and long_mode:
-                return start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "long")
-            elif mfi_signal_short and short_mode:
-                return start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "short")
+        logging.info(f"Long signal not triggered or long mode not enabled for symbol {symbol}. Skipping.")
+        logging.info(f"MFIRSI Signal: {mfirsi_signal}")
+        logging.info(f"Long mode: {long_mode}")
+        logging.info(f"Short mode: {short_mode}")
+        logging.info(f"Has open long: {has_open_long}")
+        logging.info(f"Has open short: {has_open_short}")
 
-    logging.info(f"Evaluated action for {'open position' if is_open_position else 'new rotator'} symbol {symbol}: No action due to existing position or lack of clear signal.")
-    return False
+    # Allow starting a new short position even if there is an open long position
+    if mfi_signal_short and short_mode:
+        if not (symbol in short_threads and short_threads[symbol][0].is_alive()):
+            logging.info(f"Starting short thread for symbol {symbol}.")
+            action_taken_short = start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "short")
+        else:
+            logging.info(f"Short thread already running for symbol {symbol}. Skipping.")
+    else:
+        logging.info(f"Short signal not triggered or short mode not enabled for symbol {symbol}. Skipping.")
+        logging.info(f"MFIRSI Signal: {mfirsi_signal}")
+        logging.info(f"Long mode: {long_mode}")
+        logging.info(f"Short mode: {short_mode}")
+        logging.info(f"Has open long: {has_open_long}")
+        logging.info(f"Has open short: {has_open_short}")
+
+    if action_taken_long or action_taken_short:
+        logging.info(f"Action taken for {'open position' if is_open_position else 'new rotator'} symbol {symbol}.")
+    else:
+        logging.info(f"Evaluated action for {'open position' if is_open_position else 'new rotator'} symbol {symbol}: No action due to existing position or lack of clear signal.")
+
+    return action_taken_long or action_taken_short
+
+def handle_signal_spot(symbol, args, manager, mfirsi_signal, open_position_data, symbols_allowed, is_open_position, long_mode, short_mode):
+    open_position_symbols = {standardize_symbol(pos['symbol']) for pos in open_position_data}
+    logging.info(f"Open position symbols: {open_position_symbols}")
+
+    mfi_signal_long = mfirsi_signal.lower() == "long"
+    mfi_signal_short = mfirsi_signal.lower() == "short"
+
+    current_long_positions = sum(1 for pos in open_position_data if pos['side'].lower() == 'long')
+    unique_open_symbols = len(open_position_symbols)
+
+    logging.info(f"Handling signal for {'open position' if is_open_position else 'new rotator'} symbol {symbol}. Current long positions: {current_long_positions}. Unique open symbols: {unique_open_symbols}")
+
+    has_open_long = any(pos['side'].lower() == 'long' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
+
+    logging.info(f"{'Open position' if is_open_position else 'New rotator'} symbol {symbol} - Has open long: {has_open_long}")
+
+    action_taken_long = False
+
+    if mfi_signal_long and long_mode and not has_open_long:
+        logging.info(f"Starting long thread for symbol {symbol}.")
+        action_taken_long = start_thread_for_symbol_spot(symbol, args, manager, mfirsi_signal, "long")
+    else:
+        logging.info(f"Long thread already running or long position already open for symbol {symbol}. Skipping.")
+
+    if mfi_signal_short and short_mode and has_open_long:
+        logging.info(f"Starting short (sell) thread for symbol {symbol}.")
+        action_taken_long = start_thread_for_symbol_spot(symbol, args, manager, mfirsi_signal, "short")
+    else:
+        logging.info(f"Short thread (sell order) already running or no long position open for symbol {symbol}. Skipping.")
+
+    if action_taken_long:
+        logging.info(f"Action taken for {'open position' if is_open_position else 'new rotator'} symbol {symbol}.")
+    else:
+        logging.info(f"Evaluated action for {'open position' if is_open_position else 'new rotator'} symbol {symbol}: No action due to existing position or lack of clear signal.")
+
+    return action_taken_long
+
+def start_thread_for_open_symbol_spot(symbol, args, manager, mfirsi_signal, has_open_long, long_mode, short_mode):
+    action_taken = False
+    if long_mode and (has_open_long or mfirsi_signal.lower() == "long"):
+        action_taken |= start_thread_for_symbol_spot(symbol, args, manager, mfirsi_signal, "long")
+        logging.info(f"[DEBUG] Started long thread for open symbol {symbol}")
+    if short_mode and (has_open_long and mfirsi_signal.lower() == "short"):
+        action_taken |= start_thread_for_symbol_spot(symbol, args, manager, mfirsi_signal, "short")
+        logging.info(f"[DEBUG] Started short (sell) thread for open symbol {symbol}")
+    return action_taken
+
+def start_thread_for_symbol_spot(symbol, args, manager, mfirsi_signal, action):
+    if action == "long":
+        if symbol in long_threads and long_threads[symbol][0].is_alive():
+            logging.info(f"Long thread already running for symbol {symbol}. Skipping.")
+            return False
+    elif action == "short":
+        if symbol in long_threads and long_threads[symbol][0].is_alive():
+            logging.info(f"Short thread (sell order) already running for symbol {symbol}. Skipping.")
+            return False
+    elif action == "neutral":
+        logging.info(f"Start thread function hit for {symbol} but signal is {mfirsi_signal}")
+
+    thread_completed = threading.Event()
+    thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols, thread_completed, mfirsi_signal, action))
+
+    if action == "long":
+        long_threads[symbol] = (thread, thread_completed)
+    elif action == "short":
+        long_threads[symbol] = (thread, thread_completed)
+
+    thread.start()
+    logging.info(f"Started thread for symbol {symbol} with action {action} based on MFIRSI signal.")
+    return True
 
 def update_active_symbols(open_position_symbols):
     global active_symbols
@@ -592,10 +979,26 @@ def remove_thread_for_symbol(symbol):
         del short_threads[symbol]
 
 def start_thread_for_open_symbol(symbol, args, manager, mfirsi_signal, has_open_long, has_open_short, long_mode, short_mode):
-    if has_open_long and long_mode:
-        start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "long")
-    if has_open_short and short_mode:
-        start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "short")
+    action_taken = False
+    if long_mode and (has_open_long or mfirsi_signal.lower() == "long"):
+        action_taken |= start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "long")
+        logging.info(f"[DEBUG] Started long thread for open symbol {symbol}")
+    if short_mode and (has_open_short or mfirsi_signal.lower() == "short"):
+        action_taken |= start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "short")
+        logging.info(f"[DEBUG] Started short thread for open symbol {symbol}")
+    return action_taken
+
+# def start_thread_for_open_symbol(symbol, args, manager, mfirsi_signal, has_open_long, has_open_short, long_mode, short_mode):
+#     action_taken = False
+#     #if long_mode and not has_open_long:
+#     if long_mode and has_open_long:
+#         action_taken |= start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "long")
+#         logging.info(f"[DEBUG] Started long thread for open symbol {symbol}")
+#     # if short_mode and not has_open_short:
+#     if short_mode and has_open_short:
+#         action_taken |= start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "short")
+#         logging.info(f"[DEBUG] Started short thread for open symbol {symbol}")
+#     return action_taken
 
 def start_thread_for_symbol(symbol, args, manager, mfirsi_signal, action):
     if action == "long":
@@ -606,9 +1009,11 @@ def start_thread_for_symbol(symbol, args, manager, mfirsi_signal, action):
         if symbol in short_threads and short_threads[symbol][0].is_alive():
             logging.info(f"Short thread already running for symbol {symbol}. Skipping.")
             return False
+    elif action == "neutral":
+        logging.info(f"Start thread function hit for {symbol} but signal is {mfirsi_signal}")
 
     thread_completed = threading.Event()
-    thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols, thread_completed, mfirsi_signal))
+    thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols, thread_completed, mfirsi_signal, action))
 
     if action == "long":
         long_threads[symbol] = (thread, thread_completed)
@@ -620,7 +1025,6 @@ def start_thread_for_symbol(symbol, args, manager, mfirsi_signal, action):
     return True
 
 def fetch_updated_symbols(args, manager):
-    """Fetches and logs potential symbols based on the current trading strategy."""
     strategy = args.strategy.lower()
     potential_symbols = []
 
@@ -652,109 +1056,6 @@ def fetch_updated_symbols(args, manager):
 
 def log_symbol_details(strategy, symbols):
     logging.info(f"Potential symbols for {strategy}: {symbols}")
-
-def bybit_spot_auto_rotation(args, manager, symbols_allowed):
-    global latest_rotator_symbols, long_threads, short_threads, active_symbols, last_rotator_update_time
-
-    # Set max_workers to the number of CPUs
-    max_workers_signals = 1
-    max_workers_trading = 1
-
-    signal_executor = ThreadPoolExecutor(max_workers=max_workers_signals)
-    trading_executor = ThreadPoolExecutor(max_workers=max_workers_trading)
-    
-    logging.info(f"Initialized signal executor with max workers: {max_workers_signals}")
-    logging.info(f"Initialized trading executor with max workers: {max_workers_trading}")
-
-    config_file_path = Path('configs/' + args.config) if not args.config.startswith('configs/') else Path(args.config)
-    config = load_config(config_file_path)
-    logging.info(f"Loaded configuration from {config_file_path}.")
-
-    market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
-    market_maker.manager = manager
-
-    long_mode = config.bot.linear_grid['long_mode']
-    short_mode = config.bot.linear_grid['short_mode']
-
-    logging.info(f"Long mode: {long_mode}")
-    logging.info(f"Short mode: {short_mode}")
-
-    def fetch_open_positions():
-        with general_rate_limiter:
-            return getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
-
-    def process_futures(futures):
-        for future in as_completed(futures):
-            try:
-                future.result()
-            except Exception as e:
-                logging.error(f"Exception in thread: {e}")
-                logging.debug(traceback.format_exc())
-
-    while True:
-        try:
-            current_time = time.time()
-            open_position_data = fetch_open_positions()
-            open_position_symbols = {standardize_symbol(pos['symbol']) for pos in open_position_data}
-            logging.info(f"Open position symbols: {open_position_symbols}")
-
-            current_long_positions = sum(1 for pos in open_position_data if pos['side'].lower() == 'long')
-            current_short_positions = sum(1 for pos in open_position_data if pos['side'].lower() == 'short')
-            logging.info(f"Current long positions: {current_long_positions}, Current short positions: {current_short_positions}")
-
-            if not latest_rotator_symbols or current_time - last_rotator_update_time >= 60:
-                with general_rate_limiter:
-                    latest_rotator_symbols = fetch_updated_symbols(args, manager)
-                last_rotator_update_time = current_time
-                logging.info(f"Refreshed latest rotator symbols: {latest_rotator_symbols}")
-            else:
-                logging.debug(f"No refresh needed yet. Last update was at {last_rotator_update_time}, less than 60 seconds ago.")
-
-            with thread_management_lock:
-                update_active_symbols(open_position_symbols)
-                logging.info(f"Active symbols updated. Symbols allowed: {symbols_allowed}")
-
-                open_position_futures = []
-                for symbol in open_position_symbols:
-                    if symbol not in long_threads and symbol not in short_threads:
-                        with general_rate_limiter:
-                            mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
-                        has_open_long = any(pos['side'].lower() == 'long' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
-                        has_open_short = any(pos['side'].lower() == 'short' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
-                        open_position_futures.append(trading_executor.submit(start_thread_for_open_symbol, symbol, args, manager, mfirsi_signal, has_open_long, has_open_short, long_mode, short_mode))
-                        logging.info(f"Submitted thread for symbol {symbol}. MFIRSI signal: {mfirsi_signal}. Has open long: {has_open_long}. Has open short: {has_open_short}.")
-
-                signal_futures = [signal_executor.submit(process_signal_for_open_position, symbol, args, manager, symbols_allowed, open_position_data, long_mode, short_mode)
-                                for symbol in open_position_symbols]
-                logging.info(f"Submitted signal processing for open position symbols: {open_position_symbols}.")
-
-                if len(active_symbols) < symbols_allowed:
-                    for symbol in latest_rotator_symbols:
-                        signal_futures.append(signal_executor.submit(process_signal, symbol, args, manager, symbols_allowed, open_position_data, False, long_mode, short_mode))
-                        logging.info(f"Submitted signal processing for new rotator symbol {symbol}.")
-
-                        time.sleep(2)
-
-                process_futures(open_position_futures + signal_futures)
-
-                completed_symbols = []
-                for symbol, (thread, thread_completed) in {**long_threads, **short_threads}.items():
-                    if thread_completed.is_set():
-                        thread.join()
-                        completed_symbols.append(symbol)
-
-                for symbol in completed_symbols:
-                    active_symbols.discard(symbol)
-                    if symbol in long_threads:
-                        del long_threads[symbol]
-                    if symbol in short_threads:
-                        del short_threads[symbol]
-                    logging.info(f"Thread and symbol management completed for: {symbol}")
-
-        except Exception as e:
-            logging.error(f"Exception caught in bybit_spot_auto_rotation: {str(e)}")
-            logging.debug(traceback.format_exc())
-        time.sleep(1)
 
 def blofin_auto_rotation(args, manager, symbols_allowed):
     market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
@@ -873,7 +1174,7 @@ if __name__ == '__main__':
             if exchange_name.lower() == 'bybit':
                 bybit_auto_rotation(args, manager, symbols_allowed)
             elif exchange_name.lower() == 'bybit_spot':
-                bybit_spot_auto_rotation(args, manager, symbols_allowed)
+                bybit_auto_rotation_spot(args, manager, symbols_allowed)
             elif exchange_name.lower() == 'blofin':
                 blofin_auto_rotation(args, manager, symbols_allowed)
             elif exchange_name.lower() == 'hyperliquid':
