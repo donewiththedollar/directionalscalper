@@ -4,9 +4,14 @@ An algorithmic trading framework built using CCXT for multiple exchanges<br>
 </p>
 <p align="center">
 <img alt="GitHub Pipenv locked Python version" src="https://img.shields.io/github/pipenv/locked/python-version/donewiththedollar/directionalscalper"> 
-<a href="https://github.com/donewiththedollar/directionalscalper/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg">
+<a href="https://github.com/donewiththedollar/directionalscalper/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg"></a>
 <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
 </p>
+
+### Documentation
+[Documentation](https://donewiththedollar.github.io/directionalscalper/)
+
+
 
 ### Links
 * Website: https://quantumvoid.org
@@ -16,6 +21,7 @@ An algorithmic trading framework built using CCXT for multiple exchanges<br>
 Directional Scalper        |  API Scraper               |  Dashboard                | Directional Scalper Multi | Menu GUI
 :-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:
 ![](https://github.com/donewiththedollar/directional-scalper/blob/main/directional-scalper.gif)  |  ![](https://github.com/donewiththedollar/directional-scalper/blob/main/scraper.gif)  |  ![](https://github.com/donewiththedollar/directional-scalper/blob/main/dashboardimg.gif)  |  ![](https://github.com/donewiththedollar/directionalscalper/blob/main/directionalscalpermulti.gif)  |  ![](https://github.com/donewiththedollar/directional-scalper/blob/main/menugui.gif)
+
 
 ## Quickstart
 - Clone the repo `git clone https://github.com/donewiththedollar/directionalscalper.git`
