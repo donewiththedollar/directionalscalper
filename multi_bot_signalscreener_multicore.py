@@ -197,150 +197,6 @@ class DirectionalMarketMaker:
         else:
             self.exchange = exchange_class(api_key, secret_key, passphrase)
 
-    # def run_strategy(self, symbol, strategy_name, config, account_name, symbols_to_trade=None, rotator_symbols_standardized=None, mfirsi_signal=None, action=None):
-    #     logging.info(f"Received rotator symbols in run_strategy for {symbol}: {rotator_symbols_standardized}")
-        
-    #     symbols_allowed = next((exch.symbols_allowed for exch in config.exchanges if exch.name == self.exchange_name and exch.account_name == account_name), None)
-
-    #     logging.info(f"Matched exchange: {self.exchange_name}, account: {account_name}. Symbols allowed: {symbols_allowed}")
-
-    #     if symbols_to_trade:
-    #         logging.info(f"Calling run method with symbols: {symbols_to_trade}")
-    #         try:
-    #             print_cool_trading_info(symbol, self.exchange_name, strategy_name, account_name)
-    #             logging.info(f"Printed trading info for {symbol}")
-    #         except Exception as e:
-    #             logging.error(f"Error in printing info: {e}")
-
-    #     strategy_classes = {
-    #         'bybit_1m_qfl_mfi_eri_walls': bybit_scalping.BybitMMOneMinuteQFLMFIERIWalls,
-    #         'bybit_1m_qfl_mfi_eri_autohedge_walls_atr': bybit_hedging.BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR,
-    #         'bybit_mfirsi_imbalance': bybit_scalping.BybitMFIRSIERIOBImbalance,
-    #         'bybit_mfirsi_quickscalp': bybit_scalping.BybitMFIRSIQuickScalp,
-    #         'qstrend': bybit_notional.BybitQuickScalpTrendNotional,
-    #         'qsematrend': bybit_scalping.BybitQuickScalpEMATrend,
-    #         'qstrend_dca': bybit_scalping.BybitQuickScalpTrendDCA,
-    #         'mfieritrend': bybit_scalping.BybitMFIERILongShortTrend,
-    #         'qstrendlongonly': bybit_scalping.BybitMFIRSIQuickScalpLong,
-    #         'qstrendshortonly': bybit_scalping.BybitMFIRSIQuickScalpShort,
-    #         'qstrend_unified': bybit_scalping.BybitQuickScalpUnified,
-    #         'qstrendemas': bybit_notional.BybitQSTrendDoubleMANotional,
-    #         'basicgrid': bybit_scalping.BybitBasicGrid,
-    #         'qstrendspot': bybit_scalping.BybitQuickScalpTrendSpot,
-    #         'basicgridpersist': bybit_notional.BybitBasicGridMFIRSIPersisentNotional,
-    #         'qstrenderi': bybit_notional.BybitQuickScalpTrendERINotional,
-    #         'qsgridnotional': bybit_notional.BybitQSGridNotional,
-    #         'qsgridbasic': bybit_notional.BybitBasicGridBuffered,
-    #         'qsgriddynamic': bybit_notional.BybitBasicGridBufferedQS,
-    #         'qstrendob': bybit_notional.BybitQuickScalpTrendOBNotional,
-    #         'qsgriddynamictp': bybit_notional.BybitBasicGridBufferedQSDTP,
-    #         'qsgriddynamictplinspaced': bybit_notional.BybitDynamicGridDynamicTPLinSpaced,
-    #         'qsdynamicgridspan': bybit_notional.BybitDynamicGridSpan,
-    #         'dynamicgridob': bybit_notional.BybitDynamicGridSpanOB,
-    #         'dynamicgridobsratrp': bybit_notional.BybitDynamicGridSpanOBSRATRP,
-    #         'qsgriddynamicstatic': bybit_notional.BybitDynamicGridSpanOBSRStatic,
-    #         'qsgridobdca': bybit_notional.BybitDynamicGridOBDCA,
-    #         'qsgridinstantsignal': instant_signals.BybitDynamicGridSpanOBSRStaticIS,
-    #         'qsgriddynmaicgridspaninstant' : instant_signals.BybitDynamicGridSpanIS,
-    #         'qsgridobtight' : instant_signals.BybitDynamicGridSpanOBTight,
-    #         'qsgridob' : instant_signals.BybitDynamicGridSpanOBLevels,
-    #         'qstrendobdynamictp' : instant_signals.BybitQuickScalpTrendDynamicTP,
-    #     }
-
-    #     strategy_class = strategy_classes.get(strategy_name.lower())
-    #     if strategy_class:
-    #         strategy = strategy_class(self.exchange, self.manager, config.bot, symbols_allowed)
-    #         future = Future()
-    #         try:
-    #             if action == "long":
-    #                 strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal, action="long")
-    #             elif action == "short":
-    #                 strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal, action="short")
-    #             future.set_result(True)
-    #         except Exception as e:
-    #             future.set_exception(e)
-    #         return future
-    #     else:
-    #         logging.error(f"Strategy {strategy_name} not found.")
-    #         future = Future()
-    #         future.set_exception(ValueError(f"Strategy {strategy_name} not found."))
-    #         return future
-
-    # def run_strategy(self, symbol, strategy_name, config, account_name, symbols_to_trade=None, rotator_symbols_standardized=None, mfirsi_signal=None, action=None):
-    #     logging.info(f"Received rotator symbols in run_strategy for {symbol}: {rotator_symbols_standardized}")
-        
-    #     symbols_allowed = next((exch.symbols_allowed for exch in config.exchanges if exch.name == self.exchange_name and exch.account_name == account_name), None)
-
-    #     logging.info(f"Matched exchange: {self.exchange_name}, account: {account_name}. Symbols allowed: {symbols_allowed}")
-
-    #     if symbols_to_trade:
-    #         logging.info(f"Calling run method with symbols: {symbols_to_trade}")
-    #         try:
-    #             print_cool_trading_info(symbol, self.exchange_name, strategy_name, account_name)
-    #             logging.info(f"Printed trading info for {symbol}")
-    #         except Exception as e:
-    #             logging.error(f"Error in printing info: {e}")
-
-    #     strategy_classes = {
-    #         'bybit_1m_qfl_mfi_eri_walls': bybit_scalping.BybitMMOneMinuteQFLMFIERIWalls,
-    #         'bybit_1m_qfl_mfi_eri_autohedge_walls_atr': bybit_hedging.BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR,
-    #         'bybit_mfirsi_imbalance': bybit_scalping.BybitMFIRSIERIOBImbalance,
-    #         'bybit_mfirsi_quickscalp': bybit_scalping.BybitMFIRSIQuickScalp,
-    #         'qstrend': bybit_notional.BybitQuickScalpTrendNotional,
-    #         'qsematrend': bybit_scalping.BybitQuickScalpEMATrend,
-    #         'qstrend_dca': bybit_scalping.BybitQuickScalpTrendDCA,
-    #         'mfieritrend': bybit_scalping.BybitMFIERILongShortTrend,
-    #         'qstrendlongonly': bybit_scalping.BybitMFIRSIQuickScalpLong,
-    #         'qstrendshortonly': bybit_scalping.BybitMFIRSIQuickScalpShort,
-    #         'qstrend_unified': bybit_scalping.BybitQuickScalpUnified,
-    #         'qstrendemas': bybit_notional.BybitQSTrendDoubleMANotional,
-    #         'basicgrid': bybit_scalping.BybitBasicGrid,
-    #         'qstrendspot': bybit_scalping.BybitQuickScalpTrendSpot,
-    #         'basicgridpersist': bybit_notional.BybitBasicGridMFIRSIPersisentNotional,
-    #         'qstrenderi': bybit_notional.BybitQuickScalpTrendERINotional,
-    #         'qsgridnotional': bybit_notional.BybitQSGridNotional,
-    #         'qsgridbasic': bybit_notional.BybitBasicGridBuffered,
-    #         'qsgriddynamic': bybit_notional.BybitBasicGridBufferedQS,
-    #         'qstrendob': bybit_notional.BybitQuickScalpTrendOBNotional,
-    #         'qsgriddynamictp': bybit_notional.BybitBasicGridBufferedQSDTP,
-    #         'qsgriddynamictplinspaced': bybit_notional.BybitDynamicGridDynamicTPLinSpaced,
-    #         'qsdynamicgridspan': bybit_notional.BybitDynamicGridSpan,
-    #         'dynamicgridob': bybit_notional.BybitDynamicGridSpanOB,
-    #         'dynamicgridobsratrp': bybit_notional.BybitDynamicGridSpanOBSRATRP,
-    #         'qsgriddynamicstatic': bybit_notional.BybitDynamicGridSpanOBSRStatic,
-    #         'qsgridobdca': bybit_notional.BybitDynamicGridOBDCA,
-    #         'qsgridinstantsignal': instant_signals.BybitDynamicGridSpanOBSRStaticIS,
-    #         'qsgriddynmaicgridspaninstant': instant_signals.BybitDynamicGridSpanIS,
-    #         'qsgridobtight': instant_signals.BybitDynamicGridSpanOBTight,
-    #         'qsgridob': instant_signals.BybitDynamicGridSpanOBLevels,
-    #         'qstrendobdynamictp': instant_signals.BybitQuickScalpTrendDynamicTP,
-    #     }
-
-    #     strategy_class = strategy_classes.get(strategy_name.lower())
-    #     if strategy_class:
-    #         strategy = strategy_class(self.exchange, self.manager, config.bot, symbols_allowed)
-    #         future = Future()
-    #         try:
-    #             logging.info(f"Running strategy for symbol {symbol} with action {action}")
-    #             if action == "long":
-    #                 future_long = Future()
-    #                 Thread(target=self.run_with_future, args=(strategy, symbol, rotator_symbols_standardized, mfirsi_signal, "long", future_long)).start()
-    #                 return future_long
-    #             elif action == "short":
-    #                 future_short = Future()
-    #                 Thread(target=self.run_with_future, args=(strategy, symbol, rotator_symbols_standardized, mfirsi_signal, "short", future_short)).start()
-    #                 return future_short
-    #             else:
-    #                 future.set_result(True)
-    #         except Exception as e:
-    #             future.set_exception(e)
-    #         return future
-    #     else:
-    #         logging.error(f"Strategy {strategy_name} not found.")
-    #         future = Future()
-    #         future.set_exception(ValueError(f"Strategy {strategy_name} not found."))
-    #         return future
-
     def run_strategy(self, symbol, strategy_name, config, account_name, symbols_to_trade=None, rotator_symbols_standardized=None, mfirsi_signal=None, action=None):
         logging.info(f"Received rotator symbols in run_strategy for {symbol}: {rotator_symbols_standardized}")
         
@@ -858,6 +714,19 @@ def handle_signal_spot(symbol, args, manager, mfirsi_signal, open_position_data,
 
     return action_taken_long
 
+def process_signal_spot(symbol, args, manager, symbols_allowed, open_position_data, is_open_position, long_mode, short_mode):
+    market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
+    market_maker.manager = manager
+    mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
+    logging.info(f"Processing signal for {'open position' if is_open_position else 'new rotator'} symbol {symbol}. MFIRSI signal: {mfirsi_signal}")
+
+    action_taken = handle_signal_spot(symbol, args, manager, mfirsi_signal, open_position_data, symbols_allowed, is_open_position, long_mode, short_mode)
+
+    if action_taken:
+        logging.info(f"Action taken for {'open position' if is_open_position else 'new rotator'} symbol {symbol}.")
+    else:
+        logging.info(f"No action taken for {'open position' if is_open_position else 'new rotator'} symbol {symbol}.")
+
 def start_thread_for_open_symbol_spot(symbol, args, manager, mfirsi_signal, has_open_long, long_mode, short_mode):
     action_taken = False
     if long_mode and (has_open_long or mfirsi_signal.lower() == "long"):
@@ -987,18 +856,6 @@ def start_thread_for_open_symbol(symbol, args, manager, mfirsi_signal, has_open_
         action_taken |= start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "short")
         logging.info(f"[DEBUG] Started short thread for open symbol {symbol}")
     return action_taken
-
-# def start_thread_for_open_symbol(symbol, args, manager, mfirsi_signal, has_open_long, has_open_short, long_mode, short_mode):
-#     action_taken = False
-#     #if long_mode and not has_open_long:
-#     if long_mode and has_open_long:
-#         action_taken |= start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "long")
-#         logging.info(f"[DEBUG] Started long thread for open symbol {symbol}")
-#     # if short_mode and not has_open_short:
-#     if short_mode and has_open_short:
-#         action_taken |= start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "short")
-#         logging.info(f"[DEBUG] Started short thread for open symbol {symbol}")
-#     return action_taken
 
 def start_thread_for_symbol(symbol, args, manager, mfirsi_signal, action):
     if action == "long":
