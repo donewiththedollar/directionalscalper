@@ -69,6 +69,11 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
+        
+        <a href="#installation" class="md-skip">
+          Skip to content
+        </a>
+      
     </div>
     <div data-md-component="announce">
       
@@ -367,6 +372,19 @@
       <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
       
       
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Installation
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
       
       <a href="./" class="md-nav__link md-nav__link--active">
         
@@ -377,6 +395,52 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prerequisites
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quickstart" class="md-nav__link">
+    <span class="md-ellipsis">
+      Quickstart
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installing-python-311" class="md-nav__link">
+    <span class="md-ellipsis">
+      Installing Python 3.11
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -519,6 +583,43 @@
   
   
   
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prerequisites
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quickstart" class="md-nav__link">
+    <span class="md-ellipsis">
+      Quickstart
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installing-python-311" class="md-nav__link">
+    <span class="md-ellipsis">
+      Installing Python 3.11
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
   
 </nav>
                   </div>
@@ -533,9 +634,85 @@
                   
 
 
-  <h1>Installation</h1>
-
-
+<h1 id="installation">Installation</h1>
+<h2 id="prerequisites">Prerequisites</h2>
+<p>Before you begin, ensure you have the following prerequisites:</p>
+<ul>
+<li>Python 3.11+</li>
+<li>pip</li>
+</ul>
+<h2 id="quickstart">Quickstart</h2>
+<ol>
+<li>
+<p>Clone the repository:
+   <code>git clone https://github.com/donewiththedollar/directionalscalper.git
+   cd directionalscalper</code></p>
+</li>
+<li>
+<p>Install the required dependencies:
+   <code>pip3.11 install -r requirements.txt</code></p>
+</li>
+<li>
+<p>Add your API key(s) to the <code>config.json</code> file located in the <code>/configs</code> folder.</p>
+</li>
+<li>
+<p>Run the bot:</p>
+</li>
+<li>To display the menu and select a strategy, use the following command:
+     <code>python3.11 multi_bot_signalscreener.py --config config.json</code>
+     or
+     <code>python3.11 multi_bot.py --config config.json</code></li>
+<li>Alternatively, you can run the bot with command line parameters:<ul>
+<li>For the multi-bot auto symbol rotator strategy:
+   <code>python3.11 multi_bot_signalscreener_multicore.py --exchange bybit --account_name account_1 --strategy qsgridob --config config.json</code></li>
+<li>For the old single coin strategy:
+   <code>python3.11 bot.py --exchange bybit --symbol DOGEUSDT --strategy qstrendob --config config.json</code></li>
+</ul>
+</li>
+</ol>
+<h2 id="installing-python-311">Installing Python 3.11</h2>
+<p>To install Python 3.11 on your system, follow these steps:</p>
+<ol>
+<li>
+<p>Update the package list and install the necessary dependencies:
+   <code>sudo apt update
+   sudo apt install -y build-essential gdb lcov pkg-config \
+   libbz2-dev libffi-dev libgdbm-dev libgdbm-compat-dev liblzma-dev \
+   libncurses5-dev libreadline-dev libsqlite3-dev libssl-dev \
+   lzma lzma-dev tk-dev uuid-dev zlib1g-dev</code></p>
+</li>
+<li>
+<p>Download the Python 3.11.0 source code:
+   <code>cd /opt
+   wget https://www.python.org/ftp/python/3.11.0/Python-3.11.0.tgz</code></p>
+</li>
+<li>
+<p>Extract the downloaded archive:
+   <code>sudo tar -xzf Python-3.11.0.tgz</code></p>
+</li>
+<li>
+<p>Change to the extracted directory:
+   <code>cd Python-3.11.0</code></p>
+</li>
+<li>
+<p>Configure the build with optimizations:
+   <code>sudo ./configure --enable-optimizations --prefix=/usr/local</code></p>
+</li>
+<li>
+<p>Compile Python:
+   <code>sudo make -j 8</code></p>
+</li>
+<li>
+<p>Install Python 3.11:
+   <code>sudo make altinstall</code></p>
+</li>
+<li>
+<p>Verify the installation:
+   <code>python3.11 --version</code></p>
+</li>
+</ol>
+<p>You should see the installed Python version displayed.</p>
+<p>That's it! You have now installed Python 3.11 on your system.</p>
 
 
 
