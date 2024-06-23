@@ -783,20 +783,20 @@
 <h2 id="running-the-bot">Running the Bot</h2>
 <h3 id="displaying-the-menu-and-selecting-a-strategy">Displaying the Menu and Selecting a Strategy</h3>
 <p>To display the menu and select a strategy, use the following command:</p>
-<pre><code class="language-sh">python3.11 multi_bot_signalscreener.py --config configs/config.json
+<pre><code>python3.11 multi_bot_signalscreener.py --config configs/config.json
 </code></pre>
 <p>or</p>
-<pre><code class="language-sh">python3.11 multi_bot.py --config configs/config.json
+<pre><code>python3.11 multi_bot.py --config configs/config.json
 </code></pre>
 <h3 id="running-the-bot-with-command-line-parameters">Running the Bot with Command Line Parameters</h3>
 <p>You can also run the bot directly with specific command-line parameters. Below are examples of different strategies you can use:</p>
 <h4 id="multi-bot-auto-symbol-rotator-strategy">Multi-Bot Auto Symbol Rotator Strategy</h4>
 <p>To run the multi-bot auto symbol rotator strategy, use the following command:</p>
-<pre><code class="language-sh">python3.11 multi_bot_signalscreener_multicore.py --exchange bybit --account_name account_1 --strategy qsgridob --config configs/config.json
+<pre><code>python3.11 multi_bot_signalscreener_multicore.py --exchange bybit --account_name account_1 --strategy qsgridob --config configs/config.json
 </code></pre>
 <h4 id="old-single-coin-strategy">Old Single Coin Strategy</h4>
 <p>To run the old single coin strategy, use the following command:</p>
-<pre><code class="language-sh">python3.11 bot.py --exchange bybit --symbol DOGEUSDT --strategy qstrendob --config configs/config.json
+<pre><code>python3.11 bot.py --exchange bybit --symbol DOGEUSDT --strategy qstrendob --config configs/config.json
 </code></pre>
 <h2 id="command-line-parameters">Command Line Parameters</h2>
 <h3 id="general-parameters">General Parameters</h3>
@@ -810,13 +810,11 @@
 <ol>
 <li><strong>Running the Multi-Bot Auto Symbol Rotator Strategy for Bybit:</strong></li>
 </ol>
-<p><code>sh
-   python3.11 multi_bot_signalscreener_multicore.py --exchange bybit --account_name account_1 --strategy qsgridob --config configs/config.json</code></p>
+<p><code>python3.11 multi_bot_signalscreener_multicore.py --exchange bybit --account_name account_1 --strategy qsgridob --config configs/config.json</code></p>
 <ol>
 <li><strong>Running the Old Single Coin Strategy for DOGEUSDT on Bybit:</strong></li>
 </ol>
-<p><code>sh
-   python3.11 bot.py --exchange bybit --symbol DOGEUSDT --strategy qstrendob --config configs/config.json</code></p>
+<p><code>python3.11 bot.py --exchange bybit --symbol DOGEUSDT --strategy qstrendob --config configs/config.json</code></p>
 <h2 id="additional-notes">Additional Notes</h2>
 <ul>
 <li>Make sure to adjust the leverage, risk management, and other parameters in your <code>config.json</code> to suit your trading preferences.</li>
