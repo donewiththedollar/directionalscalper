@@ -351,10 +351,8 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         else:
             config_file_path = Path(args.config)
 
-        logging.info(f"Loading config from: {config_file_path}")
-        
-        account_file_path = Path('configs/account.json')  # Add this line to define the account file path
-        config = load_config(config_file_path, account_file_path)  # Pass both file paths to load_config
+        print("Loading config from:", config_file_path)
+        config = load_config(config_file_path)
 
         exchange_name = args.exchange
         strategy_name = args.strategy
@@ -811,11 +809,7 @@ if __name__ == '__main__':
     else:
         config_file_path = Path(args.config)
 
-    logging.info(f"Loading config from: {config_file_path}")
-    
-    account_file_path = Path('configs/account.json')  # Add this line to define the account file path
-    config = load_config(config_file_path, account_file_path)  # Pass both file paths to load_config
-
+    config = load_config(config_file_path)
 
     exchange_name = args.exchange
     market_maker = DirectionalMarketMaker(config, exchange_name, args.account_name)
