@@ -994,6 +994,7 @@ if __name__ == '__main__':
         config = load_config(config_file_path, account_path)
     except Exception as e:
         logging.error(f"Failed to load configuration: {str(e)}")
+        logging.error(f"There is probably an issue with your path try using --config configs/config.json")
         sys.exit(1)
 
     exchange_name = args.exchange

@@ -81,9 +81,9 @@
   },
   "exchanges": [
       {
-          "name": "bybit",
-          "account_name": "account_1",
-          "symbols_allowed": 10 
+        "name": "bybit",
+        "account_name": "account_1",
+        "symbols_allowed": 25
       },
       {
           "name": "bybit_spot",
