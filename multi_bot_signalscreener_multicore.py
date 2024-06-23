@@ -20,9 +20,7 @@ import inquirer
 from rich.live import Live
 import argparse
 from pathlib import Path
-import config
-from config import load_config, Config
-from config import VERSION
+from config import load_config, Config, VERSION
 from api.manager import Manager
 
 from directionalscalper.core.exchanges.blofin import BlofinExchange
@@ -43,7 +41,6 @@ from directionalscalper.core.strategies.binance import *
 from directionalscalper.core.strategies.huobi import *
 
 from live_table_manager import LiveTableManager, shared_symbols_data
-
 
 from directionalscalper.core.strategies.logger import Logger
 
@@ -70,7 +67,6 @@ extra_symbols = set()  # To track symbols opened past the limit
 under_review_symbols = set()
 
 latest_rotator_symbols = set()
-# last_rotator_update_time = 0
 last_rotator_update_time = time.time()
 tried_symbols = set()
 
@@ -330,7 +326,9 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
             config_file_path = Path(args.config)
 
         logging.info(f"Loading config from: {config_file_path}")
-        config = load_config(config_file_path)
+        
+        account_file_path = Path('configs/account.json')  # Add this line to define the account file path
+        config = load_config(config_file_path, account_file_path)  # Pass both file paths to load_config
 
         exchange_name = args.exchange
         strategy_name = args.strategy
@@ -385,8 +383,8 @@ def bybit_auto_rotation_spot(args, manager, symbols_allowed):
     logging.info(f"Initialized trading executor with max workers: {max_workers_trading}")
 
     config_file_path = Path('configs/' + args.config) if not args.config.startswith('configs/') else Path(args.config)
-    config = load_config(config_file_path)
-    logging.info(f"Loaded configuration from {config_file_path}.")
+    account_file_path = Path('configs/account.json')
+    config = load_config(config_file_path, account_file_path)
 
     market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
     market_maker.manager = manager
@@ -479,8 +477,8 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
     logging.info(f"Initialized trading executor with max workers: {max_workers_trading}")
 
     config_file_path = Path('configs/' + args.config) if not args.config.startswith('configs/') else Path(args.config)
-    config = load_config(config_file_path)
-    logging.info(f"Loaded configuration from {config_file_path}.")
+    account_file_path = Path('configs/account.json')
+    config = load_config(config_file_path, account_file_path)
 
     market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
     market_maker.manager = manager
@@ -989,14 +987,21 @@ if __name__ == '__main__':
     print(f"DirectionalScalper {VERSION} Initialized Successfully!".center(50))
     print("=" * 50 + "\n")
 
-    if not args.config.startswith('configs/'):
-        config_file_path = Path('configs/' + args.config)
-    else:
-        config_file_path = Path(args.config)
+    config_file_path = Path(args.config)
+    account_path = Path('configs/account.json')
 
-    config = load_config(config_file_path)
+    try:
+        config = load_config(config_file_path, account_path)
+    except Exception as e:
+        logging.error(f"Failed to load configuration: {str(e)}")
+        sys.exit(1)
+
     exchange_name = args.exchange
-    market_maker = DirectionalMarketMaker(config, exchange_name, args.account_name)
+    try:
+        market_maker = DirectionalMarketMaker(config, exchange_name, args.account_name)
+    except Exception as e:
+        logging.error(f"Failed to initialize market maker: {str(e)}")
+        sys.exit(1)
 
     manager = Manager(
         market_maker.exchange,

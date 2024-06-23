@@ -1,11 +1,10 @@
 from __future__ import annotations
-from typing import List, Optional
+from typing import List, Optional, Union, Dict
 
 import os
 from pathlib import Path
 import json
 from enum import Enum
-from typing import Union
 
 from pydantic import BaseModel, HttpUrl, ValidationError, validator, DirectoryPath
 
@@ -17,11 +16,9 @@ VERSION = "v2.9.9"
 class Exchanges(Enum):
     BYBIT = "bybit"
 
-
 class Messengers(Enum):
     DISCORD = "discord"
     TELEGRAM = "telegram"
-
 
 class API(BaseModel):
     filename: str = "quantdatav2.json"
@@ -35,7 +32,6 @@ class Hotkeys(BaseModel):
     take_profit_long: str = "2"
     enter_short: str = "3"
     take_profit_short: str = "4"
-
 
 class Bot(BaseModel):
     bot_name: str
@@ -75,10 +71,8 @@ class Bot(BaseModel):
     whitelist: List[str] = []
     dashboard_enabled: bool = False
     shared_data_path: Optional[str] = None
-    #risk_management: Optional[dict] = None
     linear_grid: Optional[dict] = None
     hotkeys: Hotkeys
-    # shared_data_path: Optional[DirectoryPath] = None
 
     @validator('hotkeys')
     def validate_hotkeys(cls, value):
@@ -211,13 +205,13 @@ class Bot(BaseModel):
         if not isinstance(v, bool):
             raise ValueError("volume_check must be a boolean")
         return v
-    
+
 class Exchange(BaseModel):
     name: str
     account_name: str
     api_key: str
     api_secret: str
-    passphrase: str = None
+    passphrase: Optional[str] = None
     symbols_allowed: int = 12
 
 class Logger(BaseModel):
@@ -251,13 +245,12 @@ class Telegram(BaseModel):
     bot_token: str
     chat_id: str
 
-
 class Config(BaseModel):
     api: API
     bot: Bot
-    exchanges: List[Exchange]  # <-- Changed from List[Exchange]
+    exchanges: List[Exchange]
     logger: Logger
-    messengers: dict[str, Union[Discord, Telegram]]
+    messengers: Dict[str, Union[Discord, Telegram]]
 
 def resolve_shared_data_path(relative_path: str) -> Path:
     # Get the directory of the config file
@@ -271,47 +264,26 @@ def resolve_shared_data_path(relative_path: str) -> Path:
 
     return absolute_path
 
-def load_config(path):
-    if not path.is_file():
-        raise ValueError(f"{path} does not exist")
-    else:
-        with open(path) as f:
-            try:
-                data = json.load(f)
-            except json.JSONDecodeError as exc:
-                raise ValueError(
-                    f"ERROR: Invalid JSON: {exc.msg}, line {exc.lineno}, column {exc.colno}"
-                )
-        try:
-            config_data = Config(**data)
+def load_json(file_path: Path) -> dict:
+    with open(file_path, 'r') as file:
+        return json.load(file)
 
-            # Resolve shared_data_path if it's provided
-            if config_data.bot.shared_data_path:
-                config_data.bot.shared_data_path = str(resolve_shared_data_path(config_data.bot.shared_data_path))
+def load_config(config_path: Path, account_path: Path) -> Config:
+    config_data = load_json(config_path)
+    account_data = load_json(account_path)
 
-            return config_data
-        except ValidationError as e:
-            # Enhanced error output
-            error_details = "\n".join([f"{err['loc']} - {err['msg']}" for err in e.errors()])
-            raise ValueError(f"Configuration Error(s):\n{error_details}")
-        
-# def load_config(path):
-#     if not path.is_file():
-#         raise ValueError(f"{path} does not exist")
-#     else:
-#         f = open(path)
-#         try:
-#             data = json.load(f)
-#         except json.JSONDecodeError as exc:
-#             raise ValueError(
-#                 f"ERROR: Invalid JSON: {exc.msg}, line {exc.lineno}, column {exc.colno}"
-#             )
-#         try:
-#             return Config(**data)
-#         except ValidationError as e:
-#             # Enhancing the error output for better clarity
-#             error_details = "\n".join([f"{err['loc']} - {err['msg']}" for err in e.errors()])
-#             raise ValueError(f"Configuration Error(s):\n{error_details}")
+    # Merge account data into config data
+    for exchange in config_data['exchanges']:
+        for account in account_data['exchanges']:
+            if exchange['name'] == account['name'] and exchange['account_name'] == account['account_name']:
+                exchange.update({
+                    'api_key': account['api_key'],
+                    'api_secret': account['api_secret'],
+                    'passphrase': account.get('passphrase', None)
+                })
+                break
+
+    return Config(**config_data)
 
 def get_exchange_name(cli_exchange_name):
     if cli_exchange_name:
@@ -344,70 +316,3 @@ def get_exchange_credentials(exchange_name, account_name):
             return api_key, secret_key, passphrase, symbols_allowed
         else:
             raise ValueError(f"Account {account_name} for exchange {exchange_name} not found in the config file.")
-        
-# def get_exchange_credentials(exchange_name, account_name):
-#     with open('config.json') as file:
-#         data = json.load(file)
-#         exchange_data = None
-#         for exchange in data['exchanges']:
-#             if exchange['name'] == exchange_name and exchange['account_name'] == account_name:
-#                 exchange_data = exchange
-#                 break
-#         if exchange_data:
-#             api_key = exchange_data['api_key']
-#             secret_key = exchange_data['api_secret']
-#             passphrase = exchange_data.get('passphrase')
-#             symbols_allowed = exchange_data.get('symbols_allowed', 12)  # Default to 12 if not specified
-#             return api_key, secret_key, passphrase, symbols_allowed
-#         else:
-#             raise ValueError(f"Account {account_name} for exchange {exchange_name} not found in the config file.")
-
-# def get_exchange_credentials(exchange_name, account_name):
-#     with open('config.json') as file:
-#         data = json.load(file)
-#         exchange_data = None
-#         for exchange in data['exchanges']:
-#             if exchange['name'] == exchange_name and exchange['account_name'] == account_name:
-#                 exchange_data = exchange
-#                 break
-#         if exchange_data:
-#             api_key = exchange_data['api_key']
-#             secret_key = exchange_data['api_secret']
-#             passphrase = exchange_data.get('passphrase')  # Not all exchanges require a passphrase
-#             return api_key, secret_key, passphrase
-#         else:
-#             raise ValueError(f"Account {account_name} for exchange {exchange_name} not found in the config file.")
-        
-# def get_exchange_credentials(exchange_name):
-#     with open('config.json') as file:
-#         data = json.load(file)
-#         exchange_data = None
-#         for exchange in data['exchanges']:
-#             if exchange['name'] == exchange_name:
-#                 exchange_data = exchange
-#                 break
-#         if exchange_data:
-#             api_key = exchange_data['api_key']
-#             secret_key = exchange_data['api_secret']
-#             passphrase = exchange_data.get('passphrase')  # Not all exchanges require a passphrase
-#             return api_key, secret_key, passphrase
-#         else:
-#             raise ValueError(f"Exchange {exchange_name} not found in the config file.")
-
-
-# def get_exchange_name(cli_exchange_name):
-#     if cli_exchange_name:
-#         return cli_exchange_name
-#     else:
-#         with open('config.json') as file:
-#             data = json.load(file)
-#             return data['exchange']
-
-# def get_exchange_credentials(exchange_name):
-#     with open('config.json') as file:
-#         data = json.load(file)
-#         exchange_data = data['exchanges'][exchange_name]
-#         api_key = exchange_data['api_key']
-#         secret_key = exchange_data['secret_key']
-#         passphrase = exchange_data.get('passphrase')  # Not all exchanges require a passphrase
-#         return api_key, secret_key, passphrase
