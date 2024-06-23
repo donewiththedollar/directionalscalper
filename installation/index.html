@@ -640,6 +640,7 @@
 <ul>
 <li>Python 3.11+</li>
 <li>pip</li>
+<li>git</li>
 </ul>
 <h2 id="quickstart">Quickstart</h2>
 <ol>
@@ -654,20 +655,20 @@
    <code>pip3.11 install -r requirements.txt</code></p>
 </li>
 <li>
-<p>Add your API key(s) to the <code>config.json</code> file located in the <code>/configs</code> folder.</p>
+<p>Add your API key(s) to the <code>config.json</code> file located in the <code>/configs</code> folder. Also add your API key(s) to the <code>account.json</code> file located in the <code>/configs</code> folder.</p>
 </li>
 <li>
 <p>Run the bot:</p>
 </li>
 <li>To display the menu and select a strategy, use the following command:
-     <code>python3.11 multi_bot_signalscreener.py --config config.json</code>
-     or
-     <code>python3.11 multi_bot.py --config config.json</code></li>
+     <code>python3.11 multi_bot_signalscreener.py --config configs/config.json</code>
+     or the old method
+     <code>python3.11 multi_bot.py --config config.json (outdated)</code></li>
 <li>Alternatively, you can run the bot with command line parameters:<ul>
 <li>For the multi-bot auto symbol rotator strategy:
-   <code>python3.11 multi_bot_signalscreener_multicore.py --exchange bybit --account_name account_1 --strategy qsgridob --config config.json</code></li>
-<li>For the old single coin strategy:
-   <code>python3.11 bot.py --exchange bybit --symbol DOGEUSDT --strategy qstrendob --config config.json</code></li>
+   <code>python3.11 multi_bot_signalscreener_multicore.py --exchange bybit --account_name account_1 --strategy qsgridob --config configs/config.json</code></li>
+<li>For the old single coin strategy (outdated):
+   <code>python3.11 bot.py --exchange bybit --symbol DOGEUSDT --strategy qstrendob --config configs/config.json</code></li>
 </ul>
 </li>
 </ol>
