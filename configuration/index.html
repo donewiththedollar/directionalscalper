@@ -761,40 +761,183 @@
 </ul>
 <h3 id="example-configuration-snippet">Example Configuration Snippet</h3>
 <pre><code class="language-json">{
-  &quot;account&quot;: {
-    &quot;api_key&quot;: &quot;your_api_key&quot;,
-    &quot;api_secret&quot;: &quot;your_api_secret&quot;,
-    &quot;account_name&quot;: &quot;account_1&quot;
+  &quot;api&quot;: {
+    &quot;filename&quot;: &quot;quantdatav2_bybit.json&quot;,
+    &quot;mode&quot;: &quot;remote&quot;,
+    &quot;url&quot;: &quot;https://api.quantumvoid.org/volumedata/&quot;,
+    &quot;data_source_exchange&quot;: &quot;bybit&quot;
   },
   &quot;bot&quot;: {
+    &quot;bot_name&quot;: &quot;your_bot_name&quot;,
+    &quot;symbol&quot;: &quot;BTCUSDT&quot;,
+    &quot;volume_check&quot;: false,
+    &quot;min_distance&quot;: 0.15,
+    &quot;min_volume&quot;: 10000,
+    &quot;wallet_exposure_limit&quot;: 0.001,
+    &quot;user_defined_leverage_long&quot;: 8,
+    &quot;user_defined_leverage_short&quot;: 4,
+    &quot;upnl_profit_pct&quot;: 0.0022,
+    &quot;max_upnl_profit_pct&quot;: 0.0029,
+    &quot;auto_reduce_enabled&quot;: false,
+    &quot;auto_reduce_start_pct&quot;: 0.068,
+    &quot;entry_during_autoreduce&quot;: false,
+    &quot;stoploss_enabled&quot;: false,
+    &quot;stoploss_upnl_pct&quot;: 0.05,
+    &quot;liq_stoploss_enabled&quot;: false,
+    &quot;liq_price_stop_pct&quot;: 0.50,
+    &quot;percentile_auto_reduce_enabled&quot;: false,
+    &quot;upnl_threshold_pct&quot;: 0.50,
+    &quot;max_pos_balance_pct&quot;: 0.50,
+    &quot;auto_reduce_wallet_exposure_pct&quot;: 0.20,
+    &quot;auto_reduce_maxloss_pct&quot;: 0.30,
+    &quot;auto_reduce_marginbased_enabled&quot;: false,
+    &quot;hedge_ratio&quot;: 0.10,
+    &quot;hedge_price_difference_threshold&quot;: 0.10,
+    &quot;auto_leverage_upscale&quot;: false,
+    &quot;test_orders_enabled&quot;: false,
+    &quot;max_usd_value&quot;: 50,
+    &quot;min_qty_threshold&quot;: 0,
+    &quot;long_liq_pct&quot;: 0.05,
+    &quot;short_liq_pct&quot;: 0.05,
+    &quot;MaxAbsFundingRate&quot;: 0.0002,
+    &quot;blacklist&quot;: [&quot;BTCUSDT&quot;, &quot;ETHUSDT&quot;],
+    &quot;whitelist&quot;: [],
+    &quot;dashboard_enabled&quot;: false,
+    &quot;shared_data_path&quot;: &quot;data/&quot;,
     &quot;linear_grid&quot;: {
-      &quot;max_qty_percent_long&quot;: 50,
-      &quot;max_qty_percent_short&quot;: 50,
-      &quot;auto_reduce_cooldown_enabled&quot;: true,
-      &quot;auto_reduce_cooldown_start_pct&quot;: 10,
-      &quot;wallet_exposure_limit_long&quot;: 30,
-      &quot;wallet_exposure_limit_short&quot;: 30,
-      &quot;levels&quot;: 10,
-      &quot;strength&quot;: 2,
-      &quot;outer_price_distance&quot;: 5,
-      &quot;min_outer_price_distance&quot;: 2,
-      &quot;max_outer_price_distance&quot;: 10,
+      &quot;max_qty_percent_long&quot;: 5,
+      &quot;max_qty_percent_short&quot;: 5,
+      &quot;auto_reduce_cooldown_enabled&quot;: false,
+      &quot;auto_reduce_cooldown_start_pct&quot;: 0.051,
+      &quot;wallet_exposure_limit_long&quot;: 0.001,
+      &quot;wallet_exposure_limit_short&quot;: 0.001,
+      &quot;levels&quot;: 3,
+      &quot;strength&quot;: 1.4,
+      &quot;outer_price_distance&quot;: 0.059,
+      &quot;min_outer_price_distance&quot;: 0.019,
+      &quot;max_outer_price_distance&quot;: 0.039,
       &quot;long_mode&quot;: true,
       &quot;short_mode&quot;: true,
-      &quot;reissue_threshold&quot;: 5,
-      &quot;buffer_percentage&quot;: 1,
-      &quot;initial_entry_buffer_pct&quot;: 0.5,
-      &quot;min_buffer_percentage&quot;: 0.2,
-      &quot;max_buffer_percentage&quot;: 2,
+      &quot;reissue_threshold&quot;: 0.001,
+      &quot;buffer_percentage&quot;: 0.10,
+      &quot;initial_entry_buffer_pct&quot;: 0.0001,
+      &quot;min_buffer_percentage&quot;: 0.0035,
+      &quot;max_buffer_percentage&quot;: 0.010,
       &quot;enforce_full_grid&quot;: true,
-      &quot;min_buffer_percentage_ar&quot;: 0.2,
-      &quot;max_buffer_percentage_ar&quot;: 2,
-      &quot;upnl_auto_reduce_threshold_long&quot;: 10,
-      &quot;upnl_auto_reduce_threshold_short&quot;: 10,
-      &quot;failsafe_enabled&quot;: true,
-      &quot;failsafe_start_pct&quot;: 50,
-      &quot;long_failsafe_upnl_pct&quot;: -20,
-      &quot;short_failsafe_upnl_pct&quot;: -20
+      &quot;min_buffer_percentage_ar&quot;: 0.002,
+      &quot;max_buffer_percentage_ar&quot;: 0.004,
+      &quot;upnl_auto_reduce_threshold_long&quot;: 10.0,
+      &quot;upnl_auto_reduce_threshold_short&quot;: 10.0,
+      &quot;failsafe_enabled&quot;: false,
+      &quot;failsafe_start_pct&quot;: 0.05,
+      &quot;long_failsafe_upnl_pct&quot;: 10.0,
+      &quot;short_failsafe_upnl_pct&quot;: 10.0
+    },
+    &quot;hotkeys&quot;: {
+      &quot;hotkeys_enabled&quot;: false,
+      &quot;enter_long&quot;: &quot;1&quot;,
+      &quot;take_profit_long&quot;: &quot;2&quot;,
+      &quot;enter_short&quot;: &quot;3&quot;,
+      &quot;take_profit_short&quot;: &quot;4&quot;
+    }
+  },
+  &quot;exchanges&quot;: [
+    {
+      &quot;name&quot;: &quot;bybit&quot;,
+      &quot;account_name&quot;: &quot;account_1&quot;,
+      &quot;api_key&quot;: &quot;&quot;,
+      &quot;api_secret&quot;: &quot;&quot;,
+      &quot;symbols_allowed&quot;: 10 
+    },
+    {
+      &quot;name&quot;: &quot;bybit_spot&quot;,
+      &quot;account_name&quot;: &quot;account_2&quot;,
+      &quot;api_key&quot;: &quot;&quot;,
+      &quot;api_secret&quot;: &quot;&quot;,
+      &quot;symbols_allowed&quot;: 5
+    },
+    {
+      &quot;name&quot;: &quot;bybit_unified&quot;,
+      &quot;account_name&quot;: &quot;account_3&quot;,
+      &quot;api_key&quot;: &quot;&quot;,
+      &quot;api_secret&quot;: &quot;&quot;,
+      &quot;symbols_allowed&quot;: 5
+    },
+    {
+      &quot;name&quot;: &quot;hyperliquid&quot;,
+      &quot;account_name&quot;: &quot;account_1&quot;,
+      &quot;api_key&quot;: &quot;&quot;,
+      &quot;api_secret&quot;: &quot;&quot;,
+      &quot;symbols_allowed&quot;: 5
+    },
+    {
+      &quot;name&quot;: &quot;blofin&quot;,
+      &quot;account_name&quot;: &quot;account_1&quot;,
+      &quot;api_key&quot;: &quot;&quot;,
+      &quot;api_secret&quot;: &quot;&quot;,
+      &quot;symbols_allowed&quot;: 5
+    },
+    {
+      &quot;name&quot;: &quot;bitget&quot;,
+      &quot;account_name&quot;: &quot;account_1&quot;,
+      &quot;api_key&quot;: &quot;&quot;,
+      &quot;api_secret&quot;: &quot;&quot;,
+      &quot;passphrase&quot;: &quot;&quot;,
+      &quot;symbols_allowed&quot;: 8 
+    },
+    {
+      &quot;name&quot;: &quot;okx&quot;,
+      &quot;account_name&quot;: &quot;account_1&quot;,
+      &quot;api_key&quot;: &quot;&quot;,
+      &quot;api_secret&quot;: &quot;&quot;,
+      &quot;passphrase&quot;: &quot;&quot;,
+      &quot;symbols_allowed&quot;: 12 
+    },
+    {
+      &quot;name&quot;: &quot;huobi&quot;,
+      &quot;account_name&quot;: &quot;account_1&quot;,
+      &quot;api_key&quot;: &quot;&quot;,
+      &quot;api_secret&quot;: &quot;&quot;,
+      &quot;symbols_allowed&quot;: 10 
+    },
+    {
+      &quot;name&quot;: &quot;binance&quot;,
+      &quot;account_name&quot;: &quot;account_1&quot;,
+      &quot;api_key&quot;: &quot;&quot;,
+      &quot;api_secret&quot;: &quot;&quot;,
+      &quot;symbols_allowed&quot;: 9 
+    },
+    {
+      &quot;name&quot;: &quot;lbank&quot;,
+      &quot;account_name&quot;: &quot;account_1&quot;,
+      &quot;api_key&quot;: &quot;&quot;,
+      &quot;api_secret&quot;: &quot;&quot;,
+      &quot;symbols_allowed&quot;: 9 
+    },
+    {
+      &quot;name&quot;: &quot;phemex&quot;,
+      &quot;account_name&quot;: &quot;account_1&quot;,
+      &quot;api_key&quot;: &quot;&quot;,
+      &quot;api_secret&quot;: &quot;&quot;,
+      &quot;symbols_allowed&quot;: 7 
+    }
+  ],
+  &quot;logger&quot;: {
+    &quot;level&quot;: &quot;info&quot;
+  },
+  &quot;messengers&quot;: {
+    &quot;discord&quot;: {
+      &quot;active&quot;: false,
+      &quot;embedded_messages&quot;: true,
+      &quot;messenger_type&quot;: &quot;discord&quot;,
+      &quot;webhook_url&quot;: &quot;https://discord.com/api/webhooks/your_webhook_id/your_webhook_token&quot;
+    },
+    &quot;telegram&quot;: {
+      &quot;active&quot;: false,
+      &quot;embedded_messages&quot;: true,
+      &quot;messenger_type&quot;: &quot;telegram&quot;,
+      &quot;bot_token&quot;: &quot;your_bot_token&quot;,
+      &quot;chat_id&quot;: &quot;your_chat_id&quot;
     }
   }
 }
