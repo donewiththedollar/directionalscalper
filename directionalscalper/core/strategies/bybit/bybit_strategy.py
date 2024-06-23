@@ -120,38 +120,6 @@ class BybitStrategy(BaseStrategy):
                 self.hotkey_flags['take_profit_short'] = True
             time.sleep(0.1)  # Add a small delay to avoid high CPU usage
             
-    #     try:
-    #         # Hotkey-related attributes
-    #         self.hotkey_flags = {
-    #             "enter_long": False,
-    #             "take_profit_long": False,
-    #             "enter_short": False,
-    #             "take_profit_short": False
-    #         }
-    #         self.hotkeys = config['bot']['hotkeys'] if 'hotkeys' in config['bot'] else {}
-    #         self.hotkey_listener_enabled = self.hotkeys.get('hotkeys_enabled', False)
-    #         if self.hotkey_listener_enabled:
-    #             self.start_hotkey_listener()
-    #     except Exception as e:
-    #         logging.info(f"Exception caught in hotkeys {e}")
-
-    # def start_hotkey_listener(self):
-    #     hotkey_thread = threading.Thread(target=self.listen_hotkeys, daemon=True)
-    #     hotkey_thread.start()
-
-    # def listen_hotkeys(self):
-    #     while True:
-    #         if self.hotkey_listener_enabled:
-    #             if keyboard.is_pressed(self.hotkeys.get('enter_long', '')):
-    #                 self.hotkey_flags["enter_long"] = True
-    #             if keyboard.is_pressed(self.hotkeys.get('take_profit_long', '')):
-    #                 self.hotkey_flags["take_profit_long"] = True
-    #             if keyboard.is_pressed(self.hotkeys.get('enter_short', '')):
-    #                 self.hotkey_flags["enter_short"] = True
-    #             if keyboard.is_pressed(self.hotkeys.get('take_profit_short', '')):
-    #                 self.hotkey_flags["take_profit_short"] = True
-    #         time.sleep(0.1)  # Prevents high CPU usage
-
     def hotkey_trading_strategy(self, open_orders: list, symbol: str, total_equity: float, long_pos_qty: float, short_pos_qty: float, long_pos_price: float, short_pos_price: float, long_dynamic_amount: float, short_dynamic_amount: float, upnl_profit_pct: float, tp_order_counts: dict):
         try:
             if symbol not in self.symbol_locks:
