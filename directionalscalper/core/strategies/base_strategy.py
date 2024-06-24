@@ -3237,7 +3237,6 @@ class BaseStrategy:
             cooldown_long = self.calculate_dynamic_cooldown(current_market_price, long_pos_price, auto_reduce_cooldown_start_pct) if long_pos_qty > 0 and long_pos_price > 0 else 1800
             cooldown_short = self.calculate_dynamic_cooldown(current_market_price, short_pos_price, auto_reduce_cooldown_start_pct) if short_pos_qty > 0 and short_pos_price > 0 else 1800
 
-            # Add logging to check the cooldown values
             logging.info(f"{symbol} Cooldown Long: {cooldown_long}, Cooldown Short: {cooldown_short}")
             logging.info(f"{symbol} Last Auto-Reduce Time Long: {self.last_auto_reduce_time.get(key_long, 0)}, Short: {self.last_auto_reduce_time.get(key_short, 0)}")
             logging.info(f"{symbol} Current Time: {current_time}")
@@ -3245,7 +3244,6 @@ class BaseStrategy:
             currently_auto_reducing_long = long_pos_qty > 0 and long_loss_exceeded and upnl_long_exceeded
             currently_auto_reducing_short = short_pos_qty > 0 and short_loss_exceeded and upnl_short_exceeded
 
-            # Check for cooldown and trigger conditions
             trigger_auto_reduce_long = currently_auto_reducing_long and (current_time - self.last_auto_reduce_time.get(key_long, 0) > cooldown_long)
             trigger_auto_reduce_short = currently_auto_reducing_short and (current_time - self.last_auto_reduce_time.get(key_short, 0) > cooldown_short)
 
@@ -3258,10 +3256,15 @@ class BaseStrategy:
                 self.last_auto_reduce_time[key_long] = current_time
             else:
                 if currently_auto_reducing_long:
-                    logging.info(f"{symbol} Long position is in cooldown period. Keeping it in auto-reduce list.")
+                    if current_time - self.last_auto_reduce_time.get(key_long, 0) <= cooldown_long:
+                        logging.info(f"{symbol} Long position is still in the cooldown period. Time remaining: {cooldown_long - (current_time - self.last_auto_reduce_time.get(key_long, 0)):.2f} seconds.")
                     self.auto_reduce_active_long[symbol] = True
                 else:
-                    logging.info(f"No auto-reduce executed for long position in {symbol}.")
+                    logging.info(f"No auto-reduce executed for long position in {symbol} because:")
+                    if not long_loss_exceeded:
+                        logging.info(f" - The current market price has not dropped below the threshold: {current_market_price} >= {long_pos_price * (1 - auto_reduce_cooldown_start_pct)}")
+                    if not upnl_long_exceeded:
+                        logging.info(f" - The long uPNL % of equity has not exceeded the threshold: {long_upnl_pct_equity:.2f} >= {-upnl_auto_reduce_threshold_long}")
                     if symbol in self.auto_reduce_active_long:
                         del self.auto_reduce_active_long[symbol]
 
@@ -3272,16 +3275,21 @@ class BaseStrategy:
                 self.last_auto_reduce_time[key_short] = current_time
             else:
                 if currently_auto_reducing_short:
-                    logging.info(f"{symbol} Short position is in cooldown period. Keeping it in auto-reduce list.")
+                    if current_time - self.last_auto_reduce_time.get(key_short, 0) <= cooldown_short:
+                        logging.info(f"{symbol} Short position is still in the cooldown period. Time remaining: {cooldown_short - (current_time - self.last_auto_reduce_time.get(key_short, 0)):.2f} seconds.")
                     self.auto_reduce_active_short[symbol] = True
                 else:
-                    logging.info(f"No auto-reduce executed for short position in {symbol}.")
+                    logging.info(f"No auto-reduce executed for short position in {symbol} because:")
+                    if not short_loss_exceeded:
+                        logging.info(f" - The current market price has not exceeded the threshold: {current_market_price} <= {short_pos_price * (1 + auto_reduce_cooldown_start_pct)}")
+                    if not upnl_short_exceeded:
+                        logging.info(f" - The short uPNL % of equity has not exceeded the threshold: {short_upnl_pct_equity:.2f} >= {-upnl_auto_reduce_threshold_short}")
                     if symbol in self.auto_reduce_active_short:
                         del self.auto_reduce_active_short[symbol]
 
         except Exception as e:
             logging.info(f"Error in auto-reduce logic for {symbol}: {e}")
-            # raise
+
 
     def execute_grid_auto_reduce_hardened(self, position_type, symbol, pos_qty, dynamic_amount, market_price, total_equity, long_pos_price, short_pos_price, min_qty, min_buffer_percentage_ar, max_buffer_percentage_ar):
         """
