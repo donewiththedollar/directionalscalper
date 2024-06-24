@@ -343,8 +343,9 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         market_maker.manager = manager
 
         valid_symbols = market_maker.get_symbols()
-        if symbol not in valid_symbols:
-            logging.info(f"Symbol {symbol} is not valid, skipping.")
+        formatted_symbol = f"{symbol[:3]}/{symbol[3:]}:USDT"
+        if formatted_symbol not in valid_symbols:
+            logging.info(f"Symbol {formatted_symbol} is not valid, skipping.")
             return
 
         try:
@@ -373,7 +374,6 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
                 del thread_to_symbol[current_thread]
         logging.info(f"Thread for symbol {symbol} with action {action} has completed.")
         thread_completed.set()
-
 
 def bybit_auto_rotation_spot(args, manager, symbols_allowed):
     global latest_rotator_symbols, active_symbols, last_rotator_update_time
@@ -507,6 +507,10 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                 logging.error(f"Exception in thread: {e}")
                 logging.debug(traceback.format_exc())
 
+    def is_valid_symbol(symbol):
+        formatted_symbol = f"{symbol[:3]}/{symbol[3:]}:USDT"
+        return formatted_symbol in market_maker.get_symbols()
+
     processed_symbols = set()
     valid_symbols = market_maker.get_symbols()
 
@@ -539,7 +543,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
 
                 # Always check signals for open symbols
                 for symbol in open_position_symbols:
-                    if symbol not in valid_symbols:
+                    if not is_valid_symbol(symbol):
                         logging.info(f"Symbol {symbol} is not valid, skipping.")
                         continue
 
@@ -571,7 +575,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                     logging.info(f"Active symbols are less than symbols allowed, scanning for new symbols")
                     for symbol in latest_rotator_symbols:
                         if symbol not in processed_symbols:
-                            if symbol not in valid_symbols:
+                            if not is_valid_symbol(symbol):
                                 logging.info(f"Symbol {symbol} is not valid, skipping.")
                                 continue
 
@@ -605,13 +609,16 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
 
 
 
+
+
 def process_signal_for_open_position(symbol, args, manager, symbols_allowed, open_position_data, long_mode, short_mode):
     market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
     market_maker.manager = manager
 
+    formatted_symbol = f"{symbol[:3]}/{symbol[3:]}:USDT"
     valid_symbols = market_maker.get_symbols()
-    if symbol not in valid_symbols:
-        logging.info(f"Symbol {symbol} is not valid, skipping.")
+    if formatted_symbol not in valid_symbols:
+        logging.info(f"Symbol {formatted_symbol} is not valid, skipping.")
         return
 
     with general_rate_limiter:
@@ -629,9 +636,10 @@ def process_signal(symbol, args, manager, symbols_allowed, open_position_data, i
     market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
     market_maker.manager = manager
 
+    formatted_symbol = f"{symbol[:3]}/{symbol[3:]}:USDT"
     valid_symbols = market_maker.get_symbols()
-    if symbol not in valid_symbols:
-        logging.info(f"Symbol {symbol} is not valid, skipping.")
+    if formatted_symbol not in valid_symbols:
+        logging.info(f"Symbol {formatted_symbol} is not valid, skipping.")
         return
 
     mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
