@@ -302,7 +302,7 @@ class DirectionalMarketMaker:
 
     def get_symbols(self):
         with general_rate_limiter:
-            return self.exchange.symbols
+            return self.exchange._get_symbols()
 
     def get_mfirsi_signal(self, symbol):
         # Retrieve the MFI/RSI signal
@@ -342,6 +342,11 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         market_maker = DirectionalMarketMaker(config, exchange_name, account_name)
         market_maker.manager = manager
 
+        valid_symbols = market_maker.get_symbols()
+        if symbol not in valid_symbols:
+            logging.info(f"Symbol {symbol} is not valid, skipping.")
+            return
+
         try:
             if not orders_canceled and hasattr(market_maker.exchange, 'cancel_all_open_orders_bybit'):
                 market_maker.exchange.cancel_all_open_orders_bybit()
@@ -368,6 +373,7 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
                 del thread_to_symbol[current_thread]
         logging.info(f"Thread for symbol {symbol} with action {action} has completed.")
         thread_completed.set()
+
 
 def bybit_auto_rotation_spot(args, manager, symbols_allowed):
     global latest_rotator_symbols, active_symbols, last_rotator_update_time
@@ -502,6 +508,8 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                 logging.debug(traceback.format_exc())
 
     processed_symbols = set()
+    valid_symbols = market_maker.get_symbols()
+
     while True:
         try:
             current_time = time.time()
@@ -531,6 +539,10 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
 
                 # Always check signals for open symbols
                 for symbol in open_position_symbols:
+                    if symbol not in valid_symbols:
+                        logging.info(f"Symbol {symbol} is not valid, skipping.")
+                        continue
+
                     has_open_long = any(pos['side'].lower() == 'long' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
                     has_open_short = any(pos['side'].lower() == 'short' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
                     
@@ -559,6 +571,10 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                     logging.info(f"Active symbols are less than symbols allowed, scanning for new symbols")
                     for symbol in latest_rotator_symbols:
                         if symbol not in processed_symbols:
+                            if symbol not in valid_symbols:
+                                logging.info(f"Symbol {symbol} is not valid, skipping.")
+                                continue
+
                             signal_futures.append(signal_executor.submit(process_signal, symbol, args, manager, symbols_allowed, open_position_data, False, long_mode, short_mode))
                             logging.info(f"Submitted signal processing for new rotator symbol {symbol}.")
                             processed_symbols.add(symbol)
@@ -588,9 +604,16 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
         time.sleep(1)
 
 
+
 def process_signal_for_open_position(symbol, args, manager, symbols_allowed, open_position_data, long_mode, short_mode):
     market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
     market_maker.manager = manager
+
+    valid_symbols = market_maker.get_symbols()
+    if symbol not in valid_symbols:
+        logging.info(f"Symbol {symbol} is not valid, skipping.")
+        return
+
     with general_rate_limiter:
         mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
     logging.info(f"Processing signal for open position symbol {symbol}. MFIRSI signal: {mfirsi_signal}")
@@ -605,6 +628,12 @@ def process_signal_for_open_position(symbol, args, manager, symbols_allowed, ope
 def process_signal(symbol, args, manager, symbols_allowed, open_position_data, is_open_position, long_mode, short_mode):
     market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
     market_maker.manager = manager
+
+    valid_symbols = market_maker.get_symbols()
+    if symbol not in valid_symbols:
+        logging.info(f"Symbol {symbol} is not valid, skipping.")
+        return
+
     mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
     logging.info(f"Processing signal for {'open position' if is_open_position else 'new rotator'} symbol {symbol}. MFIRSI signal: {mfirsi_signal}")
 
