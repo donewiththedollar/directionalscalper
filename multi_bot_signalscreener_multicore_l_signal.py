@@ -335,7 +335,7 @@ class DirectionalMarketMaker:
         logging.info(f"Invalid symbol type for some reason according to bybit but is probably valid symbol: {symbol}")
         return True
 
-    def generate__l_signals(self, symbol):
+    def generate_l_signals(self, symbol):
         with general_rate_limiter:
             return self.exchange.generate_l_signals(symbol)
 
@@ -468,7 +468,7 @@ def bybit_auto_rotation_spot(args, manager, symbols_allowed):
                 open_position_futures = []
                 for symbol in open_position_symbols:
                     with general_rate_limiter:
-                        l_signal = market_maker.generate__l_signals(symbol)
+                        l_signal = market_maker.generate_l_signals(symbol)
                     has_open_long = any(pos['side'].lower() == 'long' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
                     open_position_futures.append(trading_executor.submit(start_thread_for_open_symbol_spot, symbol, args, manager, mfirsi_signal, has_open_long, long_mode, short_mode))
                     logging.info(f"Submitted thread for symbol {symbol}. L signal: {l_signal}. Has open long: {has_open_long}.")
@@ -586,7 +586,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                     
                     if (has_open_long and not long_thread_running) or (has_open_short and not short_thread_running):
                         with general_rate_limiter:
-                            l_signal = market_maker.generate__l_signals(symbol)
+                            l_signal = market_maker.generate_l_signals(symbol)
                         if has_open_long and not long_thread_running:
                             logging.info(f"Open symbol {symbol} has open long: {has_open_long} and long thread not running {long_thread_running}")
                             open_position_futures.append(trading_executor.submit(start_thread_for_open_symbol, symbol, args, manager, l_signal, True, False, long_mode, short_mode))
@@ -649,7 +649,7 @@ def process_signal_for_open_position(symbol, args, manager, symbols_allowed, ope
         return
 
     with general_rate_limiter:
-        l_signal = market_maker.generate__l_signals(symbol)
+        l_signal = market_maker.generate_l_signals(symbol)
     logging.info(f"Processing signal for open position symbol {symbol}. MFIRSI signal: {l_signal}")
 
     action_taken = handle_signal(symbol, args, manager, l_signal, open_position_data, symbols_allowed, True, long_mode, short_mode)
@@ -668,7 +668,7 @@ def process_signal(symbol, args, manager, symbols_allowed, open_position_data, i
         logging.info(f"Symbol {symbol} is not valid, skipping.")
         return
 
-    l_signal = market_maker.generate__l_signals(symbol)
+    l_signal = market_maker.generate_l_signals(symbol)
     logging.info(f"Processing signal for {'open position' if is_open_position else 'new rotator'} symbol {symbol}. MFIRSI signal: {mfirsi_signal}")
 
     action_taken = handle_signal(symbol, args, manager, l_signal, open_position_data, symbols_allowed, is_open_position, long_mode, short_mode)
@@ -779,7 +779,7 @@ def process_signal_for_open_position_spot(symbol, args, manager, symbols_allowed
     market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
     market_maker.manager = manager
     with general_rate_limiter:
-        l_signal = market_maker.generate__l_signals(symbol)
+        l_signal = market_maker.generate_l_signals(symbol)
     logging.info(f"Processing signal for open position symbol {symbol}. MFIRSI signal: {l_signal}")
 
     action_taken = handle_signal_spot(symbol, args, manager, l_signal, open_position_data, symbols_allowed, True, long_mode, short_mode)
@@ -792,7 +792,7 @@ def process_signal_for_open_position_spot(symbol, args, manager, symbols_allowed
 def process_signal_spot(symbol, args, manager, symbols_allowed, open_position_data, is_open_position, long_mode, short_mode):
     market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
     market_maker.manager = manager
-    l_signal = market_maker.generate__l_signals(symbol)
+    l_signal = market_maker.generate_l_signals(symbol)
     logging.info(f"Processing signal for {'open position' if is_open_position else 'new rotator'} symbol {symbol}. MFIRSI signal: {mfirsi_signal}")
 
     action_taken = handle_signal_spot(symbol, args, manager, l_signal, open_position_data, symbols_allowed, is_open_position, long_mode, short_mode)
