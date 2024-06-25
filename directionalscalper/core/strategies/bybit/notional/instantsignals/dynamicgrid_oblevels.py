@@ -951,6 +951,8 @@ class BybitDynamicGridSpanOBLevels(BybitStrategy):
                     
                 time.sleep(5)
 
+                dashboard_path = os.path.join(self.config.shared_data_path, "shared_data.json")
+                
                 symbol_data = {
                     'symbol': symbol,
                     'min_qty': min_qty,
@@ -972,6 +974,15 @@ class BybitDynamicGridSpanOBLevels(BybitStrategy):
                 }
 
                 shared_symbols_data[symbol] = symbol_data
+
+                if self.config.dashboard_enabled:
+                    try:
+                        data_to_save = copy.deepcopy(shared_symbols_data)
+                        with open(dashboard_path, "w") as f:
+                            json.dump(data_to_save, f)
+                        self.update_shared_data(symbol_data, open_position_data, len(open_symbols))
+                    except Exception as e:
+                        logging.info(f"Dashboard saving is not working properly {e}")
 
                 if self.config.dashboard_enabled:
                     try:

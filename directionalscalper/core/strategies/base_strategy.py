@@ -335,18 +335,7 @@ class BaseStrategy:
         except Exception as e:
             logging.info(f"Error fetching recent trades for {symbol}: {e}")
             return []
-
-    # def fetch_recent_trades_for_symbol(self, symbol, since=None, limit=100):
-    #     """
-    #     Fetch recent trades for a given symbol.
-
-    #     :param str symbol: The trading pair symbol.
-    #     :param int since: Timestamp in milliseconds for fetching trades since this time.
-    #     :param int limit: The maximum number of trades to fetch.
-    #     :return: List of recent trades.
-    #     """
-    #     return self.exchange.fetch_recent_trades(symbol, since, limit)
-
+        
     def is_entry_order(self, symbol, order_id):
         """Checks if the given order ID is an entry order for the symbol."""
         is_entry = order_id in self.entry_order_ids.get(symbol, [])
