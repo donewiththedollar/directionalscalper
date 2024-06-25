@@ -12,3 +12,4 @@ inquirer
 pytz
 uuid
 keyboard
+scikit-learn
