@@ -495,9 +495,18 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#risk-management" class="md-nav__link">
+  <a href="#risk-management-parameters" class="md-nav__link">
     <span class="md-ellipsis">
-      Risk management
+      Risk management parameters
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#risk-management-explanation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Risk Management Explanation
     </span>
   </a>
   
@@ -684,9 +693,18 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#risk-management" class="md-nav__link">
+  <a href="#risk-management-parameters" class="md-nav__link">
     <span class="md-ellipsis">
-      Risk management
+      Risk management parameters
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#risk-management-explanation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Risk Management Explanation
     </span>
   </a>
   
@@ -773,11 +791,78 @@
 </code></pre>
 <h2 id="bot-section">Bot Section</h2>
 <p>Configure your bot settings in the <code>config.json</code> file under the <code>bot</code> section. This includes strategy parameters, risk management settings, and other related settings.</p>
-<h3 id="risk-management">Risk management</h3>
+<h3 id="risk-management-parameters">Risk management parameters</h3>
 <ul>
 <li><strong>user_defined_leverage_long</strong>: This parameter defines the leverage to use for long positions. Leverage is a multiplier that increases the size of the position and the potential profit/loss. For example, a leverage of 10 means that for every $1 you have, you can place a trade worth $10. Be careful with this setting as higher leverage also increases the risk.</li>
 <li><strong>user_defined_leverage_short</strong>: This parameter defines the leverage to use for short positions. Similar to <code>user_defined_leverage_long</code>, it's a multiplier that increases the size of the position and the potential profit/loss.</li>
 </ul>
+<h3 id="risk-management-explanation">Risk Management Explanation</h3>
+<p>Risk Management plays a crucial role in trading strategies, as it helps protect the trader's capital and limits potential losses. In the provided code snippet, there are several parameters and calculations related to risk management. Let's dive into each of them and provide examples to clarify their usage.</p>
+<ul>
+<li><strong>user_defined_leverage_long</strong> and <strong>user_defined_leverage_short</strong>:</li>
+<li>These parameters allow the user to specify the leverage for long and short positions, respectively.</li>
+<li>Leverage is a multiplier that increases the size of the position and the potential profit/loss.</li>
+<li>
+<p>Example:</p>
+<ul>
+<li>If <code>user_defined_leverage_long</code> is set to 5, it means that for every $1 of the trader's capital, they can open a long position worth $5.</li>
+<li>Similarly, if <code>user_defined_leverage_short</code> is set to 3, it means that for every $1 of the trader's capital, they can open a short position worth $3.</li>
+</ul>
+</li>
+<li>
+<p><strong>wallet_exposure_limit_long</strong> and <strong>wallet_exposure_limit_short</strong>:</p>
+</li>
+<li>These parameters define the maximum percentage of the trader's total equity that can be allocated to long and short positions, respectively.</li>
+<li>They help limit the overall exposure to risk by controlling the amount of capital deployed in each position.</li>
+<li>
+<p>Example:</p>
+<ul>
+<li>If <code>wallet_exposure_limit_long</code> is set to 0.1 (10%), it means that the maximum amount allocated to long positions cannot exceed 10% of the total equity.</li>
+<li>Similarly, if <code>wallet_exposure_limit_short</code> is set to 0.05 (5%), it means that the maximum amount allocated to short positions cannot exceed 5% of the total equity.</li>
+</ul>
+</li>
+<li>
+<p><strong>Effective Leverage Calculation</strong>:</p>
+</li>
+<li>The effective leverage used in trading is calculated as <code>total_equity * wallet_exposure_limit * leverage_used</code>.</li>
+<li>This calculation determines the maximum position value based on the trader's total equity, wallet exposure limit, and the selected leverage.</li>
+<li>
+<p>Example:</p>
+<ul>
+<li>Let's say a trader has a total equity of $10,000, <code>wallet_exposure_limit_long</code> is set to 0.1 (10%), and <code>user_defined_leverage_long</code> is set to 5.</li>
+<li>The maximum position value for long positions would be: $10,000 * 0.1 * 5 = $5,000.</li>
+<li>This means that the trader can open long positions with a total value of up to $5,000.</li>
+</ul>
+</li>
+<li>
+<p><strong>enforce_full_grid</strong>:</p>
+</li>
+<li>This parameter determines whether the trading strategy should enforce a full grid of positions or allow partial grid usage.</li>
+<li>If <code>enforce_full_grid</code> is set to <code>True</code>, the code calculates the required notional amount by dividing the maximum position value by the number of levels.</li>
+<li>If <code>enforce_full_grid</code> is set to <code>False</code>, the code uses the maximum position value as the required notional amount.</li>
+<li>
+<p>Example:</p>
+<ul>
+<li>Let's say the maximum position value is $5,000, and the trading strategy uses 5 levels.</li>
+<li>If <code>enforce_full_grid</code> is <code>True</code>, the required notional amount for each level would be: $5,000 / 5 = $1,000.</li>
+<li>If <code>enforce_full_grid</code> is <code>False</code>, the required notional amount would be the full $5,000.</li>
+</ul>
+</li>
+<li>
+<p><strong>Adjusting Maximum Position Value</strong>:</p>
+</li>
+<li>The code takes into account the current position value (long or short) and adjusts the maximum position value accordingly.</li>
+<li>It calculates the current position value by multiplying the position quantity (long or short) with the respective best ask or bid price.</li>
+<li>The adjusted maximum position value is then calculated by subtracting the current position value from the original maximum position value.</li>
+<li>Example:<ul>
+<li>Let's say the maximum position value is $5,000, and the trader currently holds a long position with a quantity of 2 units at a best ask price of $100.</li>
+<li>The current position value would be: 2 * $100 = $200.</li>
+<li>The adjusted maximum position value would be: $5,000 - $200 = $4,800.</li>
+<li>This means that the trader can open additional positions with a total value of up to $4,800.</li>
+</ul>
+</li>
+</ul>
+<p>These risk management parameters and calculations help traders control their exposure to risk, limit potential losses, and manage their positions effectively. By adjusting these parameters based on their risk tolerance and trading strategy, traders can optimize their risk management approach and protect their capital.</p>
 <h3 id="linear-grid-strategy-parameters">Linear Grid Strategy Parameters</h3>
 <p>Here are the parameters for the <code>linear_grid</code> strategy in your <code>config.json</code> file:</p>
 <ul>
