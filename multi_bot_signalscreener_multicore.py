@@ -270,6 +270,7 @@ class DirectionalMarketMaker:
             future.set_exception(ValueError(f"Strategy {strategy_name} not found."))
             return future
 
+
     def run_with_future(self, strategy, symbol, rotator_symbols_standardized, mfirsi_signal, action, future):
         try:
             strategy.run(symbol, rotator_symbols_standardized=rotator_symbols_standardized, mfirsi_signal=mfirsi_signal, action=action)
@@ -350,6 +351,7 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
     try:
         with thread_to_symbol_lock:
             thread_to_symbol[current_thread] = symbol
+            active_symbols.add(symbol)  # Add symbol to active_symbols when the thread starts
 
         if not args.config.startswith('configs/'):
             config_file_path = Path('configs/' + args.config)
@@ -357,8 +359,8 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
             config_file_path = Path(args.config)
 
         logging.info(f"Loading config from: {config_file_path}")
-        
-        account_file_path = Path('configs/account.json')  # Add this line to define the account file path
+
+        account_file_path = Path('configs/account.json')  # Define the account file path
         config = load_config(config_file_path, account_file_path)  # Pass both file paths to load_config
 
         exchange_name = args.exchange
@@ -372,10 +374,6 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
 
         market_maker = DirectionalMarketMaker(config, exchange_name, account_name)
         market_maker.manager = manager
-
-        if not market_maker.is_valid_symbol_bybit(symbol):
-            logging.info(f"Symbol {symbol} is not valid, skipping.")
-            return
 
         try:
             if not orders_canceled and hasattr(market_maker.exchange, 'cancel_all_open_orders_bybit'):
@@ -401,9 +399,10 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         with thread_to_symbol_lock:
             if current_thread in thread_to_symbol:
                 del thread_to_symbol[current_thread]
+            active_symbols.discard(symbol)  # Remove symbol from active_symbols when the thread completes
         logging.info(f"Thread for symbol {symbol} with action {action} has completed.")
         thread_completed.set()
-
+        
 def bybit_auto_rotation_spot(args, manager, symbols_allowed):
     global latest_rotator_symbols, active_symbols, last_rotator_update_time
 
@@ -457,9 +456,13 @@ def bybit_auto_rotation_spot(args, manager, symbols_allowed):
             else:
                 logging.debug(f"No refresh needed yet. Last update was at {last_rotator_update_time}, less than 60 seconds ago.")
 
+            update_active_symbols(open_position_symbols)
+            logging.info(f"Active symbols: {active_symbols}")
+            logging.info(f"Active symbols updated. Symbols allowed: {symbols_allowed}")
+
             with thread_management_lock:
-                update_active_symbols(open_position_symbols)
-                logging.info(f"Active symbols updated. Symbols allowed: {symbols_allowed}")
+                # update_active_symbols(open_position_symbols)
+                # logging.info(f"Active symbols updated. Symbols allowed: {symbols_allowed}")
 
                 open_position_futures = []
                 for symbol in open_position_symbols:
@@ -559,10 +562,11 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
             else:
                 logging.debug(f"No refresh needed yet. Last update was at {last_rotator_update_time}, less than 60 seconds ago.")
 
-            with thread_management_lock:
-                update_active_symbols(open_position_symbols)
-                logging.info(f"Active symbols updated. Symbols allowed: {symbols_allowed}")
+            update_active_symbols(open_position_symbols)
+            logging.info(f"Active symbols updated. Symbols allowed: {symbols_allowed}")
+            logging.info(f"Active symbols: {active_symbols}")
 
+            with thread_management_lock:
                 open_position_futures = []
                 signal_futures = []
 
@@ -595,6 +599,11 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                 logging.info(f"Submitted signal processing for open position symbols: {open_position_symbols}.")
                 logging.info(f"Active symbols count: {len(active_symbols)}")
 
+                update_active_symbols(open_position_symbols)
+                logging.info(f"Active symbols updated. Symbols allowed: {symbols_allowed}")
+                logging.info(f"Active symbols: {active_symbols}")
+                logging.info(f"Active symbols count: {len(active_symbols)}")
+
                 # Process new symbols only if there is capacity
                 if len(active_symbols) < symbols_allowed:
                     logging.info(f"Active symbols are less than symbols allowed, scanning for new symbols")
@@ -603,6 +612,10 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                             if not market_maker.is_valid_symbol_bybit(symbol):
                                 logging.info(f"Symbol {symbol} is not valid, skipping.")
                                 continue
+                            
+                            if len(active_symbols) >= symbols_allowed:
+                                logging.info(f"Reached symbols_allowed limit ({symbols_allowed}). Stopping processing of new symbols.")
+                                break
 
                             signal_futures.append(signal_executor.submit(process_signal, symbol, args, manager, symbols_allowed, open_position_data, False, long_mode, short_mode))
                             logging.info(f"Submitted signal processing for new rotator symbol {symbol}.")
@@ -631,10 +644,6 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
             logging.error(f"Exception caught in bybit_auto_rotation: {str(e)}")
             logging.debug(traceback.format_exc())
         time.sleep(1)
-
-
-
-
 
 def process_signal_for_open_position(symbol, args, manager, symbols_allowed, open_position_data, long_mode, short_mode):
     market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
