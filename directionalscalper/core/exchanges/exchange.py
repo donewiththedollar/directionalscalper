@@ -2,6 +2,9 @@ import os
 import logging
 import time
 import ta as ta
+from ta.momentum import RSIIndicator
+from ta.volatility import AverageTrueRange
+from ta.trend import CCIIndicator, ADXIndicator, EMAIndicator, SMAIndicator
 import uuid
 import ccxt
 import pandas as pd
@@ -148,33 +151,33 @@ class Exchange:
     # Credit to 53RG0
     def normalize(self, series):
         scaler = MinMaxScaler()
-        series = series.values.reshape(-1, 1)
-        normalized_series = scaler.fit_transform(series).flatten()
-        return pd.Series(normalized_series, index=series.index)
+        series_values = series.values.reshape(-1, 1)  # Convert to 2D array for scaler
+        normalized_values = scaler.fit_transform(series_values).flatten()
+        return pd.Series(normalized_values, index=series.index)
 
     def rescale(self, series, new_min=0, new_max=1):
         old_min, old_max = series.min(), series.max()
-        rescaled_series = new_min + (new_max - new_min) * (series - old_min) / (old_max - old_min)
-        return pd.Series(rescaled_series, index=series.index)
+        rescaled_values = new_min + (new_max - new_min) * (series - old_min) / (old_max - old_min)
+        return pd.Series(rescaled_values, index=series.index)
 
     def n_rsi(self, series, n1, n2):
-        rsi = ta.momentum.RSIIndicator(series, window=n1).rsi()
+        rsi = RSIIndicator(series, window=n1).rsi()
         return self.rescale(rsi.ewm(span=n2, adjust=False).mean())
 
     def n_cci(self, high, low, close, n1, n2):
-        cci = ta.trend.CCIIndicator(high, low, close, window=n1).cci()
+        cci = CCIIndicator(high, low, close, window=n1).cci()
         return self.normalize(cci.ewm(span=n2, adjust=False).mean())
 
     def n_wt(self, hlc3, n1=10, n2=11):
-        ema1 = ta.trend.EMAIndicator(hlc3, window=n1).ema_indicator()
-        ema2 = ta.trend.EMAIndicator(abs(hlc3 - ema1), window=n1).ema_indicator()
+        ema1 = EMAIndicator(hlc3, window=n1).ema_indicator()
+        ema2 = EMAIndicator(abs(hlc3 - ema1), window=n1).ema_indicator()
         ci = (hlc3 - ema1) / (0.015 * ema2)
-        wt1 = ta.trend.EMAIndicator(ci, window=n2).ema_indicator()
-        wt2 = ta.trend.SMAIndicator(wt1, window=4).sma_indicator()
+        wt1 = EMAIndicator(ci, window=n2).ema_indicator()
+        wt2 = SMAIndicator(wt1, window=4).sma_indicator()
         return self.normalize(wt1 - wt2)
 
     def n_adx(self, high, low, close, n1):
-        adx = ta.trend.ADXIndicator(high, low, close, window=n1).adx()
+        adx = ADXIndicator(high, low, close, window=n1).adx()
         return self.rescale(adx)
 
     def regime_filter(self, series, high, low, use_regime_filter, threshold):
@@ -196,21 +199,21 @@ class Exchange:
 
         klmf_values = klmf(series, high, low)
         abs_curve_slope = abs(klmf_values.diff())
-        exponential_average_abs_curve_slope = ta.trend.EMAIndicator(abs_curve_slope, window=200).ema_indicator()
+        exponential_average_abs_curve_slope = EMAIndicator(abs_curve_slope, window=200).ema_indicator()
         normalized_slope_decline = (abs_curve_slope - exponential_average_abs_curve_slope) / exponential_average_abs_curve_slope
         return normalized_slope_decline >= threshold
 
     def filter_adx(self, close, high, low, adx_threshold, use_adx_filter, length=14):
         if not use_adx_filter:
             return pd.Series([True] * len(close))
-        adx = ta.trend.ADXIndicator(high, low, close, window=length).adx()
+        adx = ADXIndicator(high, low, close, window=length).adx()
         return adx > adx_threshold
 
     def filter_volatility(self, high, low, close, use_volatility_filter, min_length=1, max_length=10):
         if not use_volatility_filter:
             return pd.Series([True] * len(close))
-        recent_atr = ta.volatility.AverageTrueRange(high, low, close, window=min_length).average_true_range()
-        historical_atr = ta.volatility.AverageTrueRange(high, low, close, window=max_length).average_true_range()
+        recent_atr = AverageTrueRange(high, low, close, window=min_length).average_true_range()
+        historical_atr = AverageTrueRange(high, low, close, window=max_length).average_true_range()
         return recent_atr > historical_atr
 
     def lorentzian_distance(self, feature_series, feature_arrays):
@@ -235,12 +238,12 @@ class Exchange:
         nearest_indices = distances.argsort()[:neighbors_count]
 
         y_train_series = np.where(df['close'].shift(-4) > df['close'], 1, -1)
-        y_train_series = y_train_series.values[:-1]
+        y_train_series = y_train_series[:-1]
         predictions = y_train_series[nearest_indices]
         prediction = np.sum(predictions)
 
-        df['ema'] = ta.trend.EMAIndicator(df['close'], window=200).ema_indicator()
-        df['sma'] = ta.trend.SMAIndicator(df['close'], window=200).sma_indicator()
+        df['ema'] = EMAIndicator(df['close'], window=200).ema_indicator()
+        df['sma'] = SMAIndicator(df['close'], window=200).sma_indicator()
 
         is_ema_uptrend = df['close'] > df['ema']
         is_ema_downtrend = df['close'] < df['ema']
@@ -253,6 +256,114 @@ class Exchange:
             return 'short'
         else:
             return 'neutral'
+
+    # def normalize(self, series):
+    #     scaler = MinMaxScaler()
+    #     series = series.values.reshape(-1, 1)
+    #     normalized_series = scaler.fit_transform(series).flatten()
+    #     return pd.Series(normalized_series, index=series.index)
+
+    # def rescale(self, series, new_min=0, new_max=1):
+    #     old_min, old_max = series.min(), series.max()
+    #     rescaled_series = new_min + (new_max - new_min) * (series - old_min) / (old_max - old_min)
+    #     return pd.Series(rescaled_series, index=series.index)
+
+    # def n_rsi(self, series, n1, n2):
+    #     rsi = ta.momentum.RSIIndicator(series, window=n1).rsi()
+    #     return self.rescale(rsi.ewm(span=n2, adjust=False).mean())
+
+    # def n_cci(self, high, low, close, n1, n2):
+    #     cci = ta.trend.CCIIndicator(high, low, close, window=n1).cci()
+    #     return self.normalize(cci.ewm(span=n2, adjust=False).mean())
+
+    # def n_wt(self, hlc3, n1=10, n2=11):
+    #     ema1 = ta.trend.EMAIndicator(hlc3, window=n1).ema_indicator()
+    #     ema2 = ta.trend.EMAIndicator(abs(hlc3 - ema1), window=n1).ema_indicator()
+    #     ci = (hlc3 - ema1) / (0.015 * ema2)
+    #     wt1 = ta.trend.EMAIndicator(ci, window=n2).ema_indicator()
+    #     wt2 = ta.trend.SMAIndicator(wt1, window=4).sma_indicator()
+    #     return self.normalize(wt1 - wt2)
+
+    # def n_adx(self, high, low, close, n1):
+    #     adx = ta.trend.ADXIndicator(high, low, close, window=n1).adx()
+    #     return self.rescale(adx)
+
+    # def regime_filter(self, series, high, low, use_regime_filter, threshold):
+    #     if not use_regime_filter:
+    #         return pd.Series([True] * len(series))
+
+    #     def klmf(series, high, low):
+    #         value1 = pd.Series(0, index=series.index)
+    #         value2 = pd.Series(0, index=series.index)
+    #         klmf = pd.Series(0, index=series.index)
+    #         for i in range(1, len(series)):
+    #             value1[i] = 0.2 * (series[i] - series[i - 1]) + 0.8 * value1[i - 1]
+    #             value2[i] = 0.1 * (high[i] - low[i]) + 0.8 * value2[i - 1]
+    #         omega = abs(value1 / value2)
+    #         alpha = (-omega ** 2 + np.sqrt(omega ** 4 + 16 * omega ** 2)) / 8
+    #         for i in range(1, len(series)):
+    #             klmf[i] = alpha[i] * series[i] + (1 - alpha[i]) * klmf[i - 1]
+    #         return klmf
+
+    #     klmf_values = klmf(series, high, low)
+    #     abs_curve_slope = abs(klmf_values.diff())
+    #     exponential_average_abs_curve_slope = ta.trend.EMAIndicator(abs_curve_slope, window=200).ema_indicator()
+    #     normalized_slope_decline = (abs_curve_slope - exponential_average_abs_curve_slope) / exponential_average_abs_curve_slope
+    #     return normalized_slope_decline >= threshold
+
+    # def filter_adx(self, close, high, low, adx_threshold, use_adx_filter, length=14):
+    #     if not use_adx_filter:
+    #         return pd.Series([True] * len(close))
+    #     adx = ta.trend.ADXIndicator(high, low, close, window=length).adx()
+    #     return adx > adx_threshold
+
+    # def filter_volatility(self, high, low, close, use_volatility_filter, min_length=1, max_length=10):
+    #     if not use_volatility_filter:
+    #         return pd.Series([True] * len(close))
+    #     recent_atr = ta.volatility.AverageTrueRange(high, low, close, window=min_length).average_true_range()
+    #     historical_atr = ta.volatility.AverageTrueRange(high, low, close, window=max_length).average_true_range()
+    #     return recent_atr > historical_atr
+
+    # def lorentzian_distance(self, feature_series, feature_arrays):
+    #     distances = np.log(1 + np.abs(feature_series - feature_arrays))
+    #     return distances.sum(axis=1)
+
+    # def generate_l_signals(self, symbol, limit=1000, neighbors_count=8):
+    #     ohlcv_data = self.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
+    #     df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+    #     df.set_index('timestamp', inplace=True)
+
+    #     df['rsi'] = self.n_rsi(df['close'], 14, 1)
+    #     df['adx'] = self.n_adx(df['high'], df['low'], df['close'], 14)
+    #     df['cci'] = self.n_cci(df['high'], df['low'], df['close'], 20, 1)
+    #     df['wt'] = self.n_wt((df['high'] + df['low'] + df['close']) / 3, 10, 11)
+
+    #     features = df[['rsi', 'adx', 'cci', 'wt']].values
+    #     feature_series = features[-1]
+    #     feature_arrays = features[:-1]
+
+    #     distances = self.lorentzian_distance(feature_series, feature_arrays)
+    #     nearest_indices = distances.argsort()[:neighbors_count]
+
+    #     y_train_series = np.where(df['close'].shift(-4) > df['close'], 1, -1)
+    #     y_train_series = y_train_series.values[:-1]
+    #     predictions = y_train_series[nearest_indices]
+    #     prediction = np.sum(predictions)
+
+    #     df['ema'] = ta.trend.EMAIndicator(df['close'], window=200).ema_indicator()
+    #     df['sma'] = ta.trend.SMAIndicator(df['close'], window=200).sma_indicator()
+
+    #     is_ema_uptrend = df['close'] > df['ema']
+    #     is_ema_downtrend = df['close'] < df['ema']
+    #     is_sma_uptrend = df['close'] > df['sma']
+    #     is_sma_downtrend = df['close'] < df['sma']
+
+    #     if prediction > 0 and is_ema_uptrend.iloc[-1] and is_sma_uptrend.iloc[-1]:
+    #         return 'long'
+    #     elif prediction < 0 and is_ema_downtrend.iloc[-1] and is_sma_downtrend.iloc[-1]:
+    #         return 'short'
+    #     else:
+    #         return 'neutral'
 
     def get_l_signal(self, symbol: str, limit: int = 1000, neighbors_count: int = 8) -> str:
         # Fetch OHLCV data

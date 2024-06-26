@@ -632,8 +632,8 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                     logging.info(f"Thread and symbol management completed for: {symbol}")
 
         except Exception as e:
-            logging.error(f"Exception caught in bybit_auto_rotation: {str(e)}")
-            logging.debug(traceback.format_exc())
+            logging.info(f"Exception caught in bybit_auto_rotation: {str(e)}")
+            logging.info(traceback.format_exc())
         time.sleep(1)
 
 
@@ -696,7 +696,7 @@ def handle_signal(symbol, args, manager, mfirsi_signal, open_position_data, symb
     has_open_short = any(pos['side'].lower() == 'short' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
 
     logging.info(f"{'Open position' if is_open_position else 'New rotator'} symbol {symbol} - Has open long: {has_open_long}, Has open short: {has_open_short}")
-    logging.info(f"MFIRSI Signal: {mfirsi_signal}, Long Mode: {long_mode}, Short Mode: {short_mode}")
+    logging.info(f"L Signal: {mfirsi_signal}, Long Mode: {long_mode}, Short Mode: {short_mode}")
 
     action_taken_long = False
     action_taken_short = False
@@ -710,7 +710,7 @@ def handle_signal(symbol, args, manager, mfirsi_signal, open_position_data, symb
             logging.info(f"Long thread already running for symbol {symbol}. Skipping.")
     else:
         logging.info(f"Long signal not triggered or long mode not enabled for symbol {symbol}. Skipping.")
-        logging.info(f"MFIRSI Signal: {mfirsi_signal}")
+        logging.info(f"L Signal: {mfirsi_signal}")
         logging.info(f"Long mode: {long_mode}")
         logging.info(f"Short mode: {short_mode}")
         logging.info(f"Has open long: {has_open_long}")
@@ -725,7 +725,7 @@ def handle_signal(symbol, args, manager, mfirsi_signal, open_position_data, symb
             logging.info(f"Short thread already running for symbol {symbol}. Skipping.")
     else:
         logging.info(f"Short signal not triggered or short mode not enabled for symbol {symbol}. Skipping.")
-        logging.info(f"MFIRSI Signal: {mfirsi_signal}")
+        logging.info(f"L Signal: {mfirsi_signal}")
         logging.info(f"Long mode: {long_mode}")
         logging.info(f"Short mode: {short_mode}")
         logging.info(f"Has open long: {has_open_long}")
