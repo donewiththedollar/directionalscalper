@@ -461,9 +461,11 @@ def bybit_auto_rotation_spot(args, manager, symbols_allowed):
             else:
                 logging.debug(f"No refresh needed yet. Last update was at {last_rotator_update_time}, less than 60 seconds ago.")
 
+            update_active_symbols(open_position_symbols)
+            logging.info(f"Active symbols updated. Symbols allowed: {symbols_allowed}")
+            logging.info(f"Active symbols: {active_symbols}")
+
             with thread_management_lock:
-                update_active_symbols(open_position_symbols)
-                logging.info(f"Active symbols updated. Symbols allowed: {symbols_allowed}")
 
                 open_position_futures = []
                 for symbol in open_position_symbols:
@@ -563,9 +565,10 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
             else:
                 logging.debug(f"No refresh needed yet. Last update was at {last_rotator_update_time}, less than 60 seconds ago.")
 
+            update_active_symbols(open_position_symbols)
+            logging.info(f"Active symbols updated. Symbols allowed: {symbols_allowed}")
+
             with thread_management_lock:
-                update_active_symbols(open_position_symbols)
-                logging.info(f"Active symbols updated. Symbols allowed: {symbols_allowed}")
 
                 open_position_futures = []
                 signal_futures = []
@@ -598,6 +601,10 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                 
                 logging.info(f"Submitted signal processing for open position symbols: {open_position_symbols}.")
                 logging.info(f"Active symbols count: {len(active_symbols)}")
+
+                update_active_symbols(open_position_symbols)
+                logging.info(f"Active symbols updated. Symbols allowed: {symbols_allowed}")
+                logging.info(f"Active symbols: {active_symbols}")
 
                 # Process new symbols only if there is capacity
                 if len(active_symbols) < symbols_allowed:
