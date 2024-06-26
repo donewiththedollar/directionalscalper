@@ -362,7 +362,7 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
 
         logging.info(f"Loading config from: {config_file_path}")
         
-        account_file_path = Path('configs/account.json')  # Add this line to define the account file path
+        account_file_path = Path('configs/account.json')  # Define the account file path
         config = load_config(config_file_path, account_file_path)  # Pass both file paths to load_config
 
         exchange_name = args.exchange
@@ -376,10 +376,6 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
 
         market_maker = DirectionalMarketMaker(config, exchange_name, account_name)
         market_maker.manager = manager
-
-        if not market_maker.is_valid_symbol_bybit(symbol):
-            logging.info(f"Symbol {symbol} is not valid, skipping.")
-            return
 
         try:
             if not orders_canceled and hasattr(market_maker.exchange, 'cancel_all_open_orders_bybit'):
@@ -615,6 +611,10 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                                 logging.info(f"Symbol {symbol} is not valid, skipping.")
                                 continue
 
+                            if len(active_symbols) >= symbols_allowed:
+                                logging.info(f"Reached symbols_allowed limit ({symbols_allowed}). Stopping processing of new symbols.")
+                                break
+
                             signal_futures.append(signal_executor.submit(process_signal, symbol, args, manager, symbols_allowed, open_position_data, False, long_mode, short_mode))
                             logging.info(f"Submitted signal processing for new rotator symbol {symbol}.")
                             processed_symbols.add(symbol)
@@ -642,10 +642,6 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
             logging.info(f"Exception caught in bybit_auto_rotation: {str(e)}")
             logging.info(traceback.format_exc())
         time.sleep(1)
-
-
-
-
 
 def process_signal_for_open_position(symbol, args, manager, symbols_allowed, open_position_data, long_mode, short_mode):
     market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)

@@ -279,52 +279,11 @@ class BybitStrategy(BaseStrategy):
 
         return False
 
-    def handle_inactivity(self, symbol, side, current_time, inactive_time_threshold, previous_qty):
-        side_key = f"{symbol}_{side}"  # Create a unique key for each side (long/short)
-        
-        if side_key in self.last_activity_time:
-            last_activity_time = self.last_activity_time[side_key]
-            inactive_time = current_time - last_activity_time
-            logging.info(f"{symbol} ({side}) last active {inactive_time} seconds ago")
-            if inactive_time >= inactive_time_threshold and previous_qty > 0:
-                logging.info(f"{symbol} ({side}) has been inactive for {inactive_time} seconds, exceeding threshold of {inactive_time_threshold} seconds")
-                if side == 'long':
-                    self.cancel_grid_orders(symbol, 'buy')
-                    self.running_long = False
-                elif side == 'short':
-                    self.cancel_grid_orders(symbol, 'sell')
-                    self.running_short = False
-                return True
-        else:
-            self.last_activity_time[side_key] = current_time
-            logging.info(f"Recording initial activity time for {symbol} ({side})")
-        return False
-
-    def check_position_inactivity(self, symbol, inactive_pos_time_threshold, long_pos_qty, short_pos_qty, previous_long_pos_qty, previous_short_pos_qty):
-        current_time = time.time()
-        logging.info(f"Checking position inactivity for {symbol} at {current_time}")
-
-        has_open_long_position = long_pos_qty > 0
-        has_open_short_position = short_pos_qty > 0
-
-        logging.info(f"Open positions status for {symbol} - Long: {'found' if has_open_long_position else 'none'}, Short: {'found' if has_open_short_position else 'none'}")
-
-        long_inactivity = False
-        short_inactivity = False
-
-        # Determine inactivity for long position
-        if not has_open_long_position:
-            long_inactivity = self.handle_inactivity(symbol, 'long', current_time, inactive_pos_time_threshold, previous_long_pos_qty)
-        
-        # Determine inactivity for short position
-        if not has_open_short_position:
-            short_inactivity = self.handle_inactivity(symbol, 'short', current_time, inactive_pos_time_threshold, previous_short_pos_qty)
-
-        return long_inactivity or short_inactivity
-
     # def handle_inactivity(self, symbol, side, current_time, inactive_time_threshold, previous_qty):
-    #     if symbol in self.last_activity_time:
-    #         last_activity_time = self.last_activity_time[symbol]
+    #     side_key = f"{symbol}_{side}"  # Create a unique key for each side (long/short)
+        
+    #     if side_key in self.last_activity_time:
+    #         last_activity_time = self.last_activity_time[side_key]
     #         inactive_time = current_time - last_activity_time
     #         logging.info(f"{symbol} ({side}) last active {inactive_time} seconds ago")
     #         if inactive_time >= inactive_time_threshold and previous_qty > 0:
@@ -337,7 +296,7 @@ class BybitStrategy(BaseStrategy):
     #                 self.running_short = False
     #             return True
     #     else:
-    #         self.last_activity_time[symbol] = current_time
+    #         self.last_activity_time[side_key] = current_time
     #         logging.info(f"Recording initial activity time for {symbol} ({side})")
     #     return False
 
@@ -350,16 +309,57 @@ class BybitStrategy(BaseStrategy):
 
     #     logging.info(f"Open positions status for {symbol} - Long: {'found' if has_open_long_position else 'none'}, Short: {'found' if has_open_short_position else 'none'}")
 
-    #     # Determine inactivity and handle accordingly
-    #     if not has_open_long_position:
-    #         if self.handle_inactivity(symbol, 'long', current_time, inactive_pos_time_threshold, previous_long_pos_qty):
-    #             return True
-        
-    #     if not has_open_short_position:
-    #         if self.handle_inactivity(symbol, 'short', current_time, inactive_pos_time_threshold, previous_short_pos_qty):
-    #             return True
+    #     long_inactivity = False
+    #     short_inactivity = False
 
-    #     return False
+    #     # Determine inactivity for long position
+    #     if not has_open_long_position:
+    #         long_inactivity = self.handle_inactivity(symbol, 'long', current_time, inactive_pos_time_threshold, previous_long_pos_qty)
+        
+    #     # Determine inactivity for short position
+    #     if not has_open_short_position:
+    #         short_inactivity = self.handle_inactivity(symbol, 'short', current_time, inactive_pos_time_threshold, previous_short_pos_qty)
+
+    #     return long_inactivity or short_inactivity
+
+    def handle_inactivity(self, symbol, side, current_time, inactive_time_threshold, previous_qty):
+        if symbol in self.last_activity_time:
+            last_activity_time = self.last_activity_time[symbol]
+            inactive_time = current_time - last_activity_time
+            logging.info(f"{symbol} ({side}) last active {inactive_time} seconds ago")
+            if inactive_time >= inactive_time_threshold and previous_qty > 0:
+                logging.info(f"{symbol} ({side}) has been inactive for {inactive_time} seconds, exceeding threshold of {inactive_time_threshold} seconds")
+                if side == 'long':
+                    self.cancel_grid_orders(symbol, 'buy')
+                    self.running_long = False
+                elif side == 'short':
+                    self.cancel_grid_orders(symbol, 'sell')
+                    self.running_short = False
+                return True
+        else:
+            self.last_activity_time[symbol] = current_time
+            logging.info(f"Recording initial activity time for {symbol} ({side})")
+        return False
+
+    def check_position_inactivity(self, symbol, inactive_pos_time_threshold, long_pos_qty, short_pos_qty, previous_long_pos_qty, previous_short_pos_qty):
+        current_time = time.time()
+        logging.info(f"Checking position inactivity for {symbol} at {current_time}")
+
+        has_open_long_position = long_pos_qty > 0
+        has_open_short_position = short_pos_qty > 0
+
+        logging.info(f"Open positions status for {symbol} - Long: {'found' if has_open_long_position else 'none'}, Short: {'found' if has_open_short_position else 'none'}")
+
+        # Determine inactivity and handle accordingly
+        if not has_open_long_position:
+            if self.handle_inactivity(symbol, 'long', current_time, inactive_pos_time_threshold, previous_long_pos_qty):
+                return True
+        
+        if not has_open_short_position:
+            if self.handle_inactivity(symbol, 'short', current_time, inactive_pos_time_threshold, previous_short_pos_qty):
+                return True
+
+        return False
     
     def should_terminate_open_orders(self, symbol, long_pos_qty, short_pos_qty, open_positions_data, open_orders, current_time):
         try:
