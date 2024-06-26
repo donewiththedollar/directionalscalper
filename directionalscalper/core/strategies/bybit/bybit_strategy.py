@@ -4673,6 +4673,18 @@ class BybitStrategy(BaseStrategy):
             long_grid_active = symbol in self.active_grids and "buy" in self.filled_levels[symbol]
             short_grid_active = symbol in self.active_grids and "sell" in self.filled_levels[symbol]
 
+            # Check and clear double grids if there are more open orders than the levels allowed
+            def clear_double_grids(symbol, levels, open_orders, side):
+                open_order_count = sum(1 for order in open_orders if order['side'].lower() == side and not order['reduceOnly'])
+                if open_order_count > levels:
+                    logging.info(f"[{symbol}] More open {side} orders ({open_order_count}) than allowed levels ({levels}). Clearing grid.")
+                    self.clear_grid(symbol, side)
+                    self.active_grids.discard(symbol)
+                    self.filled_levels[symbol][side].clear()
+
+            clear_double_grids(symbol, levels, open_orders, 'buy')
+            clear_double_grids(symbol, levels, open_orders, 'sell')
+
             self.check_and_manage_positions(long_pos_qty, short_pos_qty, symbol, total_equity, current_price, max_qty_percent_long, max_qty_percent_short)
 
             buffer_percentage_long = initial_entry_buffer_pct if long_pos_qty == 0 else min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
