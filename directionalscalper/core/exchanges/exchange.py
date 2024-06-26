@@ -220,42 +220,99 @@ class Exchange:
         distances = np.log(1 + np.abs(feature_series - feature_arrays))
         return distances.sum(axis=1)
 
-    def generate_l_signals(self, symbol, limit=1000, neighbors_count=8):
+    def generate_l_signals(self, symbol, limit=3000, neighbors_count=8):
+        # Fetch OHLCV data
         ohlcv_data = self.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
         df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
         df.set_index('timestamp', inplace=True)
 
+        # Calculate technical indicators
         df['rsi'] = self.n_rsi(df['close'], 14, 1)
         df['adx'] = self.n_adx(df['high'], df['low'], df['close'], 14)
         df['cci'] = self.n_cci(df['high'], df['low'], df['close'], 20, 1)
         df['wt'] = self.n_wt((df['high'] + df['low'] + df['close']) / 3, 10, 11)
 
+        # Feature engineering
         features = df[['rsi', 'adx', 'cci', 'wt']].values
         feature_series = features[-1]
         feature_arrays = features[:-1]
 
+        # Calculate Lorentzian distances
         distances = self.lorentzian_distance(feature_series, feature_arrays)
         nearest_indices = distances.argsort()[:neighbors_count]
 
+        # Training labels (future price movement)
         y_train_series = np.where(df['close'].shift(-4) > df['close'], 1, -1)
         y_train_series = y_train_series[:-1]
         predictions = y_train_series[nearest_indices]
         prediction = np.sum(predictions)
 
+        # Calculate EMA and SMA
         df['ema'] = EMAIndicator(df['close'], window=200).ema_indicator()
         df['sma'] = SMAIndicator(df['close'], window=200).sma_indicator()
 
+        # Determine trends
         is_ema_uptrend = df['close'] > df['ema']
         is_ema_downtrend = df['close'] < df['ema']
         is_sma_uptrend = df['close'] > df['sma']
         is_sma_downtrend = df['close'] < df['sma']
 
+        # Generate signal based on prediction and trends
+        new_signal = 'neutral'
         if prediction > 0 and is_ema_uptrend.iloc[-1] and is_sma_uptrend.iloc[-1]:
-            return 'long'
+            new_signal = 'long'
         elif prediction < 0 and is_ema_downtrend.iloc[-1] and is_sma_downtrend.iloc[-1]:
-            return 'short'
+            new_signal = 'short'
+
+        # Avoid double entries and ensure signal change
+        if hasattr(self, 'last_signal'):
+            if self.last_signal == new_signal:
+                return 'neutral'
+            else:
+                self.last_signal = new_signal
+                return new_signal
         else:
-            return 'neutral'
+            self.last_signal = new_signal
+            return new_signal
+        
+
+    # Works but maybe keeps old signal
+    # def generate_l_signals(self, symbol, limit=1000, neighbors_count=8):
+    #     ohlcv_data = self.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
+    #     df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+    #     df.set_index('timestamp', inplace=True)
+
+    #     df['rsi'] = self.n_rsi(df['close'], 14, 1)
+    #     df['adx'] = self.n_adx(df['high'], df['low'], df['close'], 14)
+    #     df['cci'] = self.n_cci(df['high'], df['low'], df['close'], 20, 1)
+    #     df['wt'] = self.n_wt((df['high'] + df['low'] + df['close']) / 3, 10, 11)
+
+    #     features = df[['rsi', 'adx', 'cci', 'wt']].values
+    #     feature_series = features[-1]
+    #     feature_arrays = features[:-1]
+
+    #     distances = self.lorentzian_distance(feature_series, feature_arrays)
+    #     nearest_indices = distances.argsort()[:neighbors_count]
+
+    #     y_train_series = np.where(df['close'].shift(-4) > df['close'], 1, -1)
+    #     y_train_series = y_train_series[:-1]
+    #     predictions = y_train_series[nearest_indices]
+    #     prediction = np.sum(predictions)
+
+    #     df['ema'] = EMAIndicator(df['close'], window=200).ema_indicator()
+    #     df['sma'] = SMAIndicator(df['close'], window=200).sma_indicator()
+
+    #     is_ema_uptrend = df['close'] > df['ema']
+    #     is_ema_downtrend = df['close'] < df['ema']
+    #     is_sma_uptrend = df['close'] > df['sma']
+    #     is_sma_downtrend = df['close'] < df['sma']
+
+    #     if prediction > 0 and is_ema_uptrend.iloc[-1] and is_sma_uptrend.iloc[-1]:
+    #         return 'long'
+    #     elif prediction < 0 and is_ema_downtrend.iloc[-1] and is_sma_downtrend.iloc[-1]:
+    #         return 'short'
+    #     else:
+    #         return 'neutral'
 
     # def normalize(self, series):
     #     scaler = MinMaxScaler()
