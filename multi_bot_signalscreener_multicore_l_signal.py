@@ -443,8 +443,8 @@ def bybit_auto_rotation_spot(args, manager, symbols_allowed):
             try:
                 future.result()
             except Exception as e:
-                logging.error(f"Exception in thread: {e}")
-                logging.debug(traceback.format_exc())
+                logging.info(f"Exception in thread: {e}")
+                logging.info(traceback.format_exc())
 
     while True:
         try:
@@ -470,7 +470,7 @@ def bybit_auto_rotation_spot(args, manager, symbols_allowed):
                     with general_rate_limiter:
                         l_signal = market_maker.generate_l_signals(symbol)
                     has_open_long = any(pos['side'].lower() == 'long' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
-                    open_position_futures.append(trading_executor.submit(start_thread_for_open_symbol_spot, symbol, args, manager, mfirsi_signal, has_open_long, long_mode, short_mode))
+                    open_position_futures.append(trading_executor.submit(start_thread_for_open_symbol_spot, symbol, args, manager, l_signal, has_open_long, long_mode, short_mode))
                     logging.info(f"Submitted thread for symbol {symbol}. L signal: {l_signal}. Has open long: {has_open_long}.")
 
                 signal_futures = [signal_executor.submit(process_signal_for_open_position_spot, symbol, args, manager, symbols_allowed, open_position_data, long_mode, short_mode)
@@ -538,8 +538,8 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
             try:
                 future.result()
             except Exception as e:
-                logging.error(f"Exception in thread: {e}")
-                logging.debug(traceback.format_exc())
+                logging.info(f"Exception in thread: {e}")
+                logging.info(traceback.format_exc())
 
     processed_symbols = set()
 
@@ -669,7 +669,7 @@ def process_signal(symbol, args, manager, symbols_allowed, open_position_data, i
         return
 
     l_signal = market_maker.generate_l_signals(symbol)
-    logging.info(f"Processing signal for {'open position' if is_open_position else 'new rotator'} symbol {symbol}. MFIRSI signal: {mfirsi_signal}")
+    logging.info(f"Processing signal for {'open position' if is_open_position else 'new rotator'} symbol {symbol}. MFIRSI signal: {l_signal}")
 
     action_taken = handle_signal(symbol, args, manager, l_signal, open_position_data, symbols_allowed, is_open_position, long_mode, short_mode)
 

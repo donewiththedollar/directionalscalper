@@ -456,7 +456,7 @@ class BybitDynamicGridSpanOBLevels(BybitStrategy):
                 logging.info(f"Current short pos qty for {symbol} {short_pos_qty}")
 
                 # Check for position inactivity
-                inactive_pos_time_threshold = 180  # 3 minutes in seconds
+                inactive_pos_time_threshold = 60 
                 if self.check_position_inactivity(symbol, inactive_pos_time_threshold, long_pos_qty, short_pos_qty, previous_long_pos_qty, previous_short_pos_qty):
                     logging.info(f"No open positions for {symbol} in the last {inactive_pos_time_threshold} seconds. Terminating the thread.")
                     shared_symbols_data.pop(symbol, None)
