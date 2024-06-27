@@ -1,4 +1,3 @@
-# Import necessary libraries
 import streamlit as st
 import pandas as pd
 import time
@@ -24,17 +23,17 @@ def save_symbol_data(data: pd.DataFrame):
     symbols_dict = {entry['symbol']: entry for entry in data_dict}
     
     # Use the atomic write function to save the data
-    write_to_json(symbols_dict, "shared_data.json")
+    write_to_json(symbols_dict, "../../data/shared_data.json")
 
 def save_open_positions_data(data: pd.DataFrame):
     # Convert DataFrame to a dictionary for JSON serialization
     data_dict = data.to_dict(orient='records')
     
     # Use the atomic write function to save the data
-    write_to_json(data_dict, "open_positions_data.json")
+    write_to_json(data_dict, "../../data/open_positions_data.json")
 
 def get_symbol_data(retries=5, delay=0.5) -> pd.DataFrame:
-    json_path = "data/shared_data.json"  # Updated path
+    json_path = "../../data/shared_data.json"  # Updated path
     for _ in range(retries):
         try:
             with open(json_path, "r") as f:
@@ -50,9 +49,9 @@ def get_symbol_data(retries=5, delay=0.5) -> pd.DataFrame:
     st.warning("Trouble fetching the data. Please refresh or try again later.")
     return pd.DataFrame()  # Return empty DataFrame
 
-
 def get_open_positions_data() -> pd.DataFrame:
-    with open("data/open_positions_data.json", "r") as f:
+    json_path = "../../data/open_positions_data.json"  # Updated path
+    with open(json_path, "r") as f:
         content = f.read()
         if not content.strip():  # Check if file is empty
             return pd.DataFrame()  # Return empty DataFrame
@@ -66,7 +65,8 @@ def get_open_positions_data() -> pd.DataFrame:
             return pd.DataFrame()  # Return empty DataFrame if there's a decode error
 
 def get_open_symbols_count() -> int:
-    with open("data/open_symbols_count.json", "r") as f:
+    json_path = "../../data/open_symbols_count.json"  # Updated path
+    with open(json_path, "r") as f:
         content = f.read()
         if not content.strip():  # Check if file is empty
             return 0  # Return 0 if file is empty
@@ -76,6 +76,22 @@ def get_open_symbols_count() -> int:
             return data["count"]
         except json.JSONDecodeError:
             return 0  # Return 0 if there's a decode error
+
+# Password Protection
+if 'authenticated' not in st.session_state:
+    st.session_state.authenticated = False
+
+def authenticate(password):
+    if password == st.secrets["password"]["password"]:
+        st.session_state.authenticated = True
+    else:
+        st.error("Incorrect password")
+
+if not st.session_state.authenticated:
+    pwd = st.text_input("Enter Password", type="password")
+    if st.button("Login"):
+        authenticate(pwd)
+    st.stop()
 
 # Sidebar components to set the refresh rate and auto-refresh toggle
 refresh_rate = st.sidebar.slider("Refresh Rate (seconds)", 5, 60, 10)
@@ -142,14 +158,37 @@ elif selected_tab == "Open Positions":
 # Bot Control tab
 elif selected_tab == "Bot Control":
     st.header("Bot Control Panel 🎮")
-    run_bot = st.button("Start Bot")
-    stop_bot = st.button("Stop Bot")
     
-    if run_bot:
+    # Enhanced button styling
+    st.markdown("""
+    <style>
+    .control-button {
+        background-color: #4CAF50; /* Green */
+        border: none;
+        color: white;
+        padding: 15px 32px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+        margin: 4px 2px;
+        cursor: pointer;
+        border-radius: 8px;
+    }
+    .stop-button {
+        background-color: #f44336; /* Red */
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    start_bot_button = st.markdown('<button class="control-button">Start Bot</button>', unsafe_allow_html=True)
+    stop_bot_button = st.markdown('<button class="control-button stop-button">Stop Bot</button>', unsafe_allow_html=True)
+    
+    if start_bot_button:
         # Call function to start the bot
         st.success("Bot Started!")
     
-    if stop_bot:
+    if stop_bot_button:
         # Call function to stop the bot
         st.warning("Bot Stopped!")
     

@@ -455,6 +455,10 @@ class BybitDynamicGridSpanOBLevels(BybitStrategy):
                 logging.info(f"Current long pos qty for {symbol} {long_pos_qty}")
                 logging.info(f"Current short pos qty for {symbol} {short_pos_qty}")
 
+                # Update previous quantities for the next iteration
+                previous_long_pos_qty = long_pos_qty
+                previous_short_pos_qty = short_pos_qty
+
                 # Check for position inactivity
                 inactive_pos_time_threshold = 180  # 3 minutes in seconds
                 if self.check_position_inactivity(symbol, inactive_pos_time_threshold, long_pos_qty, short_pos_qty, previous_long_pos_qty, previous_short_pos_qty):
@@ -484,10 +488,6 @@ class BybitDynamicGridSpanOBLevels(BybitStrategy):
                     inactive_short = True
                 else:
                     inactive_short = False
-
-                # Update previous quantities for the next iteration
-                previous_long_pos_qty = long_pos_qty
-                previous_short_pos_qty = short_pos_qty
 
                 # # Actions based on inactivity
                 # if inactive_long:
