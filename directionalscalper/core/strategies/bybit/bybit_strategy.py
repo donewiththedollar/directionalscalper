@@ -4689,12 +4689,31 @@ class BybitStrategy(BaseStrategy):
                 additional_levels_short = np.linspace(current_price + buffer_distance_short, current_price + min_outer_price_distance * current_price, levels - len(grid_levels_short))
                 grid_levels_short = np.concatenate((grid_levels_short, additional_levels_short))
 
+            # Function to find the nearest significant level
+            def find_nearest_significant_level(level, significant_levels, tolerance):
+                for sig_level in significant_levels:
+                    if abs(level - sig_level) / level < tolerance:
+                        return sig_level
+                return level
+
+            # Adjust grid levels to align with significant levels
+            tolerance = 0.01  # 1% tolerance, adjust as needed
+            grid_levels_long = [find_nearest_significant_level(level, significant_levels_long, tolerance) for level in grid_levels_long]
+            grid_levels_short = [find_nearest_significant_level(level, significant_levels_short, tolerance) for level in grid_levels_short]
+
             # Sort the grid levels in ascending order
             grid_levels_long = sorted(grid_levels_long, reverse=True)
             grid_levels_short = sorted(grid_levels_short)
 
             logging.info(f"[{symbol}] Long grid levels: {grid_levels_long}")
             logging.info(f"[{symbol}] Short grid levels: {grid_levels_short}")
+            
+            # # Sort the grid levels in ascending order
+            # grid_levels_long = sorted(grid_levels_long, reverse=True)
+            # grid_levels_short = sorted(grid_levels_short)
+
+            # logging.info(f"[{symbol}] Long grid levels: {grid_levels_long}")
+            # logging.info(f"[{symbol}] Short grid levels: {grid_levels_short}")
 
             qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
             min_qty = float(self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
