@@ -4722,30 +4722,63 @@ class BybitStrategy(BaseStrategy):
             grid_levels_long = [current_price - i * dynamic_outer_price_distance * current_price for i in range(1, levels + 1)]
             grid_levels_short = [current_price + i * dynamic_outer_price_distance * current_price for i in range(1, levels + 1)]
 
-            # Ensure the grid levels are within the buffer distances
-            grid_levels_long = [level for level in grid_levels_long if current_price - min_outer_price_distance * current_price <= level <= current_price - buffer_distance_long]
-            grid_levels_short = [level for level in grid_levels_short if current_price + buffer_distance_short <= level <= current_price + min_outer_price_distance * current_price]
-
-            # Ensure the desired number of grid levels is achieved
-            if len(grid_levels_long) < levels:
-                additional_levels_long = np.linspace(current_price - min_outer_price_distance * current_price, current_price - buffer_distance_long, levels - len(grid_levels_long))
-                grid_levels_long = np.concatenate((grid_levels_long, additional_levels_long))
-
-            if len(grid_levels_short) < levels:
-                additional_levels_short = np.linspace(current_price + buffer_distance_short, current_price + min_outer_price_distance * current_price, levels - len(grid_levels_short))
-                grid_levels_short = np.concatenate((grid_levels_short, additional_levels_short))
-
             # Function to find the nearest significant level
-            def find_nearest_significant_level(level, significant_levels, tolerance):
+            def find_nearest_significant_level(level, significant_levels, tolerance, min_distance, max_distance, current_price):
                 for sig_level in significant_levels:
                     if abs(level - sig_level) / level < tolerance:
-                        return sig_level
+                        if current_price - max_distance * current_price <= sig_level <= current_price - min_distance * current_price:
+                            return sig_level
                 return level
 
             # Adjust grid levels to align with significant levels
-            tolerance = 0.01  # 1% tolerance, adjust as needed
-            grid_levels_long = [find_nearest_significant_level(level, significant_levels_long, tolerance) for level in grid_levels_long]
-            grid_levels_short = [find_nearest_significant_level(level, significant_levels_short, tolerance) for level in grid_levels_short]
+            tolerance = max_outer_price_distance #0.05  # 1% tolerance, adjust as needed
+            grid_levels_long = [
+                find_nearest_significant_level(
+                    level, 
+                    significant_levels_long, 
+                    tolerance, 
+                    buffer_distance_long / current_price, 
+                    max_outer_price_distance, 
+                    current_price
+                ) for level in grid_levels_long
+            ]
+            grid_levels_short = [
+                find_nearest_significant_level(
+                    level, 
+                    significant_levels_short, 
+                    tolerance, 
+                    buffer_distance_short / current_price, 
+                    max_outer_price_distance, 
+                    current_price
+                ) for level in grid_levels_short
+            ]
+
+            # Ensure the grid levels are within the buffer distances and respect max outer price distance
+            grid_levels_long = [
+                level for level in grid_levels_long 
+                if current_price - max_outer_price_distance * current_price <= level <= current_price - buffer_distance_long
+            ]
+            grid_levels_short = [
+                level for level in grid_levels_short 
+                if current_price + buffer_distance_short <= level <= current_price + max_outer_price_distance * current_price
+            ]
+
+            # Ensure the desired number of grid levels is achieved
+            if len(grid_levels_long) < levels:
+                additional_levels_long = np.linspace(
+                    current_price - max_outer_price_distance * current_price, 
+                    current_price - buffer_distance_long, 
+                    levels - len(grid_levels_long)
+                )
+                grid_levels_long = np.concatenate((grid_levels_long, additional_levels_long))
+
+            if len(grid_levels_short) < levels:
+                additional_levels_short = np.linspace(
+                    current_price + buffer_distance_short, 
+                    current_price + max_outer_price_distance * current_price, 
+                    levels - len(grid_levels_short)
+                )
+                grid_levels_short = np.concatenate((grid_levels_short, additional_levels_short))
 
             # Sort the grid levels in ascending order
             grid_levels_long = sorted(grid_levels_long, reverse=True)
@@ -4753,6 +4786,8 @@ class BybitStrategy(BaseStrategy):
 
             logging.info(f"[{symbol}] Long grid levels: {grid_levels_long}")
             logging.info(f"[{symbol}] Short grid levels: {grid_levels_short}")
+
+            # The rest of the function would continue here...
             
             # # Sort the grid levels in ascending order
             # grid_levels_long = sorted(grid_levels_long, reverse=True)
@@ -5058,6 +5093,7 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.info(f"Error in executing gridstrategy: {e}")
             logging.info("Traceback: %s", traceback.format_exc())
+            
             
     def linear_grid_hardened_gridspan_ob_volumelevels(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
                                                 short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
