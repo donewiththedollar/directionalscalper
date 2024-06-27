@@ -830,6 +830,7 @@
 <p>Configure your bot settings in the <code>config.json</code> file under the <code>bot</code> section. This includes strategy parameters, risk management settings, and other related settings.</p>
 <h3 id="risk-management-parameters">Risk management parameters</h3>
 <ul>
+<li><strong>Exchange leverage is MAX CROSS on all pairs by default</strong>: Changing user_defined_leverage does not change leverage on exchange instead it changes the amount the bot is allowed to use.</li>
 <li><strong>user_defined_leverage_long</strong>: This parameter defines the leverage to use for long positions. Leverage is a multiplier that increases the size of the position and the potential profit/loss. For example, a leverage of 10 means that for every $1 you have, you can place a trade worth $10. Be careful with this setting as higher leverage also increases the risk.</li>
 <li><strong>user_defined_leverage_short</strong>: This parameter defines the leverage to use for short positions. Similar to <code>user_defined_leverage_long</code>, it's a multiplier that increases the size of the position and the potential profit/loss.</li>
 </ul>
