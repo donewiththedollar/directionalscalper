@@ -1,6 +1,7 @@
 import os
 import logging
 import time
+import random
 import ta as ta
 from ta.momentum import RSIIndicator
 from ta.volatility import AverageTrueRange
@@ -23,6 +24,8 @@ from datetime import datetime, timedelta
 from ccxt.base.errors import NetworkError
 
 logging = Logger(logger_name="Exchange", filename="Exchange.log", stream=True)
+
+from rate_limit import RateLimit
 
 class Exchange:
     # Shared class-level cache variables
@@ -50,6 +53,7 @@ class Exchange:
 
         self.entry_order_ids = {}  # Initialize order history
         self.entry_order_ids_lock = threading.Lock()  # For thread safety
+        self.rate_limiter = RateLimit(10, 1)
         
     def initialise(self):
         exchange_class = getattr(ccxt, self.exchange_id)
@@ -722,57 +726,119 @@ class Exchange:
             logging.error(f"Error checking symbol validity: {e}")
             logging.error(traceback.format_exc())
             return False
-        
-    def fetch_ohlcv(self, symbol, timeframe='1d', limit=None):
+              
+    def fetch_ohlcv(self, symbol, timeframe='1d', limit=None, max_retries=100, base_delay=10, max_delay=60):
         """
         Fetch OHLCV data for the given symbol and timeframe.
         
         :param symbol: Trading symbol.
         :param timeframe: Timeframe string.
         :param limit: Limit the number of returned data points.
+        :param max_retries: Maximum number of retries for API calls.
+        :param base_delay: Base delay for exponential backoff.
+        :param max_delay: Maximum delay for exponential backoff.
         :return: DataFrame with OHLCV data.
         """
-        try:
-            # Fetch the OHLCV data from the exchange
-            ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, limit=limit)  # Pass the limit parameter
-            
-            # Create a DataFrame from the OHLCV data
-            df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-            
-            # Convert the timestamp to datetime
-            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-            
-            # Set the timestamp as the index
-            df.set_index('timestamp', inplace=True)
-            
-            return df
+        retries = 0
+
+        while retries < max_retries:
+            try:
+                with self.rate_limiter:
+                    # Fetch the OHLCV data from the exchange
+                    ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, limit=limit)  # Pass the limit parameter
+                    
+                    # Create a DataFrame from the OHLCV data
+                    df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+                    
+                    # Convert the timestamp to datetime
+                    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+                    
+                    # Set the timestamp as the index
+                    df.set_index('timestamp', inplace=True)
+                    
+                    return df
+
+            except ccxt.RateLimitExceeded as e:
+                retries += 1
+                delay = min(base_delay * (2 ** retries) + random.uniform(0, 0.1 * (2 ** retries)), max_delay)
+                logging.info(f"Rate limit exceeded: {e}. Retrying in {delay:.2f} seconds...")
+                time.sleep(delay)
+
+            except ccxt.BaseError as e:
+                # Log the error message
+                logging.info(f"Failed to fetch OHLCV data: {self.exchange.id} {e}")
+                # Log the traceback for further debugging
+                logging.error(traceback.format_exc())
+                return pd.DataFrame()
+
+            except Exception as e:
+                # Check if the error is related to response parsing
+                if 'response' in locals() and isinstance(response, str):
+                    logging.info(f"Response is a string: {response}")
+                    try:
+                        # Attempt to parse the response
+                        response = json.loads(response)
+                        logging.info("Parsed response into a dictionary")
+                    except json.JSONDecodeError as json_error:
+                        logging.info(f"Failed to parse response: {json_error}")
+                
+                # Log any other unexpected errors
+                logging.info(f"Unexpected error occurred while fetching OHLCV data: {e}")
+                logging.info(traceback.format_exc())
+                return pd.DataFrame()
+
+        raise Exception(f"Failed to fetch OHLCV data after {max_retries} retries.")
+    
+    # def fetch_ohlcv(self, symbol, timeframe='1d', limit=None):
+    #     """
+    #     Fetch OHLCV data for the given symbol and timeframe.
         
-        except ccxt.BaseError as e:
-            # Log the error message
-            logging.error(f"Failed to fetch OHLCV data: {self.exchange.id} {e}")
+    #     :param symbol: Trading symbol.
+    #     :param timeframe: Timeframe string.
+    #     :param limit: Limit the number of returned data points.
+    #     :return: DataFrame with OHLCV data.
+    #     """
+    #     try:
+    #         # Fetch the OHLCV data from the exchange
+    #         ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, limit=limit)  # Pass the limit parameter
             
-            # Log the traceback for further debugging
-            logging.error(traceback.format_exc())
+    #         # Create a DataFrame from the OHLCV data
+    #         df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
             
-            # Return an empty DataFrame in case of an error
-            return pd.DataFrame()
+    #         # Convert the timestamp to datetime
+    #         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+            
+    #         # Set the timestamp as the index
+    #         df.set_index('timestamp', inplace=True)
+            
+    #         return df
         
-        except Exception as e:
-            # Check if the error is related to response parsing
-            if 'response' in locals() and isinstance(response, str):
-                logging.info(f"Response is a string: {response}")
-                try:
-                    # Attempt to parse the response
-                    response = json.loads(response)
-                    logging.info("Parsed response into a dictionary")
-                except json.JSONDecodeError as json_error:
-                    logging.error(f"Failed to parse response: {json_error}")
+    #     except ccxt.BaseError as e:
+    #         # Log the error message
+    #         logging.error(f"Failed to fetch OHLCV data: {self.exchange.id} {e}")
             
-            # Log any other unexpected errors
-            logging.info(f"Unexpected error occurred while fetching OHLCV data: {e}")
-            logging.info(traceback.format_exc())
+    #         # Log the traceback for further debugging
+    #         logging.error(traceback.format_exc())
             
-            return pd.DataFrame()
+    #         # Return an empty DataFrame in case of an error
+    #         return pd.DataFrame()
+        
+    #     except Exception as e:
+    #         # Check if the error is related to response parsing
+    #         if 'response' in locals() and isinstance(response, str):
+    #             logging.info(f"Response is a string: {response}")
+    #             try:
+    #                 # Attempt to parse the response
+    #                 response = json.loads(response)
+    #                 logging.info("Parsed response into a dictionary")
+    #             except json.JSONDecodeError as json_error:
+    #                 logging.error(f"Failed to parse response: {json_error}")
+            
+    #         # Log any other unexpected errors
+    #         logging.info(f"Unexpected error occurred while fetching OHLCV data: {e}")
+    #         logging.info(traceback.format_exc())
+            
+    #         return pd.DataFrame()
 
 
     # def fetch_ohlcv(self, symbol, timeframe='1d', limit=None):
