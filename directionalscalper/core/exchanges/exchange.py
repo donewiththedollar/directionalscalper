@@ -226,7 +226,7 @@ class Exchange:
 
     def generate_l_signals(self, symbol, limit=3000, neighbors_count=8):
         # Fetch OHLCV data
-        ohlcv_data = self.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
+        ohlcv_data = self.fetch_ohlcv(symbol=symbol, timeframe='3m', limit=limit)
         df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
         df.set_index('timestamp', inplace=True)
 
