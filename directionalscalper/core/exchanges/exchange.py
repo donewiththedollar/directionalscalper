@@ -1,16 +1,22 @@
 import os
 import logging
 import time
+import random
 import ta as ta
+from ta.momentum import RSIIndicator
+from ta.volatility import AverageTrueRange
+from ta.trend import CCIIndicator, ADXIndicator, EMAIndicator, SMAIndicator
 import uuid
 import ccxt
 import pandas as pd
+import numpy as np
 import json
 import requests, hmac, hashlib
 import urllib.parse
 import threading
 import traceback
 from typing import Optional, Tuple, List
+from sklearn.preprocessing import MinMaxScaler
 from ccxt.base.errors import RateLimitExceeded
 from ..strategies.logger import Logger
 from requests.exceptions import HTTPError
@@ -18,6 +24,8 @@ from datetime import datetime, timedelta
 from ccxt.base.errors import NetworkError
 
 logging = Logger(logger_name="Exchange", filename="Exchange.log", stream=True)
+
+from rate_limit import RateLimit
 
 class Exchange:
     # Shared class-level cache variables
@@ -45,6 +53,7 @@ class Exchange:
 
         self.entry_order_ids = {}  # Initialize order history
         self.entry_order_ids_lock = threading.Lock()  # For thread safety
+        self.rate_limiter = RateLimit(10, 1)
         
     def initialise(self):
         exchange_class = getattr(ccxt, self.exchange_id)
@@ -100,7 +109,7 @@ class Exchange:
             
         # Initializing the exchange object
         self.exchange = exchange_class(exchange_params)
-        
+
     def get_mfirsi_ema_secondary_ema(self, symbol: str, limit: int = 100, lookback: int = 1, ema_period: int = 5, secondary_ema_period: int = 3) -> str:
         # Fetch OHLCV data
         ohlcv_data = self.exchange.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
@@ -142,7 +151,335 @@ class Exchange:
             return 'short'
         else:
             return 'neutral'
+
+    # Credit to 53RG0
+    def normalize(self, series):
+        scaler = MinMaxScaler()
+        series_values = series.values.reshape(-1, 1)  # Convert to 2D array for scaler
+        normalized_values = scaler.fit_transform(series_values).flatten()
+        return pd.Series(normalized_values, index=series.index)
+
+    def rescale(self, series, new_min=0, new_max=1):
+        old_min, old_max = series.min(), series.max()
+        rescaled_values = new_min + (new_max - new_min) * (series - old_min) / (old_max - old_min)
+        return pd.Series(rescaled_values, index=series.index)
+
+    def n_rsi(self, series, n1, n2):
+        rsi = RSIIndicator(series, window=n1).rsi()
+        return self.rescale(rsi.ewm(span=n2, adjust=False).mean())
+
+    def n_cci(self, high, low, close, n1, n2):
+        cci = CCIIndicator(high, low, close, window=n1).cci()
+        return self.normalize(cci.ewm(span=n2, adjust=False).mean())
+
+    def n_wt(self, hlc3, n1=10, n2=11):
+        ema1 = EMAIndicator(hlc3, window=n1).ema_indicator()
+        ema2 = EMAIndicator(abs(hlc3 - ema1), window=n1).ema_indicator()
+        ci = (hlc3 - ema1) / (0.015 * ema2)
+        wt1 = EMAIndicator(ci, window=n2).ema_indicator()
+        wt2 = SMAIndicator(wt1, window=4).sma_indicator()
+        return self.normalize(wt1 - wt2)
+
+    def n_adx(self, high, low, close, n1):
+        adx = ADXIndicator(high, low, close, window=n1).adx()
+        return self.rescale(adx)
+
+    def regime_filter(self, series, high, low, use_regime_filter, threshold):
+        if not use_regime_filter:
+            return pd.Series([True] * len(series))
+
+        def klmf(series, high, low):
+            value1 = pd.Series(0, index=series.index)
+            value2 = pd.Series(0, index=series.index)
+            klmf = pd.Series(0, index=series.index)
+            for i in range(1, len(series)):
+                value1[i] = 0.2 * (series[i] - series[i - 1]) + 0.8 * value1[i - 1]
+                value2[i] = 0.1 * (high[i] - low[i]) + 0.8 * value2[i - 1]
+            omega = abs(value1 / value2)
+            alpha = (-omega ** 2 + np.sqrt(omega ** 4 + 16 * omega ** 2)) / 8
+            for i in range(1, len(series)):
+                klmf[i] = alpha[i] * series[i] + (1 - alpha[i]) * klmf[i - 1]
+            return klmf
+
+        klmf_values = klmf(series, high, low)
+        abs_curve_slope = abs(klmf_values.diff())
+        exponential_average_abs_curve_slope = EMAIndicator(abs_curve_slope, window=200).ema_indicator()
+        normalized_slope_decline = (abs_curve_slope - exponential_average_abs_curve_slope) / exponential_average_abs_curve_slope
+        return normalized_slope_decline >= threshold
+
+    def filter_adx(self, close, high, low, adx_threshold, use_adx_filter, length=14):
+        if not use_adx_filter:
+            return pd.Series([True] * len(close))
+        adx = ADXIndicator(high, low, close, window=length).adx()
+        return adx > adx_threshold
+
+    def filter_volatility(self, high, low, close, use_volatility_filter, min_length=1, max_length=10):
+        if not use_volatility_filter:
+            return pd.Series([True] * len(close))
+        recent_atr = AverageTrueRange(high, low, close, window=min_length).average_true_range()
+        historical_atr = AverageTrueRange(high, low, close, window=max_length).average_true_range()
+        return recent_atr > historical_atr
+
+    def lorentzian_distance(self, feature_series, feature_arrays):
+        distances = np.log(1 + np.abs(feature_series - feature_arrays))
+        return distances.sum(axis=1)
+
+    def generate_l_signals(self, symbol, limit=3000, neighbors_count=8):
+        # Fetch OHLCV data
+        ohlcv_data = self.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
+        df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+        df.set_index('timestamp', inplace=True)
+
+        # Calculate technical indicators
+        df['rsi'] = self.n_rsi(df['close'], 14, 1)
+        df['adx'] = self.n_adx(df['high'], df['low'], df['close'], 14)
+        df['cci'] = self.n_cci(df['high'], df['low'], df['close'], 20, 1)
+        df['wt'] = self.n_wt((df['high'] + df['low'] + df['close']) / 3, 10, 11)
+
+        # Feature engineering
+        features = df[['rsi', 'adx', 'cci', 'wt']].values
+        feature_series = features[-1]
+        feature_arrays = features[:-1]
+
+        # Calculate Lorentzian distances
+        distances = self.lorentzian_distance(feature_series, feature_arrays)
+        nearest_indices = distances.argsort()[:neighbors_count]
+
+        # Training labels (future price movement)
+        y_train_series = np.where(df['close'].shift(-4) > df['close'], 1, -1)
+        y_train_series = y_train_series[:-1]
+        predictions = y_train_series[nearest_indices]
+        prediction = np.sum(predictions)
+
+        # Calculate EMA and SMA
+        df['ema'] = EMAIndicator(df['close'], window=200).ema_indicator()
+        df['sma'] = SMAIndicator(df['close'], window=200).sma_indicator()
+
+        # Determine trends
+        is_ema_uptrend = df['close'] > df['ema']
+        is_ema_downtrend = df['close'] < df['ema']
+        is_sma_uptrend = df['close'] > df['sma']
+        is_sma_downtrend = df['close'] < df['sma']
+
+        # Generate signal based on prediction and trends
+        new_signal = 'neutral'
+        if prediction > 0 and is_ema_uptrend.iloc[-1] and is_sma_uptrend.iloc[-1]:
+            new_signal = 'long'
+        elif prediction < 0 and is_ema_downtrend.iloc[-1] and is_sma_downtrend.iloc[-1]:
+            new_signal = 'short'
+
+        # Avoid double entries and ensure signal change
+        if hasattr(self, 'last_signal'):
+            if self.last_signal == new_signal:
+                return 'neutral'
+            else:
+                self.last_signal = new_signal
+                return new_signal
+        else:
+            self.last_signal = new_signal
+            return new_signal
         
+
+    # Works but maybe keeps old signal
+    # def generate_l_signals(self, symbol, limit=1000, neighbors_count=8):
+    #     ohlcv_data = self.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
+    #     df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+    #     df.set_index('timestamp', inplace=True)
+
+    #     df['rsi'] = self.n_rsi(df['close'], 14, 1)
+    #     df['adx'] = self.n_adx(df['high'], df['low'], df['close'], 14)
+    #     df['cci'] = self.n_cci(df['high'], df['low'], df['close'], 20, 1)
+    #     df['wt'] = self.n_wt((df['high'] + df['low'] + df['close']) / 3, 10, 11)
+
+    #     features = df[['rsi', 'adx', 'cci', 'wt']].values
+    #     feature_series = features[-1]
+    #     feature_arrays = features[:-1]
+
+    #     distances = self.lorentzian_distance(feature_series, feature_arrays)
+    #     nearest_indices = distances.argsort()[:neighbors_count]
+
+    #     y_train_series = np.where(df['close'].shift(-4) > df['close'], 1, -1)
+    #     y_train_series = y_train_series[:-1]
+    #     predictions = y_train_series[nearest_indices]
+    #     prediction = np.sum(predictions)
+
+    #     df['ema'] = EMAIndicator(df['close'], window=200).ema_indicator()
+    #     df['sma'] = SMAIndicator(df['close'], window=200).sma_indicator()
+
+    #     is_ema_uptrend = df['close'] > df['ema']
+    #     is_ema_downtrend = df['close'] < df['ema']
+    #     is_sma_uptrend = df['close'] > df['sma']
+    #     is_sma_downtrend = df['close'] < df['sma']
+
+    #     if prediction > 0 and is_ema_uptrend.iloc[-1] and is_sma_uptrend.iloc[-1]:
+    #         return 'long'
+    #     elif prediction < 0 and is_ema_downtrend.iloc[-1] and is_sma_downtrend.iloc[-1]:
+    #         return 'short'
+    #     else:
+    #         return 'neutral'
+
+    # def normalize(self, series):
+    #     scaler = MinMaxScaler()
+    #     series = series.values.reshape(-1, 1)
+    #     normalized_series = scaler.fit_transform(series).flatten()
+    #     return pd.Series(normalized_series, index=series.index)
+
+    # def rescale(self, series, new_min=0, new_max=1):
+    #     old_min, old_max = series.min(), series.max()
+    #     rescaled_series = new_min + (new_max - new_min) * (series - old_min) / (old_max - old_min)
+    #     return pd.Series(rescaled_series, index=series.index)
+
+    # def n_rsi(self, series, n1, n2):
+    #     rsi = ta.momentum.RSIIndicator(series, window=n1).rsi()
+    #     return self.rescale(rsi.ewm(span=n2, adjust=False).mean())
+
+    # def n_cci(self, high, low, close, n1, n2):
+    #     cci = ta.trend.CCIIndicator(high, low, close, window=n1).cci()
+    #     return self.normalize(cci.ewm(span=n2, adjust=False).mean())
+
+    # def n_wt(self, hlc3, n1=10, n2=11):
+    #     ema1 = ta.trend.EMAIndicator(hlc3, window=n1).ema_indicator()
+    #     ema2 = ta.trend.EMAIndicator(abs(hlc3 - ema1), window=n1).ema_indicator()
+    #     ci = (hlc3 - ema1) / (0.015 * ema2)
+    #     wt1 = ta.trend.EMAIndicator(ci, window=n2).ema_indicator()
+    #     wt2 = ta.trend.SMAIndicator(wt1, window=4).sma_indicator()
+    #     return self.normalize(wt1 - wt2)
+
+    # def n_adx(self, high, low, close, n1):
+    #     adx = ta.trend.ADXIndicator(high, low, close, window=n1).adx()
+    #     return self.rescale(adx)
+
+    # def regime_filter(self, series, high, low, use_regime_filter, threshold):
+    #     if not use_regime_filter:
+    #         return pd.Series([True] * len(series))
+
+    #     def klmf(series, high, low):
+    #         value1 = pd.Series(0, index=series.index)
+    #         value2 = pd.Series(0, index=series.index)
+    #         klmf = pd.Series(0, index=series.index)
+    #         for i in range(1, len(series)):
+    #             value1[i] = 0.2 * (series[i] - series[i - 1]) + 0.8 * value1[i - 1]
+    #             value2[i] = 0.1 * (high[i] - low[i]) + 0.8 * value2[i - 1]
+    #         omega = abs(value1 / value2)
+    #         alpha = (-omega ** 2 + np.sqrt(omega ** 4 + 16 * omega ** 2)) / 8
+    #         for i in range(1, len(series)):
+    #             klmf[i] = alpha[i] * series[i] + (1 - alpha[i]) * klmf[i - 1]
+    #         return klmf
+
+    #     klmf_values = klmf(series, high, low)
+    #     abs_curve_slope = abs(klmf_values.diff())
+    #     exponential_average_abs_curve_slope = ta.trend.EMAIndicator(abs_curve_slope, window=200).ema_indicator()
+    #     normalized_slope_decline = (abs_curve_slope - exponential_average_abs_curve_slope) / exponential_average_abs_curve_slope
+    #     return normalized_slope_decline >= threshold
+
+    # def filter_adx(self, close, high, low, adx_threshold, use_adx_filter, length=14):
+    #     if not use_adx_filter:
+    #         return pd.Series([True] * len(close))
+    #     adx = ta.trend.ADXIndicator(high, low, close, window=length).adx()
+    #     return adx > adx_threshold
+
+    # def filter_volatility(self, high, low, close, use_volatility_filter, min_length=1, max_length=10):
+    #     if not use_volatility_filter:
+    #         return pd.Series([True] * len(close))
+    #     recent_atr = ta.volatility.AverageTrueRange(high, low, close, window=min_length).average_true_range()
+    #     historical_atr = ta.volatility.AverageTrueRange(high, low, close, window=max_length).average_true_range()
+    #     return recent_atr > historical_atr
+
+    # def lorentzian_distance(self, feature_series, feature_arrays):
+    #     distances = np.log(1 + np.abs(feature_series - feature_arrays))
+    #     return distances.sum(axis=1)
+
+    # def generate_l_signals(self, symbol, limit=1000, neighbors_count=8):
+    #     ohlcv_data = self.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
+    #     df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+    #     df.set_index('timestamp', inplace=True)
+
+    #     df['rsi'] = self.n_rsi(df['close'], 14, 1)
+    #     df['adx'] = self.n_adx(df['high'], df['low'], df['close'], 14)
+    #     df['cci'] = self.n_cci(df['high'], df['low'], df['close'], 20, 1)
+    #     df['wt'] = self.n_wt((df['high'] + df['low'] + df['close']) / 3, 10, 11)
+
+    #     features = df[['rsi', 'adx', 'cci', 'wt']].values
+    #     feature_series = features[-1]
+    #     feature_arrays = features[:-1]
+
+    #     distances = self.lorentzian_distance(feature_series, feature_arrays)
+    #     nearest_indices = distances.argsort()[:neighbors_count]
+
+    #     y_train_series = np.where(df['close'].shift(-4) > df['close'], 1, -1)
+    #     y_train_series = y_train_series.values[:-1]
+    #     predictions = y_train_series[nearest_indices]
+    #     prediction = np.sum(predictions)
+
+    #     df['ema'] = ta.trend.EMAIndicator(df['close'], window=200).ema_indicator()
+    #     df['sma'] = ta.trend.SMAIndicator(df['close'], window=200).sma_indicator()
+
+    #     is_ema_uptrend = df['close'] > df['ema']
+    #     is_ema_downtrend = df['close'] < df['ema']
+    #     is_sma_uptrend = df['close'] > df['sma']
+    #     is_sma_downtrend = df['close'] < df['sma']
+
+    #     if prediction > 0 and is_ema_uptrend.iloc[-1] and is_sma_uptrend.iloc[-1]:
+    #         return 'long'
+    #     elif prediction < 0 and is_ema_downtrend.iloc[-1] and is_sma_downtrend.iloc[-1]:
+    #         return 'short'
+    #     else:
+    #         return 'neutral'
+
+    def get_l_signal(self, symbol: str, limit: int = 1000, neighbors_count: int = 8) -> str:
+        # Fetch OHLCV data
+        ohlcv_data = self.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
+        df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+        
+        # Calculate technical indicators
+        df['rsi'] = ta.momentum.RSIIndicator(df['close'], window=14).rsi()
+        df['adx'] = ta.trend.ADXIndicator(df['high'], df['low'], df['close'], window=14).adx()
+        df['cci'] = ta.trend.CCIIndicator(df['high'], df['low'], df['close'], window=20).cci()
+        
+        # Normalize indicators
+        def normalize(series):
+            return (series - series.min()) / (series.max() - series.min())
+        
+        df['rsi'] = normalize(df['rsi'])
+        df['adx'] = normalize(df['adx'])
+        df['cci'] = normalize(df['cci'])
+        
+        # Prepare feature matrix
+        features = df[['rsi', 'adx', 'cci']].values
+        distances = []
+        
+        # Calculate Lorentzian distances
+        for i in range(len(features) - 1):
+            dist = np.sum(np.log(1 + np.abs(features[-1] - features[i])))
+            distances.append(dist)
+        
+        distances = np.array(distances)
+        nearest_indices = distances.argsort()[:neighbors_count]
+        
+        # Determine prediction based on nearest neighbors
+        close_prices = df['close'].values
+        predictions = [1 if close_prices[idx + 4] > close_prices[idx] else -1 for idx in nearest_indices]
+        prediction = np.sum(predictions)
+        
+        # Filters (simple EMA and SMA trend filters)
+        ema_period = 200
+        sma_period = 200
+        df['ema'] = df['close'].ewm(span=ema_period, adjust=False).mean()
+        df['sma'] = df['close'].rolling(window=sma_period).mean()
+        
+        is_ema_uptrend = df['close'].iloc[-1] > df['ema'].iloc[-1]
+        is_ema_downtrend = df['close'].iloc[-1] < df['ema'].iloc[-1]
+        is_sma_uptrend = df['close'].iloc[-1] > df['sma'].iloc[-1]
+        is_sma_downtrend = df['close'].iloc[-1] < df['sma'].iloc[-1]
+        
+        # Generate signals
+        if prediction > 0 and is_ema_uptrend and is_sma_uptrend:
+            return 'long'
+        elif prediction < 0 and is_ema_downtrend and is_sma_downtrend:
+            return 'short'
+        else:
+            return 'neutral'
+
     def update_order_history(self, symbol, order_id, timestamp):
         with self.entry_order_ids_lock:
             # Check if the symbol is already in the order history
@@ -389,57 +726,119 @@ class Exchange:
             logging.error(f"Error checking symbol validity: {e}")
             logging.error(traceback.format_exc())
             return False
-        
-    def fetch_ohlcv(self, symbol, timeframe='1d', limit=None):
+              
+    def fetch_ohlcv(self, symbol, timeframe='1d', limit=None, max_retries=100, base_delay=10, max_delay=60):
         """
         Fetch OHLCV data for the given symbol and timeframe.
         
         :param symbol: Trading symbol.
         :param timeframe: Timeframe string.
         :param limit: Limit the number of returned data points.
+        :param max_retries: Maximum number of retries for API calls.
+        :param base_delay: Base delay for exponential backoff.
+        :param max_delay: Maximum delay for exponential backoff.
         :return: DataFrame with OHLCV data.
         """
-        try:
-            # Fetch the OHLCV data from the exchange
-            ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, limit=limit)  # Pass the limit parameter
-            
-            # Create a DataFrame from the OHLCV data
-            df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-            
-            # Convert the timestamp to datetime
-            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-            
-            # Set the timestamp as the index
-            df.set_index('timestamp', inplace=True)
-            
-            return df
+        retries = 0
+
+        while retries < max_retries:
+            try:
+                with self.rate_limiter:
+                    # Fetch the OHLCV data from the exchange
+                    ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, limit=limit)  # Pass the limit parameter
+                    
+                    # Create a DataFrame from the OHLCV data
+                    df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+                    
+                    # Convert the timestamp to datetime
+                    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+                    
+                    # Set the timestamp as the index
+                    df.set_index('timestamp', inplace=True)
+                    
+                    return df
+
+            except ccxt.RateLimitExceeded as e:
+                retries += 1
+                delay = min(base_delay * (2 ** retries) + random.uniform(0, 0.1 * (2 ** retries)), max_delay)
+                logging.info(f"Rate limit exceeded: {e}. Retrying in {delay:.2f} seconds...")
+                time.sleep(delay)
+
+            except ccxt.BaseError as e:
+                # Log the error message
+                logging.info(f"Failed to fetch OHLCV data: {self.exchange.id} {e}")
+                # Log the traceback for further debugging
+                logging.error(traceback.format_exc())
+                return pd.DataFrame()
+
+            except Exception as e:
+                # Check if the error is related to response parsing
+                if 'response' in locals() and isinstance(response, str):
+                    logging.info(f"Response is a string: {response}")
+                    try:
+                        # Attempt to parse the response
+                        response = json.loads(response)
+                        logging.info("Parsed response into a dictionary")
+                    except json.JSONDecodeError as json_error:
+                        logging.info(f"Failed to parse response: {json_error}")
+                
+                # Log any other unexpected errors
+                logging.info(f"Unexpected error occurred while fetching OHLCV data: {e}")
+                logging.info(traceback.format_exc())
+                return pd.DataFrame()
+
+        raise Exception(f"Failed to fetch OHLCV data after {max_retries} retries.")
+    
+    # def fetch_ohlcv(self, symbol, timeframe='1d', limit=None):
+    #     """
+    #     Fetch OHLCV data for the given symbol and timeframe.
         
-        except ccxt.BaseError as e:
-            # Log the error message
-            logging.error(f"Failed to fetch OHLCV data: {self.exchange.id} {e}")
+    #     :param symbol: Trading symbol.
+    #     :param timeframe: Timeframe string.
+    #     :param limit: Limit the number of returned data points.
+    #     :return: DataFrame with OHLCV data.
+    #     """
+    #     try:
+    #         # Fetch the OHLCV data from the exchange
+    #         ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, limit=limit)  # Pass the limit parameter
             
-            # Log the traceback for further debugging
-            logging.error(traceback.format_exc())
+    #         # Create a DataFrame from the OHLCV data
+    #         df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
             
-            # Return an empty DataFrame in case of an error
-            return pd.DataFrame()
+    #         # Convert the timestamp to datetime
+    #         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+            
+    #         # Set the timestamp as the index
+    #         df.set_index('timestamp', inplace=True)
+            
+    #         return df
         
-        except Exception as e:
-            # Check if the error is related to response parsing
-            if 'response' in locals() and isinstance(response, str):
-                logging.info(f"Response is a string: {response}")
-                try:
-                    # Attempt to parse the response
-                    response = json.loads(response)
-                    logging.info("Parsed response into a dictionary")
-                except json.JSONDecodeError as json_error:
-                    logging.error(f"Failed to parse response: {json_error}")
+    #     except ccxt.BaseError as e:
+    #         # Log the error message
+    #         logging.error(f"Failed to fetch OHLCV data: {self.exchange.id} {e}")
             
-            # Log any other unexpected errors
-            logging.info(f"Unexpected error occurred while fetching OHLCV data: {e}")
-            logging.info(traceback.format_exc())
+    #         # Log the traceback for further debugging
+    #         logging.error(traceback.format_exc())
             
-            return pd.DataFrame()
+    #         # Return an empty DataFrame in case of an error
+    #         return pd.DataFrame()
+        
+    #     except Exception as e:
+    #         # Check if the error is related to response parsing
+    #         if 'response' in locals() and isinstance(response, str):
+    #             logging.info(f"Response is a string: {response}")
+    #             try:
+    #                 # Attempt to parse the response
+    #                 response = json.loads(response)
+    #                 logging.info("Parsed response into a dictionary")
+    #             except json.JSONDecodeError as json_error:
+    #                 logging.error(f"Failed to parse response: {json_error}")
+            
+    #         # Log any other unexpected errors
+    #         logging.info(f"Unexpected error occurred while fetching OHLCV data: {e}")
+    #         logging.info(traceback.format_exc())
+            
+    #         return pd.DataFrame()
 
 
     # def fetch_ohlcv(self, symbol, timeframe='1d', limit=None):
