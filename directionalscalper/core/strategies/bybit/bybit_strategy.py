@@ -5065,12 +5065,12 @@ class BybitStrategy(BaseStrategy):
 
             current_price = self.exchange.get_current_price(symbol)
             logging.info(f"[{symbol}] Current price: {current_price}")
-            
+
             # Ensure dynamic outer price distance is not too tight
             dynamic_outer_price_distance = max(min_outer_price_distance, min(max_outer_price_distance, spread))
-            
+
             logging.info(f"Dynamic outer price distance for {symbol} : {dynamic_outer_price_distance}")
-            
+
             # Ensure the outer price distance can span all levels
             required_distance = outer_price_distance / levels
             if dynamic_outer_price_distance < required_distance:
@@ -5088,19 +5088,6 @@ class BybitStrategy(BaseStrategy):
 
             long_grid_active = symbol in self.active_grids and "buy" in self.filled_levels[symbol]
             short_grid_active = symbol in self.active_grids and "sell" in self.filled_levels[symbol]
-
-            # # Check and clear double grids if there are more open orders than the levels allowed
-            # def clear_double_grids(symbol, levels, open_orders, side):
-            #     open_order_count = sum(1 for order in open_orders if order['side'].lower() == side and not order['reduceOnly'])
-            #     logging.info(f"Open order count for {symbol} {open_order_count}")
-            #     if open_order_count > levels:
-            #         logging.info(f"[{symbol}] More open {side} orders ({open_order_count}) than allowed levels ({levels}). Clearing grid.")
-            #         self.clear_grid(symbol, side)
-            #         self.active_grids.discard(symbol)
-            #         self.filled_levels[symbol][side].clear()
-
-            # clear_double_grids(symbol, levels, open_orders, 'buy')
-            # clear_double_grids(symbol, levels, open_orders, 'sell')
 
             self.check_and_manage_positions(long_pos_qty, short_pos_qty, symbol, total_equity, current_price, max_qty_percent_long, max_qty_percent_short)
 
@@ -5241,7 +5228,7 @@ class BybitStrategy(BaseStrategy):
 
             mfi_signal_long = mfirsi_signal.lower() == "long"
             mfi_signal_short = mfirsi_signal.lower() == "short"
-            
+
             if len(open_symbols) < symbols_allowed or symbol in open_symbols:
                 logging.info(f"Allowed symbol: {symbol}")
 
@@ -5344,7 +5331,7 @@ class BybitStrategy(BaseStrategy):
                 # Check if auto-reduce is not active for long position
                 if not self.auto_reduce_active_long.get(symbol, False):
                     logging.info(f"Auto-reduce for long position on {symbol} is not active")
-                    if long_mode and (mfi_signal_long or long_pos_qty > 0) and symbol not in self.max_qty_reached_symbol_long and not long_grid_active:
+                    if long_mode and (mfi_signal_long or long_pos_qty > 0) and symbol not in self.max_qty_reached_symbol_long and not long_grid_active and not has_open_long_order:
                         if should_reissue_long or (long_pos_qty > 0 and not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)):
                             self.cancel_grid_orders(symbol, "buy")
                             self.active_grids.discard(symbol)
@@ -5356,7 +5343,7 @@ class BybitStrategy(BaseStrategy):
                             self.active_grids.add(symbol)
                 else:
                     logging.info(f"Auto-reduce for long position on {symbol} is active, entry during auto-reduce.")
-                    if long_mode and (mfi_signal_long or long_pos_qty > 0) and symbol not in self.max_qty_reached_symbol_long and not long_grid_active:
+                    if long_mode and (mfi_signal_long or long_pos_qty > 0) and symbol not in self.max_qty_reached_symbol_long and not long_grid_active and not has_open_long_order:
                         if entry_during_autoreduce:
                             logging.info(f"[{symbol}] Placing new long orders despite active auto-reduce due to entry_during_autoreduce setting.")
                             self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
@@ -5367,7 +5354,7 @@ class BybitStrategy(BaseStrategy):
                 # Check if auto-reduce is not active for short position
                 if not self.auto_reduce_active_short.get(symbol, False):
                     logging.info(f"Auto-reduce for short position on {symbol} is not active")
-                    if short_mode and (mfi_signal_short or short_pos_qty > 0) and symbol not in self.max_qty_reached_symbol_short and not short_grid_active:
+                    if short_mode and (mfi_signal_short or short_pos_qty > 0) and symbol not in self.max_qty_reached_symbol_short and not short_grid_active and not has_open_short_order:
                         if should_reissue_short or (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)):
                             self.cancel_grid_orders(symbol, "sell")
                             self.active_grids.discard(symbol)
@@ -5379,7 +5366,7 @@ class BybitStrategy(BaseStrategy):
                             self.active_grids.add(symbol)
                 else:
                     logging.info(f"Auto-reduce for short position on {symbol} is active, entry during auto-reduce.")
-                    if short_mode and (mfi_signal_short or short_pos_qty > 0) and symbol not in self.max_qty_reached_symbol_short and not short_grid_active:
+                    if short_mode and (mfi_signal_short or short_pos_qty > 0) and symbol not in self.max_qty_reached_symbol_short and not short_grid_active and not has_open_short_order:
                         if entry_during_autoreduce:
                             logging.info(f"[{symbol}] Placing new short orders despite active auto-reduce due to entry_during_autoreduce setting.")
                             self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
@@ -5401,7 +5388,7 @@ class BybitStrategy(BaseStrategy):
             if (len(open_symbols) < symbols_allowed and symbol not in self.active_grids) or (symbol in open_symbols and (not has_open_long_position or not has_open_short_position)):
                 logging.info(f"[{symbol}] Checking for new trading opportunities.")
 
-                if long_mode and mfi_signal_long and not has_open_long_position and symbol not in self.max_qty_reached_symbol_long:
+                if long_mode and mfi_signal_long and not has_open_long_position and symbol not in self.max_qty_reached_symbol_long and not has_open_long_order:
                     if not self.auto_reduce_active_long.get(symbol, False) or entry_during_autoreduce:
                         logging.info(f"[{symbol}] Placing new long orders (either no active long auto-reduce or entry during auto-reduce is allowed).")
                         self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
@@ -5409,14 +5396,14 @@ class BybitStrategy(BaseStrategy):
                     else:
                         logging.info(f"[{symbol}] Skipping new long orders due to active long auto-reduce and entry_during_autoreduce set to False.")
 
-                if short_mode and mfi_signal_short and not has_open_short_position and symbol not in self.max_qty_reached_symbol_short:
+                if short_mode and mfi_signal_short and not has_open_short_position and symbol not in self.max_qty_reached_symbol_short and not has_open_short_order:
                     if not self.auto_reduce_active_short.get(symbol, False) or entry_during_autoreduce:
                         logging.info(f"[{symbol}] Placing new short orders (either no active short auto-reduce or entry during auto-reduce is allowed).")
                         self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                         self.active_grids.add(symbol)
                     else:
                         logging.info(f"[{symbol}] Skipping new short orders due to active short auto-reduce and entry_during_autoreduce set to False.")
-                        
+
             # Calculate take profit for short and long positions using quickscalp method
             short_take_profit = self.calculate_quickscalp_short_take_profit_dynamic_distance(short_pos_price, symbol, min_upnl_profit_pct=upnl_profit_pct, max_upnl_profit_pct=max_upnl_profit_pct)
             long_take_profit = self.calculate_quickscalp_long_take_profit_dynamic_distance(long_pos_price, symbol, min_upnl_profit_pct=upnl_profit_pct, max_upnl_profit_pct=max_upnl_profit_pct)
