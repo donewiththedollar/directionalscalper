@@ -354,6 +354,7 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
     try:
         with thread_to_symbol_lock:
             thread_to_symbol[current_thread] = symbol
+            active_symbols.add(symbol)  # Add symbol to active_symbols when the thread starts
 
         if not args.config.startswith('configs/'):
             config_file_path = Path('configs/' + args.config)
@@ -361,7 +362,7 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
             config_file_path = Path(args.config)
 
         logging.info(f"Loading config from: {config_file_path}")
-        
+
         account_file_path = Path('configs/account.json')  # Define the account file path
         config = load_config(config_file_path, account_file_path)  # Pass both file paths to load_config
 
@@ -401,6 +402,7 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         with thread_to_symbol_lock:
             if current_thread in thread_to_symbol:
                 del thread_to_symbol[current_thread]
+            active_symbols.discard(symbol)  # Remove symbol from active_symbols when the thread completes
         logging.info(f"Thread for symbol {symbol} with action {action} has completed.")
         thread_completed.set()
 
