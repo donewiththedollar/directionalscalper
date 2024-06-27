@@ -1,0 +1,22 @@
+site_name: Directional Scalper Documentation
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+  palette:
+    primary: 'indigo'
+    accent: 'indigo'
+  font:
+    text: 'Roboto'
+    code: 'Roboto Mono'
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Usage: usage.md
+  - Configuration: configuration.md
+  - Strategies: strategies.md
+  - Control Center: control_center.md
+  - API Reference: api_reference.md
+  - Docker: docker.md
+  - Telegram Alerts: telegram_alerts.md
