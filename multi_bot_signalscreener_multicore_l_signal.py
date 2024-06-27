@@ -707,7 +707,7 @@ def handle_signal(symbol, args, manager, mfirsi_signal, open_position_data, symb
     action_taken_short = False
 
     # Allow starting a new long position even if there is an open short position
-    if mfi_signal_long and long_mode:
+    if mfi_signal_long and long_mode and not has_open_long:
         if not (symbol in long_threads and long_threads[symbol][0].is_alive()):
             logging.info(f"Starting long thread for symbol {symbol}.")
             action_taken_long = start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "long")
@@ -722,7 +722,7 @@ def handle_signal(symbol, args, manager, mfirsi_signal, open_position_data, symb
         logging.info(f"Has open short: {has_open_short}")
 
     # Allow starting a new short position even if there is an open long position
-    if mfi_signal_short and short_mode:
+    if mfi_signal_short and short_mode and not has_open_short:
         if not (symbol in short_threads and short_threads[symbol][0].is_alive()):
             logging.info(f"Starting short thread for symbol {symbol}.")
             action_taken_short = start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "short")
