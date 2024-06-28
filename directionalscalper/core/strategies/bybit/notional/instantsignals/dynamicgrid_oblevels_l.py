@@ -12,11 +12,11 @@ from directionalscalper.core.strategies.bybit.bybit_strategy import BybitStrateg
 from directionalscalper.core.exchanges.bybit import BybitExchange
 from directionalscalper.core.strategies.logger import Logger
 from live_table_manager import shared_symbols_data
-logging = Logger(logger_name="BybitDynamicGridSpanOBLevels", filename="BybitDynamicGridSpanOBLevels.log", stream=True)
+logging = Logger(logger_name="BybitDynamicGridSpanOBLevelsLSignal", filename="BybitDynamicGridSpanOBLevelsLSignal.log", stream=True)
 
 symbol_locks = {}
 
-class BybitDynamicGridSpanOBLevels(BybitStrategy):
+class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None, rotator_symbols_standardized=None, mfirsi_signal=None):
         super().__init__(exchange, config, manager, symbols_allowed)
         self.mfirsi_signal = mfirsi_signal
@@ -468,13 +468,17 @@ class BybitDynamicGridSpanOBLevels(BybitStrategy):
                     #self.cleanup_before_termination(symbol)
                     break  # Exit the while loop, thus ending the thread
             
-                # Check for position inactivity
-                inactive_pos_time_threshold = 180  # 3 minutes in seconds
-                if self.check_position_inactivity(symbol, inactive_pos_time_threshold, long_pos_qty, short_pos_qty, previous_long_pos_qty, previous_short_pos_qty):
-                    logging.info(f"No open positions for {symbol} in the last {inactive_pos_time_threshold} seconds. Terminating the thread.")
-                    shared_symbols_data.pop(symbol, None)
-                    break
-                    
+                try:
+                    logging.info(f"Checking position inactivity")
+                    # Check for position inactivity
+                    inactive_pos_time_threshold = 60 
+                    if self.check_position_inactivity(symbol, inactive_pos_time_threshold, long_pos_qty, short_pos_qty, previous_long_pos_qty, previous_short_pos_qty):
+                        logging.info(f"No open positions for {symbol} in the last {inactive_pos_time_threshold} seconds. Terminating the thread.")
+                        shared_symbols_data.pop(symbol, None)
+                        break
+                except Exception as e:
+                    logging.info(f"Exception caught in check_position_inactivity {e}")
+       
                 # Optionally, break out of the loop if all trading sides are closed
                 if not self.running_long and not self.running_short:
                     shared_symbols_data.pop(symbol, None)
@@ -501,6 +505,51 @@ class BybitDynamicGridSpanOBLevels(BybitStrategy):
                 # Update previous quantities for the next iteration
                 previous_long_pos_qty = long_pos_qty
                 previous_short_pos_qty = short_pos_qty
+
+                # # Actions based on inactivity
+                # if inactive_long:
+                #     logging.info(f"No active long positions and previous positions were closed for {symbol}. Terminating long operations.")
+                #     self.running_long = False
+                #     self.cancel_grid_orders(symbol, "buy")
+                #     self.clear_grid(symbol, 'buy')
+                #     self.active_grids.discard(symbol)
+                #     #self.cleanup_before_termination(symbol)
+                    
+                #     # Remove symbol from shared_symbols_data if there are no active short positions
+                #     if short_pos_qty == 0:
+                #         shared_symbols_data.pop(symbol, None)
+                #         break
+
+                # if inactive_short:
+                #     logging.info(f"No active short positions and previous positions were closed for {symbol}. Terminating short operations.")
+                #     self.cancel_grid_orders(symbol, "sell")
+                #     self.clear_grid(symbol, 'sell')
+                #     self.active_grids.discard(symbol)
+                #     #self.cleanup_before_termination(symbol)
+                #     self.running_short = False
+                    
+                #     # Remove symbol from shared_symbols_data if there are no active long positions
+                #     if long_pos_qty == 0:
+                #         shared_symbols_data.pop(symbol, None)
+                #         break
+            
+                # terminate_long, terminate_short = self.should_terminate_open_orders(symbol, long_pos_qty, short_pos_qty, open_position_data, open_orders, current_time)
+
+                # logging.info(f"Terminate long: {terminate_long}, Terminate short: {terminate_short}")
+
+                # try:
+                #     if terminate_long:
+                #         logging.info(f"Should terminate long orders for {symbol}")
+                #         self.cancel_grid_orders(symbol, "buy")
+                #         self.cleanup_before_termination(symbol)
+                #         self.running_long = False  # Set the flag to stop the long thread
+                #     if terminate_short:
+                #         logging.info(f"Should terminate short orders for {symbol}")
+                #         self.cancel_grid_orders(symbol, "sell")
+                #         self.cleanup_before_termination(symbol)
+                #         self.running_short = False  # Set the flag to stop the short thread
+                # except Exception as e:
+                #     logging.info(f"Exception caught in termination {e}")
 
                 if not self.running_long and not self.running_short:
                     logging.info("Both long and short operations have ended. Preparing to exit loop.")
@@ -784,7 +833,7 @@ class BybitDynamicGridSpanOBLevels(BybitStrategy):
                     short_tp_counts = tp_order_counts['short_tp_count']
 
                     try:
-                        self.linear_grid_hardened_gridspan_ob_volumelevels_dynamictp(
+                        self.linear_grid_hardened_gridspan_ob_volumelevels_dynamictp_lsignal(
                             symbol,
                             open_symbols,
                             total_equity,
