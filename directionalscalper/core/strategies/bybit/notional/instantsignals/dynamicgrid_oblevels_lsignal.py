@@ -455,12 +455,29 @@ class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
                 logging.info(f"Current long pos qty for {symbol} {long_pos_qty}")
                 logging.info(f"Current short pos qty for {symbol} {short_pos_qty}")
 
-                # Check for position inactivity
-                inactive_pos_time_threshold = 60 
-                if self.check_position_inactivity(symbol, inactive_pos_time_threshold, long_pos_qty, short_pos_qty, previous_long_pos_qty, previous_short_pos_qty):
-                    logging.info(f"No open positions for {symbol} in the last {inactive_pos_time_threshold} seconds. Terminating the thread.")
-                    shared_symbols_data.pop(symbol, None)
-                    break
+                # Check if a position has been closed
+                if previous_long_pos_qty > 0 and long_pos_qty == 0:
+                    logging.info(f"Long position closed for {symbol}. Canceling long grid orders.")
+                    self.cancel_grid_orders(symbol, "buy")
+                    self.cleanup_before_termination(symbol)
+                    break  # Exit the while loop, thus ending the thread
+
+                if previous_short_pos_qty > 0 and short_pos_qty == 0:
+                    logging.info(f"Short position closed for {symbol}. Canceling short grid orders.")
+                    self.cancel_grid_orders(symbol, "sell")
+                    self.cleanup_before_termination(symbol)
+                    break  # Exit the while loop, thus ending the thread
+            
+                try:
+                    logging.info(f"Checking position inactivity")
+                    # Check for position inactivity
+                    inactive_pos_time_threshold = 60 
+                    if self.check_position_inactivity(symbol, inactive_pos_time_threshold, long_pos_qty, short_pos_qty, previous_long_pos_qty, previous_short_pos_qty):
+                        logging.info(f"No open positions for {symbol} in the last {inactive_pos_time_threshold} seconds. Terminating the thread.")
+                        shared_symbols_data.pop(symbol, None)
+                        break
+                except Exception as e:
+                    logging.info(f"Exception caught in check_position_inactivity {e}")
        
                 # Optionally, break out of the loop if all trading sides are closed
                 if not self.running_long and not self.running_short:
