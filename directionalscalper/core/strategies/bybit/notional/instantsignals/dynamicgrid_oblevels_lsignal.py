@@ -459,13 +459,13 @@ class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
                 if previous_long_pos_qty > 0 and long_pos_qty == 0:
                     logging.info(f"Long position closed for {symbol}. Canceling long grid orders.")
                     self.cancel_grid_orders(symbol, "buy")
-                    self.cleanup_before_termination(symbol)
+                    #self.cleanup_before_termination(symbol)
                     break  # Exit the while loop, thus ending the thread
 
                 if previous_short_pos_qty > 0 and short_pos_qty == 0:
                     logging.info(f"Short position closed for {symbol}. Canceling short grid orders.")
                     self.cancel_grid_orders(symbol, "sell")
-                    self.cleanup_before_termination(symbol)
+                    #self.cleanup_before_termination(symbol)
                     break  # Exit the while loop, thus ending the thread
             
                 try:
