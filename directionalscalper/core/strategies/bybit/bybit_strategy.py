@@ -4841,6 +4841,9 @@ class BybitStrategy(BaseStrategy):
             has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
             has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
 
+            logging.info(f"Symbol {symbol} has open long order: {has_open_long_order}")
+            logging.info(f"Symbol {symbol} has open short order: {has_open_short_order}")
+            
             replace_empty_long_grid = (long_pos_qty > 0 and not has_open_long_order)
             replace_empty_short_grid = (short_pos_qty > 0 and not has_open_short_order)
 
@@ -4881,6 +4884,7 @@ class BybitStrategy(BaseStrategy):
                 # Replace long grid if conditions are met
                 if (replace_long_grid or (replace_empty_long_grid and (current_time - self.last_empty_grid_time[symbol].get('long', 0) > 240))) and not self.auto_reduce_active_long.get(symbol, False):
                     if symbol not in self.max_qty_reached_symbol_long:
+                        logging.info(f"THIS FUCKING FUNCTION KILLS THE ORDERS")
                         logging.info(f"[{symbol}] Replacing long grid orders due to updated buffer or empty grid timeout.")
                         self.clear_grid(symbol, 'buy')
                         buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
@@ -4895,6 +4899,7 @@ class BybitStrategy(BaseStrategy):
                 # Replace short grid if conditions are met
                 if (replace_short_grid or (replace_empty_short_grid and (current_time - self.last_empty_grid_time[symbol].get('short', 0) > 240))) and not self.auto_reduce_active_short.get(symbol, False):
                     if symbol not in self.max_qty_reached_symbol_short:
+                        logging.info(f"THIS FUCKING FUNCTION KILLS THE ORDERS")
                         logging.info(f"[{symbol}] Replacing short grid orders due to updated buffer or empty grid timeout.")
                         self.clear_grid(symbol, 'sell')
                         buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - short_pos_price) / short_pos_price)
@@ -4939,22 +4944,35 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"Open symbols is {open_symbols} and symbols allowed is {symbols_allowed}")
 
             if symbol in open_symbols or trading_allowed:
-                if (long_pos_qty > 0 and not long_grid_active) or (short_pos_qty > 0 and not short_grid_active):
+                long_grid_active = symbol in self.active_grids and "buy" in self.filled_levels[symbol]
+                short_grid_active = symbol in self.active_grids and "sell" in self.filled_levels[symbol]
+
+                # Check if there are open long or short orders
+                has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
+                has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
+
+                # Issue or replace grids only if necessary
+                if (long_pos_qty > 0 and (not long_grid_active or not has_open_long_order)) or (short_pos_qty > 0 and (not short_grid_active or not has_open_short_order)):
                     logging.info(f"[{symbol}] Open positions found without active grids. Issuing grid orders.")
-                    if long_pos_qty > 0 and not long_grid_active and symbol not in self.max_qty_reached_symbol_long:
+                    
+                    if long_pos_qty > 0 and (not long_grid_active or not has_open_long_order) and symbol not in self.max_qty_reached_symbol_long:
                         if not self.auto_reduce_active_long.get(symbol, False) or entry_during_autoreduce:
                             logging.info(f"[{symbol}] Placing long grid orders for existing open position.")
                             self.clear_grid(symbol, 'buy')
                             self.active_grids.discard(symbol)
                             self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                             self.active_grids.add(symbol)
-                    if short_pos_qty > 0 and not short_grid_active and symbol not in self.max_qty_reached_symbol_short:
+                            long_grid_active = True  # Set the flag to indicate the grid is active
+                    
+                    if short_pos_qty > 0 and (not short_grid_active or not has_open_short_order) and symbol not in self.max_qty_reached_symbol_short:
                         if not self.auto_reduce_active_short.get(symbol, False) or entry_during_autoreduce:
                             logging.info(f"[{symbol}] Placing short grid orders for existing open position.")
                             self.clear_grid(symbol, 'sell')
                             self.active_grids.discard(symbol)
                             self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                             self.active_grids.add(symbol)
+                            short_grid_active = True  # Set the flag to indicate the grid is active
+
 
                 current_time = datetime.now()
 
