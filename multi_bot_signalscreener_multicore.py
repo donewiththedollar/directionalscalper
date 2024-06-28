@@ -562,13 +562,13 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
             else:
                 logging.debug(f"No refresh needed yet. Last update was at {last_rotator_update_time}, less than 60 seconds ago.")
 
-            update_active_symbols(open_position_symbols)
-            logging.info(f"Active symbols updated. Symbols allowed: {symbols_allowed}")
-            logging.info(f"Active symbols: {active_symbols}")
-
             with thread_management_lock:
                 open_position_futures = []
                 signal_futures = []
+
+                update_active_symbols(open_position_symbols)
+                logging.info(f"Active symbols updated. Symbols allowed: {symbols_allowed}")
+                logging.info(f"Active symbols: {active_symbols}")
 
                 # Always check signals for open symbols
                 for symbol in open_position_symbols:
