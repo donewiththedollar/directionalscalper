@@ -4731,7 +4731,7 @@ class BybitStrategy(BaseStrategy):
                 return level
 
             # Adjust grid levels to align with significant levels
-            tolerance = max_outer_price_distance #0.05  # 1% tolerance, adjust as needed
+            tolerance = 0.01 #0.05  # 1% tolerance, adjust as needed
             grid_levels_long = [
                 find_nearest_significant_level(
                     level, 
