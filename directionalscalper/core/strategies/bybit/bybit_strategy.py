@@ -11373,29 +11373,29 @@ class BybitStrategy(BaseStrategy):
 
     #     logging.info(f"[{symbol}] {side.capitalize()} grid orders issued for unfilled levels.")
         
-    # def cancel_grid_orders(self, symbol: str, side: str):
-    #     try:
-    #         open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
-    #         #logging.info(f"Open orders data for {symbol}: {open_orders}")
+    def cancel_grid_orders(self, symbol: str, side: str):
+        try:
+            open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+            #logging.info(f"Open orders data for {symbol}: {open_orders}")
 
-    #         orders_canceled = 0
-    #         for order in open_orders:
-    #             if order['side'].lower() == side.lower():
-    #                 self.exchange.cancel_order_by_id(order['id'], symbol)
-    #                 orders_canceled += 1
-    #                 logging.info(f"Canceled order for {symbol}")
+            orders_canceled = 0
+            for order in open_orders:
+                if order['side'].lower() == side.lower():
+                    self.exchange.cancel_order_by_id(order['id'], symbol)
+                    orders_canceled += 1
+                    logging.info(f"Canceled order for {symbol}")
 
-    #         if orders_canceled > 0:
-    #             logging.info(f"Canceled {orders_canceled} {side} grid orders for {symbol}")
-    #         else:
-    #             logging.info(f"No {side} grid orders found for {symbol}")
+            if orders_canceled > 0:
+                logging.info(f"Canceled {orders_canceled} {side} grid orders for {symbol}")
+            else:
+                logging.info(f"No {side} grid orders found for {symbol}")
 
-    #         # Remove the symbol from active_grids
-    #         self.active_grids.discard(symbol)
-    #         logging.info(f"Removed {symbol} from active_grids")
+            # Remove the symbol from active_grids
+            self.active_grids.discard(symbol)
+            logging.info(f"Removed {symbol} from active_grids")
 
-    #     except Exception as e:
-    #         logging.info(f"Exception in cancel_grid_orders {e}")
+        except Exception as e:
+            logging.info(f"Exception in cancel_grid_orders {e}")
             
         
     def calculate_total_amount(self, symbol: str, total_equity: float, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float, side: str, levels: int, min_qty: float, enforce_full_grid: bool) -> float:
@@ -11829,7 +11829,7 @@ class BybitStrategy(BaseStrategy):
                 self.max_qty_reached_symbol_short.remove(symbol)
 
         except Exception as e:
-            logging.error(f"Exception caught in check and manage positions: {e}")
+            logging.info(f"Exception caught in check and manage positions: {e}")
             logging.info("Traceback:", traceback.format_exc())
 
     def calculate_total_amount_notional_ls(self, symbol, total_equity, best_ask_price, best_bid_price, 
