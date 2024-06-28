@@ -58,36 +58,7 @@ class BybitStrategy(BaseStrategy):
         self.last_empty_grid_time = {}
         self.last_reissue_price_long = {}
         self.last_reissue_price_short = {}
-
-class BybitStrategy(BaseStrategy):
-    def __init__(self, exchange, config, manager, symbols_allowed=None):
-        super().__init__(exchange, config, manager, symbols_allowed)
-        self.exchange = exchange
-        self.grid_levels = {}
-        self.linear_grid_orders = {}
-        self.last_price = {}
-        self.last_cancel_time = {}
-        self.cancel_all_orders_interval = 240
-        self.cancel_interval = 120
-        self.order_refresh_interval = 120  # seconds
-        self.last_order_refresh_time = 0
-        self.last_grid_cancel_time = {}
-        self.entered_grid_levels = {}
-        self.filled_order_levels = {}
-        self.filled_levels = {}
-        self.max_qty_reached_symbol_long = set()  # Tracking symbols that exceed max long position qty
-        self.max_qty_reached_symbol_short = set()  # Tracking symbols that exceed max short position qty
-        self.active_grids = set()
-        self.position_inactive_threshold = 150
-        self.no_entry_signal_threshold = 150
-        self.order_inactive_threshold = 150
-        self.last_activity_time = {}
-        self.last_open_position_timestamp = defaultdict(lambda: {"buy": None, "sell": None})
-        self.last_cleared_time = {}  # Dictionary to store last cleared time for symbols
-        self.clear_interval = timedelta(minutes=30)  # Time interval threshold for clearing grids
-        self.last_empty_grid_time = {}
-        self.last_reissue_price_long = {}
-        self.last_reissue_price_short = {}
+        self.placed_levels = {}
 
         try:
             # Hotkey-related attributes
@@ -5065,7 +5036,7 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.info(f"Error in executing gridstrategy: {e}")
             logging.info("Traceback: %s", traceback.format_exc())
-            
+
     def linear_grid_hardened_gridspan_ob_volumelevels_dynamictp(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
                                                 short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
                                                 strength: float, outer_price_distance: float, min_outer_price_distance: float, max_outer_price_distance: float, reissue_threshold: float,
