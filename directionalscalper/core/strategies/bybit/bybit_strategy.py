@@ -4715,6 +4715,7 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"[{symbol}] Long grid levels: {grid_levels_long}")
             logging.info(f"[{symbol}] Short grid levels: {grid_levels_short}")
 
+
             qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
             min_qty = float(self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
             logging.info(f"[{symbol}] Quantity precision: {qty_precision}, Minimum quantity: {min_qty}")
@@ -4766,13 +4767,37 @@ class BybitStrategy(BaseStrategy):
             replace_empty_long_grid = (long_pos_qty > 0 and not has_open_long_order)
             replace_empty_short_grid = (short_pos_qty > 0 and not has_open_short_order)
 
-            # Track the last time the grid was emptied
-            if replace_empty_long_grid and symbol not in self.last_empty_grid_time:
-                self.last_empty_grid_time[symbol] = {}
-            if replace_empty_short_grid and symbol not in self.last_empty_grid_time:
-                self.last_empty_grid_time[symbol] = {}
+            # # Track the last time the grid was emptied
+            # if replace_empty_long_grid and symbol not in self.last_empty_grid_time:
+            #     self.last_empty_grid_time[symbol] = {}
+            # if replace_empty_short_grid and symbol not in self.last_empty_grid_time:
+            #     self.last_empty_grid_time[symbol] = {}
 
-            current_time = time.time()
+            # current_time = time.time()
+
+            current_time = datetime.now()  # Use datetime
+
+            # Track the last time the grid was emptied
+            if symbol not in self.last_empty_grid_time:
+                self.last_empty_grid_time[symbol] = {'long': datetime.min, 'short': datetime.min}
+
+            if replace_empty_long_grid:
+                self.last_empty_grid_time[symbol]['long'] = current_time
+
+            if replace_empty_short_grid:
+                self.last_empty_grid_time[symbol]['short'] = current_time
+
+
+            # # Track the last time the grid was emptied
+            # if symbol not in self.last_empty_grid_time:
+            #     self.last_empty_grid_time[symbol] = {'long': datetime.min, 'short': datetime.min}
+
+            # if replace_empty_long_grid:
+            #     self.last_empty_grid_time[symbol]['long'] = current_time
+
+            # if replace_empty_short_grid:
+            #     self.last_empty_grid_time[symbol]['short'] = current_time
+                
 
             # Check and log if the symbol is in max_qty_reached_symbol_long
             if symbol in self.max_qty_reached_symbol_long:
@@ -4801,9 +4826,8 @@ class BybitStrategy(BaseStrategy):
                 )
 
                 # Replace long grid if conditions are met
-                if (replace_long_grid or (replace_empty_long_grid and (current_time - self.last_empty_grid_time[symbol].get('long', 0) > 240))) and not self.auto_reduce_active_long.get(symbol, False):
+                if (replace_long_grid or (replace_empty_long_grid and (current_time - self.last_empty_grid_time[symbol].get('long', datetime.min) > timedelta(seconds=240)))) and not self.auto_reduce_active_long.get(symbol, False):
                     if symbol not in self.max_qty_reached_symbol_long:
-                        logging.info(f"THIS FUCKING FUNCTION KILLS THE ORDERS")
                         logging.info(f"[{symbol}] Replacing long grid orders due to updated buffer or empty grid timeout.")
                         self.clear_grid(symbol, 'buy')
                         buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
@@ -4816,9 +4840,8 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"{symbol} is in max qty reached symbol long cannot replace grid")
 
                 # Replace short grid if conditions are met
-                if (replace_short_grid or (replace_empty_short_grid and (current_time - self.last_empty_grid_time[symbol].get('short', 0) > 240))) and not self.auto_reduce_active_short.get(symbol, False):
+                if (replace_short_grid or (replace_empty_short_grid and (current_time - self.last_empty_grid_time[symbol].get('short', datetime.min) > timedelta(seconds=240)))) and not self.auto_reduce_active_short.get(symbol, False):
                     if symbol not in self.max_qty_reached_symbol_short:
-                        logging.info(f"THIS FUCKING FUNCTION KILLS THE ORDERS")
                         logging.info(f"[{symbol}] Replacing short grid orders due to updated buffer or empty grid timeout.")
                         self.clear_grid(symbol, 'sell')
                         buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - short_pos_price) / short_pos_price)
@@ -4829,7 +4852,7 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"[{symbol}] Recalculated short grid levels with updated buffer: {grid_levels_short}")
                     else:
                         logging.info(f"{symbol} is in max qty reached symbol short cannot replace grid")
-
+                        
                 if self.should_reissue_orders_revised(symbol, reissue_threshold, long_pos_qty, short_pos_qty, initial_entry_buffer_pct):
                     open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
