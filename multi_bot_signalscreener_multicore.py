@@ -1085,15 +1085,7 @@ if __name__ == '__main__':
     display_thread.daemon = True
     display_thread.start()
 
-    all_symbols_standardized = [standardize_symbol(symbol) for symbol in manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)]
-    open_position_data = market_maker.exchange.get_all_open_positions_bybit()
-    open_positions_symbols = [standardize_symbol(position['symbol']) for position in open_position_data]
-
-    print(f"Open positions symbols: {open_positions_symbols}")
-    symbols_to_trade = list(set(open_positions_symbols + all_symbols_standardized[:symbols_allowed]))
-
-    print(f"Symbols to trade: {symbols_to_trade}")
-
+    # Removed redundant calls and initialization
     while True:
         try:
             whitelist = config.bot.whitelist
