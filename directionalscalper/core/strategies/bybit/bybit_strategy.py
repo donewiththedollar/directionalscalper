@@ -134,9 +134,7 @@ class BybitStrategy(BaseStrategy):
 
     TAKER_FEE_RATE = 0.00055
 
-    def get_market_data_with_retry(self, symbol, max_retries=5, initial_retry_delay=5):
-        retry_delay = initial_retry_delay
-
+    def get_market_data_with_retry(self, symbol, max_retries=5, retry_delay=5):
         for i in range(max_retries):
             try:
                 with self.general_rate_limiter:
@@ -146,10 +144,27 @@ class BybitStrategy(BaseStrategy):
                     logging.info(f"Error occurred while fetching market data: {e}. Retrying in {retry_delay} seconds...")
                     logging.info(f"Call Stack: {traceback.format_exc()}")
                     time.sleep(retry_delay)
-                    retry_delay *= 2  # Exponential backoff
                 else:
+                    #logging.info("Excessive call stack:\n" + "".join(traceback.format_stack()))
+                    logging.info(f"get_market_data_with_retry failure from bybit_strategy.py")
                     raise e
-                    logging.info(f"Exception in get market data {e}")
+                
+    # def get_market_data_with_retry(self, symbol, max_retries=5, initial_retry_delay=5):
+    #     retry_delay = initial_retry_delay
+
+    #     for i in range(max_retries):
+    #         try:
+    #             with self.general_rate_limiter:
+    #                 return self.exchange.get_market_data_bybit(symbol)
+    #         except Exception as e:
+    #             if i < max_retries - 1:
+    #                 logging.info(f"Error occurred while fetching market data: {e}. Retrying in {retry_delay} seconds...")
+    #                 logging.info(f"Call Stack: {traceback.format_exc()}")
+    #                 time.sleep(retry_delay)
+    #                 retry_delay *= 2  # Exponential backoff
+    #             else:
+    #                 raise e
+    #                 logging.info(f"Exception in get market data {e}")
                 
     # def get_market_data_with_retry(self, symbol, max_retries=5, retry_delay=5):
     #     for i in range(max_retries):
