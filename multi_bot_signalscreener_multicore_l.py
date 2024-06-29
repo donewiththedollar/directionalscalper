@@ -488,10 +488,9 @@ def bybit_auto_rotation_spot(args, manager, symbols_allowed):
 
                 if len(active_symbols) < symbols_allowed:
                     for symbol in latest_rotator_symbols:
-                        if market_maker.is_valid_symbol(symbol):
-                            signal_futures.append(signal_executor.submit(process_signal_spot, symbol, args, manager, symbols_allowed, open_position_data, False, long_mode, short_mode))
-                            logging.info(f"Submitted signal processing for new rotator symbol {symbol}.")
-                            time.sleep(2)
+                        signal_futures.append(signal_executor.submit(process_signal_spot, symbol, args, manager, symbols_allowed, open_position_data, False, long_mode, short_mode))
+                        logging.info(f"Submitted signal processing for new rotator symbol {symbol}.")
+                        time.sleep(2)
 
                 process_futures(open_position_futures + signal_futures)
 
@@ -581,9 +580,6 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
 
                 # Always check signals for open symbols
                 for symbol in open_position_symbols:
-                    if not market_maker.is_valid_symbol_bybit(symbol):
-                        logging.info(f"Symbol {symbol} is not valid, skipping.")
-                        continue
 
                     has_open_long = any(pos['side'].lower() == 'long' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
                     has_open_short = any(pos['side'].lower() == 'short' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
@@ -618,10 +614,6 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                     logging.info(f"Active symbols are less than symbols allowed, scanning for new symbols")
                     for symbol in latest_rotator_symbols:
                         if symbol not in processed_symbols:
-                            if not market_maker.is_valid_symbol_bybit(symbol):
-                                logging.info(f"Symbol {symbol} is not valid, skipping.")
-                                continue
-                            
                             if len(active_symbols) >= symbols_allowed:
                                 logging.info(f"Reached symbols_allowed limit ({symbols_allowed}). Stopping processing of new symbols.")
                                 break
@@ -658,10 +650,6 @@ def process_signal_for_open_position(symbol, args, manager, symbols_allowed, ope
     market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
     market_maker.manager = manager
 
-    if not market_maker.is_valid_symbol_bybit(symbol):
-        logging.info(f"Symbol {symbol} is not valid, skipping.")
-        return
-
     with general_rate_limiter:
         mfirsi_signal = market_maker.generate_l_signals(symbol)
     logging.info(f"Processing signal for open position symbol {symbol}. MFIRSI signal: {mfirsi_signal}")
@@ -677,10 +665,6 @@ def process_signal_for_open_position(symbol, args, manager, symbols_allowed, ope
 def process_signal(symbol, args, manager, symbols_allowed, open_position_data, is_open_position, long_mode, short_mode):
     market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
     market_maker.manager = manager
-
-    if not market_maker.is_valid_symbol_bybit(symbol):
-        logging.info(f"Symbol {symbol} is not valid, skipping.")
-        return
 
     mfirsi_signal = market_maker.generate_l_signals(symbol)
     logging.info(f"Processing signal for {'open position' if is_open_position else 'new rotator'} symbol {symbol}. MFIRSI signal: {mfirsi_signal}")
