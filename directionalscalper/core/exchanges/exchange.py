@@ -528,12 +528,11 @@ class Exchange:
 
         while True:
             try:
-                with self.rate_limiter:
-                    markets = self.exchange.load_markets()
-                    symbols = [market['symbol'] for market in markets.values()]
-                    Exchange.symbols_cache = symbols
-                    Exchange.symbols_cache_time = current_time
-                    return symbols
+                markets = self.exchange.load_markets()
+                symbols = [market['symbol'] for market in markets.values()]
+                Exchange.symbols_cache = symbols
+                Exchange.symbols_cache_time = current_time
+                return symbols
             except ccxt.errors.RateLimitExceeded as e:
                 logging.info(f"Get symbols Rate limit exceeded: {e}, retrying in 10 seconds...")
                 time.sleep(10)
