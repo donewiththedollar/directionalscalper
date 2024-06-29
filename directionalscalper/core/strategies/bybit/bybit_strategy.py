@@ -5152,14 +5152,14 @@ class BybitStrategy(BaseStrategy):
                 return level
 
             # Adjust grid levels to align with significant levels
-            tolerance = 0.01 #0.05  # 1% tolerance, adjust as needed
+            tolerance = 0.01  # 1% tolerance, adjust as needed
             grid_levels_long = [
                 find_nearest_significant_level(
                     level, 
                     significant_levels_long, 
                     tolerance, 
                     buffer_distance_long / current_price, 
-                    max_outer_price_distance, 
+                    min_outer_price_distance, 
                     current_price
                 ) for level in grid_levels_long
             ]
@@ -5169,25 +5169,25 @@ class BybitStrategy(BaseStrategy):
                     significant_levels_short, 
                     tolerance, 
                     buffer_distance_short / current_price, 
-                    max_outer_price_distance, 
+                    min_outer_price_distance, 
                     current_price
                 ) for level in grid_levels_short
             ]
 
-            # Ensure the grid levels are within the buffer distances and respect max outer price distance
+            # Ensure the grid levels are within the buffer distances and respect min/max outer price distance
             grid_levels_long = [
                 level for level in grid_levels_long 
-                if current_price - max_outer_price_distance * current_price <= level <= current_price - buffer_distance_long
+                if current_price - min_outer_price_distance * current_price <= level <= current_price - buffer_distance_long
             ]
             grid_levels_short = [
                 level for level in grid_levels_short 
-                if current_price + buffer_distance_short <= level <= current_price + max_outer_price_distance * current_price
+                if current_price + buffer_distance_short <= level <= current_price + min_outer_price_distance * current_price
             ]
 
             # Ensure the desired number of grid levels is achieved
             if len(grid_levels_long) < levels:
                 additional_levels_long = np.linspace(
-                    current_price - max_outer_price_distance * current_price, 
+                    current_price - min_outer_price_distance * current_price, 
                     current_price - buffer_distance_long, 
                     levels - len(grid_levels_long)
                 )
@@ -5196,7 +5196,7 @@ class BybitStrategy(BaseStrategy):
             if len(grid_levels_short) < levels:
                 additional_levels_short = np.linspace(
                     current_price + buffer_distance_short, 
-                    current_price + max_outer_price_distance * current_price, 
+                    current_price + min_outer_price_distance * current_price, 
                     levels - len(grid_levels_short)
                 )
                 grid_levels_short = np.concatenate((grid_levels_short, additional_levels_short))
