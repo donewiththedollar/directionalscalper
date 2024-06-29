@@ -27,12 +27,16 @@ from ...bot_metrics import BotDatabase
 
 from directionalscalper.core.strategies.base_strategy import BaseStrategy
 
+from rate_limit import RateLimit
+
 logging = Logger(logger_name="BybitBaseStrategy", filename="BybitBaseStrategy.log", stream=True)
 
 class BybitStrategy(BaseStrategy):
     def __init__(self, exchange, config, manager, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
         self.exchange = exchange
+        self.general_rate_limiter = RateLimit(50, 1)
+        self.order_rate_limiter = RateLimit(5, 1) 
         self.grid_levels = {}
         self.linear_grid_orders = {}
         self.last_price = {}
@@ -130,16 +134,33 @@ class BybitStrategy(BaseStrategy):
 
     TAKER_FEE_RATE = 0.00055
 
-    def get_market_data_with_retry(self, symbol, max_retries=5, retry_delay=5):
+    def get_market_data_with_retry(self, symbol, max_retries=5, initial_retry_delay=5):
+        retry_delay = initial_retry_delay
+
         for i in range(max_retries):
             try:
-                return self.exchange.get_market_data_bybit(symbol)
+                with self.general_rate_limiter:
+                    return self.exchange.get_market_data_bybit(symbol)
             except Exception as e:
                 if i < max_retries - 1:
-                    print(f"Error occurred while fetching market data: {e}. Retrying in {retry_delay} seconds...")
+                    logging.info(f"Error occurred while fetching market data: {e}. Retrying in {retry_delay} seconds...")
+                    logging.info(f"Call Stack: {traceback.format_exc()}")
                     time.sleep(retry_delay)
+                    retry_delay *= 2  # Exponential backoff
                 else:
                     raise e
+                    logging.info(f"Exception in get market data {e}")
+                
+    # def get_market_data_with_retry(self, symbol, max_retries=5, retry_delay=5):
+    #     for i in range(max_retries):
+    #         try:
+    #             return self.exchange.get_market_data_bybit(symbol)
+    #         except Exception as e:
+    #             if i < max_retries - 1:
+    #                 print(f"Error occurred while fetching market data: {e}. Retrying in {retry_delay} seconds...")
+    #                 time.sleep(retry_delay)
+    #             else:
+    #                 raise e
                 
     def update_dynamic_amounts(self, symbol, total_equity, best_ask_price, best_bid_price):
         if symbol not in self.long_dynamic_amount or symbol not in self.short_dynamic_amount:
