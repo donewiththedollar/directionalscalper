@@ -99,7 +99,7 @@ def standardize_symbol(symbol):
 def get_available_strategies():
     return [
         'qsgridob',
-        # 'qsgridoblsignal',
+        'qsgridoblsignal',
         # 'qstrendobdynamictp',
         # 'qsgridinstantsignal',
         # 'qsgridobtight',
