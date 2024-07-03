@@ -27,12 +27,16 @@ from ...bot_metrics import BotDatabase
 
 from directionalscalper.core.strategies.base_strategy import BaseStrategy
 
+from rate_limit import RateLimit
+
 logging = Logger(logger_name="BybitBaseStrategy", filename="BybitBaseStrategy.log", stream=True)
 
 class BybitStrategy(BaseStrategy):
     def __init__(self, exchange, config, manager, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
         self.exchange = exchange
+        self.general_rate_limiter = RateLimit(50, 1)
+        self.order_rate_limiter = RateLimit(5, 1) 
         self.grid_levels = {}
         self.linear_grid_orders = {}
         self.last_price = {}
@@ -133,13 +137,45 @@ class BybitStrategy(BaseStrategy):
     def get_market_data_with_retry(self, symbol, max_retries=5, retry_delay=5):
         for i in range(max_retries):
             try:
-                return self.exchange.get_market_data_bybit(symbol)
+                with self.general_rate_limiter:
+                    return self.exchange.get_market_data_bybit(symbol)
             except Exception as e:
                 if i < max_retries - 1:
-                    print(f"Error occurred while fetching market data: {e}. Retrying in {retry_delay} seconds...")
+                    logging.info(f"Error occurred while fetching market data: {e}. Retrying in {retry_delay} seconds...")
+                    logging.info(f"Call Stack: {traceback.format_exc()}")
                     time.sleep(retry_delay)
                 else:
+                    #logging.info("Excessive call stack:\n" + "".join(traceback.format_stack()))
+                    logging.info(f"get_market_data_with_retry failure from bybit_strategy.py")
                     raise e
+                
+    # def get_market_data_with_retry(self, symbol, max_retries=5, initial_retry_delay=5):
+    #     retry_delay = initial_retry_delay
+
+    #     for i in range(max_retries):
+    #         try:
+    #             with self.general_rate_limiter:
+    #                 return self.exchange.get_market_data_bybit(symbol)
+    #         except Exception as e:
+    #             if i < max_retries - 1:
+    #                 logging.info(f"Error occurred while fetching market data: {e}. Retrying in {retry_delay} seconds...")
+    #                 logging.info(f"Call Stack: {traceback.format_exc()}")
+    #                 time.sleep(retry_delay)
+    #                 retry_delay *= 2  # Exponential backoff
+    #             else:
+    #                 raise e
+    #                 logging.info(f"Exception in get market data {e}")
+                
+    # def get_market_data_with_retry(self, symbol, max_retries=5, retry_delay=5):
+    #     for i in range(max_retries):
+    #         try:
+    #             return self.exchange.get_market_data_bybit(symbol)
+    #         except Exception as e:
+    #             if i < max_retries - 1:
+    #                 print(f"Error occurred while fetching market data: {e}. Retrying in {retry_delay} seconds...")
+    #                 time.sleep(retry_delay)
+    #             else:
+    #                 raise e
                 
     def update_dynamic_amounts(self, symbol, total_equity, best_ask_price, best_bid_price):
         if symbol not in self.long_dynamic_amount or symbol not in self.short_dynamic_amount:
@@ -4598,9 +4634,6 @@ class BybitStrategy(BaseStrategy):
             if symbol not in self.filled_levels:
                 self.filled_levels[symbol] = {"buy": set(), "sell": set()}
 
-            if symbol not in self.placed_levels:
-                self.placed_levels[symbol] = {"buy": set(), "sell": set()}
-
             long_grid_active = symbol in self.active_grids and "buy" in self.filled_levels[symbol]
             short_grid_active = symbol in self.active_grids and "sell" in self.filled_levels[symbol]
 
@@ -4659,14 +4692,14 @@ class BybitStrategy(BaseStrategy):
                 return level
 
             # Adjust grid levels to align with significant levels
-            tolerance = 0.01 #0.05  # 1% tolerance, adjust as needed
+            tolerance = 0.01  # 1% tolerance, adjust as needed
             grid_levels_long = [
                 find_nearest_significant_level(
                     level, 
                     significant_levels_long, 
                     tolerance, 
                     buffer_distance_long / current_price, 
-                    max_outer_price_distance, 
+                    min_outer_price_distance, 
                     current_price
                 ) for level in grid_levels_long
             ]
@@ -4676,25 +4709,25 @@ class BybitStrategy(BaseStrategy):
                     significant_levels_short, 
                     tolerance, 
                     buffer_distance_short / current_price, 
-                    max_outer_price_distance, 
+                    min_outer_price_distance, 
                     current_price
                 ) for level in grid_levels_short
             ]
 
-            # Ensure the grid levels are within the buffer distances and respect max outer price distance
+            # Ensure the grid levels are within the buffer distances and respect min/max outer price distance
             grid_levels_long = [
                 level for level in grid_levels_long 
-                if current_price - max_outer_price_distance * current_price <= level <= current_price - buffer_distance_long
+                if current_price - min_outer_price_distance * current_price <= level <= current_price - buffer_distance_long
             ]
             grid_levels_short = [
                 level for level in grid_levels_short 
-                if current_price + buffer_distance_short <= level <= current_price + max_outer_price_distance * current_price
+                if current_price + buffer_distance_short <= level <= current_price + min_outer_price_distance * current_price
             ]
 
             # Ensure the desired number of grid levels is achieved
             if len(grid_levels_long) < levels:
                 additional_levels_long = np.linspace(
-                    current_price - max_outer_price_distance * current_price, 
+                    current_price - min_outer_price_distance * current_price, 
                     current_price - buffer_distance_long, 
                     levels - len(grid_levels_long)
                 )
@@ -4703,7 +4736,7 @@ class BybitStrategy(BaseStrategy):
             if len(grid_levels_short) < levels:
                 additional_levels_short = np.linspace(
                     current_price + buffer_distance_short, 
-                    current_price + max_outer_price_distance * current_price, 
+                    current_price + min_outer_price_distance * current_price, 
                     levels - len(grid_levels_short)
                 )
                 grid_levels_short = np.concatenate((grid_levels_short, additional_levels_short))
@@ -5155,14 +5188,14 @@ class BybitStrategy(BaseStrategy):
                 return level
 
             # Adjust grid levels to align with significant levels
-            tolerance = 0.01 #0.05  # 1% tolerance, adjust as needed
+            tolerance = 0.01  # 1% tolerance, adjust as needed
             grid_levels_long = [
                 find_nearest_significant_level(
                     level, 
                     significant_levels_long, 
                     tolerance, 
                     buffer_distance_long / current_price, 
-                    max_outer_price_distance, 
+                    min_outer_price_distance, 
                     current_price
                 ) for level in grid_levels_long
             ]
@@ -5172,25 +5205,25 @@ class BybitStrategy(BaseStrategy):
                     significant_levels_short, 
                     tolerance, 
                     buffer_distance_short / current_price, 
-                    max_outer_price_distance, 
+                    min_outer_price_distance, 
                     current_price
                 ) for level in grid_levels_short
             ]
 
-            # Ensure the grid levels are within the buffer distances and respect max outer price distance
+            # Ensure the grid levels are within the buffer distances and respect min/max outer price distance
             grid_levels_long = [
                 level for level in grid_levels_long 
-                if current_price - max_outer_price_distance * current_price <= level <= current_price - buffer_distance_long
+                if current_price - min_outer_price_distance * current_price <= level <= current_price - buffer_distance_long
             ]
             grid_levels_short = [
                 level for level in grid_levels_short 
-                if current_price + buffer_distance_short <= level <= current_price + max_outer_price_distance * current_price
+                if current_price + buffer_distance_short <= level <= current_price + min_outer_price_distance * current_price
             ]
 
             # Ensure the desired number of grid levels is achieved
             if len(grid_levels_long) < levels:
                 additional_levels_long = np.linspace(
-                    current_price - max_outer_price_distance * current_price, 
+                    current_price - min_outer_price_distance * current_price, 
                     current_price - buffer_distance_long, 
                     levels - len(grid_levels_long)
                 )
@@ -5199,7 +5232,7 @@ class BybitStrategy(BaseStrategy):
             if len(grid_levels_short) < levels:
                 additional_levels_short = np.linspace(
                     current_price + buffer_distance_short, 
-                    current_price + max_outer_price_distance * current_price, 
+                    current_price + min_outer_price_distance * current_price, 
                     levels - len(grid_levels_short)
                 )
                 grid_levels_short = np.concatenate((grid_levels_short, additional_levels_short))
@@ -11067,9 +11100,9 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"[{symbol}] Current price: {current_price}")
 
             # Retrieve the last reissue prices, ensure they are floats
-            last_reissue_price_long = self.last_reissue_price_long.get(symbol) or long_pos_price
-            last_reissue_price_short = self.last_reissue_price_short.get(symbol) or short_pos_price
-
+            last_reissue_price_long = self.last_reissue_price_long.get(symbol, long_pos_price)
+            last_reissue_price_short = self.last_reissue_price_short.get(symbol, short_pos_price)
+            
             logging.info(f"[{symbol}] Last reissue price (long): {last_reissue_price_long}")
             logging.info(f"[{symbol}] Last reissue price (short): {last_reissue_price_short}")
 
@@ -11116,6 +11149,62 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.exception(f"Exception caught in should_replace_grid_updated_buffer_min_outerpricedist_v2: {e}")
             return False, False
+            
+    # def should_replace_grid_updated_buffer_min_outerpricedist_v2(self, symbol: str, long_pos_price: float, short_pos_price: float, long_pos_qty: float, short_pos_qty: float, dynamic_outer_price_distance: float) -> tuple:
+    #     try:
+    #         current_price = self.exchange.get_current_price(symbol)
+    #         logging.info(f"[{symbol}] Current price: {current_price}")
+
+    #         # Retrieve the last reissue prices, ensure they are floats
+    #         last_reissue_price_long = self.last_reissue_price_long.get(symbol) or long_pos_price
+    #         last_reissue_price_short = self.last_reissue_price_short.get(symbol) or short_pos_price
+
+    #         logging.info(f"[{symbol}] Last reissue price (long): {last_reissue_price_long}")
+    #         logging.info(f"[{symbol}] Last reissue price (short): {last_reissue_price_short}")
+
+    #         replace_long_grid = False
+    #         replace_short_grid = False
+
+    #         if long_pos_qty > 0:
+    #             required_price_move_long_pct = dynamic_outer_price_distance * 100.0
+    #             price_change_pct_long = abs(current_price - last_reissue_price_long) / last_reissue_price_long * 100.0
+
+    #             logging.info(f"[{symbol}] Long position info:")
+    #             logging.info(f"Dynamic outer price distance: {dynamic_outer_price_distance * 100.0:.2f}%")
+    #             logging.info(f"  - Long position price: {long_pos_price}")
+    #             logging.info(f"  - Long position quantity: {long_pos_qty}")
+    #             logging.info(f"  - Required price move for reissue (long): {required_price_move_long_pct:.2f}%")
+    #             logging.info(f"  - Current price change percentage: {price_change_pct_long:.2f}%")
+
+    #             if price_change_pct_long > required_price_move_long_pct:
+    #                 replace_long_grid = True
+    #                 logging.info(f"[{symbol}] Price change exceeds dynamic outer price distance percentage for long position. Replacing long grid.")
+    #                 self.last_reissue_price_long[symbol] = current_price  # Update last reissue price for long
+
+    #         if short_pos_qty > 0:
+    #             required_price_move_short_pct = dynamic_outer_price_distance * 100.0
+    #             price_change_pct_short = abs(current_price - last_reissue_price_short) / last_reissue_price_short * 100.0
+
+    #             logging.info(f"[{symbol}] Short position info:")
+    #             logging.info(f"Dynamic outer price distance: {dynamic_outer_price_distance * 100.0:.2f}%")
+    #             logging.info(f"  - Short position price: {short_pos_price}")
+    #             logging.info(f"  - Short position quantity: {short_pos_qty}")
+    #             logging.info(f"  - Required price move for reissue (short): {required_price_move_short_pct:.2f}%")
+    #             logging.info(f"  - Current price change percentage: {price_change_pct_short:.2f}%")
+
+    #             if price_change_pct_short > required_price_move_short_pct:
+    #                 replace_short_grid = True
+    #                 logging.info(f"[{symbol}] Price change exceeds dynamic outer price distance percentage for short position. Replacing short grid.")
+    #                 self.last_reissue_price_short[symbol] = current_price  # Update last reissue price for short
+
+    #         logging.info(f"[{symbol}] Should replace long grid: {replace_long_grid}")
+    #         logging.info(f"[{symbol}] Should replace short grid: {replace_short_grid}")
+
+    #         return replace_long_grid, replace_short_grid
+
+    #     except Exception as e:
+    #         logging.exception(f"Exception caught in should_replace_grid_updated_buffer_min_outerpricedist_v2: {e}")
+    #         return False, False
 
     def should_replace_grid_updated_buffer_min_outerpricedist(self, symbol: str, long_pos_price: float, short_pos_price: float, long_pos_qty: float, short_pos_qty: float, min_outer_price_distance: float) -> tuple:
         try:

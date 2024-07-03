@@ -27,6 +27,8 @@ class BybitExchange(Exchange):
         self.last_active_short_order_time = {}
         self.last_active_time = {}
         self.rate_limiter = RateLimit(10, 1)
+        self.general_rate_limiter = RateLimit(50, 1)
+        self.order_rate_limiter = RateLimit(5, 1) 
 
     def log_order_active_times(self):
         try:
@@ -79,32 +81,57 @@ class BybitExchange(Exchange):
         except Exception as e:
             logging.info(f"Error fetching symbol info and positions: {e}")
             return []
-        
+
     def get_market_data_bybit(self, symbol: str) -> dict:
         values = {"precision": 0.0, "leverage": 0.0, "min_qty": 0.0}
         try:
-            self.exchange.load_markets()
-            symbol_data = self.exchange.market(symbol)
-            
-            #print("Symbol data:", symbol_data)  # Debug print
-            
-            if "info" in symbol_data:
-                values["precision"] = symbol_data["precision"]["price"]
-                values["min_qty"] = symbol_data["limits"]["amount"]["min"]
+            time.sleep(1)  # Adding a fixed delay of 1 second to avoid hitting the rate limit
+            with self.general_rate_limiter:
+                self.exchange.load_markets()
+                symbol_data = self.exchange.market(symbol)
+                
+                if "info" in symbol_data:
+                    values["precision"] = symbol_data["precision"]["price"]
+                    values["min_qty"] = symbol_data["limits"]["amount"]["min"]
 
-            # Fetch positions
-            positions = self.exchange.fetch_positions()
+                # Fetch positions
+                positions = self.exchange.fetch_positions()
 
-            for position in positions:
-                if position['symbol'] == symbol:
-                    values["leverage"] = float(position['leverage'])
+                for position in positions:
+                    if position['symbol'] == symbol:
+                        values["leverage"] = float(position['leverage'])
 
-        # except Exception as e:
-        #     logging.info(f"An unknown error occurred in get_market_data_bybit(): {e}")
-        #     logging.info(f"Call Stack: {traceback.format_exc()}")
         except Exception as e:
             logging.info(f"An unknown error occurred in get_market_data_bybit(): {e}")
-        return values
+            # Uncomment if you want to log the traceback for debugging
+            #logging.info(f"Call Stack: {traceback.format_exc()}")
+        
+        return values       
+    # def get_market_data_bybit(self, symbol: str) -> dict:
+    #     values = {"precision": 0.0, "leverage": 0.0, "min_qty": 0.0}
+    #     try:
+    #         self.exchange.load_markets()
+    #         symbol_data = self.exchange.market(symbol)
+            
+    #         #print("Symbol data:", symbol_data)  # Debug print
+            
+    #         if "info" in symbol_data:
+    #             values["precision"] = symbol_data["precision"]["price"]
+    #             values["min_qty"] = symbol_data["limits"]["amount"]["min"]
+
+    #         # Fetch positions
+    #         positions = self.exchange.fetch_positions()
+
+    #         for position in positions:
+    #             if position['symbol'] == symbol:
+    #                 values["leverage"] = float(position['leverage'])
+
+    #     # except Exception as e:
+    #     #     logging.info(f"An unknown error occurred in get_market_data_bybit(): {e}")
+    #     #     logging.info(f"Call Stack: {traceback.format_exc()}")
+    #     except Exception as e:
+    #         logging.info(f"An unknown error occurred in get_market_data_bybit(): {e}")
+    #     return values
 
     def get_best_bid_ask_bybit(self, symbol):
         orderbook = self.exchange.get_orderbook(symbol)

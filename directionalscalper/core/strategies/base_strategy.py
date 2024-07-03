@@ -2718,7 +2718,7 @@ class BaseStrategy:
         return distances.sum(axis=1)
 
     def generate__l_signals(self, symbol, limit=1000, neighbors_count=8):
-        ohlcv_data = self.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
+        ohlcv_data = self.fetch_ohlcv(symbol=symbol, timeframe='3m', limit=limit)
         df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
         df.set_index('timestamp', inplace=True)
 

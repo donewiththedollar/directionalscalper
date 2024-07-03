@@ -455,19 +455,36 @@ class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
                 logging.info(f"Current long pos qty for {symbol} {long_pos_qty}")
                 logging.info(f"Current short pos qty for {symbol} {short_pos_qty}")
 
-                # Check if a position has been closed
+                # # Check if a position has been closed
+                # if previous_long_pos_qty > 0 and long_pos_qty == 0:
+                #     logging.info(f"Long position closed for {symbol}. Canceling long grid orders.")
+                #     self.cancel_grid_orders(symbol, "buy")
+                #     #self.cleanup_before_termination(symbol)
+                #     break  # Exit the while loop, thus ending the thread
+
+                # if previous_short_pos_qty > 0 and short_pos_qty == 0:
+                #     logging.info(f"Short position closed for {symbol}. Canceling short grid orders.")
+                #     self.cancel_grid_orders(symbol, "sell")
+                #     #self.cleanup_before_termination(symbol)
+                #     break  # Exit the while loop, thus ending the thread
+            
                 if previous_long_pos_qty > 0 and long_pos_qty == 0:
                     logging.info(f"Long position closed for {symbol}. Canceling long grid orders.")
                     self.cancel_grid_orders(symbol, "buy")
-                    #self.cleanup_before_termination(symbol)
+                    if short_pos_qty == 0:
+                        logging.info(f"No open positions for {symbol}. Removing from shared symbols data.")
+                        shared_symbols_data.pop(symbol, None)
                     break  # Exit the while loop, thus ending the thread
 
-                if previous_short_pos_qty > 0 and short_pos_qty == 0:
+                elif previous_short_pos_qty > 0 and short_pos_qty == 0:
                     logging.info(f"Short position closed for {symbol}. Canceling short grid orders.")
                     self.cancel_grid_orders(symbol, "sell")
-                    #self.cleanup_before_termination(symbol)
+                    if long_pos_qty == 0:
+                        logging.info(f"No open positions for {symbol}. Removing from shared symbols data.")
+                        shared_symbols_data.pop(symbol, None)
                     break  # Exit the while loop, thus ending the thread
-            
+
+
                 try:
                     logging.info(f"Checking position inactivity")
                     # Check for position inactivity
@@ -554,6 +571,8 @@ class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
                 if not self.running_long and not self.running_short:
                     logging.info("Both long and short operations have ended. Preparing to exit loop.")
                     shared_symbols_data.pop(symbol, None)  # Remove the symbol from shared_symbols_data
+
+                time.sleep(2)
 
                 # If the symbol is in rotator_symbols and either it's already being traded or trading is allowed.
                 if symbol in rotator_symbols_standardized or (symbol in open_symbols or trading_allowed): # and instead of or
@@ -949,19 +968,6 @@ class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
                         logging.info("Both long and short operations have ended. Preparing to exit loop.")
                         shared_symbols_data.pop(symbol, None)  # Remove the symbol from shared symbols data
                         # This will cause the loop condition to fail naturally without a break, making the code flow cleaner
-                                
-                    # Check if a position has been closed
-                    if previous_long_pos_qty > 0 and long_pos_qty == 0:
-                        logging.info(f"Long position closed for {symbol}. Canceling long grid orders.")
-                        self.cancel_grid_orders(symbol, "buy")
-                        self.cleanup_before_termination(symbol)
-                        break  # Exit the while loop, thus ending the thread
-
-                    if previous_short_pos_qty > 0 and short_pos_qty == 0:
-                        logging.info(f"Short position closed for {symbol}. Canceling short grid orders.")
-                        self.cancel_grid_orders(symbol, "sell")
-                        self.cleanup_before_termination(symbol)
-                        break  # Exit the while loop, thus ending the thread
                 
                     # self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
                     # self.cancel_stale_orders_bybit(symbol)
