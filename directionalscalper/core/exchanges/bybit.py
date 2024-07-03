@@ -1,4 +1,6 @@
 import uuid
+import asyncio
+from threading import Semaphore
 from .exchange import Exchange
 import logging
 import time
@@ -29,6 +31,8 @@ class BybitExchange(Exchange):
         self.rate_limiter = RateLimit(10, 1)
         self.general_rate_limiter = RateLimit(50, 1)
         self.order_rate_limiter = RateLimit(5, 1) 
+        self.open_positions_semaphore = Semaphore(1)  
+        self.async_open_positions_semaphore = asyncio.Semaphore(1)
 
     def log_order_active_times(self):
         try:
@@ -691,42 +695,77 @@ class BybitExchange(Exchange):
                         logging.info(f"Error fetching open positions: {e}")
                         return []
                     
-    def get_all_open_positions_bybit(self, retries=10, delay_factor=10, max_delay=60) -> List[dict]:
+    async def get_all_open_positions_bybit_async(self, retries=10, delay_factor=10, max_delay=60) -> List[dict]:
         now = datetime.now()
+        cache_duration = timedelta(seconds=30)
 
-        # Check if the shared cache is still valid
-        cache_duration = timedelta(seconds=30)  # Cache duration is 30 seconds
         if self.open_positions_shared_cache and self.last_open_positions_time_shared and now - self.last_open_positions_time_shared < cache_duration:
             return self.open_positions_shared_cache
 
-        # Using a semaphore to limit concurrent API requests
-        with self.open_positions_semaphore:
-            # Double-checking the cache inside the semaphore to ensure no other thread has refreshed it in the meantime
+        try:
+            await self.async_open_positions_semaphore.acquire()
+            
             if self.open_positions_shared_cache and self.last_open_positions_time_shared and now - self.last_open_positions_time_shared < cache_duration:
                 return self.open_positions_shared_cache
 
             for attempt in range(retries):
                 try:
-                    # all_positions = self.exchange.fetch_positions() 
-                    all_positions = self.exchange.fetch_positions(params={'limit': 200}) 
-                    open_positions = [position for position in all_positions if float(position.get('contracts', 0)) != 0] 
-
-                    # Update the shared cache with the new data
+                    loop = asyncio.get_running_loop()
+                    all_positions = await loop.run_in_executor(None, lambda: self.exchange.fetch_positions({'limit': 200}))
+                    
+                    open_positions = [position for position in all_positions if float(position.get('contracts', 0)) != 0 or float(position.get('size', 0)) != 0]
+                    
                     self.open_positions_shared_cache = open_positions
                     self.last_open_positions_time_shared = now
-
                     return open_positions
                 except Exception as e:
-                    is_rate_limit_error = "Too many visits" in str(e) or (hasattr(e, 'response') and e.response.status_code == 403)
-                    
+                    is_rate_limit_error = "Too many visits" in str(e) or (hasattr(e, 'response') and getattr(e.response, 'status_code', None) == 403)
                     if is_rate_limit_error and attempt < retries - 1:
-                        delay = min(delay_factor * (attempt + 1), max_delay)  # Exponential delay with a cap
+                        delay = min(delay_factor * (attempt + 1), max_delay)
+                        logging.info(f"Rate limit on get_all_open_positions_bybit hit, waiting for {delay} seconds before retrying...")
+                        await asyncio.sleep(delay)
+                        continue
+                    else:
+                        logging.info(f"Error fetching open positions: {e}")
+                        return []
+        finally:
+            self.async_open_positions_semaphore.release()
+
+    def get_all_open_positions_bybit(self, retries=10, delay_factor=10, max_delay=60) -> List[dict]:
+        now = datetime.now()
+        cache_duration = timedelta(seconds=30)
+
+        if self.open_positions_shared_cache and self.last_open_positions_time_shared and now - self.last_open_positions_time_shared < cache_duration:
+            return self.open_positions_shared_cache
+
+        try:
+            self.open_positions_semaphore.acquire()
+            
+            if self.open_positions_shared_cache and self.last_open_positions_time_shared and now - self.last_open_positions_time_shared < cache_duration:
+                return self.open_positions_shared_cache
+
+            for attempt in range(retries):
+                try:
+                    all_positions = self.exchange.fetch_positions({'limit': 200})
+                    
+                    open_positions = [position for position in all_positions if float(position.get('contracts', 0)) != 0 or float(position.get('size', 0)) != 0]
+                    
+                    self.open_positions_shared_cache = open_positions
+                    self.last_open_positions_time_shared = now
+                    return open_positions
+                except Exception as e:
+                    is_rate_limit_error = "Too many visits" in str(e) or (hasattr(e, 'response') and getattr(e.response, 'status_code', None) == 403)
+                    if is_rate_limit_error and attempt < retries - 1:
+                        delay = min(delay_factor * (attempt + 1), max_delay)
                         logging.info(f"Rate limit on get_all_open_positions_bybit hit, waiting for {delay} seconds before retrying...")
                         time.sleep(delay)
                         continue
                     else:
                         logging.info(f"Error fetching open positions: {e}")
                         return []
+        finally:
+            self.open_positions_semaphore.release()
+            
 
     def fetch_leverage_tiers(self, symbol: str) -> dict:
         """
