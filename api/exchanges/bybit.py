@@ -4,8 +4,8 @@ import logging
 import time
 from datetime import datetime
 
-from api.exchanges.exchange import Exchange
-from api.exchanges.utils import Intervals
+from directionalscalper.api.exchanges.exchange import Exchange
+from directionalscalper.api.exchanges.utils import Intervals
 from directionalscalper.core.utils import send_public_request
 
 log = logging.getLogger(__name__)

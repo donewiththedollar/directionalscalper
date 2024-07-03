@@ -4,7 +4,7 @@ import logging
 import time
 from multiprocessing import Lock
 
-from api.exchanges.utils import Intervals
+from directionalscalper.api.exchanges.utils import Intervals
 
 log = logging.getLogger(__name__)
 
@@ -31,6 +31,17 @@ class Exchange:
 
     def update_weight(self, weight: int) -> None:
         self.weight = weight
+
+
+    # def check_weight(self) -> None:
+    #     if self.weight >= self.max_weight:
+    #         log.info(
+    #             f"Weight {self.weight} is greater than {self.max_weight}, sleeping for 60 seconds"
+    #         )
+    #         time.sleep(60)
+
+    # def update_weight(self, weight: int) -> None:
+    #     self.weight = weight
 
     def get_futures_symbols(self) -> dict:
         return {}
