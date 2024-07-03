@@ -32,10 +32,6 @@ class Exchange:
     def update_weight(self, weight: int) -> None:
         self.weight = weight
 
-
-    # def update_weight(self, weight: int) -> None:
-    #     self.weight = weight
-
     def get_futures_symbols(self) -> dict:
         return {}
 
