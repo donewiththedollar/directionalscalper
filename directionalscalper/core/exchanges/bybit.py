@@ -707,7 +707,8 @@ class BybitExchange(Exchange):
 
             for attempt in range(retries):
                 try:
-                    all_positions = self.exchange.fetch_positions() 
+                    # all_positions = self.exchange.fetch_positions() 
+                    all_positions = self.exchange.fetch_positions(params={'limit': 200})
                     open_positions = [position for position in all_positions if float(position.get('contracts', 0)) != 0] 
 
                     # Update the shared cache with the new data
