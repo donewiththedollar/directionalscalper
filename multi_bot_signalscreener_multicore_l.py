@@ -576,7 +576,7 @@ def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
                     long_thread_running = symbol in long_threads and long_threads[symbol][0].is_alive()
                     short_thread_running = symbol in short_threads and short_threads[symbol][0].is_alive()
 
-                    signal_futures.append(signal_executor.submit(process_signal_for_open_position, symbol, args, manager, symbols_allowed, open_position_data, long_mode, short_mode))
+                    signal_futures.append(signal_executor.submit(process_signal_for_open_position, symbol, args, market_maker, manager, symbols_allowed, open_position_data, long_mode, short_mode))
                     
                     if (has_open_long and not long_thread_running) or (has_open_short and not short_thread_running):
                         with general_rate_limiter:
@@ -808,7 +808,7 @@ def start_thread_for_symbol_spot(symbol, args, manager, mfirsi_signal, action):
         logging.info(f"Start thread function hit for {symbol} but signal is {mfirsi_signal}")
 
     thread_completed = threading.Event()
-    thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols, thread_completed, mfirsi_signal, action))
+    thread = threading.Thread(target=run_bot, args=(symbol, args, market_maker, manager, args.account_name, symbols_allowed, latest_rotator_symbols, thread_completed, mfirsi_signal, action))
 
     if action == "long":
         long_threads[symbol] = (thread, thread_completed)
@@ -928,7 +928,7 @@ def start_thread_for_symbol(symbol, args, manager, mfirsi_signal, action):
         logging.info(f"Start thread function hit for {symbol} but signal is {mfirsi_signal}")
 
     thread_completed = threading.Event()
-    thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols, thread_completed, mfirsi_signal, action))
+    thread = threading.Thread(target=run_bot, args=(symbol, args, market_maker, manager, args.account_name, symbols_allowed, latest_rotator_symbols, thread_completed, mfirsi_signal, action))
 
     if action == "long":
         long_threads[symbol] = (thread, thread_completed)
