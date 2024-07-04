@@ -23,15 +23,7 @@ from pathlib import Path
 from config import load_config, Config, VERSION
 from api.manager import Manager
 
-from directionalscalper.core.exchanges.blofin import BlofinExchange
-from directionalscalper.core.exchanges.lbank import LBankExchange
-from directionalscalper.core.exchanges.mexc import MexcExchange
-from directionalscalper.core.exchanges.huobi import HuobiExchange
-from directionalscalper.core.exchanges.bitget import BitgetExchange
-from directionalscalper.core.exchanges.binance import BinanceExchange
-from directionalscalper.core.exchanges.hyperliquid import HyperLiquidExchange
-from directionalscalper.core.exchanges.bybit import BybitExchange
-from directionalscalper.core.exchanges.exchange import Exchange
+from directionalscalper.core.exchanges import *
 
 import directionalscalper.core.strategies.bybit.notional.instantsignals as instant_signals
 import directionalscalper.core.strategies.bybit.notional as bybit_notional
@@ -1065,7 +1057,6 @@ if __name__ == '__main__':
         url=f"{config.api.url}{config.api.filename}"
     )
 
-    print(f"Using exchange {config.api.data_source_exchange} for API data")
 
     whitelist = config.bot.whitelist
     blacklist = config.bot.blacklist
