@@ -4,7 +4,6 @@ from threading import Thread, Lock
 import fnmatch
 import time
 import json
-import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 import pandas as pd
@@ -14,7 +13,8 @@ import requests  # type: ignore
 from directionalscalper.core.utils import send_public_request
 from directionalscalper.core.strategies.logger import Logger
 
-logging = Logger(logger_name="Manager", filename="Manager.log", stream=True)
+# If DEBUG change to => Logger(logger_name="Manager", filename="Manager.log", level="debug", stream=True)
+logging = Logger(logger_name="Manager", filename="Manager.log", stream=True) 
 
 #log = logging.getLogger(__name__)
 
@@ -126,19 +126,21 @@ class Manager:
                         logging.info(f"Processing symbol {symbol} with min_qty {min_qty} and USD price {usd_price}")
 
                         if blacklist and any(fnmatch.fnmatch(symbol, pattern) for pattern in blacklist):
-                            logging.info(f"Skipping {symbol} as it's in blacklist")
+                            logging.debug(f"Skipping {symbol} as it's in blacklist")
                             continue
 
                         if whitelist:
-                            logging.info(f"Whitelist provided: {whitelist}")
+                            logging.debug(f"Whitelist provided: {whitelist}")
                             if symbol not in whitelist:
-                                logging.info(f"Skipping {symbol} as it's not in whitelist")
+                                logging.debug(f"Skipping {symbol} as it's not in whitelist")
                                 continue
 
                         # Check against the max_usd_value, if provided
                         if max_usd_value is not None and usd_price > max_usd_value:
-                            logging.info(f"Skipping {symbol} as its USD price {usd_price} is greater than the max allowed {max_usd_value}")
+                            logging.debug(f"Skipping {symbol} as its USD price {usd_price} is greater than the max allowed {max_usd_value}")
                             continue
+
+                        logging.debug(f"Processing symbol {symbol} with min_qty {min_qty} and USD price {usd_price}")
 
                         if min_qty_threshold is None or min_qty <= min_qty_threshold:
                             symbols.append(symbol)
@@ -167,7 +169,7 @@ class Manager:
                 time.sleep(delay)
 
         # Return cached symbols if all retries fail
-        logging.warning(f"Couldn't fetch everything symbols after {max_retries} attempts. Using cached symbols.")
+        logging.warning(f"Couldn't fetch every symbols after {max_retries} attempts. Using cached symbols.")
         return self.everything_cache or []
 
 
@@ -356,17 +358,19 @@ class Manager:
                         logging.info(f"Processing symbol {symbol} with min_qty {min_qty} and USD price {usd_price}")
 
                         if blacklist and any(fnmatch.fnmatch(symbol, pattern) for pattern in blacklist):
-                            logging.info(f"Skipping {symbol} as it's in blacklist")
+                            logging.debug(f"Skipping {symbol} as it's in blacklist")
                             continue
 
                         if whitelist and symbol not in whitelist:
-                            logging.info(f"Skipping {symbol} as it's not in whitelist")
+                            logging.debug(f"Skipping {symbol} as it's not in whitelist")
                             continue
 
                         # Check against the max_usd_value, if provided
                         if max_usd_value is not None and usd_price > max_usd_value:
-                            logging.info(f"Skipping {symbol} as its USD price {usd_price} is greater than the max allowed {max_usd_value}")
+                            logging.debug(f"Skipping {symbol} as its USD price {usd_price} is greater than the max allowed {max_usd_value}")
                             continue
+
+                        logging.debug(f"Processing symbol {symbol} with min_qty {min_qty} and USD price {usd_price}")
 
                         if min_qty_threshold is None or min_qty <= min_qty_threshold:
                             filtered_symbols.append(asset)
@@ -419,17 +423,19 @@ class Manager:
                         logging.info(f"Processing symbol {symbol} with min_qty {min_qty} and USD price {usd_price}")
 
                         if blacklist and any(fnmatch.fnmatch(symbol, pattern) for pattern in blacklist):
-                            logging.info(f"Skipping {symbol} as it's in blacklist")
+                            logging.debug(f"Skipping {symbol} as it's in blacklist")
                             continue
 
                         if whitelist and symbol not in whitelist:
-                            logging.info(f"Skipping {symbol} as it's not in whitelist")
+                            logging.debug(f"Skipping {symbol} as it's not in whitelist")
                             continue
 
                         # Check against the max_usd_value, if provided
                         if max_usd_value is not None and usd_price > max_usd_value:
-                            logging.info(f"Skipping {symbol} as its USD price {usd_price} is greater than the max allowed {max_usd_value}")
+                            logging.debug(f"Skipping {symbol} as its USD price {usd_price} is greater than the max allowed {max_usd_value}")
                             continue
+
+                        logging.debug(f"Processing symbol {symbol} with min_qty {min_qty} and USD price {usd_price}")
 
                         if min_qty_threshold is None or min_qty <= min_qty_threshold:
                             symbols.append(symbol)
@@ -480,17 +486,19 @@ class Manager:
                         logging.info(f"Processing symbol {symbol} with min_qty {min_qty} and USD price {usd_price}")
 
                         if blacklist and any(fnmatch.fnmatch(symbol, pattern) for pattern in blacklist):
-                            logging.info(f"Skipping {symbol} as it's in blacklist")
+                            logging.debug(f"Skipping {symbol} as it's in blacklist")
                             continue
 
                         if whitelist and symbol not in whitelist:
-                            logging.info(f"Skipping {symbol} as it's not in whitelist")
+                            logging.debug(f"Skipping {symbol} as it's not in whitelist")
                             continue
 
                         # Check against the max_usd_value, if provided
                         if max_usd_value is not None and usd_price > max_usd_value:
-                            logging.info(f"Skipping {symbol} as its USD price {usd_price} is greater than the max allowed {max_usd_value}")
+                            logging.debug(f"Skipping {symbol} as its USD price {usd_price} is greater than the max allowed {max_usd_value}")
                             continue
+
+                        logging.debug(f"Processing symbol {symbol} with min_qty {min_qty} and USD price {usd_price}")
 
                         if min_qty_threshold is None or min_qty <= min_qty_threshold:
                             symbols.append(symbol)
