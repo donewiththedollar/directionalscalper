@@ -606,7 +606,7 @@ def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
                                 logging.info(f"Reached symbols_allowed limit ({symbols_allowed}). Stopping processing of new symbols.")
                                 break
 
-                            signal_futures.append(signal_executor.submit(process_signal, symbol, args, manager, symbols_allowed, open_position_data, False, long_mode, short_mode))
+                            signal_futures.append(signal_executor.submit(process_signal, symbol, args, market_maker, manager, symbols_allowed, open_position_data, False, long_mode, short_mode))
                             logging.info(f"Submitted signal processing for new rotator symbol {symbol}.")
                             processed_symbols.add(symbol)
                             time.sleep(2)
