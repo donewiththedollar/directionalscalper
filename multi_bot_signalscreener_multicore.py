@@ -23,15 +23,7 @@ from pathlib import Path
 from config import load_config, Config, VERSION
 from api.manager import Manager
 
-from directionalscalper.core.exchanges.blofin import BlofinExchange
-from directionalscalper.core.exchanges.lbank import LBankExchange
-from directionalscalper.core.exchanges.mexc import MexcExchange
-from directionalscalper.core.exchanges.huobi import HuobiExchange
-from directionalscalper.core.exchanges.bitget import BitgetExchange
-from directionalscalper.core.exchanges.binance import BinanceExchange
-from directionalscalper.core.exchanges.hyperliquid import HyperLiquidExchange
-from directionalscalper.core.exchanges.bybit import BybitExchange
-from directionalscalper.core.exchanges.exchange import Exchange
+from directionalscalper.core.exchanges import *
 
 import directionalscalper.core.strategies.bybit.notional.instantsignals as instant_signals
 import directionalscalper.core.strategies.bybit.notional as bybit_notional
@@ -345,7 +337,7 @@ BALANCE_REFRESH_INTERVAL = 600  # in seconds
 
 orders_canceled = False
 
-def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbols_standardized, thread_completed, mfirsi_signal, action):
+def run_bot(symbol, args, market_maker, manager, account_name, symbols_allowed, rotator_symbols_standardized, thread_completed, mfirsi_signal, action):
     global orders_canceled
     current_thread = threading.current_thread()
     try:
@@ -372,7 +364,6 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         logging.info(f"Strategy name: {strategy_name}")
         logging.info(f"Account name: {account_name}")
 
-        market_maker = DirectionalMarketMaker(config, exchange_name, account_name)
         market_maker.manager = manager
 
         try:
@@ -403,7 +394,7 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         logging.info(f"Thread for symbol {symbol} with action {action} has completed.")
         thread_completed.set()
         
-def bybit_auto_rotation_spot(args, manager, symbols_allowed):
+def bybit_auto_rotation_spot(args, market_maker, manager, symbols_allowed):
     global latest_rotator_symbols, active_symbols, last_rotator_update_time
 
     # Set max_workers to the number of CPUs
@@ -420,7 +411,6 @@ def bybit_auto_rotation_spot(args, manager, symbols_allowed):
     account_file_path = Path('configs/account.json')
     config = load_config(config_file_path, account_file_path)
 
-    market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
     market_maker.manager = manager
 
     long_mode = config.bot.linear_grid['long_mode']
@@ -472,14 +462,14 @@ def bybit_auto_rotation_spot(args, manager, symbols_allowed):
                     open_position_futures.append(trading_executor.submit(start_thread_for_open_symbol_spot, symbol, args, manager, mfirsi_signal, has_open_long, long_mode, short_mode))
                     logging.info(f"Submitted thread for symbol {symbol}. MFIRSI signal: {mfirsi_signal}. Has open long: {has_open_long}.")
 
-                signal_futures = [signal_executor.submit(process_signal_for_open_position_spot, symbol, args, manager, symbols_allowed, open_position_data, long_mode, short_mode)
+                signal_futures = [signal_executor.submit(process_signal_for_open_position_spot, symbol, args, market_maker, manager, symbols_allowed, open_position_data, long_mode, short_mode)
                                 for symbol in open_position_symbols]
                 logging.info(f"Submitted signal processing for open position symbols: {open_position_symbols}.")
 
                 if len(active_symbols) < symbols_allowed:
                     for symbol in latest_rotator_symbols:
                         if market_maker.is_valid_symbol(symbol):
-                            signal_futures.append(signal_executor.submit(process_signal_spot, symbol, args, manager, symbols_allowed, open_position_data, False, long_mode, short_mode))
+                            signal_futures.append(signal_executor.submit(process_signal_spot, symbol, args, market_maker, manager, symbols_allowed, open_position_data, False, long_mode, short_mode))
                             logging.info(f"Submitted signal processing for new rotator symbol {symbol}.")
                             time.sleep(2)
 
@@ -503,7 +493,7 @@ def bybit_auto_rotation_spot(args, manager, symbols_allowed):
         time.sleep(1)
 
 
-def bybit_auto_rotation(args, manager, symbols_allowed):
+def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
     global latest_rotator_symbols, long_threads, short_threads, active_symbols, last_rotator_update_time
 
     max_workers_signals = 1
@@ -519,7 +509,6 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
     account_file_path = Path('configs/account.json')
     config = load_config(config_file_path, account_file_path)
 
-    market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
     market_maker.manager = manager
 
     long_mode = config.bot.linear_grid['long_mode']
@@ -578,7 +567,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                     long_thread_running = symbol in long_threads and long_threads[symbol][0].is_alive()
                     short_thread_running = symbol in short_threads and short_threads[symbol][0].is_alive()
 
-                    signal_futures.append(signal_executor.submit(process_signal_for_open_position, symbol, args, manager, symbols_allowed, open_position_data, long_mode, short_mode))
+                    signal_futures.append(signal_executor.submit(process_signal_for_open_position, symbol, args, market_maker, manager, symbols_allowed, open_position_data, long_mode, short_mode))
                     
                     if (has_open_long and not long_thread_running) or (has_open_short and not short_thread_running):
                         with general_rate_limiter:
@@ -609,7 +598,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                                 logging.info(f"Reached symbols_allowed limit ({symbols_allowed}). Stopping processing of new symbols.")
                                 break
 
-                            signal_futures.append(signal_executor.submit(process_signal, symbol, args, manager, symbols_allowed, open_position_data, False, long_mode, short_mode))
+                            signal_futures.append(signal_executor.submit(process_signal, symbol, args, market_maker, manager, symbols_allowed, open_position_data, False, long_mode, short_mode))
                             logging.info(f"Submitted signal processing for new rotator symbol {symbol}.")
                             processed_symbols.add(symbol)
                             time.sleep(2)
@@ -637,8 +626,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
             logging.info(traceback.format_exc())
         time.sleep(1)
 
-def process_signal_for_open_position(symbol, args, manager, symbols_allowed, open_position_data, long_mode, short_mode):
-    market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
+def process_signal_for_open_position(symbol, args, market_maker, manager, symbols_allowed, open_position_data, long_mode, short_mode):
     market_maker.manager = manager
 
     with general_rate_limiter:
@@ -653,8 +641,7 @@ def process_signal_for_open_position(symbol, args, manager, symbols_allowed, ope
         logging.info(f"No action taken for open position symbol {symbol}.")
 
 
-def process_signal(symbol, args, manager, symbols_allowed, open_position_data, is_open_position, long_mode, short_mode):
-    market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
+def process_signal(symbol, args, market_maker, manager, symbols_allowed, open_position_data, is_open_position, long_mode, short_mode):
     market_maker.manager = manager
 
     mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
@@ -764,8 +751,7 @@ def handle_signal_spot(symbol, args, manager, mfirsi_signal, open_position_data,
 
     return action_taken_long
 
-def process_signal_for_open_position_spot(symbol, args, manager, symbols_allowed, open_position_data, long_mode, short_mode):
-    market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
+def process_signal_for_open_position_spot(symbol, args, market_maker, manager, symbols_allowed, open_position_data, long_mode, short_mode):
     market_maker.manager = manager
     with general_rate_limiter:
         mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
@@ -778,8 +764,7 @@ def process_signal_for_open_position_spot(symbol, args, manager, symbols_allowed
     else:
         logging.info(f"No action taken for open position symbol {symbol}.")
 
-def process_signal_spot(symbol, args, manager, symbols_allowed, open_position_data, is_open_position, long_mode, short_mode):
-    market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
+def process_signal_spot(symbol, args, market_maker, manager, symbols_allowed, open_position_data, is_open_position, long_mode, short_mode):
     market_maker.manager = manager
     mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
     logging.info(f"Processing signal for {'open position' if is_open_position else 'new rotator'} symbol {symbol}. MFIRSI signal: {mfirsi_signal}")
@@ -814,7 +799,7 @@ def start_thread_for_symbol_spot(symbol, args, manager, mfirsi_signal, action):
         logging.info(f"Start thread function hit for {symbol} but signal is {mfirsi_signal}")
 
     thread_completed = threading.Event()
-    thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols, thread_completed, mfirsi_signal, action))
+    thread = threading.Thread(target=run_bot, args=(symbol, args, market_maker, manager, args.account_name, symbols_allowed, latest_rotator_symbols, thread_completed, mfirsi_signal, action))
 
     if action == "long":
         long_threads[symbol] = (thread, thread_completed)
@@ -848,13 +833,13 @@ def manage_rotator_symbols(rotator_symbols, args, manager, symbols_allowed):
     logging.info(f"Shuffled rotator symbols for processing: {random_rotator_symbols}")
 
     for symbol in open_position_symbols:
-        process_signal(symbol, args, manager, symbols_allowed, open_position_data, True)
+        process_signal(symbol, args, market_maker, manager, symbols_allowed, open_position_data, True)
 
     for symbol in random_rotator_symbols:
         if len(open_position_symbols) >= symbols_allowed:
             logging.info("Maximum number of open positions reached.")
             break
-        process_signal(symbol, args, manager, symbols_allowed, open_position_data, False)
+        process_signal(symbol, args, market_maker, manager, symbols_allowed, open_position_data, False)
 
     manage_excess_threads(symbols_allowed)
     time.sleep(5)
@@ -934,7 +919,7 @@ def start_thread_for_symbol(symbol, args, manager, mfirsi_signal, action):
         logging.info(f"Start thread function hit for {symbol} but signal is {mfirsi_signal}")
 
     thread_completed = threading.Event()
-    thread = threading.Thread(target=run_bot, args=(symbol, args, manager, args.account_name, symbols_allowed, latest_rotator_symbols, thread_completed, mfirsi_signal, action))
+    thread = threading.Thread(target=run_bot, args=(symbol, args, market_maker, manager, args.account_name, symbols_allowed, latest_rotator_symbols, thread_completed, mfirsi_signal, action))
 
     if action == "long":
         long_threads[symbol] = (thread, thread_completed)
@@ -978,33 +963,32 @@ def fetch_updated_symbols(args, manager):
 def log_symbol_details(strategy, symbols):
     logging.info(f"Potential symbols for {strategy}: {symbols}")
 
-def blofin_auto_rotation(args, manager, symbols_allowed):
-    market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
+def blofin_auto_rotation(args, market_maker, manager, symbols_allowed):
     market_maker.manager = manager
     open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_blofin()}
     logging.info(f"Open position symbols: {open_position_symbols}")
 
-def hyperliquid_auto_rotation(args, manager, symbols_allowed):
+def hyperliquid_auto_rotation(args, market_maker, manager, symbols_allowed):
     open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_hyperliquid()}
     logging.info(f"Open position symbols: {open_position_symbols}")
 
-def huobi_auto_rotation(args, manager, symbols_allowed):
+def huobi_auto_rotation(args, market_maker, manager, symbols_allowed):
     open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_huobi()}
     logging.info(f"Open position symbols: {open_position_symbols}")
 
-def bitget_auto_rotation(args, manager, symbols_allowed):
+def bitget_auto_rotation(args, market_maker, manager, symbols_allowed):
     open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_bitget()}
     logging.info(f"Open position symbols: {open_position_symbols}")
 
-def binance_auto_rotation(args, manager, symbols_allowed):
+def binance_auto_rotation(args, market_maker, manager, symbols_allowed):
     open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_binance()}
     logging.info(f"Open position symbols: {open_position_symbols}")
 
-def mexc_auto_rotation(args, manager, symbols_allowed):
+def mexc_auto_rotation(args, market_maker, manager, symbols_allowed):
     open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_binance()}
     logging.info(f"Open position symbols: {open_position_symbols}")
 
-def lbank_auto_rotation(args, manager, symbols_allowed):
+def lbank_auto_rotation(args, market_maker, manager, symbols_allowed):
     open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_binance()}
     logging.info(f"Open position symbols: {open_position_symbols}")
 
@@ -1065,7 +1049,6 @@ if __name__ == '__main__':
         url=f"{config.api.url}{config.api.filename}"
     )
 
-    print(f"Using exchange {config.api.data_source_exchange} for API data")
 
     whitelist = config.bot.whitelist
     blacklist = config.bot.blacklist
@@ -1092,26 +1075,27 @@ if __name__ == '__main__':
             blacklist = config.bot.blacklist
             max_usd_value = config.bot.max_usd_value
 
-            if exchange_name.lower() == 'bybit':
-                bybit_auto_rotation(args, manager, symbols_allowed)
-            elif exchange_name.lower() == 'bybit_spot':
-                bybit_auto_rotation_spot(args, manager, symbols_allowed)
-            elif exchange_name.lower() == 'blofin':
-                blofin_auto_rotation(args, manager, symbols_allowed)
-            elif exchange_name.lower() == 'hyperliquid':
-                hyperliquid_auto_rotation(args, manager, symbols_allowed)
-            elif exchange_name.lower() == 'huobi':
-                huobi_auto_rotation(args, manager, symbols_allowed)
-            elif exchange_name.lower() == 'bitget':
-                bitget_auto_rotation(args, manager, symbols_allowed)
-            elif exchange_name.lower() == 'binance':
-                binance_auto_rotation(args, manager, symbols_allowed)
-            elif exchange_name.lower() == 'mexc':
-                mexc_auto_rotation(args, manager, symbols_allowed)
-            elif exchange_name.lower() == 'lbank':
-                lbank_auto_rotation(args, manager, symbols_allowed)
-            else:
-                logging.warning(f"Auto-rotation not implemented for exchange: {exchange_name}")
+            match exchange_name.lower():
+                case 'bybit':
+                    bybit_auto_rotation(args, market_maker, manager, symbols_allowed)
+                case 'bybit_spot':
+                    bybit_auto_rotation_spot(args, market_maker, manager, symbols_allowed)
+                case 'blofin':
+                    blofin_auto_rotation(args, market_maker, manager, symbols_allowed)
+                case 'hyperliquid':
+                    hyperliquid_auto_rotation(args, market_maker, manager, symbols_allowed)
+                case 'huobi':
+                    huobi_auto_rotation(args, manager, market_maker, symbols_allowed)
+                case 'bitget':
+                    bitget_auto_rotation(args, manager, market_maker, symbols_allowed)
+                case 'binance':
+                    binance_auto_rotation(args, manager, market_maker, symbols_allowed)
+                case 'mexc':
+                    mexc_auto_rotation(args, manager, market_maker, symbols_allowed)
+                case 'lbank':
+                    lbank_auto_rotation(args, manager, market_maker, symbols_allowed)
+                case _:
+                    logging.warning(f"Auto-rotation not implemented for exchange: {exchange_name}")
 
             logging.info(f"Active symbols: {active_symbols}")
             logging.info(f"Total active symbols: {len(active_symbols)}")
