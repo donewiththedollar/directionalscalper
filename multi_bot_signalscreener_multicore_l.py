@@ -584,7 +584,7 @@ def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
                             logging.info(f"Open symbol {symbol} has open long: {has_open_long} and long thread not running {long_thread_running}")
                             open_position_futures.append(trading_executor.submit(start_thread_for_open_symbol, symbol, args, manager, mfirsi_signal, True, False, long_mode, short_mode))
                             logging.info(f"Submitted long thread for open symbol {symbol}. MFIRSI signal: {mfirsi_signal}. Has open long: {has_open_long}.")
-                        if has_open_short and not long_thread_running:
+                        if has_open_short and not short_thread_running:
                             logging.info(f"Open symbol {symbol} has open short: {has_open_short} and short thread not running {short_thread_running}")
                             open_position_futures.append(trading_executor.submit(start_thread_for_open_symbol, symbol, args, manager, mfirsi_signal, False, True, long_mode, short_mode))
                             logging.info(f"Submitted short thread for open symbol {symbol}. MFIRSI signal: {mfirsi_signal}. Has open short: {has_open_short}.")
