@@ -842,13 +842,13 @@ def manage_rotator_symbols(rotator_symbols, args, manager, symbols_allowed):
     logging.info(f"Shuffled rotator symbols for processing: {random_rotator_symbols}")
 
     for symbol in open_position_symbols:
-        process_signal(symbol, args, manager, symbols_allowed, open_position_data, True)
+        process_signal(symbol, args, market_maker, manager, symbols_allowed, open_position_data, True)
 
     for symbol in random_rotator_symbols:
         if len(open_position_symbols) >= symbols_allowed:
             logging.info("Maximum number of open positions reached.")
             break
-        process_signal(symbol, args, manager, symbols_allowed, open_position_data, False)
+        process_signal(symbol, args, manager, market_maker, symbols_allowed, open_position_data, False)
 
     manage_excess_threads(symbols_allowed)
     time.sleep(5)
