@@ -3247,8 +3247,7 @@ class BaseStrategy:
 
     def failsafe_method_leveraged(self, symbol, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price,
                         long_upnl, short_upnl, total_equity, current_price,
-                        failsafe_enabled, long_failsafe_upnl_pct, short_failsafe_upnl_pct, failsafe_start_pct,
-                        wallet_exposure_limit_long, wallet_exposure_limit_short):
+                        failsafe_enabled, long_failsafe_upnl_pct, short_failsafe_upnl_pct, failsafe_start_pct):
         if not failsafe_enabled:
             return
 

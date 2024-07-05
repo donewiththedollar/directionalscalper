@@ -64,10 +64,10 @@
           "enforce_full_grid": true,
           "min_buffer_percentage_ar": 0.002,
           "max_buffer_percentage_ar": 0.004,
-          "upnl_auto_reduce_threshold_long": 10.0,
-          "upnl_auto_reduce_threshold_short": 10.0,
+          "upnl_auto_reduce_threshold_long": 30.0,
+          "upnl_auto_reduce_threshold_short": 30.0,
           "failsafe_enabled": false,
-          "failsafe_start_pct": 0.05,
+          "failsafe_start_pct": 0.07,
           "long_failsafe_upnl_pct": 10.0,
           "short_failsafe_upnl_pct": 10.0
       },
