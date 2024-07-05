@@ -641,8 +641,8 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
                     logging.info(f"Thread and symbol management completed for: {symbol}")
 
         except Exception as e:
-            logging.error(f"Exception caught in bybit_auto_rotation: {str(e)}")
-            logging.error(traceback.format_exc())
+            logging.info(f"Exception caught in bybit_auto_rotation: {str(e)}")
+            logging.info(traceback.format_exc())
         time.sleep(1)
 
 
