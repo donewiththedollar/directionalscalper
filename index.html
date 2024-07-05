@@ -9,25 +9,23 @@
       
       
       
-        <link rel="prev" href="../strategies/">
+      
+        <link rel="next" href="installation/">
       
       
-        <link rel="next" href="../api_reference/">
-      
-      
-      <link rel="icon" href="../assets/images/favicon.png">
+      <link rel="icon" href="assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.27">
     
     
       
-        <title>Control Center - Directional Scalper Documentation</title>
+        <title>Directional Scalper Documentation</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.6543a935.min.css">
+      <link rel="stylesheet" href="assets/stylesheets/main.6543a935.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+        <link rel="stylesheet" href="assets/stylesheets/palette.06af60db.min.css">
       
       
 
@@ -46,7 +44,7 @@
       
     
     
-    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -57,6 +55,8 @@
   
   
     
+    
+      
     
     
     
@@ -70,7 +70,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#control-center" class="md-skip">
+        <a href="#directional-scalper" class="md-skip">
           Skip to content
         </a>
       
@@ -84,7 +84,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Directional Scalper Documentation" class="md-header__button md-logo" aria-label="Directional Scalper Documentation" data-md-component="logo">
+    <a href="." title="Directional Scalper Documentation" class="md-header__button md-logo" aria-label="Directional Scalper Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
@@ -104,7 +104,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Control Center
+              Home
             
           </span>
         </div>
@@ -112,7 +112,33 @@
     </div>
     
       
+        <form class="md-header__option" data-md-component="palette">
+  
     
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12c0-2.42-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var media,input,key,value,palette=__md_get("__palette");if(palette&&palette.color){"(prefers-color-scheme)"===palette.color.media&&(media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']"),palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent"));for([key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
     
     
     
@@ -171,9 +197,11 @@
         
   
   
+    
   
-    <li class="md-tabs__item">
-      <a href=".." class="md-tabs__link">
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="." class="md-tabs__link">
         
   
     
@@ -190,7 +218,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../installation/" class="md-tabs__link">
+      <a href="installation/" class="md-tabs__link">
         
   
     
@@ -207,7 +235,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../usage/" class="md-tabs__link">
+      <a href="usage/" class="md-tabs__link">
         
   
     
@@ -224,7 +252,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../configuration/" class="md-tabs__link">
+      <a href="configuration/" class="md-tabs__link">
         
   
     
@@ -241,7 +269,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../strategies/" class="md-tabs__link">
+      <a href="strategies/" class="md-tabs__link">
         
   
     
@@ -256,11 +284,9 @@
         
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="control_center/" class="md-tabs__link">
         
   
     
@@ -277,7 +303,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../api_reference/" class="md-tabs__link">
+      <a href="api_reference/" class="md-tabs__link">
         
   
     
@@ -294,7 +320,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../docker/" class="md-tabs__link">
+      <a href="docker/" class="md-tabs__link">
         
   
     
@@ -311,7 +337,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../telegram_alerts/" class="md-tabs__link">
+      <a href="telegram_alerts/" class="md-tabs__link">
         
   
     
@@ -345,7 +371,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Directional Scalper Documentation" class="md-nav__button md-logo" aria-label="Directional Scalper Documentation" data-md-component="logo">
+    <a href="." title="Directional Scalper Documentation" class="md-nav__button md-logo" aria-label="Directional Scalper Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
@@ -355,106 +381,6 @@
   </label>
   
   <ul class="md-nav__list" data-md-scrollfix>
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href=".." class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Home
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../installation/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Installation
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../usage/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Usage
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../configuration/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Configuration
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../strategies/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Strategies
-  </span>
-  
-
-      </a>
-    </li>
-  
-
     
       
       
@@ -476,18 +402,18 @@
           
   
   <span class="md-ellipsis">
-    Control Center
+    Home
   </span>
   
 
           <span class="md-nav__icon md-icon"></span>
         </label>
       
-      <a href="./" class="md-nav__link md-nav__link--active">
+      <a href="." class="md-nav__link md-nav__link--active">
         
   
   <span class="md-ellipsis">
-    Control Center
+    Home
   </span>
   
 
@@ -509,27 +435,9 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#configuring-the-password" class="md-nav__link">
+  <a href="#links" class="md-nav__link">
     <span class="md-ellipsis">
-      Configuring the Password
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#starting-the-streamlit-dashboard" class="md-nav__link">
-    <span class="md-ellipsis">
-      Starting the Streamlit Dashboard
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#accessing-the-dashboard" class="md-nav__link">
-    <span class="md-ellipsis">
-      Accessing the Dashboard
+      Links
     </span>
   </a>
   
@@ -550,7 +458,107 @@
   
   
     <li class="md-nav__item">
-      <a href="../api_reference/" class="md-nav__link">
+      <a href="installation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="usage/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Usage
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="configuration/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Configuration
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="strategies/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Strategies
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="control_center/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Control Center
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api_reference/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -570,7 +578,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../docker/" class="md-nav__link">
+      <a href="docker/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -590,7 +598,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../telegram_alerts/" class="md-nav__link">
+      <a href="telegram_alerts/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -630,27 +638,9 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#configuring-the-password" class="md-nav__link">
+  <a href="#links" class="md-nav__link">
     <span class="md-ellipsis">
-      Configuring the Password
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#starting-the-streamlit-dashboard" class="md-nav__link">
-    <span class="md-ellipsis">
-      Starting the Streamlit Dashboard
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#accessing-the-dashboard" class="md-nav__link">
-    <span class="md-ellipsis">
-      Accessing the Dashboard
+      Links
     </span>
   </a>
   
@@ -671,29 +661,34 @@
                   
 
 
-<h1 id="control-center">Control Center</h1>
-<h2 id="configuring-the-password">Configuring the Password</h2>
-<ol>
-<li>Open the <code>config.toml</code> file in the <code>directionalscalper/controlcenter/</code> directory in a text editor:
-   <code>nano config.toml</code></li>
-<li>Add or update the <code>[credentials]</code> section with your desired password:
-   <code>[credentials]
-   password = "your_password_here"</code></li>
-<li>Save the file and close the editor.</li>
-</ol>
-<h2 id="starting-the-streamlit-dashboard">Starting the Streamlit Dashboard</h2>
-<p>To start the Streamlit dashboard (Control Center) for Directional Scalper, follow these steps:</p>
-<ol>
-<li>Navigate to the <code>directionalscalper/controlcenter/</code> directory:
-   <code>cd directionalscalper/controlcenter/</code></li>
-<li>Ensure you have Streamlit installed. If not, you can install it using:
-   <code>pip install streamlit</code></li>
-<li>Run the dashboard using Streamlit:
-   <code>streamlit run dashboard.py</code></li>
-<li>The dashboard will prompt for a password. You need to configure this password in the <code>config.toml</code> file located in the same directory.</li>
-</ol>
-<h2 id="accessing-the-dashboard">Accessing the Dashboard</h2>
-<p>Once the dashboard is running, you can access it through your web browser by navigating to the local URL provided by Streamlit (usually <code>http://localhost:8501</code>). Ensure that your firewall or network settings allow access to this port if you are accessing it remotely.</p>
+<h1 id="directional-scalper">Directional Scalper</h1>
+<p>Welcome to the documentation for Directional Scalper.</p>
+<h3 id="links">Links</h3>
+<ul>
+<li><a href="https://quantumvoid.org">Website</a></li>
+<li><a href="https://api.quantumvoid.org/data/quantdatav2_bybit.json">API (BYBIT)</a></li>
+<li><a href="https://discord.gg/4GvHqPxfud">Discord</a></li>
+</ul>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Directional Scalper</th>
+<th style="text-align: center;">API Scraper</th>
+<th style="text-align: center;">Dashboard</th>
+<th style="text-align: center;">Directional Scalper Multi</th>
+<th style="text-align: center;">Menu GUI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><img alt="" src="https://raw.githubusercontent.com/donewiththedollar/directional-scalper/main/directional-scalper.gif" /></td>
+<td style="text-align: center;"><img alt="" src="https://raw.githubusercontent.com/donewiththedollar/directional-scalper/main/scraper.gif" /></td>
+<td style="text-align: center;"><img alt="" src="https://raw.githubusercontent.com/donewiththedollar/directional-scalper/main/dashboardimg.gif" /></td>
+<td style="text-align: center;"><img alt="" src="https://raw.githubusercontent.com/donewiththedollar/directionalscalper/main/directionalscalpermulti.gif" /></td>
+<td style="text-align: center;"><img alt="" src="https://raw.githubusercontent.com/donewiththedollar/directional-scalper/main/menugui.gif" /></td>
+</tr>
+</tbody>
+</table>
 
 
 
@@ -740,10 +735,10 @@
     </div>
     
     
-    <script id="__config" type="application/json">{"base": "..", "features": ["navigation.tabs", "navigation.sections"], "search": "../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": ".", "features": ["navigation.tabs", "navigation.sections"], "search": "assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.ad660dcc.min.js"></script>
+      <script src="assets/javascripts/bundle.ad660dcc.min.js"></script>
       
     
   </body>

@@ -9,10 +9,10 @@
       
       
       
-        <link rel="prev" href="..">
+        <link rel="prev" href="../installation/">
       
       
-        <link rel="next" href="../usage/">
+        <link rel="next" href="../configuration/">
       
       
       <link rel="icon" href="../assets/images/favicon.png">
@@ -20,7 +20,7 @@
     
     
       
-        <title>Installation - Directional Scalper Documentation</title>
+        <title>Usage - Directional Scalper Documentation</title>
       
     
     
@@ -58,6 +58,8 @@
   
     
     
+      
+    
     
     
     
@@ -70,7 +72,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#installation" class="md-skip">
+        <a href="#usage" class="md-skip">
           Skip to content
         </a>
       
@@ -104,7 +106,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Installation
+              Usage
             
           </span>
         </div>
@@ -112,7 +114,33 @@
     </div>
     
       
+        <form class="md-header__option" data-md-component="palette">
+  
     
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12c0-2.42-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var media,input,key,value,palette=__md_get("__palette");if(palette&&palette.color){"(prefers-color-scheme)"===palette.color.media&&(media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']"),palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent"));for([key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
     
     
     
@@ -188,11 +216,9 @@
         
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../installation/" class="md-tabs__link">
         
   
     
@@ -207,9 +233,11 @@
         
   
   
+    
   
-    <li class="md-tabs__item">
-      <a href="../usage/" class="md-tabs__link">
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
         
   
     
@@ -380,6 +408,26 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -396,7 +444,7 @@
           
   
   <span class="md-ellipsis">
-    Installation
+    Usage
   </span>
   
 
@@ -407,7 +455,7 @@
         
   
   <span class="md-ellipsis">
-    Installation
+    Usage
   </span>
   
 
@@ -429,27 +477,99 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
+  <a href="#running-the-bot" class="md-nav__link">
     <span class="md-ellipsis">
-      Prerequisites
+      Running the Bot
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Running the Bot">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#displaying-the-menu-and-selecting-a-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Displaying the Menu and Selecting a Strategy
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#quickstart" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#running-the-bot-with-command-line-parameters" class="md-nav__link">
     <span class="md-ellipsis">
-      Quickstart
+      Running the Bot with Command Line Parameters
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Running the Bot with Command Line Parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#multi-bot-auto-symbol-rotator-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Multi-Bot Auto Symbol Rotator Strategy
     </span>
   </a>
   
 </li>
+        
+          <li class="md-nav__item">
+  <a href="#old-single-coin-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Old Single Coin Strategy
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
       
         <li class="md-nav__item">
-  <a href="#installing-python-311" class="md-nav__link">
+  <a href="#command-line-parameters" class="md-nav__link">
     <span class="md-ellipsis">
-      Installing Python 3.11
+      Command Line Parameters
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Command Line Parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#general-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      General Parameters
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example Commands
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#additional-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Additional Notes
     </span>
   </a>
   
@@ -459,26 +579,6 @@
   
 </nav>
       
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../usage/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Usage
-  </span>
-  
-
-      </a>
     </li>
   
 
@@ -630,27 +730,99 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
+  <a href="#running-the-bot" class="md-nav__link">
     <span class="md-ellipsis">
-      Prerequisites
+      Running the Bot
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Running the Bot">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#displaying-the-menu-and-selecting-a-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Displaying the Menu and Selecting a Strategy
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#quickstart" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#running-the-bot-with-command-line-parameters" class="md-nav__link">
     <span class="md-ellipsis">
-      Quickstart
+      Running the Bot with Command Line Parameters
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Running the Bot with Command Line Parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#multi-bot-auto-symbol-rotator-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Multi-Bot Auto Symbol Rotator Strategy
     </span>
   </a>
   
 </li>
+        
+          <li class="md-nav__item">
+  <a href="#old-single-coin-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Old Single Coin Strategy
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
       
         <li class="md-nav__item">
-  <a href="#installing-python-311" class="md-nav__link">
+  <a href="#command-line-parameters" class="md-nav__link">
     <span class="md-ellipsis">
-      Installing Python 3.11
+      Command Line Parameters
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Command Line Parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#general-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      General Parameters
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example Commands
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#additional-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Additional Notes
     </span>
   </a>
   
@@ -671,87 +843,49 @@
                   
 
 
-<h1 id="installation">Installation</h1>
-<h2 id="prerequisites">Prerequisites</h2>
-<p>Before you begin, ensure you have the following prerequisites:</p>
+<h1 id="usage">Usage</h1>
+<p>This guide will help you run the Directional Scalper bot using various command-line instructions. Ensure you have properly configured your <code>config.json</code> and <code>account.json</code> files before proceeding.</p>
+<h2 id="running-the-bot">Running the Bot</h2>
+<h3 id="displaying-the-menu-and-selecting-a-strategy">Displaying the Menu and Selecting a Strategy</h3>
+<p>To display the menu and select a strategy, use the following command:</p>
+<pre><code>python3.11 multi_bot_signalscreener.py --config configs/config.json
+</code></pre>
+<p>or</p>
+<pre><code>python3.11 multi_bot.py --config configs/config.json
+</code></pre>
+<h3 id="running-the-bot-with-command-line-parameters">Running the Bot with Command Line Parameters</h3>
+<p>You can also run the bot directly with specific command-line parameters. Below are examples of different strategies you can use:</p>
+<h4 id="multi-bot-auto-symbol-rotator-strategy">Multi-Bot Auto Symbol Rotator Strategy</h4>
+<p>To run the multi-bot auto symbol rotator strategy, use the following command:</p>
+<pre><code>python3.11 multi_bot_signalscreener_multicore.py --exchange bybit --account_name account_1 --strategy qsgridob --config configs/config.json
+</code></pre>
+<h4 id="old-single-coin-strategy">Old Single Coin Strategy</h4>
+<p>To run the old single coin strategy, use the following command:</p>
+<pre><code>python3.11 bot.py --exchange bybit --symbol DOGEUSDT --strategy qstrendob --config configs/config.json
+</code></pre>
+<h2 id="command-line-parameters">Command Line Parameters</h2>
+<h3 id="general-parameters">General Parameters</h3>
 <ul>
-<li>Python 3.11+</li>
-<li>pip</li>
-<li>git</li>
+<li><strong>--exchange</strong>: Specifies the exchange to use (e.g., bybit, binance).</li>
+<li><strong>--account_name</strong>: Specifies the account name as defined in your <code>account.json</code>.</li>
+<li><strong>--strategy</strong>: Specifies the trading strategy to use (e.g., qsgridob, qstrendob).</li>
+<li><strong>--config</strong>: Specifies the path to your <code>config.json</code> file.</li>
 </ul>
-<h2 id="quickstart">Quickstart</h2>
+<h3 id="example-commands">Example Commands</h3>
 <ol>
-<li>
-<p>Clone the repository:
-   <code>git clone https://github.com/donewiththedollar/directionalscalper.git</code></p>
-<p>Change current working directory to the project directory:
-<code>cd directionalscalper</code></p>
-</li>
-<li>
-<p>Install the required dependencies:
-   <code>pip3.11 install -r requirements.txt</code></p>
-</li>
-<li>
-<p>Rename the <code>config_example.json</code> to <code>config.json</code> located in the <code>/configs</code> folder. Also rename <code>account_example.json</code> to <code>account.json</code> and add your API key(s) to the <code>account.json</code> file located in the <code>/configs</code> folder.</p>
-</li>
-<li>
-<p>Run the bot:</p>
-</li>
-<li>To display the menu and select a strategy, use the following command:
-     <code>python3.11 multi_bot_signalscreener.py --config configs/config.json</code>
-     or the old method
-     <code>python3.11 multi_bot.py --config config.json (outdated)</code></li>
-<li>Alternatively, you can run the bot with command line parameters:<ul>
-<li>For the multi-bot auto symbol rotator strategy:
-   <code>python3.11 multi_bot_signalscreener_multicore.py --exchange bybit --account_name account_1 --strategy qsgridob --config configs/config.json</code></li>
-<li>For the old single coin strategy (outdated):
-   <code>python3.11 bot.py --exchange bybit --symbol DOGEUSDT --strategy qstrendob --config configs/config.json</code></li>
+<li><strong>Running the Multi-Bot Auto Symbol Rotator Strategy for Bybit:</strong></li>
+</ol>
+<p><code>python3.11 multi_bot_signalscreener_multicore.py --exchange bybit --account_name account_1 --strategy qsgridob --config configs/config.json</code></p>
+<ol>
+<li><strong>Running the Old Single Coin Strategy for DOGEUSDT on Bybit:</strong></li>
+</ol>
+<p><code>python3.11 bot.py --exchange bybit --symbol DOGEUSDT --strategy qstrendob --config configs/config.json</code></p>
+<h2 id="additional-notes">Additional Notes</h2>
+<ul>
+<li>Make sure to adjust the leverage, risk management, and other parameters in your <code>config.json</code> to suit your trading preferences.</li>
+<li>For advanced usage and more strategies, refer to the <a href="../configuration/">Configuration</a> and <a href="../strategies/">Strategies</a> sections of the documentation.</li>
 </ul>
-</li>
-</ol>
-<h2 id="installing-python-311">Installing Python 3.11</h2>
-<p>To install Python 3.11 on your system, follow these steps:</p>
-<ol>
-<li>
-<p>Update the package list and install the necessary dependencies:
-   <code>sudo apt update
-   sudo apt install -y build-essential gdb lcov pkg-config \
-   libbz2-dev libffi-dev libgdbm-dev libgdbm-compat-dev liblzma-dev \
-   libncurses5-dev libreadline-dev libsqlite3-dev libssl-dev \
-   lzma lzma-dev tk-dev uuid-dev zlib1g-dev</code></p>
-</li>
-<li>
-<p>Download the Python 3.11.0 source code:
-   <code>cd /opt
-   wget https://www.python.org/ftp/python/3.11.0/Python-3.11.0.tgz</code></p>
-</li>
-<li>
-<p>Extract the downloaded archive:
-   <code>sudo tar -xzf Python-3.11.0.tgz</code></p>
-</li>
-<li>
-<p>Change to the extracted directory:
-   <code>cd Python-3.11.0</code></p>
-</li>
-<li>
-<p>Configure the build with optimizations:
-   <code>sudo ./configure --enable-optimizations --prefix=/usr/local</code></p>
-</li>
-<li>
-<p>Compile Python:
-   <code>sudo make -j 8</code></p>
-</li>
-<li>
-<p>Install Python 3.11:
-   <code>sudo make altinstall</code></p>
-</li>
-<li>
-<p>Verify the installation:
-   <code>python3.11 --version</code></p>
-</li>
-</ol>
-<p>You should see the installed Python version displayed.</p>
-<p>That's it! You have now installed Python 3.11 on your system.</p>
+<p>This guide provides a straightforward approach to running the Directional Scalper bot with various strategies and configurations. If you encounter any issues, refer to the relevant sections of the documentation for more details.</p>
 
 
 
