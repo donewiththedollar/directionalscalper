@@ -67,9 +67,9 @@
           "upnl_auto_reduce_threshold_long": 10.0,
           "upnl_auto_reduce_threshold_short": 10.0,
           "failsafe_enabled": false,
-          "failsafe_start_pct": 0.05,
-          "long_failsafe_upnl_pct": 10.0,
-          "short_failsafe_upnl_pct": 10.0
+          "failsafe_start_pct": 0.07,
+          "long_failsafe_upnl_pct": 30.0,
+          "short_failsafe_upnl_pct": 30.0
       },
       "hotkeys": {
           "hotkeys_enabled": false,

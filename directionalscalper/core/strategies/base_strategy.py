@@ -3187,21 +3187,52 @@ class BaseStrategy:
             logging.info(f"Short failsafe UPNL %: {short_failsafe_upnl_pct}")
             logging.info(f"Failsafe start %: {failsafe_start_pct}")
 
-            long_upnl_pct_equity = (long_upnl / total_equity) * 100
-            short_upnl_pct_equity = (short_upnl / total_equity) * 100
+            # Calculate UPNL as percentage of the total equity
+            long_upnl_pct_equity = abs((long_upnl / total_equity) * 100) if total_equity else 0
+            short_upnl_pct_equity = abs((short_upnl / total_equity) * 100) if total_equity else 0
 
-            logging.info(f"FAILSAFE: {symbol} Long UPNL % of Equity: {long_upnl_pct_equity:.2f}, Short UPNL % of Equity: {short_upnl_pct_equity:.2f}")
+            logging.info(f"FAILSAFE: {symbol} Long UPNL % of Total Equity: {long_upnl_pct_equity:.2f}, Short UPNL % of Total Equity: {short_upnl_pct_equity:.2f}")
 
+            # Log the conditions for triggering the failsafe
+            if long_pos_qty > 0:
+                logging.info(f"Checking long failsafe for {symbol}: Current price {current_price}, Failsafe start price {long_pos_price * (1 - failsafe_start_pct)}, Long UPNL {long_upnl}, Long UPNL % {long_upnl_pct_equity}")
+                long_failsafe_price = long_pos_price * (1 - (long_failsafe_upnl_pct / 100))
+                logging.info(f"Long position would trigger failsafe at price: {long_failsafe_price}")
+                if current_price < long_pos_price * (1 - failsafe_start_pct):
+                    logging.info(f"Long position price is below failsafe start threshold for {symbol}")
+                if long_upnl < -0.01:
+                    logging.info(f"Long UPNL is significant for {symbol}")
+                if long_upnl_pct_equity > long_failsafe_upnl_pct:
+                    logging.info(f"Long UPNL % exceeds failsafe threshold for {symbol}")
+                else:
+                    logging.info(f"Long UPNL % does not exceed failsafe threshold for {symbol}")
+
+            if short_pos_qty > 0:
+                logging.info(f"Checking short failsafe for {symbol}: Current price {current_price}, Failsafe start price {short_pos_price * (1 + failsafe_start_pct)}, Short UPNL {short_upnl}, Short UPNL % {short_upnl_pct_equity}")
+                short_failsafe_price = short_pos_price * (1 + (short_failsafe_upnl_pct / 100))
+                logging.info(f"Short position would trigger failsafe at price: {short_failsafe_price}")
+                if current_price > short_pos_price * (1 + failsafe_start_pct):
+                    logging.info(f"Short position price is above failsafe start threshold for {symbol}")
+                if short_upnl < -0.01:
+                    logging.info(f"Short UPNL is significant for {symbol}")
+                if short_upnl_pct_equity > short_failsafe_upnl_pct:
+                    logging.info(f"Short UPNL % exceeds failsafe threshold for {symbol}")
+                else:
+                    logging.info(f"Short UPNL % does not exceed failsafe threshold for {symbol}")
+
+            # Adjust failsafe trigger conditions to avoid triggering for very small UPNL values and to use absolute percentage values
             long_failsafe_triggered = (
                 long_pos_qty > 0
                 and current_price < long_pos_price * (1 - failsafe_start_pct)
-                and long_upnl_pct_equity < long_failsafe_upnl_pct
+                and long_upnl < -0.01  # Ensure there is a significant loss
+                and long_upnl_pct_equity > long_failsafe_upnl_pct
             )
 
             short_failsafe_triggered = (
                 short_pos_qty > 0
                 and current_price > short_pos_price * (1 + failsafe_start_pct)
-                and short_upnl_pct_equity < short_failsafe_upnl_pct
+                and short_upnl < -0.01  # Ensure there is a significant loss
+                and short_upnl_pct_equity > short_failsafe_upnl_pct
             )
 
             if long_failsafe_triggered:
@@ -3220,6 +3251,17 @@ class BaseStrategy:
             logging.error(f"Error in failsafe_method for {symbol}: {e}")
             raise
 
+    def get_user_defined_leverage(self, symbol, side):
+        if side == 'long':
+            leverage = self.user_defined_leverage_long if self.user_defined_leverage_long not in (0, None) else self.exchange.get_current_max_leverage_bybit(symbol)
+            logging.info(f"User defined leverage long: {leverage}")
+            return leverage
+        elif side == 'short':
+            leverage = self.user_defined_leverage_short if self.user_defined_leverage_short not in (0, None) else self.exchange.get_current_max_leverage_bybit(symbol)
+            logging.info(f"User defined leverage short: {leverage}")
+            return leverage
+        return 1
+
     def execute_failsafe_order(self, symbol, position_type, pos_qty, market_price):
         amount_precision, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
         price_precision_level = -int(math.log10(price_precision))
@@ -3235,12 +3277,13 @@ class BaseStrategy:
 
         positionIdx = 1 if position_type == 'long' else 2
 
-        logging.info(f"Attempting to place failsafe order: Symbol={symbol}, Type={'sell' if position_type == 'long' else 'buy'}, Qty={adjusted_pos_qty}, Price={order_price}")
+        logging.info(f"Attempting to place failsafe order: Symbol={symbol}, Type={'sell' if position_type == 'long' else 'buy'}, Qty={adjusted_pos_qty}, Price={order_price}, PositionIdx={positionIdx}")
 
         try:
-            logging.info(f"Failsafe order placed for {symbol}")
-            #order_result = self.postonly_limit_order_bybit_nolimit(symbol, 'sell' if position_type == 'long' else 'buy', adjusted_pos_qty, order_price, positionIdx, reduceOnly=True)
-            #logging.info(f"Failsafe order placed successfully for {symbol}: {order_result}")
+            # Place the reduce-only order
+            logging.info(f"Would have placed failsafe order for {symbol}")
+            # order_result = self.postonly_limit_order_bybit_nolimit(symbol, 'sell' if position type == 'long' else 'buy', adjusted_pos_qty, order_price, positionIdx, reduceOnly=True)
+            # logging.info(f"Failsafe order placed successfully for {symbol}: {order_result}")
         except Exception as e:
             logging.info(f"Failed to place failsafe order for {symbol}: {e}")
             raise
