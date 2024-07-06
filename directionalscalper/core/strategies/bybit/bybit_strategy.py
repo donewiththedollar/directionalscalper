@@ -4722,74 +4722,86 @@ class BybitStrategy(BaseStrategy):
             volume_threshold_short = np.mean(volume_histogram_short) * 1.5  # Adjust the threshold as needed
             significant_levels_short = price_range[volume_histogram_short >= volume_threshold_short]
 
-            # Calculate grid levels based on dynamic_outer_price_distance
-            grid_levels_long = [current_price - i * dynamic_outer_price_distance * current_price for i in range(1, levels + 1)]
-            grid_levels_short = [current_price + i * dynamic_outer_price_distance * current_price for i in range(1, levels + 1)]
+            # Calculate grid levels based on max_outer_price_distance
+            grid_levels_long = [current_price - i * (max_outer_price_distance * current_price / levels) for i in range(1, levels + 1)]
+            grid_levels_short = [current_price + i * (max_outer_price_distance * current_price / levels) for i in range(1, levels + 1)]
 
-            # Function to find the nearest significant level
-            def find_nearest_significant_level(level, significant_levels, tolerance, min_distance, max_distance, current_price):
+            # Function to find the nearest significant level without overlapping
+            def find_nearest_significant_level(level, significant_levels, tolerance, min_distance, max_distance, current_price, previous_level=None):
                 for sig_level in significant_levels:
                     if abs(level - sig_level) / level < tolerance:
                         if current_price - max_distance * current_price <= sig_level <= current_price - min_distance * current_price:
-                            return sig_level
+                            if previous_level is None or abs(sig_level - previous_level) > (max_distance * current_price / levels):
+                                return sig_level
                 return level
 
-            # Adjust grid levels to align with significant levels
+            # Adjust grid levels to align with significant levels without overlapping
             tolerance = 0.01  # 1% tolerance, adjust as needed
-            grid_levels_long = [
-                find_nearest_significant_level(
+            adjusted_grid_levels_long = []
+            adjusted_grid_levels_short = []
+
+            for i, level in enumerate(grid_levels_long):
+                previous_level = adjusted_grid_levels_long[-1] if adjusted_grid_levels_long else None
+                adjusted_level = find_nearest_significant_level(
                     level,
                     significant_levels_long,
                     tolerance,
-                    buffer_distance_long / current_price,
                     min_outer_price_distance,
-                    current_price
-                ) for level in grid_levels_long
-            ]
-            grid_levels_short = [
-                find_nearest_significant_level(
+                    max_outer_price_distance,
+                    current_price,
+                    previous_level
+                )
+                adjusted_grid_levels_long.append(adjusted_level)
+
+            for i, level in enumerate(grid_levels_short):
+                previous_level = adjusted_grid_levels_short[-1] if adjusted_grid_levels_short else None
+                adjusted_level = find_nearest_significant_level(
                     level,
                     significant_levels_short,
                     tolerance,
-                    buffer_distance_short / current_price,
                     min_outer_price_distance,
-                    current_price
-                ) for level in grid_levels_short
-            ]
+                    max_outer_price_distance,
+                    current_price,
+                    previous_level
+                )
+                adjusted_grid_levels_short.append(adjusted_level)
 
             # Ensure the grid levels are within the buffer distances and respect min/max outer price distance
             grid_levels_long = [
-                level for level in grid_levels_long
-                if current_price - min_outer_price_distance * current_price <= level <= current_price - buffer_distance_long
+                level for level in adjusted_grid_levels_long
+                if current_price - max_outer_price_distance * current_price <= level <= current_price - buffer_distance_long
             ]
             grid_levels_short = [
-                level for level in grid_levels_short
-                if current_price + buffer_distance_short <= level <= current_price + min_outer_price_distance * current_price
+                level for level in adjusted_grid_levels_short
+                if current_price + buffer_distance_short <= level <= current_price + max_outer_price_distance * current_price
             ]
 
-            # Ensure the desired number of grid levels is achieved
+            # If we don't have enough levels, add more to reach the desired number
             if len(grid_levels_long) < levels:
+                remaining_levels = levels - len(grid_levels_long)
                 additional_levels_long = np.linspace(
-                    current_price - min_outer_price_distance * current_price,
-                    current_price - buffer_distance_long,
-                    levels - len(grid_levels_long)
-                )
+                    grid_levels_long[-1],
+                    current_price - max_outer_price_distance * current_price,
+                    remaining_levels + 1
+                )[1:]  # Exclude the first point as it's already in grid_levels_long
                 grid_levels_long = np.concatenate((grid_levels_long, additional_levels_long))
 
             if len(grid_levels_short) < levels:
+                remaining_levels = levels - len(grid_levels_short)
                 additional_levels_short = np.linspace(
-                    current_price + buffer_distance_short,
-                    current_price + min_outer_price_distance * current_price,
-                    levels - len(grid_levels_short)
-                )
+                    grid_levels_short[-1],
+                    current_price + max_outer_price_distance * current_price,
+                    remaining_levels + 1
+                )[1:]  # Exclude the first point as it's already in grid_levels_short
                 grid_levels_short = np.concatenate((grid_levels_short, additional_levels_short))
 
-            # Sort the grid levels in ascending order
+            # Sort the grid levels
             grid_levels_long = sorted(grid_levels_long, reverse=True)
             grid_levels_short = sorted(grid_levels_short)
 
             logging.info(f"[{symbol}] Long grid levels: {grid_levels_long}")
             logging.info(f"[{symbol}] Short grid levels: {grid_levels_short}")
+
 
             qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
             min_qty = float(self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
@@ -4972,6 +4984,7 @@ class BybitStrategy(BaseStrategy):
 
                         if not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders):
                             logging.info(f"[{symbol}] Placing new long grid orders.")
+                            self.clear_grid(symbol, 'buy')
                             self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                             self.active_grids.add(symbol)
                             self.placed_levels.setdefault(symbol, {})["buy"] = set(grid_levels_long)  # Update placed levels
@@ -4980,6 +4993,7 @@ class BybitStrategy(BaseStrategy):
                     if long_mode and (mfi_signal_long or long_pos_qty > 0) and symbol not in self.max_qty_reached_symbol_long:
                         if entry_during_autoreduce:
                             logging.info(f"[{symbol}] Placing new long orders despite active auto-reduce due to entry_during_autoreduce setting.")
+                            self.clear_grid(symbol, 'buy')
                             self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                             self.active_grids.add(symbol)
                             self.placed_levels.setdefault(symbol, {})["buy"] = set(grid_levels_long)  # Update placed levels
@@ -4997,6 +5011,7 @@ class BybitStrategy(BaseStrategy):
 
                         if not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders):
                             logging.info(f"[{symbol}] Placing new short grid orders.")
+                            self.clear_grid(symbol, 'sell')
                             self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                             self.active_grids.add(symbol)
                             self.placed_levels.setdefault(symbol, {})["sell"] = set(grid_levels_short)  # Update placed levels
@@ -5005,6 +5020,7 @@ class BybitStrategy(BaseStrategy):
                     if short_mode and (mfi_signal_short or short_pos_qty > 0) and symbol not in self.max_qty_reached_symbol_short:
                         if entry_during_autoreduce:
                             logging.info(f"[{symbol}] Placing new short orders despite active auto-reduce due to entry_during_autoreduce setting.")
+                            self.clear_grid(symbol, 'sell')
                             self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                             self.active_grids.add(symbol)
                             self.placed_levels.setdefault(symbol, {})["sell"] = set(grid_levels_short)  # Update placed levels
@@ -5028,6 +5044,7 @@ class BybitStrategy(BaseStrategy):
                 if long_mode and mfi_signal_long and not has_open_long_position and symbol not in self.max_qty_reached_symbol_long:
                     if not self.auto_reduce_active_long.get(symbol, False) or entry_during_autoreduce:
                         logging.info(f"[{symbol}] Placing new long orders (either no active long auto-reduce or entry during auto-reduce is allowed).")
+                        self.clear_grid(symbol, 'buy')
                         self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                         self.active_grids.add(symbol)
                         self.placed_levels[symbol]["buy"] = set(grid_levels_long)  # Update placed levels
@@ -5037,6 +5054,7 @@ class BybitStrategy(BaseStrategy):
                 if short_mode and mfi_signal_short and not has_open_short_position and symbol not in self.max_qty_reached_symbol_short:
                     if not self.auto_reduce_active_short.get(symbol, False) or entry_during_autoreduce:
                         logging.info(f"[{symbol}] Placing new short orders (either no active short auto-reduce or entry during auto-reduce is allowed).")
+                        self.clear_grid(symbol, 'sell')
                         self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                         self.active_grids.add(symbol)
                         self.placed_levels[symbol]["sell"] = set(grid_levels_short)  # Update placed levels
@@ -5086,7 +5104,7 @@ class BybitStrategy(BaseStrategy):
                         open_orders=open_orders
                     )
 
-            time.sleep(5)
+            time.sleep(2)
 
         except Exception as e:
             logging.info(f"Error in executing grid strategy: {e}")
