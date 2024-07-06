@@ -4663,13 +4663,6 @@ class BybitStrategy(BaseStrategy):
             dynamic_outer_price_distance = max(min_outer_price_distance, min(max_outer_price_distance, spread))
             logging.info(f"Dynamic outer price distance for {symbol}: {dynamic_outer_price_distance}")
 
-            # Ensure the outer price distance can span all levels
-            required_distance = outer_price_distance / levels
-            if dynamic_outer_price_distance < required_distance:
-                logging.info(f"Dynamic outer price distance {dynamic_outer_price_distance} is less than required distance {required_distance}. Adjusting it.")
-                dynamic_outer_price_distance = required_distance
-            logging.info(f"Dynamic outer price distance after spread adjustment: {dynamic_outer_price_distance}")
-
             should_reissue_long, should_reissue_short = self.should_reissue_orders_revised(
                 symbol, reissue_threshold, long_pos_qty, short_pos_qty, initial_entry_buffer_pct)
             open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
@@ -4722,9 +4715,19 @@ class BybitStrategy(BaseStrategy):
             volume_threshold_short = np.mean(volume_histogram_short) * 1.5  # Adjust the threshold as needed
             significant_levels_short = price_range[volume_histogram_short >= volume_threshold_short]
 
-            # Calculate grid levels based on max_outer_price_distance
-            grid_levels_long = [current_price - i * (max_outer_price_distance * current_price / levels) for i in range(1, levels + 1)]
-            grid_levels_short = [current_price + i * (max_outer_price_distance * current_price / levels) for i in range(1, levels + 1)]
+            # Calculate initial entry levels
+            initial_entry_long = current_price - buffer_distance_long
+            initial_entry_short = current_price + buffer_distance_short
+
+            # Calculate grid levels based on max_outer_price_distance, including initial entry
+            grid_levels_long = [initial_entry_long] + [
+                current_price - buffer_distance_long - i * ((max_outer_price_distance * current_price - buffer_distance_long) / (levels - 1)) 
+                for i in range(1, levels)
+            ]
+            grid_levels_short = [initial_entry_short] + [
+                current_price + buffer_distance_short + i * ((max_outer_price_distance * current_price - buffer_distance_short) / (levels - 1)) 
+                for i in range(1, levels)
+            ]
 
             # Function to find the nearest significant level without overlapping
             def find_nearest_significant_level(level, significant_levels, tolerance, min_distance, max_distance, current_price, previous_level=None):
@@ -4737,11 +4740,11 @@ class BybitStrategy(BaseStrategy):
 
             # Adjust grid levels to align with significant levels without overlapping
             tolerance = 0.01  # 1% tolerance, adjust as needed
-            adjusted_grid_levels_long = []
-            adjusted_grid_levels_short = []
+            adjusted_grid_levels_long = [initial_entry_long]  # Keep initial entry fixed
+            adjusted_grid_levels_short = [initial_entry_short]  # Keep initial entry fixed
 
-            for i, level in enumerate(grid_levels_long):
-                previous_level = adjusted_grid_levels_long[-1] if adjusted_grid_levels_long else None
+            for i, level in enumerate(grid_levels_long[1:], 1):  # Start from second level
+                previous_level = adjusted_grid_levels_long[-1]
                 adjusted_level = find_nearest_significant_level(
                     level,
                     significant_levels_long,
@@ -4753,8 +4756,8 @@ class BybitStrategy(BaseStrategy):
                 )
                 adjusted_grid_levels_long.append(adjusted_level)
 
-            for i, level in enumerate(grid_levels_short):
-                previous_level = adjusted_grid_levels_short[-1] if adjusted_grid_levels_short else None
+            for i, level in enumerate(grid_levels_short[1:], 1):  # Start from second level
+                previous_level = adjusted_grid_levels_short[-1]
                 adjusted_level = find_nearest_significant_level(
                     level,
                     significant_levels_short,
@@ -4799,9 +4802,10 @@ class BybitStrategy(BaseStrategy):
             grid_levels_long = sorted(grid_levels_long, reverse=True)
             grid_levels_short = sorted(grid_levels_short)
 
+            logging.info(f"[{symbol}] Initial long entry level: {initial_entry_long}")
+            logging.info(f"[{symbol}] Initial short entry level: {initial_entry_short}")
             logging.info(f"[{symbol}] Long grid levels: {grid_levels_long}")
             logging.info(f"[{symbol}] Short grid levels: {grid_levels_short}")
-
 
             qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
             min_qty = float(self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
