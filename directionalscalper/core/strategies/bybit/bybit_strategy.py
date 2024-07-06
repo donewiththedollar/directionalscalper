@@ -3947,6 +3947,7 @@ class BybitStrategy(BaseStrategy):
 
                         if not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders):
                             logging.info(f"[{symbol}] Placing new long grid orders.")
+                            self.clear_grid(symbol, 'buy')
                             self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                             self.active_grids.add(symbol)
                             self.placed_levels.setdefault(symbol, {})["buy"] = set(grid_levels_long)  # Update placed levels
@@ -3955,6 +3956,7 @@ class BybitStrategy(BaseStrategy):
                     if long_mode and symbol not in self.max_qty_reached_symbol_long:
                         if entry_during_autoreduce:
                             logging.info(f"[{symbol}] Placing new long orders despite active auto-reduce due to entry_during_autoreduce setting.")
+                            self.clear_grid(symbol, 'buy')
                             self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                             self.active_grids.add(symbol)
                             self.placed_levels.setdefault(symbol, {})["buy"] = set(grid_levels_long)  # Update placed levels
@@ -3972,6 +3974,7 @@ class BybitStrategy(BaseStrategy):
 
                         if not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders):
                             logging.info(f"[{symbol}] Placing new short grid orders.")
+                            self.clear_grid(symbol, 'sell')
                             self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                             self.active_grids.add(symbol)
                             self.placed_levels.setdefault(symbol, {})["sell"] = set(grid_levels_short)  # Update placed levels
@@ -3980,6 +3983,7 @@ class BybitStrategy(BaseStrategy):
                     if short_mode and symbol not in self.max_qty_reached_symbol_short:
                         if entry_during_autoreduce:
                             logging.info(f"[{symbol}] Placing new short orders despite active auto-reduce due to entry_during_autoreduce setting.")
+                            self.clear_grid(symbol, 'sell')
                             self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                             self.active_grids.add(symbol)
                             self.placed_levels.setdefault(symbol, {})["sell"] = set(grid_levels_short)  # Update placed levels
@@ -4003,6 +4007,7 @@ class BybitStrategy(BaseStrategy):
                 if long_mode and not has_open_long_position and symbol not in self.max_qty_reached_symbol_long:
                     if not self.auto_reduce_active_long.get(symbol, False) or entry_during_autoreduce:
                         logging.info(f"[{symbol}] Placing new long orders (either no active long auto-reduce or entry during auto-reduce is allowed).")
+                        self.clear_grid(symbol, 'buy')
                         self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                         self.active_grids.add(symbol)
                     else:
@@ -4011,6 +4016,7 @@ class BybitStrategy(BaseStrategy):
                 if short_mode and not has_open_short_position and symbol not in self.max_qty_reached_symbol_short:
                     if not self.auto_reduce_active_short.get(symbol, False) or entry_during_autoreduce:
                         logging.info(f"[{symbol}] Placing new short orders (either no active short auto-reduce or entry during auto-reduce is allowed).")
+                        self.clear_grid(symbol, 'sell')
                         self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                         self.active_grids.add(symbol)
                     else:
@@ -4048,7 +4054,7 @@ class BybitStrategy(BaseStrategy):
                     self.next_short_tp_update = self.update_quickscalp_tp_dynamic(
                         symbol=symbol,
                         pos_qty=short_pos_qty,
-                        upnl_profit_pct=upnl_profit_pct,  # Minmum desired profit percentage
+                        upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
                         max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
                         short_pos_price=short_pos_price,
                         long_pos_price=None,  # Not relevant for short TP settings
@@ -4064,7 +4070,7 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.info(f"Error in executing grid strategy: {e}")
             logging.info("Traceback: %s", traceback.format_exc())
-            
+
     def linear_grid_hardened_gridspan_orderbook_maxposqty_nosignal(
         self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
         short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
