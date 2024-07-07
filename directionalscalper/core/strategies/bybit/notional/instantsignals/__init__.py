@@ -5,3 +5,4 @@ from .dynamicgrid_oblevels import BybitDynamicGridSpanOBLevels
 from .qstrendob_dynamictp import BybitQuickScalpTrendDynamicTP
 from .dynamicgrid_oblevels_spot import BybitSpotGridStrategy
 from .dynamicgrid_oblevels_l import BybitDynamicGridSpanOBLevelsLSignal
+from .dynamicgrid_oblevels_l_entryonsignal import BybitGridOBEOS
