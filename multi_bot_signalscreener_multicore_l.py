@@ -92,6 +92,7 @@ def get_available_strategies():
     return [
         'qsgridob',
         'qsgridoblsignal',
+        'qsgridobeos',
         # 'qstrendobdynamictp',
         # 'qsgridinstantsignal',
         # 'qsgridobtight',
@@ -231,10 +232,10 @@ class DirectionalMarketMaker:
             'qsgridobdca': bybit_notional.BybitDynamicGridOBDCA,
             'qsgridinstantsignal': instant_signals.BybitDynamicGridSpanOBSRStaticIS,
             'qsgriddynmaicgridspaninstant': instant_signals.BybitDynamicGridSpanIS,
-            'qsgridobtight': instant_signals.BybitDynamicGridSpanOBTight,
             'qsgridob': instant_signals.BybitDynamicGridSpanOBLevels,
             'qstrendobdynamictp': instant_signals.BybitQuickScalpTrendDynamicTP,
-            'qsgridoblsignal': instant_signals.BybitDynamicGridSpanOBLevelsLSignal
+            'qsgridoblsignal': instant_signals.BybitDynamicGridSpanOBLevelsLSignal,
+            'qsgridobeos': instant_signals.BybitGridOBEOS
         }
 
         strategy_class = strategy_classes.get(strategy_name.lower())
