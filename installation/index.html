@@ -457,6 +457,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#vps-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      VPS Setup
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#prerequisites" class="md-nav__link">
     <span class="md-ellipsis">
       Prerequisites
@@ -658,6 +667,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#vps-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      VPS Setup
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#prerequisites" class="md-nav__link">
     <span class="md-ellipsis">
       Prerequisites
@@ -700,6 +718,42 @@
 
 
 <h1 id="installation">Installation</h1>
+<h2 id="vps-setup">VPS Setup</h2>
+<p>To set up a VPS (Virtual Private Server) for running the bot, follow these steps:</p>
+<ol>
+<li>
+<p><strong>Choose a VPS Provider</strong>: Select a VPS provider such as <a href="https://hetzner.cloud/?ref=ZfukXC6DHVAZ">Hetzner</a>, DigitalOcean, AWS, or Linode. For optimal performance, it is recommended to use a Hetzner 4 core 8GB Intel server. Create an account and set up a new VPS instance with at least 4 Cores and 8GB of RAM and a suitable operating system (e.g., Ubuntu 20.04).</p>
+</li>
+<li>
+<p><strong>Connect to Your VPS</strong>: Use SSH to connect to your VPS. Replace <code>your_vps_ip</code> with the IP address of your VPS.
+   ssh root@your_vps_ip</p>
+</li>
+<li>
+<p><strong>Update and Upgrade Packages</strong>: Ensure your VPS is up to date.
+   sudo apt update &amp;&amp; sudo apt upgrade -y</p>
+</li>
+<li>
+<p><strong>Install Python 3.11</strong>: Follow the instructions in the "Installing Python 3.11" section below to install Python 3.11 on your VPS.</p>
+</li>
+<li>
+<p><strong>Install Git</strong>: If Git is not already installed, install it using:
+   sudo apt install git -y</p>
+</li>
+<li>
+<p><strong>Clone the Repository</strong>: Clone the Directional Scalper repository to your VPS:
+   git clone https://github.com/donewiththedollar/directionalscalper.git</p>
+</li>
+<li>
+<p><strong>Install Dependencies</strong>: Install the required Python dependencies.
+   pip3.11 install -r requirements.txt</p>
+</li>
+<li>
+<p><strong>Configure the Bot</strong>: Rename the configuration files and add your API keys as described in the "Quickstart" section.</p>
+</li>
+<li>
+<p><strong>Run the Bot</strong>: Start the bot using the appropriate command as described in the "Quickstart" section.</p>
+</li>
+</ol>
 <h2 id="prerequisites">Prerequisites</h2>
 <p>Before you begin, ensure you have the following prerequisites:</p>
 <ul>
