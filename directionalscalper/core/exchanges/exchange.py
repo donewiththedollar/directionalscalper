@@ -982,15 +982,42 @@ class Exchange:
             logging.info(f"An unknown error occurred in get_positions(): {e}")
         return values
 
-    # Universal
     def get_current_price(self, symbol: str) -> float:
         try:
             ticker = self.exchange.fetch_ticker(symbol)
+            logging.info(f"Fetched ticker for {symbol}: {ticker}")
+
             if "bid" in ticker and "ask" in ticker:
-                return (ticker["bid"] + ticker["ask"]) / 2
+                bid = ticker["bid"]
+                ask = ticker["ask"]
+                
+                # Convert bid and ask to float if they are strings
+                if isinstance(bid, str):
+                    bid = float(bid)
+                if isinstance(ask, str):
+                    ask = float(ask)
+                
+                # Check if bid and ask are numeric
+                if isinstance(bid, (int, float)) and isinstance(ask, (int, float)):
+                    return (bid + ask) / 2
+                else:
+                    raise TypeError(f"Bid or ask price is not numeric: bid={bid}, ask={ask}")
+            else:
+                raise KeyError(f"Ticker does not contain 'bid' or 'ask': {ticker}")
         except Exception as e:
-            logging.error(f"An error occurred in get_current_price() for {symbol}: {e}")
+            logging.info(f"An error occurred in get_current_price() for {symbol}: {e}")
+            logging.info(traceback.format_exc())
             return None
+            
+    # Universal
+    # def get_current_price(self, symbol: str) -> float:
+    #     try:
+    #         ticker = self.exchange.fetch_ticker(symbol)
+    #         if "bid" in ticker and "ask" in ticker:
+    #             return (ticker["bid"] + ticker["ask"]) / 2
+    #     except Exception as e:
+    #         logging.error(f"An error occurred in get_current_price() for {symbol}: {e}")
+    #         return None
         
     # Binance
     def get_current_price_binance(self, symbol: str) -> float:
