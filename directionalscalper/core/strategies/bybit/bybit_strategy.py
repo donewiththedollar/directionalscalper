@@ -5375,7 +5375,7 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.info(f"Error in executing grid strategy: {e}")
             logging.info("Traceback: %s", traceback.format_exc())
-            
+
     def linear_grid_hardened_gridspan_ob_volumelevels_dynamictp_lsignal(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
                                                         short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
                                                         strength: float, outer_price_distance: float, min_outer_price_distance: float, max_outer_price_distance: float, reissue_threshold: float,
@@ -11519,6 +11519,44 @@ class BybitStrategy(BaseStrategy):
             logging.exception(f"Exception caught in should_replace_grid_updated_buffer: {e}")
             return False, False
 
+    # def should_reissue_orders_revised(self, symbol: str, reissue_threshold: float, long_pos_qty: float, short_pos_qty: float, initial_entry_buffer_pct: float) -> tuple:
+    #     try:
+    #         current_price = self.exchange.get_current_price(symbol)
+    #         last_price = self.last_price.get(symbol)
+            
+    #         if last_price is None:
+    #             self.last_price[symbol] = current_price
+    #             logging.info(f"[{symbol}] No last price recorded. Setting current price {current_price} as last price. No reissue required.")
+    #             return False, False
+            
+    #         price_change_percentage = abs(current_price - last_price) / last_price * 100
+    #         logging.info(f"[{symbol}] Last recorded price: {last_price}, Current price: {current_price}, Price change: {price_change_percentage:.2f}%")
+            
+    #         # Adjust threshold by initial buffer percentage
+    #         adjusted_reissue_threshold = reissue_threshold * 100 + initial_entry_buffer_pct
+            
+    #         reissue_long = long_pos_qty == 0 and price_change_percentage >= adjusted_reissue_threshold
+    #         reissue_short = short_pos_qty == 0 and price_change_percentage >= adjusted_reissue_threshold
+            
+    #         # Always update the last price to the current price
+    #         self.last_price[symbol] = current_price
+
+    #         if reissue_long:
+    #             logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) exceeds adjusted reissue threshold ({adjusted_reissue_threshold:.2f}%). Reissuing long orders.")
+    #         else:
+    #             logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) does not exceed adjusted reissue threshold ({adjusted_reissue_threshold:.2f}%) or long position is open. No reissue required for long orders.")
+            
+    #         if reissue_short:
+    #             logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) exceeds adjusted reissue threshold ({adjusted_reissue_threshold:.2f}%). Reissuing short orders.")
+    #         else:
+    #             logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) does not exceed adjusted reissue threshold ({adjusted_reissue_threshold:.2f}%) or short position is open. No reissue required for short orders.")
+            
+    #         return reissue_long, reissue_short
+    #     except Exception as e:
+    #         logging.error(f"Error in should_reissue_orders_revised for {symbol}: {e}")
+    #         logging.info("Traceback: %s", traceback.format_exc())
+    #         return False, False
+
     def should_reissue_orders_revised(self, symbol: str, reissue_threshold: float, long_pos_qty: float, short_pos_qty: float, initial_entry_buffer_pct: float) -> tuple:
         try:
             current_price = self.exchange.get_current_price(symbol)
@@ -11538,8 +11576,8 @@ class BybitStrategy(BaseStrategy):
             reissue_long = long_pos_qty == 0 and price_change_percentage >= adjusted_reissue_threshold
             reissue_short = short_pos_qty == 0 and price_change_percentage >= adjusted_reissue_threshold
             
-            # Always update the last price to the current price
-            self.last_price[symbol] = current_price
+            if reissue_long or reissue_short:
+                self.last_price[symbol] = current_price
 
             if reissue_long:
                 logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) exceeds adjusted reissue threshold ({adjusted_reissue_threshold:.2f}%). Reissuing long orders.")
@@ -11552,9 +11590,9 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) does not exceed adjusted reissue threshold ({adjusted_reissue_threshold:.2f}%) or short position is open. No reissue required for short orders.")
             
             return reissue_long, reissue_short
+        
         except Exception as e:
-            logging.error(f"Error in should_reissue_orders_revised for {symbol}: {e}")
-            logging.info("Traceback: %s", traceback.format_exc())
+            logging.exception(f"Exception caught in should_reissue_orders: {e}")
             return False, False
 
     def should_reissue_orders(self, symbol: str, reissue_threshold: float) -> bool:
