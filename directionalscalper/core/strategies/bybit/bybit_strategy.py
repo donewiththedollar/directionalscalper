@@ -5587,6 +5587,10 @@ class BybitStrategy(BaseStrategy):
             else:
                 logging.info(f"Auto-reduce for short position on {symbol} is not active")
 
+            # Initialize last_empty_grid_time for symbol if not present
+            if symbol not in self.last_empty_grid_time:
+                self.last_empty_grid_time[symbol] = {'long': 0, 'short': 0}
+
             # Check for grid replacement conditions
             has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
             has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
