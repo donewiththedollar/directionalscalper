@@ -5201,6 +5201,7 @@ class BybitStrategy(BaseStrategy):
                         self.active_grids.discard(symbol)
                         self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                         self.active_grids.add(symbol)
+                        mfirsi_signal = "neutral"
 
                 if short_mode and mfi_signal_short and not self.auto_reduce_active_short.get(symbol, False) and symbol not in self.max_qty_reached_symbol_short:
                     if entry_during_autoreduce or not self.auto_reduce_active_short.get(symbol, False):
@@ -5209,6 +5210,7 @@ class BybitStrategy(BaseStrategy):
                         self.active_grids.discard(symbol)
                         self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                         self.active_grids.add(symbol)
+                        mfirsi_signal = "neutral"
                         
                 replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist_v2(
                     symbol, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
