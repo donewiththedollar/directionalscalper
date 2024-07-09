@@ -65,6 +65,8 @@ class BybitStrategy(BaseStrategy):
         self.placed_levels = {}
         self.last_price = {}
         self.last_processed_signal = {}
+        self.last_processed_time_long = {}  # Dictionary to store the last processed time for long positions
+        self.last_processed_time_short = {}
 
         try:
             # Hotkey-related attributes
@@ -5283,32 +5285,49 @@ class BybitStrategy(BaseStrategy):
 
                 if symbol not in self.last_processed_signal:
                     self.last_processed_signal[symbol] = "neutral"
+                    self.last_processed_time_long[symbol] = 0  # Initialize the timestamp for long
+                    self.last_processed_time_short[symbol] = 0  # Initialize the timestamp for short
 
                 current_signal = mfirsi_signal.lower()
+                current_time = time.time()
 
                 logging.info(f"Current signal before check for {symbol}: {current_signal}")
                 logging.info(f"Last processed signal for {symbol}: {self.last_processed_signal[symbol]}")
 
-                
+                # Check if enough time has passed since the last processed signal for long positions
+                time_difference_long = current_time - self.last_processed_time_long[symbol]
+
+                # Check if enough time has passed since the last processed signal for short positions
+                time_difference_short = current_time - self.last_processed_time_short[symbol]
 
                 if self.last_processed_signal[symbol] != current_signal:
-                    if long_mode and current_signal == "long" and not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
-                        logging.info(f"[{symbol}] Reissuing long orders due to signal.")
-                        self.clear_grid(symbol, 'buy')
-                        self.active_grids.discard(symbol)
-                        self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                        self.active_grids.add(symbol)
-                        self.last_processed_signal[symbol] = "neutral"  # Reset to neutral after placing long orders
-                        mfirsi_signal = "neutral"  # Reset mfirsi_signal to neutral
+                    if long_pos_qty > 0:
+                        if (long_mode and current_signal == "long" and not self.auto_reduce_active_long.get(symbol, False) 
+                                and symbol not in self.max_qty_reached_symbol_long and time_difference_long > 180):
+                            logging.info(f"[{symbol}] Reissuing long orders due to signal.")
+                            self.clear_grid(symbol, 'buy')
+                            self.active_grids.discard(symbol)
+                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                            self.active_grids.add(symbol)
+                            self.last_processed_signal[symbol] = "neutral"  # Reset to neutral after placing long orders
+                            mfirsi_signal = "neutral"  # Reset mfirsi_signal to neutral
+                            self.last_processed_time_long[symbol] = current_time  # Update the timestamp for long
 
-                    elif short_mode and current_signal == "short" and not self.auto_reduce_active_short.get(symbol, False) and symbol not in self.max_qty_reached_symbol_short:
-                        logging.info(f"[{symbol}] Reissuing short orders due to signal.")
-                        self.clear_grid(symbol, 'sell')
-                        self.active_grids.discard(symbol)
-                        self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                        self.active_grids.add(symbol)
-                        self.last_processed_signal[symbol] = "neutral"  # Reset to neutral after placing short orders
-                        mfirsi_signal = "neutral"  # Reset mfirsi_signal to neutral
+                    if short_pos_qty > 0:
+                        if (short_mode and current_signal == "short" and not self.auto_reduce_active_short.get(symbol, False) 
+                                and symbol not in self.max_qty_reached_symbol_short and time_difference_short > 180):
+                            logging.info(f"[{symbol}] Reissuing short orders due to signal.")
+                            self.clear_grid(symbol, 'sell')
+                            self.active_grids.discard(symbol)
+                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                            self.active_grids.add(symbol)
+                            self.last_processed_signal[symbol] = "neutral"  # Reset to neutral after placing short orders
+                            mfirsi_signal = "neutral"  # Reset mfirsi_signal to neutral
+                            self.last_processed_time_short[symbol] = current_time  # Update the timestamp for short
+
+                logging.info(f"MFIRSI Signal for {symbol} : {mfirsi_signal}")
+                logging.info(f"Current signal after check for {symbol}: {current_signal}")
+                logging.info(f"Updated last processed signal for {symbol}: {self.last_processed_signal[symbol]}")
 
                 logging.info(f"MFIRSI Signal for {symbol} : {mfirsi_signal}")
 
