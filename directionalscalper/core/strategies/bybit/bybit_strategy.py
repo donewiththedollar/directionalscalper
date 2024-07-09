@@ -5200,8 +5200,8 @@ class BybitStrategy(BaseStrategy):
 
                 current_signal = mfirsi_signal.lower()
 
-                
-                logging.info(f"Current signal before check for {symbol} {current_signal}")
+                logging.info(f"Current signal before check for {symbol}: {current_signal}")
+                logging.info(f"Last processed signal for {symbol}: {self.last_processed_signal[symbol]}")
 
                 if self.last_processed_signal[symbol] != current_signal:
                     if long_mode and current_signal == "long" and not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
@@ -5210,21 +5210,19 @@ class BybitStrategy(BaseStrategy):
                         self.active_grids.discard(symbol)
                         self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                         self.active_grids.add(symbol)
-                        self.last_processed_signal[symbol] = "long"
+                        self.last_processed_signal[symbol] = "neutral"  # Reset to neutral after placing long orders
 
-                    if short_mode and current_signal == "short" and not self.auto_reduce_active_short.get(symbol, False) and symbol not in self.max_qty_reached_symbol_short:
+                    elif short_mode and current_signal == "short" and not self.auto_reduce_active_short.get(symbol, False) and symbol not in self.max_qty_reached_symbol_short:
                         logging.info(f"[{symbol}] Reissuing short orders due to signal.")
                         self.clear_grid(symbol, 'sell')
                         self.active_grids.discard(symbol)
                         self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                         self.active_grids.add(symbol)
-                        self.last_processed_signal[symbol] = "short"
+                        self.last_processed_signal[symbol] = "neutral"  # Reset to neutral after placing short orders
 
-                    if current_signal == "neutral":
-                        self.last_processed_signal[symbol] = "neutral"
+                logging.info(f"Current signal after check for {symbol}: {current_signal}")
+                logging.info(f"Updated last processed signal for {symbol}: {self.last_processed_signal[symbol]}")
 
-                    logging.info(f"Current signal for {symbol} {current_signal}")
-                        
                 replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist_v2(
                     symbol, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
                     dynamic_outer_price_distance=dynamic_outer_price_distance
