@@ -63,6 +63,7 @@ class BybitStrategy(BaseStrategy):
         self.last_reissue_price_long = {}
         self.last_reissue_price_short = {}
         self.placed_levels = {}
+        self.last_processed_signal = {}
 
         try:
             # Hotkey-related attributes
@@ -5187,30 +5188,42 @@ class BybitStrategy(BaseStrategy):
 
             mfi_signal_long = mfirsi_signal.lower() == "long"
             mfi_signal_short = mfirsi_signal.lower() == "short"
-            
+
             if len(open_symbols) < symbols_allowed or symbol in open_symbols:
                 logging.info(f"Allowed symbol: {symbol}")
 
                 has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
                 has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
 
-                if long_mode and mfi_signal_long and not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
-                    if entry_during_autoreduce or not self.auto_reduce_active_long.get(symbol, False):
+                if symbol not in self.last_processed_signal:
+                    self.last_processed_signal[symbol] = "neutral"
+
+                current_signal = mfirsi_signal.lower()
+
+                
+                logging.info(f"Current signal before check for {symbol} {current_signal}")
+
+                if self.last_processed_signal[symbol] != current_signal:
+                    if long_mode and current_signal == "long" and not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
                         logging.info(f"[{symbol}] Reissuing long orders due to signal.")
                         self.clear_grid(symbol, 'buy')
                         self.active_grids.discard(symbol)
                         self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                         self.active_grids.add(symbol)
-                        mfirsi_signal = "neutral"
+                        self.last_processed_signal[symbol] = "long"
 
-                if short_mode and mfi_signal_short and not self.auto_reduce_active_short.get(symbol, False) and symbol not in self.max_qty_reached_symbol_short:
-                    if entry_during_autoreduce or not self.auto_reduce_active_short.get(symbol, False):
+                    if short_mode and current_signal == "short" and not self.auto_reduce_active_short.get(symbol, False) and symbol not in self.max_qty_reached_symbol_short:
                         logging.info(f"[{symbol}] Reissuing short orders due to signal.")
                         self.clear_grid(symbol, 'sell')
                         self.active_grids.discard(symbol)
                         self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                         self.active_grids.add(symbol)
-                        mfirsi_signal = "neutral"
+                        self.last_processed_signal[symbol] = "short"
+
+                    if current_signal == "neutral":
+                        self.last_processed_signal[symbol] = "neutral"
+
+                    logging.info(f"Current signal for {symbol} {current_signal}")
                         
                 replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist_v2(
                     symbol, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
@@ -5389,6 +5402,7 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.info(f"Error in executing gridstrategy: {e}")
             logging.info("Traceback: %s", traceback.format_exc())
+
 
     def linear_grid_hardened_gridspan_ob_volumelevels_dynamictp_lsignal(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
                                                         short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
