@@ -5289,6 +5289,8 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"Current signal before check for {symbol}: {current_signal}")
                 logging.info(f"Last processed signal for {symbol}: {self.last_processed_signal[symbol]}")
 
+                
+
                 if self.last_processed_signal[symbol] != current_signal:
                     if long_mode and current_signal == "long" and not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
                         logging.info(f"[{symbol}] Reissuing long orders due to signal.")
@@ -5297,6 +5299,7 @@ class BybitStrategy(BaseStrategy):
                         self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                         self.active_grids.add(symbol)
                         self.last_processed_signal[symbol] = "neutral"  # Reset to neutral after placing long orders
+                        mfirsi_signal = "neutral"  # Reset mfirsi_signal to neutral
 
                     elif short_mode and current_signal == "short" and not self.auto_reduce_active_short.get(symbol, False) and symbol not in self.max_qty_reached_symbol_short:
                         logging.info(f"[{symbol}] Reissuing short orders due to signal.")
@@ -5305,6 +5308,9 @@ class BybitStrategy(BaseStrategy):
                         self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                         self.active_grids.add(symbol)
                         self.last_processed_signal[symbol] = "neutral"  # Reset to neutral after placing short orders
+                        mfirsi_signal = "neutral"  # Reset mfirsi_signal to neutral
+
+                logging.info(f"MFIRSI Signal for {symbol} : {mfirsi_signal}")
 
                 logging.info(f"Current signal after check for {symbol}: {current_signal}")
                 logging.info(f"Updated last processed signal for {symbol}: {self.last_processed_signal[symbol]}")
