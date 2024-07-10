@@ -5226,6 +5226,49 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"[{symbol}] Long order amounts: {amounts_long}")
             logging.info(f"[{symbol}] Short order amounts: {amounts_short}")
 
+            # Skip if the signal is the same as the last processed signal
+            if not hasattr(self, 'last_attempted_signal'):
+                self.last_attempted_signal = None
+
+            if self.last_attempted_signal == mfirsi_signal and (long_pos_qty > 0.00001 or short_pos_qty > 0.00001):
+                logging.info(f"Skipping processing for {symbol} as the mfirsi_signal is the same as the last attempted signal: {mfirsi_signal}")
+                return
+
+            # Handle long and short grid replacement based on mfirsi_signal
+            if mfirsi_signal.lower() == "long" and long_mode and not self.auto_reduce_active_long.get(symbol, False):
+                logging.info(f"[{symbol}] Replacing long grid orders due to MFIRSI signal long.")
+                self.clear_grid(symbol, 'buy')
+                self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                self.active_grids.add(symbol)
+                self.last_attempted_signal = mfirsi_signal  # Set the attempted signal
+                while long_pos_qty < 0.00001:
+                    time.sleep(5)  # Wait for some time to allow order to be filled
+                    # Re-fetch the long position quantity from the exchange or update it elsewhere
+                    if long_pos_qty < 0.00001:
+                        logging.info(f"[{symbol}] Retrying long grid orders due to MFIRSI signal long.")
+                        self.clear_grid(symbol, 'buy')
+                        self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                        self.active_grids.add(symbol)
+                    else:
+                        break  # Exit loop once the order is filled
+
+            elif mfirsi_signal.lower() == "short" and short_mode and not self.auto_reduce_active_short.get(symbol, False):
+                logging.info(f"[{symbol}] Replacing short grid orders due to MFIRSI signal short.")
+                self.clear_grid(symbol, 'sell')
+                self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                self.active_grids.add(symbol)
+                self.last_attempted_signal = mfirsi_signal  # Set the attempted signal
+                while short_pos_qty < 0.00001:
+                    time.sleep(5)  # Wait for some time to allow order to be filled
+                    # Re-fetch the short position quantity from the exchange or update it elsewhere
+                    if short_pos_qty < 0.00001:
+                        logging.info(f"[{symbol}] Retrying short grid orders due to MFIRSI signal short.")
+                        self.clear_grid(symbol, 'sell')
+                        self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                        self.active_grids.add(symbol)
+                    else:
+                        break  # Exit loop once the order is filled
+
             if self.auto_reduce_active_long.get(symbol, False):
                 logging.info(f"Auto-reduce for long position on {symbol} is active")
                 self.clear_grid(symbol, 'buy')
@@ -5283,56 +5326,7 @@ class BybitStrategy(BaseStrategy):
                 has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
                 has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
 
-                if symbol not in self.last_processed_signal:
-                    self.last_processed_signal[symbol] = "neutral"
-                    self.last_processed_time_long[symbol] = 0  # Initialize the timestamp for long
-                    self.last_processed_time_short[symbol] = 0  # Initialize the timestamp for short
-
-                current_signal = mfirsi_signal.lower()
-                current_time = time.time()
-
-                logging.info(f"Current signal before check for {symbol}: {current_signal}")
-                logging.info(f"Last processed signal for {symbol}: {self.last_processed_signal[symbol]}")
-
-                # Check if enough time has passed since the last processed signal for long positions
-                time_difference_long = current_time - self.last_processed_time_long[symbol]
-
-                # Check if enough time has passed since the last processed signal for short positions
-                time_difference_short = current_time - self.last_processed_time_short[symbol]
-
-                if self.last_processed_signal[symbol] != current_signal:
-                    if long_pos_qty > 0:
-                        if (long_mode and current_signal == "long" and not self.auto_reduce_active_long.get(symbol, False) 
-                                and symbol not in self.max_qty_reached_symbol_long and time_difference_long > 180):
-                            logging.info(f"[{symbol}] Reissuing long orders due to signal.")
-                            self.clear_grid(symbol, 'buy')
-                            self.active_grids.discard(symbol)
-                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                            self.active_grids.add(symbol)
-                            self.last_processed_signal[symbol] = "neutral"  # Reset to neutral after placing long orders
-                            mfirsi_signal = "neutral"  # Reset mfirsi_signal to neutral
-                            self.last_processed_time_long[symbol] = current_time  # Update the timestamp for long
-
-                    if short_pos_qty > 0:
-                        if (short_mode and current_signal == "short" and not self.auto_reduce_active_short.get(symbol, False) 
-                                and symbol not in self.max_qty_reached_symbol_short and time_difference_short > 180):
-                            logging.info(f"[{symbol}] Reissuing short orders due to signal.")
-                            self.clear_grid(symbol, 'sell')
-                            self.active_grids.discard(symbol)
-                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                            self.active_grids.add(symbol)
-                            self.last_processed_signal[symbol] = "neutral"  # Reset to neutral after placing short orders
-                            mfirsi_signal = "neutral"  # Reset mfirsi_signal to neutral
-                            self.last_processed_time_short[symbol] = current_time  # Update the timestamp for short
-
                 logging.info(f"MFIRSI Signal for {symbol} : {mfirsi_signal}")
-                logging.info(f"Current signal after check for {symbol}: {current_signal}")
-                logging.info(f"Updated last processed signal for {symbol}: {self.last_processed_signal[symbol]}")
-
-                logging.info(f"MFIRSI Signal for {symbol} : {mfirsi_signal}")
-
-                logging.info(f"Current signal after check for {symbol}: {current_signal}")
-                logging.info(f"Updated last processed signal for {symbol}: {self.last_processed_signal[symbol]}")
 
                 replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist_v2(
                     symbol, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
