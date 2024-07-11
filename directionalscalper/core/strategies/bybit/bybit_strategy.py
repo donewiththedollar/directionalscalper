@@ -5039,6 +5039,43 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"Error in executing grid strategy: {e}")
             logging.info("Traceback: %s", traceback.format_exc())
 
+    def get_position_qty(self, symbol, side):
+        # Fetch open position data
+        open_position_data = self.retry_api_call(self.exchange.get_all_open_positions_bybit)
+        position_details = {}
+
+        # Process the fetched position data
+        for position in open_position_data:
+            info = position.get('info', {})
+            position_symbol = info.get('symbol', '').split(':')[0]
+
+            if 'size' in info and 'side' in info and 'avgPrice' in info and 'liqPrice' in info:
+                size = float(info['size'])
+                side_type = info['side'].lower()
+                avg_price = float(info['avgPrice'])
+                liq_price = info.get('liqPrice', None)
+
+                if position_symbol not in position_details:
+                    position_details[position_symbol] = {
+                        'long': {'qty': 0, 'avg_price': 0, 'liq_price': None}, 
+                        'short': {'qty': 0, 'avg_price': 0, 'liq_price': None}
+                    }
+
+                if side_type == 'buy':
+                    position_details[position_symbol]['long']['qty'] += size
+                    position_details[position_symbol]['long']['avg_price'] = avg_price
+                    position_details[position_symbol]['long']['liq_price'] = liq_price
+                elif side_type == 'sell':
+                    position_details[position_symbol]['short']['qty'] += size
+                    position_details[position_symbol]['short']['avg_price'] = avg_price
+                    position_details[position_symbol]['short']['liq_price'] = liq_price
+
+        if side == 'long':
+            return position_details.get(symbol, {}).get('long', {}).get('qty', 0)
+        elif side == 'short':
+            return position_details.get(symbol, {}).get('short', {}).get('qty', 0)
+        return 0
+
     def lingrid_ob_lsignal_entryuponsignal(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
                                                                         short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
                                                                         strength: float, outer_price_distance: float, min_outer_price_distance: float, max_outer_price_distance: float, reissue_threshold: float,
