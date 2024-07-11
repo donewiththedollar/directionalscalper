@@ -3187,21 +3187,52 @@ class BaseStrategy:
             logging.info(f"Short failsafe UPNL %: {short_failsafe_upnl_pct}")
             logging.info(f"Failsafe start %: {failsafe_start_pct}")
 
-            long_upnl_pct_equity = (long_upnl / total_equity) * 100
-            short_upnl_pct_equity = (short_upnl / total_equity) * 100
+            # Calculate UPNL as percentage of the total equity
+            long_upnl_pct_equity = abs((long_upnl / total_equity) * 100) if total_equity else 0
+            short_upnl_pct_equity = abs((short_upnl / total_equity) * 100) if total_equity else 0
 
-            logging.info(f"FAILSAFE: {symbol} Long UPNL % of Equity: {long_upnl_pct_equity:.2f}, Short UPNL % of Equity: {short_upnl_pct_equity:.2f}")
+            logging.info(f"FAILSAFE: {symbol} Long UPNL % of Total Equity: {long_upnl_pct_equity:.2f}, Short UPNL % of Total Equity: {short_upnl_pct_equity:.2f}")
 
+            # Log the conditions for triggering the failsafe
+            if long_pos_qty > 0:
+                logging.info(f"Checking long failsafe for {symbol}: Current price {current_price}, Failsafe start price {long_pos_price * (1 - failsafe_start_pct)}, Long UPNL {long_upnl}, Long UPNL % {long_upnl_pct_equity}")
+                long_failsafe_price = long_pos_price * (1 - (long_failsafe_upnl_pct / 100))
+                logging.info(f"Long position would trigger failsafe at price: {long_failsafe_price}")
+                if current_price < long_pos_price * (1 - failsafe_start_pct):
+                    logging.info(f"Long position price is below failsafe start threshold for {symbol}")
+                if long_upnl < -0.01:
+                    logging.info(f"Long UPNL is significant for {symbol}")
+                if long_upnl_pct_equity > long_failsafe_upnl_pct:
+                    logging.info(f"Long UPNL % exceeds failsafe threshold for {symbol}")
+                else:
+                    logging.info(f"Long UPNL % does not exceed failsafe threshold for {symbol}")
+
+            if short_pos_qty > 0:
+                logging.info(f"Checking short failsafe for {symbol}: Current price {current_price}, Failsafe start price {short_pos_price * (1 + failsafe_start_pct)}, Short UPNL {short_upnl}, Short UPNL % {short_upnl_pct_equity}")
+                short_failsafe_price = short_pos_price * (1 + (short_failsafe_upnl_pct / 100))
+                logging.info(f"Short position would trigger failsafe at price: {short_failsafe_price}")
+                if current_price > short_pos_price * (1 + failsafe_start_pct):
+                    logging.info(f"Short position price is above failsafe start threshold for {symbol}")
+                if short_upnl < -0.01:
+                    logging.info(f"Short UPNL is significant for {symbol}")
+                if short_upnl_pct_equity > short_failsafe_upnl_pct:
+                    logging.info(f"Short UPNL % exceeds failsafe threshold for {symbol}")
+                else:
+                    logging.info(f"Short UPNL % does not exceed failsafe threshold for {symbol}")
+
+            # Adjust failsafe trigger conditions to avoid triggering for very small UPNL values and to use absolute percentage values
             long_failsafe_triggered = (
                 long_pos_qty > 0
                 and current_price < long_pos_price * (1 - failsafe_start_pct)
-                and long_upnl_pct_equity < long_failsafe_upnl_pct
+                and long_upnl < -0.01  # Ensure there is a significant loss
+                and long_upnl_pct_equity > long_failsafe_upnl_pct
             )
 
             short_failsafe_triggered = (
                 short_pos_qty > 0
                 and current_price > short_pos_price * (1 + failsafe_start_pct)
-                and short_upnl_pct_equity < short_failsafe_upnl_pct
+                and short_upnl < -0.01  # Ensure there is a significant loss
+                and short_upnl_pct_equity > short_failsafe_upnl_pct
             )
 
             if long_failsafe_triggered:
@@ -3220,6 +3251,17 @@ class BaseStrategy:
             logging.error(f"Error in failsafe_method for {symbol}: {e}")
             raise
 
+    def get_user_defined_leverage(self, symbol, side):
+        if side == 'long':
+            leverage = self.user_defined_leverage_long if self.user_defined_leverage_long not in (0, None) else self.exchange.get_current_max_leverage_bybit(symbol)
+            logging.info(f"User defined leverage long: {leverage}")
+            return leverage
+        elif side == 'short':
+            leverage = self.user_defined_leverage_short if self.user_defined_leverage_short not in (0, None) else self.exchange.get_current_max_leverage_bybit(symbol)
+            logging.info(f"User defined leverage short: {leverage}")
+            return leverage
+        return 1
+
     def execute_failsafe_order(self, symbol, position_type, pos_qty, market_price):
         amount_precision, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
         price_precision_level = -int(math.log10(price_precision))
@@ -3235,15 +3277,118 @@ class BaseStrategy:
 
         positionIdx = 1 if position_type == 'long' else 2
 
-        logging.info(f"Attempting to place failsafe order: Symbol={symbol}, Type={'sell' if position_type == 'long' else 'buy'}, Qty={adjusted_pos_qty}, Price={order_price}")
+        logging.info(f"Attempting to place failsafe order: Symbol={symbol}, Type={'sell' if position_type == 'long' else 'buy'}, Qty={adjusted_pos_qty}, Price={order_price}, PositionIdx={positionIdx}")
 
         try:
-            logging.info(f"Failsafe order placed for {symbol}")
-            #order_result = self.postonly_limit_order_bybit_nolimit(symbol, 'sell' if position_type == 'long' else 'buy', adjusted_pos_qty, order_price, positionIdx, reduceOnly=True)
-            #logging.info(f"Failsafe order placed successfully for {symbol}: {order_result}")
+            # Place the reduce-only order
+            logging.info(f"Would have placed failsafe order for {symbol}")
+            # order_result = self.postonly_limit_order_bybit_nolimit(symbol, 'sell' if position type == 'long' else 'buy', adjusted_pos_qty, order_price, positionIdx, reduceOnly=True)
+            # logging.info(f"Failsafe order placed successfully for {symbol}: {order_result}")
         except Exception as e:
             logging.info(f"Failed to place failsafe order for {symbol}: {e}")
             raise
+
+    def fetch_profits(self, symbol):
+        try:
+            # Fetch trade history for the symbol to calculate profits
+            trades = self.exchange.fetch_my_trades(symbol)
+            logging.info(f"Trades from fetch_my_trades: {trades}")
+            total_profit = sum(float(trade['info']['profit']) for trade in trades if 'profit' in trade['info'])
+            logging.info(f"Total profit for {symbol}: {total_profit}")
+            return total_profit
+        except Exception as e:
+            logging.error(f"Error fetching profits for {symbol}: {e}")
+            return 0
+
+    def create_reduce_order(self, symbol, position_type, pos_qty, market_price):
+        try:
+            amount_precision, price_precision = self.exchange.get_symbol_precision_bybit(symbol)
+            price_precision_level = -int(math.log10(price_precision))
+            qty_precision_level = -int(math.log10(amount_precision))
+
+            order_book = self.exchange.fetch_order_book(symbol)
+            best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else market_price
+            best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else market_price
+
+            order_price = best_bid_price if position_type == 'long' else best_ask_price
+            order_price = round(order_price, price_precision_level)
+            adjusted_pos_qty = round(pos_qty, qty_precision_level)
+
+            positionIdx = 1 if position_type == 'long' else 2
+
+            logging.info(f"Placing reduce-only order: Symbol={symbol}, Type={'sell' if position_type == 'long' else 'buy'}, Qty={adjusted_pos_qty}, Price={order_price}, PositionIdx={positionIdx}")
+
+            # Place the reduce-only order
+            #order_result = self.exchange.create_order(symbol, 'limit', 'sell' if position_type == 'long' else 'buy', adjusted_pos_qty, order_price, {'reduceOnly': True, 'positionIdx': positionIdx})
+            #logging.info(f"Reduce-only order placed successfully for {symbol}: {order_result}")
+            logging.info(f"This is where the auto reduce order would place for {symbol}")
+        except Exception as e:
+            logging.error(f"Failed to place reduce-only order for {symbol}: {e}")
+
+    def autoreduce_method(self, symbol, auto_reduce_enabled, min_profit_pct, auto_reduce_cooldown_start_pct, upnl_auto_reduce_threshold_long, upnl_auto_reduce_threshold_short):
+        if not auto_reduce_enabled:
+            return
+
+        try:
+            logging.info(f"Autoreduction method called for {symbol}")
+
+            # Fetch total profits for the symbol
+            total_profit = self.fetch_profits(symbol)
+
+            # Fetch current positions
+            positions = self.exchange.fetch_positions(symbol)
+            current_price = self.exchange.fetch_ticker(symbol)['last']
+            long_pos_qty = positions['long']['contracts']
+            short_pos_qty = positions['short']['contracts']
+            long_pos_price = positions['long']['entryPrice']
+            short_pos_price = positions['short']['entryPrice']
+
+            # Fetch total equity
+            total_equity = self.exchange.fetch_balance()['total']['USDT']
+            profit_pct_equity = (total_profit / total_equity) * 100 if total_equity else 0
+
+            # Calculate UPNL as percentage of the total equity
+            long_upnl = (current_price - long_pos_price) * long_pos_qty
+            short_upnl = (short_pos_price - current_price) * short_pos_qty
+            long_upnl_pct_equity = abs((long_upnl / total_equity) * 100) if total_equity else 0
+            short_upnl_pct_equity = abs((short_upnl / total_equity) * 100) if total_equity else 0
+
+            logging.info(f"Profit % of Total Equity for {symbol}: {profit_pct_equity:.2f}")
+            logging.info(f"FAILSAFE: {symbol} Long UPNL % of Total Equity: {long_upnl_pct_equity:.2f}, Short UPNL % of Total Equity: {short_upnl_pct_equity:.2f}")
+
+            # Log the conditions for triggering the autoreduce
+            if long_pos_qty > 0:
+                logging.info(f"Checking long autoreduce for {symbol}: Current price {current_price}, Cooldown start price {long_pos_price * (1 - auto_reduce_cooldown_start_pct)}, Long UPNL {long_upnl}, Long UPNL % {long_upnl_pct_equity}")
+                long_autoreduce_price = long_pos_price * (1 - (upnl_auto_reduce_threshold_long / 100))
+                logging.info(f"Long position would trigger autoreduce at price: {long_autoreduce_price}")
+                if current_price < long_pos_price * (1 - auto_reduce_cooldown_start_pct) and long_upnl_pct_equity > upnl_auto_reduce_threshold_long:
+                    logging.info(f"Long UPNL % exceeds autoreduce threshold for {symbol}")
+                    self.create_reduce_order(symbol, 'long', long_pos_qty // 2, current_price)
+
+            if short_pos_qty > 0:
+                logging.info(f"Checking short autoreduce for {symbol}: Current price {current_price}, Cooldown start price {short_pos_price * (1 + auto_reduce_cooldown_start_pct)}, Short UPNL {short_upnl}, Short UPNL % {short_upnl_pct_equity}")
+                short_autoreduce_price = short_pos_price * (1 + (upnl_auto_reduce_threshold_short / 100))
+                logging.info(f"Short position would trigger autoreduce at price: {short_autoreduce_price}")
+                if current_price > short_pos_price * (1 + auto_reduce_cooldown_start_pct) and short_upnl_pct_equity > upnl_auto_reduce_threshold_short:
+                    logging.info(f"Short UPNL % exceeds autoreduce threshold for {symbol}")
+                    self.create_reduce_order(symbol, 'short', short_pos_qty // 2, current_price)
+
+            if profit_pct_equity > min_profit_pct:
+                logging.info(f"Profit percentage exceeds minimum threshold for {symbol}, initiating reduce-only orders")
+
+                if long_pos_qty > 0:
+                    logging.info(f"Creating reduce order for long position of {symbol}")
+                    self.create_reduce_order(symbol, 'long', long_pos_qty // 2, current_price)
+
+                if short_pos_qty > 0:
+                    logging.info(f"Creating reduce order for short position of {symbol}")
+                    self.create_reduce_order(symbol, 'short', short_pos_qty // 2, current_price)
+            else:
+                logging.info(f"Profit percentage does not exceed minimum threshold for {symbol}, no action taken")
+
+        except Exception as e:
+            logging.error(f"Error in autoreduction method for {symbol}: {e}")
+
 
 
     def calculate_dynamic_cooldown(self, current_price, entry_price, start_pct):

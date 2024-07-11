@@ -63,6 +63,9 @@ class BybitStrategy(BaseStrategy):
         self.last_reissue_price_long = {}
         self.last_reissue_price_short = {}
         self.placed_levels = {}
+        self.last_processed_signal = {}
+        self.last_processed_time_long = {}  # Dictionary to store the last processed time for long positions
+        self.last_processed_time_short = {}
 
         try:
             # Hotkey-related attributes
@@ -3620,6 +3623,457 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"Error in executing gridstrategy: {e}")
             logging.info("Traceback: %s", traceback.format_exc())
 
+    def linear_grid_hardened_gridspan_ob_volumelevels_nosignal(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
+                                                    short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
+                                                    strength: float, outer_price_distance: float, min_outer_price_distance: float, max_outer_price_distance: float, reissue_threshold: float,
+                                                    wallet_exposure_limit: float, wallet_exposure_limit_long: float, wallet_exposure_limit_short: float,
+                                                    user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool,
+                                                    short_mode: bool, initial_entry_buffer_pct: float, min_buffer_percentage: float, max_buffer_percentage: float,
+                                                    symbols_allowed: int, enforce_full_grid: bool, upnl_profit_pct: float,
+                                                    max_upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool,
+                                                    max_qty_percent_long: float, max_qty_percent_short: float):
+        try:
+            # Calculate dynamic outer price distance based on 4h candle spread
+            spread = self.get_4h_candle_spread(symbol)
+            logging.info(f"4h Candle spread for {symbol}: {spread}")
+
+            current_price = self.exchange.get_current_price(symbol)
+            logging.info(f"[{symbol}] Current price: {current_price}")
+
+            # Ensure dynamic outer price distance is not too tight
+            dynamic_outer_price_distance = max(min_outer_price_distance, min(max_outer_price_distance, spread))
+            logging.info(f"Dynamic outer price distance for {symbol}: {dynamic_outer_price_distance}")
+
+            # Ensure the outer price distance can span all levels
+            required_distance = outer_price_distance / levels
+            if dynamic_outer_price_distance < required_distance:
+                logging.info(f"Dynamic outer price distance {dynamic_outer_price_distance} is less than required distance {required_distance}. Adjusting it.")
+                dynamic_outer_price_distance = required_distance
+            logging.info(f"Dynamic outer price distance after spread adjustment: {dynamic_outer_price_distance}")
+
+            should_reissue_long, should_reissue_short = self.should_reissue_orders_revised(
+                symbol, reissue_threshold, long_pos_qty, short_pos_qty, initial_entry_buffer_pct)
+            open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+
+            if symbol not in self.filled_levels:
+                self.filled_levels[symbol] = {"buy": set(), "sell": set()}
+
+            long_grid_active = symbol in self.active_grids and "buy" in self.filled_levels[symbol]
+            short_grid_active = symbol in self.active_grids and "sell" in self.filled_levels[symbol]
+
+            self.check_and_manage_positions(long_pos_qty, short_pos_qty, symbol, total_equity, current_price, max_qty_percent_long, max_qty_percent_short)
+
+            buffer_percentage_long = initial_entry_buffer_pct if long_pos_qty == 0 else min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
+            buffer_percentage_short = initial_entry_buffer_pct if short_pos_qty == 0 else min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - short_pos_price) / short_pos_price)
+
+            buffer_distance_long = current_price * buffer_percentage_long
+            buffer_distance_short = current_price * buffer_percentage_short
+
+            logging.info(f"[{symbol}] Long buffer distance: {buffer_distance_long}, Short buffer distance: {buffer_distance_short}")
+
+            order_book = self.exchange.get_orderbook(symbol)
+            best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol, current_price)
+            best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol, current_price)
+
+            # Analyze orderbook depth and identify significant price levels
+            min_price = current_price - max_outer_price_distance * current_price
+            max_price = current_price + max_outer_price_distance * current_price
+
+            # Create a histogram of orderbook volume within the price range
+            price_range = np.arange(min_price, max_price, (max_price - min_price) / 100)
+            volume_histogram_long = np.zeros_like(price_range)
+            volume_histogram_short = np.zeros_like(price_range)
+
+            for order in order_book['bids']:
+                price, volume = order[0], order[1]
+                if min_price <= price <= current_price:
+                    index = int((price - min_price) / (max_price - min_price) * 100)
+                    volume_histogram_long[index] += volume
+
+            for order in order_book['asks']:
+                price, volume = order[0], order[1]
+                if current_price <= price <= max_price:
+                    index = int((price - min_price) / (max_price - min_price) * 100)
+                    volume_histogram_short[index] += volume
+
+            # Identify significant price levels based on volume histogram
+            volume_threshold_long = np.mean(volume_histogram_long) * 1.5  # Adjust the threshold as needed
+            significant_levels_long = price_range[volume_histogram_long >= volume_threshold_long]
+
+            volume_threshold_short = np.mean(volume_histogram_short) * 1.5  # Adjust the threshold as needed
+            significant_levels_short = price_range[volume_histogram_short >= volume_threshold_short]
+
+            # Calculate grid levels based on dynamic_outer_price_distance
+            grid_levels_long = [current_price - i * dynamic_outer_price_distance * current_price for i in range(1, levels + 1)]
+            grid_levels_short = [current_price + i * dynamic_outer_price_distance * current_price for i in range(1, levels + 1)]
+
+            # Function to find the nearest significant level
+            def find_nearest_significant_level(level, significant_levels, tolerance, min_distance, max_distance, current_price):
+                for sig_level in significant_levels:
+                    if abs(level - sig_level) / level < tolerance:
+                        if current_price - max_distance * current_price <= sig_level <= current_price - min_distance * current_price:
+                            return sig_level
+                return level
+
+            # Adjust grid levels to align with significant levels
+            tolerance = 0.01  # 1% tolerance, adjust as needed
+            grid_levels_long = [
+                find_nearest_significant_level(
+                    level,
+                    significant_levels_long,
+                    tolerance,
+                    buffer_distance_long / current_price,
+                    min_outer_price_distance,
+                    current_price
+                ) for level in grid_levels_long
+            ]
+            grid_levels_short = [
+                find_nearest_significant_level(
+                    level,
+                    significant_levels_short,
+                    tolerance,
+                    buffer_distance_short / current_price,
+                    min_outer_price_distance,
+                    current_price
+                ) for level in grid_levels_short
+            ]
+
+            # Ensure the grid levels are within the buffer distances and respect min/max outer price distance
+            grid_levels_long = [
+                level for level in grid_levels_long
+                if current_price - min_outer_price_distance * current_price <= level <= current_price - buffer_distance_long
+            ]
+            grid_levels_short = [
+                level for level in grid_levels_short
+                if current_price + buffer_distance_short <= level <= current_price + min_outer_price_distance * current_price
+            ]
+
+            # Ensure the desired number of grid levels is achieved
+            if len(grid_levels_long) < levels:
+                additional_levels_long = np.linspace(
+                    current_price - min_outer_price_distance * current_price,
+                    current_price - buffer_distance_long,
+                    levels - len(grid_levels_long)
+                )
+                grid_levels_long = np.concatenate((grid_levels_long, additional_levels_long))
+
+            if len(grid_levels_short) < levels:
+                additional_levels_short = np.linspace(
+                    current_price + buffer_distance_short,
+                    current_price + min_outer_price_distance * current_price,
+                    levels - len(grid_levels_short)
+                )
+                grid_levels_short = np.concatenate((grid_levels_short, additional_levels_short))
+
+            # Sort the grid levels in ascending order
+            grid_levels_long = sorted(grid_levels_long, reverse=True)
+            grid_levels_short = sorted(grid_levels_short)
+
+            logging.info(f"[{symbol}] Long grid levels: {grid_levels_long}")
+            logging.info(f"[{symbol}] Short grid levels: {grid_levels_short}")
+
+            qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
+            min_qty = float(self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
+            logging.info(f"[{symbol}] Quantity precision: {qty_precision}, Minimum quantity: {min_qty}")
+
+            total_amount_long = self.calculate_total_amount_notional_ls_properdca(
+                symbol=symbol, total_equity=total_equity, best_ask_price=best_ask_price,
+                best_bid_price=best_bid_price, wallet_exposure_limit_long=wallet_exposure_limit_long,
+                wallet_exposure_limit_short=wallet_exposure_limit_short, side="buy", levels=levels,
+                enforce_full_grid=enforce_full_grid, user_defined_leverage_long=user_defined_leverage_long,
+                user_defined_leverage_short=None, long_pos_qty=long_pos_qty, short_pos_qty=short_pos_qty
+            ) if long_mode else 0
+
+            total_amount_short = self.calculate_total_amount_notional_ls_properdca(
+                symbol=symbol, total_equity=total_equity, best_ask_price=best_ask_price,
+                best_bid_price=best_bid_price, wallet_exposure_limit_long=wallet_exposure_limit_long,
+                wallet_exposure_limit_short=wallet_exposure_limit_short, side="sell", levels=levels,
+                enforce_full_grid=enforce_full_grid, user_defined_leverage_long=None,
+                user_defined_leverage_short=user_defined_leverage_short, long_pos_qty=long_pos_qty, short_pos_qty=short_pos_qty
+            ) if short_mode else 0
+
+            logging.info(f"[{symbol}] Total amount long: {total_amount_long}, Total amount short: {total_amount_short}")
+
+            amounts_long = self.calculate_order_amounts_notional_properdca(symbol, total_amount_long, levels, strength, qty_precision, enforce_full_grid, long_pos_qty, short_pos_qty, side='buy')
+            amounts_short = self.calculate_order_amounts_notional_properdca(symbol, total_amount_short, levels, strength, qty_precision, enforce_full_grid, long_pos_qty, short_pos_qty, side='sell')
+            logging.info(f"[{symbol}] Long order amounts: {amounts_long}")
+            logging.info(f"[{symbol}] Short order amounts: {amounts_short}")
+
+            if self.auto_reduce_active_long.get(symbol, False):
+                logging.info(f"Auto-reduce for long position on {symbol} is active")
+                self.clear_grid(symbol, 'buy')
+                self.active_grids.discard(symbol)
+            else:
+                logging.info(f"Auto-reduce for long position on {symbol} is not active")
+
+            if self.auto_reduce_active_short.get(symbol, False):
+                logging.info(f"Auto-reduce for short position on {symbol} is active")
+                self.clear_grid(symbol, 'sell')
+                self.active_grids.discard(symbol)
+            else:
+                logging.info(f"Auto-reduce for short position on {symbol} is not active")
+
+            # Check for grid replacement conditions
+            has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
+            has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
+
+            logging.info(f"Symbol {symbol} has open long order: {has_open_long_order}")
+            logging.info(f"Symbol {symbol} has open short order: {has_open_short_order}")
+
+            replace_empty_long_grid = (long_pos_qty > 0 and not has_open_long_order)
+            replace_empty_short_grid = (short_pos_qty > 0 and not has_open_short_order)
+
+            current_time = datetime.now()
+
+            # Track the last time the grid was emptied
+            if symbol not in self.last_empty_grid_time:
+                self.last_empty_grid_time[symbol] = {'long': datetime.min, 'short': datetime.min}
+
+            if replace_empty_long_grid:
+                self.last_empty_grid_time[symbol]['long'] = current_time
+
+            if replace_empty_short_grid:
+                self.last_empty_grid_time[symbol]['short'] = current_time
+
+            # Check and log if the symbol is in max_qty_reached_symbol_long
+            if symbol in self.max_qty_reached_symbol_long:
+                logging.info(f"[{symbol}] Symbol is in max_qty_reached_symbol_long")
+
+            if symbol in self.max_qty_reached_symbol_short:
+                logging.info(f"[{symbol}] Symbol is in max_qty_reached_symbol_short")
+
+            # Additional logic for managing open symbols and checking trading permissions
+            open_symbols = list(set(open_symbols))
+            logging.info(f"Open symbols {open_symbols}")
+
+            trading_allowed = self.can_trade_new_symbol(open_symbols, symbols_allowed, symbol)
+            logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
+            logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
+
+            if len(open_symbols) < symbols_allowed or symbol in open_symbols:
+                logging.info(f"Allowed symbol: {symbol}")
+
+                replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist_v2(
+                    symbol, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
+                    dynamic_outer_price_distance=dynamic_outer_price_distance
+                )
+
+                # Replace long grid if conditions are met
+                if (replace_long_grid or (replace_empty_long_grid and (current_time - self.last_empty_grid_time[symbol].get('long', datetime.min) > timedelta(seconds=240)))) and not self.auto_reduce_active_long.get(symbol, False):
+                    if symbol not in self.max_qty_reached_symbol_long:
+                        logging.info(f"[{symbol}] Replacing long grid orders due to updated buffer or empty grid timeout.")
+                        self.clear_grid(symbol, 'buy')
+                        buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
+                        buffer_distance_long = current_price * buffer_percentage_long
+                        self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                        self.active_grids.add(symbol)
+                        self.last_empty_grid_time[symbol]['long'] = current_time
+                        logging.info(f"[{symbol}] Recalculated long grid levels with updated buffer: {grid_levels_long}")
+                    else:
+                        logging.info(f"{symbol} is in max qty reached symbol long cannot replace grid")
+
+                # Replace short grid if conditions are met
+                if (replace_short_grid or (replace_empty_short_grid and (current_time - self.last_empty_grid_time[symbol].get('short', datetime.min) > timedelta(seconds=240)))) and not self.auto_reduce_active_short.get(symbol, False):
+                    if symbol not in self.max_qty_reached_symbol_short:
+                        logging.info(f"[{symbol}] Replacing short grid orders due to updated buffer or empty grid timeout.")
+                        self.clear_grid(symbol, 'sell')
+                        buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - short_pos_price) / short_pos_price)
+                        buffer_distance_short = current_price * buffer_percentage_short
+                        self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                        self.active_grids.add(symbol)
+                        self.last_empty_grid_time[symbol]['short'] = current_time
+                        logging.info(f"[{symbol}] Recalculated short grid levels with updated buffer: {grid_levels_short}")
+                    else:
+                        logging.info(f"{symbol} is in max qty reached symbol short cannot replace grid")
+
+                # Ensure orders are not issued twice for the same side
+                if self.should_reissue_orders_revised(symbol, reissue_threshold, long_pos_qty, short_pos_qty, initial_entry_buffer_pct):
+                    open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+
+                    has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
+                    has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
+
+                    if not long_pos_qty and long_mode and not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
+                        if entry_during_autoreduce or not self.auto_reduce_active_long.get(symbol, False):
+                            if symbol in self.active_grids and "buy" in self.filled_levels[symbol] and not has_open_long_order:
+                                logging.info(f"[{symbol}] Reissuing long orders due to price movement beyond the threshold.")
+                                self.clear_grid(symbol, 'buy')
+                                self.active_grids.discard(symbol)
+                                logging.info(f"[{symbol}] Placing new long orders.")
+                                self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                                self.active_grids.add(symbol)
+                            elif symbol not in self.active_grids:
+                                logging.info(f"[{symbol}] No active long grid for the symbol. Skipping long grid reissue.")
+
+                    if not short_pos_qty and short_mode and not self.auto_reduce_active_short.get(symbol, False) and symbol not in self.max_qty_reached_symbol_short:
+                        if entry_during_autoreduce or not self.auto_reduce_active_short.get(symbol, False):
+                            if symbol in self.active_grids and "sell" in self.filled_levels[symbol] and not has_open_short_order:
+                                logging.info(f"[{symbol}] Reissuing short orders due to price movement beyond the threshold.")
+                                self.clear_grid(symbol, 'sell')
+                                self.active_grids.discard(symbol)
+                                logging.info(f"[{symbol}] Placing new short orders.")
+                                self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                                self.active_grids.add(symbol)
+                            elif symbol not in self.active_grids:
+                                logging.info(f"[{symbol}] No active short grid for the symbol. Skipping short grid reissue.")
+
+            if symbol in open_symbols or trading_allowed:
+                # Check if the grid levels have already been placed
+                placed_long_levels = self.placed_levels.get(symbol, {}).get("buy", set())
+                placed_short_levels = self.placed_levels.get(symbol, {}).get("sell", set())
+
+                # Check if there are open long or short orders
+                has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
+                has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
+
+                current_time = datetime.now()
+
+                if not long_pos_qty and not short_pos_qty and symbol in self.active_grids:
+                    last_cleared = self.last_cleared_time.get(symbol, datetime.min)
+                    if current_time - last_cleared > self.clear_interval:
+                        logging.info(f"[{symbol}] No open positions and time interval passed. Canceling leftover grid orders.")
+                        self.clear_grid(symbol, 'buy')
+                        self.clear_grid(symbol, 'sell')
+                        self.active_grids.discard(symbol)
+                        self.last_cleared_time[symbol] = current_time
+                    else:
+                        logging.info(f"[{symbol}] No open positions, but time interval not passed. Skipping grid clearing.")
+
+                # Check if auto-reduce is not active for long position
+                if not self.auto_reduce_active_long.get(symbol, False):
+                    logging.info(f"Auto-reduce for long position on {symbol} is not active")
+                    if long_mode and symbol not in self.max_qty_reached_symbol_long:
+                        if should_reissue_long or (long_pos_qty > 0 and not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)):
+                            self.cancel_grid_orders(symbol, "buy")
+                            self.active_grids.discard(symbol)
+                            self.filled_levels[symbol]["buy"].clear()
+
+                        if not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders):
+                            logging.info(f"[{symbol}] Placing new long grid orders.")
+                            self.clear_grid(symbol, 'buy')
+                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                            self.active_grids.add(symbol)
+                            self.placed_levels.setdefault(symbol, {})["buy"] = set(grid_levels_long)  # Update placed levels
+                else:
+                    logging.info(f"Auto-reduce for long position on {symbol} is active, entry during auto-reduce.")
+                    if long_mode and symbol not in self.max_qty_reached_symbol_long:
+                        if entry_during_autoreduce:
+                            logging.info(f"[{symbol}] Placing new long orders despite active auto-reduce due to entry_during_autoreduce setting.")
+                            self.clear_grid(symbol, 'buy')
+                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                            self.active_grids.add(symbol)
+                            self.placed_levels.setdefault(symbol, {})["buy"] = set(grid_levels_long)  # Update placed levels
+                        else:
+                            logging.info(f"[{symbol}] Skipping new long orders due to active long auto-reduce and entry_during_autoreduce set to False.")
+
+                # Check if auto-reduce is not active for short position
+                if not self.auto_reduce_active_short.get(symbol, False):
+                    logging.info(f"Auto-reduce for short position on {symbol} is not active")
+                    if short_mode and symbol not in self.max_qty_reached_symbol_short:
+                        if should_reissue_short or (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)):
+                            self.cancel_grid_orders(symbol, "sell")
+                            self.active_grids.discard(symbol)
+                            self.filled_levels[symbol]["sell"].clear()
+
+                        if not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders):
+                            logging.info(f"[{symbol}] Placing new short grid orders.")
+                            self.clear_grid(symbol, 'sell')
+                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                            self.active_grids.add(symbol)
+                            self.placed_levels.setdefault(symbol, {})["sell"] = set(grid_levels_short)  # Update placed levels
+                else:
+                    logging.info(f"Auto-reduce for short position on {symbol} is active, entry during auto-reduce.")
+                    if short_mode and symbol not in self.max_qty_reached_symbol_short:
+                        if entry_during_autoreduce:
+                            logging.info(f"[{symbol}] Placing new short orders despite active auto-reduce due to entry_during_autoreduce setting.")
+                            self.clear_grid(symbol, 'sell')
+                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                            self.active_grids.add(symbol)
+                            self.placed_levels.setdefault(symbol, {})["sell"] = set(grid_levels_short)  # Update placed levels
+                        else:
+                            logging.info(f"[{symbol}] Skipping new short orders due to active short auto-reduce and entry_during_autoreduce set to False.")
+
+            else:
+                logging.info(f"Symbol {symbol} not in open_symbols: {open_symbols} or trading not allowed")
+
+            # Determine if there are open long and short positions based on provided quantities
+            has_open_long_position = long_pos_qty > 0
+            has_open_short_position = short_pos_qty > 0
+
+            logging.info(f"{symbol} has long position: {has_open_long_position}, has short position: {has_open_short_position}")
+
+            logging.info(f"[{symbol}] Number of open symbols: {len(open_symbols)}, Symbols allowed: {symbols_allowed}")
+
+            if (len(open_symbols) < symbols_allowed and symbol not in self.active_grids) or (symbol in open_symbols and (not has_open_long_position or not has_open_short_position)):
+                logging.info(f"[{symbol}] Checking for new trading opportunities.")
+
+                if long_mode and not has_open_long_position and symbol not in self.max_qty_reached_symbol_long:
+                    if not self.auto_reduce_active_long.get(symbol, False) or entry_during_autoreduce:
+                        logging.info(f"[{symbol}] Placing new long orders (either no active long auto-reduce or entry during auto-reduce is allowed).")
+                        self.clear_grid(symbol, 'buy')
+                        self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                        self.active_grids.add(symbol)
+                    else:
+                        logging.info(f"[{symbol}] Skipping new long orders due to active long auto-reduce and entry_during_autoreduce set to False.")
+
+                if short_mode and not has_open_short_position and symbol not in self.max_qty_reached_symbol_short:
+                    if not self.auto_reduce_active_short.get(symbol, False) or entry_during_autoreduce:
+                        logging.info(f"[{symbol}] Placing new short orders (either no active short auto-reduce or entry during auto-reduce is allowed).")
+                        self.clear_grid(symbol, 'sell')
+                        self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                        self.active_grids.add(symbol)
+                    else:
+                        logging.info(f"[{symbol}] Skipping new short orders due to active short auto-reduce and entry_during_autoreduce set to False.")
+
+            # Calculate take profit for short and long positions using quickscalp method
+            short_take_profit = self.calculate_quickscalp_short_take_profit_dynamic_distance(short_pos_price, symbol, min_upnl_profit_pct=upnl_profit_pct, max_upnl_profit_pct=max_upnl_profit_pct)
+            long_take_profit = self.calculate_quickscalp_long_take_profit_dynamic_distance(long_pos_price, symbol, min_upnl_profit_pct=upnl_profit_pct, max_upnl_profit_pct=max_upnl_profit_pct)
+
+            # Update TP for long position
+            if long_pos_qty > 0:
+                new_long_tp_min, new_long_tp_max = self.calculate_quickscalp_long_take_profit_dynamic_distance(
+                    long_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
+                )
+                if new_long_tp_min is not None and new_long_tp_max is not None:
+                    self.next_long_tp_update = self.update_quickscalp_tp_dynamic(
+                        symbol=symbol,
+                        pos_qty=long_pos_qty,
+                        upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
+                        max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
+                        short_pos_price=None,  # Not relevant for long TP settings
+                        long_pos_price=long_pos_price,
+                        positionIdx=1,
+                        order_side="sell",
+                        last_tp_update=self.next_long_tp_update,
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
+                    )
+
+            if short_pos_qty > 0:
+                new_short_tp_min, new_short_tp_max = self.calculate_quickscalp_short_take_profit_dynamic_distance(
+                    short_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
+                )
+                if new_short_tp_min is not None and new_short_tp_max is not None:
+                    self.next_short_tp_update = self.update_quickscalp_tp_dynamic(
+                        symbol=symbol,
+                        pos_qty=short_pos_qty,
+                        upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
+                        max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
+                        short_pos_price=short_pos_price,
+                        long_pos_price=None,  # Not relevant for short TP settings
+                        positionIdx=2,
+                        order_side="buy",
+                        last_tp_update=self.next_short_tp_update,
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
+                    )
+
+            time.sleep(5)
+
+        except Exception as e:
+            logging.info(f"Error in executing grid strategy: {e}")
+            logging.info("Traceback: %s", traceback.format_exc())
+
     def linear_grid_hardened_gridspan_orderbook_maxposqty_nosignal(
         self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
         short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
@@ -4197,45 +4651,28 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"Error in executing gridstrategy: {e}")
             logging.info("Traceback: %s", traceback.format_exc())
 
-    def linear_grid_hardened_gridspan_ob_volumelevels_nosignal(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
-                                                short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
-                                                strength: float, outer_price_distance: float, min_outer_price_distance: float, max_outer_price_distance: float, reissue_threshold: float,
-                                                wallet_exposure_limit: float, wallet_exposure_limit_long: float, wallet_exposure_limit_short: float,
-                                                user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool,
-                                                short_mode: bool, initial_entry_buffer_pct: float, min_buffer_percentage: float, max_buffer_percentage: float,
-                                                symbols_allowed: int, enforce_full_grid: bool, upnl_profit_pct: float,
-                                                max_upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool,
-                                                max_qty_percent_long: float, max_qty_percent_short: float):
+    def lingrid_oblevels(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
+                                                                        short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
+                                                                        strength: float, outer_price_distance: float, min_outer_price_distance: float, max_outer_price_distance: float, reissue_threshold: float,
+                                                                        wallet_exposure_limit: float, wallet_exposure_limit_long: float, wallet_exposure_limit_short: float,
+                                                                        user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool,
+                                                                        short_mode: bool, initial_entry_buffer_pct: float, min_buffer_percentage: float, max_buffer_percentage: float,
+                                                                        symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float,
+                                                                        max_upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool,
+                                                                        max_qty_percent_long: float, max_qty_percent_short: float):
         try:
-            # Calculate dynamic outer price distance based on 4h candle spread
             spread = self.get_4h_candle_spread(symbol)
-            logging.info(f"4h Candle spread for {symbol}: {spread}")
-
             current_price = self.exchange.get_current_price(symbol)
-            logging.info(f"[{symbol}] Current price: {current_price}")
-            
-            # Ensure dynamic outer price distance is not too tight
             dynamic_outer_price_distance = max(min_outer_price_distance, min(max_outer_price_distance, spread))
             
-            logging.info(f"Dynamic outer price distance for {symbol} : {dynamic_outer_price_distance}")
-            
-            # Ensure the outer price distance can span all levels
-            required_distance = outer_price_distance / levels
-            if dynamic_outer_price_distance < required_distance:
-                logging.info(f"Dynamic outer price distance {dynamic_outer_price_distance} is less than required distance {required_distance}. Adjusting it.")
-                dynamic_outer_price_distance = required_distance
-
-            logging.info(f"Dynamic outer price distance after spread: {dynamic_outer_price_distance}")
-
-            should_reissue_long, should_reissue_short = self.should_reissue_orders_revised(
-                symbol, reissue_threshold, long_pos_qty, short_pos_qty, initial_entry_buffer_pct)
+            should_reissue_long, should_reissue_short = self.should_reissue_orders_revised(symbol, reissue_threshold, long_pos_qty, short_pos_qty, initial_entry_buffer_pct)
             open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
-            if symbol not in self.filled_levels:
-                self.filled_levels[symbol] = {"buy": set(), "sell": set()}
+            if symbol not in self.placed_levels:
+                self.placed_levels[symbol] = {"buy": set(), "sell": set()}
 
-            long_grid_active = symbol in self.active_grids and "buy" in self.filled_levels[symbol]
-            short_grid_active = symbol in self.active_grids and "sell" in self.filled_levels[symbol]
+            long_grid_active = symbol in self.active_grids and "buy" in self.placed_levels[symbol]
+            short_grid_active = symbol in self.active_grids and "sell" in self.placed_levels[symbol]
 
             self.check_and_manage_positions(long_pos_qty, short_pos_qty, symbol, total_equity, current_price, max_qty_percent_long, max_qty_percent_short)
 
@@ -4245,17 +4682,13 @@ class BybitStrategy(BaseStrategy):
             buffer_distance_long = current_price * buffer_percentage_long
             buffer_distance_short = current_price * buffer_percentage_short
 
-            logging.info(f"[{symbol}] Long buffer distance: {buffer_distance_long}, Short buffer distance: {buffer_distance_short}")
-
             order_book = self.exchange.get_orderbook(symbol)
             best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol, current_price)
             best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol, current_price)
 
-            # Analyze orderbook depth and identify significant price levels
             min_price = current_price - max_outer_price_distance * current_price
             max_price = current_price + max_outer_price_distance * current_price
 
-            # Create a histogram of orderbook volume within the price range
             price_range = np.arange(min_price, max_price, (max_price - min_price) / 100)
             volume_histogram_long = np.zeros_like(price_range)
             volume_histogram_short = np.zeros_like(price_range)
@@ -4272,36 +4705,413 @@ class BybitStrategy(BaseStrategy):
                     index = int((price - min_price) / (max_price - min_price) * 100)
                     volume_histogram_short[index] += volume
 
-            # Identify significant price levels based on volume histogram
-            volume_threshold_long = np.mean(volume_histogram_long) * 1.5  # Adjust the threshold as needed
+            volume_threshold_long = np.mean(volume_histogram_long) * 1.5
             significant_levels_long = price_range[volume_histogram_long >= volume_threshold_long]
 
-            volume_threshold_short = np.mean(volume_histogram_short) * 1.5  # Adjust the threshold as needed
+            volume_threshold_short = np.mean(volume_histogram_short) * 1.5
             significant_levels_short = price_range[volume_histogram_short >= volume_threshold_short]
 
-            # Calculate grid levels based on dynamic_outer_price_distance
-            grid_levels_long = [current_price - i * dynamic_outer_price_distance * current_price for i in range(1, levels + 1)]
-            grid_levels_short = [current_price + i * dynamic_outer_price_distance * current_price for i in range(1, levels + 1)]
+            initial_entry_long = current_price - buffer_distance_long
+            initial_entry_short = current_price + buffer_distance_short
 
-            # Ensure the grid levels are within the buffer distances
-            grid_levels_long = [level for level in grid_levels_long if current_price - min_outer_price_distance * current_price <= level <= current_price - buffer_distance_long]
-            grid_levels_short = [level for level in grid_levels_short if current_price + buffer_distance_short <= level <= current_price + min_outer_price_distance * current_price]
+            if long_pos_qty == 0:
+                grid_levels_long = [initial_entry_long] + [
+                    current_price - buffer_distance_long - i * ((max_outer_price_distance * current_price - buffer_distance_long) / (levels - 1)) 
+                    for i in range(1, levels)
+                ]
+            else:
+                grid_levels_long = [
+                    current_price - buffer_distance_long - i * ((max_outer_price_distance * current_price - buffer_distance_long) / levels) 
+                    for i in range(levels)
+                ]
 
-            # Ensure the desired number of grid levels is achieved
+            if short_pos_qty == 0:
+                grid_levels_short = [initial_entry_short] + [
+                    current_price + buffer_distance_short + i * ((max_outer_price_distance * current_price - buffer_distance_short) / (levels - 1)) 
+                    for i in range(1, levels)
+                ]
+            else:
+                grid_levels_short = [
+                    current_price + buffer_distance_short + i * ((max_outer_price_distance * current_price - buffer_distance_short) / levels) 
+                    for i in range(levels)
+                ]
+
+            def find_nearest_significant_level(level, significant_levels, tolerance, min_distance, max_distance, current_price, previous_level=None):
+                for sig_level in significant_levels:
+                    if abs(level - sig_level) / level < tolerance:
+                        if current_price - max_distance * current_price <= sig_level <= current_price - min_distance * current_price:
+                            if previous_level is None or abs(sig_level - previous_level) > (max_distance * current_price / levels):
+                                return sig_level
+                return level
+
+            tolerance = 0.01
+            adjusted_grid_levels_long = []
+            adjusted_grid_levels_short = []
+
+            for i, level in enumerate(grid_levels_long):
+                previous_level = adjusted_grid_levels_long[-1] if adjusted_grid_levels_long else None
+                adjusted_level = find_nearest_significant_level(
+                    level,
+                    significant_levels_long,
+                    tolerance,
+                    min_outer_price_distance,
+                    max_outer_price_distance,
+                    current_price,
+                    previous_level
+                )
+                if current_price - max_outer_price_distance * current_price <= adjusted_level <= current_price - buffer_distance_long:
+                    adjusted_grid_levels_long.append(adjusted_level)
+
+            for i, level in enumerate(grid_levels_short):
+                previous_level = adjusted_grid_levels_short[-1] if adjusted_grid_levels_short else None
+                adjusted_level = find_nearest_significant_level(
+                    level,
+                    significant_levels_short,
+                    tolerance,
+                    min_outer_price_distance,
+                    max_outer_price_distance,
+                    current_price,
+                    previous_level
+                )
+                if current_price + buffer_distance_short <= adjusted_level <= current_price + max_outer_price_distance * current_price:
+                    adjusted_grid_levels_short.append(adjusted_level)
+
+            grid_levels_long = adjusted_grid_levels_long
+            grid_levels_short = adjusted_grid_levels_short
+
             if len(grid_levels_long) < levels:
-                additional_levels_long = np.linspace(current_price - min_outer_price_distance * current_price, current_price - buffer_distance_long, levels - len(grid_levels_long))
+                remaining_levels = levels - len(grid_levels_long)
+                additional_levels_long = np.linspace(
+                    grid_levels_long[-1] if grid_levels_long else current_price - buffer_distance_long,
+                    current_price - max_outer_price_distance * current_price,
+                    remaining_levels + 1
+                )[1:]
                 grid_levels_long = np.concatenate((grid_levels_long, additional_levels_long))
 
             if len(grid_levels_short) < levels:
-                additional_levels_short = np.linspace(current_price + buffer_distance_short, current_price + min_outer_price_distance * current_price, levels - len(grid_levels_short))
+                remaining_levels = levels - len(grid_levels_short)
+                additional_levels_short = np.linspace(
+                    grid_levels_short[-1] if grid_levels_short else current_price + buffer_distance_short,
+                    current_price + max_outer_price_distance * current_price,
+                    remaining_levels + 1
+                )[1:]
                 grid_levels_short = np.concatenate((grid_levels_short, additional_levels_short))
 
-            # Sort the grid levels in ascending order
             grid_levels_long = sorted(grid_levels_long, reverse=True)
             grid_levels_short = sorted(grid_levels_short)
 
+            qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
+            min_qty = float(self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
+
+            total_amount_long = self.calculate_total_amount_notional_ls_properdca(
+                symbol=symbol, total_equity=total_equity, best_ask_price=best_ask_price,
+                best_bid_price=best_bid_price, wallet_exposure_limit_long=wallet_exposure_limit_long,
+                wallet_exposure_limit_short=wallet_exposure_limit_short, side="buy", levels=levels,
+                enforce_full_grid=enforce_full_grid, user_defined_leverage_long=user_defined_leverage_long,
+                user_defined_leverage_short=None, long_pos_qty=long_pos_qty, short_pos_qty=short_pos_qty
+            ) if long_mode else 0
+
+            total_amount_short = self.calculate_total_amount_notional_ls_properdca(
+                symbol=symbol, total_equity=total_equity, best_ask_price=best_ask_price,
+                best_bid_price=best_bid_price, wallet_exposure_limit_long=wallet_exposure_limit_long,
+                wallet_exposure_limit_short=wallet_exposure_limit_short, side="sell", levels=levels,
+                enforce_full_grid=enforce_full_grid, user_defined_leverage_long=None,
+                user_defined_leverage_short=user_defined_leverage_short, long_pos_qty=long_pos_qty, short_pos_qty=short_pos_qty
+            ) if short_mode else 0
+
+            amounts_long = self.calculate_order_amounts_notional_properdca(symbol, total_amount_long, levels, strength, qty_precision, enforce_full_grid, long_pos_qty, short_pos_qty, side='buy')
+            amounts_short = self.calculate_order_amounts_notional_properdca(symbol, total_amount_short, levels, strength, qty_precision, enforce_full_grid, long_pos_qty, short_pos_qty, side='sell')
+
+            if self.auto_reduce_active_long.get(symbol, False):
+                self.clear_grid(symbol, 'buy')
+                self.active_grids.discard(symbol)
+
+            if self.auto_reduce_active_short.get(symbol, False):
+                self.clear_grid(symbol, 'sell')
+                self.active_grids.discard(symbol)
+
+            replace_empty_long_grid = (long_pos_qty > 0 and not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders))
+            replace_empty_short_grid = (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders))
+
+            current_time = datetime.now()
+
+            if symbol not in self.last_empty_grid_time:
+                self.last_empty_grid_time[symbol] = {'long': datetime.min, 'short': datetime.min}
+
+            if replace_empty_long_grid:
+                self.last_empty_grid_time[symbol]['long'] = current_time
+
+            if replace_empty_short_grid:
+                self.last_empty_grid_time[symbol]['short'] = current_time
+
+            open_symbols = list(set(open_symbols))
+
+            trading_allowed = self.can_trade_new_symbol(open_symbols, symbols_allowed, symbol)
+
+            mfi_signal_long = mfirsi_signal.lower() == "long"
+            mfi_signal_short = mfirsi_signal.lower() == "short"
+
+            if len(open_symbols) < symbols_allowed or symbol in open_symbols:
+                replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist_v2(
+                    symbol, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
+                    dynamic_outer_price_distance=dynamic_outer_price_distance
+                )
+
+                if (replace_long_grid or (replace_empty_long_grid and (current_time - self.last_empty_grid_time[symbol].get('long', datetime.min) > timedelta(seconds=240)))) and not self.auto_reduce_active_long.get(symbol, False):
+                    if symbol not in self.max_qty_reached_symbol_long:
+                        self.clear_grid(symbol, 'buy')
+                        buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
+                        buffer_distance_long = current_price * buffer_percentage_long
+                        self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.placed_levels[symbol]["buy"])
+                        self.active_grids.add(symbol)
+                        self.last_empty_grid_time[symbol]['long'] = current_time
+
+                if (replace_short_grid or (replace_empty_short_grid and (current_time - self.last_empty_grid_time[symbol].get('short', datetime.min) > timedelta(seconds=240)))) and not self.auto_reduce_active_short.get(symbol, False):
+                    if symbol not in self.max_qty_reached_symbol_short:
+                        self.clear_grid(symbol, 'sell')
+                        buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - short_pos_price) / short_pos_price)
+                        buffer_distance_short = current_price * buffer_percentage_short
+                        self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.placed_levels[symbol]["sell"])
+                        self.active_grids.add(symbol)
+                        self.last_empty_grid_time[symbol]['short'] = current_time
+
+                has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
+                has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
+
+                if self.should_reissue_orders_revised(symbol, reissue_threshold, long_pos_qty, short_pos_qty, initial_entry_buffer_pct):
+                    if not long_pos_qty and long_mode and not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
+                        if entry_during_autoreduce or not self.auto_reduce_active_long.get(symbol, False):
+                            if symbol in self.active_grids and "buy" in self.placed_levels[symbol] and not has_open_long_order:
+                                self.clear_grid(symbol, 'buy')
+                                self.active_grids.discard(symbol)
+                                self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.placed_levels[symbol]["buy"])
+                                self.active_grids.add(symbol)
+
+                    if not short_pos_qty and short_mode and not self.auto_reduce_active_short.get(symbol, False) and symbol not in self.max_qty_reached_symbol_short:
+                        if entry_during_autoreduce or not self.auto_reduce_active_short.get(symbol, False):
+                            if symbol in self.active_grids and "sell" in self.placed_levels[symbol] and not has_open_short_order:
+                                self.clear_grid(symbol, 'sell')
+                                self.active_grids.discard(symbol)
+                                self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.placed_levels[symbol]["sell"])
+                                self.active_grids.add(symbol)
+
+                if symbol in open_symbols or trading_allowed:
+                    if not long_pos_qty and not short_pos_qty and symbol in self.active_grids:
+                        last_cleared = self.last_cleared_time.get(symbol, datetime.min)
+                        if current_time - last_cleared > self.clear_interval:
+                            self.clear_grid(symbol, 'buy')
+                            self.clear_grid(symbol, 'sell')
+                            self.active_grids.discard(symbol)
+                            self.last_cleared_time[symbol] = current_time
+
+                    if not self.auto_reduce_active_long.get(symbol, False):
+                        if long_mode and (mfi_signal_long or long_pos_qty > 0) and symbol not in self.max_qty_reached_symbol_long:
+                            if should_reissue_long or (long_pos_qty > 0 and not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)):
+                                self.cancel_grid_orders(symbol, "buy")
+                                self.active_grids.discard(symbol)
+                                self.placed_levels[symbol]["buy"].clear()
+
+                            if not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders):
+                                self.clear_grid(symbol, 'buy')
+                                self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.placed_levels[symbol]["buy"])
+                                self.active_grids.add(symbol)
+                                self.placed_levels.setdefault(symbol, {})["buy"] = set(grid_levels_long)
+
+                    if not self.auto_reduce_active_short.get(symbol, False):
+                        if short_mode and (mfi_signal_short or short_pos_qty > 0) and symbol not in self.max_qty_reached_symbol_short:
+                            if should_reissue_short or (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)):
+                                self.cancel_grid_orders(symbol, "sell")
+                                self.active_grids.discard(symbol)
+                                self.placed_levels[symbol]["sell"].clear()
+
+                            if not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders):
+                                self.clear_grid(symbol, 'sell')
+                                self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.placed_levels[symbol]["sell"])
+                                self.active_grids.add(symbol)
+                                self.placed_levels.setdefault(symbol, {})["sell"] = set(grid_levels_short)
+
+                    if long_mode and mfi_signal_long and not long_pos_qty and symbol not in self.max_qty_reached_symbol_long:
+                        if not self.auto_reduce_active_long.get(symbol, False) or entry_during_autoreduce:
+                            self.clear_grid(symbol, 'buy')
+                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.placed_levels[symbol]["buy"])
+                            self.active_grids.add(symbol)
+                            self.placed_levels[symbol]["buy"] = set(grid_levels_long)
+
+                    if short_mode and mfi_signal_short and not short_pos_qty and symbol not in self.max_qty_reached_symbol_short:
+                        if not self.auto_reduce_active_short.get(symbol, False) or entry_during_autoreduce:
+                            self.clear_grid(symbol, 'sell')
+                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.placed_levels[symbol]["sell"])
+                            self.active_grids.add(symbol)
+                            self.placed_levels[symbol]["sell"] = set(grid_levels_short)
+
+                time.sleep(2)
+
+        except Exception as e:
+            logging.info(f"Error in executing grid strategy: {e}")
+            logging.info("Traceback: %s", traceback.format_exc())
+
+    def lingrid_ob_lsignal_entryuponsignal(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
+                                                                        short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
+                                                                        strength: float, outer_price_distance: float, min_outer_price_distance: float, max_outer_price_distance: float, reissue_threshold: float,
+                                                                        wallet_exposure_limit: float, wallet_exposure_limit_long: float, wallet_exposure_limit_short: float,
+                                                                        user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool,
+                                                                        short_mode: bool, initial_entry_buffer_pct: float, min_buffer_percentage: float, max_buffer_percentage: float,
+                                                                        symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float,
+                                                                        max_upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool,
+                                                                        max_qty_percent_long: float, max_qty_percent_short: float):
+        try:
+            spread = self.get_4h_candle_spread(symbol)
+            logging.info(f"4h Candle spread for {symbol}: {spread}")
+
+            current_price = self.exchange.get_current_price(symbol)
+            logging.info(f"[{symbol}] Current price: {current_price}")
+
+            dynamic_outer_price_distance = max(min_outer_price_distance, min(max_outer_price_distance, spread))
+            logging.info(f"Dynamic outer price distance for {symbol}: {dynamic_outer_price_distance}")
+
+            should_reissue_long, should_reissue_short = self.should_reissue_orders_revised(
+                symbol, reissue_threshold, long_pos_qty, short_pos_qty, initial_entry_buffer_pct)
+            open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+
+            if symbol not in self.filled_levels:
+                self.filled_levels[symbol] = {"buy": set(), "sell": set()}
+
+            long_grid_active = symbol in self.active_grids and "buy" in self.filled_levels[symbol]
+            short_grid_active = symbol in self.active_grids and "sell" in self.filled_levels[symbol]
+
+            self.check_and_manage_positions(long_pos_qty, short_pos_qty, symbol, total_equity, current_price, max_qty_percent_long, max_qty_percent_short)
+
+            buffer_percentage_long = initial_entry_buffer_pct if long_pos_qty == 0 or mfirsi_signal.lower() == "long" else min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
+            buffer_percentage_short = initial_entry_buffer_pct if short_pos_qty == 0 or mfirsi_signal.lower() == "short" else min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - short_pos_price) / short_pos_price)
+
+            buffer_distance_long = current_price * buffer_percentage_long
+            buffer_distance_short = current_price * buffer_percentage_short
+
+            logging.info(f"[{symbol}] Long buffer distance: {buffer_distance_long}, Short buffer distance: {buffer_distance_short}")
+
+            order_book = self.exchange.get_orderbook(symbol)
+            best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol, current_price)
+            best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol, current_price)
+
+            min_price = current_price - max_outer_price_distance * current_price
+            max_price = current_price + max_outer_price_distance * current_price
+
+            price_range = np.arange(min_price, max_price, (max_price - min_price) / 100)
+            volume_histogram_long = np.zeros_like(price_range)
+            volume_histogram_short = np.zeros_like(price_range)
+
+            for order in order_book['bids']:
+                price, volume = order[0], order[1]
+                if min_price <= price <= current_price:
+                    index = int((price - min_price) / (max_price - min_price) * 100)
+                    volume_histogram_long[index] += volume
+
+            for order in order_book['asks']:
+                price, volume = order[0], order[1]
+                if current_price <= price <= max_price:
+                    index = int((price - min_price) / (max_price - min_price) * 100)
+                    volume_histogram_short[index] += volume
+
+            volume_threshold_long = np.mean(volume_histogram_long) * 1.5
+            significant_levels_long = price_range[volume_histogram_long >= volume_threshold_long]
+
+            volume_threshold_short = np.mean(volume_histogram_short) * 1.5
+            significant_levels_short = price_range[volume_histogram_short >= volume_threshold_short]
+
+            initial_entry_long = current_price - buffer_distance_long
+            initial_entry_short = current_price + buffer_distance_short
+
+            if long_pos_qty == 0 or mfirsi_signal.lower() == "long":
+                grid_levels_long = [initial_entry_long] + [
+                    current_price - buffer_distance_long - i * ((max_outer_price_distance * current_price - buffer_distance_long) / (levels - 1)) 
+                    for i in range(1, levels)
+                ]
+            else:
+                grid_levels_long = [
+                    current_price - buffer_distance_long - i * ((max_outer_price_distance * current_price - buffer_distance_long) / levels) 
+                    for i in range(levels)
+                ]
+
+            if short_pos_qty == 0 or mfirsi_signal.lower() == "short":
+                grid_levels_short = [initial_entry_short] + [
+                    current_price + buffer_distance_short + i * ((max_outer_price_distance * current_price - buffer_distance_short) / (levels - 1)) 
+                    for i in range(1, levels)
+                ]
+            else:
+                grid_levels_short = [
+                    current_price + buffer_distance_short + i * ((max_outer_price_distance * current_price - buffer_distance_short) / levels) 
+                    for i in range(levels)
+                ]
+
+            def find_nearest_significant_level(level, significant_levels, tolerance, min_distance, max_distance, current_price, previous_level=None):
+                for sig_level in significant_levels:
+                    if abs(level - sig_level) / level < tolerance:
+                        if current_price - max_distance * current_price <= sig_level <= current_price - min_distance * current_price:
+                            if previous_level is None or abs(sig_level - previous_level) > (max_distance * current_price / levels):
+                                return sig_level
+                return level
+
+            tolerance = 0.01
+            adjusted_grid_levels_long = []
+            adjusted_grid_levels_short = []
+
+            for i, level in enumerate(grid_levels_long):
+                previous_level = adjusted_grid_levels_long[-1] if adjusted_grid_levels_long else None
+                adjusted_level = find_nearest_significant_level(
+                    level,
+                    significant_levels_long,
+                    tolerance,
+                    min_outer_price_distance,
+                    max_outer_price_distance,
+                    current_price,
+                    previous_level
+                )
+                if current_price - max_outer_price_distance * current_price <= adjusted_level <= current_price - buffer_distance_long:
+                    adjusted_grid_levels_long.append(adjusted_level)
+
+            for i, level in enumerate(grid_levels_short):
+                previous_level = adjusted_grid_levels_short[-1] if adjusted_grid_levels_short else None
+                adjusted_level = find_nearest_significant_level(
+                    level,
+                    significant_levels_short,
+                    tolerance,
+                    min_outer_price_distance,
+                    max_outer_price_distance,
+                    current_price,
+                    previous_level
+                )
+                if current_price + buffer_distance_short <= adjusted_level <= current_price + max_outer_price_distance * current_price:
+                    adjusted_grid_levels_short.append(adjusted_level)
+
+            grid_levels_long = adjusted_grid_levels_long
+            grid_levels_short = adjusted_grid_levels_short
+
+            if len(grid_levels_long) < levels:
+                remaining_levels = levels - len(grid_levels_long)
+                additional_levels_long = np.linspace(
+                    grid_levels_long[-1] if grid_levels_long else current_price - buffer_distance_long,
+                    current_price - max_outer_price_distance * current_price,
+                    remaining_levels + 1
+                )[1:]
+                grid_levels_long = np.concatenate((grid_levels_long, additional_levels_long))
+
+            if len(grid_levels_short) < levels:
+                remaining_levels = levels - len(grid_levels_short)
+                additional_levels_short = np.linspace(
+                    grid_levels_short[-1] if grid_levels_short else current_price + buffer_distance_short,
+                    current_price + max_outer_price_distance * current_price,
+                    remaining_levels + 1
+                )[1:]
+                grid_levels_short = np.concatenate((grid_levels_short, additional_levels_short))
+
+            grid_levels_long = sorted(grid_levels_long, reverse=True)
+            grid_levels_short = sorted(grid_levels_short)
+
+            logging.info(f"[{symbol}] Initial long entry level: {initial_entry_long}")
+            logging.info(f"[{symbol}] Initial short entry level: {initial_entry_short}")
             logging.info(f"[{symbol}] Long grid levels: {grid_levels_long}")
             logging.info(f"[{symbol}] Short grid levels: {grid_levels_short}")
+    
 
             qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
             min_qty = float(self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
@@ -4330,6 +5140,49 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"[{symbol}] Long order amounts: {amounts_long}")
             logging.info(f"[{symbol}] Short order amounts: {amounts_short}")
 
+            # Skip if the signal is the same as the last processed signal
+            if not hasattr(self, 'last_attempted_signal'):
+                self.last_attempted_signal = None
+
+            if self.last_attempted_signal == mfirsi_signal and (long_pos_qty > 0.00001 or short_pos_qty > 0.00001):
+                logging.info(f"Skipping processing for {symbol} as the mfirsi_signal is the same as the last attempted signal: {mfirsi_signal}")
+                return
+
+            # Handle long and short grid replacement based on mfirsi_signal
+            if mfirsi_signal.lower() == "long" and long_mode and not self.auto_reduce_active_long.get(symbol, False):
+                logging.info(f"[{symbol}] Replacing long grid orders due to MFIRSI signal long.")
+                self.clear_grid(symbol, 'buy')
+                self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                self.active_grids.add(symbol)
+                self.last_attempted_signal = mfirsi_signal  # Set the attempted signal
+                while long_pos_qty < 0.00001:
+                    time.sleep(5)  # Wait for some time to allow order to be filled
+                    # Re-fetch the long position quantity from the exchange or update it elsewhere
+                    if long_pos_qty < 0.00001:
+                        logging.info(f"[{symbol}] Retrying long grid orders due to MFIRSI signal long.")
+                        self.clear_grid(symbol, 'buy')
+                        self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                        self.active_grids.add(symbol)
+                    else:
+                        break  # Exit loop once the order is filled
+
+            elif mfirsi_signal.lower() == "short" and short_mode and not self.auto_reduce_active_short.get(symbol, False):
+                logging.info(f"[{symbol}] Replacing short grid orders due to MFIRSI signal short.")
+                self.clear_grid(symbol, 'sell')
+                self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                self.active_grids.add(symbol)
+                self.last_attempted_signal = mfirsi_signal  # Set the attempted signal
+                while short_pos_qty < 0.00001:
+                    time.sleep(5)  # Wait for some time to allow order to be filled
+                    # Re-fetch the short position quantity from the exchange or update it elsewhere
+                    if short_pos_qty < 0.00001:
+                        logging.info(f"[{symbol}] Retrying short grid orders due to MFIRSI signal short.")
+                        self.clear_grid(symbol, 'sell')
+                        self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                        self.active_grids.add(symbol)
+                    else:
+                        break  # Exit loop once the order is filled
+
             if self.auto_reduce_active_long.get(symbol, False):
                 logging.info(f"Auto-reduce for long position on {symbol} is active")
                 self.clear_grid(symbol, 'buy')
@@ -4343,6 +5196,10 @@ class BybitStrategy(BaseStrategy):
                 self.active_grids.discard(symbol)
             else:
                 logging.info(f"Auto-reduce for short position on {symbol} is not active")
+
+            # Initialize last_empty_grid_time for symbol if not present
+            if symbol not in self.last_empty_grid_time:
+                self.last_empty_grid_time[symbol] = {'long': 0, 'short': 0}
 
             # Check for grid replacement conditions
             has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
@@ -4374,9 +5231,16 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
             logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
 
+            mfi_signal_long = mfirsi_signal.lower() == "long"
+            mfi_signal_short = mfirsi_signal.lower() == "short"
 
             if len(open_symbols) < symbols_allowed or symbol in open_symbols:
                 logging.info(f"Allowed symbol: {symbol}")
+
+                has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
+                has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
+
+                logging.info(f"MFIRSI Signal for {symbol} : {mfirsi_signal}")
 
                 replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist_v2(
                     symbol, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
@@ -4477,7 +5341,7 @@ class BybitStrategy(BaseStrategy):
                 # Check if auto-reduce is not active for long position
                 if not self.auto_reduce_active_long.get(symbol, False):
                     logging.info(f"Auto-reduce for long position on {symbol} is not active")
-                    if long_mode and symbol not in self.max_qty_reached_symbol_long:
+                    if long_mode and (mfi_signal_long or long_pos_qty > 0) and symbol not in self.max_qty_reached_symbol_long:
                         if should_reissue_long or (long_pos_qty > 0 and not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)):
                             self.cancel_grid_orders(symbol, "buy")
                             self.active_grids.discard(symbol)
@@ -4489,7 +5353,7 @@ class BybitStrategy(BaseStrategy):
                             self.active_grids.add(symbol)
                 else:
                     logging.info(f"Auto-reduce for long position on {symbol} is active, entry during auto-reduce.")
-                    if long_mode and symbol not in self.max_qty_reached_symbol_long:
+                    if long_mode and (mfi_signal_long or long_pos_qty > 0) and symbol not in self.max_qty_reached_symbol_long:
                         if entry_during_autoreduce:
                             logging.info(f"[{symbol}] Placing new long orders despite active auto-reduce due to entry_during_autoreduce setting.")
                             self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
@@ -4500,7 +5364,7 @@ class BybitStrategy(BaseStrategy):
                 # Check if auto-reduce is not active for short position
                 if not self.auto_reduce_active_short.get(symbol, False):
                     logging.info(f"Auto-reduce for short position on {symbol} is not active")
-                    if short_mode and symbol not in self.max_qty_reached_symbol_short:
+                    if short_mode and (mfi_signal_short or short_pos_qty > 0) and symbol not in self.max_qty_reached_symbol_short:
                         if should_reissue_short or (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)):
                             self.cancel_grid_orders(symbol, "sell")
                             self.active_grids.discard(symbol)
@@ -4512,503 +5376,11 @@ class BybitStrategy(BaseStrategy):
                             self.active_grids.add(symbol)
                 else:
                     logging.info(f"Auto-reduce for short position on {symbol} is active, entry during auto-reduce.")
-                    if short_mode and symbol not in self.max_qty_reached_symbol_short:
-                        if entry_during_autoreduce:
-                            logging.info(f"[{symbol}] Placing new short orders despite active auto-reduce due to entry_during_autoreduce setting.")
-                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                            self.active_grids.add(symbol)
-                        else:
-                            logging.info(f"[{symbol}] Skipping new short orders due to active short auto-reduce and entry_during_autoreduce set to False.")
-
-            else:
-                logging.info(f"Symbol {symbol} not in open_symbols: {open_symbols} or trading not allowed")
-
-            # Determine if there are open long and short positions based on provided quantities
-            has_open_long_position = long_pos_qty > 0
-            has_open_short_position = short_pos_qty > 0
-
-            logging.info(f"{symbol} has long position: {has_open_long_position}, has short position: {has_open_short_position}")
-
-            logging.info(f"[{symbol}] Number of open symbols: {len(open_symbols)}, Symbols allowed: {symbols_allowed}")
-
-            if (len(open_symbols) < symbols_allowed and symbol not in self.active_grids) or (symbol in open_symbols and (not has_open_long_position or not has_open_short_position)):
-                logging.info(f"[{symbol}] Checking for new trading opportunities.")
-
-                if long_mode and not has_open_long_position and symbol not in self.max_qty_reached_symbol_long:
-                    if not self.auto_reduce_active_long.get(symbol, False) or entry_during_autoreduce:
-                        logging.info(f"[{symbol}] Placing new long orders (either no active long auto-reduce or entry during auto-reduce is allowed).")
-                        self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                        self.active_grids.add(symbol)
-                    else:
-                        logging.info(f"[{symbol}] Skipping new long orders due to active long auto-reduce and entry_during_autoreduce set to False.")
-
-                if short_mode and not has_open_short_position and symbol not in self.max_qty_reached_symbol_short:
-                    if not self.auto_reduce_active_short.get(symbol, False) or entry_during_autoreduce:
-                        logging.info(f"[{symbol}] Placing new short orders (either no active short auto-reduce or entry during auto-reduce is allowed).")
-                        self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                        self.active_grids.add(symbol)
-                    else:
-                        logging.info(f"[{symbol}] Skipping new short orders due to active short auto-reduce and entry_during_autoreduce set to False.")
-                        
-            # Calculate take profit for short and long positions using quickscalp method
-            short_take_profit = self.calculate_quickscalp_short_take_profit_dynamic_distance(short_pos_price, symbol, min_upnl_profit_pct=upnl_profit_pct, max_upnl_profit_pct=max_upnl_profit_pct)
-            long_take_profit = self.calculate_quickscalp_long_take_profit_dynamic_distance(long_pos_price, symbol, min_upnl_profit_pct=upnl_profit_pct, max_upnl_profit_pct=max_upnl_profit_pct)
-
-            # Update TP for long position
-            if long_pos_qty > 0:
-                new_long_tp_min, new_long_tp_max = self.calculate_quickscalp_long_take_profit_dynamic_distance(
-                    long_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
-                )
-                if new_long_tp_min is not None and new_long_tp_max is not None:
-                    self.next_long_tp_update = self.update_quickscalp_tp_dynamic(
-                        symbol=symbol,
-                        pos_qty=long_pos_qty,
-                        upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
-                        max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
-                        short_pos_price=None,  # Not relevant for long TP settings
-                        long_pos_price=long_pos_price,
-                        positionIdx=1,
-                        order_side="sell",
-                        last_tp_update=self.next_long_tp_update,
-                        tp_order_counts=tp_order_counts,
-                        open_orders=open_orders
-                    )
-
-            if short_pos_qty > 0:
-                new_short_tp_min, new_short_tp_max = self.calculate_quickscalp_short_take_profit_dynamic_distance(
-                    short_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
-                )
-                if new_short_tp_min is not None and new_short_tp_max is not None:
-                    self.next_short_tp_update = self.update_quickscalp_tp_dynamic(
-                        symbol=symbol,
-                        pos_qty=short_pos_qty,
-                        upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
-                        max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
-                        short_pos_price=short_pos_price,
-                        long_pos_price=None,  # Not relevant for short TP settings
-                        positionIdx=2,
-                        order_side="buy",
-                        last_tp_update=self.next_short_tp_update,
-                        tp_order_counts=tp_order_counts,
-                        open_orders=open_orders
-                    )
-
-        except Exception as e:
-            logging.info(f"Error in executing gridstrategy: {e}")
-            logging.info("Traceback: %s", traceback.format_exc())
-
-    def linear_grid_hardened_gridspan_ob_volumelevels_dynamictp_lsignal(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
-                                                    short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
-                                                    strength: float, outer_price_distance: float, min_outer_price_distance: float, max_outer_price_distance: float, reissue_threshold: float,
-                                                    wallet_exposure_limit: float, wallet_exposure_limit_long: float, wallet_exposure_limit_short: float,
-                                                    user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool,
-                                                    short_mode: bool, initial_entry_buffer_pct: float, min_buffer_percentage: float, max_buffer_percentage: float,
-                                                    symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float,
-                                                    max_upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool,
-                                                    max_qty_percent_long: float, max_qty_percent_short: float):
-        try:
-            # Calculate dynamic outer price distance based on 4h candle spread
-            spread = self.get_4h_candle_spread(symbol)
-            logging.info(f"4h Candle spread for {symbol}: {spread}")
-
-            current_price = self.exchange.get_current_price(symbol)
-            logging.info(f"[{symbol}] Current price: {current_price}")
-            
-            # Ensure dynamic outer price distance is not too tight
-            dynamic_outer_price_distance = max(min_outer_price_distance, min(max_outer_price_distance, spread))
-            
-            logging.info(f"Dynamic outer price distance for {symbol} : {dynamic_outer_price_distance}")
-            
-            # Ensure the outer price distance can span all levels
-            required_distance = outer_price_distance / levels
-            if dynamic_outer_price_distance < required_distance:
-                logging.info(f"Dynamic outer price distance {dynamic_outer_price_distance} is less than required distance {required_distance}. Adjusting it.")
-                dynamic_outer_price_distance = required_distance
-
-            logging.info(f"Dynamic outer price distance after spread: {dynamic_outer_price_distance}")
-
-            should_reissue_long, should_reissue_short = self.should_reissue_orders_revised(
-                symbol, reissue_threshold, long_pos_qty, short_pos_qty, initial_entry_buffer_pct)
-            open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
-
-            if symbol not in self.filled_levels:
-                self.filled_levels[symbol] = {"buy": set(), "sell": set()}
-
-            long_grid_active = symbol in self.active_grids and "buy" in self.filled_levels[symbol]
-            short_grid_active = symbol in self.active_grids and "sell" in self.filled_levels[symbol]
-
-            self.check_and_manage_positions(long_pos_qty, short_pos_qty, symbol, total_equity, current_price, max_qty_percent_long, max_qty_percent_short)
-
-            buffer_percentage_long = initial_entry_buffer_pct if long_pos_qty == 0 else min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
-            buffer_percentage_short = initial_entry_buffer_pct if short_pos_qty == 0 else min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - short_pos_price) / short_pos_price)
-
-            buffer_distance_long = current_price * buffer_percentage_long
-            buffer_distance_short = current_price * buffer_percentage_short
-
-            logging.info(f"[{symbol}] Long buffer distance: {buffer_distance_long}, Short buffer distance: {buffer_distance_short}")
-
-            order_book = self.exchange.get_orderbook(symbol)
-            best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol, current_price)
-            best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol, current_price)
-
-            # Analyze orderbook depth and identify significant price levels
-            min_price = current_price - max_outer_price_distance * current_price
-            max_price = current_price + max_outer_price_distance * current_price
-
-            # Create a histogram of orderbook volume within the price range
-            price_range = np.arange(min_price, max_price, (max_price - min_price) / 100)
-            volume_histogram_long = np.zeros_like(price_range)
-            volume_histogram_short = np.zeros_like(price_range)
-
-            for order in order_book['bids']:
-                price, volume = order[0], order[1]
-                if min_price <= price <= current_price:
-                    index = int((price - min_price) / (max_price - min_price) * 100)
-                    volume_histogram_long[index] += volume
-
-            for order in order_book['asks']:
-                price, volume = order[0], order[1]
-                if current_price <= price <= max_price:
-                    index = int((price - min_price) / (max_price - min_price) * 100)
-                    volume_histogram_short[index] += volume
-
-            # Identify significant price levels based on volume histogram
-            volume_threshold_long = np.mean(volume_histogram_long) * 1.5  # Adjust the threshold as needed
-            significant_levels_long = price_range[volume_histogram_long >= volume_threshold_long]
-
-            volume_threshold_short = np.mean(volume_histogram_short) * 1.5  # Adjust the threshold as needed
-            significant_levels_short = price_range[volume_histogram_short >= volume_threshold_short]
-
-            # Calculate grid levels based on dynamic_outer_price_distance
-            grid_levels_long = [current_price - i * dynamic_outer_price_distance * current_price for i in range(1, levels + 1)]
-            grid_levels_short = [current_price + i * dynamic_outer_price_distance * current_price for i in range(1, levels + 1)]
-
-            # Function to find the nearest significant level
-            def find_nearest_significant_level(level, significant_levels, tolerance, min_distance, max_distance, current_price):
-                for sig_level in significant_levels:
-                    if abs(level - sig_level) / level < tolerance:
-                        if current_price - max_distance * current_price <= sig_level <= current_price - min_distance * current_price:
-                            return sig_level
-                return level
-
-            # Adjust grid levels to align with significant levels
-            tolerance = 0.01  # 1% tolerance, adjust as needed
-            grid_levels_long = [
-                find_nearest_significant_level(
-                    level, 
-                    significant_levels_long, 
-                    tolerance, 
-                    buffer_distance_long / current_price, 
-                    min_outer_price_distance, 
-                    current_price
-                ) for level in grid_levels_long
-            ]
-            grid_levels_short = [
-                find_nearest_significant_level(
-                    level, 
-                    significant_levels_short, 
-                    tolerance, 
-                    buffer_distance_short / current_price, 
-                    min_outer_price_distance, 
-                    current_price
-                ) for level in grid_levels_short
-            ]
-
-            # Ensure the grid levels are within the buffer distances and respect min/max outer price distance
-            grid_levels_long = [
-                level for level in grid_levels_long 
-                if current_price - min_outer_price_distance * current_price <= level <= current_price - buffer_distance_long
-            ]
-            grid_levels_short = [
-                level for level in grid_levels_short 
-                if current_price + buffer_distance_short <= level <= current_price + min_outer_price_distance * current_price
-            ]
-
-            # Ensure the desired number of grid levels is achieved
-            if len(grid_levels_long) < levels:
-                additional_levels_long = np.linspace(
-                    current_price - min_outer_price_distance * current_price, 
-                    current_price - buffer_distance_long, 
-                    levels - len(grid_levels_long)
-                )
-                grid_levels_long = np.concatenate((grid_levels_long, additional_levels_long))
-
-            if len(grid_levels_short) < levels:
-                additional_levels_short = np.linspace(
-                    current_price + buffer_distance_short, 
-                    current_price + min_outer_price_distance * current_price, 
-                    levels - len(grid_levels_short)
-                )
-                grid_levels_short = np.concatenate((grid_levels_short, additional_levels_short))
-
-            # Sort the grid levels in ascending order
-            grid_levels_long = sorted(grid_levels_long, reverse=True)
-            grid_levels_short = sorted(grid_levels_short)
-
-            logging.info(f"[{symbol}] Long grid levels: {grid_levels_long}")
-            logging.info(f"[{symbol}] Short grid levels: {grid_levels_short}")
-
-
-            qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
-            min_qty = float(self.get_market_data_with_retry(symbol, max_retries=100, retry_delay=5)["min_qty"])
-            logging.info(f"[{symbol}] Quantity precision: {qty_precision}, Minimum quantity: {min_qty}")
-
-            total_amount_long = self.calculate_total_amount_notional_ls_properdca(
-                symbol=symbol, total_equity=total_equity, best_ask_price=best_ask_price,
-                best_bid_price=best_bid_price, wallet_exposure_limit_long=wallet_exposure_limit_long,
-                wallet_exposure_limit_short=wallet_exposure_limit_short, side="buy", levels=levels,
-                enforce_full_grid=enforce_full_grid, user_defined_leverage_long=user_defined_leverage_long,
-                user_defined_leverage_short=None, long_pos_qty=long_pos_qty, short_pos_qty=short_pos_qty
-            ) if long_mode else 0
-
-            total_amount_short = self.calculate_total_amount_notional_ls_properdca(
-                symbol=symbol, total_equity=total_equity, best_ask_price=best_ask_price,
-                best_bid_price=best_bid_price, wallet_exposure_limit_long=wallet_exposure_limit_long,
-                wallet_exposure_limit_short=wallet_exposure_limit_short, side="sell", levels=levels,
-                enforce_full_grid=enforce_full_grid, user_defined_leverage_long=None,
-                user_defined_leverage_short=user_defined_leverage_short, long_pos_qty=long_pos_qty, short_pos_qty=short_pos_qty
-            ) if short_mode else 0
-
-            logging.info(f"[{symbol}] Total amount long: {total_amount_long}, Total amount short: {total_amount_short}")
-
-            amounts_long = self.calculate_order_amounts_notional_properdca(symbol, total_amount_long, levels, strength, qty_precision, enforce_full_grid, long_pos_qty, short_pos_qty, side='buy')
-            amounts_short = self.calculate_order_amounts_notional_properdca(symbol, total_amount_short, levels, strength, qty_precision, enforce_full_grid, long_pos_qty, short_pos_qty, side='sell')
-            logging.info(f"[{symbol}] Long order amounts: {amounts_long}")
-            logging.info(f"[{symbol}] Short order amounts: {amounts_short}")
-
-            if self.auto_reduce_active_long.get(symbol, False):
-                logging.info(f"Auto-reduce for long position on {symbol} is active")
-                self.clear_grid(symbol, 'buy')
-                self.active_grids.discard(symbol)
-            else:
-                logging.info(f"Auto-reduce for long position on {symbol} is not active")
-
-            if self.auto_reduce_active_short.get(symbol, False):
-                logging.info(f"Auto-reduce for short position on {symbol} is active")
-                self.clear_grid(symbol, 'sell')
-                self.active_grids.discard(symbol)
-            else:
-                logging.info(f"Auto-reduce for short position on {symbol} is not active")
-
-            # Check for grid replacement conditions
-            has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
-            has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
-
-            logging.info(f"Symbol {symbol} has open long order: {has_open_long_order}")
-            logging.info(f"Symbol {symbol} has open short order: {has_open_short_order}")
-
-            replace_empty_long_grid = (long_pos_qty > 0 and not has_open_long_order)
-            replace_empty_short_grid = (short_pos_qty > 0 and not has_open_short_order)
-
-            # # Track the last time the grid was emptied
-            # if replace_empty_long_grid and symbol not in self.last_empty_grid_time:
-            #     self.last_empty_grid_time[symbol] = {}
-            # if replace_empty_short_grid and symbol not in self.last_empty_grid_time:
-            #     self.last_empty_grid_time[symbol] = {}
-
-            # current_time = time.time()
-
-            current_time = datetime.now()  # Use datetime
-
-            # Track the last time the grid was emptied
-            if symbol not in self.last_empty_grid_time:
-                self.last_empty_grid_time[symbol] = {'long': datetime.min, 'short': datetime.min}
-
-            if replace_empty_long_grid:
-                self.last_empty_grid_time[symbol]['long'] = current_time
-
-            if replace_empty_short_grid:
-                self.last_empty_grid_time[symbol]['short'] = current_time
-
-
-            # # Track the last time the grid was emptied
-            # if symbol not in self.last_empty_grid_time:
-            #     self.last_empty_grid_time[symbol] = {'long': datetime.min, 'short': datetime.min}
-
-            # if replace_empty_long_grid:
-            #     self.last_empty_grid_time[symbol]['long'] = current_time
-
-            # if replace_empty_short_grid:
-            #     self.last_empty_grid_time[symbol]['short'] = current_time
-                
-
-            # Check and log if the symbol is in max_qty_reached_symbol_long
-            if symbol in self.max_qty_reached_symbol_long:
-                logging.info(f"[{symbol}] Symbol is in max_qty_reached_symbol_long")
-
-            if symbol in self.max_qty_reached_symbol_short:
-                logging.info(f"[{symbol}] Symbol is in max_qty_reached_symbol_short")
-
-            # Additional logic for managing open symbols and checking trading permissions
-            open_symbols = list(set(open_symbols))
-            logging.info(f"Open symbols {open_symbols}")
-
-            trading_allowed = self.can_trade_new_symbol(open_symbols, symbols_allowed, symbol)
-            logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
-            logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
-
-            mfi_signal_long = mfirsi_signal.lower() == "long"
-            mfi_signal_short = mfirsi_signal.lower() == "short"
-            
-            if len(open_symbols) < symbols_allowed or symbol in open_symbols:
-                logging.info(f"Allowed symbol: {symbol}")
-
-                replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist_v2(
-                    symbol, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
-                    dynamic_outer_price_distance=dynamic_outer_price_distance
-                )
-
-                # Replace long grid if conditions are met
-                if (replace_long_grid or (replace_empty_long_grid and (current_time - self.last_empty_grid_time[symbol].get('long', datetime.min) > timedelta(seconds=240)))) and not self.auto_reduce_active_long.get(symbol, False):
-                    if symbol not in self.max_qty_reached_symbol_long:
-                        logging.info(f"[{symbol}] Replacing long grid orders due to updated buffer or empty grid timeout.")
-                        self.clear_grid(symbol, 'buy')
-                        buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
-                        buffer_distance_long = current_price * buffer_percentage_long
-                        self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                        self.active_grids.add(symbol)
-                        self.last_empty_grid_time[symbol]['long'] = current_time
-                        logging.info(f"[{symbol}] Recalculated long grid levels with updated buffer: {grid_levels_long}")
-                    else:
-                        logging.info(f"{symbol} is in max qty reached symbol long cannot replace grid")
-
-                # Replace short grid if conditions are met
-                if (replace_short_grid or (replace_empty_short_grid and (current_time - self.last_empty_grid_time[symbol].get('short', datetime.min) > timedelta(seconds=240)))) and not self.auto_reduce_active_short.get(symbol, False):
-                    if symbol not in self.max_qty_reached_symbol_short:
-                        logging.info(f"[{symbol}] Replacing short grid orders due to updated buffer or empty grid timeout.")
-                        self.clear_grid(symbol, 'sell')
-                        buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - short_pos_price) / short_pos_price)
-                        buffer_distance_short = current_price * buffer_percentage_short
-                        self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                        self.active_grids.add(symbol)
-                        self.last_empty_grid_time[symbol]['short'] = current_time
-                        logging.info(f"[{symbol}] Recalculated short grid levels with updated buffer: {grid_levels_short}")
-                    else:
-                        logging.info(f"{symbol} is in max qty reached symbol short cannot replace grid")
-                        
-                if self.should_reissue_orders_revised(symbol, reissue_threshold, long_pos_qty, short_pos_qty, initial_entry_buffer_pct):
-                    open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
-
-                    has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
-                    has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
-
-                    if not long_pos_qty and long_mode and not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
-                        if entry_during_autoreduce or not self.auto_reduce_active_long.get(symbol, False):
-                            if symbol in self.active_grids and "buy" in self.filled_levels[symbol] and has_open_long_order:
-                                logging.info(f"[{symbol}] Reissuing long orders due to price movement beyond the threshold.")
-                                self.clear_grid(symbol, 'buy')
-                                self.active_grids.discard(symbol)
-                                logging.info(f"[{symbol}] Placing new long orders.")
-                                self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                                self.active_grids.add(symbol)
-                            elif symbol not in self.active_grids:
-                                logging.info(f"[{symbol}] No active long grid for the symbol. Skipping long grid reissue.")
-
-                    if not short_pos_qty and short_mode and not self.auto_reduce_active_short.get(symbol, False) and symbol not in self.max_qty_reached_symbol_short:
-                        if entry_during_autoreduce or not self.auto_reduce_active_short.get(symbol, False):
-                            if symbol in self.active_grids and "sell" in self.filled_levels[symbol] and has_open_short_order:
-                                logging.info(f"[{symbol}] Reissuing short orders due to price movement beyond the threshold.")
-                                self.clear_grid(symbol, 'sell')
-                                self.active_grids.discard(symbol)
-                                logging.info(f"[{symbol}] Placing new short orders.")
-                                self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                                self.active_grids.add(symbol)
-                            elif symbol not in self.active_grids:
-                                logging.info(f"[{symbol}] No active short grid for the symbol. Skipping short grid reissue.")
-            else:
-                logging.info(f"Open symbols is {open_symbols} and symbols allowed is {symbols_allowed}")
-
-            if symbol in open_symbols or trading_allowed:
-                # Check if the grid levels have already been placed
-                placed_long_levels = self.placed_levels.get(symbol, {}).get("buy", set())
-                placed_short_levels = self.placed_levels.get(symbol, {}).get("sell", set())
-
-                # Check if there are open long or short orders
-                has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
-                has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
-
-                # # Issue or replace grids only if necessary
-                # if (long_pos_qty > 0 and not placed_long_levels) or (short_pos_qty > 0 and not placed_short_levels):
-                #     logging.info(f"[{symbol}] Open positions found without active grids. Issuing grid orders.")
-                    
-                #     if long_pos_qty > 0 and not placed_long_levels and symbol not in self.max_qty_reached_symbol_long:
-                #         if not self.auto_reduce_active_long.get(symbol, False) or entry_during_autoreduce:
-                #             logging.info(f"[{symbol}] Placing long grid orders for existing open position.")
-                #             self.clear_grid(symbol, 'buy')
-                #             self.active_grids.discard(symbol)
-                #             self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                #             self.active_grids.add(symbol)
-                #             self.placed_levels.setdefault(symbol, {})["buy"] = set(grid_levels_long)  # Update placed levels
-                    
-                #     if short_pos_qty > 0 and not placed_short_levels and symbol not in self.max_qty_reached_symbol_short:
-                #         if not self.auto_reduce_active_short.get(symbol, False) or entry_during_autoreduce:
-                #             logging.info(f"[{symbol}] Placing short grid orders for existing open position.")
-                #             self.clear_grid(symbol, 'sell')
-                #             self.active_grids.discard(symbol)
-                #             self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                #             self.active_grids.add(symbol)
-                #             self.placed_levels.setdefault(symbol, {})["sell"] = set(grid_levels_short)  # Update placed levels
-
-                current_time = datetime.now()
-
-                if not long_pos_qty and not short_pos_qty and symbol in self.active_grids:
-                    last_cleared = self.last_cleared_time.get(symbol, datetime.min)
-                    if current_time - last_cleared > self.clear_interval:
-                        logging.info(f"[{symbol}] No open positions and time interval passed. Canceling leftover grid orders.")
-                        self.clear_grid(symbol, 'buy')
-                        self.clear_grid(symbol, 'sell')
-                        self.active_grids.discard(symbol)
-                        self.last_cleared_time[symbol] = current_time
-                    else:
-                        logging.info(f"[{symbol}] No open positions, but time interval not passed. Skipping grid clearing.")
-
-                # Check if auto-reduce is not active for long position
-                if not self.auto_reduce_active_long.get(symbol, False):
-                    logging.info(f"Auto-reduce for long position on {symbol} is not active")
-                    if long_mode and (mfi_signal_long or long_pos_qty > 0) and symbol not in self.max_qty_reached_symbol_long:
-                        if should_reissue_long or (long_pos_qty > 0 and not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)):
-                            self.cancel_grid_orders(symbol, "buy")
-                            self.active_grids.discard(symbol)
-                            self.filled_levels[symbol]["buy"].clear()
-
-                        if not any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders) and not placed_long_levels:
-                            logging.info(f"[{symbol}] Placing new long grid orders.")
-                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                            self.active_grids.add(symbol)
-                            self.placed_levels.setdefault(symbol, {})["buy"] = set(grid_levels_long)  # Update placed levels
-                else:
-                    logging.info(f"Auto-reduce for long position on {symbol} is active, entry during auto-reduce.")
-                    if long_mode and (mfi_signal_long or long_pos_qty > 0) and symbol not in self.max_qty_reached_symbol_long:
-                        if entry_during_autoreduce:
-                            logging.info(f"[{symbol}] Placing new long orders despite active auto-reduce due to entry_during_autoreduce setting.")
-                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                            self.active_grids.add(symbol)
-                            self.placed_levels.setdefault(symbol, {})["buy"] = set(grid_levels_long)  # Update placed levels
-                        else:
-                            logging.info(f"[{symbol}] Skipping new long orders due to active long auto-reduce and entry_during_autoreduce set to False.")
-
-                # Check if auto-reduce is not active for short position
-                if not self.auto_reduce_active_short.get(symbol, False):
-                    logging.info(f"Auto-reduce for short position on {symbol} is not active")
-                    if short_mode and (mfi_signal_short or short_pos_qty > 0) and symbol not in self.max_qty_reached_symbol_short:
-                        if should_reissue_short or (short_pos_qty > 0 and not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)):
-                            self.cancel_grid_orders(symbol, "sell")
-                            self.active_grids.discard(symbol)
-                            self.filled_levels[symbol]["sell"].clear()
-
-                        if not any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders) and not placed_short_levels:
-                            logging.info(f"[{symbol}] Placing new short grid orders.")
-                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                            self.active_grids.add(symbol)
-                            self.placed_levels.setdefault(symbol, {})["sell"] = set(grid_levels_short)  # Update placed levels
-                else:
-                    logging.info(f"Auto-reduce for short position on {symbol} is active, entry during auto-reduce.")
                     if short_mode and (mfi_signal_short or short_pos_qty > 0) and symbol not in self.max_qty_reached_symbol_short:
                         if entry_during_autoreduce:
                             logging.info(f"[{symbol}] Placing new short orders despite active auto-reduce due to entry_during_autoreduce setting.")
                             self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                             self.active_grids.add(symbol)
-                            self.placed_levels.setdefault(symbol, {})["sell"] = set(grid_levels_short)  # Update placed levels
                         else:
                             logging.info(f"[{symbol}] Skipping new short orders due to active short auto-reduce and entry_during_autoreduce set to False.")
 
@@ -5031,7 +5403,6 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"[{symbol}] Placing new long orders (either no active long auto-reduce or entry during auto-reduce is allowed).")
                         self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                         self.active_grids.add(symbol)
-                        self.placed_levels[symbol]["buy"] = set(grid_levels_long)  # Update placed levels
                     else:
                         logging.info(f"[{symbol}] Skipping new long orders due to active long auto-reduce and entry_during_autoreduce set to False.")
 
@@ -5040,88 +5411,34 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"[{symbol}] Placing new short orders (either no active short auto-reduce or entry during auto-reduce is allowed).")
                         self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                         self.active_grids.add(symbol)
-                        self.placed_levels[symbol]["sell"] = set(grid_levels_short)  # Update placed levels
                     else:
                         logging.info(f"[{symbol}] Skipping new short orders due to active short auto-reduce and entry_during_autoreduce set to False.")
                         
-            # Calculate take profit for short and long positions using quickscalp method
-            short_take_profit = self.calculate_quickscalp_short_take_profit_dynamic_distance(short_pos_price, symbol, min_upnl_profit_pct=upnl_profit_pct, max_upnl_profit_pct=max_upnl_profit_pct)
-            long_take_profit = self.calculate_quickscalp_long_take_profit_dynamic_distance(long_pos_price, symbol, min_upnl_profit_pct=upnl_profit_pct, max_upnl_profit_pct=max_upnl_profit_pct)
-
-            # Update TP for long position
-            if long_pos_qty > 0:
-                new_long_tp_min, new_long_tp_max = self.calculate_quickscalp_long_take_profit_dynamic_distance(
-                    long_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
-                )
-                if new_long_tp_min is not None and new_long_tp_max is not None:
-                    self.next_long_tp_update = self.update_quickscalp_tp_dynamic(
-                        symbol=symbol,
-                        pos_qty=long_pos_qty,
-                        upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
-                        max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
-                        short_pos_price=None,  # Not relevant for long TP settings
-                        long_pos_price=long_pos_price,
-                        positionIdx=1,
-                        order_side="sell",
-                        last_tp_update=self.next_long_tp_update,
-                        tp_order_counts=tp_order_counts,
-                        open_orders=open_orders
-                    )
-
-            if short_pos_qty > 0:
-                new_short_tp_min, new_short_tp_max = self.calculate_quickscalp_short_take_profit_dynamic_distance(
-                    short_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
-                )
-                if new_short_tp_min is not None and new_short_tp_max is not None:
-                    self.next_short_tp_update = self.update_quickscalp_tp_dynamic(
-                        symbol=symbol,
-                        pos_qty=short_pos_qty,
-                        upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
-                        max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
-                        short_pos_price=short_pos_price,
-                        long_pos_price=None,  # Not relevant for short TP settings
-                        positionIdx=2,
-                        order_side="buy",
-                        last_tp_update=self.next_short_tp_update,
-                        tp_order_counts=tp_order_counts,
-                        open_orders=open_orders
-                    )
-
             time.sleep(5)
 
         except Exception as e:
             logging.info(f"Error in executing gridstrategy: {e}")
             logging.info("Traceback: %s", traceback.format_exc())
 
-    def linear_grid_hardened_gridspan_ob_volumelevels_dynamictp(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
-                                                short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
-                                                strength: float, outer_price_distance: float, min_outer_price_distance: float, max_outer_price_distance: float, reissue_threshold: float,
-                                                wallet_exposure_limit: float, wallet_exposure_limit_long: float, wallet_exposure_limit_short: float,
-                                                user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool,
-                                                short_mode: bool, initial_entry_buffer_pct: float, min_buffer_percentage: float, max_buffer_percentage: float,
-                                                symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float,
-                                                max_upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool,
-                                                max_qty_percent_long: float, max_qty_percent_short: float):
+
+    def linear_grid_hardened_gridspan_ob_volumelevels_dynamictp_lsignal(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
+                                                        short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
+                                                        strength: float, outer_price_distance: float, min_outer_price_distance: float, max_outer_price_distance: float, reissue_threshold: float,
+                                                        wallet_exposure_limit: float, wallet_exposure_limit_long: float, wallet_exposure_limit_short: float,
+                                                        user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool,
+                                                        short_mode: bool, initial_entry_buffer_pct: float, min_buffer_percentage: float, max_buffer_percentage: float,
+                                                        symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float,
+                                                        max_upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool,
+                                                        max_qty_percent_long: float, max_qty_percent_short: float):
         try:
-            # Calculate dynamic outer price distance based on 4h candle spread
             spread = self.get_4h_candle_spread(symbol)
             logging.info(f"4h Candle spread for {symbol}: {spread}")
 
             current_price = self.exchange.get_current_price(symbol)
             logging.info(f"[{symbol}] Current price: {current_price}")
-            
-            # Ensure dynamic outer price distance is not too tight
-            dynamic_outer_price_distance = max(min_outer_price_distance, min(max_outer_price_distance, spread))
-            
-            logging.info(f"Dynamic outer price distance for {symbol} : {dynamic_outer_price_distance}")
-            
-            # Ensure the outer price distance can span all levels
-            required_distance = outer_price_distance / levels
-            if dynamic_outer_price_distance < required_distance:
-                logging.info(f"Dynamic outer price distance {dynamic_outer_price_distance} is less than required distance {required_distance}. Adjusting it.")
-                dynamic_outer_price_distance = required_distance
 
-            logging.info(f"Dynamic outer price distance after spread: {dynamic_outer_price_distance}")
+            dynamic_outer_price_distance = max(min_outer_price_distance, min(max_outer_price_distance, spread))
+            logging.info(f"Dynamic outer price distance for {symbol}: {dynamic_outer_price_distance}")
 
             should_reissue_long, should_reissue_short = self.should_reissue_orders_revised(
                 symbol, reissue_threshold, long_pos_qty, short_pos_qty, initial_entry_buffer_pct)
@@ -5147,11 +5464,9 @@ class BybitStrategy(BaseStrategy):
             best_ask_price = order_book['asks'][0][0] if 'asks' in order_book else self.last_known_ask.get(symbol, current_price)
             best_bid_price = order_book['bids'][0][0] if 'bids' in order_book else self.last_known_bid.get(symbol, current_price)
 
-            # Analyze orderbook depth and identify significant price levels
             min_price = current_price - max_outer_price_distance * current_price
             max_price = current_price + max_outer_price_distance * current_price
 
-            # Create a histogram of orderbook volume within the price range
             price_range = np.arange(min_price, max_price, (max_price - min_price) / 100)
             volume_histogram_long = np.zeros_like(price_range)
             volume_histogram_short = np.zeros_like(price_range)
@@ -5168,82 +5483,106 @@ class BybitStrategy(BaseStrategy):
                     index = int((price - min_price) / (max_price - min_price) * 100)
                     volume_histogram_short[index] += volume
 
-            # Identify significant price levels based on volume histogram
-            volume_threshold_long = np.mean(volume_histogram_long) * 1.5  # Adjust the threshold as needed
+            volume_threshold_long = np.mean(volume_histogram_long) * 1.5
             significant_levels_long = price_range[volume_histogram_long >= volume_threshold_long]
 
-            volume_threshold_short = np.mean(volume_histogram_short) * 1.5  # Adjust the threshold as needed
+            volume_threshold_short = np.mean(volume_histogram_short) * 1.5
             significant_levels_short = price_range[volume_histogram_short >= volume_threshold_short]
 
-            # Calculate grid levels based on dynamic_outer_price_distance
-            grid_levels_long = [current_price - i * dynamic_outer_price_distance * current_price for i in range(1, levels + 1)]
-            grid_levels_short = [current_price + i * dynamic_outer_price_distance * current_price for i in range(1, levels + 1)]
+            initial_entry_long = current_price - buffer_distance_long
+            initial_entry_short = current_price + buffer_distance_short
 
-            # Function to find the nearest significant level
-            def find_nearest_significant_level(level, significant_levels, tolerance, min_distance, max_distance, current_price):
+            if long_pos_qty == 0:
+                grid_levels_long = [initial_entry_long] + [
+                    current_price - buffer_distance_long - i * ((max_outer_price_distance * current_price - buffer_distance_long) / (levels - 1)) 
+                    for i in range(1, levels)
+                ]
+            else:
+                grid_levels_long = [
+                    current_price - buffer_distance_long - i * ((max_outer_price_distance * current_price - buffer_distance_long) / levels) 
+                    for i in range(levels)
+                ]
+
+            if short_pos_qty == 0:
+                grid_levels_short = [initial_entry_short] + [
+                    current_price + buffer_distance_short + i * ((max_outer_price_distance * current_price - buffer_distance_short) / (levels - 1)) 
+                    for i in range(1, levels)
+                ]
+            else:
+                grid_levels_short = [
+                    current_price + buffer_distance_short + i * ((max_outer_price_distance * current_price - buffer_distance_short) / levels) 
+                    for i in range(levels)
+                ]
+
+            def find_nearest_significant_level(level, significant_levels, tolerance, min_distance, max_distance, current_price, previous_level=None):
                 for sig_level in significant_levels:
                     if abs(level - sig_level) / level < tolerance:
                         if current_price - max_distance * current_price <= sig_level <= current_price - min_distance * current_price:
-                            return sig_level
+                            if previous_level is None or abs(sig_level - previous_level) > (max_distance * current_price / levels):
+                                return sig_level
                 return level
 
-            # Adjust grid levels to align with significant levels
-            tolerance = 0.01  # 1% tolerance, adjust as needed
-            grid_levels_long = [
-                find_nearest_significant_level(
-                    level, 
-                    significant_levels_long, 
-                    tolerance, 
-                    buffer_distance_long / current_price, 
-                    min_outer_price_distance, 
-                    current_price
-                ) for level in grid_levels_long
-            ]
-            grid_levels_short = [
-                find_nearest_significant_level(
-                    level, 
-                    significant_levels_short, 
-                    tolerance, 
-                    buffer_distance_short / current_price, 
-                    min_outer_price_distance, 
-                    current_price
-                ) for level in grid_levels_short
-            ]
+            tolerance = 0.01
+            adjusted_grid_levels_long = []
+            adjusted_grid_levels_short = []
 
-            # Ensure the grid levels are within the buffer distances and respect min/max outer price distance
-            grid_levels_long = [
-                level for level in grid_levels_long 
-                if current_price - min_outer_price_distance * current_price <= level <= current_price - buffer_distance_long
-            ]
-            grid_levels_short = [
-                level for level in grid_levels_short 
-                if current_price + buffer_distance_short <= level <= current_price + min_outer_price_distance * current_price
-            ]
-
-            # Ensure the desired number of grid levels is achieved
-            if len(grid_levels_long) < levels:
-                additional_levels_long = np.linspace(
-                    current_price - min_outer_price_distance * current_price, 
-                    current_price - buffer_distance_long, 
-                    levels - len(grid_levels_long)
+            for i, level in enumerate(grid_levels_long):
+                previous_level = adjusted_grid_levels_long[-1] if adjusted_grid_levels_long else None
+                adjusted_level = find_nearest_significant_level(
+                    level,
+                    significant_levels_long,
+                    tolerance,
+                    min_outer_price_distance,
+                    max_outer_price_distance,
+                    current_price,
+                    previous_level
                 )
+                if current_price - max_outer_price_distance * current_price <= adjusted_level <= current_price - buffer_distance_long:
+                    adjusted_grid_levels_long.append(adjusted_level)
+
+            for i, level in enumerate(grid_levels_short):
+                previous_level = adjusted_grid_levels_short[-1] if adjusted_grid_levels_short else None
+                adjusted_level = find_nearest_significant_level(
+                    level,
+                    significant_levels_short,
+                    tolerance,
+                    min_outer_price_distance,
+                    max_outer_price_distance,
+                    current_price,
+                    previous_level
+                )
+                if current_price + buffer_distance_short <= adjusted_level <= current_price + max_outer_price_distance * current_price:
+                    adjusted_grid_levels_short.append(adjusted_level)
+
+            grid_levels_long = adjusted_grid_levels_long
+            grid_levels_short = adjusted_grid_levels_short
+
+            if len(grid_levels_long) < levels:
+                remaining_levels = levels - len(grid_levels_long)
+                additional_levels_long = np.linspace(
+                    grid_levels_long[-1] if grid_levels_long else current_price - buffer_distance_long,
+                    current_price - max_outer_price_distance * current_price,
+                    remaining_levels + 1
+                )[1:]
                 grid_levels_long = np.concatenate((grid_levels_long, additional_levels_long))
 
             if len(grid_levels_short) < levels:
+                remaining_levels = levels - len(grid_levels_short)
                 additional_levels_short = np.linspace(
-                    current_price + buffer_distance_short, 
-                    current_price + min_outer_price_distance * current_price, 
-                    levels - len(grid_levels_short)
-                )
+                    grid_levels_short[-1] if grid_levels_short else current_price + buffer_distance_short,
+                    current_price + max_outer_price_distance * current_price,
+                    remaining_levels + 1
+                )[1:]
                 grid_levels_short = np.concatenate((grid_levels_short, additional_levels_short))
 
-            # Sort the grid levels in ascending order
             grid_levels_long = sorted(grid_levels_long, reverse=True)
             grid_levels_short = sorted(grid_levels_short)
 
+            logging.info(f"[{symbol}] Initial long entry level: {initial_entry_long}")
+            logging.info(f"[{symbol}] Initial short entry level: {initial_entry_short}")
             logging.info(f"[{symbol}] Long grid levels: {grid_levels_long}")
             logging.info(f"[{symbol}] Short grid levels: {grid_levels_short}")
-
+            
             # The rest of the function would continue here...
             
             # # Sort the grid levels in ascending order
@@ -5294,6 +5633,10 @@ class BybitStrategy(BaseStrategy):
             else:
                 logging.info(f"Auto-reduce for short position on {symbol} is not active")
 
+            # Initialize last_empty_grid_time for symbol if not present
+            if symbol not in self.last_empty_grid_time:
+                self.last_empty_grid_time[symbol] = {'long': 0, 'short': 0}
+
             # Check for grid replacement conditions
             has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
             has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
@@ -5502,56 +5845,12 @@ class BybitStrategy(BaseStrategy):
                     else:
                         logging.info(f"[{symbol}] Skipping new short orders due to active short auto-reduce and entry_during_autoreduce set to False.")
                         
-            # Calculate take profit for short and long positions using quickscalp method
-            short_take_profit = self.calculate_quickscalp_short_take_profit_dynamic_distance(short_pos_price, symbol, min_upnl_profit_pct=upnl_profit_pct, max_upnl_profit_pct=max_upnl_profit_pct)
-            long_take_profit = self.calculate_quickscalp_long_take_profit_dynamic_distance(long_pos_price, symbol, min_upnl_profit_pct=upnl_profit_pct, max_upnl_profit_pct=max_upnl_profit_pct)
-
-            # Update TP for long position
-            if long_pos_qty > 0:
-                new_long_tp_min, new_long_tp_max = self.calculate_quickscalp_long_take_profit_dynamic_distance(
-                    long_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
-                )
-                if new_long_tp_min is not None and new_long_tp_max is not None:
-                    self.next_long_tp_update = self.update_quickscalp_tp_dynamic(
-                        symbol=symbol,
-                        pos_qty=long_pos_qty,
-                        upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
-                        max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
-                        short_pos_price=None,  # Not relevant for long TP settings
-                        long_pos_price=long_pos_price,
-                        positionIdx=1,
-                        order_side="sell",
-                        last_tp_update=self.next_long_tp_update,
-                        tp_order_counts=tp_order_counts,
-                        open_orders=open_orders
-                    )
-
-            if short_pos_qty > 0:
-                new_short_tp_min, new_short_tp_max = self.calculate_quickscalp_short_take_profit_dynamic_distance(
-                    short_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
-                )
-                if new_short_tp_min is not None and new_short_tp_max is not None:
-                    self.next_short_tp_update = self.update_quickscalp_tp_dynamic(
-                        symbol=symbol,
-                        pos_qty=short_pos_qty,
-                        upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
-                        max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
-                        short_pos_price=short_pos_price,
-                        long_pos_price=None,  # Not relevant for short TP settings
-                        positionIdx=2,
-                        order_side="buy",
-                        last_tp_update=self.next_short_tp_update,
-                        tp_order_counts=tp_order_counts,
-                        open_orders=open_orders
-                    )
-
             time.sleep(5)
 
         except Exception as e:
             logging.info(f"Error in executing gridstrategy: {e}")
             logging.info("Traceback: %s", traceback.format_exc())
-
-
+            
     def linear_grid_hardened_gridspan_ob_volumelevels(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
                                                 short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
                                                 strength: float, outer_price_distance: float, min_outer_price_distance: float, max_outer_price_distance: float, reissue_threshold: float,
@@ -11268,6 +11567,81 @@ class BybitStrategy(BaseStrategy):
             logging.exception(f"Exception caught in should_replace_grid_updated_buffer: {e}")
             return False, False
 
+    # def should_reissue_orders_revised(self, symbol: str, reissue_threshold: float, long_pos_qty: float, short_pos_qty: float, initial_entry_buffer_pct: float) -> tuple:
+    #     try:
+    #         current_price = self.exchange.get_current_price(symbol)
+    #         last_price = self.last_price.get(symbol)
+            
+    #         if last_price is None:
+    #             self.last_price[symbol] = current_price
+    #             logging.info(f"[{symbol}] No last price recorded. Setting current price {current_price} as last price. No reissue required.")
+    #             return False, False
+            
+    #         price_change_percentage = abs(current_price - last_price) / last_price * 100
+    #         logging.info(f"[{symbol}] Last recorded price: {last_price}, Current price: {current_price}, Price change: {price_change_percentage:.2f}%")
+            
+    #         # Adjust threshold by initial buffer percentage
+    #         adjusted_reissue_threshold = reissue_threshold * 100 + initial_entry_buffer_pct
+            
+    #         reissue_long = long_pos_qty == 0 and price_change_percentage >= adjusted_reissue_threshold
+    #         reissue_short = short_pos_qty == 0 and price_change_percentage >= adjusted_reissue_threshold
+            
+    #         # Always update the last price to the current price
+    #         self.last_price[symbol] = current_price
+
+    #         if reissue_long:
+    #             logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) exceeds adjusted reissue threshold ({adjusted_reissue_threshold:.2f}%). Reissuing long orders.")
+    #         else:
+    #             logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) does not exceed adjusted reissue threshold ({adjusted_reissue_threshold:.2f}%) or long position is open. No reissue required for long orders.")
+            
+    #         if reissue_short:
+    #             logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) exceeds adjusted reissue threshold ({adjusted_reissue_threshold:.2f}%). Reissuing short orders.")
+    #         else:
+    #             logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) does not exceed adjusted reissue threshold ({adjusted_reissue_threshold:.2f}%) or short position is open. No reissue required for short orders.")
+            
+    #         return reissue_long, reissue_short
+    #     except Exception as e:
+    #         logging.error(f"Error in should_reissue_orders_revised for {symbol}: {e}")
+    #         logging.info("Traceback: %s", traceback.format_exc())
+    #         return False, False
+
+    # def should_reissue_orders_revised(self, symbol: str, reissue_threshold: float, long_pos_qty: float, short_pos_qty: float, initial_entry_buffer_pct: float) -> tuple:
+    #     try:
+    #         current_price = self.exchange.get_current_price(symbol)
+    #         last_price = self.last_price.get(symbol)
+            
+    #         if last_price is None:
+    #             self.last_price[symbol] = current_price
+    #             logging.info(f"[{symbol}] No last price recorded. Setting current price {current_price} as last price. No reissue required.")
+    #             return False, False
+            
+    #         price_change_percentage = abs(current_price - last_price) / last_price * 100
+    #         logging.info(f"[{symbol}] Last recorded price: {last_price}, Current price: {current_price}, Price change: {price_change_percentage:.2f}%")
+            
+    #         # Adjust threshold by initial buffer percentage
+    #         adjusted_reissue_threshold = reissue_threshold * 100 + initial_entry_buffer_pct
+            
+    #         reissue_long = long_pos_qty == 0 and price_change_percentage >= adjusted_reissue_threshold
+    #         reissue_short = short_pos_qty == 0 and price_change_percentage >= adjusted_reissue_threshold
+            
+    #         if reissue_long or reissue_short:
+    #             self.last_price[symbol] = current_price
+
+    #         if reissue_long:
+    #             logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) exceeds adjusted reissue threshold ({adjusted_reissue_threshold:.2f}%). Reissuing long orders.")
+    #         else:
+    #             logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) does not exceed adjusted reissue threshold ({adjusted_reissue_threshold:.2f}%) or long position is open. No reissue required for long orders.")
+            
+    #         if reissue_short:
+    #             logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) exceeds adjusted reissue threshold ({adjusted_reissue_threshold:.2f}%). Reissuing short orders.")
+    #         else:
+    #             logging.info(f"[{symbol}] Price change ({price_change_percentage:.2f}%) does not exceed adjusted reissue threshold ({adjusted_reissue_threshold:.2f}%) or short position is open. No reissue required for short orders.")
+            
+    #         return reissue_long, reissue_short
+        
+    #     except Exception as e:
+    #         logging.exception(f"Exception caught in should_reissue_orders: {e}")
+    #         return False, False
 
     def should_reissue_orders_revised(self, symbol: str, reissue_threshold: float, long_pos_qty: float, short_pos_qty: float, initial_entry_buffer_pct: float) -> tuple:
         try:
@@ -11282,12 +11656,16 @@ class BybitStrategy(BaseStrategy):
             price_change_percentage = abs(current_price - last_price) / last_price * 100
             logging.info(f"[{symbol}] Last recorded price: {last_price}, Current price: {current_price}, Price change: {price_change_percentage:.2f}%")
             
-            # Adjust threshold by initial buffer percentage
-            adjusted_reissue_threshold = reissue_threshold * 100 + initial_entry_buffer_pct
+            # Adjust threshold by initial buffer percentage correctly
+            adjusted_reissue_threshold = reissue_threshold + (reissue_threshold * initial_entry_buffer_pct / 100)
             
-            reissue_long = long_pos_qty == 0 and price_change_percentage >= adjusted_reissue_threshold
-            reissue_short = short_pos_qty == 0 and price_change_percentage >= adjusted_reissue_threshold
+            # Define a small threshold to determine if the position is effectively zero
+            position_threshold = 0.00001
             
+            reissue_long = long_pos_qty < position_threshold and price_change_percentage >= adjusted_reissue_threshold and short_pos_qty < position_threshold
+            reissue_short = short_pos_qty < position_threshold and price_change_percentage >= adjusted_reissue_threshold and long_pos_qty < position_threshold
+            
+            # Only update last price if a reissue is needed
             if reissue_long or reissue_short:
                 self.last_price[symbol] = current_price
 
@@ -11306,7 +11684,6 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.exception(f"Exception caught in should_reissue_orders: {e}")
             return False, False
-
 
     def should_reissue_orders(self, symbol: str, reissue_threshold: float) -> bool:
         try:
@@ -11625,8 +12002,6 @@ class BybitStrategy(BaseStrategy):
             amounts[-1] += discrepancy / current_price  # Adjust the last amount to match total_amount
         
         return amounts
-
-
 
     ######### Possibly does not scale properly
     # def calculate_total_amount_notional_ls_properdca(self, symbol, total_equity, best_ask_price, best_bid_price, 
