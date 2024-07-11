@@ -1065,7 +1065,7 @@
 }
 </code></pre>
 <p>Now, just run the bot using this multibot version and strategy</p>
-<p><code>python3.11 multi_bot_nosignal_multicore_l.py --exchange bybit --account_name account_1 --strategy qsgridoblsignal --config configs/config.json</code></p>
+<p><code>python3.11 multi_bot_signalscreener_multicore_l.py --exchange bybit --account_name account_1 --strategy qsgridoblsignal --config configs/config.json</code></p>
 <h3 id="example-short-only-btcusdt-futures-configuration">Example short only BTCUSDT futures configuration</h3>
 <p>Set up your config.json from the below snippet to whitelist BTCUSDT and set max USD value to a high value to allow for the symbol.</p>
 <p><code>max_qty_percent_long</code> and <code>max_qty_pct_short</code> are set high in this configuration, you can adjust them as needed these are just defaults for testing purposes.</p>
@@ -1188,7 +1188,7 @@
 }
 </code></pre>
 <p>Now, just run the bot using this multibot version and strategy</p>
-<p><code>python3.11 multi_bot_nosignal_multicore.py --exchange bybit --account_name account_1 --strategy longonlyhftob --config configs/config.json</code></p>
+<p><code>python3.11 multi_bot_signalscreener_targetcoin.py --exchange bybit --account_name account_1 --strategy qsgridobeos --config configs/config.json</code></p>
 <p>This is just a simple example of a short only BTCUSDT strategy to show how one can utilize a single strategy for many use case scenarios on different instruments.</p>
 <h3 id="example-high-risk-small-account-longshort-btcusdt-futures-configuration">Example High risk small account long&amp;short BTCUSDT futures configuration</h3>
 <p>Set up your config.json from the below snippet to whitelist BTCUSDT and set max USD value to a high value to allow for the symbol.</p>
