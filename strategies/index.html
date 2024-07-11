@@ -571,6 +571,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#example-high-risk-small-account-longshort-btcusdt-futures-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example High risk small account long&amp;short BTCUSDT futures configuration
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -740,6 +749,15 @@
   <a href="#example-short-only-btcusdt-futures-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       Example short only BTCUSDT futures configuration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-high-risk-small-account-longshort-btcusdt-futures-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example High risk small account long&amp;short BTCUSDT futures configuration
     </span>
   </a>
   
@@ -926,7 +944,7 @@
 }
 </code></pre>
 <h3 id="example-long-and-short-auto-rotating-futures-configuration">Example long and short auto rotating futures configuration</h3>
-<p>This strategy is based on ML based signals and utilizes a grid with proper DCA so each grid level is "meaningful" to bring the position to current market price staying "sticky" to price action. </p>
+<p>This strategy is based on machine learning based signals and utilizes a grid with proper DCA so each grid level is "meaningful" to bring the position to current market price staying "sticky" to price action. </p>
 <p>Set up your config.json from the below snippet</p>
 <pre><code class="language-json">{
     &quot;api&quot;: {
@@ -1172,6 +1190,130 @@
 <p>Now, just run the bot using this multibot version and strategy</p>
 <p><code>python3.11 multi_bot_nosignal_multicore.py --exchange bybit --account_name account_1 --strategy longonlyhftob --config configs/config.json</code></p>
 <p>This is just a simple example of a short only BTCUSDT strategy to show how one can utilize a single strategy for many use case scenarios on different instruments.</p>
+<h3 id="example-high-risk-small-account-longshort-btcusdt-futures-configuration">Example High risk small account long&amp;short BTCUSDT futures configuration</h3>
+<p>Set up your config.json from the below snippet to whitelist BTCUSDT and set max USD value to a high value to allow for the symbol.</p>
+<p><code>max_qty_percent_long</code> and <code>max_qty_pct_short</code> are set high in this configuration, you can adjust them as needed these are just defaults for testing purposes.</p>
+<pre><code class="language-json">{
+  &quot;api&quot;: {
+      &quot;filename&quot;: &quot;quantdatav2_bybit.json&quot;,
+      &quot;mode&quot;: &quot;remote&quot;,
+      &quot;url&quot;: &quot;https://api.quantumvoid.org/volumedata/&quot;,
+      &quot;data_source_exchange&quot;: &quot;bybit&quot;
+  },
+  &quot;bot&quot;: {
+      &quot;bot_name&quot;: &quot;your_bot_name&quot;,
+      &quot;symbol&quot;: &quot;BTCUSDT&quot;,
+      &quot;volume_check&quot;: false,
+      &quot;min_distance&quot;: 0.15,
+      &quot;min_volume&quot;: 10000,
+      &quot;wallet_exposure_limit&quot;: 0.001,
+      &quot;user_defined_leverage_long&quot;: 5,
+      &quot;user_defined_leverage_short&quot;: 5,
+      &quot;upnl_profit_pct&quot;: 0.0027,
+      &quot;max_upnl_profit_pct&quot;: 0.0034,
+      &quot;auto_reduce_enabled&quot;: false,
+      &quot;auto_reduce_start_pct&quot;: 0.068,
+      &quot;entry_during_autoreduce&quot;: false,
+      &quot;stoploss_enabled&quot;: false,
+      &quot;stoploss_upnl_pct&quot;: 0.05,
+      &quot;liq_stoploss_enabled&quot;: false,
+      &quot;liq_price_stop_pct&quot;: 0.50,
+      &quot;percentile_auto_reduce_enabled&quot;: false,
+      &quot;upnl_threshold_pct&quot;: 0.50,
+      &quot;max_pos_balance_pct&quot;: 0.50,
+      &quot;auto_reduce_wallet_exposure_pct&quot;: 0.20,
+      &quot;auto_reduce_maxloss_pct&quot;: 0.30,
+      &quot;auto_reduce_marginbased_enabled&quot;: false,
+      &quot;hedge_ratio&quot;: 0.10,
+      &quot;hedge_price_difference_threshold&quot;: 0.10,
+      &quot;auto_leverage_upscale&quot;: false,
+      &quot;test_orders_enabled&quot;: false,
+      &quot;max_usd_value&quot;: 100000,
+      &quot;min_qty_threshold&quot;: 0,
+      &quot;long_liq_pct&quot;: 0.05,
+      &quot;short_liq_pct&quot;: 0.05,
+      &quot;MaxAbsFundingRate&quot;: 0.0002,
+      &quot;blacklist&quot;: [&quot;ETHUSDT&quot;],
+      &quot;whitelist&quot;: [&quot;BTCUSDT&quot;],
+      &quot;dashboard_enabled&quot;: false,
+      &quot;shared_data_path&quot;: &quot;data/&quot;,
+      &quot;linear_grid&quot;: {
+          &quot;max_qty_percent_long&quot;: 10000,
+          &quot;max_qty_percent_short&quot;: 10000,
+          &quot;auto_reduce_cooldown_enabled&quot;: false,
+          &quot;auto_reduce_cooldown_start_pct&quot;: 0.051,
+          &quot;wallet_exposure_limit_long&quot;: 0.001,
+          &quot;wallet_exposure_limit_short&quot;: 0.001,
+          &quot;levels&quot;: 3,
+          &quot;strength&quot;: 1.4,
+          &quot;outer_price_distance&quot;: 0.059,
+          &quot;min_outer_price_distance&quot;: 0.019,
+          &quot;max_outer_price_distance&quot;: 0.039,
+          &quot;long_mode&quot;: true,
+          &quot;short_mode&quot;: true,
+          &quot;reissue_threshold&quot;: 0.001,
+          &quot;buffer_percentage&quot;: 0.10,
+          &quot;initial_entry_buffer_pct&quot;: 0.0001,
+          &quot;min_buffer_percentage&quot;: 0.0035,
+          &quot;max_buffer_percentage&quot;: 0.010,
+          &quot;enforce_full_grid&quot;: true,
+          &quot;min_buffer_percentage_ar&quot;: 0.002,
+          &quot;max_buffer_percentage_ar&quot;: 0.004,
+          &quot;upnl_auto_reduce_threshold_long&quot;: 10.0,
+          &quot;upnl_auto_reduce_threshold_short&quot;: 10.0,
+          &quot;failsafe_enabled&quot;: false,
+          &quot;failsafe_start_pct&quot;: 0.05,
+          &quot;long_failsafe_upnl_pct&quot;: 10.0,
+          &quot;short_failsafe_upnl_pct&quot;: 10.0
+      },
+      &quot;hotkeys&quot;: {
+          &quot;hotkeys_enabled&quot;: false,
+          &quot;enter_long&quot;: &quot;1&quot;,
+          &quot;take_profit_long&quot;: &quot;2&quot;,
+          &quot;enter_short&quot;: &quot;3&quot;,
+          &quot;take_profit_short&quot;: &quot;4&quot;
+      }
+  },
+  &quot;exchanges&quot;: [
+      {
+        &quot;name&quot;: &quot;bybit&quot;,
+        &quot;account_name&quot;: &quot;account_1&quot;,
+        &quot;symbols_allowed&quot;: 1
+      },
+      {
+          &quot;name&quot;: &quot;bybit_spot&quot;,
+          &quot;account_name&quot;: &quot;account_2&quot;,
+          &quot;symbols_allowed&quot;: 5
+      },
+      {
+          &quot;name&quot;: &quot;bybit_unified&quot;,
+          &quot;account_name&quot;: &quot;account_3&quot;,
+          &quot;symbols_allowed&quot;: 5
+      }
+  ],
+  &quot;logger&quot;: {
+      &quot;level&quot;: &quot;info&quot;
+  },
+  &quot;messengers&quot;: {
+      &quot;discord&quot;: {
+          &quot;active&quot;: false,
+          &quot;embedded_messages&quot;: true,
+          &quot;messenger_type&quot;: &quot;discord&quot;,
+          &quot;webhook_url&quot;: &quot;https://discord.com/api/webhooks/your_webhook_id/your_webhook_token&quot;
+      },
+      &quot;telegram&quot;: {
+          &quot;active&quot;: false,
+          &quot;embedded_messages&quot;: true,
+          &quot;messenger_type&quot;: &quot;telegram&quot;,
+          &quot;bot_token&quot;: &quot;your_bot_token&quot;,
+          &quot;chat_id&quot;: &quot;your_chat_id&quot;
+      }
+  }
+}
+</code></pre>
+<p>Now, just run the bot using this multibot version and strategy</p>
+<p><code>python3.11 multi_bot_signalscreener_targetcoin.py --exchange bybit --account_name account_1 --strategy qsgridobeos --config configs/config.json</code></p>
+<p>This is an aggressive approach because it utilizes a high <code>max_qty_percent_long</code> and <code>max_qty_percent_short</code> on a small wallet balance (ie $100 USD) for a symbol with a high USD value with the min notional requirement for BTCUSDT on Bybit it is inherently more risky but also more profitable.</p>
 
 
 
