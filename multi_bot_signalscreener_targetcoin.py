@@ -336,6 +336,10 @@ class DirectionalMarketMaker:
         with general_rate_limiter:
             return self.exchange.retry_api_call(self.exchange.get_open_orders, symbol)
 
+    def fetch_open_positions(self):
+        with general_rate_limiter:
+            return getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
+
     def generate_l_signals(self, symbol):
         with general_rate_limiter:
             return self.exchange.generate_l_signals(symbol)
@@ -357,19 +361,27 @@ def monitor_threads():
                 for action, thread_data in list(thread_info.items()):
                     thread, thread_completed = thread_data
                     if not thread.is_alive() and not thread_completed.is_set():
-                        logging.info(f"Restarting {action} thread for symbol {symbol} as it was not alive.")
-                        thread_completed.set()  # Mark the thread as completed
-                        thread.join()  # Ensure the thread has terminated
+                        logging.info(f"Thread for symbol {symbol} with action {action} is not alive and not marked as completed. Restarting the thread.")
+                        try:
+                            thread_completed.set()  # Mark the thread as completed
+                            thread.join()  # Ensure the thread has terminated
+                            logging.info(f"Successfully joined the thread for symbol {symbol} with action {action}.")
 
-                        # Restart the thread
-                        with general_rate_limiter:
-                            mfirsi_signal = market_maker.generate_l_signals(symbol)
-                        new_thread_completed = threading.Event()
-                        new_thread = threading.Thread(target=run_bot, args=(
-                            symbol, args, market_maker, manager, args.account_name, symbols_allowed,
-                            latest_rotator_symbols, new_thread_completed, mfirsi_signal, action))
-                        active_threads[symbol][action] = (new_thread, new_thread_completed)
-                        new_thread.start()
+                            # Restart the thread
+                            with general_rate_limiter:
+                                mfirsi_signal = market_maker.generate_l_signals(symbol)
+                            new_thread_completed = threading.Event()
+                            new_thread = threading.Thread(target=run_bot, args=(
+                                symbol, args, market_maker, manager, args.account_name, symbols_allowed,
+                                latest_rotator_symbols, new_thread_completed, mfirsi_signal, action))
+                            active_threads[symbol][action] = (new_thread, new_thread_completed)
+                            new_thread.start()
+                            logging.info(f"Successfully restarted the thread for symbol {symbol} with action {action}.")
+                        except Exception as e:
+                            logging.error(f"Error while restarting the thread for symbol {symbol} with action {action}: {e}")
+                            logging.debug(traceback.format_exc())
+                    else:
+                        logging.debug(f"Thread for symbol {symbol} with action {action} is alive or already marked as completed.")
         time.sleep(10)  # Monitor interval
 
 def run_bot(symbol, args, market_maker, manager, account_name, symbols_allowed, rotator_symbols_standardized, thread_completed, mfirsi_signal, action):
@@ -601,13 +613,7 @@ def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
                 logging.info(f"No action taken for whitelisted symbol {whitelisted_symbol}.")
 
             # Manage existing threads
-            manage_threads(whitelisted_symbol)
-
-            # Check and manage open position threads
-            current_open_position_symbols = {standardize_symbol(pos['symbol']) for pos in open_position_data}
-            for symbol in current_open_position_symbols:
-                if symbol != whitelisted_symbol:
-                    manage_threads(symbol)
+            manage_threads(market_maker, args, manager)
 
             time.sleep(1)  # Adjust this sleep time as needed to control how often you check for signals
 
@@ -615,23 +621,78 @@ def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
             logging.error(f"Exception caught in bybit_auto_rotation: {str(e)}")
             logging.debug(traceback.format_exc())
 
-def manage_threads(symbol):
-    global long_threads, short_threads
+def manage_threads(market_maker, args, manager):
+    """Function to manage and restart threads if needed."""
+    try:
+        logging.info("Starting to manage threads.")
 
-    if symbol in long_threads:
+        # Fetch open positions at regular intervals
+        open_position_data = market_maker.fetch_open_positions()
+        open_position_symbols = {standardize_symbol(pos['symbol']) for pos in open_position_data}
+        
+        # Logging the open position symbols
+        logging.info(f"Fetched open position symbols: {open_position_symbols}")
+
+        with thread_management_lock:
+            logging.info(f"Active long threads: {list(long_threads.keys())}")
+            logging.info(f"Active short threads: {list(short_threads.keys())}")
+
+            # Check for missing threads for open positions
+            for symbol in open_position_symbols:
+                has_open_long = any(pos['side'].lower() == 'long' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
+                has_open_short = any(pos['side'].lower() == 'short' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
+
+                with general_rate_limiter:
+                    mfirsi_signal = market_maker.generate_l_signals(symbol)
+
+                if has_open_long:
+                    if symbol not in long_threads or not long_threads[symbol][0].is_alive():
+                        logging.info(f"Starting missing long thread for symbol {symbol}.")
+                        start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "long")
+                    else:
+                        logging.info(f"Long thread already active for symbol {symbol}.")
+                
+                if has_open_short:
+                    if symbol not in short_threads or not short_threads[symbol][0].is_alive():
+                        logging.info(f"Starting missing short thread for symbol {symbol}.")
+                        start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "short")
+                    else:
+                        logging.info(f"Short thread already active for symbol {symbol}.")
+
+            # Stop threads for symbols that are no longer open
+            for symbol in list(long_threads.keys()):
+                if symbol not in open_position_symbols:
+                    logging.info(f"Stopping long thread for symbol {symbol} as it is no longer open.")
+                    stop_thread_for_symbol(symbol, "long")
+                else:
+                    logging.info(f"Long thread still needed and active for symbol {symbol}.")
+
+            for symbol in list(short_threads.keys()):
+                if symbol not in open_position_symbols:
+                    logging.info(f"Stopping short thread for symbol {symbol} as it is no longer open.")
+                    stop_thread_for_symbol(symbol, "short")
+                else:
+                    logging.info(f"Short thread still needed and active for symbol {symbol}.")
+
+    except Exception as e:
+        logging.error(f"Exception caught in manage_threads: {e}")
+        logging.debug(traceback.format_exc())
+
+def stop_thread_for_symbol(symbol, action):
+    """Stop the thread for a given symbol and action."""
+    if action == "long" and symbol in long_threads:
         thread, thread_completed = long_threads[symbol]
-        if thread_completed.is_set():
-            thread.join()
-            del long_threads[symbol]
-            logging.info(f"Long thread for {symbol} has completed and been removed.")
-
-    if symbol in short_threads:
+        thread_completed.set()
+        thread.join()
+        del long_threads[symbol]
+        logging.info(f"Stopped and removed long thread for symbol {symbol}.")
+    elif action == "short" and symbol in short_threads:
         thread, thread_completed = short_threads[symbol]
-        if thread_completed.is_set():
-            thread.join()
-            del short_threads[symbol]
-            logging.info(f"Short thread for {symbol} has completed and been removed.")
-            
+        thread_completed.set()
+        thread.join()
+        del short_threads[symbol]
+        logging.info(f"Stopped and removed short thread for symbol {symbol}.")
+
 def process_signal_for_open_position(symbol, args, market_maker, manager, symbols_allowed, open_position_data, long_mode, short_mode):
     market_maker.manager = manager
 
