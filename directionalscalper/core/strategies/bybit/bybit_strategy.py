@@ -5531,37 +5531,33 @@ class BybitStrategy(BaseStrategy):
                 last_signal_time = self.last_signal_time.get(symbol, 0)
                 time_since_last_signal = current_time - last_signal_time
 
-                if time_since_last_signal < 180:  # 5 minutes
+                if time_since_last_signal < 180:  # 3 minutes
                     logging.info(f"[{symbol}] Waiting for signal cooldown. Time since last signal: {time_since_last_signal:.2f} seconds")
                     return
 
                 # Only log and update if the signal has changed
                 if fresh_signal.lower() != self.last_mfirsi_signal[symbol]:
                     logging.info(f"[{symbol}] MFIRSI signal changed to {fresh_signal}")
-                    self.last_mfirsi_signal[symbol] = mfirsi_signal.lower()
+                    self.last_mfirsi_signal[symbol] = fresh_signal.lower()
                 else:
                     logging.info(f"[{symbol}] MFIRSI signal unchanged: {fresh_signal}")
 
                 # Proceed with the signal handling regardless of whether it's a retry or a new signal
                 if fresh_signal.lower() == "long" and long_mode and not self.auto_reduce_active_long.get(symbol, False):
                     if long_pos_qty > 0.00001:  # Check if a long position already exists
-                        logging.info(f"[{symbol}] Adding to existing long position based on MFIRSI long signal")
-                        self.clear_grid(symbol, 'buy')
-
-                        # Adjust the first grid level to use initial_entry_buffer_pct
-                        # grid_levels_long[0] = current_price * (1 - initial_entry_buffer_pct)
-                        grid_levels_long[0] = best_bid_price
-
-                        self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                        self.active_grids.add(symbol)
-                        self.last_signal_time[symbol] = current_time
-                        self.last_mfirsi_signal[symbol] = "neutral"
+                        if current_price <= long_pos_price:  # Enter additional entry only if current price <= long_pos_price
+                            logging.info(f"[{symbol}] Adding to existing long position based on MFIRSI long signal")
+                            self.clear_grid(symbol, 'buy')
+                            grid_levels_long[0] = best_bid_price
+                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                            self.active_grids.add(symbol)
+                            self.last_signal_time[symbol] = current_time
+                            self.last_mfirsi_signal[symbol] = "neutral"
+                        else:
+                            logging.info(f"[{symbol}] Current price {current_price} is above long position price {long_pos_price}. Not adding to long position.")
                     else:
                         logging.info(f"[{symbol}] Creating new long position based on MFIRSI long signal")
                         self.clear_grid(symbol, 'buy')
-
-                        # Adjust the first grid level to use initial_entry_buffer_pct
-                        # grid_levels_long[0] = current_price * (1 - initial_entry_buffer_pct)
                         grid_levels_long[0] = best_bid_price
                         self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                         self.active_grids.add(symbol)
@@ -5584,24 +5580,20 @@ class BybitStrategy(BaseStrategy):
 
                 elif fresh_signal.lower() == "short" and short_mode and not self.auto_reduce_active_short.get(symbol, False):
                     if short_pos_qty > 0.00001:  # Check if a short position already exists
-                        logging.info(f"[{symbol}] Adding to existing short position based on MFIRSI short signal")
-                        self.clear_grid(symbol, 'sell')
-
-                        # Adjust the first grid level to use initial_entry_buffer_pct
-                        #grid_levels_short[0] = current_price * (1 + initial_entry_buffer_pct)
-                        grid_levels_short[0] = best_ask_price
-                        self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                        self.active_grids.add(symbol)
-                        self.last_signal_time[symbol] = current_time
-                        self.last_mfirsi_signal[symbol] = "neutral"
+                        if current_price >= short_pos_price:  # Enter additional entry only if current price >= short_pos_price
+                            logging.info(f"[{symbol}] Adding to existing short position based on MFIRSI short signal")
+                            self.clear_grid(symbol, 'sell')
+                            grid_levels_short[0] = best_ask_price
+                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                            self.active_grids.add(symbol)
+                            self.last_signal_time[symbol] = current_time
+                            self.last_mfirsi_signal[symbol] = "neutral"
+                        else:
+                            logging.info(f"[{symbol}] Current price {current_price} is below short position price {short_pos_price}. Not adding to short position.")
                     else:
                         logging.info(f"[{symbol}] Creating new short position based on MFIRSI short signal")
                         self.clear_grid(symbol, 'sell')
-
-                        # Adjust the first grid level to use initial_entry_buffer_pct
-                        # grid_levels_short[0] = current_price * (1 + initial_entry_buffer_pct)
                         grid_levels_short[0] = best_ask_price
-
                         self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                         self.active_grids.add(symbol)
 
@@ -5629,6 +5621,7 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.info(f"Error in executing gridstrategy: {e}")
             logging.info("Traceback: %s", traceback.format_exc())
+
 
     def lingrid_ob_lsignal_entryuponsignal(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
                                                                         short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
