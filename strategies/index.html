@@ -836,7 +836,7 @@
       &quot;wallet_exposure_limit&quot;: 0.001,
       &quot;user_defined_leverage_long&quot;: 8,
       &quot;user_defined_leverage_short&quot;: 5,
-      &quot;upnl_profit_pct&quot;: 0.0022,
+      &quot;upnl_profit_pct&quot;: 0.0025,
       &quot;max_upnl_profit_pct&quot;: 0.0029,
       &quot;auto_reduce_enabled&quot;: false,
       &quot;auto_reduce_start_pct&quot;: 0.068,
@@ -962,7 +962,7 @@
         &quot;wallet_exposure_limit&quot;: 0.001,
         &quot;user_defined_leverage_long&quot;: 8,
         &quot;user_defined_leverage_short&quot;: 4,
-        &quot;upnl_profit_pct&quot;: 0.0022,
+        &quot;upnl_profit_pct&quot;: 0.0025,
         &quot;max_upnl_profit_pct&quot;: 0.0029,
         &quot;auto_reduce_enabled&quot;: false,
         &quot;auto_reduce_start_pct&quot;: 0.068,
@@ -981,7 +981,7 @@
         &quot;hedge_price_difference_threshold&quot;: 0.10,
         &quot;auto_leverage_upscale&quot;: false,
         &quot;test_orders_enabled&quot;: false,
-        &quot;max_usd_value&quot;: 100000,
+        &quot;max_usd_value&quot;: 50,
         &quot;min_qty_threshold&quot;: 0,
         &quot;long_liq_pct&quot;: 0.05,
         &quot;short_liq_pct&quot;: 0.05,
@@ -991,8 +991,8 @@
         &quot;dashboard_enabled&quot;: false,
         &quot;shared_data_path&quot;: &quot;data/&quot;,
         &quot;linear_grid&quot;: {
-            &quot;max_qty_percent_long&quot;: 5,
-            &quot;max_qty_percent_short&quot;: 5,
+            &quot;max_qty_percent_long&quot;: 10,
+            &quot;max_qty_percent_short&quot;: 10,
             &quot;auto_reduce_cooldown_enabled&quot;: false,
             &quot;auto_reduce_cooldown_start_pct&quot;: 0.051,
             &quot;wallet_exposure_limit_long&quot;: 0.001,
@@ -1000,7 +1000,7 @@
             &quot;levels&quot;: 3,
             &quot;strength&quot;: 1.4,
             &quot;outer_price_distance&quot;: 0.059,
-            &quot;min_outer_price_distance&quot;: 0.019,
+            &quot;min_outer_price_distance&quot;: 0.029,
             &quot;max_outer_price_distance&quot;: 0.039,
             &quot;long_mode&quot;: true,
             &quot;short_mode&quot;: true,
@@ -1029,9 +1029,9 @@
     },
     &quot;exchanges&quot;: [
         {
-            &quot;name&quot;: &quot;bybit&quot;,
-            &quot;account_name&quot;: &quot;account_1&quot;,
-            &quot;symbols_allowed&quot;: 10
+          &quot;name&quot;: &quot;bybit&quot;,
+          &quot;account_name&quot;: &quot;account_1&quot;,
+          &quot;symbols_allowed&quot;: 15
         },
         {
             &quot;name&quot;: &quot;bybit_spot&quot;,
@@ -1062,7 +1062,7 @@
             &quot;chat_id&quot;: &quot;your_chat_id&quot;
         }
     }
-}
+  }
 </code></pre>
 <p>Now, just run the bot using this multibot version and strategy</p>
 <p><code>python3.11 multi_bot_signalscreener_multicore_l.py --exchange bybit --account_name account_1 --strategy qsgridoblsignal --config configs/config.json</code></p>
@@ -1085,7 +1085,7 @@
         &quot;wallet_exposure_limit&quot;: 0.001,
         &quot;user_defined_leverage_long&quot;: 15,
         &quot;user_defined_leverage_short&quot;: 7,
-        &quot;upnl_profit_pct&quot;: 0.0022,
+        &quot;upnl_profit_pct&quot;: 0.0025,
         &quot;max_upnl_profit_pct&quot;: 0.0029,
         &quot;auto_reduce_enabled&quot;: false,
         &quot;auto_reduce_start_pct&quot;: 0.068,
@@ -1209,8 +1209,8 @@
       &quot;wallet_exposure_limit&quot;: 0.001,
       &quot;user_defined_leverage_long&quot;: 5,
       &quot;user_defined_leverage_short&quot;: 5,
-      &quot;upnl_profit_pct&quot;: 0.0027,
-      &quot;max_upnl_profit_pct&quot;: 0.0034,
+      &quot;upnl_profit_pct&quot;: 0.0025,
+      &quot;max_upnl_profit_pct&quot;: 0.0029,
       &quot;auto_reduce_enabled&quot;: false,
       &quot;auto_reduce_start_pct&quot;: 0.068,
       &quot;entry_during_autoreduce&quot;: false,
