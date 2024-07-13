@@ -404,6 +404,7 @@ def run_bot(symbol, args, market_maker, manager, account_name, symbols_allowed, 
             active_symbols.discard(symbol)  # Remove symbol from active_symbols when the thread completes
         logging.info(f"Thread for symbol {symbol} with action {action} has completed.")
         thread_completed.set()
+
         
 def bybit_auto_rotation_spot(args, market_maker, manager, symbols_allowed):
     global latest_rotator_symbols, active_symbols, last_rotator_update_time
@@ -642,6 +643,7 @@ def handle_signal(symbol, args, manager, mfirsi_signal, open_position_data, symb
 
     mfi_signal_long = mfirsi_signal.lower() == "long"
     mfi_signal_short = mfirsi_signal.lower() == "short"
+    mfi_signal_neutral = mfirsi_signal.lower() == "neutral"
 
     current_long_positions = sum(1 for pos in open_position_data if pos['side'].lower() == 'long')
     current_short_positions = sum(1 for pos in open_position_data if pos['side'].lower() == 'short')
@@ -663,21 +665,15 @@ def handle_signal(symbol, args, manager, mfirsi_signal, open_position_data, symb
     if mfi_signal_long and long_mode:
         logging.info(f"Starting long thread for symbol {symbol}.")
         action_taken_long = start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "long")
-    else:
-        logging.info(f"Long signal not triggered or long mode not enabled for symbol {symbol}.")
-        logging.info(f"MFIRSI Signal: {mfirsi_signal}")
-        logging.info(f"Long mode: {long_mode}")
-        logging.info(f"Has open long: {has_open_long}")
+    elif mfi_signal_neutral:
+        logging.info(f"Neutral signal for symbol {symbol}. No long or short action taken.")
 
     # Always attempt to start a new short position if the signal is short
     if mfi_signal_short and short_mode:
         logging.info(f"Starting short thread for symbol {symbol}.")
         action_taken_short = start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "short")
-    else:
-        logging.info(f"Short signal not triggered or short mode not enabled for symbol {symbol}.")
-        logging.info(f"MFIRSI Signal: {mfirsi_signal}")
-        logging.info(f"Short mode: {short_mode}")
-        logging.info(f"Has open short: {has_open_short}")
+    elif mfi_signal_neutral:
+        logging.info(f"Neutral signal for symbol {symbol}. No long or short action taken.")
 
     if action_taken_long or action_taken_short:
         logging.info(f"Action taken for whitelisted symbol {symbol}.")
@@ -888,7 +884,7 @@ def start_thread_for_symbol(symbol, args, manager, mfirsi_signal, action):
             logging.info(f"Short thread already running for symbol {symbol}. Skipping.")
             return False
     elif action == "neutral":
-        logging.info(f"Start thread function hit for {symbol} but signal is {mfirsi_signal}")
+        logging.info(f"Neutral action detected for {symbol}. No thread started.")
 
     thread_completed = threading.Event()
     thread = threading.Thread(target=run_bot, args=(symbol, args, market_maker, manager, args.account_name, symbols_allowed, latest_rotator_symbols, thread_completed, mfirsi_signal, action))
@@ -898,9 +894,35 @@ def start_thread_for_symbol(symbol, args, manager, mfirsi_signal, action):
     elif action == "short":
         short_threads[symbol] = (thread, thread_completed)
 
-    thread.start()
-    logging.info(f"Started thread for symbol {symbol} with action {action} based on MFIRSI signal.")
-    return True
+    if action != "neutral":  # Only start the thread if the action is not neutral
+        thread.start()
+        logging.info(f"Started thread for symbol {symbol} with action {action} based on MFIRSI signal.")
+        return True
+    return False
+
+# def start_thread_for_symbol(symbol, args, manager, mfirsi_signal, action):
+#     if action == "long":
+#         if symbol in long_threads and long_threads[symbol][0].is_alive():
+#             logging.info(f"Long thread already running for symbol {symbol}. Skipping.")
+#             return False
+#     elif action == "short":
+#         if symbol in short_threads and short_threads[symbol][0].is_alive():
+#             logging.info(f"Short thread already running for symbol {symbol}. Skipping.")
+#             return False
+#     elif action == "neutral":
+#         logging.info(f"Start thread function hit for {symbol} but signal is {mfirsi_signal}")
+
+#     thread_completed = threading.Event()
+#     thread = threading.Thread(target=run_bot, args=(symbol, args, market_maker, manager, args.account_name, symbols_allowed, latest_rotator_symbols, thread_completed, mfirsi_signal, action))
+
+#     if action == "long":
+#         long_threads[symbol] = (thread, thread_completed)
+#     elif action == "short":
+#         short_threads[symbol] = (thread, thread_completed)
+
+#     thread.start()
+#     logging.info(f"Started thread for symbol {symbol} with action {action} based on MFIRSI signal.")
+#     return True
 
 def fetch_updated_symbols(args, manager):
     strategy = args.strategy.lower()

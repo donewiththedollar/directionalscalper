@@ -299,10 +299,10 @@ class BybitGridOBEOS(BybitStrategy):
 
                 leverage_tiers = self.exchange.fetch_leverage_tiers(symbol)
 
-                if leverage_tiers:
-                    logging.info(f"Leverage tiers for {symbol}: {leverage_tiers}")
-                else:
-                    logging.error(f"Failed to fetch leverage tiers for {symbol}.")
+                # if leverage_tiers:
+                #     #logging.info(f"Leverage tiers for {symbol}: {leverage_tiers}")
+                # else:
+                #     logging.error(f"Failed to fetch leverage tiers for {symbol}.")
 
 
                 logging.info(f"Max USD value: {self.max_usd_value}")
@@ -852,7 +852,8 @@ class BybitGridOBEOS(BybitStrategy):
                     short_tp_counts = tp_order_counts['short_tp_count']
 
                     try:
-                        self.lingrid_ob_lsignal_entryuponsignal(
+                        # self.lingrid_ob_lsignal_entryuponsignal(
+                        self.lingrid_uponsignal_v2(
                             symbol,
                             open_symbols,
                             total_equity,
@@ -911,44 +912,47 @@ class BybitGridOBEOS(BybitStrategy):
                     short_take_profit = self.calculate_quickscalp_short_take_profit_dynamic_distance(short_pos_price, symbol, min_upnl_profit_pct=upnl_profit_pct, max_upnl_profit_pct=max_upnl_profit_pct)
                     long_take_profit = self.calculate_quickscalp_long_take_profit_dynamic_distance(long_pos_price, symbol, min_upnl_profit_pct=upnl_profit_pct, max_upnl_profit_pct=max_upnl_profit_pct)
 
-                    # Update TP for long position
-                    if long_pos_qty > 0:
-                        new_long_tp_min, new_long_tp_max = self.calculate_quickscalp_long_take_profit_dynamic_distance(
-                            long_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
-                        )
-                        if new_long_tp_min is not None and new_long_tp_max is not None:
-                            self.next_long_tp_update = self.update_quickscalp_tp_dynamic(
-                                symbol=symbol,
-                                pos_qty=long_pos_qty,
-                                upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
-                                max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
-                                short_pos_price=None,  # Not relevant for long TP settings
-                                long_pos_price=long_pos_price,
-                                positionIdx=1,
-                                order_side="sell",
-                                last_tp_update=self.next_long_tp_update,
-                                tp_order_counts=tp_order_counts,
-                                open_orders=open_orders
+                    try:
+                        # # Update TP for long position
+                        if long_pos_qty > 0:
+                            new_long_tp_min, new_long_tp_max = self.calculate_quickscalp_long_take_profit_dynamic_distance(
+                                long_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
                             )
+                            if new_long_tp_min is not None and new_long_tp_max is not None:
+                                self.next_long_tp_update = self.update_quickscalp_tp_dynamic(
+                                    symbol=symbol,
+                                    pos_qty=long_pos_qty,
+                                    upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
+                                    max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
+                                    short_pos_price=None,  # Not relevant for long TP settings
+                                    long_pos_price=long_pos_price,
+                                    positionIdx=1,
+                                    order_side="sell",
+                                    last_tp_update=self.next_long_tp_update,
+                                    tp_order_counts=tp_order_counts,
+                                    open_orders=open_orders
+                                )
 
-                    if short_pos_qty > 0:
-                        new_short_tp_min, new_short_tp_max = self.calculate_quickscalp_short_take_profit_dynamic_distance(
-                            short_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
-                        )
-                        if new_short_tp_min is not None and new_short_tp_max is not None:
-                            self.next_short_tp_update = self.update_quickscalp_tp_dynamic(
-                                symbol=symbol,
-                                pos_qty=short_pos_qty,
-                                upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
-                                max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
-                                short_pos_price=short_pos_price,
-                                long_pos_price=None,  # Not relevant for short TP settings
-                                positionIdx=2,
-                                order_side="buy",
-                                last_tp_update=self.next_short_tp_update,
-                                tp_order_counts=tp_order_counts,
-                                open_orders=open_orders
+                        if short_pos_qty > 0:
+                            new_short_tp_min, new_short_tp_max = self.calculate_quickscalp_short_take_profit_dynamic_distance(
+                                short_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
                             )
+                            if new_short_tp_min is not None and new_short_tp_max is not None:
+                                self.next_short_tp_update = self.update_quickscalp_tp_dynamic(
+                                    symbol=symbol,
+                                    pos_qty=short_pos_qty,
+                                    upnl_profit_pct=upnl_profit_pct,  # Minimum desired profit percentage
+                                    max_upnl_profit_pct=max_upnl_profit_pct,  # Maximum desired profit percentage for scaling
+                                    short_pos_price=short_pos_price,
+                                    long_pos_price=None,  # Not relevant for short TP settings
+                                    positionIdx=2,
+                                    order_side="buy",
+                                    last_tp_update=self.next_short_tp_update,
+                                    tp_order_counts=tp_order_counts,
+                                    open_orders=open_orders
+                                )
+                    except Exception as e:
+                        logging.info(f"Exception caught in replacing take profit {e}")
                             
 
                     if self.test_orders_enabled and current_time - self.last_helper_order_cancel_time >= self.helper_interval:
