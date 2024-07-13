@@ -3,6 +3,7 @@ import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from concurrent.futures import Future
+from collections import defaultdict
 import threading
 from threading import Thread
 import random
@@ -47,7 +48,7 @@ thread_management_lock = threading.Lock()
 thread_to_symbol = {}
 thread_to_symbol_lock = threading.Lock()
 active_symbols = set()
-active_threads = []
+active_threads = defaultdict(dict)
 long_threads = {}
 short_threads = {}
 
@@ -348,6 +349,29 @@ BALANCE_REFRESH_INTERVAL = 600  # in seconds
 
 orders_canceled = False
 
+def monitor_threads():
+    """Function to monitor and restart threads if needed."""
+    while True:
+        with thread_management_lock:
+            for symbol, thread_info in list(active_threads.items()):
+                for action, thread_data in list(thread_info.items()):
+                    thread, thread_completed = thread_data
+                    if not thread.is_alive() and not thread_completed.is_set():
+                        logging.info(f"Restarting {action} thread for symbol {symbol} as it was not alive.")
+                        thread_completed.set()  # Mark the thread as completed
+                        thread.join()  # Ensure the thread has terminated
+
+                        # Restart the thread
+                        with general_rate_limiter:
+                            mfirsi_signal = market_maker.generate_l_signals(symbol)
+                        new_thread_completed = threading.Event()
+                        new_thread = threading.Thread(target=run_bot, args=(
+                            symbol, args, market_maker, manager, args.account_name, symbols_allowed,
+                            latest_rotator_symbols, new_thread_completed, mfirsi_signal, action))
+                        active_threads[symbol][action] = (new_thread, new_thread_completed)
+                        new_thread.start()
+        time.sleep(10)  # Monitor interval
+
 def run_bot(symbol, args, market_maker, manager, account_name, symbols_allowed, rotator_symbols_standardized, thread_completed, mfirsi_signal, action):
     global orders_canceled
     current_thread = threading.current_thread()
@@ -404,7 +428,7 @@ def run_bot(symbol, args, market_maker, manager, account_name, symbols_allowed, 
             active_symbols.discard(symbol)  # Remove symbol from active_symbols when the thread completes
         logging.info(f"Thread for symbol {symbol} with action {action} has completed.")
         thread_completed.set()
-        
+
 def bybit_auto_rotation_spot(args, market_maker, manager, symbols_allowed):
     global latest_rotator_symbols, active_symbols, last_rotator_update_time
 
@@ -546,7 +570,7 @@ def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
         has_open_short = any(pos['side'].lower() == 'short' for pos in open_position_data if standardize_symbol(pos['symbol']) == symbol)
         
         with general_rate_limiter:
-            mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
+            mfirsi_signal = market_maker.generate_l_signals(symbol)
         
         if has_open_long:
             start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "long")
@@ -559,7 +583,7 @@ def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
             
             # Always process the whitelisted symbol
             with general_rate_limiter:
-                mfirsi_signal = market_maker.get_mfirsi_signal(whitelisted_symbol)
+                mfirsi_signal = market_maker.generate_l_signals(whitelisted_symbol)
             
             logging.info(f"Processing signal for whitelisted symbol {whitelisted_symbol}. MFIRSI signal: {mfirsi_signal}")
 
@@ -891,7 +915,14 @@ def start_thread_for_symbol(symbol, args, manager, mfirsi_signal, action):
         logging.info(f"Start thread function hit for {symbol} but signal is {mfirsi_signal}")
 
     thread_completed = threading.Event()
-    thread = threading.Thread(target=run_bot, args=(symbol, args, market_maker, manager, args.account_name, symbols_allowed, latest_rotator_symbols, thread_completed, mfirsi_signal, action))
+    thread = threading.Thread(
+        target=run_bot,
+        args=(
+            symbol, args, market_maker, manager, args.account_name,
+            symbols_allowed, latest_rotator_symbols, thread_completed,
+            mfirsi_signal, action
+        )
+    )
 
     if action == "long":
         long_threads[symbol] = (thread, thread_completed)
@@ -1002,7 +1033,7 @@ if __name__ == '__main__':
         config = load_config(config_file_path, account_path)
     except Exception as e:
         logging.error(f"Failed to load configuration: {str(e)}")
-        logging.error(f"There is probably an issue with your path try using --config configs/config.json")
+        logging.error(f"There is probably an issue with your path. Try using --config configs/config.json")
         sys.exit(1)
 
     exchange_name = args.exchange
@@ -1020,7 +1051,6 @@ if __name__ == '__main__':
         path=Path("data", config.api.filename),
         url=f"{config.api.url}{config.api.filename}"
     )
-
 
     whitelist = config.bot.whitelist
     blacklist = config.bot.blacklist
@@ -1057,15 +1087,15 @@ if __name__ == '__main__':
                 case 'hyperliquid':
                     hyperliquid_auto_rotation(args, market_maker, manager, symbols_allowed)
                 case 'huobi':
-                    huobi_auto_rotation(args, manager, market_maker, symbols_allowed)
+                    huobi_auto_rotation(args, market_maker, manager, symbols_allowed)
                 case 'bitget':
-                    bitget_auto_rotation(args, manager, market_maker, symbols_allowed)
+                    bitget_auto_rotation(args, market_maker, manager, symbols_allowed)
                 case 'binance':
-                    binance_auto_rotation(args, manager, market_maker, symbols_allowed)
+                    binance_auto_rotation(args, market_maker, manager, symbols_allowed)
                 case 'mexc':
-                    mexc_auto_rotation(args, manager, market_maker, symbols_allowed)
+                    mexc_auto_rotation(args, market_maker, manager, symbols_allowed)
                 case 'lbank':
-                    lbank_auto_rotation(args, manager, market_maker, symbols_allowed)
+                    lbank_auto_rotation(args, market_maker, manager, symbols_allowed)
                 case _:
                     logging.warning(f"Auto-rotation not implemented for exchange: {exchange_name}")
 
@@ -1074,5 +1104,5 @@ if __name__ == '__main__':
 
             time.sleep(10)
         except Exception as e:
-            logging.info(f"Exception caught in main loop: {e}")
-            logging.info(traceback.format_exc())
+            logging.error(f"Exception caught in main loop: {e}")
+            logging.debug(traceback.format_exc())
