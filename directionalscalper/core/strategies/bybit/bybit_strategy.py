@@ -140,6 +140,10 @@ class BybitStrategy(BaseStrategy):
 
     TAKER_FEE_RATE = 0.00055
 
+    def generate_l_signals(self, symbol):
+        with self.general_rate_limiter:
+            return self.exchange.generate_l_signals(symbol)
+        
     def get_market_data_with_retry(self, symbol, max_retries=5, retry_delay=5):
         for i in range(max_retries):
             try:
@@ -5408,114 +5412,11 @@ class BybitStrategy(BaseStrategy):
 
             mfi_signal_long = mfirsi_signal.lower() == "long"
             mfi_signal_short = mfirsi_signal.lower() == "short"
+
+            logging.info(f"MFIRSI SIGNAL FOR {symbol} {mfirsi_signal}")
             
             if len(open_symbols) < symbols_allowed or symbol in open_symbols:
                 logging.info(f"Allowed symbol: {symbol}")
-
-                if not hasattr(self, 'last_mfirsi_signal'):
-                    self.last_mfirsi_signal = {}
-                if not hasattr(self, 'last_signal_time'):
-                    self.last_signal_time = {}
-
-                # Initialize default values if not set
-                if self.last_mfirsi_signal is None:
-                    self.last_mfirsi_signal = {}
-                if self.last_signal_time is None:
-                    self.last_signal_time = {}
-
-                if symbol not in self.last_mfirsi_signal:
-                    self.last_mfirsi_signal[symbol] = "neutral"
-                if symbol not in self.last_signal_time:
-                    self.last_signal_time[symbol] = 0
-
-                current_time = time.time()
-                last_signal_time = self.last_signal_time.get(symbol, 0)
-                time_since_last_signal = current_time - last_signal_time
-
-                if time_since_last_signal < 120:  # 2 minutes
-                    logging.info(f"[{symbol}] Waiting for signal cooldown. Time since last signal: {time_since_last_signal:.2f} seconds")
-                    return
-
-                if mfirsi_signal.lower() != self.last_mfirsi_signal[symbol]:
-                    logging.info(f"[{symbol}] MFIRSI signal changed to {mfirsi_signal}")
-                    self.last_mfirsi_signal[symbol] = mfirsi_signal.lower()
-                    
-                    if mfirsi_signal.lower() == "long" and long_mode and not self.auto_reduce_active_long.get(symbol, False):
-                        if long_pos_qty > 0.00001:  # Check if a long position already exists
-                            logging.info(f"[{symbol}] Adding to existing long position based on MFIRSI long signal")
-                            self.clear_grid(symbol, 'buy')
-                            
-                            # Adjust the first grid level to use initial_entry_buffer_pct
-                            grid_levels_long[0] = current_price * (1 - initial_entry_buffer_pct)
-                            
-                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                            self.active_grids.add(symbol)
-                            self.last_signal_time[symbol] = current_time
-                        else:
-                            logging.info(f"[{symbol}] Creating new long position based on MFIRSI long signal")
-                            self.clear_grid(symbol, 'buy')
-                            
-                            # Adjust the first grid level to use initial_entry_buffer_pct
-                            grid_levels_long[0] = current_price * (1 - initial_entry_buffer_pct)
-                            
-                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                            self.active_grids.add(symbol)
-                            
-                            while long_pos_qty < 0.00001:
-                                time.sleep(5)  # Wait for some time to allow order to be filled
-                                long_pos_qty = self.get_position_qty(symbol, 'long')  # Re-fetch the long position quantity
-                                logging.info(f"[{symbol}] Long position quantity after waiting: {long_pos_qty}")
-                                if long_pos_qty < 0.00001:
-                                    logging.info(f"[{symbol}] Retrying long grid orders due to MFIRSI signal long.")
-                                    self.clear_grid(symbol, 'buy')
-                                    self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                                    self.active_grids.add(symbol)
-                                else:
-                                    logging.info(f"[{symbol}] Long position filled, exiting loop.")
-                                    break  # Exit loop once the order is filled
-                            
-                            self.last_signal_time[symbol] = current_time
-                        
-                    elif mfirsi_signal.lower() == "short" and short_mode and not self.auto_reduce_active_short.get(symbol, False):
-                        if short_pos_qty > 0.00001:  # Check if a short position already exists
-                            logging.info(f"[{symbol}] Adding to existing short position based on MFIRSI short signal")
-                            self.clear_grid(symbol, 'sell')
-                            
-                            # Adjust the first grid level to use initial_entry_buffer_pct
-                            grid_levels_short[0] = current_price * (1 + initial_entry_buffer_pct)
-                            
-                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                            self.active_grids.add(symbol)
-                            self.last_signal_time[symbol] = current_time
-                        else:
-                            logging.info(f"[{symbol}] Creating new short position based on MFIRSI short signal")
-                            self.clear_grid(symbol, 'sell')
-                            
-                            # Adjust the first grid level to use initial_entry_buffer_pct
-                            grid_levels_short[0] = current_price * (1 + initial_entry_buffer_pct)
-                            
-                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                            self.active_grids.add(symbol)
-                            
-                            while short_pos_qty < 0.00001:
-                                time.sleep(5)  # Wait for some time to allow order to be filled
-                                short_pos_qty = self.get_position_qty(symbol, 'short')  # Re-fetch the short position quantity
-                                logging.info(f"[{symbol}] Short position quantity after waiting: {short_pos_qty}")
-                                if short_pos_qty < 0.00001:
-                                    logging.info(f"[{symbol}] Retrying short grid orders due to MFIRSI signal short.")
-                                    self.clear_grid(symbol, 'sell')
-                                    self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                                    self.active_grids.add(symbol)
-                                else:
-                                    logging.info(f"[{symbol}] Short position filled, exiting loop.")
-                                    break  # Exit loop once the order is filled
-                            
-                            self.last_signal_time[symbol] = current_time
-                        
-                    elif mfirsi_signal.lower() == "neutral":
-                        logging.info(f"[{symbol}] MFIRSI signal is neutral. No new grid orders.")
-                else:
-                    logging.info(f"[{symbol}] MFIRSI signal unchanged: {mfirsi_signal}")
 
                 replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist_v2(
                     symbol, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
@@ -5688,13 +5589,133 @@ class BybitStrategy(BaseStrategy):
                         self.active_grids.add(symbol)
                     else:
                         logging.info(f"[{symbol}] Skipping new short orders due to active short auto-reduce and entry_during_autoreduce set to False.")
-                        
+
+            if len(open_symbols) < symbols_allowed or symbol in open_symbols:
+                logging.info(f"Allowed symbol: {symbol}")
+
+                fresh_signal = self.generate_l_signals(symbol)
+
+                logging.info(f"Fresh signal for {symbol} : {fresh_signal}")
+
+                if not hasattr(self, 'last_mfirsi_signal'):
+                    self.last_mfirsi_signal = {}
+                if not hasattr(self, 'last_signal_time'):
+                    self.last_signal_time = {}
+
+                # Initialize default values if not set
+                if self.last_mfirsi_signal is None:
+                    self.last_mfirsi_signal = {}
+                if self.last_signal_time is None:
+                    self.last_signal_time = {}
+
+                if symbol not in self.last_mfirsi_signal:
+                    self.last_mfirsi_signal[symbol] = "neutral"
+                if symbol not in self.last_signal_time:
+                    self.last_signal_time[symbol] = 0
+
+                current_time = time.time()
+                last_signal_time = self.last_signal_time.get(symbol, 0)
+                time_since_last_signal = current_time - last_signal_time
+
+                if time_since_last_signal < 180:  # 5 minutes
+                    logging.info(f"[{symbol}] Waiting for signal cooldown. Time since last signal: {time_since_last_signal:.2f} seconds")
+                    return
+
+                # Only log and update if the signal has changed
+                if fresh_signal.lower() != self.last_mfirsi_signal[symbol]:
+                    logging.info(f"[{symbol}] MFIRSI signal changed to {fresh_signal}")
+                    self.last_mfirsi_signal[symbol] = mfirsi_signal.lower()
+                else:
+                    logging.info(f"[{symbol}] MFIRSI signal unchanged: {fresh_signal}")
+
+                # Proceed with the signal handling regardless of whether it's a retry or a new signal
+                if fresh_signal.lower() == "long" and long_mode and not self.auto_reduce_active_long.get(symbol, False):
+                    if long_pos_qty > 0.00001:  # Check if a long position already exists
+                        logging.info(f"[{symbol}] Adding to existing long position based on MFIRSI long signal")
+                        self.clear_grid(symbol, 'buy')
+
+                        # Adjust the first grid level to use initial_entry_buffer_pct
+                        # grid_levels_long[0] = current_price * (1 - initial_entry_buffer_pct)
+                        grid_levels_long[0] = best_bid_price
+
+                        self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                        self.active_grids.add(symbol)
+                        self.last_signal_time[symbol] = current_time
+                        self.last_mfirsi_signal[symbol] = "neutral"
+                    else:
+                        logging.info(f"[{symbol}] Creating new long position based on MFIRSI long signal")
+                        self.clear_grid(symbol, 'buy')
+
+                        # Adjust the first grid level to use initial_entry_buffer_pct
+                        # grid_levels_long[0] = current_price * (1 - initial_entry_buffer_pct)
+                        grid_levels_long[0] = best_bid_price
+                        self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                        self.active_grids.add(symbol)
+
+                        while long_pos_qty < 0.00001:
+                            time.sleep(5)  # Wait for some time to allow order to be filled
+                            long_pos_qty = self.get_position_qty(symbol, 'long')  # Re-fetch the long position quantity
+                            logging.info(f"[{symbol}] Long position quantity after waiting: {long_pos_qty}")
+                            if long_pos_qty < 0.00001:
+                                logging.info(f"[{symbol}] Retrying long grid orders due to MFIRSI signal long.")
+                                self.clear_grid(symbol, 'buy')
+                                self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
+                                self.active_grids.add(symbol)
+                            else:
+                                logging.info(f"[{symbol}] Long position filled, exiting loop.")
+                                break  # Exit loop once the order is filled
+
+                        self.last_signal_time[symbol] = current_time
+                        self.last_mfirsi_signal[symbol] = "neutral"  # Reset to neutral after processing
+
+                elif fresh_signal.lower() == "short" and short_mode and not self.auto_reduce_active_short.get(symbol, False):
+                    if short_pos_qty > 0.00001:  # Check if a short position already exists
+                        logging.info(f"[{symbol}] Adding to existing short position based on MFIRSI short signal")
+                        self.clear_grid(symbol, 'sell')
+
+                        # Adjust the first grid level to use initial_entry_buffer_pct
+                        #grid_levels_short[0] = current_price * (1 + initial_entry_buffer_pct)
+                        grid_levels_short[0] = best_ask_price
+                        self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                        self.active_grids.add(symbol)
+                        self.last_signal_time[symbol] = current_time
+                        self.last_mfirsi_signal[symbol] = "neutral"
+                    else:
+                        logging.info(f"[{symbol}] Creating new short position based on MFIRSI short signal")
+                        self.clear_grid(symbol, 'sell')
+
+                        # Adjust the first grid level to use initial_entry_buffer_pct
+                        # grid_levels_short[0] = current_price * (1 + initial_entry_buffer_pct)
+                        grid_levels_short[0] = best_ask_price
+
+                        self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                        self.active_grids.add(symbol)
+
+                        while short_pos_qty < 0.00001:
+                            time.sleep(5)  # Wait for some time to allow order to be filled
+                            short_pos_qty = self.get_position_qty(symbol, 'short')  # Re-fetch the short position quantity
+                            logging.info(f"[{symbol}] Short position quantity after waiting: {short_pos_qty}")
+                            if short_pos_qty < 0.00001:
+                                logging.info(f"[{symbol}] Retrying short grid orders due to MFIRSI signal short.")
+                                self.clear_grid(symbol, 'sell')
+                                self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
+                                self.active_grids.add(symbol)
+                            else:
+                                logging.info(f"[{symbol}] Short position filled, exiting loop.")
+                                break  # Exit loop once the order is filled
+
+                        self.last_signal_time[symbol] = current_time
+                        self.last_mfirsi_signal[symbol] = "neutral"  # Reset to neutral after processing
+
+                elif fresh_signal.lower() == "neutral":
+                    logging.info(f"[{symbol}] MFIRSI signal is neutral. No new grid orders.")
+
             time.sleep(5)
 
         except Exception as e:
             logging.info(f"Error in executing gridstrategy: {e}")
             logging.info("Traceback: %s", traceback.format_exc())
-            
+
     def lingrid_ob_lsignal_entryuponsignal(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
                                                                         short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
                                                                         strength: float, outer_price_distance: float, min_outer_price_distance: float, max_outer_price_distance: float, reissue_threshold: float,
