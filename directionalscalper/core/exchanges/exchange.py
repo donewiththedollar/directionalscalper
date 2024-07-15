@@ -110,11 +110,6 @@ class Exchange:
             
         # Initializing the exchange object
         self.exchange = exchange_class(exchange_params)
-        # Checks if load_markets() have already been ran once.
-        if not self.exchange.markets == None: return
-        print(f"Loading exchange {self.exchange} for API data")
-        self.exchange.load_markets()
-        print(f'Loaded exchange {self.exchange} for API data')
 
     def get_mfirsi_ema_secondary_ema(self, symbol: str, limit: int = 100, lookback: int = 1, ema_period: int = 5, secondary_ema_period: int = 3) -> str:
         # Fetch OHLCV data

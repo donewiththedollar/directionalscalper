@@ -132,6 +132,9 @@ dmypy.json
 # Pycharm
 .idea/
 
+# IDE
+.vscode/
+
 # Project specific
 config.json
 account.json
