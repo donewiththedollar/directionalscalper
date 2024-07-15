@@ -8,6 +8,7 @@ import traceback
 from threading import Thread, Lock
 from datetime import datetime, timedelta
 
+from directionalscalper.core.config_initializer import ConfigInitializer
 from directionalscalper.core.strategies.bybit.bybit_strategy import BybitStrategy
 from directionalscalper.core.exchanges.bybit import BybitExchange
 from directionalscalper.core.strategies.logger import Logger
@@ -34,63 +35,8 @@ class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
         self.helper_interval = 1
         self.running_long = False
         self.running_short = False
-        self._initialize_config_attributes(config)
+        ConfigInitializer.initialize_config_attributes(self, config)
         self._initialize_symbol_locks(rotator_symbols_standardized)
-
-    def _initialize_config_attributes(self, config):
-        try:
-            self.wallet_exposure_limit = config.wallet_exposure_limit
-            self.user_defined_leverage_long = config.user_defined_leverage_long
-            self.user_defined_leverage_short = config.user_defined_leverage_short
-            self.levels = config.linear_grid['levels']
-            self.strength = config.linear_grid['strength']
-            self.outer_price_distance = config.linear_grid['outer_price_distance']
-            self.long_mode = config.linear_grid['long_mode']
-            self.short_mode = config.linear_grid['short_mode']
-            self.reissue_threshold = config.linear_grid['reissue_threshold']
-            self.buffer_percentage = config.linear_grid['buffer_percentage']
-            self.enforce_full_grid = config.linear_grid['enforce_full_grid']
-            self.initial_entry_buffer_pct = config.linear_grid['initial_entry_buffer_pct']
-            self.min_buffer_percentage = config.linear_grid['min_buffer_percentage']
-            self.max_buffer_percentage = config.linear_grid['max_buffer_percentage']
-            self.wallet_exposure_limit_long = config.linear_grid['wallet_exposure_limit_long']
-            self.wallet_exposure_limit_short = config.linear_grid['wallet_exposure_limit_short']
-            self.min_buffer_percentage_ar = config.linear_grid['min_buffer_percentage_ar']
-            self.max_buffer_percentage_ar = config.linear_grid['max_buffer_percentage_ar']
-            self.upnl_auto_reduce_threshold_long = config.linear_grid['upnl_auto_reduce_threshold_long']
-            self.upnl_auto_reduce_threshold_short = config.linear_grid['upnl_auto_reduce_threshold_short']
-            self.failsafe_enabled = config.linear_grid['failsafe_enabled']
-            self.long_failsafe_upnl_pct = config.linear_grid['long_failsafe_upnl_pct']
-            self.short_failsafe_upnl_pct = config.linear_grid['short_failsafe_upnl_pct']
-            self.failsafe_start_pct = config.linear_grid['failsafe_start_pct']
-            self.auto_reduce_cooldown_enabled = config.linear_grid['auto_reduce_cooldown_enabled']
-            self.auto_reduce_cooldown_start_pct = config.linear_grid['auto_reduce_cooldown_start_pct']
-            self.max_qty_percent_long = config.linear_grid['max_qty_percent_long']
-            self.max_qty_percent_short = config.linear_grid['max_qty_percent_short']
-            self.min_outer_price_distance = config.linear_grid['min_outer_price_distance']
-            self.max_outer_price_distance = config.linear_grid['max_outer_price_distance']
-            self.upnl_threshold_pct = config.upnl_threshold_pct
-            self.volume_check = config.volume_check
-            self.max_usd_value = config.max_usd_value
-            self.blacklist = config.blacklist
-            self.test_orders_enabled = getattr(config, 'test_orders_enabled', False)
-            self.upnl_profit_pct = config.upnl_profit_pct
-            self.max_upnl_profit_pct = config.max_upnl_profit_pct
-            self.stoploss_enabled = config.stoploss_enabled
-            self.stoploss_upnl_pct = config.stoploss_upnl_pct
-            self.liq_stoploss_enabled = config.liq_stoploss_enabled
-            self.liq_price_stop_pct = config.liq_price_stop_pct
-            self.auto_reduce_enabled = config.auto_reduce_enabled
-            self.auto_reduce_start_pct = config.auto_reduce_start_pct
-            self.auto_reduce_maxloss_pct = config.auto_reduce_maxloss_pct
-            self.entry_during_autoreduce = config.entry_during_autoreduce
-            self.auto_reduce_marginbased_enabled = config.auto_reduce_marginbased_enabled
-            self.auto_reduce_wallet_exposure_pct = config.auto_reduce_wallet_exposure_pct
-            self.percentile_auto_reduce_enabled = config.percentile_auto_reduce_enabled
-            self.max_pos_balance_pct = config.max_pos_balance_pct
-            self.auto_leverage_upscale = config.auto_leverage_upscale
-        except AttributeError as e:
-            logging.error(f"Failed to initialize attributes from config: {e}")
 
     def _initialize_symbol_locks(self, symbols):
         for symbol in symbols or []:
