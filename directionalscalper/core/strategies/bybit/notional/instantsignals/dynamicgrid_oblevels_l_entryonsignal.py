@@ -69,6 +69,8 @@ class BybitGridOBEOS(BybitStrategy):
             self.max_qty_percent_short = config.linear_grid['max_qty_percent_short']
             self.min_outer_price_distance = config.linear_grid['min_outer_price_distance']
             self.max_outer_price_distance = config.linear_grid['max_outer_price_distance']
+            self.graceful_stop_long = config.linear_grid['graceful_stop_long']
+            self.graceful_stop_short = config.linear_grid['graceful_stop_short']
             self.upnl_threshold_pct = config.upnl_threshold_pct
             self.volume_check = config.volume_check
             self.max_usd_value = config.max_usd_value
@@ -217,6 +219,8 @@ class BybitGridOBEOS(BybitStrategy):
             max_qty_percent_short = self.config.linear_grid['max_qty_percent_short']
             min_outer_price_distance = self.config.linear_grid['min_outer_price_distance']
             max_outer_price_distance = self.config.linear_grid['max_outer_price_distance']
+            graceful_stop_long = self.config.linear_grid['graceful_stop_long']
+            graceful_stop_short = self.config.linear_grid['graceful_stop_short']
             # reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
 
             volume_check = self.config.volume_check
