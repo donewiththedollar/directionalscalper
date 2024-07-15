@@ -165,7 +165,7 @@ class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
             max_outer_price_distance = self.config.linear_grid['max_outer_price_distance']
             graceful_stop_long = self.config.linear_grid['graceful_stop_long']
             graceful_stop_short = self.config.linear_grid['graceful_stop_short']
-            additional_entries_from_signal = self.config.linear_grid['additional_entry_from_signal']
+            additional_entries_from_signal = self.config.linear_grid['additional_entries_from_signal']
             # reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
 
             volume_check = self.config.volume_check
