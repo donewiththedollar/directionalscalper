@@ -163,6 +163,9 @@ class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
             max_qty_percent_short = self.config.linear_grid['max_qty_percent_short']
             min_outer_price_distance = self.config.linear_grid['min_outer_price_distance']
             max_outer_price_distance = self.config.linear_grid['max_outer_price_distance']
+            graceful_stop_long = self.config.linear_grid['graceful_stop_long']
+            graceful_stop_short = self.config.linear_grid['graceful_stop_short']
+            additional_entries_from_signal = self.config.linear_grid['additional_entry_from_signal']
             # reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
 
             volume_check = self.config.volume_check
@@ -401,19 +404,6 @@ class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
                 logging.info(f"Current long pos qty for {symbol} {long_pos_qty}")
                 logging.info(f"Current short pos qty for {symbol} {short_pos_qty}")
 
-                # # Check if a position has been closed
-                # if previous_long_pos_qty > 0 and long_pos_qty == 0:
-                #     logging.info(f"Long position closed for {symbol}. Canceling long grid orders.")
-                #     self.cancel_grid_orders(symbol, "buy")
-                #     #self.cleanup_before_termination(symbol)
-                #     break  # Exit the while loop, thus ending the thread
-
-                # if previous_short_pos_qty > 0 and short_pos_qty == 0:
-                #     logging.info(f"Short position closed for {symbol}. Canceling short grid orders.")
-                #     self.cancel_grid_orders(symbol, "sell")
-                #     #self.cleanup_before_termination(symbol)
-                #     break  # Exit the while loop, thus ending the thread
-            
                 if previous_long_pos_qty > 0 and long_pos_qty == 0:
                     logging.info(f"Long position closed for {symbol}. Canceling long grid orders.")
                     self.cancel_grid_orders(symbol, "buy")
@@ -468,51 +458,6 @@ class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
                 # Update previous quantities for the next iteration
                 previous_long_pos_qty = long_pos_qty
                 previous_short_pos_qty = short_pos_qty
-
-                # # Actions based on inactivity
-                # if inactive_long:
-                #     logging.info(f"No active long positions and previous positions were closed for {symbol}. Terminating long operations.")
-                #     self.running_long = False
-                #     self.cancel_grid_orders(symbol, "buy")
-                #     self.clear_grid(symbol, 'buy')
-                #     self.active_grids.discard(symbol)
-                #     #self.cleanup_before_termination(symbol)
-                    
-                #     # Remove symbol from shared_symbols_data if there are no active short positions
-                #     if short_pos_qty == 0:
-                #         shared_symbols_data.pop(symbol, None)
-                #         break
-
-                # if inactive_short:
-                #     logging.info(f"No active short positions and previous positions were closed for {symbol}. Terminating short operations.")
-                #     self.cancel_grid_orders(symbol, "sell")
-                #     self.clear_grid(symbol, 'sell')
-                #     self.active_grids.discard(symbol)
-                #     #self.cleanup_before_termination(symbol)
-                #     self.running_short = False
-                    
-                #     # Remove symbol from shared_symbols_data if there are no active long positions
-                #     if long_pos_qty == 0:
-                #         shared_symbols_data.pop(symbol, None)
-                #         break
-            
-                # terminate_long, terminate_short = self.should_terminate_open_orders(symbol, long_pos_qty, short_pos_qty, open_position_data, open_orders, current_time)
-
-                # logging.info(f"Terminate long: {terminate_long}, Terminate short: {terminate_short}")
-
-                # try:
-                #     if terminate_long:
-                #         logging.info(f"Should terminate long orders for {symbol}")
-                #         self.cancel_grid_orders(symbol, "buy")
-                #         self.cleanup_before_termination(symbol)
-                #         self.running_long = False  # Set the flag to stop the long thread
-                #     if terminate_short:
-                #         logging.info(f"Should terminate short orders for {symbol}")
-                #         self.cancel_grid_orders(symbol, "sell")
-                #         self.cleanup_before_termination(symbol)
-                #         self.running_short = False  # Set the flag to stop the short thread
-                # except Exception as e:
-                #     logging.info(f"Exception caught in termination {e}")
 
                 if not self.running_long and not self.running_short:
                     logging.info("Both long and short operations have ended. Preparing to exit loop.")
@@ -798,7 +743,8 @@ class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
                     short_tp_counts = tp_order_counts['short_tp_count']
 
                     try:
-                        self.linear_grid_hardened_gridspan_ob_volumelevels_dynamictp_lsignal(
+                        #self.linear_grid_hardened_gridspan_ob_volumelevels_dynamictp_lsignal(
+                        self.lingrid_v2_gs(
                             symbol,
                             open_symbols,
                             total_equity,
@@ -830,7 +776,10 @@ class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
                             tp_order_counts,
                             entry_during_autoreduce,
                             max_qty_percent_long,
-                            max_qty_percent_short
+                            max_qty_percent_short,
+                            graceful_stop_long,
+                            graceful_stop_short,
+                            additional_entries_from_signal
                         )
                     except Exception as e:
                         logging.info(f"Something is up with variables for the grid {e}")
