@@ -17,6 +17,7 @@ import threading
 import traceback
 from typing import Optional, Tuple, List
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.cluster import DBSCAN
 from ccxt.base.errors import RateLimitExceeded
 from ..strategies.logger import Logger
 from requests.exceptions import HTTPError
@@ -151,6 +152,105 @@ class Exchange:
             return 'short'
         else:
             return 'neutral'
+
+    # Fetch OHLCV data for calculating ZigZag
+    def fetch_ohlcv_data(self, symbol, timeframe='5m', limit=5000):
+        return self.exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
+
+    # Calculate ZigZag indicator
+    def calculate_zigzag(self, ohlcv, length=4):
+        highs = [candle[2] for candle in ohlcv]
+        lows = [candle[3] for candle in ohlcv]
+
+        def highest_high(index):
+            return max(highs[max(0, index-length):index+length+1])
+
+        def lowest_low(index):
+            return min(lows[max(0, index-length):index+length+1])
+
+        direction_up = False
+        last_low = max(highs) * 100
+        last_high = 0.0
+        peaks_and_troughs = []
+
+        for i in range(length, len(ohlcv) - length):
+            h = highest_high(i)
+            l = lowest_low(i)
+
+            is_min = l == lows[i]
+            is_max = h == highs[i]
+
+            if direction_up:
+                if is_min and lows[i] < last_low:
+                    last_low = lows[i]
+                    peaks_and_troughs.append(last_low)
+                if is_max and highs[i] > last_low:
+                    last_high = highs[i]
+                    direction_up = False
+                    peaks_and_troughs.append(last_high)
+            else:
+                if is_max and highs[i] > last_high:
+                    last_high = highs[i]
+                    peaks_and_troughs.append(last_high)
+                if is_min and lows[i] < last_high:
+                    last_low = lows[i]
+                    direction_up = True
+                    peaks_and_troughs.append(last_low)
+
+        return peaks_and_troughs
+
+    # Normalize prices for clustering
+    def normalize_prices(self, prices):
+        min_price = min(prices)
+        max_price = max(prices)
+        return [(price - min_price) / (max_price - min_price) for price in prices]
+
+    # Mean deviation calculation
+    def mean_deviation(self, prices):
+        mean = sum(prices) / len(prices)
+        return sum(abs(price - mean) for price in prices) / len(prices)
+
+    # Function to identify significant support and resistance levels
+    def get_significant_levels_dbscan(self, zigzag, ohlcv_data):
+        normalized_zigzag = self.normalize_prices(zigzag)
+        average_deviation = self.mean_deviation(normalized_zigzag)
+        epsilon = average_deviation * 0.04
+        minimum_points = 2
+
+        data_points = np.array(normalized_zigzag).reshape(-1, 1)
+        db = DBSCAN(eps=epsilon, min_samples=minimum_points).fit(data_points)
+        labels = db.labels_
+
+        clusters = {}
+        for idx, label in enumerate(labels):
+            if label not in clusters:
+                clusters[label] = []
+            clusters[label].append(idx)
+
+        def median(numbers):
+            sorted_numbers = sorted(numbers)
+            middle = len(sorted_numbers) // 2
+            if len(sorted_numbers) % 2 == 0:
+                return (sorted_numbers[middle - 1] + sorted_numbers[middle]) / 2
+            else:
+                return sorted_numbers[middle]
+
+        support_resistance_levels = []
+        for cluster in clusters.values():
+            if cluster:
+                cluster_prices = [zigzag[idx] for idx in cluster]
+                cluster_volumes = [ohlcv_data[idx][5] for idx in cluster]
+                level = median(cluster_prices)
+                strength = len(cluster_prices)
+                average_volume = sum(cluster_volumes) / len(cluster_volumes)
+                support_resistance_levels.append({
+                    'level': level,
+                    'strength': strength,
+                    'average_volume': average_volume,
+                })
+
+        support_resistance_levels.sort(key=lambda x: x['level'], reverse=True)
+        return support_resistance_levels
 
     def normalize(self, series):
         if not isinstance(series, pd.Series):
