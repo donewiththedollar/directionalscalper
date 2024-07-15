@@ -26,8 +26,8 @@ class LiveTableManager:
         table.add_column("Short Pos. Qty")
         table.add_column("Long uPNL")
         table.add_column("Short uPNL")
-        table.add_column("Long cum. uPNL")
-        table.add_column("Short cum. uPNL")
+        table.add_column("Long cum. PNL")
+        table.add_column("Short cum. PNL")
         table.add_column("Long Pos. Price")
         table.add_column("Short Pos. Price")
 
@@ -78,18 +78,18 @@ class LiveTableManager:
             row = [
                 format_cell(symbol_data['symbol']),
                 format_cell(symbol_data.get('min_qty', 0)),
-                format_cell(symbol_data.get('current_price', 0)),
+                format_cell(round(symbol_data.get('current_price', 0),8)),
                 format_cell(symbol_data.get('volume', 0)),
                 format_cell(symbol_data.get('spread', 0)),
                 format_cell(symbol_data.get('ema_trend', '')),
                 format_cell(long_pos_qty),
                 format_cell(short_pos_qty),
-                format_cell(long_upnl, is_highlight=True),
-                format_cell(short_upnl, is_highlight=True),
-                format_cell(symbol_data.get('long_cum_pnl', 0)),
-                format_cell(symbol_data.get('short_cum_pnl', 0)),
-                format_cell(symbol_data.get('long_pos_price', 0)),
-                format_cell(symbol_data.get('short_pos_price', 0))
+                format_cell(round(long_upnl,2), is_highlight=True),
+                format_cell(round(short_upnl,2), is_highlight=True),
+                format_cell(round(symbol_data.get('long_cum_pnl', 0),2)),
+                format_cell(round(symbol_data.get('short_cum_pnl', 0),2)),
+                format_cell(round(symbol_data.get('long_pos_price', 0),8)),
+                format_cell(round(symbol_data.get('short_pos_price', 0),8))
             ]
             if is_symbolrowalive: #if it's a symbol with long or short position > 0
                 table.add_row(*row)
