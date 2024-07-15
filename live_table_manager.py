@@ -3,7 +3,7 @@ import datetime
 import time
 from rich.console import Console
 from rich.live import Live
-from rich.table import Table
+from rich.table import Table, Column
 
 shared_symbols_data = {}
 
@@ -14,22 +14,25 @@ class LiveTableManager:
         self.lock = threading.Lock()
 
     def generate_table(self) -> Table:
-        table = Table(show_header=True, header_style="bold blue", title="DirectionalScalper")
-       
-        table.add_column("Symbol", style="cyan", min_width=12)
-        table.add_column("Min. Qty")
-        table.add_column("Price")
-        table.add_column("1m Vol")
-        table.add_column("5m Spread")
-        table.add_column("MA Trend",style="magenta")
-        table.add_column("Long Pos. Qty")
-        table.add_column("Short Pos. Qty")
-        table.add_column("Long uPNL")
-        table.add_column("Short uPNL")
-        table.add_column("Long cum. uPNL")
-        table.add_column("Short cum. uPNL")
-        table.add_column("Long Pos. Price")
-        table.add_column("Short Pos. Price")
+        start_time=time.time()
+        columns = [
+            Column(header="Symbol", style="cyan", min_width=12),
+            Column(header="Min. Qty"),
+            Column("Price"),
+            Column("1m Vol"),
+            Column("5m Spread"),
+            Column(header="MA Trend", style="magenta"),
+            Column("Long Pos. Qty"),
+            Column("Short Pos. Qty"),
+            Column("Long uPNL"),
+            Column("Short uPNL"),
+            Column("Long cum. PNL"),
+            Column("Short cum. PNL"),
+            Column("Long Pos. Price"),
+            Column("Short Pos. Price)")
+            # "Short Pos. Price"    => Would give the same result as above
+        ]
+        table = Table(*columns,show_header=True,header_style="bold blue",title="DirectionalScalper")
 
         # Assuming all symbols have **nearly** the same balance and available balance we pick the last symbol to get these values
         current_time = datetime.datetime.now().strftime('%H:%M:%S %d-%m-%Y')
@@ -78,7 +81,7 @@ class LiveTableManager:
             row = [
                 format_cell(symbol_data['symbol']),
                 format_cell(symbol_data.get('min_qty', 0)),
-                format_cell(symbol_data.get('current_price', 0)),
+                format_cell(round(symbol_data.get('current_price', 0),8)),
                 format_cell(symbol_data.get('volume', 0)),
                 format_cell(symbol_data.get('spread', 0)),
                 format_cell(symbol_data.get('ema_trend', '')),

@@ -16,10 +16,7 @@ logging = Logger(logger_name="BybitExchange", filename="BybitExchange.log", stre
 
 class BybitExchange(Exchange):
     def __init__(self, api_key, secret_key, passphrase=None, market_type='swap'):
-        if market_type == 'spot':
-            super().__init__('bybit', api_key, secret_key, passphrase, market_type)
-        else:
-            super().__init__('bybit', api_key, secret_key, passphrase, market_type)
+        super().__init__('bybit', api_key, secret_key, passphrase, market_type)
 
         self.max_retries = 100  # Maximum retries for rate-limited requests
         self.retry_wait = 5  # Seconds to wait between retries
