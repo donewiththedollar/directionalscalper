@@ -372,7 +372,7 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         logging.info(f"Strategy name: {strategy_name}")
         logging.info(f"Account name: {account_name}")
 
-        market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
+        market_maker = DirectionalMarketMaker(config, exchange_name, args.account_name)
         market_maker.manager = manager
 
         try:
@@ -1051,7 +1051,7 @@ if __name__ == '__main__':
 
     exchange_name = args.exchange
     try:
-        market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
+        market_maker = DirectionalMarketMaker(config, exchange_name, args.account_name)
     except Exception as e:
         logging.error(f"Failed to initialize market maker: {str(e)}")
         sys.exit(1)
@@ -1065,7 +1065,7 @@ if __name__ == '__main__':
         url=f"{config.api.url}{config.api.filename}"
     )
 
-print(f"Using exchange {config.api.data_source_exchange} for API data")
+    print(f"Using exchange {config.api.data_source_exchange} for API data")
 
     whitelist = config.bot.whitelist
     blacklist = config.bot.blacklist
