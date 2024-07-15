@@ -372,7 +372,7 @@ def run_bot(symbol, args, manager, account_name, symbols_allowed, rotator_symbol
         logging.info(f"Strategy name: {strategy_name}")
         logging.info(f"Account name: {account_name}")
 
-        market_maker = DirectionalMarketMaker(config, exchange_name, account_name)
+        market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
         market_maker.manager = manager
 
         try:
@@ -420,7 +420,7 @@ def bybit_auto_rotation_spot(args, manager, symbols_allowed):
     account_file_path = Path('configs/account.json')
     config = load_config(config_file_path, account_file_path)
 
-    market_maker = DirectionalMarketMaker(config, exchange_name, account_name)
+    market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
     market_maker.manager = manager
 
     long_mode = config.bot.linear_grid['long_mode']
@@ -519,7 +519,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
     account_file_path = Path('configs/account.json')
     config = load_config(config_file_path, account_file_path)
 
-    market_maker = DirectionalMarketMaker(config, exchange_name, account_name)
+    market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
     market_maker.manager = manager
 
     long_mode = config.bot.linear_grid['long_mode']
@@ -638,7 +638,7 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
         time.sleep(1)
 
 def process_signal_for_open_position(symbol, args, manager, symbols_allowed, open_position_data, long_mode, short_mode):
-    market_maker = DirectionalMarketMaker(config, exchange_name, account_name)
+    market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
     market_maker.manager = manager
 
     with general_rate_limiter:
@@ -654,7 +654,7 @@ def process_signal_for_open_position(symbol, args, manager, symbols_allowed, ope
 
 
 def process_signal(symbol, args, manager, symbols_allowed, open_position_data, is_open_position, long_mode, short_mode):
-    market_maker = DirectionalMarketMaker(config, exchange_name, account_name)
+    market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
     market_maker.manager = manager
 
     mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
@@ -765,7 +765,7 @@ def handle_signal_spot(symbol, args, manager, mfirsi_signal, open_position_data,
     return action_taken_long
 
 def process_signal_for_open_position_spot(symbol, args, manager, symbols_allowed, open_position_data, long_mode, short_mode):
-    market_maker = DirectionalMarketMaker(config, exchange_name, account_name)
+    market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
     market_maker.manager = manager
     with general_rate_limiter:
         mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
@@ -779,7 +779,7 @@ def process_signal_for_open_position_spot(symbol, args, manager, symbols_allowed
         logging.info(f"No action taken for open position symbol {symbol}.")
 
 def process_signal_spot(symbol, args, manager, symbols_allowed, open_position_data, is_open_position, long_mode, short_mode):
-    market_maker = DirectionalMarketMaker(config, exchange_name, account_name)
+    market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
     market_maker.manager = manager
     mfirsi_signal = market_maker.get_mfirsi_signal(symbol)
     logging.info(f"Processing signal for {'open position' if is_open_position else 'new rotator'} symbol {symbol}. MFIRSI signal: {mfirsi_signal}")
@@ -979,7 +979,7 @@ def log_symbol_details(strategy, symbols):
     logging.info(f"Potential symbols for {strategy}: {symbols}")
 
 def blofin_auto_rotation(args, manager, symbols_allowed):
-    market_maker = DirectionalMarketMaker(config, exchange_name, account_name)
+    market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
     market_maker.manager = manager
     open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_blofin()}
     logging.info(f"Open position symbols: {open_position_symbols}")
@@ -1051,7 +1051,7 @@ if __name__ == '__main__':
 
     exchange_name = args.exchange
     try:
-        market_maker = DirectionalMarketMaker(config, exchange_name, args.account_name)
+        market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
     except Exception as e:
         logging.error(f"Failed to initialize market maker: {str(e)}")
         sys.exit(1)
@@ -1065,6 +1065,7 @@ if __name__ == '__main__':
         url=f"{config.api.url}{config.api.filename}"
     )
 
+print(f"Using exchange {config.api.data_source_exchange} for API data")
 
     whitelist = config.bot.whitelist
     blacklist = config.bot.blacklist
