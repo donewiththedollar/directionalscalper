@@ -13,7 +13,6 @@ import requests  # type: ignore
 from directionalscalper.core.utils import send_public_request
 from directionalscalper.core.strategies.logger import Logger
 
-# If DEBUG change to => Logger(logger_name="Manager", filename="Manager.log", level="debug", stream=True)
 logging = Logger(logger_name="Manager", filename="Manager.log", stream=True) 
 
 #log = logging.getLogger(__name__)
@@ -122,8 +121,6 @@ class Manager:
                         symbol = asset.get("Asset", "")
                         min_qty = asset.get("Min qty", 0)
                         usd_price = asset.get("Price", float('inf'))
-
-                        logging.info(f"Processing symbol {symbol} with min_qty {min_qty} and USD price {usd_price}")
 
                         if blacklist and any(fnmatch.fnmatch(symbol, pattern) for pattern in blacklist):
                             logging.debug(f"Skipping {symbol} as it's in blacklist")
