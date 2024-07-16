@@ -5718,7 +5718,7 @@ class BybitStrategy(BaseStrategy):
                                 else:
                                     logging.info(f"[{symbol}] Current price {current_price} is above long position price {long_pos_price}. Not adding to long position.")
                             else:
-                                if symbol not in self.max_qty_reached_symbol_long:
+                                if fresh_signal.lower() == "long" and symbol not in self.max_qty_reached_symbol_long:
                                     logging.info(f"[{symbol}] Creating new long position based on MFIRSI long signal")
                                     self.clear_grid(symbol, 'buy')
                                     grid_levels_long[0] = best_bid_price
@@ -5732,6 +5732,7 @@ class BybitStrategy(BaseStrategy):
                                         if long_pos_qty < 0.00001:
                                             logging.info(f"[{symbol}] Retrying long grid orders due to MFIRSI signal long.")
                                             self.clear_grid(symbol, 'buy')
+                                            grid_levels_long[0] = best_bid_price
                                             self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
                                             self.active_grids.add(symbol)
                                         else:
@@ -5755,7 +5756,7 @@ class BybitStrategy(BaseStrategy):
                                 else:
                                     logging.info(f"[{symbol}] Current price {current_price} is below short position price {short_pos_price}. Not adding to short position.")
                             else:
-                                if symbol not in self.max_qty_reached_symbol_short:
+                                if fresh_signal.lower() == "short" and symbol not in self.max_qty_reached_symbol_short:
                                     logging.info(f"[{symbol}] Creating new short position based on MFIRSI short signal")
                                     self.clear_grid(symbol, 'sell')
                                     grid_levels_short[0] = best_ask_price
@@ -5769,6 +5770,7 @@ class BybitStrategy(BaseStrategy):
                                         if short_pos_qty < 0.00001:
                                             logging.info(f"[{symbol}] Retrying short grid orders due to MFIRSI signal short.")
                                             self.clear_grid(symbol, 'sell')
+                                            grid_levels_short[0] = best_ask_price
                                             self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
                                             self.active_grids.add(symbol)
                                         else:
@@ -5783,6 +5785,7 @@ class BybitStrategy(BaseStrategy):
             else:
                 logging.info(f"Additional entries disabled from signal")
             time.sleep(5)
+
         except Exception as e:
             logging.error(f"Error in executing gridstrategy: {e}")
             logging.error("Traceback: %s", traceback.format_exc())
