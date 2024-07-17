@@ -52,6 +52,8 @@ class BybitStrategy(BaseStrategy):
         self.max_qty_reached_symbol_long = set()  # Tracking symbols that exceed max long position qty
         self.max_qty_reached_symbol_short = set()  # Tracking symbols that exceed max short position qty
         self.active_grids = set()
+        self.active_long_grids = set()  # Tracking active long grids
+        self.active_short_grids = set() 
         self.position_inactive_threshold = 150
         self.no_entry_signal_threshold = 150
         self.order_inactive_threshold = 150
