@@ -78,7 +78,7 @@ class LiveTableManager:
             row = [
                 format_cell(symbol_data['symbol']),
                 format_cell(symbol_data.get('min_qty', 0)),
-                format_cell(round(symbol_data.get('current_price', 0),8)),
+                format_cell(round(symbol_data.get('current_price', 0),8) if not None else symbol_data.get('current_price', 0)),
                 format_cell(symbol_data.get('volume', 0)),
                 format_cell(symbol_data.get('spread', 0)),
                 format_cell(symbol_data.get('ema_trend', '')),
@@ -86,10 +86,10 @@ class LiveTableManager:
                 format_cell(short_pos_qty),
                 format_cell(round(long_upnl,2), is_highlight=True),
                 format_cell(round(short_upnl,2), is_highlight=True),
-                format_cell(round(symbol_data.get('long_cum_pnl', 0),2)),
-                format_cell(round(symbol_data.get('short_cum_pnl', 0),2)),
-                format_cell(round(symbol_data.get('long_pos_price', 0),8)),
-                format_cell(round(symbol_data.get('short_pos_price', 0),8))
+                format_cell(round(symbol_data.get('long_cum_pnl', 0),2) if not None else symbol_data.get('long_cum_pnl', 0)),
+                format_cell(round(symbol_data.get('short_cum_pnl', 0),2) if not None else symbol_data.get('short_cum_pnl', 0)),
+                format_cell(round(symbol_data.get('long_pos_price', 0),8) if not None else symbol_data.get('long_pos_price', 0)),
+                format_cell(round(symbol_data.get('short_pos_price', 0),8) if not None else symbol_data.get('short_pos_price', 0))
             ]
             if is_symbolrowalive: #if it's a symbol with long or short position > 0
                 table.add_row(*row)
