@@ -172,6 +172,33 @@ class BaseStrategy:
         # Return 0 if the symbol and side combination is not found
         return 0
 
+    def get_open_symbols_long(self, open_position_data):
+        """
+        Get the symbols with open long positions and format them correctly.
+        
+        :param open_position_data: List of dictionaries containing open position data.
+        :return: List of formatted symbols with open long positions.
+        """
+        long_symbols = []
+        for position in open_position_data:
+            if position['info']['side'].lower() == 'buy':
+                symbol = position['symbol'].replace('/USDT:USDT', 'USDT')
+                long_symbols.append(symbol)
+        return long_symbols
+
+    def get_open_symbols_short(self, open_position_data):
+        """
+        Get the symbols with open short positions and format them correctly.
+        
+        :param open_position_data: List of dictionaries containing open position data.
+        :return: List of formatted symbols with open short positions.
+        """
+        short_symbols = []
+        for position in open_position_data:
+            if position['info']['side'].lower() == 'sell':
+                symbol = position['symbol'].replace('/USDT:USDT', 'USDT')
+                short_symbols.append(symbol)
+        return short_symbols
 
     def get_symbols_allowed(self, account_name):
         for exchange in self.config["exchanges"]:

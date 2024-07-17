@@ -779,7 +779,8 @@ class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
                             max_qty_percent_short,
                             graceful_stop_long,
                             graceful_stop_short,
-                            additional_entries_from_signal
+                            additional_entries_from_signal,
+                            open_position_data
                         )
                     except Exception as e:
                         logging.info(f"Something is up with variables for the grid {e}")
