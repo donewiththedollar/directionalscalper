@@ -224,7 +224,6 @@ class DirectionalMarketMaker:
             'qstrendspot': bybit_scalping.BybitQuickScalpTrendSpot,
             'qsgridinstantsignal': instant_signals.BybitDynamicGridSpanOBSRStaticIS,
             'qsgriddynmaicgridspaninstant': instant_signals.BybitDynamicGridSpanIS,
-            'qsgridobtight': instant_signals.BybitDynamicGridSpanOBTight,
             'qsgridob': instant_signals.BybitDynamicGridSpanOBLevels,
             'qstrendobdynamictp': instant_signals.BybitQuickScalpTrendDynamicTP,
             'qsgridoblsignal': instant_signals.BybitDynamicGridSpanOBLevelsLSignal
