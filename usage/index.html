@@ -487,6 +487,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#easy-update-configuration-file-with-latest-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Easy update configuration file with latest parameters
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#displaying-the-menu-and-selecting-a-strategy" class="md-nav__link">
     <span class="md-ellipsis">
       Displaying the Menu and Selecting a Strategy
@@ -740,6 +749,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#easy-update-configuration-file-with-latest-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Easy update configuration file with latest parameters
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#displaying-the-menu-and-selecting-a-strategy" class="md-nav__link">
     <span class="md-ellipsis">
       Displaying the Menu and Selecting a Strategy
@@ -846,6 +864,11 @@
 <h1 id="usage">Usage</h1>
 <p>This guide will help you run the Directional Scalper bot using various command-line instructions. Ensure you have properly configured your <code>config.json</code> and <code>account.json</code> files before proceeding.</p>
 <h2 id="running-the-bot">Running the Bot</h2>
+<h3 id="easy-update-configuration-file-with-latest-parameters">Easy update configuration file with latest parameters</h3>
+<pre><code>pip3.11 install -r requirements.txt &amp;&amp; python3.11 update_config.py --config configs/config.json &amp;&amp; mv configs/config.json.new configs/config.json
+</code></pre>
+<pre><code>python3.11 multi_bot_signalscreener_multicore_l.py --exchange bybit --account_name account_1 --strategy qsgridoblsignal --config configs/config.json
+</code></pre>
 <h3 id="displaying-the-menu-and-selecting-a-strategy">Displaying the Menu and Selecting a Strategy</h3>
 <p>To display the menu and select a strategy, use the following command:</p>
 <pre><code>python3.11 multi_bot_signalscreener.py --config configs/config.json
