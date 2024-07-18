@@ -5421,7 +5421,7 @@ class BybitStrategy(BaseStrategy):
 
 
             # Check if the number of open symbols for long and short positions is within the allowed limit
-            if length_of_open_symbols_long < symbols_allowed or length_of_open_symbols_short < symbols_allowed:
+            if length_of_open_symbols_long <= symbols_allowed or length_of_open_symbols_short <= symbols_allowed and symbol in open_symbols:
                 logging.info(f"Allowed symbol: {symbol}")
 
                 replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist_v2(
@@ -5578,7 +5578,7 @@ class BybitStrategy(BaseStrategy):
 
             logging.info(f"[{symbol}] Number of open symbols: {len(open_symbols)}, Symbols allowed: {symbols_allowed}")
 
-            if (length_of_open_symbols_long < symbols_allowed or length_of_open_symbols_short < symbols_allowed) and (symbol not in self.active_long_grids or symbol not in self.active_short_grids) or \
+            if (length_of_open_symbols_long <= symbols_allowed or length_of_open_symbols_short <= symbols_allowed) and (symbol not in self.active_long_grids or symbol not in self.active_short_grids) or \
             (symbol in open_symbols and 
                 ((not has_open_long_position and mfi_signal_long and symbol not in self.active_long_grids) or 
                 (not has_open_short_position and mfi_signal_short and symbol not in self.active_short_grids)) and 
@@ -5606,7 +5606,7 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"Symbols allowed: {symbols_allowed}")
 
             if additional_entries_from_signal:
-                if (length_of_open_symbols_long < symbols_allowed or length_of_open_symbols_short < symbols_allowed) or symbol in open_symbols:
+                if (length_of_open_symbols_long <= symbols_allowed or length_of_open_symbols_short <= symbols_allowed) or symbol in open_symbols:
                     logging.info(f"Allowed symbol: {symbol}")
 
                     fresh_signal = self.generate_l_signals(symbol)
@@ -5749,6 +5749,7 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.error(f"Error in executing gridstrategy: {e}")
             logging.error("Traceback: %s", traceback.format_exc())
+
 
 
     def lingrid_uponsignal_v2(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
