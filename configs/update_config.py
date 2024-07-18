@@ -3,7 +3,7 @@ from shutil import copy
 import json
 import argparse
 
-IGNORE_CATEGORY = ["messengers","logger","hotkeys","exchanges"]
+IGNORE_CATEGORY = ["messengers","logger","hotkeys","exchanges","blacklist","whitelist"]
 FILE_DIRECTORY: str = __file__
 FILE_DIRECTORY = FILE_DIRECTORY.removesuffix(os.path.basename(FILE_DIRECTORY))
 EXAMPLE_FILE = FILE_DIRECTORY+"config_example.json"
