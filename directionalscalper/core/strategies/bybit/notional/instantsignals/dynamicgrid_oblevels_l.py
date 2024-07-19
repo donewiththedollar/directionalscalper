@@ -166,6 +166,7 @@ class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
             graceful_stop_long = self.config.linear_grid['graceful_stop_long']
             graceful_stop_short = self.config.linear_grid['graceful_stop_short']
             additional_entries_from_signal = self.config.linear_grid['additional_entries_from_signal']
+
             # reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
 
             volume_check = self.config.volume_check
@@ -403,10 +404,11 @@ class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
 
                 logging.info(f"Current long pos qty for {symbol} {long_pos_qty}")
                 logging.info(f"Current short pos qty for {symbol} {short_pos_qty}")
-
+            
                 if previous_long_pos_qty > 0 and long_pos_qty == 0:
                     logging.info(f"Long position closed for {symbol}. Canceling long grid orders.")
                     self.cancel_grid_orders(symbol, "buy")
+                    self.active_long_grids.discard(symbol)
                     if short_pos_qty == 0:
                         logging.info(f"No open positions for {symbol}. Removing from shared symbols data.")
                         shared_symbols_data.pop(symbol, None)
@@ -415,6 +417,7 @@ class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
                 elif previous_short_pos_qty > 0 and short_pos_qty == 0:
                     logging.info(f"Short position closed for {symbol}. Canceling short grid orders.")
                     self.cancel_grid_orders(symbol, "sell")
+                    self.active_short_grids.discard(symbol)
                     if long_pos_qty == 0:
                         logging.info(f"No open positions for {symbol}. Removing from shared symbols data.")
                         shared_symbols_data.pop(symbol, None)
@@ -437,7 +440,8 @@ class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
                     shared_symbols_data.pop(symbol, None)
                     self.cancel_grid_orders(symbol, "buy")
                     self.cancel_grid_orders(symbol, "sell")
-                    self.active_grids.discard(symbol)
+                    self.active_long_grids.discard(symbol)
+                    self.active_short_grids.discard(symbol)
                     self.cleanup_before_termination(symbol)
                     logging.info("Both long and short operations have terminated. Exiting the loop.")
                     break

@@ -306,9 +306,11 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"{symbol} ({side}) has been inactive for {inactive_time} seconds, exceeding threshold of {inactive_time_threshold} seconds")
                 if side == 'long':
                     self.cancel_grid_orders(symbol, 'buy')
+                    self.active_long_grids.discard(symbol)
                     self.running_long = False
                 elif side == 'short':
                     self.cancel_grid_orders(symbol, 'sell')
+                    self.active_short_grids.discard(symbol)
                     self.running_short = False
                 return True
         else:
@@ -627,81 +629,6 @@ class BybitStrategy(BaseStrategy):
         else:
             logging.info(f"No immediate update needed for TP orders for {symbol}. Last update at: {last_tp_update}")
             return last_tp_update
-        
-    # def update_quickscalp_tp_dynamic(self, symbol, pos_qty, upnl_profit_pct, max_upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, tp_order_counts, open_orders):
-    #     # Fetch the current open TP orders and TP order counts for the symbol
-    #     # long_tp_orders, short_tp_orders = self.exchange.get_open_tp_orders(symbol)
-    #     long_tp_orders, short_tp_orders = self.retry_api_call(self.exchange.get_open_tp_orders, open_orders)
-    #     long_tp_count = tp_order_counts['long_tp_count']
-    #     short_tp_count = tp_order_counts['short_tp_count']
-
-    #     # Determine the minimum notional value for dynamic scaling
-    #     min_notional_value = self.min_notional(symbol)
-    #     current_price = self.exchange.get_current_price(symbol)
-
-    #     # Calculate the position's market value
-    #     position_market_value = pos_qty * current_price
-
-    #     # Calculate the dynamic TP range based on how many minimum notional units fit in the position's market value
-    #     num_units = position_market_value / min_notional_value
-
-    #     # Modify scaling factor calculation using logarithmic scaling for a smoother increase
-    #     scaling_factor = math.log10(num_units + 1)  # Logarithmic scaling to smooth out the scaling progression
-
-    #     # Calculate scaled TP percentage within the defined range
-    #     scaled_tp_pct = upnl_profit_pct + (max_upnl_profit_pct - upnl_profit_pct) * min(scaling_factor, 1)  # Cap scaling at 100% to avoid excessive TP targets
-
-    #     # Calculate the new TP values using the quickscalp method
-    #     new_short_tp_min, new_short_tp_max = self.calculate_quickscalp_short_take_profit_dynamic_distance(short_pos_price, symbol, upnl_profit_pct, scaled_tp_pct)
-    #     new_long_tp_min, new_long_tp_max = self.calculate_quickscalp_long_take_profit_dynamic_distance(long_pos_price, symbol, upnl_profit_pct, scaled_tp_pct)
-
-    #     # Determine the relevant TP orders based on the order side
-    #     relevant_tp_orders = long_tp_orders if order_side == "sell" else short_tp_orders
-
-    #     # Check if there's an existing TP order with a mismatched quantity
-    #     mismatched_qty_orders = [order for order in relevant_tp_orders if order['qty'] != pos_qty and order['id'] not in self.auto_reduce_order_ids.get(symbol, [])]
-
-    #     # Cancel mismatched TP orders if any
-    #     for order in mismatched_qty_orders:
-    #         try:
-    #             self.exchange.cancel_order_by_id(order['id'], symbol)
-    #             logging.info(f"Cancelled TP order {order['id']} for update.")
-    #         except Exception as e:
-    #             logging.info(f"Error in cancelling {order_side} TP order {order['id']}. Error: {e}")
-
-    #     # Using datetime.now() for checking if update is needed
-    #     now = datetime.now()
-    #     if now >= last_tp_update or mismatched_qty_orders:
-    #         # Check if a TP order already exists
-    #         tp_order_exists = (order_side == "sell" and long_tp_count > 0) or (order_side == "buy" and short_tp_count > 0)
-
-    #         # Set new TP order with updated prices only if no TP order exists
-    #         if not tp_order_exists:
-    #             new_tp_price_min = new_long_tp_min if order_side == "sell" else new_short_tp_min
-    #             new_tp_price_max = new_long_tp_max if order_side == "sell" else new_short_tp_max
-    #             current_price = self.exchange.get_current_price(symbol)
-
-    #             # Ensure TP setting checks are correct for direction
-    #             if (order_side == "sell" and current_price >= new_tp_price_min) or (order_side == "buy" and current_price <= new_tp_price_max):
-    #                 try:
-    #                     self.exchange.create_normal_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, new_tp_price_min, positionIdx=positionIdx, reduce_only=True)
-    #                     logging.info(f"New {order_side.capitalize()} TP set at {new_tp_price_min} using a normal limit order")
-    #                 except Exception as e:
-    #                     logging.info(f"Failed to set new {order_side} TP for {symbol} using a normal limit order. Error: {e}")
-    #             else:
-    #                 try:
-    #                     self.exchange.create_take_profit_order_bybit(symbol, "limit", order_side, pos_qty, new_tp_price_max, positionIdx=positionIdx, reduce_only=True)
-    #                     logging.info(f"New {order_side.capitalize()} TP set at {new_tp_price_max} using a post-only order")
-    #                 except Exception as e:
-    #                     logging.info(f"Failed to set new {order_side} TP for {symbol} using a post-only order. Error: {e}")
-    #         else:
-    #             logging.info(f"Skipping TP update as a TP order already exists for {symbol}")
-
-    #         # Calculate and return the next update time
-    #         return self.calculate_next_update_time()
-    #     else:
-    #         logging.info(f"No immediate update needed for TP orders for {symbol}. Last update at: {last_tp_update}")
-    #         return last_tp_update
         
     def update_quickscalp_tp(self, symbol, pos_qty, upnl_profit_pct, short_pos_price, long_pos_price, positionIdx, order_side, last_tp_update, tp_order_counts, open_orders, max_retries=10):
         # Fetch the current open TP orders and TP order counts for the symbol
@@ -5578,7 +5505,7 @@ class BybitStrategy(BaseStrategy):
 
             logging.info(f"[{symbol}] Number of open symbols: {len(open_symbols)}, Symbols allowed: {symbols_allowed}")
 
-            if (length_of_open_symbols_long <= symbols_allowed or length_of_open_symbols_short <= symbols_allowed) and (symbol not in self.active_long_grids or symbol not in self.active_short_grids) or \
+            if (length_of_open_symbols_long < symbols_allowed or length_of_open_symbols_short < symbols_allowed) and (symbol not in self.active_long_grids or symbol not in self.active_short_grids) or \
             (symbol in open_symbols and 
                 ((not has_open_long_position and mfi_signal_long and symbol not in self.active_long_grids) or 
                 (not has_open_short_position and mfi_signal_short and symbol not in self.active_short_grids)) and 
@@ -5651,7 +5578,7 @@ class BybitStrategy(BaseStrategy):
                                     self.clear_grid(symbol, 'buy')
                                     grid_levels_long[0] = best_bid_price
                                     self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                                    self.active_grids.add(symbol)
+                                    self.active_long_grids.add(symbol)
                                     self.last_signal_time[symbol] = current_time
                                     self.last_mfirsi_signal[symbol] = "neutral"
                                 else:
@@ -5662,7 +5589,7 @@ class BybitStrategy(BaseStrategy):
                                     self.clear_grid(symbol, 'buy')
                                     grid_levels_long[0] = best_bid_price
                                     self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                                    self.active_grids.add(symbol)
+                                    self.active_long_grids.add(symbol)
 
                                     retry_counter = 0
                                     max_retries = 15  # Set a maximum number of retries
@@ -5683,7 +5610,7 @@ class BybitStrategy(BaseStrategy):
                                             self.clear_grid(symbol, 'buy')
                                             grid_levels_long[0] = best_bid_price
                                             self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                                            self.active_grids.add(symbol)
+                                            self.active_long_grids.add(symbol)
                                         else:
                                             logging.info(f"[{symbol}] Long position filled or max retries reached, exiting loop.")
                                             break  # Exit loop once the order is filled or max retries are reached
@@ -5699,7 +5626,7 @@ class BybitStrategy(BaseStrategy):
                                     self.clear_grid(symbol, 'sell')
                                     grid_levels_short[0] = best_ask_price
                                     self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                                    self.active_grids.add(symbol)
+                                    self.active_short_grids.add(symbol)
                                     self.last_signal_time[symbol] = current_time
                                     self.last_mfirsi_signal[symbol] = "neutral"
                                 else:
@@ -5710,7 +5637,7 @@ class BybitStrategy(BaseStrategy):
                                     self.clear_grid(symbol, 'sell')
                                     grid_levels_short[0] = best_ask_price
                                     self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                                    self.active_grids.add(symbol)
+                                    self.active_short_grids.add(symbol)
 
                                     retry_counter = 0
                                     max_retries = 15  # Set a maximum number of retries
@@ -5731,7 +5658,7 @@ class BybitStrategy(BaseStrategy):
                                             self.clear_grid(symbol, 'sell')
                                             grid_levels_short[0] = best_ask_price
                                             self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                                            self.active_grids.add(symbol)
+                                            self.active_short_grids.add(symbol)
                                         else:
                                             logging.info(f"[{symbol}] Short position filled or max retries reached, exiting loop.")
                                             break  # Exit loop once the order is filled or max retries are reached
@@ -5749,6 +5676,7 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.error(f"Error in executing gridstrategy: {e}")
             logging.error("Traceback: %s", traceback.format_exc())
+
 
 
 
