@@ -307,9 +307,11 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"{symbol} ({side}) has been inactive for {inactive_time} seconds, exceeding threshold of {inactive_time_threshold} seconds")
                 if side == 'long':
                     self.cancel_grid_orders(symbol, 'buy')
+                    self.active_long_grids.discard(symbol)
                     self.running_long = False
                 elif side == 'short':
                     self.cancel_grid_orders(symbol, 'sell')
+                    self.active_short_grids.discard(symbol)
                     self.running_short = False
                 return True
         else:
@@ -5664,7 +5666,7 @@ class BybitStrategy(BaseStrategy):
 
             logging.info(f"[{symbol}] Number of open symbols: {len(open_symbols)}, Symbols allowed: {symbols_allowed}")
 
-            if (length_of_open_symbols_long <= symbols_allowed or length_of_open_symbols_short <= symbols_allowed) and (symbol not in self.active_long_grids or symbol not in self.active_short_grids) or \
+            if (length_of_open_symbols_long < symbols_allowed or length_of_open_symbols_short < symbols_allowed) and (symbol not in self.active_long_grids or symbol not in self.active_short_grids) or \
             (symbol in open_symbols and 
                 ((not has_open_long_position and mfi_signal_long and symbol not in self.active_long_grids) or 
                 (not has_open_short_position and mfi_signal_short and symbol not in self.active_short_grids)) and 
@@ -5737,7 +5739,7 @@ class BybitStrategy(BaseStrategy):
                                     self.clear_grid(symbol, 'buy')
                                     grid_levels_long[0] = best_bid_price
                                     self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                                    self.active_grids.add(symbol)
+                                    self.active_long_grids.add(symbol)
                                     self.last_signal_time[symbol] = current_time
                                     self.last_mfirsi_signal[symbol] = "neutral"
                                 else:
@@ -5748,7 +5750,7 @@ class BybitStrategy(BaseStrategy):
                                     self.clear_grid(symbol, 'buy')
                                     grid_levels_long[0] = best_bid_price
                                     self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                                    self.active_grids.add(symbol)
+                                    self.active_long_grids.add(symbol)
 
                                     retry_counter = 0
                                     max_retries = 15  # Set a maximum number of retries
@@ -5769,7 +5771,7 @@ class BybitStrategy(BaseStrategy):
                                             self.clear_grid(symbol, 'buy')
                                             grid_levels_long[0] = best_bid_price
                                             self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                                            self.active_grids.add(symbol)
+                                            self.active_long_grids.add(symbol)
                                         else:
                                             logging.info(f"[{symbol}] Long position filled or max retries reached, exiting loop.")
                                             break  # Exit loop once the order is filled or max retries are reached
@@ -5785,7 +5787,7 @@ class BybitStrategy(BaseStrategy):
                                     self.clear_grid(symbol, 'sell')
                                     grid_levels_short[0] = best_ask_price
                                     self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                                    self.active_grids.add(symbol)
+                                    self.active_short_grids.add(symbol)
                                     self.last_signal_time[symbol] = current_time
                                     self.last_mfirsi_signal[symbol] = "neutral"
                                 else:
@@ -5796,7 +5798,7 @@ class BybitStrategy(BaseStrategy):
                                     self.clear_grid(symbol, 'sell')
                                     grid_levels_short[0] = best_ask_price
                                     self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                                    self.active_grids.add(symbol)
+                                    self.active_short_grids.add(symbol)
 
                                     retry_counter = 0
                                     max_retries = 15  # Set a maximum number of retries
@@ -5817,7 +5819,7 @@ class BybitStrategy(BaseStrategy):
                                             self.clear_grid(symbol, 'sell')
                                             grid_levels_short[0] = best_ask_price
                                             self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                                            self.active_grids.add(symbol)
+                                            self.active_short_grids.add(symbol)
                                         else:
                                             logging.info(f"[{symbol}] Short position filled or max retries reached, exiting loop.")
                                             break  # Exit loop once the order is filled or max retries are reached
