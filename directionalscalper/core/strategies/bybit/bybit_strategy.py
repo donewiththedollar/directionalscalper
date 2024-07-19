@@ -5694,7 +5694,7 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"Symbols allowed: {symbols_allowed}")
 
             if additional_entries_from_signal:
-                if (length_of_open_symbols_long <= symbols_allowed or length_of_open_symbols_short <= symbols_allowed) or symbol in open_symbols:
+                if (length_of_open_symbols_long <= symbols_allowed or length_of_open_symbols_short <= symbols_allowed) and symbol in open_symbols:
                     logging.info(f"Allowed symbol: {symbol}")
 
                     fresh_signal = self.generate_l_signals(symbol)
@@ -5731,7 +5731,7 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"[{symbol}] MFIRSI signal unchanged: {fresh_signal}")
 
                     # Proceed with the signal handling regardless of whether it's a retry or a new signal
-                    if fresh_signal.lower() == "long" and long_mode and not self.auto_reduce_active_long.get(symbol, False) and not graceful_stop_long:
+                    if fresh_signal.lower() == "long" and long_mode and not self.auto_reduce_active_long.get(symbol, False):
                         if symbol not in self.max_qty_reached_symbol_long:
                             if long_pos_qty > 0.00001:  # Check if a long position already exists
                                 if current_price <= long_pos_price:  # Enter additional entry only if current price <= long_pos_price
@@ -5779,7 +5779,7 @@ class BybitStrategy(BaseStrategy):
                                     self.last_signal_time[symbol] = current_time
                                     self.last_mfirsi_signal[symbol] = "neutral"  # Reset to neutral after processing
 
-                    elif fresh_signal.lower() == "short" and short_mode and not self.auto_reduce_active_short.get(symbol, False) and not graceful_stop_short:
+                    elif fresh_signal.lower() == "short" and short_mode and not self.auto_reduce_active_short.get(symbol, False):
                         if symbol not in self.max_qty_reached_symbol_short:
                             if short_pos_qty > 0.00001:  # Check if a short position already exists
                                 if current_price >= short_pos_price:  # Enter additional entry only if current price >= short_pos_price
