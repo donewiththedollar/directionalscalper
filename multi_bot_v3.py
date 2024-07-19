@@ -590,25 +590,50 @@ def bybit_auto_rotation(args, manager, symbols_allowed):
             current_short_positions = sum(1 for pos in open_position_data if pos['side'].lower() == 'short')
             logging.info(f"Current long positions: {current_long_positions}, Current short positions: {current_short_positions}")
 
+            update_active_symbols(open_position_symbols)
+            unique_active_symbols = active_long_symbols.union(active_short_symbols)
+        
+            # # Automatically set graceful stop when symbols allowed limit is reached
+            # if current_long_positions >= symbols_allowed and not graceful_stop_long:
+            #     graceful_stop_long = True
+            #     logging.info(f"GS Auto Check: Automatically enabled graceful stop for long positions. Current long positions: {current_long_positions}")
+            # elif current_long_positions < symbols_allowed and graceful_stop_long:
+            #     graceful_stop_long = config_graceful_stop_long
+            #     logging.info(f"GS Auto Check: Reverting to config value for graceful stop long. Current long positions: {current_long_positions}, Config value: {config_graceful_stop_long}")
+            # else:
+            #     logging.info(f"GS Auto Check: Current long positions: {current_long_positions}. Graceful stop long: {graceful_stop_long}")
+
+            # if current_short_positions >= symbols_allowed and not graceful_stop_short:
+            #     graceful_stop_short = True
+            #     logging.info(f"GS Auto Check: Automatically enabled graceful stop for short positions. Current short positions: {current_short_positions}")
+            # elif current_short_positions < symbols_allowed and graceful_stop_short:
+            #     graceful_stop_short = config_graceful_stop_short
+            #     logging.info(f"GS Auto Check: Reverting to config value for graceful stop short. Current short positions: {current_short_positions}, Config value: {config_graceful_stop_short}")
+            # else:
+            #     logging.info(f"GS Auto Check: Current short positions: {current_short_positions}. Graceful stop short: {graceful_stop_short}")
+
+
+            # or base on unique symbols? for GS Auto 
+
             # Automatically set graceful stop when symbols allowed limit is reached
-            if current_long_positions >= symbols_allowed and not graceful_stop_long:
+            if (current_long_positions >= symbols_allowed or len(unique_active_symbols) >= symbols_allowed) and not graceful_stop_long:
                 graceful_stop_long = True
-                logging.info(f"GS Auto Check: Automatically enabled graceful stop for long positions. Current long positions: {current_long_positions}")
-            elif current_long_positions < symbols_allowed and graceful_stop_long:
+                logging.info(f"GS Auto Check: Automatically enabled graceful stop for long positions. Current long positions: {current_long_positions}, Unique active symbols: {len(unique_active_symbols)}")
+            elif current_long_positions < symbols_allowed and len(unique_active_symbols) < symbols_allowed and graceful_stop_long:
                 graceful_stop_long = config_graceful_stop_long
-                logging.info(f"GS Auto Check: Reverting to config value for graceful stop long. Current long positions: {current_long_positions}, Config value: {config_graceful_stop_long}")
+                logging.info(f"GS Auto Check: Reverting to config value for graceful stop long. Current long positions: {current_long_positions}, Unique active symbols: {len(unique_active_symbols)}, Config value: {config_graceful_stop_long}")
             else:
-                logging.info(f"GS Auto Check: Current long positions: {current_long_positions}. Graceful stop long: {graceful_stop_long}")
+                logging.info(f"GS Auto Check: Current long positions: {current_long_positions}, Unique active symbols: {len(unique_active_symbols)}. Graceful stop long: {graceful_stop_long}")
 
-            if current_short_positions >= symbols_allowed and not graceful_stop_short:
+            if (current_short_positions >= symbols_allowed or len(unique_active_symbols) >= symbols_allowed) and not graceful_stop_short:
                 graceful_stop_short = True
-                logging.info(f"GS Auto Check: Automatically enabled graceful stop for short positions. Current short positions: {current_short_positions}")
-            elif current_short_positions < symbols_allowed and graceful_stop_short:
+                logging.info(f"GS Auto Check: Automatically enabled graceful stop for short positions. Current short positions: {current_short_positions}, Unique active symbols: {len(unique_active_symbols)}")
+            elif current_short_positions < symbols_allowed and len(unique_active_symbols) < symbols_allowed and graceful_stop_short:
                 graceful_stop_short = config_graceful_stop_short
-                logging.info(f"GS Auto Check: Reverting to config value for graceful stop short. Current short positions: {current_short_positions}, Config value: {config_graceful_stop_short}")
+                logging.info(f"GS Auto Check: Reverting to config value for graceful stop short. Current short positions: {current_short_positions}, Unique active symbols: {len(unique_active_symbols)}, Config value: {config_graceful_stop_short}")
             else:
-                logging.info(f"GS Auto Check: Current short positions: {current_short_positions}. Graceful stop short: {graceful_stop_short}")
-
+                logging.info(f"GS Auto Check: Current short positions: {current_short_positions}, Unique active symbols: {len(unique_active_symbols)}. Graceful stop short: {graceful_stop_short}")
+                
             if not latest_rotator_symbols or current_time - last_rotator_update_time >= 60:
                 with general_rate_limiter:
                     latest_rotator_symbols = fetch_updated_symbols(args, manager)
