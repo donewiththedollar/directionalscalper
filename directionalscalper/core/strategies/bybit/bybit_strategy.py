@@ -14127,24 +14127,26 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"Fetched and stored max leverage for {symbol}: {max_leverage}x")
         return self.symbol_max_leverage[symbol]
 
+    # Used leverage to understand exposure properly
     def check_and_manage_positions(self, long_pos_qty, short_pos_qty, symbol, total_equity, current_price, max_qty_percent_long, max_qty_percent_short):
         try:
             # Fetch the exchange's maximum leverage for the symbol (now cached)
             leverage = self.get_symbol_max_leverage(symbol)
             
             logging.info(f"Leverage for {symbol} for both sides {leverage}")
+            
             # Calculate the maximum allowed positions incorporating leverage
             max_qty_long = (total_equity * (max_qty_percent_long / 100) * leverage) / current_price
             max_qty_short = (total_equity * (max_qty_percent_short / 100) * leverage) / current_price
 
             # Calculate the leveraged exposure percentages
-            leveraged_long_pos_exposure_percent = (long_pos_qty * current_price / (total_equity * leverage)) * 100
-            leveraged_short_pos_exposure_percent = (short_pos_qty * current_price / (total_equity * leverage)) * 100
+            leveraged_long_pos_exposure_percent = (long_pos_qty * current_price / total_equity) * 100
+            leveraged_short_pos_exposure_percent = (short_pos_qty * current_price / total_equity) * 100
 
             # Log the leveraged position utilization and the actual utilization based on leverage
             logging.info(f"Leveraged position utilization for {symbol}:")
-            logging.info(f"  - Leveraged long position exposure: {leveraged_long_pos_exposure_percent:.2f}% of leveraged equity (Leverage used: {leverage}x)")
-            logging.info(f"  - Leveraged short position exposure: {leveraged_short_pos_exposure_percent:.2f}% of leveraged equity (Leverage used: {leverage}x)")
+            logging.info(f"  - Leveraged long position exposure: {leveraged_long_pos_exposure_percent:.2f}% of total equity (Leverage used: {leverage}x)")
+            logging.info(f"  - Leveraged short position exposure: {leveraged_short_pos_exposure_percent:.2f}% of total equity (Leverage used: {leverage}x)")
 
             # Log detailed information about the configuration parameters and maximum allowed positions
             logging.info(f"Configuration for {symbol}:")
@@ -14156,6 +14158,8 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"Maximum allowed positions for {symbol}:")
             logging.info(f"  - Max quantity for long: {max_qty_long:.4f} units")
             logging.info(f"  - Max quantity for short: {max_qty_short:.4f} units")
+            logging.info(f"{symbol} Long position quantity: {long_pos_qty}")
+            logging.info(f"{symbol} Short position quantity: {short_pos_qty}")
 
             # Check if current positions exceed the maximum allowed quantities
             if long_pos_qty > max_qty_long:
@@ -14179,6 +14183,59 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.error(f"Exception caught in check and manage positions: {e}")
             logging.info("Traceback:", traceback.format_exc())
+
+    # def check_and_manage_positions(self, long_pos_qty, short_pos_qty, symbol, total_equity, current_price, max_qty_percent_long, max_qty_percent_short):
+    #     try:
+    #         # Fetch the exchange's maximum leverage for the symbol (now cached)
+    #         leverage = self.get_symbol_max_leverage(symbol)
+            
+    #         logging.info(f"Leverage for {symbol} for both sides {leverage}")
+    #         # Calculate the maximum allowed positions incorporating leverage
+    #         max_qty_long = (total_equity * (max_qty_percent_long / 100) * leverage) / current_price
+    #         max_qty_short = (total_equity * (max_qty_percent_short / 100) * leverage) / current_price
+
+    #         # Calculate the leveraged exposure percentages
+    #         leveraged_long_pos_exposure_percent = (long_pos_qty * current_price / (total_equity * leverage)) * 100
+    #         leveraged_short_pos_exposure_percent = (short_pos_qty * current_price / (total_equity * leverage)) * 100
+
+    #         # Log the leveraged position utilization and the actual utilization based on leverage
+    #         logging.info(f"Leveraged position utilization for {symbol}:")
+    #         logging.info(f"  - Leveraged long position exposure: {leveraged_long_pos_exposure_percent:.2f}% of leveraged equity (Leverage used: {leverage}x)")
+    #         logging.info(f"  - Leveraged short position exposure: {leveraged_short_pos_exposure_percent:.2f}% of leveraged equity (Leverage used: {leverage}x)")
+
+    #         # Log detailed information about the configuration parameters and maximum allowed positions
+    #         logging.info(f"Configuration for {symbol}:")
+    #         logging.info(f"  - Total equity: {total_equity:.2f} USD")
+    #         logging.info(f"  - Current price: {current_price:.8f} USD")
+    #         logging.info(f"  - Max quantity percentage for long: {max_qty_percent_long}%")
+    #         logging.info(f"  - Max quantity percentage for short: {max_qty_percent_short}%")
+    #         logging.info(f"  - Effective leverage: {leverage}x")
+    #         logging.info(f"Maximum allowed positions for {symbol}:")
+    #         logging.info(f"  - Max quantity for long: {max_qty_long:.4f} units")
+    #         logging.info(f"  - Max quantity for short: {max_qty_short:.4f} units")
+
+    #         # Check if current positions exceed the maximum allowed quantities
+    #         if long_pos_qty > max_qty_long:
+    #             logging.info(f"[{symbol}] Long position quantity exceeds the maximum allowed. Current long position: {long_pos_qty}, Max allowed: {max_qty_long:.4f} units. Clearing long grid.")
+    #             self.clear_grid(symbol, 'buy')
+    #             self.active_grids.discard(symbol)
+    #             self.max_qty_reached_symbol_long.add(symbol)
+    #         elif symbol in self.max_qty_reached_symbol_long and long_pos_qty <= max_qty_long:
+    #             logging.info(f"[{symbol}] Long position quantity is below the maximum allowed. Removing from max_qty_reached_symbol_long. Current long position: {long_pos_qty}, Max allowed: {max_qty_long:.4f} units.")
+    #             self.max_qty_reached_symbol_long.remove(symbol)
+
+    #         if short_pos_qty > max_qty_short:
+    #             logging.info(f"[{symbol}] Short position quantity exceeds the maximum allowed. Current short position: {short_pos_qty}, Max allowed: {max_qty_short:.4f} units. Clearing short grid.")
+    #             self.clear_grid(symbol, 'sell')
+    #             self.active_grids.discard(symbol)
+    #             self.max_qty_reached_symbol_short.add(symbol)
+    #         elif symbol in self.max_qty_reached_symbol_short and short_pos_qty <= max_qty_short:
+    #             logging.info(f"[{symbol}] Short position quantity is below the maximum allowed. Removing from max_qty_reached_symbol_short. Current short position: {short_pos_qty}, Max allowed: {max_qty_short:.4f} units.")
+    #             self.max_qty_reached_symbol_short.remove(symbol)
+
+    #     except Exception as e:
+    #         logging.error(f"Exception caught in check and manage positions: {e}")
+    #         logging.info("Traceback:", traceback.format_exc())
 
     # def check_and_manage_positions(self, long_pos_qty, short_pos_qty, symbol, total_equity, current_price, max_qty_percent_long, max_qty_percent_short):
     #     try:
