@@ -5028,7 +5028,17 @@ class BybitStrategy(BaseStrategy):
             self.initialize_filled_levels(symbol)
             long_grid_active, short_grid_active = self.check_grid_active(symbol, open_orders)
 
-            self.check_and_manage_positions(long_pos_qty, short_pos_qty, symbol, total_equity, current_price, max_qty_percent_long, max_qty_percent_short)
+            #self.check_and_manage_positions(long_pos_qty, short_pos_qty, symbol, total_equity, current_price, max_qty_percent_long, max_qty_percent_short)
+
+            self.check_and_manage_positions(
+                long_pos_qty,
+                short_pos_qty,
+                symbol,
+                total_equity,
+                current_price,
+                max_qty_percent_long,
+                max_qty_percent_short
+            )
 
             buffer_percentage_long, buffer_percentage_short = self.calculate_buffer_percentages(long_pos_qty, short_pos_qty, current_price, long_pos_price, short_pos_price, initial_entry_buffer_pct, min_buffer_percentage, max_buffer_percentage)
             buffer_distance_long, buffer_distance_short = self.calculate_buffer_distances(current_price, buffer_percentage_long, buffer_percentage_short)
@@ -5048,11 +5058,66 @@ class BybitStrategy(BaseStrategy):
             grid_levels_long, grid_levels_short = self.finalize_grid_levels(adjusted_grid_levels_long, adjusted_grid_levels_short, levels, current_price, buffer_distance_long, buffer_distance_short, max_outer_price_distance, initial_entry_long, initial_entry_short)
 
             qty_precision, min_qty = self.get_precision_and_min_qty(symbol)
-            total_amount_long = self.calculate_total_amount_refactor(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit_long, wallet_exposure_limit_short, "buy", levels, enforce_full_grid, user_defined_leverage_long, long_pos_qty, short_pos_qty, long_mode)
-            total_amount_short = self.calculate_total_amount_refactor(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit_long, wallet_exposure_limit_short, "sell", levels, enforce_full_grid, user_defined_leverage_short, long_pos_qty, short_pos_qty, short_mode)
 
-            amounts_long = self.calculate_order_amounts_refactor(symbol, total_amount_long, levels, strength, qty_precision, enforce_full_grid, long_pos_qty, short_pos_qty, 'buy')
-            amounts_short = self.calculate_order_amounts_refactor(symbol, total_amount_short, levels, strength, qty_precision, enforce_full_grid, long_pos_qty, short_pos_qty, 'sell')
+            total_amount_long = self.calculate_total_amount_refactor(
+                symbol,
+                total_equity,
+                best_ask_price,
+                best_bid_price,
+                wallet_exposure_limit_long,
+                wallet_exposure_limit_short,
+                "buy",
+                levels,
+                enforce_full_grid,
+                long_pos_qty,
+                short_pos_qty,
+                long_mode
+            )
+
+            total_amount_short = self.calculate_total_amount_refactor(
+                symbol,
+                total_equity,
+                best_ask_price,
+                best_bid_price,
+                wallet_exposure_limit_long,
+                wallet_exposure_limit_short,
+                "sell",
+                levels,
+                enforce_full_grid,
+                long_pos_qty,
+                short_pos_qty,
+                short_mode
+            )
+
+            # total_amount_long = self.calculate_total_amount_refactor(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit_long, wallet_exposure_limit_short, "buy", levels, enforce_full_grid, user_defined_leverage_long, long_pos_qty, short_pos_qty, long_mode)
+            # total_amount_short = self.calculate_total_amount_refactor(symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit_long, wallet_exposure_limit_short, "sell", levels, enforce_full_grid, user_defined_leverage_short, long_pos_qty, short_pos_qty, short_mode)
+
+            # amounts_long = self.calculate_order_amounts_refactor(symbol, total_amount_long, levels, strength, qty_precision, enforce_full_grid, long_pos_qty, short_pos_qty, 'buy')
+            # amounts_short = self.calculate_order_amounts_refactor(symbol, total_amount_short, levels, strength, qty_precision, enforce_full_grid, long_pos_qty, short_pos_qty, 'sell')
+
+            amounts_long = self.calculate_order_amounts_refactor(
+                symbol,
+                total_amount_long,
+                levels,
+                strength,
+                qty_precision,
+                enforce_full_grid,
+                long_pos_qty,
+                short_pos_qty,
+                'buy'
+            )
+
+            amounts_short = self.calculate_order_amounts_refactor(
+                symbol,
+                total_amount_short,
+                levels,
+                strength,
+                qty_precision,
+                enforce_full_grid,
+                long_pos_qty,
+                short_pos_qty,
+                'sell'
+            )
 
             self.handle_auto_reduce(
                 symbol,
@@ -5258,21 +5323,73 @@ class BybitStrategy(BaseStrategy):
         logging.info(f"Quantity precision: {qty_precision}, Minimum quantity: {min_qty}")
         return qty_precision, min_qty
 
-    def calculate_total_amount_refactor(self, symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit_long, wallet_exposure_limit_short, side, levels, enforce_full_grid, user_defined_leverage, long_pos_qty, short_pos_qty, mode):
+    # def calculate_total_amount_refactor(self, symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit_long, wallet_exposure_limit_short, side, levels, enforce_full_grid, user_defined_leverage, long_pos_qty, short_pos_qty, mode):
+    #     if not mode:
+    #         return 0
+    #     return self.calculate_total_amount_notional_ls_properdca(
+    #         symbol=symbol, total_equity=total_equity, best_ask_price=best_ask_price,
+    #         best_bid_price=best_bid_price, wallet_exposure_limit_long=wallet_exposure_limit_long,
+    #         wallet_exposure_limit_short=wallet_exposure_limit_short, side=side, levels=levels,
+    #         enforce_full_grid=enforce_full_grid, user_defined_leverage_long=user_defined_leverage if side == "buy" else None,
+    #         user_defined_leverage_short=user_defined_leverage if side == "sell" else None, long_pos_qty=long_pos_qty, short_pos_qty=short_pos_qty
+    #     )
+
+    def calculate_total_amount_refactor(self, symbol, total_equity, best_ask_price, best_bid_price, 
+                                        wallet_exposure_limit_long, wallet_exposure_limit_short, 
+                                        side, levels, enforce_full_grid, 
+                                        long_pos_qty, short_pos_qty, mode):
         if not mode:
             return 0
         return self.calculate_total_amount_notional_ls_properdca(
-            symbol=symbol, total_equity=total_equity, best_ask_price=best_ask_price,
-            best_bid_price=best_bid_price, wallet_exposure_limit_long=wallet_exposure_limit_long,
-            wallet_exposure_limit_short=wallet_exposure_limit_short, side=side, levels=levels,
-            enforce_full_grid=enforce_full_grid, user_defined_leverage_long=user_defined_leverage if side == "buy" else None,
-            user_defined_leverage_short=user_defined_leverage if side == "sell" else None, long_pos_qty=long_pos_qty, short_pos_qty=short_pos_qty
+            symbol=symbol, 
+            total_equity=total_equity,
+            best_ask_price=best_ask_price,
+            best_bid_price=best_bid_price, 
+            wallet_exposure_limit_long=wallet_exposure_limit_long,
+            wallet_exposure_limit_short=wallet_exposure_limit_short, 
+            side=side, 
+            levels=levels,
+            enforce_full_grid=enforce_full_grid, 
+            long_pos_qty=long_pos_qty, 
+            short_pos_qty=short_pos_qty
         )
 
     def calculate_order_amounts_refactor(self, symbol, total_amount, levels, strength, qty_precision, enforce_full_grid, long_pos_qty, short_pos_qty, side):
         return self.calculate_order_amounts_notional_properdca(
             symbol, total_amount, levels, strength, qty_precision, enforce_full_grid, long_pos_qty, short_pos_qty, side
         )
+
+    # def calculate_total_amount_refactor(self, symbol, total_equity, best_ask_price, best_bid_price, 
+    #                                     wallet_exposure_limit_long, wallet_exposure_limit_short, 
+    #                                     side, levels, enforce_full_grid, user_defined_leverage, 
+    #                                     long_pos_qty, short_pos_qty, mode):
+    #     if not mode:
+    #         return 0
+    #     return self.calculate_total_amount_notional_ls_properdca(
+    #         symbol=symbol, 
+    #         total_equity=total_equity,  # Changed from total_equity to total_balance
+    #         best_ask_price=best_ask_price,
+    #         best_bid_price=best_bid_price, 
+    #         wallet_exposure_limit_long=wallet_exposure_limit_long,
+    #         wallet_exposure_limit_short=wallet_exposure_limit_short, 
+    #         side=side, 
+    #         levels=levels,
+    #         enforce_full_grid=enforce_full_grid, 
+    #         long_pos_qty=long_pos_qty, 
+    #         short_pos_qty=short_pos_qty,
+    #         user_defined_leverage_long=user_defined_leverage if side == "buy" else None,
+    #         user_defined_leverage_short=user_defined_leverage if side == "sell" else None
+    #     )
+
+    # def calculate_order_amounts_refactor(self, symbol, total_amount, levels, strength, qty_precision, enforce_full_grid, long_pos_qty, short_pos_qty, side):
+    #     return self.calculate_order_amounts_notional_properdca(
+    #         symbol, total_amount, levels, strength, qty_precision, enforce_full_grid, long_pos_qty, short_pos_qty, side
+    #     )
+
+    # def calculate_order_amounts_refactor(self, symbol, total_amount, levels, strength, qty_precision, enforce_full_grid, long_pos_qty, short_pos_qty, side):
+    #     return self.calculate_order_amounts_notional_properdca(
+    #         symbol, total_amount, levels, strength, qty_precision, enforce_full_grid, long_pos_qty, short_pos_qty, side
+    #     )
 
     def handle_auto_reduce(self, symbol, grid_levels_long, grid_levels_short, long_grid_active, short_grid_active, long_pos_qty, short_pos_qty, current_price, dynamic_outer_price_distance, min_outer_price_distance, max_outer_price_distance, buffer_percentage_long, buffer_percentage_short, adjusted_grid_levels_long, adjusted_grid_levels_short, levels, amounts_long, amounts_short, best_bid_price, best_ask_price, mfirsi_signal, open_orders, initial_entry_buffer_pct, reissue_threshold, entry_during_autoreduce, min_qty, open_symbols, symbols_allowed, long_mode, short_mode, long_pos_price, short_pos_price, graceful_stop_long, graceful_stop_short, min_buffer_percentage, max_buffer_percentage, additional_entries_from_signal, open_position_data):
         try:
@@ -13712,21 +13829,15 @@ class BybitStrategy(BaseStrategy):
     def calculate_total_amount_notional_ls_properdca(self, symbol, total_equity, best_ask_price, best_bid_price, 
                                                     wallet_exposure_limit_long, wallet_exposure_limit_short, 
                                                     side, levels, enforce_full_grid, 
-                                                    long_pos_qty=0, short_pos_qty=0,
-                                                    user_defined_leverage_long=None, user_defined_leverage_short=None):
-        logging.info(f"Calculating total amount for {symbol} with total_equity: {total_equity}, side: {side}, levels: {levels}, enforce_full_grid: {enforce_full_grid}")
-
-        leverage_used = user_defined_leverage_long if side == 'buy' and user_defined_leverage_long not in (0, None) else \
-                        user_defined_leverage_short if side == 'sell' and user_defined_leverage_short not in (0, None) else \
-                        self.exchange.get_current_max_leverage_bybit(symbol)
-        logging.info(f"Using leverage for {symbol}: {leverage_used}")
+                                                    long_pos_qty=0, short_pos_qty=0):
+        logging.info(f"Calculating total amount for {symbol} with total_balance: {total_equity}, side: {side}, levels: {levels}, enforce_full_grid: {enforce_full_grid}")
 
         wallet_exposure_limit = wallet_exposure_limit_long if side == 'buy' else wallet_exposure_limit_short
-        max_position_value = total_equity * wallet_exposure_limit * leverage_used
+        max_position_value = total_equity * wallet_exposure_limit
         logging.info(f"Maximum position value for {symbol}: {max_position_value}")
 
         if enforce_full_grid:
-            # Scale the required notional with the total equity
+            # Scale the required notional with the total balance
             required_notional = max_position_value / levels
         else:
             required_notional = max_position_value
@@ -13742,7 +13853,8 @@ class BybitStrategy(BaseStrategy):
         logging.info(f"Calculated total notional amount for {symbol}: {total_notional_amount}")
         return total_notional_amount
 
-    def calculate_order_amounts_notional_properdca(self, symbol: str, total_amount: float, levels: int, strength: float, qty_precision: float, enforce_full_grid: bool,
+    def calculate_order_amounts_notional_properdca(self, symbol: str, total_amount: float, levels: int, 
+                                                strength: float, qty_precision: float, enforce_full_grid: bool,
                                                 long_pos_qty=0, short_pos_qty=0, side='buy') -> List[float]:
         logging.info(f"Calculating order amounts for {symbol} with total_amount: {total_amount}, levels: {levels}, strength: {strength}, qty_precision: {qty_precision}, enforce_full_grid: {enforce_full_grid}")
         
@@ -13764,6 +13876,7 @@ class BybitStrategy(BaseStrategy):
         else:
             current_position_qty = short_pos_qty
 
+        # Adjust for current position
         total_amount_adjusted = total_amount + (current_position_qty * current_price)
 
         for i in range(levels):
@@ -13782,11 +13895,91 @@ class BybitStrategy(BaseStrategy):
         
         # Verify the sum of amounts matches the total_amount
         total_distributed_amount = sum(amounts) * current_price
-        if not enforce_full_grid and total_distributed_amount < total_amount:
-            discrepancy = total_amount - total_distributed_amount
-            amounts[-1] += discrepancy / current_price  # Adjust the last amount to match total_amount
+        if not enforce_full_grid and total_distributed_amount < total_amount_adjusted:
+            discrepancy = total_amount_adjusted - total_distributed_amount
+            amounts[-1] += discrepancy / current_price  # Adjust the last amount to match total_amount_adjusted
         
         return amounts
+    
+    # Old functions, complex risk
+    # def calculate_total_amount_notional_ls_properdca(self, symbol, total_equity, best_ask_price, best_bid_price, 
+    #                                                 wallet_exposure_limit_long, wallet_exposure_limit_short, 
+    #                                                 side, levels, enforce_full_grid, 
+    #                                                 long_pos_qty=0, short_pos_qty=0,
+    #                                                 user_defined_leverage_long=None, user_defined_leverage_short=None):
+    #     logging.info(f"Calculating total amount for {symbol} with total_equity: {total_equity}, side: {side}, levels: {levels}, enforce_full_grid: {enforce_full_grid}")
+
+    #     leverage_used = user_defined_leverage_long if side == 'buy' and user_defined_leverage_long not in (0, None) else \
+    #                     user_defined_leverage_short if side == 'sell' and user_defined_leverage_short not in (0, None) else \
+    #                     self.exchange.get_current_max_leverage_bybit(symbol)
+    #     logging.info(f"Using leverage for {symbol}: {leverage_used}")
+
+    #     wallet_exposure_limit = wallet_exposure_limit_long if side == 'buy' else wallet_exposure_limit_short
+    #     max_position_value = total_equity * wallet_exposure_limit * leverage_used
+    #     logging.info(f"Maximum position value for {symbol}: {max_position_value}")
+
+    #     if enforce_full_grid:
+    #         # Scale the required notional with the total equity
+    #         required_notional = max_position_value / levels
+    #     else:
+    #         required_notional = max_position_value
+
+    #     if side == 'buy':
+    #         current_pos_value = long_pos_qty * best_ask_price
+    #     else:
+    #         current_pos_value = short_pos_qty * best_bid_price
+
+    #     adjusted_max_position_value = max_position_value - current_pos_value
+    #     total_notional_amount = min(required_notional, adjusted_max_position_value)
+        
+    #     logging.info(f"Calculated total notional amount for {symbol}: {total_notional_amount}")
+    #     return total_notional_amount
+
+    # def calculate_order_amounts_notional_properdca(self, symbol: str, total_amount: float, levels: int, strength: float, qty_precision: float, enforce_full_grid: bool,
+    #                                             long_pos_qty=0, short_pos_qty=0, side='buy') -> List[float]:
+    #     logging.info(f"Calculating order amounts for {symbol} with total_amount: {total_amount}, levels: {levels}, strength: {strength}, qty_precision: {qty_precision}, enforce_full_grid: {enforce_full_grid}")
+        
+    #     current_price = self.exchange.get_current_price(symbol)
+    #     amounts = []
+    #     total_ratio = sum([(i + 1) ** strength for i in range(levels)])
+    #     level_notional = [(i + 1) ** strength for i in range(levels)]
+        
+    #     if enforce_full_grid:
+    #         base_notional = self.min_notional(symbol) * total_amount / self.min_notional(symbol)
+    #     else:
+    #         base_notional = self.min_notional(symbol)
+    #     min_base_notional = base_notional / current_price
+
+    #     min_qty = self.get_min_qty(symbol)  # Retrieve the min_qty for the symbol
+
+    #     if side == 'buy':
+    #         current_position_qty = long_pos_qty
+    #     else:
+    #         current_position_qty = short_pos_qty
+
+    #     total_amount_adjusted = total_amount + (current_position_qty * current_price)
+
+    #     for i in range(levels):
+    #         notional_amount = (level_notional[i] / total_ratio) * total_amount_adjusted
+    #         quantity = notional_amount / current_price
+            
+    #         # Determine the minimum quantity to use (either min_notional or min_qty)
+    #         min_quantity = max(min_base_notional, min_qty)
+            
+    #         # Apply the minimum quantity requirement
+    #         rounded_quantity = max(round(quantity / qty_precision) * qty_precision, min_quantity)
+            
+    #         amounts.append(rounded_quantity)
+
+    #     logging.info(f"Calculated order amounts for {symbol}: {amounts}")
+        
+    #     # Verify the sum of amounts matches the total_amount
+    #     total_distributed_amount = sum(amounts) * current_price
+    #     if not enforce_full_grid and total_distributed_amount < total_amount:
+    #         discrepancy = total_amount - total_distributed_amount
+    #         amounts[-1] += discrepancy / current_price  # Adjust the last amount to match total_amount
+        
+    #     return amounts
 
     ######### Possibly does not scale properly
     # def calculate_total_amount_notional_ls_properdca(self, symbol, total_equity, best_ask_price, best_bid_price, 
@@ -13985,33 +14178,85 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.info(f"Exception caught in check and manage positions {e}")
 
+    # def check_and_manage_positions(self, long_pos_qty, short_pos_qty, symbol, total_equity, current_price, max_qty_percent_long, max_qty_percent_short):
+    #     try:
+    #         # Determine the effective leverage to use
+    #         leverage_long = self.get_effective_leverage(self.user_defined_leverage_long, symbol, 'buy')
+    #         leverage_short = self.get_effective_leverage(self.user_defined_leverage_short, symbol, 'sell')
+
+    #         # Calculate the maximum allowed positions incorporating leverage
+    #         max_qty_long = (total_equity * (max_qty_percent_long / 100) * leverage_long) / current_price
+    #         max_qty_short = (total_equity * (max_qty_percent_short / 100) * leverage_short) / current_price
+
+    #         # Calculate the leveraged exposure percentages
+    #         leveraged_long_pos_exposure_percent = (long_pos_qty * current_price / (total_equity * leverage_long)) * 100
+    #         leveraged_short_pos_exposure_percent = (short_pos_qty * current_price / (total_equity * leverage_short)) * 100
+
+    #         # Log the leveraged position utilization and the actual utilization based on leverage
+    #         logging.info(f"Leveraged position utilization for {symbol}:")
+    #         logging.info(f"  - Leveraged long position exposure: {leveraged_long_pos_exposure_percent:.2f}% of leveraged equity (Leverage used: {leverage_long}x)")
+    #         logging.info(f"  - Leveraged short position exposure: {leveraged_short_pos_exposure_percent:.2f}% of leveraged equity (Leverage used: {leverage_short}x)")
+
+    #         # Log detailed information about the configuration parameters and maximum allowed positions
+    #         logging.info(f"Configuration for {symbol}:")
+    #         logging.info(f"  - Total equity: {total_equity:.2f} USD")
+    #         logging.info(f"  - Current price: {current_price:.8f} USD")
+    #         logging.info(f"  - Max quantity percentage for long: {max_qty_percent_long}%")
+    #         logging.info(f"  - Max quantity percentage for short: {max_qty_percent_short}%")
+    #         logging.info(f"  - Effective leverage for long: {leverage_long}x")
+    #         logging.info(f"  - Effective leverage for short: {leverage_short}x")
+    #         logging.info(f"Maximum allowed positions for {symbol}:")
+    #         logging.info(f"  - Max quantity for long: {max_qty_long:.4f} units")
+    #         logging.info(f"  - Max quantity for short: {max_qty_short:.4f} units")
+
+    #         # Check if current positions exceed the maximum allowed quantities
+    #         if long_pos_qty > max_qty_long:
+    #             logging.info(f"[{symbol}] Long position quantity exceeds the maximum allowed. Current long position: {long_pos_qty}, Max allowed: {max_qty_long:.4f} units. Clearing long grid.")
+    #             self.clear_grid(symbol, 'buy')
+    #             self.active_grids.discard(symbol)
+    #             self.max_qty_reached_symbol_long.add(symbol)
+    #         elif symbol in self.max_qty_reached_symbol_long and long_pos_qty <= max_qty_long:
+    #             logging.info(f"[{symbol}] Long position quantity is below the maximum allowed. Removing from max_qty_reached_symbol_long. Current long position: {long_pos_qty}, Max allowed: {max_qty_long:.4f} units.")
+    #             self.max_qty_reached_symbol_long.remove(symbol)
+
+    #         if short_pos_qty > max_qty_short:
+    #             logging.info(f"[{symbol}] Short position quantity exceeds the maximum allowed. Current short position: {short_pos_qty}, Max allowed: {max_qty_short:.4f} units. Clearing short grid.")
+    #             self.clear_grid(symbol, 'sell')
+    #             self.active_grids.discard(symbol)
+    #             self.max_qty_reached_symbol_short.add(symbol)
+    #         elif symbol in self.max_qty_reached_symbol_short and short_pos_qty <= max_qty_short:
+    #             logging.info(f"[{symbol}] Short position quantity is below the maximum allowed. Removing from max_qty_reached_symbol_short. Current short position: {short_pos_qty}, Max allowed: {max_qty_short:.4f} units.")
+    #             self.max_qty_reached_symbol_short.remove(symbol)
+
+    #     except Exception as e:
+    #         logging.error(f"Exception caught in check and manage positions: {e}")
+    #         logging.info("Traceback:", traceback.format_exc())
+
     def check_and_manage_positions(self, long_pos_qty, short_pos_qty, symbol, total_equity, current_price, max_qty_percent_long, max_qty_percent_short):
         try:
-            # Determine the effective leverage to use
-            leverage_long = self.get_effective_leverage(self.user_defined_leverage_long, symbol, 'buy')
-            leverage_short = self.get_effective_leverage(self.user_defined_leverage_short, symbol, 'sell')
+            # Calculate the maximum allowed positions based on max quantity percentages
+            max_qty_long = (total_equity * (max_qty_percent_long / 100)) / current_price
+            max_qty_short = (total_equity * (max_qty_percent_short / 100)) / current_price
 
-            # Calculate the maximum allowed positions incorporating leverage
-            max_qty_long = (total_equity * (max_qty_percent_long / 100) * leverage_long) / current_price
-            max_qty_short = (total_equity * (max_qty_percent_short / 100) * leverage_short) / current_price
+            # Calculate current position values
+            long_pos_value = long_pos_qty * current_price
+            short_pos_value = short_pos_qty * current_price
 
-            # Calculate the leveraged exposure percentages
-            leveraged_long_pos_exposure_percent = (long_pos_qty * current_price / (total_equity * leverage_long)) * 100
-            leveraged_short_pos_exposure_percent = (short_pos_qty * current_price / (total_equity * leverage_short)) * 100
+            # Calculate the exposure percentages relative to total equity
+            long_pos_exposure_percent = (long_pos_value / total_equity) * 100
+            short_pos_exposure_percent = (short_pos_value / total_equity) * 100
 
-            # Log the leveraged position utilization and the actual utilization based on leverage
-            logging.info(f"Leveraged position utilization for {symbol}:")
-            logging.info(f"  - Leveraged long position exposure: {leveraged_long_pos_exposure_percent:.2f}% of leveraged equity (Leverage used: {leverage_long}x)")
-            logging.info(f"  - Leveraged short position exposure: {leveraged_short_pos_exposure_percent:.2f}% of leveraged equity (Leverage used: {leverage_short}x)")
+            # Log the position utilization
+            logging.info(f"Position utilization for {symbol}:")
+            logging.info(f"  - Long position exposure: {long_pos_exposure_percent:.2f}% of total balance")
+            logging.info(f"  - Short position exposure: {short_pos_exposure_percent:.2f}% of total balance")
 
             # Log detailed information about the configuration parameters and maximum allowed positions
             logging.info(f"Configuration for {symbol}:")
-            logging.info(f"  - Total equity: {total_equity:.2f} USD")
+            logging.info(f"  - Total balance: {total_equity:.2f} USD")
             logging.info(f"  - Current price: {current_price:.8f} USD")
             logging.info(f"  - Max quantity percentage for long: {max_qty_percent_long}%")
             logging.info(f"  - Max quantity percentage for short: {max_qty_percent_short}%")
-            logging.info(f"  - Effective leverage for long: {leverage_long}x")
-            logging.info(f"  - Effective leverage for short: {leverage_short}x")
             logging.info(f"Maximum allowed positions for {symbol}:")
             logging.info(f"  - Max quantity for long: {max_qty_long:.4f} units")
             logging.info(f"  - Max quantity for short: {max_qty_short:.4f} units")
@@ -14038,6 +14283,7 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.error(f"Exception caught in check and manage positions: {e}")
             logging.info("Traceback:", traceback.format_exc())
+
 
     def calculate_total_amount_notional_ls(self, symbol, total_equity, best_ask_price, best_bid_price, 
                                             wallet_exposure_limit_long, wallet_exposure_limit_short, 
