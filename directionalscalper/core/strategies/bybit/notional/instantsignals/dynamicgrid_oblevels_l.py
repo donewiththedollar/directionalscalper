@@ -764,7 +764,6 @@ class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
                             min_outer_price_distance,
                             max_outer_price_distance,
                             reissue_threshold,
-                            self.wallet_exposure_limit,
                             wallet_exposure_limit_long,
                             wallet_exposure_limit_short,
                             self.user_defined_leverage_long,
