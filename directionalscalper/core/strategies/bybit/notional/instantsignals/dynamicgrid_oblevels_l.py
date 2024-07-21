@@ -766,8 +766,6 @@ class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
                             reissue_threshold,
                             wallet_exposure_limit_long,
                             wallet_exposure_limit_short,
-                            self.user_defined_leverage_long,
-                            self.user_defined_leverage_short,
                             long_mode,
                             short_mode,
                             initial_entry_buffer_pct,
