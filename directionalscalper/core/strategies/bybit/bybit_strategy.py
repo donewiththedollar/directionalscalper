@@ -25,6 +25,7 @@ from threading import Thread, Lock
 
 from ...bot_metrics import BotDatabase
 
+from directionalscalper.core.config_initializer import ConfigInitializer
 from directionalscalper.core.strategies.base_strategy import BaseStrategy
 
 from rate_limit import RateLimit
@@ -71,6 +72,7 @@ class BybitStrategy(BaseStrategy):
         self.last_processed_time_short = {}
         self.next_long_tp_update = datetime.now() - timedelta(seconds=1)
         self.next_short_tp_update = datetime.now() - timedelta(seconds=1)
+        ConfigInitializer.initialize_config_attributes(self, config)
 
         try:
             # Hotkey-related attributes
@@ -1426,9 +1428,9 @@ class BybitStrategy(BaseStrategy):
         logging.info(f"No entry order found for side {side}, excluding helper orders.")
         return False
     
-    def calculate_dynamic_amounts_notional(self, symbol, total_equity, best_ask_price, best_bid_price):
+    def calculate_dynamic_amounts_notional(self, symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit_long, wallet_exposure_limit_short):
         """
-        Calculate the dynamic entry sizes for both long and short positions based on wallet exposure limit and user-defined leverage,
+        Calculate the dynamic entry sizes for both long and short positions based on wallet exposure limit,
         ensuring compliance with the exchange's minimum notional value requirements.
 
         :param symbol: Trading symbol.
@@ -1437,6 +1439,7 @@ class BybitStrategy(BaseStrategy):
         :param best_bid_price: Current best bid price of the symbol for selling (short entry).
         :return: A tuple containing entry sizes for long and short trades.
         """
+
         # Calculate the minimum notional value based on the symbol
         if symbol in ["BTCUSDT", "BTC-PERP"]:
             min_notional_value = 101  # Slightly above 100 to ensure orders are above the minimum
@@ -1446,15 +1449,13 @@ class BybitStrategy(BaseStrategy):
             min_notional_value = 6  # Slightly above 5 to ensure orders are above the minimum
 
         # Calculate dynamic entry sizes based on risk parameters
-        max_equity_for_long_trade = total_equity * self.wallet_exposure_limit
-        max_long_position_value = max_equity_for_long_trade * self.user_defined_leverage_long
-        logging.info(f"Max long pos value for {symbol} : {max_long_position_value}")
-        long_entry_size = max(max_long_position_value / best_ask_price, min_notional_value / best_ask_price)
+        max_equity_for_long_trade = total_equity * wallet_exposure_limit_long
+        logging.info(f"Max equity for long trade for {symbol}: {max_equity_for_long_trade}")
+        long_entry_size = max(max_equity_for_long_trade / best_ask_price, min_notional_value / best_ask_price)
 
-        max_equity_for_short_trade = total_equity * self.wallet_exposure_limit
-        max_short_position_value = max_equity_for_short_trade * self.user_defined_leverage_short
-        logging.info(f"Max short pos value for {symbol} : {max_short_position_value}")
-        short_entry_size = max(max_short_position_value / best_bid_price, min_notional_value / best_bid_price)
+        max_equity_for_short_trade = total_equity * wallet_exposure_limit_short
+        logging.info(f"Max equity for short trade for {symbol}: {max_equity_for_short_trade}")
+        short_entry_size = max(max_equity_for_short_trade / best_bid_price, min_notional_value / best_bid_price)
 
         # Adjusting entry sizes based on the symbol's minimum quantity precision
         qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
