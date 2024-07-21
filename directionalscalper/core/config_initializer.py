@@ -51,6 +51,5 @@ class ConfigInitializer:
             strategy_instance.auto_reduce_wallet_exposure_pct = config.auto_reduce_wallet_exposure_pct
             strategy_instance.percentile_auto_reduce_enabled = config.percentile_auto_reduce_enabled
             strategy_instance.max_pos_balance_pct = config.max_pos_balance_pct
-            strategy_instance.auto_leverage_upscale = config.auto_leverage_upscale
         except AttributeError as e:
             strategy_instance.logger.error(f"Failed to initialize attributes from config: {e}")

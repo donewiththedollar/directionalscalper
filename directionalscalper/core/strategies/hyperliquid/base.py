@@ -53,7 +53,6 @@ class HyperLiquidBaseStrategy(Strategy):
             self.auto_reduce_wallet_exposure_pct = self.config.auto_reduce_wallet_exposure_pct
             self.percentile_auto_reduce_enabled = self.config.percentile_auto_reduce_enabled
             self.max_pos_balance_pct = self.config.max_pos_balance_pct
-            self.auto_leverage_upscale = self.config.auto_leverage_upscale
         except AttributeError as e:
             logging.error(f"Failed to initialize attributes from config: {e}")
 

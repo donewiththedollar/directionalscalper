@@ -200,8 +200,6 @@ class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
         
             max_pos_balance_pct = self.config.max_pos_balance_pct
 
-            auto_leverage_upscale = self.config.auto_leverage_upscale
-
             # Funding
             MaxAbsFundingRate = self.config.MaxAbsFundingRate
             

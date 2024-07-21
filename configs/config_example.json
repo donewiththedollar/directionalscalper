@@ -28,7 +28,6 @@
         "auto_reduce_marginbased_enabled": false,
         "hedge_ratio": 0.10,
         "hedge_price_difference_threshold": 0.10,
-        "auto_leverage_upscale": false,
         "test_orders_enabled": false,
         "max_usd_value": 50,
         "min_qty_threshold": 0,
