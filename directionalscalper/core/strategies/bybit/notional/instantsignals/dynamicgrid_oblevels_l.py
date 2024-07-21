@@ -120,7 +120,7 @@ class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
 
             logging.info(f"Max leverage for {symbol}: {self.max_leverage}")
 
-            self.adjust_risk_parameters(exchange_max_leverage=self.max_leverage)
+            # self.adjust_risk_parameters(exchange_max_leverage=self.max_leverage)
 
             self.exchange.set_leverage_bybit(self.max_leverage, symbol)
             self.exchange.set_symbol_to_cross_margin(symbol, self.max_leverage)
@@ -525,14 +525,16 @@ class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
 
 
                     # Adjust risk parameters based on the maximum leverage allowed by the exchange
-                    self.adjust_risk_parameters(exchange_max_leverage=self.max_leverage)
+                    # self.adjust_risk_parameters(exchange_max_leverage=self.max_leverage)
 
                     # Calculate dynamic entry sizes for long and short positions
                     long_dynamic_amount, short_dynamic_amount = self.calculate_dynamic_amounts_notional(
                         symbol=symbol,
                         total_equity=total_equity,
                         best_ask_price=best_ask_price,
-                        best_bid_price=best_bid_price
+                        best_bid_price=best_bid_price,
+                        wallet_exposure_limit_long=wallet_exposure_limit_long,
+                        wallet_exposure_limit_short=wallet_exposure_limit_short
                     )
 
                     logging.info(f"Long dynamic amount: {long_dynamic_amount} for {symbol}")

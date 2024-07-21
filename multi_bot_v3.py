@@ -793,7 +793,7 @@ def handle_signal(symbol, args, manager, mfirsi_signal, open_position_data, symb
                 logging.info(f"Skipping long signal for {symbol} due to graceful stop long enabled and no open long position.")
             elif not (symbol in long_threads and long_threads[symbol][0].is_alive()):
                 logging.info(f"Starting long thread for symbol {symbol}.")
-                action_taken_long = start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "long")
+                action_taken_long = start_thread_for_symbol(symbol, market_maker, args, manager, mfirsi_signal, "long")
             else:
                 logging.info(f"Long thread already running for symbol {symbol}. Skipping.")
         else:
@@ -807,7 +807,7 @@ def handle_signal(symbol, args, manager, mfirsi_signal, open_position_data, symb
                 logging.info(f"Skipping short signal for {symbol} due to graceful stop short enabled and no open short position.")
             elif not (symbol in short_threads and short_threads[symbol][0].is_alive()):
                 logging.info(f"Starting short thread for symbol {symbol}.")
-                action_taken_short = start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "short")
+                action_taken_short = start_thread_for_symbol(symbol, market_maker, args, manager, mfirsi_signal, "short")
             else:
                 logging.info(f"Short thread already running for symbol {symbol}. Skipping.")
         else:

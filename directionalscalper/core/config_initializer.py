@@ -2,9 +2,6 @@ class ConfigInitializer:
     @staticmethod
     def initialize_config_attributes(strategy_instance, config):
         try:
-            strategy_instance.wallet_exposure_limit = config.wallet_exposure_limit
-            strategy_instance.user_defined_leverage_long = config.user_defined_leverage_long
-            strategy_instance.user_defined_leverage_short = config.user_defined_leverage_short
             strategy_instance.levels = config.linear_grid['levels']
             strategy_instance.strength = config.linear_grid['strength']
             strategy_instance.outer_price_distance = config.linear_grid['outer_price_distance']

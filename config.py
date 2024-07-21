@@ -38,9 +38,6 @@ class Bot(BaseModel):
     volume_check: bool = True
     min_distance: float = 0.15
     min_volume: int = 15000
-    wallet_exposure_limit: float = 0.0001
-    user_defined_leverage_long: float = 0
-    user_defined_leverage_short: float = 0
     upnl_profit_pct: float = 0.003
     max_upnl_profit_pct: float = 0.004
     stoploss_enabled: bool = False
