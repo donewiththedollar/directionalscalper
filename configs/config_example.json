@@ -31,8 +31,6 @@
         "test_orders_enabled": false,
         "max_usd_value": 50,
         "min_qty_threshold": 0,
-        "long_liq_pct": 0.05,
-        "short_liq_pct": 0.05,
         "MaxAbsFundingRate": 0.0002,
         "blacklist": ["BTCUSDT", "ETHUSDT"],
         "whitelist": [],

@@ -57,8 +57,6 @@ class Bot(BaseModel):
     hedge_price_difference_threshold: float = 0.15
     min_qty_threshold: float = 0
     symbol: str
-    long_liq_pct: float = 0.05
-    short_liq_pct: float = 0.05
     MaxAbsFundingRate: float = 0.0002
     wallet_exposure: float = 1.00
     test_orders_enabled: bool = False
@@ -104,18 +102,6 @@ class Bot(BaseModel):
     def minimum_min_distance(cls, v):
         if v < 0.0:
             raise ValueError("min_distance must be greater than 0")
-        return v
-
-    @validator("long_liq_pct")
-    def minimum_long_liq_pct(cls, v):
-        if v < 0.0:
-            raise ValueError("long_liq_pct must be greater than 0")
-        return v
-
-    @validator("short_liq_pct")
-    def minimum_short_liq_pct(cls, v):
-        if v < 0.0:
-            raise ValueError("short_liq_pct must be greater than 0")
         return v
 
     @validator('test_orders_enabled')

@@ -1318,30 +1318,30 @@ class BaseStrategy:
         with open(os.path.join(data_directory, "open_symbols_count.json"), "w") as f:
             json.dump({"count": open_symbols_count}, f)
 
-    def manage_liquidation_risk(self, long_pos_price, short_pos_price, long_liq_price, short_liq_price, symbol, amount):
-        # Create some thresholds for when to act
-        long_threshold = self.config.long_liq_pct
-        short_threshold = self.config.short_liq_pct
+    # def manage_liquidation_risk(self, long_pos_price, short_pos_price, long_liq_price, short_liq_price, symbol, amount):
+    #     # Create some thresholds for when to act
+    #     long_threshold = self.config.long_liq_pct
+    #     short_threshold = self.config.short_liq_pct
 
-        # Let's assume you have methods to get the best bid and ask prices
-        best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
-        best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+    #     # Let's assume you have methods to get the best bid and ask prices
+    #     best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+    #     best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
 
-        # Check if the long position is close to being liquidated
-        if long_pos_price is not None and long_liq_price is not None:
-            long_diff = abs(long_pos_price - long_liq_price) / long_pos_price
-            if long_diff < long_threshold:
-                # Place a post-only limit order to offset the risk
-                self.postonly_limit_order_bybit(symbol, "buy", amount, best_bid_price, positionIdx=1, reduceOnly=False)
-                logging.info(f"Placed a post-only limit order to offset long position risk on {symbol} at {best_bid_price}")
+    #     # Check if the long position is close to being liquidated
+    #     if long_pos_price is not None and long_liq_price is not None:
+    #         long_diff = abs(long_pos_price - long_liq_price) / long_pos_price
+    #         if long_diff < long_threshold:
+    #             # Place a post-only limit order to offset the risk
+    #             self.postonly_limit_order_bybit(symbol, "buy", amount, best_bid_price, positionIdx=1, reduceOnly=False)
+    #             logging.info(f"Placed a post-only limit order to offset long position risk on {symbol} at {best_bid_price}")
 
-        # Check if the short position is close to being liquidated
-        if short_pos_price is not None and short_liq_price is not None:
-            short_diff = abs(short_pos_price - short_liq_price) / short_pos_price
-            if short_diff < short_threshold:
-                # Place a post-only limit order to offset the risk
-                self.postonly_limit_order_bybit(symbol, "sell", amount, best_ask_price, positionIdx=2, reduceOnly=False)
-                logging.info(f"Placed a post-only limit order to offset short position risk on {symbol} at {best_ask_price}")
+    #     # Check if the short position is close to being liquidated
+    #     if short_pos_price is not None and short_liq_price is not None:
+    #         short_diff = abs(short_pos_price - short_liq_price) / short_pos_price
+    #         if short_diff < short_threshold:
+    #             # Place a post-only limit order to offset the risk
+    #             self.postonly_limit_order_bybit(symbol, "sell", amount, best_ask_price, positionIdx=2, reduceOnly=False)
+    #             logging.info(f"Placed a post-only limit order to offset short position risk on {symbol} at {best_ask_price}")
 
     def get_active_order_count(self, symbol):
         try:
