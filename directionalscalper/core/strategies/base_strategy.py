@@ -78,9 +78,6 @@ class BaseStrategy:
         self.auto_reduce_start_pct = self.config.auto_reduce_start_pct
         self.auto_reduce_maxloss_pct = self.config.auto_reduce_maxloss_pct
         self.max_pos_balance_pct = self.config.max_pos_balance_pct
-        self.wallet_exposure_limit = self.config.wallet_exposure_limit
-        self.user_defined_leverage_long = self.config.user_defined_leverage_long
-        self.user_defined_leverage_short = self.config.user_defined_leverage_short
         self.last_entries_cancel_time = 0
         self.MIN_RISK_LEVEL = 0.001
         self.MAX_RISK_LEVEL = 10
