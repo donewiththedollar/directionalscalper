@@ -334,10 +334,409 @@ BALANCE_REFRESH_INTERVAL = 600  # in seconds
 
 orders_canceled = False
 
+# def run_bot(symbol, args, market_maker, manager, account_name, symbols_allowed, rotator_symbols_standardized, thread_completed, mfirsi_signal, action):
+#     global orders_canceled, unique_active_symbols, active_long_symbols, active_short_symbols
+#     current_thread = threading.current_thread()
+#     try:
+#         if not args.config.startswith('configs/'):
+#             config_file_path = Path('configs/' + args.config)
+#         else:
+#             config_file_path = Path(args.config)
+
+#         logging.info(f"Loading config from: {config_file_path}")
+
+#         account_file_path = Path('configs/account.json')
+#         config = load_config(config_file_path, account_file_path)
+
+#         exchange_name = args.exchange
+#         strategy_name = args.strategy
+#         account_name = args.account_name
+
+#         logging.info(f"Trading symbol: {symbol}")
+#         logging.info(f"Exchange name: {exchange_name}")
+#         logging.info(f"Strategy name: {strategy_name}")
+#         logging.info(f"Account name: {account_name}")
+
+#         market_maker.manager = manager
+
+#         def fetch_open_positions():
+#             with general_rate_limiter:
+#                 return getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
+ 
+#         open_position_data = fetch_open_positions()
+#         open_position_symbols = {standardize_symbol(pos['symbol']) for pos in open_position_data}
+#         logging.info(f"Open position symbols: {open_position_symbols}")
+
+#         current_long_positions = [standardize_symbol(pos['symbol']) for pos in open_position_data if pos['side'].lower() == 'long']
+#         current_short_positions = [standardize_symbol(pos['symbol']) for pos in open_position_data if pos['side'].lower() == 'short']
+
+#         logging.info(f"Current long positions: {current_long_positions}")
+#         logging.info(f"Current short positions: {current_short_positions}")
+
+#         with thread_to_symbol_lock:
+#             is_open_position = symbol in open_position_symbols
+#             if not is_open_position and len(unique_active_symbols) >= symbols_allowed and symbol not in unique_active_symbols:
+#                 logging.info(f"Symbols allowed limit reached. Skipping new symbol {symbol}.")
+#                 return
+
+#             thread_to_symbol[current_thread] = symbol
+#             active_symbols.add(symbol)
+#             unique_active_symbols.add(symbol)
+#             if action == "long" or symbol in current_long_positions:
+#                 active_long_symbols.add(symbol)
+#             elif action == "short" or symbol in current_short_positions:
+#                 active_short_symbols.add(symbol)
+
+#         try:
+#             if not orders_canceled and hasattr(market_maker.exchange, 'cancel_all_open_orders_bybit'):
+#                 market_maker.exchange.cancel_all_open_orders_bybit()
+#                 logging.info(f"Cleared all open orders on the exchange upon initialization.")
+#                 orders_canceled = True
+#         except Exception as e:
+#             logging.error(f"Exception caught while cancelling orders: {e}")
+
+#         logging.info(f"Rotator symbols in run_bot: {rotator_symbols_standardized}")
+#         logging.info(f"Latest rotator symbols in run bot: {latest_rotator_symbols}")
+
+#         time.sleep(2)
+
+#         with general_rate_limiter:
+#             future = market_maker.run_strategy(symbol, args.strategy, config, account_name, 
+#                                                symbols_to_trade=unique_active_symbols, 
+#                                                rotator_symbols_standardized=latest_rotator_symbols, 
+#                                                mfirsi_signal=mfirsi_signal, action=action)
+#             future.result()  # Wait for the strategy to complete
+
+#     except Exception as e:
+#         logging.info(f"An error occurred in run_bot for symbol {symbol}: {e}")
+#         logging.info(traceback.format_exc())
+#     finally:
+#         with thread_to_symbol_lock:
+#             if current_thread in thread_to_symbol:
+#                 del thread_to_symbol[current_thread]
+#             active_symbols.discard(symbol)
+#             unique_active_symbols.discard(symbol)
+#             active_long_symbols.discard(symbol)
+#             active_short_symbols.discard(symbol)
+#         logging.info(f"Thread for symbol {symbol} with action {action} has completed.")
+#         thread_completed.set()
+
+# def run_bot(symbol, args, market_maker, manager, account_name, symbols_allowed, rotator_symbols_standardized, thread_completed, mfirsi_signal, action):
+#     global orders_canceled, unique_active_symbols, active_long_symbols, active_short_symbols
+#     current_thread = threading.current_thread()
+#     try:
+#         # Ensure config is a string before performing the startswith check
+#         config_path = args.config
+#         if isinstance(config_path, str):
+#             if not config_path.startswith('configs/'):
+#                 config_file_path = Path('configs/' + config_path)
+#             else:
+#                 config_file_path = Path(config_path)
+#         else:
+#             # If config_path is not a string, assume it's already a Path or Config object
+#             config_file_path = config_path
+
+#         logging.info(f"Loading config from: {config_file_path}")
+
+#         account_file_path = Path('configs/account.json')
+#         config = load_config(config_file_path, account_file_path)
+
+#         exchange_name = args.exchange
+#         strategy_name = args.strategy
+#         account_name = args.account_name
+
+#         logging.info(f"Trading symbol: {symbol}")
+#         logging.info(f"Exchange name: {exchange_name}")
+#         logging.info(f"Strategy name: {strategy_name}")
+#         logging.info(f"Account name: {account_name}")
+
+#         market_maker.manager = manager
+
+#         def fetch_open_positions():
+#             with general_rate_limiter:
+#                 return getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
+
+#         open_position_data = fetch_open_positions()
+#         open_position_symbols = {standardize_symbol(pos['symbol']) for pos in open_position_data}
+#         logging.info(f"Open position symbols: {open_position_symbols}")
+
+#         current_long_positions = [standardize_symbol(pos['symbol']) for pos in open_position_data if pos['side'].lower() == 'long']
+#         current_short_positions = [standardize_symbol(pos['symbol']) for pos in open_position_data if pos['side'].lower() == 'short']
+
+#         logging.info(f"Current long positions: {current_long_positions}")
+#         logging.info(f"Current short positions: {current_short_positions}")
+
+#         with thread_to_symbol_lock:
+#             is_open_position = symbol in open_position_symbols
+#             if not is_open_position and len(unique_active_symbols) >= symbols_allowed and symbol not in unique_active_symbols:
+#                 logging.info(f"Symbols allowed limit reached. Skipping new symbol {symbol}.")
+#                 return
+
+#             thread_to_symbol[current_thread] = symbol
+#             active_symbols.add(symbol)
+#             unique_active_symbols.add(symbol)
+#             if action == "long" or symbol in current_long_positions:
+#                 active_long_symbols.add(symbol)
+#             elif action == "short" or symbol in current_short_positions:
+#                 active_short_symbols.add(symbol)
+
+#         try:
+#             if not orders_canceled and hasattr(market_maker.exchange, 'cancel_all_open_orders_bybit'):
+#                 market_maker.exchange.cancel_all_open_orders_bybit()
+#                 logging.info(f"Cleared all open orders on the exchange upon initialization.")
+#                 orders_canceled = True
+#         except Exception as e:
+#             logging.error(f"Exception caught while cancelling orders: {e}")
+
+#         logging.info(f"Rotator symbols in run_bot: {rotator_symbols_standardized}")
+#         logging.info(f"Latest rotator symbols in run bot: {latest_rotator_symbols}")
+
+#         time.sleep(2)
+
+#         with general_rate_limiter:
+#             future = market_maker.run_strategy(symbol, args.strategy, config, account_name, 
+#                                                symbols_to_trade=unique_active_symbols, 
+#                                                rotator_symbols_standardized=latest_rotator_symbols, 
+#                                                mfirsi_signal=mfirsi_signal, action=action)
+#             future.result()  # Wait for the strategy to complete
+
+#     except Exception as e:
+#         logging.info(f"An error occurred in run_bot for symbol {symbol}: {e}")
+#         logging.info(traceback.format_exc())
+#     finally:
+#         with thread_to_symbol_lock:
+#             if current_thread in thread_to_symbol:
+#                 del thread_to_symbol[current_thread]
+#             active_symbols.discard(symbol)
+#             unique_active_symbols.discard(symbol)
+#             active_long_symbols.discard(symbol)
+#             active_short_symbols.discard(symbol)
+#         logging.info(f"Thread for symbol {symbol} with action {action} has completed.")
+#         thread_completed.set()
+
+# def run_bot(symbol, args, market_maker, manager, account_name, symbols_allowed, rotator_symbols_standardized, thread_completed, mfirsi_signal, action):
+#     global orders_canceled, unique_active_symbols, active_long_symbols, active_short_symbols
+#     current_thread = threading.current_thread()
+#     try:
+#         # # Check if args.config is a string or Config object
+#         # if isinstance(args.config, str):
+#         #     if not args.config.startswith('configs/'):
+#         #         config_file_path = Path('configs/' + args.config)
+#         #     else:
+#         #         config_file_path = Path(args.config)
+#         # elif isinstance(args.config, Config):
+#         #     config = args.config
+#         # else:
+#         #     raise ValueError("args.config must be a string or a Config object")
+
+#         # if isinstance(args.config, str):
+#         #     logging.info(f"Loading config from: {config_file_path}")
+#         #     account_file_path = Path('configs/account.json')
+#         #     config = load_config(config_file_path, account_file_path)
+
+#         if not args.config.startswith('configs/'):
+#             config_file_path = Path('configs/' + args.config)
+#         else:
+#             config_file_path = Path(args.config)
+
+#         logging.info(f"Loading config from: {config_file_path}")
+
+#         account_file_path = Path('configs/account.json')  # Define the account file path
+#         config = load_config(config_path=config_file_path, account_path=account_file_path)  # Pass both file paths to load_config
+
+#         exchange_name = args.exchange
+#         strategy_name = args.strategy
+#         account_name = args.account_name
+
+#         logging.info(f"Trading symbol: {symbol}")
+#         logging.info(f"Exchange name: {exchange_name}")
+#         logging.info(f"Strategy name: {strategy_name}")
+#         logging.info(f"Account name: {account_name}")
+
+#         market_maker.manager = manager
+
+#         def fetch_open_positions():
+#             with general_rate_limiter:
+#                 return getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
+
+#         open_position_data = fetch_open_positions()
+#         open_position_symbols = {standardize_symbol(pos['symbol']) for pos in open_position_data}
+#         logging.info(f"Open position symbols: {open_position_symbols}")
+
+#         current_long_positions = [standardize_symbol(pos['symbol']) for pos in open_position_data if pos['side'].lower() == 'long']
+#         current_short_positions = [standardize_symbol(pos['symbol']) for pos in open_position_data if pos['side'].lower() == 'short']
+
+#         logging.info(f"Current long positions: {current_long_positions}")
+#         logging.info(f"Current short positions: {current_short_positions}")
+
+#         with thread_to_symbol_lock:
+#             is_open_position = symbol in open_position_symbols
+#             if not is_open_position and len(unique_active_symbols) >= symbols_allowed and symbol not in unique_active_symbols:
+#                 logging.info(f"Symbols allowed limit reached. Skipping new symbol {symbol}.")
+#                 return
+
+#             thread_to_symbol[current_thread] = symbol
+#             active_symbols.add(symbol)
+#             unique_active_symbols.add(symbol)
+#             if action == "long" or symbol in current_long_positions:
+#                 active_long_symbols.add(symbol)
+#             elif action == "short" or symbol in current_short_positions:
+#                 active_short_symbols.add(symbol)
+
+#         try:
+#             if not orders_canceled and hasattr(market_maker.exchange, 'cancel_all_open_orders_bybit'):
+#                 market_maker.exchange.cancel_all_open_orders_bybit()
+#                 logging.info(f"Cleared all open orders on the exchange upon initialization.")
+#                 orders_canceled = True
+#         except Exception as e:
+#             logging.error(f"Exception caught while cancelling orders: {e}")
+
+#         logging.info(f"Rotator symbols in run_bot: {rotator_symbols_standardized}")
+#         logging.info(f"Latest rotator symbols in run bot: {latest_rotator_symbols}")
+
+#         time.sleep(2)
+
+#         with general_rate_limiter:
+#             future = market_maker.run_strategy(symbol, args.strategy, config, account_name, 
+#                                                symbols_to_trade=unique_active_symbols, 
+#                                                rotator_symbols_standardized=latest_rotator_symbols, 
+#                                                mfirsi_signal=mfirsi_signal, action=action)
+#             future.result()  # Wait for the strategy to complete
+
+#     except Exception as e:
+#         logging.info(f"An error occurred in run_bot for symbol {symbol}: {e}")
+#         logging.info(traceback.format_exc())
+#     finally:
+#         with thread_to_symbol_lock:
+#             if current_thread in thread_to_symbol:
+#                 del thread_to_symbol[current_thread]
+#             active_symbols.discard(symbol)
+#             unique_active_symbols.discard(symbol)
+#             active_long_symbols.discard(symbol)
+#             active_short_symbols.discard(symbol)
+#         logging.info(f"Thread for symbol {symbol} with action {action} has completed.")
+#         thread_completed.set()
+
+# def run_bot(symbol, args, market_maker, manager, account_name, symbols_allowed, rotator_symbols_standardized, thread_completed, mfirsi_signal, action):
+#     global orders_canceled, unique_active_symbols, active_long_symbols, active_short_symbols
+#     current_thread = threading.current_thread()
+#     try:
+#         # Ensure args.config is a string before performing the startswith check
+#         if isinstance(args.config, str):
+#             if not args.config.startswith('configs/'):
+#                 config_file_path = Path('configs/' + args.config)
+#             else:
+#                 config_file_path = Path(args.config)
+#         elif isinstance(args.config, Config):
+#             config = args.config
+#         else:
+#             raise ValueError("args.config must be a string or a Config object")
+
+#         if isinstance(args.config, str):
+#             logging.info(f"Loading config from: {config_file_path}")
+#             account_file_path = Path('configs/account.json')
+#             config = load_config(config_file_path, account_file_path)
+#         else:
+#             logging.info(f"Using provided config object")
+
+#         exchange_name = args.exchange
+#         strategy_name = args.strategy
+#         account_name = args.account_name
+
+#         logging.info(f"Trading symbol: {symbol}")
+#         logging.info(f"Exchange name: {exchange_name}")
+#         logging.info(f"Strategy name: {strategy_name}")
+#         logging.info(f"Account name: {account_name}")
+
+#         market_maker.manager = manager
+
+#         def fetch_open_positions():
+#             with general_rate_limiter:
+#                 return getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
+
+#         open_position_data = fetch_open_positions()
+#         open_position_symbols = {standardize_symbol(pos['symbol']) for pos in open_position_data}
+#         logging.info(f"Open position symbols: {open_position_symbols}")
+
+#         current_long_positions = [standardize_symbol(pos['symbol']) for pos in open_position_data if pos['side'].lower() == 'long']
+#         current_short_positions = [standardize_symbol(pos['symbol']) for pos in open_position_data if pos['side'].lower() == 'short']
+
+#         logging.info(f"Current long positions: {current_long_positions}")
+#         logging.info(f"Current short positions: {current_short_positions}")
+
+#         with thread_to_symbol_lock:
+#             is_open_position = symbol in open_position_symbols
+#             if not is_open_position and len(unique_active_symbols) >= symbols_allowed and symbol not in unique_active_symbols:
+#                 logging.info(f"Symbols allowed limit reached. Skipping new symbol {symbol}.")
+#                 return
+
+#             thread_to_symbol[current_thread] = symbol
+#             active_symbols.add(symbol)
+#             unique_active_symbols.add(symbol)
+#             if action == "long" or symbol in current_long_positions:
+#                 active_long_symbols.add(symbol)
+#             elif action == "short" or symbol in current_short_positions:
+#                 active_short_symbols.add(symbol)
+
+#         try:
+#             if not orders_canceled and hasattr(market_maker.exchange, 'cancel_all_open_orders_bybit'):
+#                 market_maker.exchange.cancel_all_open_orders_bybit()
+#                 logging.info(f"Cleared all open orders on the exchange upon initialization.")
+#                 orders_canceled = True
+#         except Exception as e:
+#             logging.error(f"Exception caught while cancelling orders: {e}")
+
+#         logging.info(f"Rotator symbols in run_bot: {rotator_symbols_standardized}")
+#         logging.info(f"Latest rotator symbols in run bot: {latest_rotator_symbols}")
+
+#         time.sleep(2)
+
+#         with general_rate_limiter:
+#             future = market_maker.run_strategy(symbol, args.strategy, config, account_name, 
+#                                                symbols_to_trade=unique_active_symbols, 
+#                                                rotator_symbols_standardized=latest_rotator_symbols, 
+#                                                mfirsi_signal=mfirsi_signal, action=action)
+#             future.result()  # Wait for the strategy to complete
+
+#     except Exception as e:
+#         logging.info(f"An error occurred in run_bot for symbol {symbol}: {e}")
+#         logging.info(traceback.format_exc())
+#     finally:
+#         with thread_to_symbol_lock:
+#             if current_thread in thread_to_symbol:
+#                 del thread_to_symbol[current_thread]
+#             active_symbols.discard(symbol)
+#             unique_active_symbols.discard(symbol)
+#             active_long_symbols.discard(symbol)
+#             active_short_symbols.discard(symbol)
+#         logging.info(f"Thread for symbol {symbol} with action {action} has completed.")
+#         thread_completed.set()
+
 def run_bot(symbol, args, market_maker, manager, account_name, symbols_allowed, rotator_symbols_standardized, thread_completed, mfirsi_signal, action):
     global orders_canceled, unique_active_symbols, active_long_symbols, active_short_symbols
     current_thread = threading.current_thread()
     try:
+        if not args.config.startswith('configs/'):
+            config_file_path = Path('configs/' + args.config)
+        else:
+            config_file_path = Path(args.config)
+
+        logging.info(f"Loading config from: {config_file_path}")
+
+        account_file_path = Path('configs/account.json')  # Define the account file path
+        config = load_config(config_file_path, account_file_path)  # Pass both file paths to load_config
+
+        exchange_name = args.exchange
+        strategy_name = args.strategy
+        account_name = args.account_name
+
+        logging.info(f"Trading symbol: {symbol}")
+        logging.info(f"Exchange name: {exchange_name}")
+        logging.info(f"Strategy name: {strategy_name}")
+        logging.info(f"Account name: {account_name}")
+
+        market_maker.manager = manager
+
         def fetch_open_positions():
             with general_rate_limiter:
                 return getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
@@ -366,27 +765,6 @@ def run_bot(symbol, args, market_maker, manager, account_name, symbols_allowed, 
             elif action == "short" or symbol in current_short_positions:
                 active_short_symbols.add(symbol)
 
-        if not args.config.startswith('configs/'):
-            config_file_path = Path('configs/' + args.config)
-        else:
-            config_file_path = Path(args.config)
-
-        logging.info(f"Loading config from: {config_file_path}")
-
-        account_file_path = Path('configs/account.json')
-        config = load_config(config_file_path, account_file_path)
-
-        exchange_name = args.exchange
-        strategy_name = args.strategy
-        account_name = args.account_name
-
-        logging.info(f"Trading symbol: {symbol}")
-        logging.info(f"Exchange name: {exchange_name}")
-        logging.info(f"Strategy name: {strategy_name}")
-        logging.info(f"Account name: {account_name}")
-
-        market_maker.manager = manager
-
         try:
             if not orders_canceled and hasattr(market_maker.exchange, 'cancel_all_open_orders_bybit'):
                 market_maker.exchange.cancel_all_open_orders_bybit()
@@ -401,15 +779,20 @@ def run_bot(symbol, args, market_maker, manager, account_name, symbols_allowed, 
         time.sleep(2)
 
         with general_rate_limiter:
-            future = market_maker.run_strategy(symbol, args.strategy, config, account_name, 
-                                               symbols_to_trade=unique_active_symbols, 
-                                               rotator_symbols_standardized=latest_rotator_symbols, 
-                                               mfirsi_signal=mfirsi_signal, action=action)
+            future = market_maker.run_strategy(symbol, args.strategy, config, account_name, symbols_to_trade=symbols_allowed, rotator_symbols_standardized=latest_rotator_symbols, mfirsi_signal=mfirsi_signal, action=action)
             future.result()  # Wait for the strategy to complete
 
+
+        # with general_rate_limiter:
+        #     future = market_maker.run_strategy(symbol, strategy_name, config, account_name, 
+        #                                        symbols_to_trade=unique_active_symbols, 
+        #                                        rotator_symbols_standardized=latest_rotator_symbols, 
+        #                                        mfirsi_signal=mfirsi_signal, action=action)
+        #     future.result()  # Wait for the strategy to complete
+
     except Exception as e:
-        logging.error(f"An error occurred in run_bot for symbol {symbol}: {e}")
-        logging.debug(traceback.format_exc())
+        logging.info(f"An error occurred in run_bot for symbol {symbol}: {e}")
+        logging.info(traceback.format_exc())
     finally:
         with thread_to_symbol_lock:
             if current_thread in thread_to_symbol:
@@ -420,6 +803,7 @@ def run_bot(symbol, args, market_maker, manager, account_name, symbols_allowed, 
             active_short_symbols.discard(symbol)
         logging.info(f"Thread for symbol {symbol} with action {action} has completed.")
         thread_completed.set()
+
 
 def bybit_auto_rotation_spot(args, market_maker, manager, symbols_allowed):
     global latest_rotator_symbols, active_symbols, last_rotator_update_time
@@ -658,13 +1042,13 @@ def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
                             mfirsi_signal = market_maker.generate_l_signals(symbol)
                         if has_open_long and not long_thread_running:
                             logging.info(f"Open symbol {symbol} has open long: {has_open_long} and long thread not running {long_thread_running}")
-                            open_position_futures.append(trading_executor.submit(start_thread_for_open_symbol, symbol, args, market_maker, manager, mfirsi_signal, True, False, long_mode, short_mode))
+                            open_position_futures.append(trading_executor.submit(start_thread_for_open_symbol, symbol, args, manager, mfirsi_signal, True, False, long_mode, short_mode))
                             active_long_symbols.add(symbol)
                             unique_active_symbols.add(symbol)
                             logging.info(f"Submitted long thread for open symbol {symbol}. MFIRSI signal: {mfirsi_signal}. Has open long: {has_open_long}.")
                         if has_open_short and not short_thread_running:
                             logging.info(f"Open symbol {symbol} has open short: {has_open_short} and short thread not running {short_thread_running}")
-                            open_position_futures.append(trading_executor.submit(start_thread_for_open_symbol, symbol, args, market_maker, manager, mfirsi_signal, False, True, long_mode, short_mode))
+                            open_position_futures.append(trading_executor.submit(start_thread_for_open_symbol, symbol, args, manager, mfirsi_signal, False, True, long_mode, short_mode))
                             active_short_symbols.add(symbol)
                             unique_active_symbols.add(symbol)
                             logging.info(f"Submitted short thread for open symbol {symbol}. MFIRSI signal: {mfirsi_signal}. Has open short: {has_open_short}.")
@@ -792,7 +1176,7 @@ def handle_signal(symbol, args, manager, mfirsi_signal, open_position_data, symb
                 logging.info(f"Skipping long signal for {symbol} due to graceful stop long enabled and no open long position.")
             elif not (symbol in long_threads and long_threads[symbol][0].is_alive()):
                 logging.info(f"Starting long thread for symbol {symbol}.")
-                action_taken_long = start_thread_for_symbol(symbol, market_maker, args, manager, mfirsi_signal, "long")
+                action_taken_long = start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "long")
             else:
                 logging.info(f"Long thread already running for symbol {symbol}. Skipping.")
         else:
@@ -806,7 +1190,7 @@ def handle_signal(symbol, args, manager, mfirsi_signal, open_position_data, symb
                 logging.info(f"Skipping short signal for {symbol} due to graceful stop short enabled and no open short position.")
             elif not (symbol in short_threads and short_threads[symbol][0].is_alive()):
                 logging.info(f"Starting short thread for symbol {symbol}.")
-                action_taken_short = start_thread_for_symbol(symbol, market_maker, args, manager, mfirsi_signal, "short")
+                action_taken_short = start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "short")
             else:
                 logging.info(f"Short thread already running for symbol {symbol}. Skipping.")
         else:
@@ -1018,17 +1402,17 @@ def remove_thread_for_symbol(symbol):
     active_symbols.discard(symbol)
     unique_active_symbols.discard(symbol)
 
-def start_thread_for_open_symbol(symbol, args, market_maker, manager, mfirsi_signal, has_open_long, has_open_short, long_mode, short_mode):
+def start_thread_for_open_symbol(symbol, args, manager, mfirsi_signal, has_open_long, has_open_short, long_mode, short_mode):
     action_taken = False
     if long_mode and (has_open_long or mfirsi_signal.lower() == "long"):
-        action_taken |= start_thread_for_symbol(symbol, args, market_maker, manager, mfirsi_signal, "long")
+        action_taken |= start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "long")
         logging.info(f"[DEBUG] Started long thread for open symbol {symbol}")
     if short_mode and (has_open_short or mfirsi_signal.lower() == "short"):
-        action_taken |= start_thread_for_symbol(symbol, args, market_maker, manager, mfirsi_signal, "short")
+        action_taken |= start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "short")
         logging.info(f"[DEBUG] Started short thread for open symbol {symbol}")
     return action_taken
 
-def start_thread_for_symbol(symbol, args, market_maker, manager, mfirsi_signal, action):
+def start_thread_for_symbol(symbol, args, manager, mfirsi_signal, action):
     global unique_active_symbols
     if action == "long":
         if symbol in long_threads and long_threads[symbol][0].is_alive():
@@ -1056,6 +1440,35 @@ def start_thread_for_symbol(symbol, args, market_maker, manager, mfirsi_signal, 
     thread.start()
     logging.info(f"Started thread for symbol {symbol} with action {action} based on MFIRSI signal.")
     return True
+
+# def start_thread_for_symbol(symbol, args, market_maker, manager, mfirsi_signal, action):
+#     global unique_active_symbols
+#     if action == "long":
+#         if symbol in long_threads and long_threads[symbol][0].is_alive():
+#             logging.info(f"Long thread already running for symbol {symbol}. Skipping.")
+#             return False
+#     elif action == "short":
+#         if symbol in short_threads and short_threads[symbol][0].is_alive():
+#             logging.info(f"Short thread already running for symbol {symbol}. Skipping.")
+#             return False
+#     elif action == "neutral":
+#         logging.info(f"Start thread function hit for {symbol} but signal is {mfirsi_signal}")
+
+#     thread_completed = threading.Event()
+#     thread = threading.Thread(target=run_bot, args=(symbol, args, market_maker, manager, args.account_name, symbols_allowed, latest_rotator_symbols, thread_completed, mfirsi_signal, action))
+
+#     if action == "long":
+#         long_threads[symbol] = (thread, thread_completed)
+#         active_long_symbols.add(symbol)
+#     elif action == "short":
+#         short_threads[symbol] = (thread, thread_completed)
+#         active_short_symbols.add(symbol)
+
+#     active_symbols.add(symbol)
+#     unique_active_symbols.add(symbol)
+#     thread.start()
+#     logging.info(f"Started thread for symbol {symbol} with action {action} based on MFIRSI signal.")
+#     return True
 
 def fetch_updated_symbols(args, manager):
     strategy = args.strategy.lower()
