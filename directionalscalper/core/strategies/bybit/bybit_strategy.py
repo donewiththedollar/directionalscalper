@@ -4821,6 +4821,8 @@ class BybitStrategy(BaseStrategy):
                 symbol,
                 total_equity,
                 current_price,
+                wallet_exposure_limit_long,
+                wallet_exposure_limit_short,
                 max_qty_percent_long,
                 max_qty_percent_short
             )
@@ -13627,13 +13629,13 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"Fetched and stored max leverage for {symbol}: {max_leverage}x")
         return self.symbol_max_leverage[symbol]
 
-    def check_and_manage_positions(self, long_pos_qty, short_pos_qty, symbol, total_equity, current_price, max_qty_percent_long, max_qty_percent_short):
+    def check_and_manage_positions(self, long_pos_qty, short_pos_qty, symbol, total_equity, current_price, wallet_exposure_limit_long, wallet_exposure_limit_short, max_qty_percent_long, max_qty_percent_short):
         try:
             logging.info(f"Checking and managing positions for {symbol}")
 
-            # Calculate the maximum allowed positions based on the total equity
-            max_qty_long = (total_equity * max_qty_percent_long) / current_price
-            max_qty_short = (total_equity * max_qty_percent_short) / current_price
+            # Calculate the maximum allowed positions based on the total equity and wallet exposure limits
+            max_qty_long = (total_equity * wallet_exposure_limit_long) / current_price
+            max_qty_short = (total_equity * wallet_exposure_limit_short) / current_price
 
             # Calculate the position exposure percentages
             long_pos_exposure_percent = (long_pos_qty * current_price / total_equity) * 100
@@ -13648,6 +13650,8 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"Configuration for {symbol}:")
             logging.info(f"  - Total equity: {total_equity:.2f} USD")
             logging.info(f"  - Current price: {current_price:.8f} USD")
+            logging.info(f"  - Wallet exposure limit for long: {wallet_exposure_limit_long * 100:.2f}%")
+            logging.info(f"  - Wallet exposure limit for short: {wallet_exposure_limit_short * 100:.2f}%")
             logging.info(f"  - Max quantity percentage for long: {max_qty_percent_long}%")
             logging.info(f"  - Max quantity percentage for short: {max_qty_percent_short}%")
             logging.info(f"Maximum allowed positions for {symbol}:")
@@ -13678,6 +13682,58 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.error(f"Exception caught in check and manage positions: {e}")
             logging.info("Traceback:", traceback.format_exc())
+
+    # def check_and_manage_positions(self, long_pos_qty, short_pos_qty, symbol, total_equity, current_price, max_qty_percent_long, max_qty_percent_short):
+    #     try:
+    #         logging.info(f"Checking and managing positions for {symbol}")
+
+    #         # Calculate the maximum allowed positions based on the total equity
+    #         max_qty_long = (total_equity * max_qty_percent_long) / current_price
+    #         max_qty_short = (total_equity * max_qty_percent_short) / current_price
+
+    #         # Calculate the position exposure percentages
+    #         long_pos_exposure_percent = (long_pos_qty * current_price / total_equity) * 100
+    #         short_pos_exposure_percent = (short_pos_qty * current_price / total_equity) * 100
+
+    #         # Log the position utilization and the actual utilization based on total equity
+    #         logging.info(f"Position utilization for {symbol}:")
+    #         logging.info(f"  - Long position exposure: {long_pos_exposure_percent:.2f}% of total equity")
+    #         logging.info(f"  - Short position exposure: {short_pos_exposure_percent:.2f}% of total equity")
+
+    #         # Log detailed information about the configuration parameters and maximum allowed positions
+    #         logging.info(f"Configuration for {symbol}:")
+    #         logging.info(f"  - Total equity: {total_equity:.2f} USD")
+    #         logging.info(f"  - Current price: {current_price:.8f} USD")
+    #         logging.info(f"  - Max quantity percentage for long: {max_qty_percent_long}%")
+    #         logging.info(f"  - Max quantity percentage for short: {max_qty_percent_short}%")
+    #         logging.info(f"Maximum allowed positions for {symbol}:")
+    #         logging.info(f"  - Max quantity for long: {max_qty_long:.4f} units")
+    #         logging.info(f"  - Max quantity for short: {max_qty_short:.4f} units")
+    #         logging.info(f"{symbol} Long position quantity: {long_pos_qty}")
+    #         logging.info(f"{symbol} Short position quantity: {short_pos_qty}")
+
+    #         # Check if current positions exceed the maximum allowed quantities
+    #         if long_pos_exposure_percent > max_qty_percent_long:
+    #             logging.info(f"[{symbol}] Long position exposure exceeds the maximum allowed. Current long position exposure: {long_pos_exposure_percent:.2f}%, Max allowed: {max_qty_percent_long}%. Clearing long grid.")
+    #             self.clear_grid(symbol, 'buy')
+    #             self.active_grids.discard(symbol)
+    #             self.max_qty_reached_symbol_long.add(symbol)
+    #         elif symbol in self.max_qty_reached_symbol_long and long_pos_exposure_percent <= max_qty_percent_long:
+    #             logging.info(f"[{symbol}] Long position exposure is below the maximum allowed. Removing from max_qty_reached_symbol_long. Current long position exposure: {long_pos_exposure_percent:.2f}%, Max allowed: {max_qty_percent_long}%.")
+    #             self.max_qty_reached_symbol_long.remove(symbol)
+
+    #         if short_pos_exposure_percent > max_qty_percent_short:
+    #             logging.info(f"[{symbol}] Short position exposure exceeds the maximum allowed. Current short position exposure: {short_pos_exposure_percent:.2f}%, Max allowed: {max_qty_percent_short}%. Clearing short grid.")
+    #             self.clear_grid(symbol, 'sell')
+    #             self.active_grids.discard(symbol)
+    #             self.max_qty_reached_symbol_short.add(symbol)
+    #         elif symbol in self.max_qty_reached_symbol_short and short_pos_exposure_percent <= max_qty_percent_short:
+    #             logging.info(f"[{symbol}] Short position exposure is below the maximum allowed. Removing from max_qty_reached_symbol_short. Current short position exposure: {short_pos_exposure_percent:.2f}%, Max allowed: {max_qty_percent_short}%.")
+    #             self.max_qty_reached_symbol_short.remove(symbol)
+
+    #     except Exception as e:
+    #         logging.error(f"Exception caught in check and manage positions: {e}")
+    #         logging.info("Traceback:", traceback.format_exc())
 
     def calculate_total_amount_notional_ls(self, symbol, total_equity, best_ask_price, best_bid_price, 
                                             wallet_exposure_limit_long, wallet_exposure_limit_short, 

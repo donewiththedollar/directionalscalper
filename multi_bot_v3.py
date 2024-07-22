@@ -535,7 +535,6 @@ def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
     account_file_path = Path('configs/account.json')
     config = load_config(config_file_path, account_file_path)
 
-    market_maker = DirectionalMarketMaker(config, args.exchange, args.account_name)
     market_maker.manager = manager
 
     long_mode = config.bot.linear_grid['long_mode']
