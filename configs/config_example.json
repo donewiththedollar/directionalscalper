@@ -78,9 +78,9 @@
     },
     "exchanges": [
         {
-            "name": "bybit",
-            "account_name": "account_1",
-            "symbols_allowed": 20
+          "name": "bybit",
+          "account_name": "account_1",
+          "symbols_allowed": 10
         },
         {
             "name": "bybit_spot",
@@ -91,7 +91,12 @@
             "name": "bybit_unified",
             "account_name": "account_3",
             "symbols_allowed": 5
-        }
+        },
+        {
+          "name": "bitget",
+          "account_name": "account_4",
+          "symbols_allowed": 5
+      }
     ],
     "logger": {
         "level": "info"
