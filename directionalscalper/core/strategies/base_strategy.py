@@ -78,9 +78,6 @@ class BaseStrategy:
         self.auto_reduce_start_pct = self.config.auto_reduce_start_pct
         self.auto_reduce_maxloss_pct = self.config.auto_reduce_maxloss_pct
         self.max_pos_balance_pct = self.config.max_pos_balance_pct
-        self.wallet_exposure_limit = self.config.wallet_exposure_limit
-        self.user_defined_leverage_long = self.config.user_defined_leverage_long
-        self.user_defined_leverage_short = self.config.user_defined_leverage_short
         self.last_entries_cancel_time = 0
         self.MIN_RISK_LEVEL = 0.001
         self.MAX_RISK_LEVEL = 10
@@ -89,7 +86,6 @@ class BaseStrategy:
         self.auto_reduce_orders = {}
         self.auto_reduce_order_ids = {}
         self.previous_levels = {}
-        self.auto_leverage_upscale = self.config.auto_leverage_upscale
         self.max_long_trade_qty_per_symbol = {}
         self.max_short_trade_qty_per_symbol = {}
         self.initial_max_long_trade_qty_per_symbol = {}
@@ -1322,30 +1318,30 @@ class BaseStrategy:
         with open(os.path.join(data_directory, "open_symbols_count.json"), "w") as f:
             json.dump({"count": open_symbols_count}, f)
 
-    def manage_liquidation_risk(self, long_pos_price, short_pos_price, long_liq_price, short_liq_price, symbol, amount):
-        # Create some thresholds for when to act
-        long_threshold = self.config.long_liq_pct
-        short_threshold = self.config.short_liq_pct
+    # def manage_liquidation_risk(self, long_pos_price, short_pos_price, long_liq_price, short_liq_price, symbol, amount):
+    #     # Create some thresholds for when to act
+    #     long_threshold = self.config.long_liq_pct
+    #     short_threshold = self.config.short_liq_pct
 
-        # Let's assume you have methods to get the best bid and ask prices
-        best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
-        best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
+    #     # Let's assume you have methods to get the best bid and ask prices
+    #     best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+    #     best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
 
-        # Check if the long position is close to being liquidated
-        if long_pos_price is not None and long_liq_price is not None:
-            long_diff = abs(long_pos_price - long_liq_price) / long_pos_price
-            if long_diff < long_threshold:
-                # Place a post-only limit order to offset the risk
-                self.postonly_limit_order_bybit(symbol, "buy", amount, best_bid_price, positionIdx=1, reduceOnly=False)
-                logging.info(f"Placed a post-only limit order to offset long position risk on {symbol} at {best_bid_price}")
+    #     # Check if the long position is close to being liquidated
+    #     if long_pos_price is not None and long_liq_price is not None:
+    #         long_diff = abs(long_pos_price - long_liq_price) / long_pos_price
+    #         if long_diff < long_threshold:
+    #             # Place a post-only limit order to offset the risk
+    #             self.postonly_limit_order_bybit(symbol, "buy", amount, best_bid_price, positionIdx=1, reduceOnly=False)
+    #             logging.info(f"Placed a post-only limit order to offset long position risk on {symbol} at {best_bid_price}")
 
-        # Check if the short position is close to being liquidated
-        if short_pos_price is not None and short_liq_price is not None:
-            short_diff = abs(short_pos_price - short_liq_price) / short_pos_price
-            if short_diff < short_threshold:
-                # Place a post-only limit order to offset the risk
-                self.postonly_limit_order_bybit(symbol, "sell", amount, best_ask_price, positionIdx=2, reduceOnly=False)
-                logging.info(f"Placed a post-only limit order to offset short position risk on {symbol} at {best_ask_price}")
+    #     # Check if the short position is close to being liquidated
+    #     if short_pos_price is not None and short_liq_price is not None:
+    #         short_diff = abs(short_pos_price - short_liq_price) / short_pos_price
+    #         if short_diff < short_threshold:
+    #             # Place a post-only limit order to offset the risk
+    #             self.postonly_limit_order_bybit(symbol, "sell", amount, best_ask_price, positionIdx=2, reduceOnly=False)
+    #             logging.info(f"Placed a post-only limit order to offset short position risk on {symbol} at {best_ask_price}")
 
     def get_active_order_count(self, symbol):
         try:
@@ -5514,81 +5510,6 @@ class BaseStrategy:
             logging.info(f"Decreasing position. New qty: {new_qty}, New leverage: {new_leverage}")
 
         return new_qty, new_leverage
-
-    def set_position_leverage_long_bybit(self, symbol, long_pos_qty, total_equity, best_ask_price, max_leverage, auto_leverage_upscale):
-        # Ensure a lock exists for this symbol
-        if symbol not in self.symbol_locks:
-            self.symbol_locks[symbol] = threading.Lock()
-
-        with self.symbol_locks[symbol]:
-            if symbol not in self.initial_max_long_trade_qty_per_symbol:
-                logging.warning(f"Symbol {symbol} not initialized in initial_max_long_trade_qty_per_symbol. Initializing now...")
-                self.initial_max_long_trade_qty_per_symbol[symbol] = self.calc_max_trade_qty(symbol, total_equity, best_ask_price, max_leverage)
-
-            if symbol not in self.long_pos_leverage_per_symbol:
-                logging.warning(f"Symbol {symbol} not initialized in long_pos_leverage_per_symbol. Initializing now...")
-                self.long_pos_leverage_per_symbol[symbol] = 0.001  # starting leverage
-                logging.info(f"Long leverage set to {self.long_pos_leverage_per_symbol[symbol]} for {symbol}")
-
-            if auto_leverage_upscale:
-                if long_pos_qty >= self.initial_max_long_trade_qty_per_symbol[symbol] and self.long_pos_leverage_per_symbol[symbol] < self.MAX_LEVERAGE:
-                    self.max_long_trade_qty_per_symbol[symbol], self.long_pos_leverage_per_symbol[symbol] = self.adjust_leverage_and_qty(
-                        symbol,
-                        long_pos_qty,
-                        self.long_pos_leverage_per_symbol[symbol],
-                        max_leverage,
-                        increase=True
-                    )
-                    logging.info(f"Long leverage for {symbol} temporarily increased to {self.long_pos_leverage_per_symbol[symbol]}x")
-
-                elif long_pos_qty < (self.max_long_trade_qty_per_symbol.get(symbol, 0) / 2) and self.long_pos_leverage_per_symbol.get(symbol, 0) > 1.0:
-                    self.max_long_trade_qty_per_symbol[symbol], self.long_pos_leverage_per_symbol[symbol] = self.adjust_leverage_and_qty(
-                        symbol,
-                        long_pos_qty,
-                        self.long_pos_leverage_per_symbol[symbol],
-                        max_leverage,
-                        increase=False
-                    )
-                    logging.info(f"Long leverage for {symbol} returned to normal {self.long_pos_leverage_per_symbol[symbol]}x")
-            else:
-                logging.info(f"Auto leverage upscale is disabled for {symbol}.")
-
-    def set_position_leverage_short_bybit(self, symbol, short_pos_qty, total_equity, best_ask_price, max_leverage, auto_leverage_upscale):
-        # Ensure a lock exists for this symbol
-        if symbol not in self.symbol_locks:
-            self.symbol_locks[symbol] = threading.Lock()
-
-        with self.symbol_locks[symbol]:
-            if symbol not in self.initial_max_short_trade_qty_per_symbol:
-                logging.warning(f"Symbol {symbol} not initialized in initial_max_short_trade_qty_per_symbol. Initializing now...")
-                self.initial_max_short_trade_qty_per_symbol[symbol] = self.calc_max_trade_qty(symbol, total_equity, best_ask_price, max_leverage)
-
-            if symbol not in self.short_pos_leverage_per_symbol:
-                logging.warning(f"Symbol {symbol} not initialized in short_pos_leverage_per_symbol. Initializing now...")
-                self.short_pos_leverage_per_symbol[symbol] = 0.001  # starting leverage
-
-            if auto_leverage_upscale:
-                if short_pos_qty >= self.initial_max_short_trade_qty_per_symbol[symbol] and self.short_pos_leverage_per_symbol[symbol] < self.MAX_LEVERAGE:
-                    self.max_short_trade_qty_per_symbol[symbol], self.short_pos_leverage_per_symbol[symbol] = self.adjust_leverage_and_qty(
-                        symbol,
-                        short_pos_qty,
-                        self.short_pos_leverage_per_symbol[symbol],
-                        max_leverage,
-                        increase=True
-                    )
-                    logging.info(f"Short leverage for {symbol} temporarily increased to {self.short_pos_leverage_per_symbol[symbol]}x")
-
-                elif short_pos_qty < (self.max_short_trade_qty_per_symbol.get(symbol, 0) / 2) and self.short_pos_leverage_per_symbol.get(symbol, 0) > 1.0:
-                    self.max_short_trade_qty_per_symbol[symbol], self.short_pos_leverage_per_symbol[symbol] = self.adjust_leverage_and_qty(
-                        symbol,
-                        short_pos_qty,
-                        self.short_pos_leverage_per_symbol[symbol],
-                        max_leverage,
-                        increase=False
-                    )
-                    logging.info(f"Short leverage for {symbol} returned to normal {self.short_pos_leverage_per_symbol[symbol]}x")
-            else:
-                logging.info(f"Auto leverage upscale is disabled for {symbol}.")
 
 # Bybit position leverage management
 

@@ -2,9 +2,6 @@ class ConfigInitializer:
     @staticmethod
     def initialize_config_attributes(strategy_instance, config):
         try:
-            strategy_instance.wallet_exposure_limit = config.wallet_exposure_limit
-            strategy_instance.user_defined_leverage_long = config.user_defined_leverage_long
-            strategy_instance.user_defined_leverage_short = config.user_defined_leverage_short
             strategy_instance.levels = config.linear_grid['levels']
             strategy_instance.strength = config.linear_grid['strength']
             strategy_instance.outer_price_distance = config.linear_grid['outer_price_distance']
@@ -34,6 +31,7 @@ class ConfigInitializer:
             strategy_instance.max_outer_price_distance = config.linear_grid['max_outer_price_distance']
             strategy_instance.graceful_stop_long = config.linear_grid['graceful_stop_long']
             strategy_instance.graceful_stop_short = config.linear_grid['graceful_stop_short']
+            strategy_instance.entry_signal_type = config.linear_grid['entry_signal_type']
             strategy_instance.additional_entries_from_signal = config.linear_grid['additional_entries_from_signal']
             strategy_instance.upnl_threshold_pct = config.upnl_threshold_pct
             strategy_instance.volume_check = config.volume_check
@@ -54,6 +52,5 @@ class ConfigInitializer:
             strategy_instance.auto_reduce_wallet_exposure_pct = config.auto_reduce_wallet_exposure_pct
             strategy_instance.percentile_auto_reduce_enabled = config.percentile_auto_reduce_enabled
             strategy_instance.max_pos_balance_pct = config.max_pos_balance_pct
-            strategy_instance.auto_leverage_upscale = config.auto_leverage_upscale
         except AttributeError as e:
             strategy_instance.logger.error(f"Failed to initialize attributes from config: {e}")

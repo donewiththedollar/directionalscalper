@@ -38,9 +38,6 @@ class Bot(BaseModel):
     volume_check: bool = True
     min_distance: float = 0.15
     min_volume: int = 15000
-    wallet_exposure_limit: float = 0.0001
-    user_defined_leverage_long: float = 0
-    user_defined_leverage_short: float = 0
     upnl_profit_pct: float = 0.003
     max_upnl_profit_pct: float = 0.004
     stoploss_enabled: bool = False
@@ -58,11 +55,8 @@ class Bot(BaseModel):
     entry_during_autoreduce: bool = True
     hedge_ratio: float = 0.26
     hedge_price_difference_threshold: float = 0.15
-    auto_leverage_upscale: bool = False
     min_qty_threshold: float = 0
     symbol: str
-    long_liq_pct: float = 0.05
-    short_liq_pct: float = 0.05
     MaxAbsFundingRate: float = 0.0002
     wallet_exposure: float = 1.00
     test_orders_enabled: bool = False
@@ -108,18 +102,6 @@ class Bot(BaseModel):
     def minimum_min_distance(cls, v):
         if v < 0.0:
             raise ValueError("min_distance must be greater than 0")
-        return v
-
-    @validator("long_liq_pct")
-    def minimum_long_liq_pct(cls, v):
-        if v < 0.0:
-            raise ValueError("long_liq_pct must be greater than 0")
-        return v
-
-    @validator("short_liq_pct")
-    def minimum_short_liq_pct(cls, v):
-        if v < 0.0:
-            raise ValueError("short_liq_pct must be greater than 0")
         return v
 
     @validator('test_orders_enabled')
@@ -192,12 +174,6 @@ class Bot(BaseModel):
     def validate_max_pos_balance_pct(cls, v):
         if v < 0.0:
             raise ValueError("max_pos_balance_pct must be between 0.0 and 1.0")
-        return v
-
-    @validator('auto_leverage_upscale')
-    def check_auto_leverage_upscale_is_bool(cls, v):
-        if not isinstance(v, bool):
-            raise ValueError("auto_leverage_upscale must be a boolean")
         return v
 
     @validator('volume_check')
