@@ -92,7 +92,7 @@ def standardize_symbol(symbol):
 def get_available_strategies():
     return [
         'qsgridob',
-        'qsgridoblsignal',
+        #'qsgridoblsignal',
         # 'qstrendobdynamictp',
         # 'qsgridinstantsignal',
         # 'qsgridobtight',
@@ -217,9 +217,9 @@ class DirectionalMarketMaker:
             'qstrendspot': bybit_scalping.BybitQuickScalpTrendSpot,
             'qsgridinstantsignal': instant_signals.BybitDynamicGridSpanOBSRStaticIS,
             'qsgriddynmaicgridspaninstant': instant_signals.BybitDynamicGridSpanIS,
-            'qsgridob': instant_signals.BybitDynamicGridSpanOBLevels,
+            #'qsgridob': instant_signals.BybitDynamicGridSpanOBLevels,
             'qstrendobdynamictp': instant_signals.BybitQuickScalpTrendDynamicTP,
-            'qsgridoblsignal': instant_signals.BybitDynamicGridSpanOBLevelsLSignal
+            'qsgridob': instant_signals.BybitDynamicGridSpanOBLevelsLSignal
         }
 
         strategy_class = strategy_classes.get(strategy_name.lower())
