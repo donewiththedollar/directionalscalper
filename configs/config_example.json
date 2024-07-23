@@ -37,6 +37,7 @@
         "dashboard_enabled": false,
         "shared_data_path": "data/",
         "linear_grid": {
+            "entry_signal_type": "lorentzian",
             "additional_entries_from_signal": true,
             "graceful_stop_long": false,
             "graceful_stop_short": false,
