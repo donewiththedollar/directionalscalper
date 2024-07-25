@@ -528,7 +528,6 @@ def bybit_auto_rotation_spot(args, market_maker, manager, symbols_allowed):
             logging.debug(traceback.format_exc())
         time.sleep(1)
 
-
 def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
     global latest_rotator_symbols, long_threads, short_threads, active_symbols, active_long_symbols, active_short_symbols, last_rotator_update_time, unique_active_symbols
 
@@ -551,10 +550,40 @@ def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
     short_mode = config.bot.linear_grid['short_mode']
     config_graceful_stop_long = config.bot.linear_grid.get('graceful_stop_long', False)
     config_graceful_stop_short = config.bot.linear_grid.get('graceful_stop_short', False)
+    config_auto_graceful_stop = config.bot.linear_grid.get('auto_graceful_stop', False)
 
     def fetch_open_positions():
         with general_rate_limiter:
             return getattr(manager.exchange, f"get_all_open_positions_{args.exchange.lower()}")()
+
+    def process_futures(futures):
+        for future in as_completed(futures):
+            try:
+                future.result()
+            except Exception as e:
+                logging.error(f"Exception in thread: {e}")
+                logging.debug(traceback.format_exc())
+
+    def start_threads_for_open_positions(open_position_data):
+        open_position_futures = []
+        for pos in open_position_data:
+            symbol = standardize_symbol(pos['symbol'])
+            side = pos['side'].lower()
+            if side == 'long' and symbol not in long_threads:
+                with general_rate_limiter:
+                    signal = market_maker.get_signal(symbol)
+                open_position_futures.append(trading_executor.submit(start_thread_for_open_symbol, symbol, args, manager, signal, True, False, long_mode, short_mode))
+                active_long_symbols.add(symbol)
+                unique_active_symbols.add(symbol)
+                logging.info(f"Started long thread for open symbol {symbol}.")
+            elif side == 'short' and symbol not in short_threads:
+                with general_rate_limiter:
+                    signal = market_maker.get_signal(symbol)
+                open_position_futures.append(trading_executor.submit(start_thread_for_open_symbol, symbol, args, manager, signal, False, True, long_mode, short_mode))
+                active_short_symbols.add(symbol)
+                unique_active_symbols.add(symbol)
+                logging.info(f"Started short thread for open symbol {symbol}.")
+        process_futures(open_position_futures)
 
     # Initialize graceful stop flags based on current positions
     open_position_data = fetch_open_positions()
@@ -568,14 +597,10 @@ def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
     logging.info(f"Short mode: {short_mode}")
     logging.info(f"Initial Graceful stop long: {graceful_stop_long}")
     logging.info(f"Initial Graceful stop short: {graceful_stop_short}")
+    logging.info(f"Auto graceful stop: {config_auto_graceful_stop}")
 
-    def process_futures(futures):
-        for future in as_completed(futures):
-            try:
-                future.result()
-            except Exception as e:
-                logging.error(f"Exception in thread: {e}")
-                logging.debug(traceback.format_exc())
+    # Start threads for open positions at startup
+    start_threads_for_open_positions(open_position_data)
 
     processed_symbols = set()
 
@@ -593,23 +618,24 @@ def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
             update_active_symbols(open_position_symbols)
             unique_active_symbols = active_long_symbols.union(active_short_symbols)
 
-            if (current_long_positions >= symbols_allowed or len(unique_active_symbols) >= symbols_allowed) and not graceful_stop_long:
-                graceful_stop_long = True
-                logging.info(f"GS Auto Check: Automatically enabled graceful stop for long positions. Current long positions: {current_long_positions}, Unique active symbols: {len(unique_active_symbols)}")
-            elif current_long_positions < symbols_allowed and len(unique_active_symbols) < symbols_allowed and graceful_stop_long:
-                graceful_stop_long = config_graceful_stop_long
-                logging.info(f"GS Auto Check: Reverting to config value for graceful stop long. Current long positions: {current_long_positions}, Unique active symbols: {len(unique_active_symbols)}, Config value: {config_graceful_stop_long}")
-            else:
-                logging.info(f"GS Auto Check: Current long positions: {current_long_positions}, Unique active symbols: {len(unique_active_symbols)}. Graceful stop long: {graceful_stop_long}")
+            if config_auto_graceful_stop:
+                if (current_long_positions >= symbols_allowed or len(unique_active_symbols) >= symbols_allowed) and not graceful_stop_long:
+                    graceful_stop_long = True
+                    logging.info(f"GS Auto Check: Automatically enabled graceful stop for long positions. Current long positions: {current_long_positions}, Unique active symbols: {len(unique_active_symbols)}")
+                elif current_long_positions < symbols_allowed and len(unique_active_symbols) < symbols_allowed and graceful_stop_long:
+                    graceful_stop_long = config_graceful_stop_long
+                    logging.info(f"GS Auto Check: Reverting to config value for graceful stop long. Current long positions: {current_long_positions}, Unique active symbols: {len(unique_active_symbols)}, Config value: {config_graceful_stop_long}")
+                else:
+                    logging.info(f"GS Auto Check: Current long positions: {current_long_positions}, Unique active symbols: {len(unique_active_symbols)}. Graceful stop long: {graceful_stop_long}")
 
-            if (current_short_positions >= symbols_allowed or len(unique_active_symbols) >= symbols_allowed) and not graceful_stop_short:
-                graceful_stop_short = True
-                logging.info(f"GS Auto Check: Automatically enabled graceful stop for short positions. Current short positions: {current_short_positions}, Unique active symbols: {len(unique_active_symbols)}")
-            elif current_short_positions < symbols_allowed and len(unique_active_symbols) < symbols_allowed and graceful_stop_short:
-                graceful_stop_short = config_graceful_stop_short
-                logging.info(f"GS Auto Check: Reverting to config value for graceful stop short. Current short positions: {current_short_positions}, Unique active symbols: {len(unique_active_symbols)}, Config value: {config_graceful_stop_short}")
-            else:
-                logging.info(f"GS Auto Check: Current short positions: {current_short_positions}, Unique active symbols: {len(unique_active_symbols)}. Graceful stop short: {graceful_stop_short}")
+                if (current_short_positions >= symbols_allowed or len(unique_active_symbols) >= symbols_allowed) and not graceful_stop_short:
+                    graceful_stop_short = True
+                    logging.info(f"GS Auto Check: Automatically enabled graceful stop for short positions. Current short positions: {current_short_positions}, Unique active symbols: {len(unique_active_symbols)}")
+                elif current_short_positions < symbols_allowed and len(unique_active_symbols) < symbols_allowed and graceful_stop_short:
+                    graceful_stop_short = config_graceful_stop_short
+                    logging.info(f"GS Auto Check: Reverting to config value for graceful stop short. Current short positions: {current_short_positions}, Unique active symbols: {len(unique_active_symbols)}, Config value: {config_graceful_stop_short}")
+                else:
+                    logging.info(f"GS Auto Check: Current short positions: {current_short_positions}, Unique active symbols: {len(unique_active_symbols)}. Graceful stop short: {graceful_stop_short}")
 
             if not latest_rotator_symbols or current_time - last_rotator_update_time >= 60:
                 with general_rate_limiter:
@@ -718,6 +744,7 @@ def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
             logging.info(f"Exception caught in bybit_auto_rotation: {str(e)}")
             logging.info(traceback.format_exc())
         time.sleep(1)
+
 
 def process_signal_for_open_position(symbol, args, market_maker, manager, symbols_allowed, open_position_data, long_mode, short_mode, graceful_stop_long, graceful_stop_short):
     market_maker.manager = manager
