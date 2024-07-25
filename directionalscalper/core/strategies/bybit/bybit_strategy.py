@@ -5437,7 +5437,8 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"Symbols allowed: {symbols_allowed}")
 
             if additional_entries_from_signal:
-                if (length_of_open_symbols_long <= symbols_allowed or length_of_open_symbols_short <= symbols_allowed) and symbol in open_symbols:
+                #if (length_of_open_symbols_long <= symbols_allowed or length_of_open_symbols_short <= symbols_allowed) and symbol in open_symbols:
+                if symbol in open_symbols:
                     logging.info(f"Allowed symbol: {symbol}")
 
                     fresh_signal = self.generate_l_signals(symbol)
@@ -5488,7 +5489,7 @@ class BybitStrategy(BaseStrategy):
                                 else:
                                     logging.info(f"[{symbol}] Current price {current_price} is above long position price {long_pos_price}. Not adding to long position.")
                             else:
-                                if fresh_signal.lower() == "long" and symbol not in self.max_qty_reached_symbol_long:
+                                if fresh_signal.lower() == "long" and symbol not in self.max_qty_reached_symbol_long and not graceful_stop_long:
                                     logging.info(f"[{symbol}] Creating new long position based on MFIRSI long signal")
                                     self.clear_grid(symbol, 'buy')
                                     grid_levels_long[0] = best_bid_price
@@ -5536,7 +5537,7 @@ class BybitStrategy(BaseStrategy):
                                 else:
                                     logging.info(f"[{symbol}] Current price {current_price} is below short position price {short_pos_price}. Not adding to short position.")
                             else:
-                                if fresh_signal.lower() == "short" and symbol not in self.max_qty_reached_symbol_short:
+                                if fresh_signal.lower() == "short" and symbol not in self.max_qty_reached_symbol_short and not graceful_stop_short:
                                     logging.info(f"[{symbol}] Creating new short position based on MFIRSI short signal")
                                     self.clear_grid(symbol, 'sell')
                                     grid_levels_short[0] = best_ask_price
