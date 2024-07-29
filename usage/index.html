@@ -904,23 +904,23 @@
 <h3 id="easy-update-configuration-file-with-latest-parameters">Easy update configuration file with latest parameters</h3>
 <pre><code>pip3.11 install -r requirements.txt &amp;&amp; python3.11 update_config.py --config configs/config.json &amp;&amp; mv configs/config.json.new configs/config.json
 </code></pre>
-<pre><code>python3.11 multi_bot_signalscreener_multicore_l.py --exchange bybit --account_name account_1 --strategy qsgridoblsignal --config configs/config.json
+<pre><code>python3.11 multi_bot_v4.py --exchange bybit --account_name account_1 --strategy qsgridob --config configs/config.json
 </code></pre>
 <h3 id="displaying-the-menu-and-selecting-a-strategy">Displaying the Menu and Selecting a Strategy</h3>
 <p>To display the menu and select a strategy, use the following command:</p>
-<pre><code>python3.11 multi_bot_signalscreener.py --config configs/config.json
+<pre><code>python3.11 multi_bot_v4.py --config configs/config.json
 </code></pre>
 <p>or</p>
-<pre><code>python3.11 multi_bot.py --config configs/config.json
+<pre><code>python3.11 multi_bot_v4.py --config configs/config.json
 </code></pre>
 <h3 id="running-the-bot-with-command-line-parameters">Running the Bot with Command Line Parameters</h3>
 <p>You can also run the bot directly with specific command-line parameters. Below are examples of different strategies you can use:</p>
 <h4 id="multi-bot-auto-symbol-rotator-strategy">Multi-Bot Auto Symbol Rotator Strategy</h4>
 <p>To run the multi-bot auto symbol rotator strategy, use the following command:</p>
-<pre><code>python3.11 multi_bot_signalscreener_multicore.py --exchange bybit --account_name account_1 --strategy qsgridob --config configs/config.json
+<pre><code>python3.11 multi_bot_v4.py --exchange bybit --account_name account_1 --strategy qsgridob --config configs/config.json
 </code></pre>
 <h4 id="old-single-coin-strategy">Old Single Coin Strategy</h4>
-<p>To run the old single coin strategy, use the following command:</p>
+<p>To run the old single coin strategy, use the following command: (likely very outdated, but can be updated by anyone or per request)</p>
 <pre><code>python3.11 bot.py --exchange bybit --symbol DOGEUSDT --strategy qstrendob --config configs/config.json
 </code></pre>
 <h2 id="command-line-parameters">Command Line Parameters</h2>
@@ -935,7 +935,7 @@
 <ol>
 <li><strong>Running the Multi-Bot Auto Symbol Rotator Strategy for Bybit:</strong></li>
 </ol>
-<p><code>python3.11 multi_bot_signalscreener_multicore.py --exchange bybit --account_name account_1 --strategy qsgridob --config configs/config.json</code></p>
+<p><code>python3.11 multi_bot_v4.py --exchange bybit --account_name account_1 --strategy qsgridob --config configs/config.json</code></p>
 <ol>
 <li><strong>Running the Old Single Coin Strategy for DOGEUSDT on Bybit:</strong></li>
 </ol>
