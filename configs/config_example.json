@@ -7,7 +7,6 @@
     },
     "bot": {
         "bot_name": "your_bot_name",
-        "symbol": "BTCUSDT",
         "volume_check": false,
         "min_distance": 0.15,
         "min_volume": 10000,
@@ -37,6 +36,7 @@
         "dashboard_enabled": false,
         "shared_data_path": "data/",
         "linear_grid": {
+            "auto_graceful_stop": "true",
             "entry_signal_type": "lorentzian",
             "additional_entries_from_signal": true,
             "graceful_stop_long": false,

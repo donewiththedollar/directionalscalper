@@ -29,6 +29,75 @@ from rate_limit import RateLimit
 
 logging = Logger(logger_name="BaseStrategy", filename="BaseStrategy.log", stream=True)
 
+class OrderBookAnalyzer:
+    def __init__(self, exchange, symbol):
+        self.exchange = exchange
+        self.symbol = symbol
+
+    def get_order_book(self):
+        try:
+            order_book = self.exchange.fetch_order_book(self.symbol)
+            return order_book
+        except Exception as e:
+            logging.error(f"Error fetching order book for {self.symbol}: {e}")
+            return None
+
+    def get_best_prices(self):
+        order_book = self.get_order_book()
+        if order_book:
+            best_bid_price = order_book['bids'][0][0] if order_book['bids'] else None
+            best_ask_price = order_book['asks'][0][0] if order_book['asks'] else None
+            return best_bid_price, best_ask_price
+        return None, None
+
+    def calculate_average_prices(self, top_n=5):
+        order_book = self.get_order_book()
+        if order_book:
+            top_asks = order_book['asks'][:top_n]
+            top_bids = order_book['bids'][:top_n]
+            avg_top_asks = sum([ask[0] for ask in top_asks]) / len(top_asks) if top_asks else None
+            avg_top_bids = sum([bid[0] for bid in top_bids]) / len(top_bids) if top_bids else None
+            return avg_top_asks, avg_top_bids
+        return None, None
+
+    def identify_walls(self, order_book, side, threshold=0.5):
+        """ Identify buy or sell walls based on a volume threshold """
+        walls = []
+        if side == "buy":
+            orders = order_book['bids']
+        elif side == "sell":
+            orders = order_book['asks']
+        else:
+            logging.error("Invalid side specified for identifying walls. Choose 'buy' or 'sell'.")
+            return walls
+
+        total_volume = sum([order[1] for order in orders])
+        cumulative_volume = 0
+
+        for order in orders:
+            price, volume = order
+            cumulative_volume += volume
+            if cumulative_volume / total_volume >= threshold:
+                walls.append(price)
+                break
+
+        return walls
+
+    def get_order_book_imbalance(self):
+        order_book = self.get_order_book()
+        if not order_book:
+            return None
+
+        total_bids = sum([bid[1] for bid in order_book['bids']])
+        total_asks = sum([ask[1] for ask in order_book['asks']])
+
+        if total_bids > total_asks * 1.5:
+            return "buy_wall"
+        elif total_asks > total_bids * 1.5:
+            return "sell_wall"
+        else:
+            return "neutral"
+        
 class BaseStrategy:
     initialized_symbols = set()
     initialized_symbols_lock = threading.Lock()
@@ -37,7 +106,7 @@ class BaseStrategy:
         self.exchange = exchange
         self.config = config
         self.manager = manager
-        self.symbol = config.symbol
+        # self.symbol = config.symbol
         self.symbols_allowed = symbols_allowed
         self.order_timestamps = {}
         self.entry_order_ids = {}
@@ -564,11 +633,11 @@ class BaseStrategy:
 
         raise Exception("Failed to calculate maximum trade quantity after maximum retries.")
 
-    def calc_max_trade_qty_multi(self, total_equity, best_ask_price, max_leverage, max_retries=5, retry_delay=5):
+    def calc_max_trade_qty_multi(self, symbol, total_equity, best_ask_price, max_leverage, max_retries=5, retry_delay=5):
         wallet_exposure = self.config.wallet_exposure
         for i in range(max_retries):
             try:
-                market_data = self.exchange.get_market_data_bybit(self.symbol)
+                market_data = self.exchange.get_market_data_bybit(symbol)
                 max_trade_qty = round(
                     (float(total_equity) * wallet_exposure / float(best_ask_price))
                     / (100 / max_leverage),
@@ -715,8 +784,8 @@ class BaseStrategy:
     def get_5m_moving_averages(self, symbol):
         return self.manager.get_5m_moving_averages(symbol)
 
-    def get_positions_bybit(self):
-        position_data = self.exchange.get_positions_bybit(self.symbol)
+    def get_positions_bybit(self, symbol):
+        position_data = self.exchange.get_positions_bybit(symbol)
         return position_data
 
     def calculate_short_take_profit_bybit(self, short_pos_price, symbol):
@@ -976,8 +1045,8 @@ class BaseStrategy:
         should_long = best_bid_price < ma_3_high
         return should_short, should_long
 
-    def get_5m_averages(self):
-        ma_values = self.manager.get_5m_moving_averages(self.symbol)
+    def get_5m_averages(self, symbol):
+        ma_values = self.manager.get_5m_moving_averages(symbol)
         if ma_values is not None:
             high_value = ma_values["MA_3_H"]
             low_value = ma_values["MA_3_L"]
@@ -1708,12 +1777,12 @@ class BaseStrategy:
         return amount
 
     def play_the_spread_entry_and_tp(self, symbol, open_orders, long_dynamic_amount, short_dynamic_amount, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price):
-        order_book = self.exchange.get_orderbook(symbol)
+        analyzer = OrderBookAnalyzer(self.exchange, symbol)
 
-        imbalance = self.get_order_book_imbalance(symbol)
+        imbalance = analyzer.get_order_book_imbalance()
 
-        best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
-        best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
+        best_ask_price = analyzer.get_best_prices()[1]
+        best_bid_price = analyzer.get_best_prices()[0]
 
         long_dynamic_amount = self.m_order_amount(symbol, "long", long_dynamic_amount)
         short_dynamic_amount = self.m_order_amount(symbol, "short", short_dynamic_amount)
@@ -1734,8 +1803,8 @@ class BaseStrategy:
         avg_top_bids = sum([bid[0] for bid in top_bids]) / 5
 
         # Identify potential resistance (sell walls) and support (buy walls)
-        sell_walls = self.identify_walls(order_book, "sell")
-        buy_walls = self.identify_walls(order_book, "buy")
+        sell_walls = analyzer.identify_walls(order_book, "sell")
+        buy_walls = analyzer.identify_walls(order_book, "buy")
 
         # Calculate the current profit for long and short positions
         long_profit = (avg_top_asks - long_pos_price) * long_pos_qty if long_pos_qty > 0 else 0
@@ -1787,7 +1856,7 @@ class BaseStrategy:
                 short_take_profit = min(avg_top_bids * (1 + short_trading_fee), short_pos_price - 0.0001)  # Ensure TP is below the short position price
 
             self.bybit_hedge_placetp_maker(symbol, short_pos_qty, short_take_profit, positionIdx=2, order_side="buy", open_orders=open_orders)
-
+            
     def set_spread_take_profits(self, symbol, open_orders, long_pos_qty, short_pos_qty, long_pos_price, short_pos_price):
 
         order_book = self.exchange.get_orderbook(symbol)

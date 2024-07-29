@@ -33,6 +33,7 @@ class ConfigInitializer:
             strategy_instance.graceful_stop_short = config.linear_grid['graceful_stop_short']
             strategy_instance.entry_signal_type = config.linear_grid['entry_signal_type']
             strategy_instance.additional_entries_from_signal = config.linear_grid['additional_entries_from_signal']
+            strategy_instance.auto_graceful_stop = config.linear_grid['auto_graceful_stop']
             strategy_instance.upnl_threshold_pct = config.upnl_threshold_pct
             strategy_instance.volume_check = config.volume_check
             strategy_instance.max_usd_value = config.max_usd_value
