@@ -56,7 +56,6 @@ class Bot(BaseModel):
     hedge_ratio: float = 0.26
     hedge_price_difference_threshold: float = 0.15
     min_qty_threshold: float = 0
-    symbol: str
     MaxAbsFundingRate: float = 0.0002
     wallet_exposure: float = 1.00
     test_orders_enabled: bool = False
