@@ -43,6 +43,8 @@ class BybitStrategy(BaseStrategy):
         self.linear_grid_orders = {}
         self.last_price = {}
         self.last_cancel_time = {}
+        self.last_signal_time = {}
+        self.last_mfirsi_signal = {}
         self.cancel_all_orders_interval = 240
         self.cancel_interval = 120
         self.order_refresh_interval = 120  # seconds
