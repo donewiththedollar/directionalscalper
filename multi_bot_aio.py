@@ -7,7 +7,8 @@ import threading
 from threading import Thread
 import random
 import colorama
-from colorama import Fore, Style
+# from colorama import Fore, Style
+from colorama import Fore, Back, Style, init
 from pathlib import Path
 
 project_dir = str(Path(__file__).resolve().parent)
@@ -78,7 +79,7 @@ def print_cool_trading_info(symbol, exchange_name, strategy_name, account_name):
    |____/|_|_|  \___|\___|___|_|\___/|_| |_|\__,_|_||____/ \___\__,_|_| .__/ \___|_|   
                                                                        |_|              
     ╔═══════════════════════════════════════════════════════════════════════════╗
-    ║                         Created by Tyler Simpson                         ║
+    ║          Created by Tyler Simpson and contributors at QVL                 ║
     ╚═══════════════════════════════════════════════════════════════════════════╝
     """
     print(Fore.CYAN + ascii_art)
@@ -88,25 +89,6 @@ def print_cool_trading_info(symbol, exchange_name, strategy_name, account_name):
     print(Fore.BLUE + f"Strategy name: {strategy_name}")
     print(Fore.RED + f"Account name: {account_name}")
     print(Style.RESET_ALL)
-    
-# def print_cool_trading_info(symbol, exchange_name, strategy_name, account_name):
-#     ascii_art = r"""
-#     ______  _____ 
-#     |  _  \/  ___|
-#     | | | |\ `--. 
-#     | | | | `--. \
-#     | |/ / /\__/ /
-#     |___/  \____/ 
-                 
-#         Created by Tyler Simpson
-#     """
-#     print(Fore.GREEN + ascii_art)
-#     print(Style.BRIGHT + Fore.YELLOW + "DirectionalScalper is trading..")
-#     print(Fore.CYAN + f"Trading symbol: {symbol}")
-#     print(Fore.MAGENTA + f"Exchange name: {exchange_name}")
-#     print(Fore.BLUE + f"Strategy name: {strategy_name}")
-#     print(Fore.GREEN + f"Account name: {account_name}")
-#     print(Style.RESET_ALL)
 
 def standardize_symbol(symbol):
     return symbol.replace('/', '').split(':')[0]
@@ -696,13 +678,23 @@ def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
                             signal = market_maker.get_signal(symbol)
                         if has_open_long and not long_thread_running:
                             logging.info(f"Open symbol {symbol} has open long: {has_open_long} and long thread not running {long_thread_running}")
-                            open_position_futures.append(trading_executor.submit(start_thread_for_open_symbol, symbol, args, manager, signal, True, False, long_mode, short_mode))
+                            open_position_futures.append(trading_executor.submit(
+                                start_thread_for_open_symbol, 
+                                symbol, args, manager, signal, True, False, 
+                                long_mode, short_mode, graceful_stop_long, graceful_stop_short, 
+                                not startup_complete
+                            ))
                             active_long_symbols.add(symbol)
                             unique_active_symbols.add(symbol)
                             logging.info(f"Submitted long thread for open symbol {symbol}. Signal: {signal}. Has open long: {has_open_long}.")
                         if has_open_short and not short_thread_running:
                             logging.info(f"Open symbol {symbol} has open short: {has_open_short} and short thread not running {short_thread_running}")
-                            open_position_futures.append(trading_executor.submit(start_thread_for_open_symbol, symbol, args, manager, signal, False, True, long_mode, short_mode))
+                            open_position_futures.append(trading_executor.submit(
+                                start_thread_for_open_symbol, 
+                                symbol, args, manager, signal, False, True, 
+                                long_mode, short_mode, graceful_stop_long, graceful_stop_short, 
+                                not startup_complete
+                            ))
                             active_short_symbols.add(symbol)
                             unique_active_symbols.add(symbol)
                             logging.info(f"Submitted short thread for open symbol {symbol}. Signal: {signal}. Has open short: {has_open_short}.")
@@ -1069,14 +1061,16 @@ def remove_thread_for_symbol(symbol):
     active_symbols.discard(symbol)
     unique_active_symbols.discard(symbol)
 
-def start_thread_for_open_symbol(symbol, args, manager, mfirsi_signal, has_open_long, has_open_short, long_mode, short_mode):
+def start_thread_for_open_symbol(symbol, args, manager, mfirsi_signal, has_open_long, has_open_short, long_mode, short_mode, graceful_stop_long, graceful_stop_short, is_startup):
     action_taken = False
-    if long_mode and (has_open_long or mfirsi_signal.lower() == "long"):
-        action_taken |= start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "long")
-        logging.info(f"[DEBUG] Started long thread for open symbol {symbol}")
-    if short_mode and (has_open_short or mfirsi_signal.lower() == "short"):
-        action_taken |= start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "short")
-        logging.info(f"[DEBUG] Started short thread for open symbol {symbol}")
+    if long_mode and has_open_long and (is_startup or not graceful_stop_long):
+        thread_started = start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "long")
+        action_taken = action_taken or thread_started
+        logging.info(f"[DEBUG] {'Started' if thread_started else 'Failed to start'} long thread for open symbol {symbol}")
+    if short_mode and has_open_short and (is_startup or not graceful_stop_short):
+        thread_started = start_thread_for_symbol(symbol, args, manager, mfirsi_signal, "short")
+        action_taken = action_taken or thread_started
+        logging.info(f"[DEBUG] {'Started' if thread_started else 'Failed to start'} short thread for open symbol {symbol}")
     return action_taken
 
 def start_thread_for_symbol(symbol, args, manager, mfirsi_signal, action):
@@ -1175,22 +1169,48 @@ def lbank_auto_rotation(args, market_maker, manager, symbols_allowed):
     open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_binance()}
     logging.info(f"Open position symbols: {open_position_symbols}")
 
+init(autoreset=True)
+
 if __name__ == '__main__':
-    sword = "====||====>"
+    sword = f"{Fore.CYAN}====={Fore.WHITE}||{Fore.RED}====>"
 
-    print("\n" + "=" * 50)
-    print(f"DirectionalScalper {VERSION}".center(50))
-    print(f"Developed by Tyler Simpson and contributors at Quantum Void Labs".center(50))
-    print("=" * 50 + "\n")
+    print("\n" + Fore.YELLOW + "=" * 60)
+    print(Fore.CYAN + Style.BRIGHT + f"DirectionalScalper {VERSION}".center(60))
+    print(Fore.GREEN + f"Developed by Tyler Simpson and contributors at".center(60))
+    print(Fore.GREEN + f"Quantum Void Labs".center(60))
+    print(Fore.YELLOW + "=" * 60 + "\n")
 
-    print("Initializing", end="")
+    print(Fore.WHITE + "Initializing", end="")
     for i in range(3):
         time.sleep(0.5)
-        print(".", end="", flush=True)
+        print(Fore.YELLOW + ".", end="", flush=True)
     print("\n")
 
-    print("Battle-Ready Algorithm".center(50))
-    print(sword.center(50) + "\n")
+    print(Fore.MAGENTA + Style.BRIGHT + "Battle-Ready Algorithm".center(60))
+    print(sword.center(73) + "\n")  # Adjusted for color codes
+
+    # ASCII Art
+    ascii_art = r"""
+    ⚔️  Prepare for Algorithmic Conquest  ⚔️
+      _____   _____   _____   _____   _____
+     /     \ /     \ /     \ /     \ /     \
+    /       V       V       V       V       \
+   |     DirectionalScalper Activated     |
+    \       ^       ^       ^       ^       /
+     \_____/ \_____/ \_____/ \_____/ \_____/
+    """
+    
+    print(Fore.CYAN + ascii_art)
+
+    # Simulated loading bar
+    print(Fore.YELLOW + "Loading trading modules:")
+    for i in range(101):
+        time.sleep(0.03)  # Adjust speed as needed
+        print(f"\r[{'=' * (i // 2)}{' ' * (50 - i // 2)}] {i}%", end="", flush=True)
+    print("\n")
+
+    print(Fore.GREEN + Style.BRIGHT + "DirectionalScalper is ready for battle!")
+    print(Fore.RED + "May the odds be ever in your favor.\n")
 
     parser = argparse.ArgumentParser(description='DirectionalScalper')
     parser.add_argument('--config', type=str, default='configs/config.json', help='Path to the configuration file')
