@@ -71,22 +71,42 @@ colorama.init()
 
 def print_cool_trading_info(symbol, exchange_name, strategy_name, account_name):
     ascii_art = r"""
-    ______  _____ 
-    |  _  \/  ___|
-    | | | |\ `--. 
-    | | | | `--. \
-    | |/ / /\__/ /
-    |___/  \____/ 
-                 
-        Created by Tyler Simpson
+    ____  _               _   _                   _  ____            _                
+   |  _ \(_)_ __ ___  ___| |_(_) ___  _ __   __ _| |/ ___|  ___ __ _| |_ __   ___ _ __ 
+   | | | | | '__/ _ \/ __| __| |/ _ \| '_ \ / _` | |\___ \ / __/ _` | | '_ \ / _ \ '__|
+   | |_| | | | |  __/ (__| |_| | (_) | | | | (_| | | ___) | (_| (_| | | |_) |  __/ |   
+   |____/|_|_|  \___|\___|___|_|\___/|_| |_|\__,_|_||____/ \___\__,_|_| .__/ \___|_|   
+                                                                       |_|              
+    ╔═══════════════════════════════════════════════════════════════════════════╗
+    ║                         Created by Tyler Simpson                         ║
+    ╚═══════════════════════════════════════════════════════════════════════════╝
     """
-    print(Fore.GREEN + ascii_art)
+    print(Fore.CYAN + ascii_art)
     print(Style.BRIGHT + Fore.YELLOW + "DirectionalScalper is trading..")
-    print(Fore.CYAN + f"Trading symbol: {symbol}")
+    print(Fore.GREEN + f"Trading symbol: {symbol}")
     print(Fore.MAGENTA + f"Exchange name: {exchange_name}")
     print(Fore.BLUE + f"Strategy name: {strategy_name}")
-    print(Fore.GREEN + f"Account name: {account_name}")
+    print(Fore.RED + f"Account name: {account_name}")
     print(Style.RESET_ALL)
+    
+# def print_cool_trading_info(symbol, exchange_name, strategy_name, account_name):
+#     ascii_art = r"""
+#     ______  _____ 
+#     |  _  \/  ___|
+#     | | | |\ `--. 
+#     | | | | `--. \
+#     | |/ / /\__/ /
+#     |___/  \____/ 
+                 
+#         Created by Tyler Simpson
+#     """
+#     print(Fore.GREEN + ascii_art)
+#     print(Style.BRIGHT + Fore.YELLOW + "DirectionalScalper is trading..")
+#     print(Fore.CYAN + f"Trading symbol: {symbol}")
+#     print(Fore.MAGENTA + f"Exchange name: {exchange_name}")
+#     print(Fore.BLUE + f"Strategy name: {strategy_name}")
+#     print(Fore.GREEN + f"Account name: {account_name}")
+#     print(Style.RESET_ALL)
 
 def standardize_symbol(symbol):
     return symbol.replace('/', '').split(':')[0]
