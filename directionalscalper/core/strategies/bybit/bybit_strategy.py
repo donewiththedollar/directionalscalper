@@ -38,6 +38,8 @@ class BybitStrategy(BaseStrategy):
         self.exchange = exchange
         self.general_rate_limiter = RateLimit(50, 1)
         self.order_rate_limiter = RateLimit(5, 1) 
+        self.previous_long_pos_qty = {}
+        self.previous_short_pos_qty = {}
         self.symbol_max_leverage = {}
         self.grid_levels = {}
         self.linear_grid_orders = {}
@@ -4908,7 +4910,7 @@ class BybitStrategy(BaseStrategy):
                 'sell'
             )
 
-            self.handle_auto_reduce(
+            self.handle_grid_trades(
                 symbol,
                 grid_levels_long,
                 grid_levels_short,
@@ -5137,7 +5139,7 @@ class BybitStrategy(BaseStrategy):
             symbol, total_amount, levels, strength, qty_precision, enforce_full_grid, long_pos_qty, short_pos_qty, side
         )
 
-    def handle_auto_reduce(self, symbol, grid_levels_long, grid_levels_short, long_grid_active, short_grid_active, long_pos_qty, short_pos_qty, current_price, dynamic_outer_price_distance, min_outer_price_distance, max_outer_price_distance, buffer_percentage_long, buffer_percentage_short, adjusted_grid_levels_long, adjusted_grid_levels_short, levels, amounts_long, amounts_short, best_bid_price, best_ask_price, mfirsi_signal, open_orders, initial_entry_buffer_pct, reissue_threshold, entry_during_autoreduce, min_qty, open_symbols, symbols_allowed, long_mode, short_mode, long_pos_price, short_pos_price, graceful_stop_long, graceful_stop_short, min_buffer_percentage, max_buffer_percentage, additional_entries_from_signal, open_position_data):
+    def handle_grid_trades(self, symbol, grid_levels_long, grid_levels_short, long_grid_active, short_grid_active, long_pos_qty, short_pos_qty, current_price, dynamic_outer_price_distance, min_outer_price_distance, max_outer_price_distance, buffer_percentage_long, buffer_percentage_short, adjusted_grid_levels_long, adjusted_grid_levels_short, levels, amounts_long, amounts_short, best_bid_price, best_ask_price, mfirsi_signal, open_orders, initial_entry_buffer_pct, reissue_threshold, entry_during_autoreduce, min_qty, open_symbols, symbols_allowed, long_mode, short_mode, long_pos_price, short_pos_price, graceful_stop_long, graceful_stop_short, min_buffer_percentage, max_buffer_percentage, additional_entries_from_signal, open_position_data):
         try:
             # Fetch open symbols for long and short positions
             open_symbols_long = self.get_open_symbols_long(open_position_data)
@@ -5155,7 +5157,38 @@ class BybitStrategy(BaseStrategy):
 
             should_reissue_long, should_reissue_short = self.should_reissue_orders_revised(
                 symbol, reissue_threshold, long_pos_qty, short_pos_qty, initial_entry_buffer_pct)
-                
+            
+            # Previous position quantities
+            previous_long_pos_qty = self.previous_long_pos_qty.get(symbol, 0)
+            previous_short_pos_qty = self.previous_short_pos_qty.get(symbol, 0)
+
+            # Check for position closure and handle grid orders
+            if previous_long_pos_qty > 0 and long_pos_qty == 0:
+                logging.info(f"Long position closed for {symbol}. Canceling long grid orders.")
+                self.cancel_grid_orders(symbol, "buy")
+                self.active_long_grids.discard(symbol)
+                if short_pos_qty == 0:
+                    logging.info(f"No open positions for {symbol}. Removing from shared symbols data.")
+                    self.shared_symbols_data.pop(symbol, None)
+                self.previous_long_pos_qty[symbol] = long_pos_qty
+                self.previous_short_pos_qty[symbol] = short_pos_qty
+                return  # Exit the function
+
+            elif previous_short_pos_qty > 0 and short_pos_qty == 0:
+                logging.info(f"Short position closed for {symbol}. Canceling short grid orders.")
+                self.cancel_grid_orders(symbol, "sell")
+                self.active_short_grids.discard(symbol)
+                if long_pos_qty == 0:
+                    logging.info(f"No open positions for {symbol}. Removing from shared symbols data.")
+                    self.shared_symbols_data.pop(symbol, None)
+                self.previous_long_pos_qty[symbol] = long_pos_qty
+                self.previous_short_pos_qty[symbol] = short_pos_qty
+                return  # Exit the function
+
+            # Update previous position quantities
+            self.previous_long_pos_qty[symbol] = long_pos_qty
+            self.previous_short_pos_qty[symbol] = short_pos_qty
+
             if self.auto_reduce_active_long.get(symbol, False):
                 logging.info(f"Auto-reduce for long position on {symbol} is active")
                 self.clear_grid(symbol, 'buy')
@@ -5208,7 +5241,6 @@ class BybitStrategy(BaseStrategy):
             mfi_signal_short = mfirsi_signal.lower() == "short"
 
             logging.info(f"MFIRSI SIGNAL FOR {symbol} {mfirsi_signal}")
-
 
             # Check if the number of open symbols for long and short positions is within the allowed limit
             if length_of_open_symbols_long <= symbols_allowed or length_of_open_symbols_short <= symbols_allowed and symbol in open_symbols:
@@ -5539,9 +5571,6 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.error(f"Error in executing gridstrategy: {e}")
             logging.error("Traceback: %s", traceback.format_exc())
-
-
-
 
     def lingrid_uponsignal_v2(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
                                                         short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
