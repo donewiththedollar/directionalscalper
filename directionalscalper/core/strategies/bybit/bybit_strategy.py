@@ -5498,7 +5498,7 @@ class BybitStrategy(BaseStrategy):
                         self.last_signal_time[symbol] = current_time
                         self.last_mfirsi_signal[symbol] = "neutral"  # Reset to neutral after processing
 
-                    elif fresh_signal.lower() == "short" and short mode and not has_open_short_position and not graceful_stop_short:
+                    elif fresh_signal.lower() == "short" and short_mode and not has_open_short_position and not graceful_stop_short:
                         logging.info(f"[{symbol}] Creating new short position based on MFIRSI short signal")
                         self.clear_grid(symbol, 'sell')
                         grid_levels_short[0] = best_ask_price
