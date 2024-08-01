@@ -5464,7 +5464,7 @@ class BybitStrategy(BaseStrategy):
                 if (length_of_open_symbols_long <= symbols_allowed or length_of_open_symbols_short <= symbols_allowed and symbol in open_symbols):
                     fresh_signal = self.generate_l_signals(symbol)
                     
-                    if fresh_signal.lower() == "long" and not has_open_long_position and not graceful_stop_long:
+                    if fresh_signal.lower() == "long" and long_mode and not has_open_long_position and not graceful_stop_long:
                         logging.info(f"[{symbol}] Creating new long position based on MFIRSI long signal")
                         self.clear_grid(symbol, 'buy')
                         grid_levels_long[0] = best_bid_price
@@ -5498,7 +5498,7 @@ class BybitStrategy(BaseStrategy):
                         self.last_signal_time[symbol] = current_time
                         self.last_mfirsi_signal[symbol] = "neutral"  # Reset to neutral after processing
 
-                    elif fresh_signal.lower() == "short" and not has_open_short_position and not graceful_stop_short:
+                    elif fresh_signal.lower() == "short" and short mode and not has_open_short_position and not graceful_stop_short:
                         logging.info(f"[{symbol}] Creating new short position based on MFIRSI short signal")
                         self.clear_grid(symbol, 'sell')
                         grid_levels_short[0] = best_ask_price
