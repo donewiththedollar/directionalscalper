@@ -826,11 +826,12 @@ def handle_signal(symbol, args, manager, signal, open_position_data, symbols_all
     action_taken_long = False
     action_taken_short = False
 
-    # Check if we can add a new symbol
-    can_add_new_symbol = len(unique_active_symbols) < symbols_allowed
+    # Check if we can add a new long or short symbol
+    can_add_new_long_symbol = current_long_positions < symbols_allowed
+    can_add_new_short_symbol = current_short_positions < symbols_allowed
 
     if signal_long and long_mode:
-        if (can_add_new_symbol or symbol in unique_active_symbols) and not has_open_long:
+        if (can_add_new_long_symbol or symbol in unique_active_symbols) and not has_open_long:
             if graceful_stop_long and not is_open_position:
                 logging.info(f"Skipping long signal for {symbol} due to graceful stop long enabled and no open long position.")
             elif not (symbol in long_threads and long_threads[symbol][0].is_alive()):
@@ -839,10 +840,10 @@ def handle_signal(symbol, args, manager, signal, open_position_data, symbols_all
             else:
                 logging.info(f"Long thread already running for symbol {symbol}. Skipping.")
         else:
-            logging.info(f"Cannot open long position for {symbol}. Unique symbols limit reached or position already exists.")
+            logging.info(f"Cannot open long position for {symbol}. Long positions limit reached or position already exists.")
 
     if signal_short and short_mode:
-        if (can_add_new_symbol or symbol in unique_active_symbols) and not has_open_short:
+        if (can_add_new_short_symbol or symbol in unique_active_symbols) and not has_open_short:
             if graceful_stop_short and not is_open_position:
                 logging.info(f"Skipping short signal for {symbol} due to graceful stop short enabled and no open short position.")
             elif not (symbol in short_threads and short_threads[symbol][0].is_alive()):
@@ -851,10 +852,14 @@ def handle_signal(symbol, args, manager, signal, open_position_data, symbols_all
             else:
                 logging.info(f"Short thread already running for symbol {symbol}. Skipping.")
         else:
-            logging.info(f"Cannot open short position for {symbol}. Unique symbols limit reached or position already exists.")
+            logging.info(f"Cannot open short position for {symbol}. Short positions limit reached or position already exists.")
 
     if action_taken_long or action_taken_short:
         unique_active_symbols.add(symbol)
+        if action_taken_long:
+            active_long_symbols.add(symbol)
+        if action_taken_short:
+            active_short_symbols.add(symbol)
         logging.info(f"Action taken for {'open position' if is_open_position else 'new rotator'} symbol {symbol}.")
     else:
         logging.info(f"No action taken for {'open position' if is_open_position else 'new rotator'} symbol {symbol}.")
