@@ -5213,7 +5213,7 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"Fresh MFIRSI signal for {symbol} : {fresh_mfirsi_signal}")
             mfi_signal_long = fresh_mfirsi_signal == "long"
             mfi_signal_short = fresh_mfirsi_signal == "short"
-            
+
             logging.info(f"MFIRSI SIGNAL FOR {symbol} {mfirsi_signal}")
 
 
@@ -5537,8 +5537,8 @@ class BybitStrategy(BaseStrategy):
                         self.last_signal_time[symbol] = current_time
                         self.last_mfirsi_signal[symbol] = "neutral"  # Reset to neutral after processing
 
-                elif fresh_signal.lower() == "neutral":
-                    logging.info(f"[{symbol}] MFIRSI signal is neutral. No new grid orders.")
+                    elif fresh_signal.lower() == "neutral":
+                        logging.info(f"[{symbol}] MFIRSI signal is neutral. No new grid orders.")
             else:
                 logging.info(f"Additional entries disabled from signal")
             time.sleep(5)

@@ -52,7 +52,7 @@
             "strength": 1.7,
             "outer_price_distance": 0.059,
             "min_outer_price_distance": 0.019,
-            "max_outer_price_distance": 0.039,
+            "max_outer_price_distance": 0.049,
             "long_mode": true,
             "short_mode": true,
             "reissue_threshold": 0.001,
