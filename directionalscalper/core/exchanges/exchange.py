@@ -55,6 +55,10 @@ class Exchange:
         self.entry_order_ids = {}  # Initialize order history
         self.entry_order_ids_lock = threading.Lock()  # For thread safety
         self.rate_limiter = RateLimit(10, 1)
+
+        self.last_signal = {}
+        self.last_signal_time = {}
+        self.signal_duration = 60  # Duration in seconds (1 minute)
         
     def initialise(self):
         exchange_class = getattr(ccxt, self.exchange_id)
@@ -392,19 +396,105 @@ class Exchange:
             elif prediction < 0 and is_ema_downtrend.iloc[-1] and is_sma_downtrend.iloc[-1] and adx_filter.iloc[-1]:
                 new_signal = 'short'
 
+            current_time = time.time()
+            logging.info(f"New signal for {symbol} : {new_signal}")
+            logging.info(f"Last signal for {symbol} : {self.last_signal.get(symbol, 'None')}")
+
             # Avoid double entries and ensure signal change
-            if hasattr(self, 'last_signal'):
-                if self.last_signal == new_signal:
-                    return 'neutral'
+            if symbol in self.last_signal:
+                if self.last_signal[symbol] == new_signal and new_signal != 'neutral':
+                    # Check if sufficient time has passed to act on the same signal
+                    if current_time - self.last_signal_time[symbol] < 15:  # 15 second buffer
+                        logging.info(f"Returning {new_signal} because {self.last_signal[symbol]} is same as new signal and time difference is within buffer")
+                        return new_signal  # Return the same signal if within the buffer time
+                    else:
+                        self.last_signal_time[symbol] = current_time
+                        return new_signal
                 else:
-                    self.last_signal = new_signal
+                    self.last_signal[symbol] = new_signal
+                    self.last_signal_time[symbol] = current_time
                     return new_signal
             else:
-                self.last_signal = new_signal
+                self.last_signal[symbol] = new_signal
+                self.last_signal_time[symbol] = current_time
                 return new_signal
         except Exception as e:
             logging.info(f"Error in calculating signal: {e}")
             return 'neutral'
+        
+    # def generate_l_signals(self, symbol, limit=3000, neighbors_count=8, use_adx_filter=False, adx_threshold=20):
+    #     try:
+    #         # Fetch OHLCV data
+    #         ohlcv_data = self.fetch_ohlcv(symbol=symbol, timeframe='3m', limit=limit)
+    #         df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+    #         df.set_index('timestamp', inplace=True)
+
+    #         # Calculate technical indicators
+    #         df['rsi'] = self.n_rsi(df['close'], 14, 1)
+    #         df['adx'] = self.n_adx(df['high'], df['low'], df['close'], 14)  # ADX is always calculated
+    #         df['cci'] = self.n_cci(df['high'], df['low'], df['close'], 20, 1)
+    #         df['wt'] = self.n_wt((df['high'] + df['low'] + df['close']) / 3, 10, 11)
+
+    #         # Feature engineering
+    #         features = df[['rsi', 'adx', 'cci', 'wt']].values  # ADX included in feature set
+    #         feature_series = features[-1]
+    #         feature_arrays = features[:-1]
+
+    #         # Calculate Lorentzian distances and predictions
+    #         y_train_series = np.where(df['close'].shift(-4) > df['close'], 1, -1)
+    #         y_train_series = y_train_series[:-1]
+
+    #         predictions = []
+    #         distances = []
+    #         lastDistance = -1
+
+    #         for i in range(len(feature_arrays)):
+    #             if i % 4 == 0:
+    #                 d = np.log(1 + np.abs(feature_series - feature_arrays[i])).sum()
+    #                 if d >= lastDistance:
+    #                     lastDistance = d
+    #                     distances.append(d)
+    #                     predictions.append(y_train_series[i])
+    #                     if len(predictions) > neighbors_count:
+    #                         lastDistance = distances[int(neighbors_count * 3 / 4)]
+    #                         distances.pop(0)
+    #                         predictions.pop(0)
+
+    #         prediction = np.sum(predictions)
+
+    #         # Calculate EMA and SMA
+    #         df['ema'] = EMAIndicator(df['close'], window=200).ema_indicator()
+    #         df['sma'] = SMAIndicator(df['close'], window=200).sma_indicator()
+
+    #         # Determine trends
+    #         is_ema_uptrend = df['close'] > df['ema']
+    #         is_ema_downtrend = df['close'] < df['ema']
+    #         is_sma_uptrend = df['close'] > df['sma']
+    #         is_sma_downtrend = df['close'] < df['sma']
+
+    #         # Apply ADX filter if enabled
+    #         adx_filter = self.filter_adx(df['close'], df['high'], df['low'], adx_threshold, use_adx_filter)
+
+    #         # Generate signal based on prediction and trends
+    #         new_signal = 'neutral'
+    #         if prediction > 0 and is_ema_uptrend.iloc[-1] and is_sma_uptrend.iloc[-1] and adx_filter.iloc[-1]:
+    #             new_signal = 'long'
+    #         elif prediction < 0 and is_ema_downtrend.iloc[-1] and is_sma_downtrend.iloc[-1] and adx_filter.iloc[-1]:
+    #             new_signal = 'short'
+
+    #         # Avoid double entries and ensure signal change
+    #         if hasattr(self, 'last_signal'):
+    #             if self.last_signal == new_signal:
+    #                 return 'neutral'
+    #             else:
+    #                 self.last_signal = new_signal
+    #                 return new_signal
+    #         else:
+    #             self.last_signal = new_signal
+    #             return new_signal
+    #     except Exception as e:
+    #         logging.info(f"Error in calculating signal: {e}")
+    #         return 'neutral'
         
     # def normalize(self, series):
     #     if not isinstance(series, pd.Series):

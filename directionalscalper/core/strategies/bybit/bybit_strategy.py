@@ -5206,9 +5206,14 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
             logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
 
-            mfi_signal_long = mfirsi_signal.lower() == "long"
-            mfi_signal_short = mfirsi_signal.lower() == "short"
+            # mfi_signal_long = mfirsi_signal.lower() == "long"
+            # mfi_signal_short = mfirsi_signal.lower() == "short"
 
+            fresh_mfirsi_signal = self.generate_l_signals(symbol)
+            logging.info(f"Fresh MFIRSI signal for {symbol} : {fresh_mfirsi_signal}")
+            mfi_signal_long = fresh_mfirsi_signal == "long"
+            mfi_signal_short = fresh_mfirsi_signal == "short"
+            
             logging.info(f"MFIRSI SIGNAL FOR {symbol} {mfirsi_signal}")
 
 
@@ -13523,8 +13528,8 @@ class BybitStrategy(BaseStrategy):
         return total_notional_amount
 
     def calculate_order_amounts_notional_properdca(self, symbol: str, total_amount: float, levels: int, 
-                                                strength: float, qty_precision: float, enforce_full_grid: bool,
-                                                long_pos_qty=0, short_pos_qty=0, side='buy') -> List[float]:
+                                                    strength: float, qty_precision: float, enforce_full_grid: bool,
+                                                    long_pos_qty=0, short_pos_qty=0, side='buy') -> List[float]:
         logging.info(f"Calculating order amounts for {symbol} with total_amount: {total_amount}, levels: {levels}, strength: {strength}, qty_precision: {qty_precision}, enforce_full_grid: {enforce_full_grid}")
         
         current_price = self.exchange.get_current_price(symbol)
@@ -13533,11 +13538,10 @@ class BybitStrategy(BaseStrategy):
         level_notional = [(i + 1) ** strength for i in range(levels)]
         
         if enforce_full_grid:
-            base_notional = self.min_notional(symbol) * total_amount / self.min_notional(symbol)
+            base_notional = total_amount
         else:
             base_notional = self.min_notional(symbol)
-        min_base_notional = base_notional / current_price
-
+        
         min_qty = self.get_min_qty(symbol)  # Retrieve the min_qty for the symbol
 
         if side == 'buy':
@@ -13547,16 +13551,19 @@ class BybitStrategy(BaseStrategy):
 
         # Adjust for current position
         total_amount_adjusted = total_amount + (current_position_qty * current_price)
+        logging.info(f"Total amount adjusted for current position: {total_amount_adjusted}")
 
         for i in range(levels):
             notional_amount = (level_notional[i] / total_ratio) * total_amount_adjusted
             quantity = notional_amount / current_price
+            logging.info(f"Level {i+1} - Initial quantity: {quantity}")
             
             # Determine the minimum quantity to use (either min_notional or min_qty)
-            min_quantity = max(min_base_notional, min_qty)
+            min_quantity = max(base_notional / current_price, min_qty)
             
             # Apply the minimum quantity requirement
             rounded_quantity = max(round(quantity / qty_precision) * qty_precision, min_quantity)
+            logging.info(f"Level {i+1} - Rounded quantity: {rounded_quantity}")
             
             amounts.append(rounded_quantity)
 
@@ -13567,9 +13574,17 @@ class BybitStrategy(BaseStrategy):
         if not enforce_full_grid and total_distributed_amount < total_amount_adjusted:
             discrepancy = total_amount_adjusted - total_distributed_amount
             amounts[-1] += discrepancy / current_price  # Adjust the last amount to match total_amount_adjusted
-        
-        return amounts
 
+        # Adjust amounts if they are all the same when enforce_full_grid is True
+        if enforce_full_grid and len(set(amounts)) == 1:
+            logging.info("Adjusting amounts to ensure variation in enforce_full_grid mode")
+            increment = qty_precision
+            for i in range(1, levels):
+                amounts[i] += increment
+                increment += qty_precision
+
+        return amounts
+    
     def calculate_max_positions(self, symbol, total_equity, current_price, max_qty_percent_long, max_qty_percent_short):
         leverage_long = self.get_effective_leverage(self.user_defined_leverage_long, symbol, 'buy')
         leverage_short = self.get_effective_leverage(self.user_defined_leverage_short, symbol, 'sell')
