@@ -3059,12 +3059,23 @@ class BybitStrategy(BaseStrategy):
         spread = df['high'].iloc[0] - df['low'].iloc[0]
         return spread
 
+    # def get_4h_candle_spread(self, symbol: str) -> float:
+    #     ohlcv_data = self.exchange.fetch_ohlcv(symbol=symbol, timeframe='4h', limit=1)
+    #     df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+    #     high_low_spread = df['high'].iloc[0] - df['low'].iloc[0]
+    #     return high_low_spread
+    
     def get_4h_candle_spread(self, symbol: str) -> float:
         ohlcv_data = self.exchange.fetch_ohlcv(symbol=symbol, timeframe='4h', limit=1)
         df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+        
+        # Convert 'high' and 'low' columns to numeric
+        df['high'] = pd.to_numeric(df['high'])
+        df['low'] = pd.to_numeric(df['low'])
+        
         high_low_spread = df['high'].iloc[0] - df['low'].iloc[0]
         return high_low_spread
-    
+
     def linear_grid_hardened_gridspan_orderbook_maxposqty_properdca(
         self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
         short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
@@ -13101,62 +13112,6 @@ class BybitStrategy(BaseStrategy):
             logging.exception(f"Exception caught in should_replace_grid_updated_buffer_min_outerpricedist_v2: {e}")
             return False, False
             
-    # def should_replace_grid_updated_buffer_min_outerpricedist_v2(self, symbol: str, long_pos_price: float, short_pos_price: float, long_pos_qty: float, short_pos_qty: float, dynamic_outer_price_distance: float) -> tuple:
-    #     try:
-    #         current_price = self.exchange.get_current_price(symbol)
-    #         logging.info(f"[{symbol}] Current price: {current_price}")
-
-    #         # Retrieve the last reissue prices, ensure they are floats
-    #         last_reissue_price_long = self.last_reissue_price_long.get(symbol) or long_pos_price
-    #         last_reissue_price_short = self.last_reissue_price_short.get(symbol) or short_pos_price
-
-    #         logging.info(f"[{symbol}] Last reissue price (long): {last_reissue_price_long}")
-    #         logging.info(f"[{symbol}] Last reissue price (short): {last_reissue_price_short}")
-
-    #         replace_long_grid = False
-    #         replace_short_grid = False
-
-    #         if long_pos_qty > 0:
-    #             required_price_move_long_pct = dynamic_outer_price_distance * 100.0
-    #             price_change_pct_long = abs(current_price - last_reissue_price_long) / last_reissue_price_long * 100.0
-
-    #             logging.info(f"[{symbol}] Long position info:")
-    #             logging.info(f"Dynamic outer price distance: {dynamic_outer_price_distance * 100.0:.2f}%")
-    #             logging.info(f"  - Long position price: {long_pos_price}")
-    #             logging.info(f"  - Long position quantity: {long_pos_qty}")
-    #             logging.info(f"  - Required price move for reissue (long): {required_price_move_long_pct:.2f}%")
-    #             logging.info(f"  - Current price change percentage: {price_change_pct_long:.2f}%")
-
-    #             if price_change_pct_long > required_price_move_long_pct:
-    #                 replace_long_grid = True
-    #                 logging.info(f"[{symbol}] Price change exceeds dynamic outer price distance percentage for long position. Replacing long grid.")
-    #                 self.last_reissue_price_long[symbol] = current_price  # Update last reissue price for long
-
-    #         if short_pos_qty > 0:
-    #             required_price_move_short_pct = dynamic_outer_price_distance * 100.0
-    #             price_change_pct_short = abs(current_price - last_reissue_price_short) / last_reissue_price_short * 100.0
-
-    #             logging.info(f"[{symbol}] Short position info:")
-    #             logging.info(f"Dynamic outer price distance: {dynamic_outer_price_distance * 100.0:.2f}%")
-    #             logging.info(f"  - Short position price: {short_pos_price}")
-    #             logging.info(f"  - Short position quantity: {short_pos_qty}")
-    #             logging.info(f"  - Required price move for reissue (short): {required_price_move_short_pct:.2f}%")
-    #             logging.info(f"  - Current price change percentage: {price_change_pct_short:.2f}%")
-
-    #             if price_change_pct_short > required_price_move_short_pct:
-    #                 replace_short_grid = True
-    #                 logging.info(f"[{symbol}] Price change exceeds dynamic outer price distance percentage for short position. Replacing short grid.")
-    #                 self.last_reissue_price_short[symbol] = current_price  # Update last reissue price for short
-
-    #         logging.info(f"[{symbol}] Should replace long grid: {replace_long_grid}")
-    #         logging.info(f"[{symbol}] Should replace short grid: {replace_short_grid}")
-
-    #         return replace_long_grid, replace_short_grid
-
-    #     except Exception as e:
-    #         logging.exception(f"Exception caught in should_replace_grid_updated_buffer_min_outerpricedist_v2: {e}")
-    #         return False, False
-
     def should_replace_grid_updated_buffer_min_outerpricedist(self, symbol: str, long_pos_price: float, short_pos_price: float, long_pos_qty: float, short_pos_qty: float, min_outer_price_distance: float) -> tuple:
         try:
             current_price = self.exchange.get_current_price(symbol)
@@ -13343,36 +13298,6 @@ class BybitStrategy(BaseStrategy):
 
         logging.info(f"[{symbol}] {side.capitalize()} grid orders issued for unfilled levels.")
 
-    # def issue_grid_orders(self, symbol: str, side: str, grid_levels: list, amounts: list, is_long: bool, filled_levels: set):
-    #     """
-    #     Check the status of existing grid orders and place new orders for unfilled levels.
-    #     """
-    #     open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
-    #     #logging.info(f"Open orders data for {symbol}: {open_orders}")
-
-    #     # Clear the filled_levels set before placing new orders
-    #     filled_levels.clear()
-
-    #     # Place new grid orders for unfilled levels
-    #     for level, amount in zip(grid_levels, amounts):
-    #         order_exists = any(order['price'] == level and order['side'].lower() == side.lower() for order in open_orders)
-    #         if not order_exists:
-    #             order_link_id = self.generate_order_link_id(symbol, side, level)
-    #             position_idx = 1 if is_long else 2
-    #             try:
-    #                 order = self.exchange.create_tagged_limit_order_bybit(symbol, side, amount, level, positionIdx=position_idx, orderLinkId=order_link_id)
-    #                 if order and 'id' in order:
-    #                     logging.info(f"Placed {side} order at level {level} for {symbol} with amount {amount}")
-    #                     filled_levels.add(level)  # Add the level to filled_levels
-    #                 else:
-    #                     logging.info(f"Failed to place {side} order at level {level} for {symbol} with amount {amount}")
-    #             except Exception as e:
-    #                 logging.info(f"Exception when placing {side} order at level {level} for {symbol}: {e}")
-    #         else:
-    #             logging.info(f"Skipping {side} order at level {level} for {symbol} as it already exists.")
-
-    #     logging.info(f"[{symbol}] {side.capitalize()} grid orders issued for unfilled levels.")
-        
     def cancel_grid_orders(self, symbol: str, side: str):
         try:
             open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
@@ -13511,7 +13436,6 @@ class BybitStrategy(BaseStrategy):
         logging.info(f"Maximum position value for {symbol}: {max_position_value}")
 
         if enforce_full_grid:
-            # Scale the required notional with the total balance
             required_notional = max_position_value / levels
         else:
             required_notional = max_position_value
@@ -13536,12 +13460,9 @@ class BybitStrategy(BaseStrategy):
         amounts = []
         total_ratio = sum([(i + 1) ** strength for i in range(levels)])
         level_notional = [(i + 1) ** strength for i in range(levels)]
-        
-        if enforce_full_grid:
-            base_notional = total_amount
-        else:
-            base_notional = self.min_notional(symbol)
-        
+
+        base_notional = total_amount
+
         min_qty = self.get_min_qty(symbol)  # Retrieve the min_qty for the symbol
 
         if side == 'buy':
@@ -13569,12 +13490,6 @@ class BybitStrategy(BaseStrategy):
 
         logging.info(f"Calculated order amounts for {symbol}: {amounts}")
         
-        # Verify the sum of amounts matches the total_amount
-        total_distributed_amount = sum(amounts) * current_price
-        if not enforce_full_grid and total_distributed_amount < total_amount_adjusted:
-            discrepancy = total_amount_adjusted - total_distributed_amount
-            amounts[-1] += discrepancy / current_price  # Adjust the last amount to match total_amount_adjusted
-
         # Adjust amounts if they are all the same when enforce_full_grid is True
         if enforce_full_grid and len(set(amounts)) == 1:
             logging.info("Adjusting amounts to ensure variation in enforce_full_grid mode")
@@ -13655,58 +13570,6 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.error(f"Exception caught in check and manage positions: {e}")
             logging.info("Traceback:", traceback.format_exc())
-
-    # def check_and_manage_positions(self, long_pos_qty, short_pos_qty, symbol, total_equity, current_price, max_qty_percent_long, max_qty_percent_short):
-    #     try:
-    #         logging.info(f"Checking and managing positions for {symbol}")
-
-    #         # Calculate the maximum allowed positions based on the total equity
-    #         max_qty_long = (total_equity * max_qty_percent_long) / current_price
-    #         max_qty_short = (total_equity * max_qty_percent_short) / current_price
-
-    #         # Calculate the position exposure percentages
-    #         long_pos_exposure_percent = (long_pos_qty * current_price / total_equity) * 100
-    #         short_pos_exposure_percent = (short_pos_qty * current_price / total_equity) * 100
-
-    #         # Log the position utilization and the actual utilization based on total equity
-    #         logging.info(f"Position utilization for {symbol}:")
-    #         logging.info(f"  - Long position exposure: {long_pos_exposure_percent:.2f}% of total equity")
-    #         logging.info(f"  - Short position exposure: {short_pos_exposure_percent:.2f}% of total equity")
-
-    #         # Log detailed information about the configuration parameters and maximum allowed positions
-    #         logging.info(f"Configuration for {symbol}:")
-    #         logging.info(f"  - Total equity: {total_equity:.2f} USD")
-    #         logging.info(f"  - Current price: {current_price:.8f} USD")
-    #         logging.info(f"  - Max quantity percentage for long: {max_qty_percent_long}%")
-    #         logging.info(f"  - Max quantity percentage for short: {max_qty_percent_short}%")
-    #         logging.info(f"Maximum allowed positions for {symbol}:")
-    #         logging.info(f"  - Max quantity for long: {max_qty_long:.4f} units")
-    #         logging.info(f"  - Max quantity for short: {max_qty_short:.4f} units")
-    #         logging.info(f"{symbol} Long position quantity: {long_pos_qty}")
-    #         logging.info(f"{symbol} Short position quantity: {short_pos_qty}")
-
-    #         # Check if current positions exceed the maximum allowed quantities
-    #         if long_pos_exposure_percent > max_qty_percent_long:
-    #             logging.info(f"[{symbol}] Long position exposure exceeds the maximum allowed. Current long position exposure: {long_pos_exposure_percent:.2f}%, Max allowed: {max_qty_percent_long}%. Clearing long grid.")
-    #             self.clear_grid(symbol, 'buy')
-    #             self.active_grids.discard(symbol)
-    #             self.max_qty_reached_symbol_long.add(symbol)
-    #         elif symbol in self.max_qty_reached_symbol_long and long_pos_exposure_percent <= max_qty_percent_long:
-    #             logging.info(f"[{symbol}] Long position exposure is below the maximum allowed. Removing from max_qty_reached_symbol_long. Current long position exposure: {long_pos_exposure_percent:.2f}%, Max allowed: {max_qty_percent_long}%.")
-    #             self.max_qty_reached_symbol_long.remove(symbol)
-
-    #         if short_pos_exposure_percent > max_qty_percent_short:
-    #             logging.info(f"[{symbol}] Short position exposure exceeds the maximum allowed. Current short position exposure: {short_pos_exposure_percent:.2f}%, Max allowed: {max_qty_percent_short}%. Clearing short grid.")
-    #             self.clear_grid(symbol, 'sell')
-    #             self.active_grids.discard(symbol)
-    #             self.max_qty_reached_symbol_short.add(symbol)
-    #         elif symbol in self.max_qty_reached_symbol_short and short_pos_exposure_percent <= max_qty_percent_short:
-    #             logging.info(f"[{symbol}] Short position exposure is below the maximum allowed. Removing from max_qty_reached_symbol_short. Current short position exposure: {short_pos_exposure_percent:.2f}%, Max allowed: {max_qty_percent_short}%.")
-    #             self.max_qty_reached_symbol_short.remove(symbol)
-
-    #     except Exception as e:
-    #         logging.error(f"Exception caught in check and manage positions: {e}")
-    #         logging.info("Traceback:", traceback.format_exc())
 
     def calculate_total_amount_notional_ls(self, symbol, total_equity, best_ask_price, best_bid_price, 
                                             wallet_exposure_limit_long, wallet_exposure_limit_short, 

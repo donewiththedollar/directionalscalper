@@ -749,7 +749,6 @@ class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
                     short_tp_counts = tp_order_counts['short_tp_count']
 
                     try:
-                        #self.linear_grid_hardened_gridspan_ob_volumelevels_dynamictp_lsignal(
                         self.lingrid_v2_gs(
                             symbol,
                             open_symbols,
