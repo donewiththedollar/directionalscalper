@@ -881,12 +881,6 @@
             &quot;account_name&quot;: &quot;account_3&quot;,
             &quot;api_key&quot;: &quot;your_api_key&quot;,
             &quot;api_secret&quot;: &quot;your_api_secret&quot;
-        },
-        {
-            &quot;name&quot;: &quot;bitget&quot;,
-            &quot;account_name&quot;: &quot;account_4&quot;,
-            &quot;api_key&quot;: &quot;your_api_key&quot;,
-            &quot;api_secret&quot;: &quot;your_api_secret&quot;     
         }
     ]
 }
@@ -1007,12 +1001,11 @@
     },
     &quot;bot&quot;: {
         &quot;bot_name&quot;: &quot;your_bot_name&quot;,
-        &quot;symbol&quot;: &quot;BTCUSDT&quot;,
         &quot;volume_check&quot;: false,
         &quot;min_distance&quot;: 0.15,
         &quot;min_volume&quot;: 10000,
-        &quot;upnl_profit_pct&quot;: 0.0032,
-        &quot;max_upnl_profit_pct&quot;: 0.0039,
+        &quot;upnl_profit_pct&quot;: 0.0029,
+        &quot;max_upnl_profit_pct&quot;: 0.0040,
         &quot;auto_reduce_enabled&quot;: false,
         &quot;auto_reduce_start_pct&quot;: 0.068,
         &quot;entry_during_autoreduce&quot;: false,
@@ -1031,15 +1024,14 @@
         &quot;test_orders_enabled&quot;: false,
         &quot;max_usd_value&quot;: 50,
         &quot;min_qty_threshold&quot;: 0,
-        &quot;long_liq_pct&quot;: 0.05,
-        &quot;short_liq_pct&quot;: 0.05,
         &quot;MaxAbsFundingRate&quot;: 0.0002,
         &quot;blacklist&quot;: [&quot;BTCUSDT&quot;, &quot;ETHUSDT&quot;],
         &quot;whitelist&quot;: [],
-        &quot;dashboard_enabled&quot;: true,
+        &quot;dashboard_enabled&quot;: false,
         &quot;shared_data_path&quot;: &quot;data/&quot;,
         &quot;linear_grid&quot;: {
-            &quot;auto_graceful_stop&quot;: &quot;true&quot;,
+            &quot;target_coins_mode&quot;: false,
+            &quot;auto_graceful_stop&quot;: false,
             &quot;entry_signal_type&quot;: &quot;lorentzian&quot;,
             &quot;additional_entries_from_signal&quot;: true,
             &quot;graceful_stop_long&quot;: false,
@@ -1048,13 +1040,13 @@
             &quot;max_qty_percent_short&quot;: 30,
             &quot;auto_reduce_cooldown_enabled&quot;: false,
             &quot;auto_reduce_cooldown_start_pct&quot;: 0.051,
-            &quot;wallet_exposure_limit_long&quot;: 0.010,
-            &quot;wallet_exposure_limit_short&quot;: 0.003,
-            &quot;levels&quot;: 3,
+            &quot;wallet_exposure_limit_long&quot;: 0.006,
+            &quot;wallet_exposure_limit_short&quot;: 0.002,
+            &quot;levels&quot;: 4,
             &quot;strength&quot;: 1.4,
             &quot;outer_price_distance&quot;: 0.059,
             &quot;min_outer_price_distance&quot;: 0.019,
-            &quot;max_outer_price_distance&quot;: 0.039,
+            &quot;max_outer_price_distance&quot;: 0.049,
             &quot;long_mode&quot;: true,
             &quot;short_mode&quot;: true,
             &quot;reissue_threshold&quot;: 0.001,
@@ -1065,12 +1057,12 @@
             &quot;enforce_full_grid&quot;: true,
             &quot;min_buffer_percentage_ar&quot;: 0.002,
             &quot;max_buffer_percentage_ar&quot;: 0.004,
-            &quot;upnl_auto_reduce_threshold_long&quot;: 10.0,
-            &quot;upnl_auto_reduce_threshold_short&quot;: 10.0,
+            &quot;upnl_auto_reduce_threshold_long&quot;: 30.0,
+            &quot;upnl_auto_reduce_threshold_short&quot;: 30.0,
             &quot;failsafe_enabled&quot;: false,
             &quot;failsafe_start_pct&quot;: 0.07,
-            &quot;long_failsafe_upnl_pct&quot;: 30.0,
-            &quot;short_failsafe_upnl_pct&quot;: 30.0
+            &quot;long_failsafe_upnl_pct&quot;: 10.0,
+            &quot;short_failsafe_upnl_pct&quot;: 10.0
         },
         &quot;hotkeys&quot;: {
             &quot;hotkeys_enabled&quot;: false,
@@ -1082,9 +1074,9 @@
     },
     &quot;exchanges&quot;: [
         {
-            &quot;name&quot;: &quot;bybit&quot;,
-            &quot;account_name&quot;: &quot;account_1&quot;,
-            &quot;symbols_allowed&quot;: 10
+          &quot;name&quot;: &quot;bybit&quot;,
+          &quot;account_name&quot;: &quot;account_1&quot;,
+          &quot;symbols_allowed&quot;: 10
         },
         {
             &quot;name&quot;: &quot;bybit_spot&quot;,
