@@ -49,7 +49,7 @@
             "wallet_exposure_limit_long": 0.006,
             "wallet_exposure_limit_short": 0.002,
             "levels": 4,
-            "strength": 1.7,
+            "strength": 1.4,
             "outer_price_distance": 0.059,
             "min_outer_price_distance": 0.019,
             "max_outer_price_distance": 0.049,

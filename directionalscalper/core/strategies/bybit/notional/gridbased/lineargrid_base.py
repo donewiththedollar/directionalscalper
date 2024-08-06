@@ -13,11 +13,11 @@ from directionalscalper.core.strategies.bybit.bybit_strategy import BybitStrateg
 from directionalscalper.core.exchanges.bybit import BybitExchange
 from directionalscalper.core.strategies.logger import Logger
 from live_table_manager import shared_symbols_data
-logging = Logger(logger_name="BybitDynamicGridSpanOBLevelsLSignal", filename="BybitDynamicGridSpanOBLevelsLSignal.log", stream=True)
+logging = Logger(logger_name="LinearGridBase", filename="LinearGridBase.log", stream=True)
 
 symbol_locks = {}
 
-class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
+class LinearGridBaseFutures(BybitStrategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None, rotator_symbols_standardized=None, mfirsi_signal=None):
         super().__init__(exchange, config, manager, symbols_allowed)
         self.mfirsi_signal = mfirsi_signal
@@ -749,7 +749,7 @@ class BybitDynamicGridSpanOBLevelsLSignal(BybitStrategy):
                     short_tp_counts = tp_order_counts['short_tp_count']
 
                     try:
-                        self.lingrid_v2_gs(
+                        self.lineargrid_base(
                             symbol,
                             open_symbols,
                             total_equity,

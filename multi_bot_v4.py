@@ -206,11 +206,9 @@ class DirectionalMarketMaker:
 
         strategy_classes = {
             'bybit_1m_qfl_mfi_eri_autohedge_walls_atr': bybit_hedging.BybitMMOneMinuteQFLMFIERIAutoHedgeWallsATR,
-            'qsgridinstantsignal': gridbased.BybitDynamicGridSpanOBSRStaticIS,
-            'qsgriddynmaicgridspaninstant': gridbased.BybitDynamicGridSpanIS,
             #'qsgridob': instant_signals.BybitDynamicGridSpanOBLevels,
             'qstrendobdynamictp': gridbased.BybitQuickScalpTrendDynamicTP,
-            'qsgridob': gridbased.BybitDynamicGridSpanOBLevelsLSignal
+            'qsgridob': gridbased.LinearGridBaseFutures
         }
 
         strategy_class = strategy_classes.get(strategy_name.lower())

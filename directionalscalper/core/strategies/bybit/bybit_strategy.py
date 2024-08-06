@@ -4810,7 +4810,7 @@ class BybitStrategy(BaseStrategy):
             return position_details.get(symbol, {}).get('short', {}).get('qty', 0)
         return 0
 
-    def lingrid_v2_gs(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
+    def lineargrid_base(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
                     short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
                     strength: float, outer_price_distance: float, min_outer_price_distance: float, max_outer_price_distance: float, reissue_threshold: float, 
                     wallet_exposure_limit_long: float, wallet_exposure_limit_short: float, long_mode: bool,
