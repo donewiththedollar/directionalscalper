@@ -26,7 +26,7 @@ from api.manager import Manager
 
 from directionalscalper.core.exchanges import *
 
-import directionalscalper.core.strategies.bybit.notional.gridbased as gridbased
+import directionalscalper.core.strategies.bybit.gridbased as gridbased
 import directionalscalper.core.strategies.bybit.hedging as bybit_hedging
 from directionalscalper.core.strategies.binance import *
 from directionalscalper.core.strategies.huobi import *

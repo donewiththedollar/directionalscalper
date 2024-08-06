@@ -42,8 +42,8 @@
             "additional_entries_from_signal": true,
             "graceful_stop_long": false,
             "graceful_stop_short": false,
-            "max_qty_percent_long": 10,
-            "max_qty_percent_short": 10,
+            "max_qty_percent_long": 30,
+            "max_qty_percent_short": 30,
             "auto_reduce_cooldown_enabled": false,
             "auto_reduce_cooldown_start_pct": 0.051,
             "wallet_exposure_limit_long": 0.006,
@@ -93,12 +93,7 @@
             "name": "bybit_unified",
             "account_name": "account_3",
             "symbols_allowed": 5
-        },
-        {
-          "name": "bitget",
-          "account_name": "account_4",
-          "symbols_allowed": 5
-      }
+        }
     ],
     "logger": {
         "level": "info"
