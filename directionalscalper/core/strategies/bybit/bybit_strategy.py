@@ -13068,14 +13068,14 @@ class BybitStrategy(BaseStrategy):
     def cancel_grid_orders(self, symbol: str, side: str):
         try:
             open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
-            #logging.info(f"Open orders data for {symbol}: {open_orders}")
+            # logging.info(f"Open orders data for {symbol}: {open_orders}")
 
             orders_canceled = 0
             for order in open_orders:
                 if order['side'].lower() == side.lower():
                     self.exchange.cancel_order_by_id(order['id'], symbol)
                     orders_canceled += 1
-                    logging.info(f"Canceled order for {symbol}")
+                    logging.info(f"Canceled order {order['id']} for {symbol}")
 
             if orders_canceled > 0:
                 logging.info(f"Canceled {orders_canceled} {side} grid orders for {symbol}")
@@ -13083,12 +13083,16 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"No {side} grid orders found for {symbol}")
 
             # Remove the symbol from active_grids
-            self.active_grids.discard(symbol)
-            logging.info(f"Removed {symbol} from active_grids")
+            if side.lower() == 'buy':
+                self.active_long_grids.discard(symbol)
+            elif side.lower() == 'sell':
+                self.active_short_grids.discard(symbol)
+
+            logging.info(f"Removed {symbol} from {side} active grids")
 
         except Exception as e:
-            logging.info(f"Exception in cancel_grid_orders {e}")
-            
+            logging.error(f"Exception in cancel_grid_orders for {symbol} - {side}: {e}")
+            logging.error("Traceback: %s", traceback.format_exc())
         
     def calculate_total_amount(self, symbol: str, total_equity: float, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float, side: str, levels: int, min_qty: float, enforce_full_grid: bool) -> float:
         logging.info(f"Calculating total amount for {symbol} with total_equity: {total_equity}, best_ask_price: {best_ask_price}, best_bid_price: {best_bid_price}, wallet_exposure_limit: {wallet_exposure_limit}, user_defined_leverage: {user_defined_leverage}, side: {side}, levels: {levels}, min_qty: {min_qty}, enforce_full_grid: {enforce_full_grid}")
