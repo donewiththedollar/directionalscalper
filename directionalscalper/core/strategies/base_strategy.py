@@ -1469,7 +1469,7 @@ class BaseStrategy:
 
             # Adjust helper_wall_size based on the larger position
             base_helper_wall_size = self.helper_wall_size
-            adjusted_helper_wall_size = base_helper_wall_size + 5
+            adjusted_helper_wall_size = base_helper_wall_size + 2
 
             # Initialize variables
             helper_orders = []
