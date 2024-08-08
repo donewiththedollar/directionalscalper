@@ -1078,7 +1078,7 @@ def fetch_updated_symbols(args, manager, whitelist=None):
     
     logging.info(f"Fetched new rotator symbols: {rotator_symbols_cache['symbols']}")
     return rotator_symbols_cache['symbols']
-ssssss
+
 def update_thread_health(symbol, status):
     global thread_health_status
     thread_health_status[symbol] = status

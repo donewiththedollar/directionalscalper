@@ -64,6 +64,13 @@ latest_rotator_symbols = set()
 last_rotator_update_time = time.time()
 tried_symbols = set()
 
+rotator_symbols_cache = {
+    'timestamp': 0,
+    'symbols': set()
+}
+CACHE_DURATION = 50  # Cache duration in seconds
+
+
 logging = Logger(logger_name="MultiBot", filename="MultiBot.log", stream=True)
 
 colorama.init()
@@ -1090,6 +1097,14 @@ def start_thread_for_symbol(symbol, args, manager, mfirsi_signal, action):
     return True
 
 def fetch_updated_symbols(args, manager, whitelist=None):
+    current_time = time.time()
+    
+    # Check if the cached data is still valid
+    if current_time - rotator_symbols_cache['timestamp'] < CACHE_DURATION:
+        logging.info(f"Using cached rotator symbols")
+        return rotator_symbols_cache['symbols']
+    
+    # Fetch new data if cache is expired
     strategy = args.strategy.lower()
     potential_symbols = []
 
@@ -1111,8 +1126,12 @@ def fetch_updated_symbols(args, manager, whitelist=None):
         else:
             potential_symbols = manager.get_auto_rotate_symbols(min_qty_threshold=None, blacklist=blacklist, whitelist=whitelist, max_usd_value=max_usd_value)
 
-    logging.info(f"Potential symbols for {strategy}: {potential_symbols}")
-    return set(standardize_symbol(sym) for sym in potential_symbols)
+    # Update the cache with new data and timestamp
+    rotator_symbols_cache['symbols'] = set(standardize_symbol(sym) for sym in potential_symbols)
+    rotator_symbols_cache['timestamp'] = current_time
+    
+    logging.info(f"Fetched new rotator symbols: {rotator_symbols_cache['symbols']}")
+    return rotator_symbols_cache['symbols']
 
 
 
