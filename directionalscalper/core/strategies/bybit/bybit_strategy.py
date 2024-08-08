@@ -1431,8 +1431,8 @@ class BybitStrategy(BaseStrategy):
         
         logging.info(f"No entry order found for side {side}, excluding helper orders.")
         return False
-    
-    def calculate_dynamic_amounts_notional(self, symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit_long, wallet_exposure_limit_short):
+
+    def calculate_dynamic_amounts_notional(self, symbol, total_equity, best_ask_price, best_bid_price, wallet_exposure_limit_long, wallet_exposure_limit_short, max_retries=20):
         """
         Calculate the dynamic entry sizes for both long and short positions based on wallet exposure limit,
         ensuring compliance with the exchange's minimum notional value requirements.
@@ -1443,6 +1443,9 @@ class BybitStrategy(BaseStrategy):
         :param best_bid_price: Current best bid price of the symbol for selling (short entry).
         :return: A tuple containing entry sizes for long and short trades.
         """
+        # Log the type and value of total_equity and wallet_exposure_limit_long for debugging
+        logging.info(f"Type of total_equity: {type(total_equity)}, Value of total_equity: {total_equity}")
+        logging.info(f"Type of wallet_exposure_limit_long: {type(wallet_exposure_limit_long)}, Value of wallet_exposure_limit_long: {wallet_exposure_limit_long}")
 
         # Calculate the minimum notional value based on the symbol
         if symbol in ["BTCUSDT", "BTC-PERP"]:
@@ -1452,32 +1455,51 @@ class BybitStrategy(BaseStrategy):
         else:
             min_notional_value = 6  # Slightly above 5 to ensure orders are above the minimum
 
-        # Calculate dynamic entry sizes based on risk parameters
-        max_equity_for_long_trade = total_equity * wallet_exposure_limit_long
-        logging.info(f"Max equity for long trade for {symbol}: {max_equity_for_long_trade}")
-        long_entry_size = max(max_equity_for_long_trade / best_ask_price, min_notional_value / best_ask_price)
+        for attempt in range(max_retries):
+            try:
+                # Ensure values are non-zero and valid
+                if total_equity <= 0 or best_ask_price <= 0 or best_bid_price <= 0:
+                    logging.warning(f"Invalid values detected: total_equity={total_equity}, best_ask_price={best_ask_price}, best_bid_price={best_bid_price}")
+                    return 0, 0  # Return zero values for long and short entry sizes
 
-        max_equity_for_short_trade = total_equity * wallet_exposure_limit_short
-        logging.info(f"Max equity for short trade for {symbol}: {max_equity_for_short_trade}")
-        short_entry_size = max(max_equity_for_short_trade / best_bid_price, min_notional_value / best_bid_price)
+                # Calculate dynamic entry sizes based on risk parameters
+                max_equity_for_long_trade = total_equity * wallet_exposure_limit_long
+                logging.info(f"Max equity for long trade for {symbol}: {max_equity_for_long_trade}")
+                long_entry_size = max(max_equity_for_long_trade / best_ask_price, min_notional_value / best_ask_price)
 
-        # Adjusting entry sizes based on the symbol's minimum quantity precision
-        qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
-        if qty_precision is None:
-            long_entry_size_adjusted = math.ceil(long_entry_size)
-            short_entry_size_adjusted = math.ceil(short_entry_size)
-        else:
-            long_entry_size_adjusted = math.ceil(long_entry_size / qty_precision) * qty_precision
-            short_entry_size_adjusted = math.ceil(short_entry_size / qty_precision) * qty_precision
+                max_equity_for_short_trade = total_equity * wallet_exposure_limit_short
+                logging.info(f"Max equity for short trade for {symbol}: {max_equity_for_short_trade}")
+                short_entry_size = max(max_equity_for_short_trade / best_bid_price, min_notional_value / best_bid_price)
 
-        # Ensure the adjusted entry sizes meet the minimum notional value requirement
-        long_entry_size_adjusted = max(long_entry_size_adjusted, math.ceil(min_notional_value / best_ask_price / qty_precision) * qty_precision)
-        short_entry_size_adjusted = max(short_entry_size_adjusted, math.ceil(min_notional_value / best_bid_price / qty_precision) * qty_precision)
+                # Adjusting entry sizes based on the symbol's minimum quantity precision
+                qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
+                if qty_precision is None:
+                    long_entry_size_adjusted = math.ceil(long_entry_size)
+                    short_entry_size_adjusted = math.ceil(short_entry_size)
+                else:
+                    long_entry_size_adjusted = math.ceil(long_entry_size / qty_precision) * qty_precision
+                    short_entry_size_adjusted = math.ceil(short_entry_size / qty_precision) * qty_precision
 
-        logging.info(f"Calculated long entry size for {symbol}: {long_entry_size_adjusted} units")
-        logging.info(f"Calculated short entry size for {symbol}: {short_entry_size_adjusted} units")
+                # Ensure the adjusted entry sizes meet the minimum notional value requirement
+                long_entry_size_adjusted = max(long_entry_size_adjusted, math.ceil(min_notional_value / best_ask_price / qty_precision) * qty_precision)
+                short_entry_size_adjusted = max(short_entry_size_adjusted, math.ceil(min_notional_value / best_bid_price / qty_precision) * qty_precision)
 
-        return long_entry_size_adjusted, short_entry_size_adjusted
+                logging.info(f"Calculated long entry size for {symbol}: {long_entry_size_adjusted} units")
+                logging.info(f"Calculated short entry size for {symbol}: {short_entry_size_adjusted} units")
+
+                return long_entry_size_adjusted, short_entry_size_adjusted
+            except (TypeError, ValueError) as e:
+                logging.info(f"Error occurred on attempt {attempt + 1}: {e}")
+                logging.info(f"total_equity: {total_equity}, wallet_exposure_limit_long: {wallet_exposure_limit_long}")
+                logging.info(f"best_ask_price: {best_ask_price}, best_bid_price: {best_bid_price}")
+                logging.info("".join(traceback.format_exception(None, e, e.__traceback__)))
+                if attempt < max_retries - 1:
+                    sleep_time = 2 ** attempt
+                    logging.info(f"Retrying after {sleep_time} seconds...")
+                    time.sleep(sleep_time)
+                else:
+                    logging.info("Max retries reached. Returning zero values.")
+                    return 0, 0  # Return zero values if all retries fail
 
     def calculate_dynamic_amounts(self, symbol, total_equity, best_ask_price, best_bid_price):
         """
