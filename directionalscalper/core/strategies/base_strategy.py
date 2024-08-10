@@ -1,4 +1,5 @@
 from colorama import Fore
+from sklearn.cluster import DBSCAN
 from typing import Optional, Tuple, List, Dict, Union
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_HALF_DOWN, ROUND_DOWN
 import pandas as pd
@@ -167,6 +168,137 @@ class BaseStrategy:
         self.rate_limiter = RateLimit(10, 1)
 
         # self.bybit = self.Bybit(self)
+
+    def dbscan_classification(ohlcv_data, zigzag_length, epsilon_deviation, aggregate_range):
+        # Extract highs and lows from the OHLCV data
+        highs = np.array([candle['high'] for candle in ohlcv_data])
+        lows = np.array([candle['low'] for candle in ohlcv_data])
+        peaks_and_troughs = []
+
+        direction_up = False
+        last_low = np.max(highs) * 100
+        last_high = 0.0
+
+        # Detect peaks and troughs
+        for i in range(zigzag_length, len(ohlcv_data) - zigzag_length):
+            h = np.max(highs[i - zigzag_length:i + zigzag_length + 1])
+            l = np.min(lows[i - zigzag_length:i + zigzag_length + 1])
+
+            if direction_up:
+                if l == ohlcv_data[i]['low'] and ohlcv_data[i]['low'] < last_low:
+                    last_low = ohlcv_data[i]['low']
+                    peaks_and_troughs.append(last_low)
+                if h == ohlcv_data[i]['high'] and ohlcv_data[i]['high'] > last_low:
+                    last_high = ohlcv_data[i]['high']
+                    direction_up = False
+                    peaks_and_troughs.append(last_high)
+            else:
+                if h == ohlcv_data[i]['high'] and ohlcv_data[i]['high'] > last_high:
+                    last_high = ohlcv_data[i]['high']
+                    peaks_and_troughs.append(last_high)
+                if l == ohlcv_data[i]['low'] and ohlcv_data[i]['low'] < last_high:
+                    last_low = ohlcv_data[i]['low']
+                    direction_up = True
+                    peaks_and_troughs.append(last_low)
+
+        # Normalize the peaks and troughs
+        zigzag = np.array(peaks_and_troughs)
+        min_price = np.min(zigzag)
+        max_price = np.max(zigzag)
+        normalized_zigzag = (zigzag - min_price) / (max_price - min_price)
+
+        # Calculate the mean deviation
+        mean = np.mean(normalized_zigzag)
+        deviation = np.mean(np.abs(normalized_zigzag - mean))
+
+        # Define the epsilon value for DBSCAN
+        epsilon = (deviation * epsilon_deviation) / 100.0
+
+        # Prepare data points for DBSCAN
+        data_points = normalized_zigzag.reshape(-1, 1)
+
+        # Run DBSCAN clustering
+        dbscan = DBSCAN(eps=epsilon, min_samples=1, metric='euclidean')
+        dbscan.fit(data_points)
+
+        # Extract clusters and noise
+        clusters = []
+        for label in set(dbscan.labels_):
+            if label != -1:  # -1 means noise
+                clusters.append([i for i, l in enumerate(dbscan.labels_) if l == label])
+
+        noise = [i for i, l in enumerate(dbscan.labels_) if l == -1]
+
+        # Aggregate and filter clusters into significant levels
+        support_resistance_levels = []
+        for cluster in clusters:
+            cluster_prices = zigzag[cluster]
+            cluster_volumes = [ohlcv_data[i]['volume'] for i in cluster]
+            median_price = np.median(cluster_prices)
+            average_volume = np.mean(cluster_volumes)
+            strength = len(cluster_prices)
+            support_resistance_levels.append({
+                'level': median_price,
+                'strength': strength,
+                'average_volume': average_volume
+            })
+
+        # Add significant noise levels
+        max_level = np.max([level['level'] for level in support_resistance_levels])
+        min_level = np.min([level['level'] for level in support_resistance_levels])
+
+        for i in noise:
+            noise_level = zigzag[i]
+            noise_volume = ohlcv_data[i]['volume']
+            if noise_level > max_level and (noise_level - max_level) / max_level > aggregate_range / 100.0:
+                support_resistance_levels.append({
+                    'level': noise_level,
+                    'strength': 1,
+                    'average_volume': noise_volume
+                })
+            elif noise_level < min_level and (min_level - noise_level) / min_level > aggregate_range / 100.0:
+                support_resistance_levels.append({
+                    'level': noise_level,
+                    'strength': 1,
+                    'average_volume': noise_volume
+                })
+
+        # Sort the levels by price level in descending order
+        support_resistance_levels.sort(key=lambda x: x['level'], reverse=True)
+
+        # Filter out closely grouped levels
+        filtered_levels = []
+        i = 0
+        while i < len(support_resistance_levels):
+            current_group = [support_resistance_levels[i]]
+            j = i + 1
+
+            while j < len(support_resistance_levels) and \
+                    abs(support_resistance_levels[j]['level'] - support_resistance_levels[i]['level']) / support_resistance_levels[i]['level'] <= aggregate_range / 100.0:
+                current_group.append(support_resistance_levels[j])
+                j += 1
+
+            current_group.sort(key=lambda x: x['average_volume'], reverse=True)
+            filtered_levels.append(current_group[0])
+            i = j
+
+        # Finalize the levels by removing close duplicates
+        final_levels = []
+        for k in range(len(filtered_levels)):
+            if len(final_levels) == 0 or \
+                    abs(filtered_levels[k]['level'] - final_levels[-1]['level']) / final_levels[-1]['level'] > aggregate_range / 100.0:
+                final_levels.append(filtered_levels[k])
+            else:
+                for m in range(k + 1, len(filtered_levels)):
+                    if abs(filtered_levels[m]['level'] - final_levels[-1]['level']) / final_levels[-1]['level'] > aggregate_range / 100.0:
+                        final_levels.append(filtered_levels[m])
+                        k = m
+                        break
+
+        # Sort final levels in descending order
+        final_levels.sort(key=lambda x: x['level'], reverse=True)
+
+        return final_levels
 
     def update_hedged_status(self, symbol, is_hedged):
         self.hedged_positions[symbol] = is_hedged
