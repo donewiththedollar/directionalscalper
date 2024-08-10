@@ -250,10 +250,10 @@ class LinearGridBaseFutures(BybitStrategy):
 
                 leverage_tiers = self.exchange.fetch_leverage_tiers(symbol)
 
-                if leverage_tiers:
-                    logging.info(f"Leverage tiers for {symbol}: {leverage_tiers}")
-                else:
-                    logging.error(f"Failed to fetch leverage tiers for {symbol}.")
+                # if leverage_tiers:
+                #     logging.info(f"Leverage tiers for {symbol}: {leverage_tiers}")
+                # else:
+                #     logging.error(f"Failed to fetch leverage tiers for {symbol}.")
 
 
                 logging.info(f"Max USD value: {self.max_usd_value}")
