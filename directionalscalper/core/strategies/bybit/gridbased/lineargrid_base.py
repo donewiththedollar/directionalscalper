@@ -167,6 +167,9 @@ class LinearGridBaseFutures(BybitStrategy):
             graceful_stop_short = self.config.linear_grid['graceful_stop_short']
             additional_entries_from_signal = self.config.linear_grid['additional_entries_from_signal']
 
+            grid_behavior = self.config.linear_grid.get('grid_behavior', 'infinite')
+            drawdown_behavior = self.config.linear_grid.get('drawdown_behavior', 'maxqtypercent')
+
             # reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
 
             volume_check = self.config.volume_check
@@ -782,7 +785,9 @@ class LinearGridBaseFutures(BybitStrategy):
                             graceful_stop_long,
                             graceful_stop_short,
                             additional_entries_from_signal,
-                            open_position_data
+                            open_position_data,
+                            drawdown_behavior,
+                            grid_behavior
                         )
                     except Exception as e:
                         logging.info(f"Something is up with variables for the grid {e}")

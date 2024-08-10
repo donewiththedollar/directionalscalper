@@ -4839,7 +4839,7 @@ class BybitStrategy(BaseStrategy):
                     short_mode: bool, initial_entry_buffer_pct: float, min_buffer_percentage: float, max_buffer_percentage: float,
                     symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float,
                     max_upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool,
-                    max_qty_percent_long: float, max_qty_percent_short: float, graceful_stop_long: bool, graceful_stop_short: bool, additional_entries_from_signal: bool, open_position_data: list):
+                    max_qty_percent_long: float, max_qty_percent_short: float, graceful_stop_long: bool, graceful_stop_short: bool, additional_entries_from_signal: bool, open_position_data: list, drawdown_behavior: str, grid_behavior: str):
         try:
             spread, current_price = self.get_spread_and_price(symbol)
             dynamic_outer_price_distance = self.calculate_dynamic_outer_price_distance(spread, min_outer_price_distance, max_outer_price_distance)
@@ -5581,14 +5581,14 @@ class BybitStrategy(BaseStrategy):
             logging.error("Traceback: %s", traceback.format_exc())
             
     def lingrid_uponsignal_v2(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
-                            short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
-                            strength: float, outer_price_distance: float, min_outer_price_distance: float, max_outer_price_distance: float, reissue_threshold: float,
-                            wallet_exposure_limit: float, wallet_exposure_limit_long: float, wallet_exposure_limit_short: float,
-                            user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool,
-                            short_mode: bool, initial_entry_buffer_pct: float, min_buffer_percentage: float, max_buffer_percentage: float,
-                            symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float,
-                            max_upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool,
-                            max_qty_percent_long: float, max_qty_percent_short: float, grid_behavior: str, drawdown_behavior: str):
+                                                        short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
+                                                        strength: float, outer_price_distance: float, min_outer_price_distance: float, max_outer_price_distance: float, reissue_threshold: float,
+                                                        wallet_exposure_limit: float, wallet_exposure_limit_long: float, wallet_exposure_limit_short: float,
+                                                        user_defined_leverage_long: float, user_defined_leverage_short: float, long_mode: bool,
+                                                        short_mode: bool, initial_entry_buffer_pct: float, min_buffer_percentage: float, max_buffer_percentage: float,
+                                                        symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float,
+                                                        max_upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool,
+                                                        max_qty_percent_long: float, max_qty_percent_short: float):
         try:
             spread = self.get_4h_candle_spread(symbol)
             logging.info(f"4h Candle spread for {symbol}: {spread}")
