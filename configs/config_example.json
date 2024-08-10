@@ -36,6 +36,8 @@
         "dashboard_enabled": false,
         "shared_data_path": "data/",
         "linear_grid": {
+            "grid_behavior": "infinite",
+            "drawdown_behavior": "maxqtypercent",
             "target_coins_mode": false,
             "auto_graceful_stop": true,
             "entry_signal_type": "lorentzian",

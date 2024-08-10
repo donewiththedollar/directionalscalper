@@ -35,6 +35,8 @@ class ConfigInitializer:
             strategy_instance.additional_entries_from_signal = config.linear_grid['additional_entries_from_signal']
             strategy_instance.auto_graceful_stop = config.linear_grid['auto_graceful_stop']
             strategy_instance.target_coins_mode = config.linear_grid['target_coins_mode']
+            strategy_instance.grid_behavior = config.linear_grid.get('grid_behavior', 'infinite')
+            strategy_instance.drawdown_behavior = config.linear_grid.get('drawdown_behavior', 'maxqtypercent')
             strategy_instance.upnl_threshold_pct = config.upnl_threshold_pct
             strategy_instance.volume_check = config.volume_check
             strategy_instance.max_usd_value = config.max_usd_value
