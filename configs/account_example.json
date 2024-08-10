@@ -17,13 +17,6 @@
             "account_name": "account_3",
             "api_key": "your_api_key",
             "api_secret": "your_api_secret"
-        },
-        {
-            "name": "bitget",
-            "account_name": "account_4",
-            "api_key": "your_api_key",
-            "api_secret": "your_api_secret"
         }
-
     ]
 }
