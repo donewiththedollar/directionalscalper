@@ -5496,6 +5496,9 @@ class BybitStrategy(BaseStrategy):
                             logging.info(f"[{symbol}] Short position filled or max retries reached, exiting loop.")
                             break  # Exit loop once the order is filled or max retries are reached
 
+                    self.last_signal_time[symbol] = current_time
+                    self.last_mfirsi_signal[symbol] = "neutral"  # Reset to neutral after processing
+                    
             if additional_entries_from_signal:
                 if symbol in open_symbols:
                     logging.info(f"Allowed symbol: {symbol}")
