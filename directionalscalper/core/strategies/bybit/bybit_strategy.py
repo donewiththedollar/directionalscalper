@@ -4517,6 +4517,7 @@ class BybitStrategy(BaseStrategy):
                                                                         max_upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool,
                                                                         max_qty_percent_long: float, max_qty_percent_short: float):
         try:
+            
             spread = self.get_4h_candle_spread(symbol)
             current_price = self.exchange.get_current_price(symbol)
             dynamic_outer_price_distance = max(min_outer_price_distance, min(max_outer_price_distance, spread))
@@ -4852,6 +4853,10 @@ class BybitStrategy(BaseStrategy):
                         max_upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool,
                         max_qty_percent_long: float, max_qty_percent_short: float, graceful_stop_long: bool, graceful_stop_short: bool, additional_entries_from_signal: bool, open_position_data: list, drawdown_behavior: str, grid_behavior: str):
         try:
+
+            long_pos_qty = long_pos_qty if long_pos_qty is not None else 0
+            short_pos_qty = short_pos_qty if short_pos_qty is not None else 0
+
             spread, current_price = self.get_spread_and_price(symbol)
             dynamic_outer_price_distance = self.calculate_dynamic_outer_price_distance(spread, min_outer_price_distance, max_outer_price_distance)
 
