@@ -24,10 +24,6 @@ class LinearGridBaseFutures(BybitStrategy):
         self.is_order_history_populated = False
         self.last_health_check_time = time.time()
         self.health_check_interval = 600
-        self.last_long_tp_update = datetime.now()
-        self.last_short_tp_update = datetime.now()
-        self.next_long_tp_update = datetime.now() - timedelta(seconds=1)
-        self.next_short_tp_update = datetime.now() - timedelta(seconds=1)
         self.last_helper_order_cancel_time = 0
         self.helper_active = False
         self.helper_wall_size = 5
