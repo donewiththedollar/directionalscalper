@@ -5062,6 +5062,9 @@ class BybitStrategy(BaseStrategy):
 
     def calculate_price_range_and_volume_histograms(self, order_book, current_price, max_outer_price_distance):
         try:
+            # Ensure current_price is a float
+            current_price = float(current_price)
+            
             min_price = current_price - max_outer_price_distance * current_price
             max_price = current_price + max_outer_price_distance * current_price
 
@@ -5070,21 +5073,47 @@ class BybitStrategy(BaseStrategy):
             volume_histogram_short = np.zeros_like(price_range)
 
             for order in order_book['bids']:
-                price, volume = order[0], order[1]
+                price, volume = float(order[0]), float(order[1])  # Convert price and volume to float
                 if min_price <= price <= current_price:
                     index = int((price - min_price) / (max_price - min_price) * 100)
                     volume_histogram_long[index] += volume
 
             for order in order_book['asks']:
-                price, volume = order[0], order[1]
+                price, volume = float(order[0]), float(order[1])  # Convert price and volume to float
                 if current_price <= price <= max_price:
                     index = int((price - min_price) / (max_price - min_price) * 100)
                     volume_histogram_short[index] += volume
 
             return min_price, max_price, price_range, volume_histogram_long, volume_histogram_short
         except Exception as e:
-            logging.info(f"Exception in calculate_price_range {e}")
+            logging.info(f"Exception in calculate_price_range_and_volume_histograms: {e}")
             logging.info("Traceback: %s", traceback.format_exc())
+
+    # def calculate_price_range_and_volume_histograms(self, order_book, current_price, max_outer_price_distance):
+    #     try:
+    #         min_price = current_price - max_outer_price_distance * current_price
+    #         max_price = current_price + max_outer_price_distance * current_price
+
+    #         price_range = np.arange(min_price, max_price, (max_price - min_price) / 100)
+    #         volume_histogram_long = np.zeros_like(price_range)
+    #         volume_histogram_short = np.zeros_like(price_range)
+
+    #         for order in order_book['bids']:
+    #             price, volume = order[0], order[1]
+    #             if min_price <= price <= current_price:
+    #                 index = int((price - min_price) / (max_price - min_price) * 100)
+    #                 volume_histogram_long[index] += volume
+
+    #         for order in order_book['asks']:
+    #             price, volume = order[0], order[1]
+    #             if current_price <= price <= max_price:
+    #                 index = int((price - min_price) / (max_price - min_price) * 100)
+    #                 volume_histogram_short[index] += volume
+
+    #         return min_price, max_price, price_range, volume_histogram_long, volume_histogram_short
+    #     except Exception as e:
+    #         logging.info(f"Exception in calculate_price_range {e}")
+    #         logging.info("Traceback: %s", traceback.format_exc())
 
     def calculate_volume_thresholds_and_significant_levels(self, volume_histogram, price_range):
         volume_threshold = np.mean(volume_histogram) * 1.5
@@ -5372,7 +5401,7 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"[{symbol}] Number of open symbols: {len(open_symbols)}, Symbols allowed: {symbols_allowed}")
 
             # Separate handling for new positions
-            if unique_open_symbols <= symbols_allowed:
+            if unique_open_symbols <= symbols_allowed or symbol in open_symbols:
                 fresh_signal = self.generate_l_signals(symbol)
                 
                 if fresh_signal.lower() == "long" and long_mode and not has_open_long_position and not graceful_stop_long and symbol not in self.active_long_grids:
@@ -5383,7 +5412,7 @@ class BybitStrategy(BaseStrategy):
                     self.active_long_grids.add(symbol)
 
                     retry_counter = 0
-                    max_retries = 15  # Set a maximum number of retries
+                    max_retries = 25  # Set a maximum number of retries
 
                     while long_pos_qty < 0.00001 and retry_counter < max_retries:
                         time.sleep(5)  # Wait for some time to allow order to be filled
@@ -5417,7 +5446,7 @@ class BybitStrategy(BaseStrategy):
                     self.active_short_grids.add(symbol)
 
                     retry_counter = 0
-                    max_retries = 15  # Set a maximum number of retries
+                    max_retries = 25  # Set a maximum number of retries
 
                     while short_pos_qty < 0.00001 and retry_counter < max_retries:
                         time.sleep(5)  # Wait for some time to allow order to be filled
@@ -5599,6 +5628,7 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.info(f"Error in executing gridstrategy: {e}")
             logging.info("Traceback: %s", traceback.format_exc())
+
 
     def lingrid_uponsignal_v2(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
                                                         short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
