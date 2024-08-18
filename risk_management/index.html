@@ -624,6 +624,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#new-drawdown-behavior-aggressive-full-distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      New Drawdown Behavior: Aggressive Full Distribution
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#grid-management" class="md-nav__link">
     <span class="md-ellipsis">
       Grid Management
@@ -831,6 +840,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#new-drawdown-behavior-aggressive-full-distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      New Drawdown Behavior: Aggressive Full Distribution
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#grid-management" class="md-nav__link">
     <span class="md-ellipsis">
       Grid Management
@@ -872,17 +890,17 @@
 <p>This document explains the risk management strategies implemented in the trading bot, focusing on four key parameters from the configuration.</p>
 <h2 id="example-key-configuration-parameters">Example Key Configuration Parameters</h2>
 <ol>
-<li><code>wallet_exposure_limit_long</code>: 0.013 (1.3%)</li>
-<li><code>wallet_exposure_limit_short</code>: 0.004 (0.4%)</li>
-<li><code>max_qty_percent_long</code>: 10%</li>
-<li><code>max_qty_percent_short</code>: 10%</li>
+<li><code>wallet_exposure_limit_long</code>: 0.006 (0.6%)</li>
+<li><code>wallet_exposure_limit_short</code>: 0.002 (0.2%)</li>
+<li><code>max_qty_percent_long</code>: 30 (%)</li>
+<li><code>max_qty_percent_short</code>: 30 (%)</li>
 </ol>
 <h2 id="understanding-the-parameters">Understanding the Parameters</h2>
 <h3 id="wallet-exposure-limits">Wallet Exposure Limits</h3>
 <p>The <code>wallet_exposure_limit_long</code> and <code>wallet_exposure_limit_short</code> parameters define the maximum percentage of the total equity that can be allocated to long and short positions, respectively.</p>
 <ul>
-<li>Long positions: Up to 1.3% of total equity</li>
-<li>Short positions: Up to 0.4% of total equity</li>
+<li>Long positions: Up to 0.6% of total equity</li>
+<li>Short positions: Up to 0.2% of total equity</li>
 </ul>
 <p>These limits help prevent overexposure to any single trading direction and maintain a balanced risk profile.</p>
 <h3 id="maximum-quantity-percentages">Maximum Quantity Percentages</h3>
@@ -944,6 +962,28 @@
 <li>Uses a strength parameter to adjust the distribution, allowing for more aggressive or conservative strategies.</li>
 <li>Ensures that each order meets minimum notional and quantity requirements set by the exchange.</li>
 </ol>
+<h3 id="new-drawdown-behavior-aggressive-full-distribution">New Drawdown Behavior: Aggressive Full Distribution</h3>
+<p>The bot introduces a new drawdown behavior parameter called <code>aggressive_full_distribution</code> that impacts how orders are sized and distributed during drawdown scenarios:</p>
+<ol>
+<li><strong>Behavior Explanation</strong>:</li>
+<li>When <code>drawdown_behavior</code> is set to <code>aggressive_full_distribution</code>, the bot aggressively allocates the full remaining allowable capital to a specified number of grid levels.</li>
+<li>
+<p>This approach aims to quickly recover from a drawdown by placing large orders that can bring the open position back to the current price and into profit.</p>
+</li>
+<li>
+<p><strong>Impact on Order Sizing</strong>:</p>
+</li>
+<li>The entire adjusted maximum position value, calculated by subtracting the current position value from the maximum position value (based on wallet exposure limits), is distributed across the grid levels.</li>
+<li>The <code>strength</code> parameter influences how the capital is distributed among the levels. Higher strength values will allocate more capital to levels further from the current price, while lower strength values will result in a more even distribution.</li>
+<li>
+<p>Unlike the standard DCA approach, this behavior does not adjust based on the current position size within the grid, focusing instead on maximizing the deployment of available capital.</p>
+</li>
+<li>
+<p><strong>Risk Considerations</strong>:</p>
+</li>
+<li>The <code>aggressive_full_distribution</code> behavior can lead to very large orders, especially if the wallet exposure limit is high (e.g., set to 1.0). This approach increases the potential for quick recovery but also raises the risk of significant drawdowns if the market moves unfavorably.</li>
+<li>It is crucial to carefully manage and understand the implications of using this behavior, as it prioritizes aggressive recovery over conservative risk management.</li>
+</ol>
 <h3 id="grid-management">Grid Management</h3>
 <ul>
 <li>The bot clears grids when position sizes exceed the maximum allowed percentages.</li>
@@ -952,7 +992,7 @@
 </ul>
 <h2 id="conclusion">Conclusion</h2>
 <p>This risk management system provides a comprehensive approach to controlling exposure and managing position sizes. By using wallet exposure limits and maximum quantity percentages, the bot maintains a balanced risk profile while allowing for effective trading across multiple symbols and strategies.</p>
-<p>The implementation of proper DCA and dynamic grid management further enhances the bot's ability to adapt to market conditions while adhering to predefined risk parameters.</p>
+<p>The implementation of proper DCA, dynamic grid management, and the new aggressive drawdown behavior further enhances the bot's ability to adapt to market conditions while adhering to predefined risk parameters.</p>
 
 
 
