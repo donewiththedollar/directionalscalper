@@ -624,11 +624,35 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#drawdown-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      Drawdown Behavior
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Drawdown Behavior">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#default-drawdown-behavior-maxqtypercent" class="md-nav__link">
+    <span class="md-ellipsis">
+      Default Drawdown Behavior: maxqtypercent
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#new-drawdown-behavior-aggressive-full-distribution" class="md-nav__link">
     <span class="md-ellipsis">
       New Drawdown Behavior: Aggressive Full Distribution
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -840,11 +864,35 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#drawdown-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      Drawdown Behavior
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Drawdown Behavior">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#default-drawdown-behavior-maxqtypercent" class="md-nav__link">
+    <span class="md-ellipsis">
+      Default Drawdown Behavior: maxqtypercent
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#new-drawdown-behavior-aggressive-full-distribution" class="md-nav__link">
     <span class="md-ellipsis">
       New Drawdown Behavior: Aggressive Full Distribution
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -892,8 +940,8 @@
 <ol>
 <li><code>wallet_exposure_limit_long</code>: 0.006 (0.6%)</li>
 <li><code>wallet_exposure_limit_short</code>: 0.002 (0.2%)</li>
-<li><code>max_qty_percent_long</code>: 30 (%)</li>
-<li><code>max_qty_percent_short</code>: 30 (%)</li>
+<li><code>max_qty_percent_long</code>: 30%</li>
+<li><code>max_qty_percent_short</code>: 30%</li>
 </ol>
 <h2 id="understanding-the-parameters">Understanding the Parameters</h2>
 <h3 id="wallet-exposure-limits">Wallet Exposure Limits</h3>
@@ -906,83 +954,113 @@
 <h3 id="maximum-quantity-percentages">Maximum Quantity Percentages</h3>
 <p>The <code>max_qty_percent_long</code> and <code>max_qty_percent_short</code> parameters set the maximum allowed position size as a percentage of the total equity for long and short positions, respectively.</p>
 <ul>
-<li>Both long and short positions: Up to 10% of total equity</li>
+<li>Both long and short positions: Up to 30% of total equity</li>
 </ul>
 <p>These limits act as an additional safety measure to prevent any single position from becoming too large relative to the total equity.</p>
 <h2 id="risk-management-implementation">Risk Management Implementation</h2>
 <p>The bot implements risk management through the <code>check_and_manage_positions</code> function. Here's how it works:</p>
 <ol>
-<li><strong>Calculate Maximum Allowed Positions</strong>:</li>
-<li>For long positions: <code>max_qty_long = (total_equity * wallet_exposure_limit_long) / current_price</code></li>
 <li>
-<p>For short positions: <code>max_qty_short = (total_equity * wallet_exposure_limit_short) / current_price</code></p>
+<p><strong>Calculate Maximum Allowed Positions</strong>:</p>
+<ul>
+<li>For long positions: <code>max_qty_long = (total_equity * wallet_exposure_limit_long) / current_price</code></li>
+<li>For short positions: <code>max_qty_short = (total_equity * wallet_exposure_limit_short) / current_price</code></li>
+</ul>
 </li>
 <li>
 <p><strong>Calculate Position Exposure Percentages</strong>:</p>
-</li>
+<ul>
 <li>Long exposure: <code>(long_pos_qty * current_price / total_equity) * 100</code></li>
-<li>
-<p>Short exposure: <code>(short_pos_qty * current_price / total_equity) * 100</code></p>
+<li>Short exposure: <code>(short_pos_qty * current_price / total_equity) * 100</code></li>
+</ul>
 </li>
 <li>
 <p><strong>Check Against Maximum Quantity Percentages</strong>:</p>
-</li>
+<ul>
 <li>If long exposure &gt; <code>max_qty_percent_long</code>:<ul>
 <li>Clear long grid</li>
 <li>Remove symbol from active grids</li>
 <li>Add symbol to <code>max_qty_reached_symbol_long</code> set</li>
 </ul>
 </li>
-<li>
-<p>If short exposure &gt; <code>max_qty_percent_short</code>:</p>
-<ul>
+<li>If short exposure &gt; <code>max_qty_percent_short</code>:<ul>
 <li>Clear short grid</li>
 <li>Remove symbol from active grids</li>
 <li>Add symbol to <code>max_qty_reached_symbol_short</code> set</li>
 </ul>
 </li>
+</ul>
+</li>
 <li>
 <p><strong>Recovery Mechanism</strong>:</p>
-</li>
+<ul>
 <li>If a symbol's exposure falls below the maximum allowed percentage, it is removed from the respective <code>max_qty_reached_symbol</code> set, allowing trading to resume.</li>
+</ul>
+</li>
 </ol>
 <h2 id="additional-risk-management-features">Additional Risk Management Features</h2>
 <h3 id="proper-dca-dollar-cost-averaging-implementation">Proper DCA (Dollar Cost Averaging) Implementation</h3>
 <p>The bot uses two functions for implementing a proper DCA strategy:</p>
 <ol>
-<li><code>calculate_total_amount_notional_ls_properdca</code>:</li>
-<li>Calculates the total notional amount for a grid based on the wallet exposure limits and current position values.</li>
 <li>
-<p>Ensures that the total position value (including existing positions) doesn't exceed the maximum allowed exposure.</p>
+<p><code>calculate_total_amount_notional_ls_properdca</code>:</p>
+<ul>
+<li>Calculates the total notional amount for a grid based on the wallet exposure limits and current position values.</li>
+<li>Ensures that the total position value (including existing positions) doesn't exceed the maximum allowed exposure.</li>
+</ul>
 </li>
 <li>
 <p><code>calculate_order_amounts_notional_properdca</code>:</p>
-</li>
+<ul>
 <li>Distributes the total notional amount across multiple orders in the grid.</li>
 <li>Uses a strength parameter to adjust the distribution, allowing for more aggressive or conservative strategies.</li>
 <li>Ensures that each order meets minimum notional and quantity requirements set by the exchange.</li>
+</ul>
+</li>
 </ol>
-<h3 id="new-drawdown-behavior-aggressive-full-distribution">New Drawdown Behavior: Aggressive Full Distribution</h3>
-<p>The bot introduces a new drawdown behavior parameter called <code>aggressive_full_distribution</code> that impacts how orders are sized and distributed during drawdown scenarios:</p>
+<h3 id="drawdown-behavior">Drawdown Behavior</h3>
+<p>The bot supports different drawdown behaviors, which define how capital is allocated during drawdown scenarios:</p>
+<h4 id="default-drawdown-behavior-maxqtypercent">Default Drawdown Behavior: maxqtypercent</h4>
 <ol>
-<li><strong>Behavior Explanation</strong>:</li>
-<li>When <code>drawdown_behavior</code> is set to <code>aggressive_full_distribution</code>, the bot aggressively allocates the full remaining allowable capital to a specified number of grid levels.</li>
 <li>
-<p>This approach aims to quickly recover from a drawdown by placing large orders that can bring the open position back to the current price and into profit.</p>
+<p><strong>Behavior Explanation</strong>:</p>
+<ul>
+<li>In the default <code>maxqtypercent</code> behavior, the bot gradually allocates capital to grid levels as the market moves against the position. The allocation is influenced by the <code>strength</code> parameter, which controls the distribution of capital across levels.</li>
+<li>This approach aims to dollar cost average (DCA) into the position, spreading the risk and allowing the position to recover as the market retraces.</li>
+</ul>
 </li>
 <li>
 <p><strong>Impact on Order Sizing</strong>:</p>
+<ul>
+<li>Capital is distributed across the specified number of grid levels based on the <code>strength</code> parameter. Higher strength values will allocate more capital to levels further from the current price.</li>
+<li>The bot adjusts the total amount to ensure that the position size remains within the defined wallet exposure limits.</li>
+</ul>
 </li>
+</ol>
+<h4 id="new-drawdown-behavior-aggressive-full-distribution">New Drawdown Behavior: Aggressive Full Distribution</h4>
+<ol>
+<li>
+<p><strong>Behavior Explanation</strong>:</p>
+<ul>
+<li>When <code>drawdown_behavior</code> is set to <code>aggressive_full_distribution</code>, the bot aggressively allocates the full remaining allowable capital to a specified number of grid levels.</li>
+<li>This approach aims to quickly recover from a drawdown by placing large orders that can bring the open position back to the current price and into profit.</li>
+</ul>
+</li>
+<li>
+<p><strong>Impact on Order Sizing</strong>:</p>
+<ul>
 <li>The entire adjusted maximum position value, calculated by subtracting the current position value from the maximum position value (based on wallet exposure limits), is distributed across the grid levels.</li>
 <li>The <code>strength</code> parameter influences how the capital is distributed among the levels. Higher strength values will allocate more capital to levels further from the current price, while lower strength values will result in a more even distribution.</li>
-<li>
-<p>Unlike the standard DCA approach, this behavior does not adjust based on the current position size within the grid, focusing instead on maximizing the deployment of available capital.</p>
+<li>Unlike the default DCA approach, this behavior does not adjust based on the current position size within the grid, focusing instead on maximizing the deployment of available capital.</li>
+</ul>
 </li>
 <li>
 <p><strong>Risk Considerations</strong>:</p>
-</li>
+<ul>
 <li>The <code>aggressive_full_distribution</code> behavior can lead to very large orders, especially if the wallet exposure limit is high (e.g., set to 1.0). This approach increases the potential for quick recovery but also raises the risk of significant drawdowns if the market moves unfavorably.</li>
 <li>It is crucial to carefully manage and understand the implications of using this behavior, as it prioritizes aggressive recovery over conservative risk management.</li>
+</ul>
+</li>
 </ol>
 <h3 id="grid-management">Grid Management</h3>
 <ul>
