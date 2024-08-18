@@ -74,8 +74,8 @@ class BybitStrategy(BaseStrategy):
         self.last_processed_signal = {}
         self.last_processed_time_long = {}  # Dictionary to store the last processed time for long positions
         self.last_processed_time_short = {}
-        self.next_long_tp_update = datetime.now() - timedelta(seconds=1)
-        self.next_short_tp_update = datetime.now() - timedelta(seconds=1)
+        self.next_long_tp_update = datetime.now() - timedelta(seconds=10)
+        self.next_short_tp_update = datetime.now() - timedelta(seconds=10)
         ConfigInitializer.initialize_config_attributes(self, config)
 
         try:
@@ -460,7 +460,7 @@ class BybitStrategy(BaseStrategy):
     def calculate_next_update_time(self):
         """Returns the time for the next TP update, which is 30 seconds from the current time."""
         now = datetime.now()
-        next_update_time = now + timedelta(seconds=30)
+        next_update_time = now + timedelta(seconds=10)
         return next_update_time.replace(microsecond=0)
 
     # Bybit cancel all entries
