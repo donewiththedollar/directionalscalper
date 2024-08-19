@@ -1,6 +1,7 @@
 from colorama import Fore
 from typing import Optional, Tuple, List, Dict, Union
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_HALF_DOWN, ROUND_DOWN
+import inspect
 import pandas as pd
 import time
 import math
@@ -5305,7 +5306,7 @@ class BybitStrategy(BaseStrategy):
 
             should_reissue_long, should_reissue_short = self.should_reissue_orders_revised(
                 symbol, reissue_threshold, long_pos_qty, short_pos_qty, initial_entry_buffer_pct)
-                
+
             if self.auto_reduce_active_long.get(symbol, False):
                 logging.info(f"Auto-reduce for long position on {symbol} is active")
                 self.clear_grid(symbol, 'buy')
@@ -5331,110 +5332,101 @@ class BybitStrategy(BaseStrategy):
             replace_empty_long_grid = (long_pos_qty > 0 and not has_open_long_order)
             replace_empty_short_grid = (short_pos_qty > 0 and not has_open_short_order)
 
-            # Track the last time the grid was emptied
-            if replace_empty_long_grid and symbol not in self.last_empty_grid_time:
-                self.last_empty_grid_time[symbol] = {}
-            if replace_empty_short_grid and symbol not in self.last_empty_grid_time:
-                self.last_empty_grid_time[symbol] = {}
-
             current_time = time.time()
 
-            # Check and log if the symbol is in max_qty_reached_symbol_long
+            # Check and log if the symbol is in max_qty_reached_symbol_long or short
             if symbol in self.max_qty_reached_symbol_long:
                 logging.info(f"[{symbol}] Symbol is in max_qty_reached_symbol_long")
-
             if symbol in self.max_qty_reached_symbol_short:
                 logging.info(f"[{symbol}] Symbol is in max_qty_reached_symbol_short")
 
             # Additional logic for managing open symbols and checking trading permissions
             open_symbols = list(set(open_symbols))
-            logging.info(f"Open symbols {open_symbols}")
+            logging.info(f"Open symbols: {open_symbols}")
 
             trading_allowed = self.can_trade_new_symbol(open_symbols, symbols_allowed, symbol)
             logging.info(f"Checking trading for symbol {symbol}. Can trade: {trading_allowed}")
             logging.info(f"Symbol: {symbol}, In open_symbols: {symbol in open_symbols}, Trading allowed: {trading_allowed}")
 
-            # mfi_signal_long = mfirsi_signal.lower() == "long"
-            # mfi_signal_short = mfirsi_signal.lower() == "short"
-
             fresh_mfirsi_signal = self.generate_l_signals(symbol)
-            logging.info(f"Fresh MFIRSI signal for {symbol} : {fresh_mfirsi_signal}")
+            logging.info(f"Fresh MFIRSI signal for {symbol}: {fresh_mfirsi_signal}")
             mfi_signal_long = fresh_mfirsi_signal == "long"
             mfi_signal_short = fresh_mfirsi_signal == "short"
 
-            logging.info(f"MFIRSI SIGNAL FOR {symbol} {mfirsi_signal}")
+            logging.info(f"MFIRSI SIGNAL FOR {symbol}: {mfirsi_signal}")
 
+            # Function to safely issue grids without causing duplicates
+            def issue_grid_safely(side, grid_levels, amounts):
+                grid_set = self.active_long_grids if side == 'long' else self.active_short_grids
+                order_side = 'buy' if side == 'long' else 'sell'
 
-            # Check if the number of open symbols for long and short positions is within the allowed limit
-            if length_of_open_symbols_long <= symbols_allowed or length_of_open_symbols_short <= symbols_allowed and symbol in open_symbols:
-                logging.info(f"Allowed symbol: {symbol}")
+                if symbol not in grid_set:
+                    logging.info(f"[{symbol}] Issuing new {side} grid orders.")
+                    self.issue_grid_orders(symbol, order_side, grid_levels, amounts, side == 'long', self.filled_levels[symbol][order_side])
+                    grid_set.add(symbol)
+                else:
+                    logging.info(f"[{symbol}] {side.capitalize()} grid already exists. Skipping grid creation.")
 
-                replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist_v2(
-                    symbol, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
-                    dynamic_outer_price_distance=dynamic_outer_price_distance
-                )
+            # Determine whether to replace grids based on the updated buffer and outer price distance
+            replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist_v2(
+                symbol, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
+                dynamic_outer_price_distance=dynamic_outer_price_distance
+            )
 
-                # Replace long grid if conditions are met
-                #if (replace_long_grid or (replace_empty_long_grid and (current_time - self.last_empty_grid_time[symbol].get('long', 0) > 240))) and not self.auto_reduce_active_long.get(symbol, False):
-                if replace_long_grid:
-                    if symbol not in self.max_qty_reached_symbol_long:
-                        logging.info(f"[{symbol}] Replacing long grid orders due to updated buffer or empty grid timeout.")
-                        self.clear_grid(symbol, 'buy')
-                        buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
-                        buffer_distance_long = current_price * buffer_percentage_long
-                        self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                        self.active_long_grids.add(symbol)
-                        self.last_empty_grid_time[symbol]['long'] = current_time
-                        logging.info(f"[{symbol}] Recalculated long grid levels with updated buffer: {grid_levels_long}")
-                    else:
-                        logging.info(f"{symbol} is in max qty reached symbol long cannot replace grid")
+            # Replace long grid if conditions are met
+            if replace_long_grid:
+                if symbol not in self.max_qty_reached_symbol_long:
+                    logging.info(f"[{symbol}] Replacing long grid orders due to updated buffer or empty grid timeout.")
+                    buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
+                    buffer_distance_long = current_price * buffer_percentage_long
+                    issue_grid_safely('long', grid_levels_long, amounts_long)
+                    self.last_empty_grid_time[symbol]['long'] = current_time
+                    logging.info(f"[{symbol}] Recalculated long grid levels with updated buffer: {grid_levels_long}")
+                else:
+                    logging.info(f"{symbol} is in max qty reached symbol long, cannot replace grid")
 
-                # Replace short grid if conditions are met
-                #if (replace_short_grid or (replace_empty_short_grid and (current_time - self.last_empty_grid_time[symbol].get('short', 0) > 240))) and not self.auto_reduce_active_short.get(symbol, False):
-                if replace_short_grid:
-                    if symbol not in self.max_qty_reached_symbol_short:
-                        logging.info(f"[{symbol}] Replacing short grid orders due to updated buffer or empty grid timeout.")
-                        self.clear_grid(symbol, 'sell')
-                        buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - short_pos_price) / short_pos_price)
-                        buffer_distance_short = current_price * buffer_percentage_short
-                        self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                        self.active_short_grids.add(symbol)
-                        self.last_empty_grid_time[symbol]['short'] = current_time
-                        logging.info(f"[{symbol}] Recalculated short grid levels with updated buffer: {grid_levels_short}")
-                    else:
-                        logging.info(f"{symbol} is in max qty reached symbol short cannot replace grid")
+            # Replace short grid if conditions are met
+            if replace_short_grid:
+                if symbol not in self.max_qty_reached_symbol_short:
+                    logging.info(f"[{symbol}] Replacing short grid orders due to updated buffer or empty grid timeout.")
+                    buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - short_pos_price) / short_pos_price)
+                    buffer_distance_short = current_price * buffer_percentage_short
+                    issue_grid_safely('short', grid_levels_short, amounts_short)
+                    self.last_empty_grid_time[symbol]['short'] = current_time
+                    logging.info(f"[{symbol}] Recalculated short grid levels with updated buffer: {grid_levels_short}")
+                else:
+                    logging.info(f"{symbol} is in max qty reached symbol short, cannot replace grid")
 
-                if self.should_reissue_orders_revised(symbol, reissue_threshold, long_pos_qty, short_pos_qty, initial_entry_buffer_pct):
-                    open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
+            # Reissuing orders logic
+            if self.should_reissue_orders_revised(symbol, reissue_threshold, long_pos_qty, short_pos_qty, initial_entry_buffer_pct):
+                open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
 
-                    has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
-                    has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
+                has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
+                has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
 
-                    if not long_pos_qty and long_mode and not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
-                        if entry_during_autoreduce or not self.auto_reduce_active_long.get(symbol, False):
-                            if symbol in self.active_long_grids and "buy" in self.filled_levels[symbol] and has_open_long_order:
-                                logging.info(f"[{symbol}] Reissuing long orders due to price movement beyond the threshold.")
-                                self.clear_grid(symbol, 'buy')
-                                self.active_long_grids.discard(symbol)
-                                logging.info(f"[{symbol}] Placing new long orders.")
-                                self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                                self.active_long_grids.add(symbol)
-                            elif symbol not in self.active_long_grids:
-                                logging.info(f"[{symbol}] No active long grid for the symbol. Skipping long grid reissue.")
+                if not long_pos_qty and long_mode and not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
+                    if entry_during_autoreduce or not self.auto_reduce_active_long.get(symbol, False):
+                        if symbol in self.active_long_grids and "buy" in self.filled_levels[symbol] and has_open_long_order:
+                            logging.info(f"[{symbol}] Reissuing long orders due to price movement beyond the threshold.")
+                            self.clear_grid(symbol, 'buy')
+                            self.active_long_grids.discard(symbol)
+                            logging.info(f"[{symbol}] Placing new long orders.")
+                            issue_grid_safely('long', grid_levels_long, amounts_long)
+                        elif symbol not in self.active_long_grids:
+                            logging.info(f"[{symbol}] No active long grid for the symbol. Skipping long grid reissue.")
 
-                    if not short_pos_qty and short_mode and not self.auto_reduce_active_short.get(symbol, False) and symbol not in self.max_qty_reached_symbol_short:
-                        if entry_during_autoreduce or not self.auto_reduce_active_short.get(symbol, False):
-                            if symbol in self.active_short_grids and "sell" in self.filled_levels[symbol] and has_open_short_order:
-                                logging.info(f"[{symbol}] Reissuing short orders due to price movement beyond the threshold.")
-                                self.clear_grid(symbol, 'sell')
-                                self.active_short_grids.discard(symbol)
-                                logging.info(f"[{symbol}] Placing new short orders.")
-                                self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                                self.active_short_grids.add(symbol)
-                            elif symbol not in self.active_short_grids:
-                                logging.info(f"[{symbol}] No active short grid for the symbol. Skipping short grid reissue.")
+                if not short_pos_qty and short_mode and not self.auto_reduce_active_short.get(symbol, False) and symbol not in self.max_qty_reached_symbol_short:
+                    if entry_during_autoreduce or not self.auto_reduce_active_short.get(symbol, False):
+                        if symbol in self.active_short_grids and "sell" in self.filled_levels[symbol] and has_open_short_order:
+                            logging.info(f"[{symbol}] Reissuing short orders due to price movement beyond the threshold.")
+                            self.clear_grid(symbol, 'sell')
+                            self.active_short_grids.discard(symbol)
+                            logging.info(f"[{symbol}] Placing new short orders.")
+                            issue_grid_safely('short', grid_levels_short, amounts_short)
+                        elif symbol not in self.active_short_grids:
+                            logging.info(f"[{symbol}] No active short grid for the symbol. Skipping short grid reissue.")
             else:
-                logging.info(f"Open symbols is {open_symbols} and symbols allowed is {symbols_allowed}")
+                logging.info(f"Open symbols are {open_symbols} and symbols allowed are {symbols_allowed}")
 
             # Determine if there are open long and short positions based on provided quantities
             has_open_long_position = long_pos_qty > 0
@@ -5447,13 +5439,11 @@ class BybitStrategy(BaseStrategy):
             # Separate handling for new positions
             if unique_open_symbols <= symbols_allowed or symbol in open_symbols:
                 fresh_signal = self.generate_l_signals(symbol)
-                
+
                 if fresh_signal.lower() == "long" and long_mode and not has_open_long_position and not graceful_stop_long and symbol not in self.active_long_grids:
                     logging.info(f"[{symbol}] Creating new long position based on MFIRSI long signal")
                     self.clear_grid(symbol, 'buy')
-                    #grid_levels_long[0] = best_bid_price
-                    self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                    self.active_long_grids.add(symbol)
+                    issue_grid_safely('long', grid_levels_long, amounts_long)
 
                     retry_counter = 0
                     max_retries = 25  # Set a maximum number of retries
@@ -5472,9 +5462,7 @@ class BybitStrategy(BaseStrategy):
                         if long_pos_qty < 0.00001 and retry_counter < max_retries:
                             logging.info(f"[{symbol}] Retrying long grid orders due to MFIRSI signal long.")
                             self.clear_grid(symbol, 'buy')
-                            #grid_levels_long[0] = best_bid_price
-                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                            self.active_long_grids.add(symbol)
+                            issue_grid_safely('long', grid_levels_long, amounts_long)
                         else:
                             logging.info(f"[{symbol}] Long position filled or max retries reached, exiting loop.")
                             break  # Exit loop once the order is filled or max retries are reached
@@ -5485,9 +5473,7 @@ class BybitStrategy(BaseStrategy):
                 elif fresh_signal.lower() == "short" and short_mode and not has_open_short_position and not graceful_stop_short and symbol not in self.active_short_grids:
                     logging.info(f"[{symbol}] Creating new short position based on MFIRSI short signal")
                     self.clear_grid(symbol, 'sell')
-                    #grid_levels_short[0] = best_ask_price
-                    self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                    self.active_short_grids.add(symbol)
+                    issue_grid_safely('short', grid_levels_short, amounts_short)
 
                     retry_counter = 0
                     max_retries = 25  # Set a maximum number of retries
@@ -5506,23 +5492,21 @@ class BybitStrategy(BaseStrategy):
                         if short_pos_qty < 0.00001 and retry_counter < max_retries:
                             logging.info(f"[{symbol}] Retrying short grid orders due to MFIRSI signal short.")
                             self.clear_grid(symbol, 'sell')
-                            #grid_levels_short[0] = best_ask_price
-                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                            self.active_short_grids.add(symbol)
+                            issue_grid_safely('short', grid_levels_short, amounts_short)
                         else:
                             logging.info(f"[{symbol}] Short position filled or max retries reached, exiting loop.")
                             break  # Exit loop once the order is filled or max retries are reached
 
                     self.last_signal_time[symbol] = current_time
                     self.last_mfirsi_signal[symbol] = "neutral"  # Reset to neutral after processing
-                    
+
             if additional_entries_from_signal:
                 if symbol in open_symbols:
                     logging.info(f"Allowed symbol: {symbol}")
 
                     fresh_signal = self.generate_l_signals(symbol)
 
-                    logging.info(f"Fresh signal for {symbol} : {fresh_signal}")
+                    logging.info(f"Fresh signal for {symbol}: {fresh_signal}")
 
                     if not hasattr(self, 'last_mfirsi_signal'):
                         self.last_mfirsi_signal = {}
@@ -5559,9 +5543,7 @@ class BybitStrategy(BaseStrategy):
                             if current_price <= long_pos_price:  # Enter additional entry only if current price <= long_pos_price
                                 logging.info(f"[{symbol}] Adding to existing long position based on MFIRSI long signal")
                                 self.clear_grid(symbol, 'buy')
-                                # grid_levels_long[0] = best_bid_price
-                                self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                                self.active_long_grids.add(symbol)
+                                issue_grid_safely('long', grid_levels_long, amounts_long)
                                 self.last_signal_time[symbol] = current_time
                                 self.last_mfirsi_signal[symbol] = "neutral"
                             else:
@@ -5571,9 +5553,7 @@ class BybitStrategy(BaseStrategy):
                             if current_price >= short_pos_price:  # Enter additional entry only if current price >= short_pos_price
                                 logging.info(f"[{symbol}] Adding to existing short position based on MFIRSI short signal")
                                 self.clear_grid(symbol, 'sell')
-                                # grid_levels_short[0] = best_ask_price
-                                self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                                self.active_short_grids.add(symbol)
+                                issue_grid_safely('short', grid_levels_short, amounts_short)
                                 self.last_signal_time[symbol] = current_time
                                 self.last_mfirsi_signal[symbol] = "neutral"
                             else:
@@ -5587,12 +5567,22 @@ class BybitStrategy(BaseStrategy):
 
             else:
                 logging.info(f"Additional entries disabled from signal")
+
             time.sleep(5)
 
             long_grid_active, short_grid_active = self.check_grid_active(symbol, open_orders)
 
             logging.info(f"Updated long grid active: {long_grid_active}")
             logging.info(f"Updated short grid active: {short_grid_active}")
+
+            # Check if the symbol is in active grids without open orders
+            if not has_open_long_order and symbol in self.active_long_grids:
+                self.active_long_grids.discard(symbol)
+                logging.info(f"[{symbol}] No open long orders, removed from active long grids")
+
+            if not has_open_short_order and symbol in self.active_short_grids:
+                self.active_short_grids.discard(symbol)
+                logging.info(f"[{symbol}] No open short orders, removed from active short grids")
 
             if symbol in open_symbols: 
                 if (long_pos_qty > 0 and not long_grid_active and not has_open_long_order) or (short_pos_qty > 0 and not short_grid_active and not has_open_short_order):
@@ -5602,15 +5592,13 @@ class BybitStrategy(BaseStrategy):
                             logging.info(f"[{symbol}] Placing long grid orders for existing open position.")
                             self.clear_grid(symbol, 'buy')
                             self.active_long_grids.discard(symbol)
-                            self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-                            self.active_long_grids.add(symbol)
+                            issue_grid_safely('long', grid_levels_long, amounts_long)
                     if short_pos_qty > 0 and not short_grid_active and symbol not in self.max_qty_reached_symbol_short:
                         if not self.auto_reduce_active_short.get(symbol, False) or entry_during_autoreduce:
                             logging.info(f"[{symbol}] Placing short grid orders for existing open position.")
                             self.clear_grid(symbol, 'sell')
                             self.active_short_grids.discard(symbol)
-                            self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-                            self.active_short_grids.add(symbol)
+                            issue_grid_safely('short', grid_levels_short, amounts_short)
 
                 current_time = time.time()
 
@@ -5628,7 +5616,6 @@ class BybitStrategy(BaseStrategy):
 
             else:
                 logging.info(f"Symbol {symbol} not in open_symbols: {open_symbols} or trading not allowed")
-
 
             # Update TP for long position
             if long_pos_qty > 0:
@@ -5672,7 +5659,6 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.info(f"Error in executing gridstrategy: {e}")
             logging.info("Traceback: %s", traceback.format_exc())
-
 
     def lingrid_uponsignal_v2(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
                                                         short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
@@ -12682,10 +12668,14 @@ class BybitStrategy(BaseStrategy):
         if side == 'buy':
             self.cancel_grid_orders(symbol, "buy")
             self.filled_levels[symbol]["buy"].clear()
+            self.active_long_grids.discard(symbol)  # Remove the symbol from active long grids
         elif side == 'sell':
             self.cancel_grid_orders(symbol, "sell")
             self.filled_levels[symbol]["sell"].clear()
-        logging.info(f"Cleared {side} grid for {symbol}.")       
+            self.active_short_grids.discard(symbol)  # Remove the symbol from active short grids
+        
+        logging.info(f"Cleared {side} grid for {symbol}.")
+    
 
     def generate_order_link_id(self, symbol, side, level):
         """
@@ -12704,15 +12694,16 @@ class BybitStrategy(BaseStrategy):
 
         # Get the current price to update last reissue prices
         current_price = self.exchange.get_current_price(symbol)
-        
 
-        # Update last reissue prices
+        # Clear existing grid before placing new orders
         if is_long:
-            self.cancel_grid_orders(symbol, 'buy')
+            logging.info(f"Clearing existing long grid for {symbol} before issuing new orders. (line: {inspect.currentframe().f_lineno})")
+            self.clear_grid(symbol, 'buy')
             self.last_reissue_price_long[symbol] = current_price
             logging.info(f"Updated last reissue price for long orders of {symbol} to {current_price}")
         else:
-            self.cancel_grid_orders(symbol, 'sell')
+            logging.info(f"Clearing existing short grid for {symbol} before issuing new orders. (line: {inspect.currentframe().f_lineno})")
+            self.clear_grid(symbol, 'sell')
             self.last_reissue_price_short[symbol] = current_price
             logging.info(f"Updated last reissue price for short orders of {symbol} to {current_price}")
 
@@ -12742,7 +12733,6 @@ class BybitStrategy(BaseStrategy):
     def cancel_grid_orders(self, symbol: str, side: str):
         try:
             open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
-            # logging.info(f"Open orders data for {symbol}: {open_orders}")
 
             orders_canceled = 0
             for order in open_orders:
@@ -12756,18 +12746,18 @@ class BybitStrategy(BaseStrategy):
             else:
                 logging.info(f"No {side} grid orders found for {symbol}")
 
-            # Remove the symbol from active_grids
+            # Remove the symbol from active grids
             if side.lower() == 'buy':
                 self.active_long_grids.discard(symbol)
+                logging.info(f"Removed {symbol} from active long grids")
             elif side.lower() == 'sell':
                 self.active_short_grids.discard(symbol)
-
-            logging.info(f"Removed {symbol} from {side} active grids")
+                logging.info(f"Removed {symbol} from active short grids")
 
         except Exception as e:
             logging.error(f"Exception in cancel_grid_orders for {symbol} - {side}: {e}")
             logging.error("Traceback: %s", traceback.format_exc())
-        
+
     def calculate_total_amount(self, symbol: str, total_equity: float, best_ask_price: float, best_bid_price: float, wallet_exposure_limit: float, user_defined_leverage: float, side: str, levels: int, min_qty: float, enforce_full_grid: bool) -> float:
         logging.info(f"Calculating total amount for {symbol} with total_equity: {total_equity}, best_ask_price: {best_ask_price}, best_bid_price: {best_bid_price}, wallet_exposure_limit: {wallet_exposure_limit}, user_defined_leverage: {user_defined_leverage}, side: {side}, levels: {levels}, min_qty: {min_qty}, enforce_full_grid: {enforce_full_grid}")
         
