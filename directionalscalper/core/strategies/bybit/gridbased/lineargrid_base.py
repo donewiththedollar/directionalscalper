@@ -539,6 +539,16 @@ class LinearGridBaseFutures(BybitStrategy):
                     logging.info(f"Long dynamic amount: {long_dynamic_amount} for {symbol}")
                     logging.info(f"Short dynamic amount: {short_dynamic_amount} for {symbol}")
 
+                    long_dynamic_amount_helper, short_dynamic_amount_helper = self.calculate_dynamic_amounts_notional_nowelimit(
+                        symbol=symbol,
+                        total_equity=total_equity,
+                        best_bid_price=best_bid_price,
+                        best_ask_price=best_ask_price
+                    )
+
+                    logging.info(f"Long dynamic amount helper: {long_dynamic_amount} for {symbol}")
+                    logging.info(f"Short dynamic amount helper: {short_dynamic_amount} for {symbol}")
+
                     cum_realised_pnl_long = position_data["long"]["cum_realised"]
                     cum_realised_pnl_short = position_data["short"]["cum_realised"]
 
@@ -853,7 +863,7 @@ class LinearGridBaseFutures(BybitStrategy):
                     if self.test_orders_enabled and current_time - self.last_helper_order_cancel_time >= self.helper_interval:
                         if symbol in open_symbols:
                             self.helper_active = True
-                            self.helperv2(symbol, short_dynamic_amount, long_dynamic_amount)
+                            self.helperv2(symbol, short_dynamic_amount_helper, long_dynamic_amount_helper)
                         else:
                             logging.info(f"Skipping test orders for {symbol} as it's not in open symbols list.")
                             
