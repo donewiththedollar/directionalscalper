@@ -561,10 +561,10 @@ def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
                     long_thread_running = symbol in long_threads and long_threads[symbol][0].is_alive()
                     short_thread_running = symbol in short_threads and short_threads[symbol][0].is_alive()
 
-                    logging.info(f"Long thread running for {symbol} {long_thread_running}")
-                    logging.info(f"Short thread running for {symbol} {short_thread_running}")
+                    logging.info(f"Long thread running for {symbol}: {long_thread_running}")
+                    logging.info(f"Short thread running for {symbol}: {short_thread_running}")
                     
-                    if not long_thread_running or not short_thread_running:
+                    if not long_thread_running and has_open_long or not short_thread_running and has_open_short:
                         signal_futures.append(signal_executor.submit(process_signal_for_open_position, symbol, args, market_maker, manager, symbols_allowed, open_position_data, long_mode, short_mode, graceful_stop_long, graceful_stop_short))
 
                     if (has_open_long and not long_thread_running) or (has_open_short and not short_thread_running):
@@ -620,7 +620,7 @@ def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
                             can_open_long = len(active_long_symbols) < symbols_allowed and not graceful_stop_long
                             can_open_short = len(active_short_symbols) < symbols_allowed and not graceful_stop_short
 
-                            if can_open_long and long_mode or can_open_short and short_mode:
+                            if (can_open_long and long_mode) or (can_open_short and short_mode):
                                 signal_futures.append(signal_executor.submit(process_signal, symbol, args, market_maker, manager, symbols_allowed, open_position_data, False, can_open_long, can_open_short, graceful_stop_long, graceful_stop_short))
                                 logging.info(f"Submitted signal processing for new symbol {symbol}.")
                                 processed_symbols.add(symbol)
