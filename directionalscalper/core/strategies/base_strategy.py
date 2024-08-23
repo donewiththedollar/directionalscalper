@@ -169,10 +169,14 @@ class BaseStrategy:
 
         # self.bybit = self.Bybit(self)
 
-    def dbscan_classification(ohlcv_data, zigzag_length, epsilon_deviation, aggregate_range):
+    def dbscan_classification(self, ohlcv_data, zigzag_length, epsilon_deviation, aggregate_range):
+        logging.info(f"Starting dbscan_classification with zigzag_length={zigzag_length}, epsilon_deviation={epsilon_deviation}, aggregate_range={aggregate_range}")
+
         # Extract highs and lows from the OHLCV data
         highs = np.array([candle['high'] for candle in ohlcv_data])
         lows = np.array([candle['low'] for candle in ohlcv_data])
+        logging.info(f"Extracted highs: {highs}, lows: {lows}")
+
         peaks_and_troughs = []
 
         direction_up = False
@@ -183,51 +187,74 @@ class BaseStrategy:
         for i in range(zigzag_length, len(ohlcv_data) - zigzag_length):
             h = np.max(highs[i - zigzag_length:i + zigzag_length + 1])
             l = np.min(lows[i - zigzag_length:i + zigzag_length + 1])
+            logging.info(f"Evaluating at index {i}: high={h}, low={l}, direction_up={direction_up}")
 
+            # Try a smaller zigzag_length
+            zigzag_length = max(1, zigzag_length // 2)
+
+            # Or adjust conditions in the loop
             if direction_up:
-                if l == ohlcv_data[i]['low'] and ohlcv_data[i]['low'] < last_low:
-                    last_low = ohlcv_data[i]['low']
+                if l < last_low:  # Less strict than 'l == ohlcv_data[i]['low']'
+                    last_low = l
                     peaks_and_troughs.append(last_low)
-                if h == ohlcv_data[i]['high'] and ohlcv_data[i]['high'] > last_low:
-                    last_high = ohlcv_data[i]['high']
+                if h > last_high:  # Less strict than 'h == ohlcv_data[i]['high']'
+                    last_high = h
                     direction_up = False
                     peaks_and_troughs.append(last_high)
             else:
-                if h == ohlcv_data[i]['high'] and ohlcv_data[i]['high'] > last_high:
-                    last_high = ohlcv_data[i]['high']
+                if h > last_high:
+                    last_high = h
                     peaks_and_troughs.append(last_high)
-                if l == ohlcv_data[i]['low'] and ohlcv_data[i]['low'] < last_high:
-                    last_low = ohlcv_data[i]['low']
+                if l < last_low:
+                    last_low = l
                     direction_up = True
                     peaks_and_troughs.append(last_low)
 
-        # Normalize the peaks and troughs
+        # Convert peaks_and_troughs to a numpy array
         zigzag = np.array(peaks_and_troughs)
+        logging.info(f"Generated zigzag array: {zigzag}")
+
+        # Check if zigzag array is empty
+        if zigzag.size == 0:
+            logging.info("Zigzag array is empty. No peaks or troughs detected.")
+            return []
+
+        # Normalize the peaks and troughs
         min_price = np.min(zigzag)
         max_price = np.max(zigzag)
+        logging.info(f"Zigzag min_price: {min_price}, max_price: {max_price}")
+
         normalized_zigzag = (zigzag - min_price) / (max_price - min_price)
+        logging.info(f"Normalized zigzag array: {normalized_zigzag}")
 
         # Calculate the mean deviation
         mean = np.mean(normalized_zigzag)
         deviation = np.mean(np.abs(normalized_zigzag - mean))
+        logging.info(f"Calculated mean: {mean}, deviation: {deviation}")
 
         # Define the epsilon value for DBSCAN
         epsilon = (deviation * epsilon_deviation) / 100.0
+        logging.info(f"Calculated epsilon for DBSCAN: {epsilon}")
 
         # Prepare data points for DBSCAN
         data_points = normalized_zigzag.reshape(-1, 1)
+        logging.info(f"Data points prepared for DBSCAN: {data_points}")
 
         # Run DBSCAN clustering
         dbscan = DBSCAN(eps=epsilon, min_samples=1, metric='euclidean')
         dbscan.fit(data_points)
+        logging.info(f"DBSCAN labels: {dbscan.labels_}")
 
         # Extract clusters and noise
         clusters = []
         for label in set(dbscan.labels_):
             if label != -1:  # -1 means noise
-                clusters.append([i for i, l in enumerate(dbscan.labels_) if l == label])
+                cluster = [i for i, l in enumerate(dbscan.labels_) if l == label]
+                clusters.append(cluster)
+                logging.info(f"Detected cluster with label {label}: {cluster}")
 
         noise = [i for i, l in enumerate(dbscan.labels_) if l == -1]
+        logging.info(f"Detected noise points: {noise}")
 
         # Aggregate and filter clusters into significant levels
         support_resistance_levels = []
@@ -242,6 +269,7 @@ class BaseStrategy:
                 'strength': strength,
                 'average_volume': average_volume
             })
+            logging.info(f"Added support/resistance level: {median_price}, strength: {strength}, average volume: {average_volume}")
 
         # Add significant noise levels
         max_level = np.max([level['level'] for level in support_resistance_levels])
@@ -256,15 +284,18 @@ class BaseStrategy:
                     'strength': 1,
                     'average_volume': noise_volume
                 })
+                logging.info(f"Added significant noise level above max level: {noise_level}")
             elif noise_level < min_level and (min_level - noise_level) / min_level > aggregate_range / 100.0:
                 support_resistance_levels.append({
                     'level': noise_level,
                     'strength': 1,
                     'average_volume': noise_volume
                 })
+                logging.info(f"Added significant noise level below min level: {noise_level}")
 
         # Sort the levels by price level in descending order
         support_resistance_levels.sort(key=lambda x: x['level'], reverse=True)
+        logging.info(f"Sorted support/resistance levels: {support_resistance_levels}")
 
         # Filter out closely grouped levels
         filtered_levels = []
@@ -281,6 +312,7 @@ class BaseStrategy:
             current_group.sort(key=lambda x: x['average_volume'], reverse=True)
             filtered_levels.append(current_group[0])
             i = j
+            logging.info(f"Filtered level added: {current_group[0]}")
 
         # Finalize the levels by removing close duplicates
         final_levels = []
@@ -288,15 +320,18 @@ class BaseStrategy:
             if len(final_levels) == 0 or \
                     abs(filtered_levels[k]['level'] - final_levels[-1]['level']) / final_levels[-1]['level'] > aggregate_range / 100.0:
                 final_levels.append(filtered_levels[k])
+                logging.info(f"Final level added: {filtered_levels[k]}")
             else:
                 for m in range(k + 1, len(filtered_levels)):
                     if abs(filtered_levels[m]['level'] - final_levels[-1]['level']) / final_levels[-1]['level'] > aggregate_range / 100.0:
                         final_levels.append(filtered_levels[m])
                         k = m
+                        logging.info(f"Final level added after checking close duplicates: {filtered_levels[m]}")
                         break
 
         # Sort final levels in descending order
         final_levels.sort(key=lambda x: x['level'], reverse=True)
+        logging.info(f"Final sorted levels: {final_levels}")
 
         return final_levels
 

@@ -4920,19 +4920,52 @@ class BybitStrategy(BaseStrategy):
             volume_threshold_long, significant_levels_long = self.calculate_volume_thresholds_and_significant_levels(volume_histogram_long, price_range)
             volume_threshold_short, significant_levels_short = self.calculate_volume_thresholds_and_significant_levels(volume_histogram_short, price_range)
 
+            # # Call dbscan_classification if grid_behavior is set to "dbscanalgo"
+            # if grid_behavior == "dbscanalgo":
+            #     zigzag_length = 5  # Example value; replace with actual config value
+            #     epsilon_deviation = 2.5  # Example value; replace with actual config value
+            #     aggregate_range = 5  # Example value; replace with actual config value
+                
+            #     ohlcv_data = [{'high': high, 'low': low, 'volume': volume} for high, low, volume in zip(order_book['highs'], order_book['lows'], order_book['volumes'])]  # Create OHLCV format
+            #     support_resistance_levels = self.dbscan_classification(ohlcv_data, zigzag_length, epsilon_deviation, aggregate_range)
+                
+            #     # Extract levels from the dbscan classification results
+            #     grid_levels_long = [level['level'] for level in support_resistance_levels if level['level'] >= current_price]
+            #     grid_levels_short = [level['level'] for level in support_resistance_levels if level['level'] <= current_price]
+            
+            # else:
+            #     initial_entry_long, initial_entry_short = self.calculate_initial_entries(current_price, buffer_distance_long, buffer_distance_short)
+            #     grid_levels_long, grid_levels_short = self.calculate_grid_levels(long_pos_qty, short_pos_qty, levels, initial_entry_long, initial_entry_short, current_price, buffer_distance_long, buffer_distance_short, max_outer_price_distance)
+
+            # adjusted_grid_levels_long = self.adjust_grid_levels(grid_levels_long, significant_levels_long, tolerance=0.01, min_outer_price_distance=min_outer_price_distance, max_outer_price_distance=max_outer_price_distance, current_price=current_price, levels=levels)
+            # adjusted_grid_levels_short = self.adjust_grid_levels(grid_levels_short, significant_levels_short, tolerance=0.01, min_outer_price_distance=min_outer_price_distance, max_outer_price_distance=max_outer_price_distance, current_price=current_price, levels=levels)
+
+            # grid_levels_long, grid_levels_short = self.finalize_grid_levels(adjusted_grid_levels_long, adjusted_grid_levels_short, levels, current_price, buffer_distance_long, buffer_distance_short, max_outer_price_distance, initial_entry_long, initial_entry_short)
+
+            # qty_precision, min_qty = self.get_precision_and_min_qty(symbol)
+
             # Call dbscan_classification if grid_behavior is set to "dbscanalgo"
             if grid_behavior == "dbscanalgo":
+                initial_entry_long, initial_entry_short = self.calculate_initial_entries(current_price, buffer_distance_long, buffer_distance_short)
                 zigzag_length = 5  # Example value; replace with actual config value
                 epsilon_deviation = 2.5  # Example value; replace with actual config value
                 aggregate_range = 5  # Example value; replace with actual config value
                 
-                ohlcv_data = [{'high': high, 'low': low, 'volume': volume} for high, low, volume in zip(order_book['highs'], order_book['lows'], order_book['volumes'])]  # Create OHLCV format
-                support_resistance_levels = self.dbscan_classification(ohlcv_data, zigzag_length, epsilon_deviation, aggregate_range)
+                # Extract high, low, and volume data from order book
+                highs = [float(order[0]) for order in order_book['bids']]  # Using bids for highs
+                lows = [float(order[0]) for order in order_book['asks']]   # Using asks for lows
+                volumes = [float(order[1]) for order in order_book['bids'] + order_book['asks']]  # Combining volumes from bids and asks
+
+                # Create OHLCV format expected by dbscan_classification
+                ohlcv_data = [{'high': high, 'low': low, 'volume': volume} for high, low, volume in zip(highs, lows, volumes)]
                 
+                # Correct function call with four arguments
+                support_resistance_levels = self.dbscan_classification(ohlcv_data, zigzag_length, epsilon_deviation, aggregate_range)
+                initial_entry_long, initial_entry_short = self.calculate_initial_entries(current_price, buffer_distance_long, buffer_distance_short)
                 # Extract levels from the dbscan classification results
                 grid_levels_long = [level['level'] for level in support_resistance_levels if level['level'] >= current_price]
                 grid_levels_short = [level['level'] for level in support_resistance_levels if level['level'] <= current_price]
-            
+
             else:
                 initial_entry_long, initial_entry_short = self.calculate_initial_entries(current_price, buffer_distance_long, buffer_distance_short)
                 grid_levels_long, grid_levels_short = self.calculate_grid_levels(long_pos_qty, short_pos_qty, levels, initial_entry_long, initial_entry_short, current_price, buffer_distance_long, buffer_distance_short, max_outer_price_distance)
