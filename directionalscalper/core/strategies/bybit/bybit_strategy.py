@@ -4920,30 +4920,6 @@ class BybitStrategy(BaseStrategy):
             volume_threshold_long, significant_levels_long = self.calculate_volume_thresholds_and_significant_levels(volume_histogram_long, price_range)
             volume_threshold_short, significant_levels_short = self.calculate_volume_thresholds_and_significant_levels(volume_histogram_short, price_range)
 
-            # # Call dbscan_classification if grid_behavior is set to "dbscanalgo"
-            # if grid_behavior == "dbscanalgo":
-            #     zigzag_length = 5  # Example value; replace with actual config value
-            #     epsilon_deviation = 2.5  # Example value; replace with actual config value
-            #     aggregate_range = 5  # Example value; replace with actual config value
-                
-            #     ohlcv_data = [{'high': high, 'low': low, 'volume': volume} for high, low, volume in zip(order_book['highs'], order_book['lows'], order_book['volumes'])]  # Create OHLCV format
-            #     support_resistance_levels = self.dbscan_classification(ohlcv_data, zigzag_length, epsilon_deviation, aggregate_range)
-                
-            #     # Extract levels from the dbscan classification results
-            #     grid_levels_long = [level['level'] for level in support_resistance_levels if level['level'] >= current_price]
-            #     grid_levels_short = [level['level'] for level in support_resistance_levels if level['level'] <= current_price]
-            
-            # else:
-            #     initial_entry_long, initial_entry_short = self.calculate_initial_entries(current_price, buffer_distance_long, buffer_distance_short)
-            #     grid_levels_long, grid_levels_short = self.calculate_grid_levels(long_pos_qty, short_pos_qty, levels, initial_entry_long, initial_entry_short, current_price, buffer_distance_long, buffer_distance_short, max_outer_price_distance)
-
-            # adjusted_grid_levels_long = self.adjust_grid_levels(grid_levels_long, significant_levels_long, tolerance=0.01, min_outer_price_distance=min_outer_price_distance, max_outer_price_distance=max_outer_price_distance, current_price=current_price, levels=levels)
-            # adjusted_grid_levels_short = self.adjust_grid_levels(grid_levels_short, significant_levels_short, tolerance=0.01, min_outer_price_distance=min_outer_price_distance, max_outer_price_distance=max_outer_price_distance, current_price=current_price, levels=levels)
-
-            # grid_levels_long, grid_levels_short = self.finalize_grid_levels(adjusted_grid_levels_long, adjusted_grid_levels_short, levels, current_price, buffer_distance_long, buffer_distance_short, max_outer_price_distance, initial_entry_long, initial_entry_short)
-
-            # qty_precision, min_qty = self.get_precision_and_min_qty(symbol)
-
             # Call dbscan_classification if grid_behavior is set to "dbscanalgo"
             if grid_behavior == "dbscanalgo":
                 initial_entry_long, initial_entry_short = self.calculate_initial_entries(current_price, buffer_distance_long, buffer_distance_short)
@@ -5362,6 +5338,9 @@ class BybitStrategy(BaseStrategy):
             has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
             has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
 
+            logging.info(f"Has open long order: {has_open_long_order}")
+            logging.info(f"Has open short order: {has_open_short_order}")
+
             replace_empty_long_grid = (long_pos_qty > 0 and not has_open_long_order)
             replace_empty_short_grid = (short_pos_qty > 0 and not has_open_short_order)
 
@@ -5479,7 +5458,7 @@ class BybitStrategy(BaseStrategy):
                     issue_grid_safely('long', grid_levels_long, amounts_long)
 
                     retry_counter = 0
-                    max_retries = 25  # Set a maximum number of retries
+                    max_retries = 50  # Set a maximum number of retries
 
                     while long_pos_qty < 0.00001 and retry_counter < max_retries:
                         time.sleep(5)  # Wait for some time to allow order to be filled
@@ -5509,7 +5488,7 @@ class BybitStrategy(BaseStrategy):
                     issue_grid_safely('short', grid_levels_short, amounts_short)
 
                     retry_counter = 0
-                    max_retries = 25  # Set a maximum number of retries
+                    max_retries = 50  # Set a maximum number of retries
 
                     while short_pos_qty < 0.00001 and retry_counter < max_retries:
                         time.sleep(5)  # Wait for some time to allow order to be filled
@@ -5692,6 +5671,7 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.info(f"Error in executing gridstrategy: {e}")
             logging.info("Traceback: %s", traceback.format_exc())
+
 
     def lingrid_uponsignal_v2(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
                                                         short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
