@@ -9,10 +9,6 @@
       
       
       
-        <link rel="prev" href="../configuration/">
-      
-      
-        <link rel="next" href="../risk_management/">
       
       
       <link rel="icon" href="../assets/images/favicon.png">
@@ -72,7 +68,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#trading-strategies" class="md-skip">
+        <a href="#strategies" class="md-skip">
           Skip to content
         </a>
       
@@ -267,11 +263,9 @@
         
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../strategies/" class="md-tabs__link">
         
   
     
@@ -485,30 +479,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  <span class="md-ellipsis">
-    Strategies
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../strategies/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -517,92 +491,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#linear-grid-strategy" class="md-nav__link">
-    <span class="md-ellipsis">
-      Linear Grid Strategy
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Linear Grid Strategy">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#grid-behaviors" class="md-nav__link">
-    <span class="md-ellipsis">
-      Grid Behaviors
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#configuration-parameters" class="md-nav__link">
-    <span class="md-ellipsis">
-      Configuration Parameters
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#example-configurations" class="md-nav__link">
-    <span class="md-ellipsis">
-      Example Configurations
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Example Configurations">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#long-and-short-auto-rotating-futures-configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      Long and Short Auto-Rotating Futures Configuration
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#long-only-grid" class="md-nav__link">
-    <span class="md-ellipsis">
-      Long only grid
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -744,9 +632,9 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#grid-behaviors" class="md-nav__link">
+  <a href="#overview" class="md-nav__link">
     <span class="md-ellipsis">
-      Grid Behaviors
+      Overview
     </span>
   </a>
   
@@ -759,7 +647,8 @@
     </span>
   </a>
   
-</li>
+    <nav class="md-nav" aria-label="Configuration Parameters">
+      <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#example-configurations" class="md-nav__link">
@@ -768,29 +657,37 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Example Configurations">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#long-and-short-auto-rotating-futures-configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      Long and Short Auto-Rotating Futures Configuration
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#long-only-grid" class="md-nav__link">
-    <span class="md-ellipsis">
-      Long only grid
-    </span>
-  </a>
-  
 </li>
         
       </ul>
     </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-long-and-short-auto-rotating-futures-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example long and short auto rotating futures configuration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-long-only-solusdt-futures-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example long only SOLUSDT futures configuration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-high-risk-small-account-longshort-btcusdt-futures-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example High risk small account long&amp;short BTCUSDT futures configuration
+    </span>
+  </a>
   
 </li>
         
@@ -814,146 +711,45 @@
                   
 
 
-<h1 id="trading-strategies">Trading Strategies</h1>
+<h1 id="strategies">Strategies</h1>
 <h2 id="linear-grid-strategy">Linear Grid Strategy</h2>
-<p>The Linear Grid Strategy is a sophisticated trading approach designed to capitalize on market fluctuations by placing multiple buy and sell orders at predefined intervals (grid levels) above and below the current price level. This strategy helps in capturing profits in both upward and downward market movements.</p>
-<h3 id="grid-behaviors">Grid Behaviors</h3>
-<p>The Linear Grid Strategy supports different grid behaviors, allowing for flexibility and optimization based on market conditions and trading preferences. Currently, the following grid behaviors are implemented:</p>
-<ol>
-<li>
-<p><strong>Default Behavior</strong>: The standard grid trading approach where grid levels are calculated based on fixed or dynamic price ranges.</p>
-</li>
-<li>
-<p><strong>Infinite Grid</strong>: An adaptive grid that continuously adjusts and extends as the price moves, potentially allowing for unlimited profit potential.</p>
-</li>
-<li>
-<p><strong>DBSCAN-based Grid</strong> ("dbscanalgo"): An advanced grid behavior that uses the DBSCAN (Density-Based Spatial Clustering of Applications with Noise) algorithm to determine grid levels based on market structure.</p>
-</li>
-</ol>
-<p>More grid behaviors may be added in future updates to further enhance the strategy's versatility.</p>
+<h3 id="overview">Overview</h3>
+<p>The Linear Grid Strategy is a trading strategy designed to capitalize on market fluctuations by placing multiple buy and sell orders at predefined intervals (grid levels) above and below the current price level. This strategy helps in capturing profits in both upward and downward market movements.</p>
 <h3 id="configuration-parameters">Configuration Parameters</h3>
-<p>The Linear Grid Strategy can be fine-tuned using the following parameters in your <code>config.json</code> file:</p>
-<table>
-<thead>
-<tr>
-<th>Parameter</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>max_qty_percent_long</code></td>
-<td>Maximum percentage of wallet balance for long positions</td>
-</tr>
-<tr>
-<td><code>max_qty_percent_short</code></td>
-<td>Maximum percentage of wallet balance for short positions</td>
-</tr>
-<tr>
-<td><code>auto_reduce_cooldown_enabled</code></td>
-<td>Enable/disable auto-reduce cooldown feature</td>
-</tr>
-<tr>
-<td><code>auto_reduce_cooldown_start_pct</code></td>
-<td>Percentage at which auto-reduce cooldown starts</td>
-</tr>
-<tr>
-<td><code>wallet_exposure_limit_long</code></td>
-<td>Maximum exposure limit for long positions (% of wallet balance)</td>
-</tr>
-<tr>
-<td><code>wallet_exposure_limit_short</code></td>
-<td>Maximum exposure limit for short positions (% of wallet balance)</td>
-</tr>
-<tr>
-<td><code>levels</code></td>
-<td>Number of grid levels</td>
-</tr>
-<tr>
-<td><code>strength</code></td>
-<td>Grid strength (higher value = wider spacing between levels)</td>
-</tr>
-<tr>
-<td><code>outer_price_distance</code></td>
-<td>Distance from current price to outermost grid levels</td>
-</tr>
-<tr>
-<td><code>min_outer_price_distance</code></td>
-<td>Minimum distance to outermost grid levels</td>
-</tr>
-<tr>
-<td><code>max_outer_price_distance</code></td>
-<td>Maximum distance to outermost grid levels</td>
-</tr>
-<tr>
-<td><code>long_mode</code></td>
-<td>Enable/disable long positions</td>
-</tr>
-<tr>
-<td><code>short_mode</code></td>
-<td>Enable/disable short positions</td>
-</tr>
-<tr>
-<td><code>reissue_threshold</code></td>
-<td>Threshold for reissuing partially filled orders</td>
-</tr>
-<tr>
-<td><code>buffer_percentage</code></td>
-<td>Buffer percentage for the grid</td>
-</tr>
-<tr>
-<td><code>initial_entry_buffer_pct</code></td>
-<td>Buffer percentage for initial entry</td>
-</tr>
-<tr>
-<td><code>min_buffer_percentage</code></td>
-<td>Minimum buffer percentage</td>
-</tr>
-<tr>
-<td><code>max_buffer_percentage</code></td>
-<td>Maximum buffer percentage</td>
-</tr>
-<tr>
-<td><code>enforce_full_grid</code></td>
-<td>Always maintain a full grid of orders</td>
-</tr>
-<tr>
-<td><code>min_buffer_percentage_ar</code></td>
-<td>Minimum buffer percentage for auto-reduce</td>
-</tr>
-<tr>
-<td><code>max_buffer_percentage_ar</code></td>
-<td>Maximum buffer percentage for auto-reduce</td>
-</tr>
-<tr>
-<td><code>upnl_auto_reduce_threshold_long</code></td>
-<td>UPNL threshold for auto-reducing long positions</td>
-</tr>
-<tr>
-<td><code>upnl_auto_reduce_threshold_short</code></td>
-<td>UPNL threshold for auto-reducing short positions</td>
-</tr>
-<tr>
-<td><code>failsafe_enabled</code></td>
-<td>Enable/disable failsafe feature</td>
-</tr>
-<tr>
-<td><code>failsafe_start_pct</code></td>
-<td>Percentage at which failsafe starts</td>
-</tr>
-<tr>
-<td><code>long_failsafe_upnl_pct</code></td>
-<td>UPNL percentage for long failsafe</td>
-</tr>
-<tr>
-<td><code>short_failsafe_upnl_pct</code></td>
-<td>UPNL percentage for short failsafe</td>
-</tr>
-</tbody>
-</table>
-<h3 id="example-configurations">Example Configurations</h3>
-<h4 id="long-and-short-auto-rotating-futures-configuration">Long and Short Auto-Rotating Futures Configuration</h4>
-<p>This configuration utilizes machine learning-based signals and implements a grid with proper DCA (Dollar Cost Averaging) to ensure each grid level meaningfully adjusts the position to the current market price.</p>
+<p>Here are the parameters for the <code>linear_grid</code> strategy in your <code>config.json</code> file:</p>
+<ul>
+<li><strong>max_qty_percent_long</strong>: Defines the maximum percentage of your wallet balance that can be used for long positions.</li>
+<li><strong>max_qty_percent_short</strong>: Defines the maximum percentage of your wallet balance that can be used for short positions.</li>
+<li><strong>auto_reduce_cooldown_enabled</strong>: Boolean parameter that determines whether the auto-reduce cooldown feature is enabled. This feature automatically reduces the size of your positions after a certain period.</li>
+<li><strong>auto_reduce_cooldown_start_pct</strong>: Defines the percentage at which the auto-reduce cooldown feature starts.</li>
+<li><strong>wallet_exposure_limit_long</strong>: Defines the maximum exposure limit for long positions as a percentage of your wallet balance.</li>
+<li><strong>wallet_exposure_limit_short</strong>: Defines the maximum exposure limit for short positions as a percentage of your wallet balance.</li>
+<li><strong>levels</strong>: Defines the number of grid levels, representing the total number of buy and sell orders placed above and below the current price level.</li>
+<li><strong>strength</strong>: Defines the strength of the grid. A higher value means the grid levels are spaced further apart.</li>
+<li><strong>outer_price_distance</strong>: Defines the distance from the current price to the outermost grid levels.</li>
+<li><strong>min_outer_price_distance</strong>: Defines the minimum distance from the current price to the outermost grid levels.</li>
+<li><strong>max_outer_price_distance</strong>: Defines the maximum distance from the current price to the outermost grid levels.</li>
+<li><strong>long_mode</strong>: Boolean parameter that determines whether the bot can open long positions.</li>
+<li><strong>short_mode</strong>: Boolean parameter that determines whether the bot can open short positions.</li>
+<li><strong>reissue_threshold</strong>: Defines the threshold at which the bot will reissue orders that have been partially filled.</li>
+<li><strong>buffer_percentage</strong>: Defines the buffer percentage for the grid. This is the percentage of the price range kept empty between the outermost grid levels and the upper and lower price limits.</li>
+<li><strong>initial_entry_buffer_pct</strong>: Defines the buffer percentage for the initial entry.</li>
+<li><strong>min_buffer_percentage</strong>: Defines the minimum buffer percentage for the grid.</li>
+<li><strong>max_buffer_percentage</strong>: Defines the maximum buffer percentage for the grid.</li>
+<li><strong>enforce_full_grid</strong>: Boolean parameter that determines whether the bot should always maintain a full grid of orders.</li>
+<li><strong>min_buffer_percentage_ar</strong>: Defines the minimum buffer percentage for auto-reduce.</li>
+<li><strong>max_buffer_percentage_ar</strong>: Defines the maximum buffer percentage for auto-reduce.</li>
+<li><strong>upnl_auto_reduce_threshold_long</strong>: Defines the unrealized profit and loss (UPNL) threshold for auto-reducing long positions.</li>
+<li><strong>upnl_auto_reduce_threshold_short</strong>: Defines the UPNL threshold for auto-reducing short positions.</li>
+<li><strong>failsafe_enabled</strong>: Boolean parameter that determines whether the failsafe feature is enabled. This feature automatically closes all positions if the UPNL reaches a certain threshold.</li>
+<li><strong>failsafe_start_pct</strong>: Defines the percentage at which the failsafe feature starts.</li>
+<li><strong>long_failsafe_upnl_pct</strong>: Defines the UPNL percentage for the long failsafe.</li>
+<li><strong>short_failsafe_upnl_pct</strong>: Defines the UPNL percentage for the short failsafe.</li>
+</ul>
+<h4 id="example-configurations">Example Configurations</h4>
+<h3 id="example-long-and-short-auto-rotating-futures-configuration">Example long and short auto rotating futures configuration</h3>
+<p>This strategy is based on machine learning based signals and utilizes a grid with proper DCA so each grid level is "meaningful" to bring the position to current market price staying "sticky" to price action. </p>
+<p>Set up your config.json from the below snippet</p>
 <pre><code class="language-json">{
     &quot;api&quot;: {
         &quot;filename&quot;: &quot;quantdatav2_bybit.json&quot;,
@@ -1005,7 +801,7 @@
             &quot;auto_reduce_cooldown_enabled&quot;: false,
             &quot;auto_reduce_cooldown_start_pct&quot;: 0.051,
             &quot;wallet_exposure_limit_long&quot;: 0.006,
-            &quot;wallet_exposure_limit_short&quot;: 0.001,
+            &quot;wallet_exposure_limit_short&quot;: 0.002,
             &quot;levels&quot;: 4,
             &quot;strength&quot;: 1.4,
             &quot;outer_price_distance&quot;: 0.059,
@@ -1040,7 +836,7 @@
         {
           &quot;name&quot;: &quot;bybit&quot;,
           &quot;account_name&quot;: &quot;account_1&quot;,
-          &quot;symbols_allowed&quot;: 20
+          &quot;symbols_allowed&quot;: 10
         },
         {
             &quot;name&quot;: &quot;bybit_spot&quot;,
@@ -1051,12 +847,7 @@
             &quot;name&quot;: &quot;bybit_unified&quot;,
             &quot;account_name&quot;: &quot;account_3&quot;,
             &quot;symbols_allowed&quot;: 5
-        },
-        {
-          &quot;name&quot;: &quot;bitget&quot;,
-          &quot;account_name&quot;: &quot;account_4&quot;,
-          &quot;symbols_allowed&quot;: 5
-      }
+        }
     ],
     &quot;logger&quot;: {
         &quot;level&quot;: &quot;info&quot;
@@ -1078,8 +869,11 @@
     }
   }
 </code></pre>
-<p>This configuration utilizes machine learning-based signals and implements a grid with proper DCA (Dollar Cost Averaging) to ensure each grid level meaningfully adjusts the position to the current market price.</p>
-<h4 id="long-only-grid">Long only grid</h4>
+<p>Now, just run the bot using this multibot version and strategy</p>
+<p><code>python3.11 multi_bot_aio.py --exchange bybit --account_name account_1 --strategy qsgridob --config configs/config.json</code></p>
+<h3 id="example-long-only-solusdt-futures-configuration">Example long only SOLUSDT futures configuration</h3>
+<p>Set up your config.json from the below snippet to whitelist SOLUSDT and set max USD value to a higher value to allow for the symbol.</p>
+<p><code>max_qty_percent_long</code> and <code>max_qty_pct_short</code> are set high in this configuration, you can adjust them as needed these are just defaults for testing purposes.</p>
 <pre><code class="language-json">{
     &quot;api&quot;: {
         &quot;filename&quot;: &quot;quantdatav2_bybit.json&quot;,
@@ -1092,8 +886,8 @@
         &quot;volume_check&quot;: false,
         &quot;min_distance&quot;: 0.15,
         &quot;min_volume&quot;: 10000,
-        &quot;upnl_profit_pct&quot;: 0.0024,
-        &quot;max_upnl_profit_pct&quot;: 0.0029,
+        &quot;upnl_profit_pct&quot;: 0.0032,
+        &quot;max_upnl_profit_pct&quot;: 0.0039,
         &quot;auto_reduce_enabled&quot;: false,
         &quot;auto_reduce_start_pct&quot;: 0.068,
         &quot;entry_during_autoreduce&quot;: false,
@@ -1120,8 +914,8 @@
         &quot;dashboard_enabled&quot;: true,
         &quot;shared_data_path&quot;: &quot;data/&quot;,
         &quot;linear_grid&quot;: {
-            &quot;grid_behavior&quot;: &quot;dbscanalgo&quot;,
-            &quot;drawdown_behavior&quot;: &quot;aggressive_full_distribution&quot;,
+            &quot;grid_behavior&quot;: &quot;infinite&quot;,
+            &quot;drawdown_behavior&quot;: &quot;maxqtypercent&quot;,
             &quot;target_coins_mode&quot;: true,
             &quot;auto_graceful_stop&quot;: false,
             &quot;entry_signal_type&quot;: &quot;lorentzian&quot;,
@@ -1132,9 +926,9 @@
             &quot;max_qty_percent_short&quot;: 10000,
             &quot;auto_reduce_cooldown_enabled&quot;: false,
             &quot;auto_reduce_cooldown_start_pct&quot;: 0.051,
-            &quot;wallet_exposure_limit_long&quot;: 5.0,
-            &quot;wallet_exposure_limit_short&quot;: 0.001,
-            &quot;levels&quot;: 5,
+            &quot;wallet_exposure_limit_long&quot;: 1,
+            &quot;wallet_exposure_limit_short&quot;: 0.002,
+            &quot;levels&quot;: 4,
             &quot;strength&quot;: 1.4,
             &quot;outer_price_distance&quot;: 0.059,
             &quot;min_outer_price_distance&quot;: 0.019,
@@ -1200,8 +994,139 @@
         }
     }
   }
+
 </code></pre>
-<p>This configuration utilizes machine learning-based signals and implements a grid with proper DCA (Dollar Cost Averaging) to ensure each grid level meaningfully adjusts the position to the current market price, while fully utilizing the allowed wallet exposure based amount of <code>total_equity</code> based on <code>wallet_exposure_limit_long</code> and <code>wallet_exposure_limit_short</code></p>
+<p>Now, just run the bot using this multibot version and strategy</p>
+<p><code>python3.11 multi_bot_aio.py --exchange bybit --account_name account_1 --strategy qsgridob --config configs/config.json</code></p>
+<p>This is just a simple example of a long only BTCUSDT strategy to show how one can utilize a single strategy for many use case scenarios on different instruments.</p>
+<h3 id="example-high-risk-small-account-longshort-btcusdt-futures-configuration">Example High risk small account long&amp;short BTCUSDT futures configuration</h3>
+<p>Set up your config.json from the below snippet to whitelist BTCUSDT and set max USD value to a high value to allow for the symbol.</p>
+<p><code>max_qty_percent_long</code> and <code>max_qty_pct_short</code> are set high in this configuration, you can adjust them as needed these are just defaults for testing purposes.</p>
+<pre><code class="language-json">{
+    &quot;api&quot;: {
+        &quot;filename&quot;: &quot;quantdatav2_bybit.json&quot;,
+        &quot;mode&quot;: &quot;remote&quot;,
+        &quot;url&quot;: &quot;https://api.quantumvoid.org/volumedata/&quot;,
+        &quot;data_source_exchange&quot;: &quot;bybit&quot;
+    },
+    &quot;bot&quot;: {
+        &quot;bot_name&quot;: &quot;your_bot_name&quot;,
+        &quot;volume_check&quot;: false,
+        &quot;min_distance&quot;: 0.15,
+        &quot;min_volume&quot;: 10000,
+        &quot;upnl_profit_pct&quot;: 0.0032,
+        &quot;max_upnl_profit_pct&quot;: 0.0039,
+        &quot;auto_reduce_enabled&quot;: false,
+        &quot;auto_reduce_start_pct&quot;: 0.068,
+        &quot;entry_during_autoreduce&quot;: false,
+        &quot;stoploss_enabled&quot;: false,
+        &quot;stoploss_upnl_pct&quot;: 0.05,
+        &quot;liq_stoploss_enabled&quot;: false,
+        &quot;liq_price_stop_pct&quot;: 0.50,
+        &quot;percentile_auto_reduce_enabled&quot;: false,
+        &quot;upnl_threshold_pct&quot;: 0.50,
+        &quot;max_pos_balance_pct&quot;: 0.50,
+        &quot;auto_reduce_wallet_exposure_pct&quot;: 0.20,
+        &quot;auto_reduce_maxloss_pct&quot;: 0.30,
+        &quot;auto_reduce_marginbased_enabled&quot;: false,
+        &quot;hedge_ratio&quot;: 0.10,
+        &quot;hedge_price_difference_threshold&quot;: 0.10,
+        &quot;test_orders_enabled&quot;: false,
+        &quot;max_usd_value&quot;: 1000,
+        &quot;min_qty_threshold&quot;: 0,
+        &quot;long_liq_pct&quot;: 0.05,
+        &quot;short_liq_pct&quot;: 0.05,
+        &quot;MaxAbsFundingRate&quot;: 0.0002,
+        &quot;blacklist&quot;: [&quot;ETHUSDT&quot;],
+        &quot;whitelist&quot;: [&quot;BTCUSDT&quot;],
+        &quot;dashboard_enabled&quot;: true,
+        &quot;shared_data_path&quot;: &quot;data/&quot;,
+        &quot;linear_grid&quot;: {
+            &quot;grid_behavior&quot;: &quot;infinite&quot;,
+            &quot;drawdown_behavior&quot;: &quot;maxqtypercent&quot;,
+            &quot;target_coins_mode&quot;: true,
+            &quot;auto_graceful_stop&quot;: false,
+            &quot;entry_signal_type&quot;: &quot;lorentzian&quot;,
+            &quot;additional_entries_from_signal&quot;: true,
+            &quot;graceful_stop_long&quot;: false,
+            &quot;graceful_stop_short&quot;: false,
+            &quot;max_qty_percent_long&quot;: 10000,
+            &quot;max_qty_percent_short&quot;: 10000,
+            &quot;auto_reduce_cooldown_enabled&quot;: false,
+            &quot;auto_reduce_cooldown_start_pct&quot;: 0.051,
+            &quot;wallet_exposure_limit_long&quot;: 1,
+            &quot;wallet_exposure_limit_short&quot;: 0.002,
+            &quot;levels&quot;: 4,
+            &quot;strength&quot;: 1.4,
+            &quot;outer_price_distance&quot;: 0.059,
+            &quot;min_outer_price_distance&quot;: 0.019,
+            &quot;max_outer_price_distance&quot;: 0.049,
+            &quot;long_mode&quot;: true,
+            &quot;short_mode&quot;: true,
+            &quot;reissue_threshold&quot;: 0.001,
+            &quot;buffer_percentage&quot;: 0.10,
+            &quot;initial_entry_buffer_pct&quot;: 0.0001,
+            &quot;min_buffer_percentage&quot;: 0.0035,
+            &quot;max_buffer_percentage&quot;: 0.010,
+            &quot;enforce_full_grid&quot;: true,
+            &quot;min_buffer_percentage_ar&quot;: 0.002,
+            &quot;max_buffer_percentage_ar&quot;: 0.004,
+            &quot;upnl_auto_reduce_threshold_long&quot;: 10.0,
+            &quot;upnl_auto_reduce_threshold_short&quot;: 10.0,
+            &quot;failsafe_enabled&quot;: false,
+            &quot;failsafe_start_pct&quot;: 0.05,
+            &quot;long_failsafe_upnl_pct&quot;: 10.0,
+            &quot;short_failsafe_upnl_pct&quot;: 10.0
+        },
+        &quot;hotkeys&quot;: {
+            &quot;hotkeys_enabled&quot;: false,
+            &quot;enter_long&quot;: &quot;1&quot;,
+            &quot;take_profit_long&quot;: &quot;2&quot;,
+            &quot;enter_short&quot;: &quot;3&quot;,
+            &quot;take_profit_short&quot;: &quot;4&quot;
+        }
+    },
+    &quot;exchanges&quot;: [
+        {
+            &quot;name&quot;: &quot;bybit&quot;,
+            &quot;account_name&quot;: &quot;account_1&quot;,
+            &quot;symbols_allowed&quot;: 2
+        },
+        {
+            &quot;name&quot;: &quot;bybit_spot&quot;,
+            &quot;account_name&quot;: &quot;account_2&quot;,
+            &quot;symbols_allowed&quot;: 5
+        },
+        {
+            &quot;name&quot;: &quot;bybit_unified&quot;,
+            &quot;account_name&quot;: &quot;account_3&quot;,
+            &quot;symbols_allowed&quot;: 5
+        }
+    ],
+    &quot;logger&quot;: {
+        &quot;level&quot;: &quot;info&quot;
+    },
+    &quot;messengers&quot;: {
+        &quot;discord&quot;: {
+            &quot;active&quot;: false,
+            &quot;embedded_messages&quot;: true,
+            &quot;messenger_type&quot;: &quot;discord&quot;,
+            &quot;webhook_url&quot;: &quot;https://discord.com/api/webhooks/your_webhook_id/your_webhook_token&quot;
+        },
+        &quot;telegram&quot;: {
+            &quot;active&quot;: false,
+            &quot;embedded_messages&quot;: true,
+            &quot;messenger_type&quot;: &quot;telegram&quot;,
+            &quot;bot_token&quot;: &quot;your_bot_token&quot;,
+            &quot;chat_id&quot;: &quot;your_chat_id&quot;
+        }
+    }
+  }
+
+</code></pre>
+<p>Now, just run the bot using this multibot version and strategy</p>
+<p><code>python3.11 multi_bot_signalscreener_targetcoin.py --exchange bybit --account_name account_1 --strategy qsgridob --config configs/config.json</code></p>
+<p>This is an aggressive approach because it utilizes a high <code>max_qty_percent_long</code> and <code>max_qty_percent_short</code> on a small wallet balance (ie $100 USD) for a symbol with a high USD value with the min notional requirement for BTCUSDT on Bybit it is inherently more risky but also more profitable.</p>
 
 
 
