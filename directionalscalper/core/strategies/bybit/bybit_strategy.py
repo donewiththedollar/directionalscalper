@@ -5372,6 +5372,9 @@ class BybitStrategy(BaseStrategy):
                 grid_set = self.active_long_grids if side == 'long' else self.active_short_grids
                 order_side = 'buy' if side == 'long' else 'sell'
 
+                # Cancel existing grids for the side before issuing new ones
+                self.clear_grid(symbol, order_side)
+
                 if symbol not in grid_set:
                     logging.info(f"[{symbol}] Issuing new {side} grid orders.")
                     self.issue_grid_orders(symbol, order_side, grid_levels, amounts, side == 'long', self.filled_levels[symbol][order_side])
