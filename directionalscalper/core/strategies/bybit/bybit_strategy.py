@@ -5478,6 +5478,7 @@ class BybitStrategy(BaseStrategy):
                         if long_pos_qty < 0.00001 and retry_counter < max_retries:
                             logging.info(f"[{symbol}] Retrying long grid orders due to MFIRSI signal long.")
                             self.clear_grid(symbol, 'buy')
+                            grid_levels_long[0] = best_bid_price
                             issue_grid_safely('long', grid_levels_long, amounts_long)
                         else:
                             logging.info(f"[{symbol}] Long position filled or max retries reached, exiting loop.")
@@ -5512,6 +5513,7 @@ class BybitStrategy(BaseStrategy):
                         if short_pos_qty < 0.00001 and retry_counter < max_retries:
                             logging.info(f"[{symbol}] Retrying short grid orders due to MFIRSI signal short.")
                             self.clear_grid(symbol, 'sell')
+                            grid_levels_short[0] = best_ask_price
                             issue_grid_safely('short', grid_levels_short, amounts_short)
                         else:
                             logging.info(f"[{symbol}] Short position filled or max retries reached, exiting loop.")
