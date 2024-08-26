@@ -4953,8 +4953,8 @@ class BybitStrategy(BaseStrategy):
 
             qty_precision, min_qty = self.get_precision_and_min_qty(symbol)
 
-            if drawdown_behavior == "aggressive_full_distribution":
-                logging.info(f"Activating aggressive full distribution drawdown behavior for {symbol}")
+            if drawdown_behavior == "full_distribution":
+                logging.info(f"Activating full distribution drawdown behavior for {symbol}")
 
                 # Calculate order amounts for aggressive drawdown with strength
                 amounts_long = self.calculate_order_amounts_aggressive_drawdown(
