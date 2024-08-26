@@ -581,9 +581,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#long-only-grid" class="md-nav__link">
+  <a href="#long-only-grid-targeting-one-symbol-or-more-via-whitelist-and-target_coins_mode" class="md-nav__link">
     <span class="md-ellipsis">
-      Long only grid
+      Long only grid targeting one symbol or more via whitelist and target_coins_mode
     </span>
   </a>
   
@@ -781,9 +781,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#long-only-grid" class="md-nav__link">
+  <a href="#long-only-grid-targeting-one-symbol-or-more-via-whitelist-and-target_coins_mode" class="md-nav__link">
     <span class="md-ellipsis">
-      Long only grid
+      Long only grid targeting one symbol or more via whitelist and target_coins_mode
     </span>
   </a>
   
@@ -1079,7 +1079,7 @@
   }
 </code></pre>
 <p>This configuration utilizes machine learning-based signals and implements a grid with proper DCA (Dollar Cost Averaging) to ensure each grid level meaningfully adjusts the position to the current market price.</p>
-<h4 id="long-only-grid">Long only grid</h4>
+<h4 id="long-only-grid-targeting-one-symbol-or-more-via-whitelist-and-target_coins_mode">Long only grid targeting one symbol or more via whitelist and target_coins_mode</h4>
 <pre><code class="language-json">{
     &quot;api&quot;: {
         &quot;filename&quot;: &quot;quantdatav2_bybit.json&quot;,
@@ -1121,7 +1121,7 @@
         &quot;shared_data_path&quot;: &quot;data/&quot;,
         &quot;linear_grid&quot;: {
             &quot;grid_behavior&quot;: &quot;dbscanalgo&quot;,
-            &quot;drawdown_behavior&quot;: &quot;aggressive_full_distribution&quot;,
+            &quot;drawdown_behavior&quot;: &quot;full_distribution&quot;,
             &quot;target_coins_mode&quot;: true,
             &quot;auto_graceful_stop&quot;: false,
             &quot;entry_signal_type&quot;: &quot;lorentzian&quot;,
