@@ -12655,8 +12655,13 @@ class BybitStrategy(BaseStrategy):
                 logging.info(f"[{symbol}] No last price recorded. Setting current price {current_price} as last price. No reissue required.")
                 return False, False
             
-            price_change_percentage = abs(current_price - last_price) / last_price * 100
-            logging.info(f"[{symbol}] Last recorded price: {last_price}, Current price: {current_price}, Price change: {price_change_percentage:.2f}%")
+            # Ensure last_price is not None before performing the subtraction
+            if last_price is not None:
+                price_change_percentage = abs(current_price - last_price) / last_price * 100
+                logging.info(f"[{symbol}] Last recorded price: {last_price}, Current price: {current_price}, Price change: {price_change_percentage:.2f}%")
+            else:
+                logging.warning(f"[{symbol}] Last price is None, skipping reissue check.")
+                return False, False
             
             # Adjust threshold by initial buffer percentage correctly
             adjusted_reissue_threshold = reissue_threshold + (reissue_threshold * initial_entry_buffer_pct / 100)
@@ -12686,6 +12691,7 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.exception(f"Exception caught in should_reissue_orders: {e}")
             return False, False
+
 
     def should_reissue_orders(self, symbol: str, reissue_threshold: float) -> bool:
         try:
