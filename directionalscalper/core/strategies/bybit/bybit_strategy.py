@@ -5588,6 +5588,7 @@ class BybitStrategy(BaseStrategy):
                             if current_price <= long_pos_price:  # Enter additional entry only if current price <= long_pos_price
                                 logging.info(f"[{symbol}] Adding to existing long position based on MFIRSI long signal")
                                 self.clear_grid(symbol, 'buy')
+                                grid_levels_long[0] = best_bid_price
                                 issue_grid_safely('long', grid_levels_long, amounts_long)
                                 self.last_signal_time[symbol] = current_time
                                 self.last_mfirsi_signal[symbol] = "neutral"
@@ -5598,6 +5599,7 @@ class BybitStrategy(BaseStrategy):
                             if current_price >= short_pos_price:  # Enter additional entry only if current price >= short_pos_price
                                 logging.info(f"[{symbol}] Adding to existing short position based on MFIRSI short signal")
                                 self.clear_grid(symbol, 'sell')
+                                grid_levels_short[0] = best_ask_price
                                 issue_grid_safely('short', grid_levels_short, amounts_short)
                                 self.last_signal_time[symbol] = current_time
                                 self.last_mfirsi_signal[symbol] = "neutral"
