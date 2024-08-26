@@ -12956,53 +12956,105 @@ class BybitStrategy(BaseStrategy):
         return total_notional_amount
 
     def calculate_order_amounts_notional_properdca(self, symbol: str, total_amount: float, levels: int, 
-                                                    strength: float, qty_precision: float, enforce_full_grid: bool,
-                                                    long_pos_qty=0, short_pos_qty=0, side='buy') -> List[float]:
-        logging.info(f"Calculating order amounts for {symbol} with total_amount: {total_amount}, levels: {levels}, strength: {strength}, qty_precision: {qty_precision}, enforce_full_grid: {enforce_full_grid}")
+                                                strength: float, qty_precision: float, enforce_full_grid: bool,
+                                                long_pos_qty=0, short_pos_qty=0, side='buy') -> List[float]:
+        try:
+            logging.info(f"Calculating order amounts for {symbol} with total_amount: {total_amount}, levels: {levels}, strength: {strength}, qty_precision: {qty_precision}, enforce_full_grid: {enforce_full_grid}")
+
+            current_price = self.exchange.get_current_price(symbol)
+            amounts = []
+            total_ratio = sum([(i + 1) ** strength for i in range(levels)])
+            level_notional = [(i + 1) ** strength for i in range(levels)]
+
+            base_notional = total_amount
+
+            min_qty = self.get_min_qty(symbol)  # Retrieve the min_qty for the symbol
+
+            if side == 'buy':
+                current_position_qty = long_pos_qty
+            else:
+                current_position_qty = short_pos_qty
+
+            # Adjust for current position
+            total_amount_adjusted = total_amount + (current_position_qty * current_price)
+            logging.info(f"Total amount adjusted for current position: {total_amount_adjusted}")
+
+            for i in range(levels):
+                notional_amount = (level_notional[i] / total_ratio) * total_amount_adjusted
+                quantity = notional_amount / current_price
+                logging.info(f"Level {i+1} - Initial quantity: {quantity}")
+
+                # Determine the minimum quantity to use (either min_notional or min_qty)
+                min_quantity = max(abs(base_notional) / current_price, min_qty)
+
+                # Apply the minimum quantity requirement
+                rounded_quantity = max(round(quantity / qty_precision) * qty_precision, min_quantity)
+                logging.info(f"Level {i+1} - Rounded quantity: {rounded_quantity}")
+                
+                amounts.append(rounded_quantity)
+
+            logging.info(f"Calculated order amounts for {symbol}: {amounts}")
+            
+            # Adjust amounts if they are all the same when enforce_full_grid is True
+            if enforce_full_grid and len(set(amounts)) == 1:
+                logging.info("Adjusting amounts to ensure variation in enforce_full_grid mode")
+                increment = qty_precision
+                for i in range(1, levels):
+                    amounts[i] += increment
+                    increment += qty_precision
+
+            return amounts
+        except Exception as e:
+            logging.info(f"Exception caught in calculate_amounts_refactor {e}")
+
+    # def calculate_order_amounts_notional_properdca(self, symbol: str, total_amount: float, levels: int, 
+    #                                                 strength: float, qty_precision: float, enforce_full_grid: bool,
+    #                                                 long_pos_qty=0, short_pos_qty=0, side='buy') -> List[float]:
+    #     logging.info(f"Calculating order amounts for {symbol} with total_amount: {total_amount}, levels: {levels}, strength: {strength}, qty_precision: {qty_precision}, enforce_full_grid: {enforce_full_grid}")
         
-        current_price = self.exchange.get_current_price(symbol)
-        amounts = []
-        total_ratio = sum([(i + 1) ** strength for i in range(levels)])
-        level_notional = [(i + 1) ** strength for i in range(levels)]
+    #     current_price = self.exchange.get_current_price(symbol)
+    #     amounts = []
+    #     total_ratio = sum([(i + 1) ** strength for i in range(levels)])
+    #     level_notional = [(i + 1) ** strength for i in range(levels)]
 
-        base_notional = total_amount
+    #     base_notional = total_amount
 
-        min_qty = self.get_min_qty(symbol)  # Retrieve the min_qty for the symbol
+    #     min_qty = self.get_min_qty(symbol)  # Retrieve the min_qty for the symbol
 
-        if side == 'buy':
-            current_position_qty = long_pos_qty
-        else:
-            current_position_qty = short_pos_qty
+    #     if side == 'buy':
+    #         current_position_qty = long_pos_qty
+    #     else:
+    #         current_position_qty = short_pos_qty
 
-        # Adjust for current position
-        total_amount_adjusted = total_amount + (current_position_qty * current_price)
-        logging.info(f"Total amount adjusted for current position: {total_amount_adjusted}")
+    #     # Adjust for current position
+    #     total_amount_adjusted = total_amount + (current_position_qty * current_price)
+    #     logging.info(f"Total amount adjusted for current position: {total_amount_adjusted}")
 
-        for i in range(levels):
-            notional_amount = (level_notional[i] / total_ratio) * total_amount_adjusted
-            quantity = notional_amount / current_price
-            logging.info(f"Level {i+1} - Initial quantity: {quantity}")
+    #     for i in range(levels):
+    #         notional_amount = (level_notional[i] / total_ratio) * total_amount_adjusted
+    #         quantity = notional_amount / current_price
+    #         logging.info(f"Level {i+1} - Initial quantity: {quantity}")
             
-            # Determine the minimum quantity to use (either min_notional or min_qty)
-            min_quantity = max(base_notional / current_price, min_qty)
+    #         # Determine the minimum quantity to use (either min_notional or min_qty)
+    #         min_quantity = max(base_notional / current_price, min_qty)
             
-            # Apply the minimum quantity requirement
-            rounded_quantity = max(round(quantity / qty_precision) * qty_precision, min_quantity)
-            logging.info(f"Level {i+1} - Rounded quantity: {rounded_quantity}")
+    #         # Apply the minimum quantity requirement
+    #         rounded_quantity = max(round(quantity / qty_precision) * qty_precision, min_quantity)
+    #         logging.info(f"Level {i+1} - Rounded quantity: {rounded_quantity}")
             
-            amounts.append(rounded_quantity)
+    #         amounts.append(rounded_quantity)
 
-        logging.info(f"Calculated order amounts for {symbol}: {amounts}")
+    #     logging.info(f"Calculated order amounts for {symbol}: {amounts}")
         
-        # Adjust amounts if they are all the same when enforce_full_grid is True
-        if enforce_full_grid and len(set(amounts)) == 1:
-            logging.info("Adjusting amounts to ensure variation in enforce_full_grid mode")
-            increment = qty_precision
-            for i in range(1, levels):
-                amounts[i] += increment
-                increment += qty_precision
+    #     # Adjust amounts if they are all the same when enforce_full_grid is True
+    #     if enforce_full_grid and len(set(amounts)) == 1:
+    #         logging.info("Adjusting amounts to ensure variation in enforce_full_grid mode")
+    #         increment = qty_precision
+    #         for i in range(1, levels):
+    #             amounts[i] += increment
+    #             increment += qty_precision
 
-        return amounts
+    #     return amounts
     
     def calculate_max_positions(self, symbol, total_equity, current_price, max_qty_percent_long, max_qty_percent_short):
         leverage_long = self.get_effective_leverage(self.user_defined_leverage_long, symbol, 'buy')
