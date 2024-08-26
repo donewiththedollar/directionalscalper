@@ -12949,6 +12949,32 @@ class BybitStrategy(BaseStrategy):
 
         return amounts
     
+    # def calculate_total_amount_notional_ls_properdca(self, symbol, total_equity, best_ask_price, best_bid_price, 
+    #                                                 wallet_exposure_limit_long, wallet_exposure_limit_short, 
+    #                                                 side, levels, enforce_full_grid, 
+    #                                                 long_pos_qty=0, short_pos_qty=0):
+    #     logging.info(f"Calculating total amount for {symbol} with total_balance: {total_equity}, side: {side}, levels: {levels}, enforce_full_grid: {enforce_full_grid}")
+
+    #     wallet_exposure_limit = wallet_exposure_limit_long if side == 'buy' else wallet_exposure_limit_short
+    #     max_position_value = total_equity * wallet_exposure_limit
+    #     logging.info(f"Maximum position value for {symbol}: {max_position_value}")
+
+    #     if enforce_full_grid:
+    #         required_notional = max_position_value / levels
+    #     else:
+    #         required_notional = max_position_value
+
+    #     if side == 'buy':
+    #         current_pos_value = long_pos_qty * best_ask_price
+    #     else:
+    #         current_pos_value = short_pos_qty * best_bid_price
+
+    #     adjusted_max_position_value = max_position_value - current_pos_value
+    #     total_notional_amount = min(required_notional, adjusted_max_position_value)
+        
+    #     logging.info(f"Calculated total notional amount for {symbol}: {total_notional_amount}")
+    #     return total_notional_amount
+
     def calculate_total_amount_notional_ls_properdca(self, symbol, total_equity, best_ask_price, best_bid_price, 
                                                     wallet_exposure_limit_long, wallet_exposure_limit_short, 
                                                     side, levels, enforce_full_grid, 
@@ -12959,14 +12985,34 @@ class BybitStrategy(BaseStrategy):
         max_position_value = total_equity * wallet_exposure_limit
         logging.info(f"Maximum position value for {symbol}: {max_position_value}")
 
+        # Convert to float to ensure correct type
+        try:
+            long_pos_qty = float(long_pos_qty)
+            short_pos_qty = float(short_pos_qty)
+            best_ask_price = float(best_ask_price)
+            best_bid_price = float(best_bid_price)
+        except ValueError as e:
+            logging.error(f"Error converting values to float: {e}")
+            raise
+
+        # Type checking before multiplication
+        assert isinstance(long_pos_qty, (int, float)), f"long_pos_qty is not a number: {long_pos_qty}"
+        assert isinstance(short_pos_qty, (int, float)), f"short_pos_qty is not a number: {short_pos_qty}"
+        assert isinstance(best_ask_price, (int, float)), f"best_ask_price is not a number: {best_ask_price}"
+        assert isinstance(best_bid_price, (int, float)), f"best_bid_price is not a number: {best_bid_price}"
+
         if enforce_full_grid:
             required_notional = max_position_value / levels
         else:
             required_notional = max_position_value
 
         if side == 'buy':
+            logging.info(f"Type of long_pos_qty before multiplication: {type(long_pos_qty)}, value: {long_pos_qty}")
+            logging.info(f"Type of best_ask_price before multiplication: {type(best_ask_price)}, value: {best_ask_price}")
             current_pos_value = long_pos_qty * best_ask_price
         else:
+            logging.info(f"Type of short_pos_qty before multiplication: {type(short_pos_qty)}, value: {short_pos_qty}")
+            logging.info(f"Type of best_bid_price before multiplication: {type(best_bid_price)}, value: {best_bid_price}")
             current_pos_value = short_pos_qty * best_bid_price
 
         adjusted_max_position_value = max_position_value - current_pos_value
@@ -12974,7 +13020,7 @@ class BybitStrategy(BaseStrategy):
         
         logging.info(f"Calculated total notional amount for {symbol}: {total_notional_amount}")
         return total_notional_amount
-
+    
     def calculate_order_amounts_notional_properdca(self, symbol: str, total_amount: float, levels: int, 
                                                 strength: float, qty_precision: float, enforce_full_grid: bool,
                                                 long_pos_qty=0, short_pos_qty=0, side='buy') -> List[float]:
@@ -13008,10 +13054,10 @@ class BybitStrategy(BaseStrategy):
             total_amount_adjusted = total_amount + (current_position_qty * current_price)
             logging.info(f"Total amount adjusted for current position: {total_amount_adjusted}")
 
-            # Log an error and return an empty list if the adjusted total amount is negative
+            # Return 0 if the adjusted total amount is negative
             if total_amount_adjusted < 0:
                 logging.info(f"Negative total_amount_adjusted for {symbol}: {total_amount_adjusted}. Side: {side}, total_amount: {total_amount}, current_position_qty: {current_position_qty}, current_price: {current_price}")
-                return []  # Stop further processing and return an empty list
+                return 0  # Return 0 if no further orders should be issued
 
             # Log the types and values of important variables for debugging
             logging.info(f"Type of total_amount: {type(total_amount)}, Value: {total_amount}")
@@ -13052,9 +13098,9 @@ class BybitStrategy(BaseStrategy):
         
         except Exception as e:
             # Log any exception that occurs during the calculation process
-            logging.error(f"Exception caught in calculate_order_amounts_notional_properdca for {symbol}: {e}")
-            return []  # Return an empty list if an exception occurs
-
+            logging.info(f"Exception caught in calculate_order_amounts_notional_properdca for {symbol}: {e}")
+            return 0  # Return 0 if an exception occurs
+        
     # def calculate_order_amounts_notional_properdca(self, symbol: str, total_amount: float, levels: int, 
     #                                                 strength: float, qty_precision: float, enforce_full_grid: bool,
     #                                                 long_pos_qty=0, short_pos_qty=0, side='buy') -> List[float]:
