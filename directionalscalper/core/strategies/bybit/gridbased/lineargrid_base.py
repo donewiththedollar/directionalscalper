@@ -31,6 +31,7 @@ class LinearGridBaseFutures(BybitStrategy):
         self.helper_interval = 1
         self.running_long = False
         self.running_short = False
+        self.last_known_equity = 0.0
         ConfigInitializer.initialize_config_attributes(self, config)
         self._initialize_symbol_locks(rotator_symbols_standardized)
 
@@ -103,6 +104,8 @@ class LinearGridBaseFutures(BybitStrategy):
             # Initializing time trackers for less frequent API calls
             last_equity_fetch_time = 0
             equity_refresh_interval = 30  # 30 minutes in seconds
+
+            fetched_total_equity = None
 
             # # Clean out orders
             # self.exchange.cancel_all_orders_for_symbol_bybit(symbol)
@@ -312,9 +315,36 @@ class LinearGridBaseFutures(BybitStrategy):
 
                 # logging.info(f"{symbol} last update time: {position_last_update_time}")
 
-                # Fetch equity data less frequently or if it's not available yet
-                if current_time - last_equity_fetch_time > equity_refresh_interval or total_equity is None:
-                    total_equity = self.retry_api_call(self.exchange.get_futures_balance_bybit, quote_currency)
+                # # Fetch equity data less frequently or if it's not available yet
+                # if current_time - last_equity_fetch_time > equity_refresh_interval or total_equity is None:
+                #     total_equity = self.retry_api_call(self.exchange.get_futures_balance_bybit, quote_currency)
+                #     available_equity = self.retry_api_call(self.exchange.get_available_balance_bybit, quote_currency)
+                #     last_equity_fetch_time = current_time
+
+                #     logging.info(f"Total equity: {total_equity}")
+                #     logging.info(f"Available equity: {available_equity}")
+                    
+                #     # Log the type of total_equity
+                #     logging.info(f"Type of total_equity: {type(total_equity)}")
+                    
+                #     # If total_equity is still None after fetching, log a warning and skip to the next iteration
+                #     if total_equity is None:
+                #         logging.warning("Failed to fetch total_equity. Skipping this iteration.")
+                #         time.sleep(10)  # wait for a short period before retrying
+                #         continue
+
+                # Fetch equity data
+                fetched_total_equity = self.retry_api_call(self.exchange.get_futures_balance_bybit, quote_currency)
+
+                # Refresh equity if interval passed or fetched equity is 0.0
+                if current_time - last_equity_fetch_time > equity_refresh_interval or fetched_total_equity == 0.0:
+                    if fetched_total_equity is not None and fetched_total_equity > 0.0:
+                        total_equity = fetched_total_equity
+                        self.last_known_equity = total_equity  # Update the last known equity
+                    else:
+                        logging.warning("Failed to fetch total_equity or received 0.0. Using last known value.")
+                        total_equity = self.last_known_equity  # Use last known equity
+
                     available_equity = self.retry_api_call(self.exchange.get_available_balance_bybit, quote_currency)
                     last_equity_fetch_time = current_time
 
@@ -323,13 +353,13 @@ class LinearGridBaseFutures(BybitStrategy):
                     
                     # Log the type of total_equity
                     logging.info(f"Type of total_equity: {type(total_equity)}")
-                    
-                    # If total_equity is still None after fetching, log a warning and skip to the next iteration
+
+                    # If total_equity is still None (which it shouldn't be), log an error and skip the iteration
                     if total_equity is None:
-                        logging.warning("Failed to fetch total_equity. Skipping this iteration.")
+                        logging.error("This should not happen as total_equity should never be None. Skipping this iteration.")
                         time.sleep(10)  # wait for a short period before retrying
                         continue
-
+                    
                 blacklist = self.config.blacklist
                 if symbol in blacklist:
                     logging.info(f"Symbol {symbol} is in the blacklist. Stopping operations for this symbol.")
@@ -722,14 +752,14 @@ class LinearGridBaseFutures(BybitStrategy):
 
                     logging.info(f"Five minute volume for {symbol} : {five_minute_volume}")
                         
-                    historical_data = self.fetch_historical_data(
-                        symbol,
-                        timeframe='4h'
-                    )
+                    # historical_data = self.fetch_historical_data(
+                    #     symbol,
+                    #     timeframe='4h'
+                    # )
 
-                    one_hour_atr_value = self.calculate_atr(historical_data)
+                    # one_hour_atr_value = self.calculate_atr(historical_data)
 
-                    logging.info(f"ATR for {symbol} : {one_hour_atr_value}")
+                    # logging.info(f"ATR for {symbol} : {one_hour_atr_value}")
 
                     tp_order_counts = self.exchange.get_open_tp_order_count(open_orders)
 

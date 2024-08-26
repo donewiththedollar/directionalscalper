@@ -470,19 +470,52 @@ class BaseStrategy:
         ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
         df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        
+        # Convert columns to numeric
+        df[['open', 'high', 'low', 'close', 'volume']] = df[['open', 'high', 'low', 'close', 'volume']].apply(pd.to_numeric, errors='coerce')
+
+        # Validate data
+        if df[['open', 'high', 'low', 'close', 'volume']].isnull().any().any():
+            logging.warning(f"Invalid data detected for {symbol} on timeframe {timeframe}. Data:\n{df}")
+            # Handle invalid data here (e.g., skip the symbol, raise an error, etc.)
+
         return df
 
     def calculate_atr(self, df, period=14):
+        # Drop rows with NaN values in 'high', 'low', or 'close' columns
+        df = df.dropna(subset=['high', 'low', 'close'])
+
+        # Check again if there are enough data points after dropping NaNs
+        if len(df) < period:
+            return None  # Not enough data points
+
         high_low = df['high'] - df['low']
         high_close = np.abs(df['high'] - df['close'].shift())
         low_close = np.abs(df['low'] - df['close'].shift())
         tr = np.max([high_low, high_close, low_close], axis=0)
-        
-        if len(tr) < period:
-            return None  # Return None if there are not enough data points
-        
-        atr = np.nanmean(tr[-period:])  # Use np.nanmean to handle NaNs
+
+        # Calculate the ATR using np.nanmean to ignore any remaining NaNs
+        atr = np.nanmean(tr[-period:])
+
         return atr if not np.isnan(atr) else None  # Return None if the result is NaN
+
+    # def fetch_historical_data(self, symbol, timeframe, limit=15):
+    #     ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
+    #     df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+    #     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+    #     return df
+
+    # def calculate_atr(self, df, period=14):
+    #     high_low = df['high'] - df['low']
+    #     high_close = np.abs(df['high'] - df['close'].shift())
+    #     low_close = np.abs(df['low'] - df['close'].shift())
+    #     tr = np.max([high_low, high_close, low_close], axis=0)
+        
+    #     if len(tr) < period:
+    #         return None  # Return None if there are not enough data points
+        
+    #     atr = np.nanmean(tr[-period:])  # Use np.nanmean to handle NaNs
+    #     return atr if not np.isnan(atr) else None  # Return None if the result is NaN
 
     # def calculate_atr(self, df, period=14):
     #     high_low = df['high'] - df['low']
