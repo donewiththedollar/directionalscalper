@@ -831,14 +831,14 @@
 <h2 id="installing-python-311">Installing Python 3.11</h2>
 <p>To install Python 3.11 on your system, follow these steps:</p>
 <ol>
-<li>
-<p>Update the package list and install the necessary dependencies:
-   <code>sudo apt update
-   sudo apt install -y build-essential gdb lcov pkg-config \
-   libbz2-dev libffi-dev libgdbm-dev libgdbm-compat-dev liblzma-dev \
-   libncurses5-dev libreadline-dev libsqlite3-dev libssl-dev \
-   lzma lzma-dev tk-dev uuid-dev zlib1g-dev</code></p>
-</li>
+<li>Update the package list and install the necessary dependencies:
+   <code>sudo apt update</code></li>
+</ol>
+<p><code>sudo apt install -y wget build-essential libssl-dev zlib1g-dev \
+   libncurses5-dev libncursesw5-dev libreadline-dev libsqlite3-dev \
+   libgdbm-dev libdb5.3-dev libbz2-dev libexpat1-dev liblzma-dev \
+   libffi-dev uuid-dev libnss3-dev libgdbm-compat-dev</code></p>
+<ol>
 <li>
 <p>Download the Python 3.11.0 source code:
    <code>cd /opt
@@ -858,7 +858,7 @@
 </li>
 <li>
 <p>Compile Python:
-   <code>sudo make -j 8</code></p>
+   <code>sudo make -j 2</code></p>
 </li>
 <li>
 <p>Install Python 3.11:
