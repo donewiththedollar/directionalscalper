@@ -333,8 +333,44 @@ class LinearGridBaseFutures(BybitStrategy):
                 #         time.sleep(10)  # wait for a short period before retrying
                 #         continue
 
+                # # Fetch equity data
+                # fetched_total_equity = self.retry_api_call(self.exchange.get_futures_balance_bybit, quote_currency)
+
+                # # Refresh equity if interval passed or fetched equity is 0.0
+                # if current_time - last_equity_fetch_time > equity_refresh_interval or fetched_total_equity == 0.0:
+                #     if fetched_total_equity is not None and fetched_total_equity > 0.0:
+                #         total_equity = fetched_total_equity
+                #         self.last_known_equity = total_equity  # Update the last known equity
+                #     else:
+                #         logging.warning("Failed to fetch total_equity or received 0.0. Using last known value.")
+                #         total_equity = self.last_known_equity  # Use last known equity
+
+                #     available_equity = self.retry_api_call(self.exchange.get_available_balance_bybit, quote_currency)
+                #     last_equity_fetch_time = current_time
+
+                #     logging.info(f"Total equity: {total_equity}")
+                #     logging.info(f"Available equity: {available_equity}")
+                    
+                #     # Log the type of total_equity
+                #     logging.info(f"Type of total_equity: {type(total_equity)}")
+
+                #     # If total_equity is still None (which it shouldn't be), log an error and skip the iteration
+                #     if total_equity is None:
+                #         logging.error("This should not happen as total_equity should never be None. Skipping this iteration.")
+                #         time.sleep(10)  # wait for a short period before retrying
+                #         continue
+
                 # Fetch equity data
                 fetched_total_equity = self.retry_api_call(self.exchange.get_futures_balance_bybit, quote_currency)
+
+                logging.info(f"Fetched total equity: {fetched_total_equity}")
+
+                # Attempt to convert fetched_total_equity to a float
+                try:
+                    fetched_total_equity = float(fetched_total_equity)
+                except (ValueError, TypeError):
+                    logging.warning(f"Fetched total equity could not be converted to float: {fetched_total_equity}. Resorting to last known equity.")
+                    fetched_total_equity = None
 
                 # Refresh equity if interval passed or fetched equity is 0.0
                 if current_time - last_equity_fetch_time > equity_refresh_interval or fetched_total_equity == 0.0:
@@ -342,7 +378,7 @@ class LinearGridBaseFutures(BybitStrategy):
                         total_equity = fetched_total_equity
                         self.last_known_equity = total_equity  # Update the last known equity
                     else:
-                        logging.warning("Failed to fetch total_equity or received 0.0. Using last known value.")
+                        logging.warning("Failed to fetch valid total_equity or received 0.0. Using last known value.")
                         total_equity = self.last_known_equity  # Use last known equity
 
                     available_equity = self.retry_api_call(self.exchange.get_available_balance_bybit, quote_currency)
