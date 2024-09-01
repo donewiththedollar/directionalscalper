@@ -32,6 +32,7 @@ class LinearGridBaseFutures(BybitStrategy):
         self.running_long = False
         self.running_short = False
         self.last_known_equity = 0.0
+        self.last_known_upnl = {}
         ConfigInitializer.initialize_config_attributes(self, config)
         self._initialize_symbol_locks(rotator_symbols_standardized)
 
@@ -317,24 +318,6 @@ class LinearGridBaseFutures(BybitStrategy):
                 # position_last_update_time = self.get_position_update_time(symbol)
 
                 # logging.info(f"{symbol} last update time: {position_last_update_time}")
-
-                # # Fetch equity data less frequently or if it's not available yet
-                # if current_time - last_equity_fetch_time > equity_refresh_interval or total_equity is None:
-                #     total_equity = self.retry_api_call(self.exchange.get_futures_balance_bybit, quote_currency)
-                #     available_equity = self.retry_api_call(self.exchange.get_available_balance_bybit, quote_currency)
-                #     last_equity_fetch_time = current_time
-
-                #     logging.info(f"Total equity: {total_equity}")
-                #     logging.info(f"Available equity: {available_equity}")
-                    
-                #     # Log the type of total_equity
-                #     logging.info(f"Type of total_equity: {type(total_equity)}")
-                    
-                #     # If total_equity is still None after fetching, log a warning and skip to the next iteration
-                #     if total_equity is None:
-                #         logging.warning("Failed to fetch total_equity. Skipping this iteration.")
-                #         time.sleep(10)  # wait for a short period before retrying
-                #         continue
 
                 # Fetch equity data
                 fetched_total_equity = self.retry_api_call(self.exchange.get_futures_balance_bybit, quote_currency)
@@ -782,19 +765,26 @@ class LinearGridBaseFutures(BybitStrategy):
                         try:
                             unrealized_pnl = self.exchange.fetch_unrealized_pnl(symbol)
                             long_upnl = unrealized_pnl.get('long')
+                            self.last_known_upnl[symbol] = self.last_known_upnl.get(symbol, {})
+                            self.last_known_upnl[symbol]['long'] = long_upnl  # Store the last known long uPNL
                             logging.info(f"Long UPNL for {symbol}: {long_upnl}")
                         except Exception as e:
-                            logging.info(f"Exception fetching Long UPNL for {symbol}: {e}")
+                            # Fallback to last known uPNL if an exception occurs
+                            long_upnl = self.last_known_upnl.get(symbol, {}).get('long', 0.0)
+                            logging.info(f"Exception fetching Long UPNL for {symbol}: {e}. Using last known UPNL: {long_upnl}")
 
                     # Check for short position
                     if short_pos_qty > 0:
                         try:
                             unrealized_pnl = self.exchange.fetch_unrealized_pnl(symbol)
                             short_upnl = unrealized_pnl.get('short')
+                            self.last_known_upnl[symbol] = self.last_known_upnl.get(symbol, {})
+                            self.last_known_upnl[symbol]['short'] = short_upnl  # Store the last known short uPNL
                             logging.info(f"Short UPNL for {symbol}: {short_upnl}")
                         except Exception as e:
-                            logging.info(f"Exception fetching Short UPNL for {symbol}: {e}")
-
+                            # Fallback to last known uPNL if an exception occurs
+                            short_upnl = self.last_known_upnl.get(symbol, {}).get('short', 0.0)
+                            logging.info(f"Exception fetching Short UPNL for {symbol}: {e}. Using last known UPNL: {short_upnl}")
 
                     long_tp_counts = tp_order_counts['long_tp_count']
                     short_tp_counts = tp_order_counts['short_tp_count']
