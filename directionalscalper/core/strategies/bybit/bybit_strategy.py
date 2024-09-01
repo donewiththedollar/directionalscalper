@@ -5617,40 +5617,6 @@ class BybitStrategy(BaseStrategy):
                 except Exception as e:
                     logging.error(f"Exception in issue_grid_safely: {e}")
                     
-            # def issue_grid_safely(side: str, grid_levels: list, amounts: list):
-            #     """
-            #     Safely issue grid orders, ensuring no duplicates and handling errors gracefully.
-            #     """
-            #     try:
-            #         grid_set = self.active_long_grids if side == 'long' else self.active_short_grids
-            #         order_side = 'buy' if side == 'long' else 'sell'
-
-            #         # Cancel existing grids for the side before issuing new ones
-            #         self.clear_grid(symbol, order_side)
-
-            #         # Initialize filled_levels if not already done
-            #         if symbol not in self.filled_levels:
-            #             self.filled_levels[symbol] = {}
-            #         if order_side not in self.filled_levels[symbol]:
-            #             self.filled_levels[symbol][order_side] = set()  # Initialize as a set
-
-            #         # Add logging to verify types before passing to issue_grid_orders
-            #         logging.info(f"Inside issue_grid_safely - Type of grid_levels: {type(grid_levels)}, Value: {grid_levels}")
-            #         logging.info(f"Inside issue_grid_safely - Type of amounts: {type(amounts)}, Value: {amounts}")
-
-            #         # Ensure grid_levels and amounts are lists
-            #         assert isinstance(grid_levels, list), f"Expected grid_levels to be a list, but got {type(grid_levels)}"
-            #         assert isinstance(amounts, list), f"Expected amounts to be a list, but got {type(amounts)}"
-
-            #         if symbol not in grid_set:
-            #             logging.info(f"[{symbol}] Issuing new {side} grid orders.")
-            #             self.issue_grid_orders(symbol, order_side, grid_levels, amounts, side == 'long', self.filled_levels[symbol][order_side])
-            #             grid_set.add(symbol)
-            #         else:
-            #             logging.info(f"[{symbol}] {side.capitalize()} grid already exists. Skipping grid creation.")
-            #     except Exception as e:
-            #         logging.error(f"Exception in issue_grid_safely: {e}")
-
             # Determine whether to replace grids based on the updated buffer and outer price distance
             replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist_v2(
                 symbol, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
@@ -5725,7 +5691,7 @@ class BybitStrategy(BaseStrategy):
                 fresh_signal = self.generate_l_signals(symbol)
 
                 try:
-                    if fresh_signal.lower() == "long" and long_mode and not has_open_long_position and not graceful_stop_long and symbol not in self.active_long_grids:
+                    if fresh_signal.lower() == "long" and long_mode and not has_open_long_position and not graceful_stop_long and symbol not in self.active_long_grids and symbol not in self.max_qty_reached_symbol_long:
                         logging.info(f"[{symbol}] Creating new long position based on MFIRSI long signal")
                         self.clear_grid(symbol, 'buy')
                         
@@ -5764,7 +5730,7 @@ class BybitStrategy(BaseStrategy):
                         self.last_signal_time[symbol] = current_time
                         self.last_mfirsi_signal[symbol] = "neutral"  # Reset to neutral after processing
 
-                    elif fresh_signal.lower() == "short" and short_mode and not has_open_short_position and not graceful_stop_short and symbol not in self.active_short_grids:
+                    elif fresh_signal.lower() == "short" and short_mode and not has_open_short_position and not graceful_stop_short and symbol not in self.active_short_grids and symbol not in self.max_qty_reached_symbol_short:
                         logging.info(f"[{symbol}] Creating new short position based on MFIRSI short signal")
                         self.clear_grid(symbol, 'sell')
 
@@ -5850,7 +5816,7 @@ class BybitStrategy(BaseStrategy):
                     try:
                         # Proceed with the signal handling regardless of whether it's a retry or a new signal
                         if fresh_signal.lower() == "long" and long_mode and not self.auto_reduce_active_long.get(symbol, False):
-                            if long_pos_qty > 0.00001:  # Check if a long position already exists
+                            if long_pos_qty > 0.00001 and symbol not in self.max_qty_reached_symbol_long:  # Check if a long position already exists
                                 if current_price <= long_pos_price:  # Enter additional entry only if current price <= long_pos_price
                                     logging.info(f"[{symbol}] Adding to existing long position based on MFIRSI long signal")
 
@@ -5881,7 +5847,7 @@ class BybitStrategy(BaseStrategy):
                                 else:
                                     logging.info(f"[{symbol}] Current price {current_price} is above long position price {long_pos_price}. Not adding to long position.")
                         elif fresh_signal.lower() == "short" and short_mode and not self.auto_reduce_active_short.get(symbol, False):
-                            if short_pos_qty > 0.00001:  # Check if a short position already exists
+                            if short_pos_qty > 0.00001 and symbol not in self.max_qty_reached_symbol_short:  # Check if a short position already exists
                                 if current_price >= short_pos_price:  # Enter additional entry only if current price >= short_pos_price
                                     logging.info(f"[{symbol}] Adding to existing short position based on MFIRSI short signal")
 
