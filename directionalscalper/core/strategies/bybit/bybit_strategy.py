@@ -225,6 +225,45 @@ class BybitStrategy(BaseStrategy):
                 position_symbols.add(position_symbol.replace("/", ""))
         return position_symbols
 
+    def place_reduce_only_limit_order(exchange, symbol, side, quantity, stop_loss_price, positionIdx=0):
+        """
+        Place a reduce-only limit order for stop loss.
+
+        Parameters:
+        - exchange: ccxt exchange instance.
+        - symbol: Trading pair symbol (e.g., 'BTC/USDT').
+        - side: 'sell' for long position stop loss, 'buy' for short position stop loss.
+        - quantity: Amount of the position to reduce.
+        - stop_loss_price: Price at which the stop loss should trigger.
+        - positionIdx: Position index for Bybit (1 for long, 2 for short).
+        """
+
+        try:
+            # Fetch market info to ensure precision for quantity and price
+            market = exchange.markets[symbol]
+            precision_amount = market['precision']['amount']
+            precision_price = market['precision']['price']
+
+            # Round quantity and stop_loss_price to appropriate precision
+            quantity = round(quantity, precision_amount)
+            stop_loss_price = round(stop_loss_price, precision_price)
+
+            order = exchange.create_order(
+                symbol=symbol,
+                type='limit',
+                side=side,
+                amount=quantity,
+                price=stop_loss_price,
+                params={'reduceOnly': True, 'positionIdx': positionIdx}  # Include positionIdx for Bybit
+            )
+            logging.info(f"Reduce-only limit order placed: {order}")
+            return order
+
+        except Exception as e:
+            logging.error(f"Error placing reduce-only limit order for {symbol}: {e}")
+            raise
+
+
     def execute_grid_auto_reduce(self, position_type, symbol, pos_qty, dynamic_amount, market_price, total_equity, long_pos_price, short_pos_price, min_qty):
         """
         Executes auto-reduction of positions by placing tagged limit orders.
@@ -4874,6 +4913,28 @@ class BybitStrategy(BaseStrategy):
             return position_details.get(symbol, {}).get('short', {}).get('qty', 0)
         return 0
 
+    # def lineargrid_base(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
+    #                     short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
+    #                     strength: float, outer_price_distance: float, min_outer_price_distance: float, max_outer_price_distance: float, reissue_threshold: float, 
+    #                     wallet_exposure_limit_long: float, wallet_exposure_limit_short: float, long_mode: bool,
+    #                     short_mode: bool, initial_entry_buffer_pct: float, min_buffer_percentage: float, max_buffer_percentage: float,
+    #                     symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float,
+    #                     max_upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool,
+    #                     max_qty_percent_long: float, max_qty_percent_short: float, graceful_stop_long: bool, graceful_stop_short: bool, additional_entries_from_signal: bool, open_position_data: list, drawdown_behavior: str, grid_behavior: str):
+    #     try:
+
+    # def lineargrid_base(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
+    #                     short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
+    #                     strength: float, outer_price_distance: float, min_outer_price_distance: float, max_outer_price_distance: float, reissue_threshold: float, 
+    #                     wallet_exposure_limit_long: float, wallet_exposure_limit_short: float, long_mode: bool,
+    #                     short_mode: bool, initial_entry_buffer_pct: float, min_buffer_percentage: float, max_buffer_percentage: float,
+    #                     symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float,
+    #                     max_upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool,
+    #                     max_qty_percent_long: float, max_qty_percent_short: float, graceful_stop_long: bool, graceful_stop_short: bool,
+    #                     additional_entries_from_signal: bool, open_position_data: list, drawdown_behavior: str, grid_behavior: str,
+    #                     stop_loss_long: float, stop_loss_short: float):
+    #     try:   
+
     def lineargrid_base(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
                         short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
                         strength: float, outer_price_distance: float, min_outer_price_distance: float, max_outer_price_distance: float, reissue_threshold: float, 
@@ -4881,9 +4942,10 @@ class BybitStrategy(BaseStrategy):
                         short_mode: bool, initial_entry_buffer_pct: float, min_buffer_percentage: float, max_buffer_percentage: float,
                         symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float,
                         max_upnl_profit_pct: float, tp_order_counts: dict, entry_during_autoreduce: bool,
-                        max_qty_percent_long: float, max_qty_percent_short: float, graceful_stop_long: bool, graceful_stop_short: bool, additional_entries_from_signal: bool, open_position_data: list, drawdown_behavior: str, grid_behavior: str):
+                        max_qty_percent_long: float, max_qty_percent_short: float, graceful_stop_long: bool, graceful_stop_short: bool,
+                        additional_entries_from_signal: bool, open_position_data: list, drawdown_behavior: str, grid_behavior: str,
+                        stop_loss_long: float, stop_loss_short: float, stop_loss_enabled: bool):
         try:
-
             long_pos_qty = long_pos_qty if long_pos_qty is not None else 0
             short_pos_qty = short_pos_qty if short_pos_qty is not None else 0
 
@@ -5063,7 +5125,10 @@ class BybitStrategy(BaseStrategy):
                 open_position_data,
                 upnl_profit_pct,
                 max_upnl_profit_pct,
-                tp_order_counts
+                tp_order_counts,
+                stop_loss_long,
+                stop_loss_short,
+                stop_loss_enabled
             )
 
         except Exception as e:
@@ -5289,6 +5354,66 @@ class BybitStrategy(BaseStrategy):
             symbol, total_amount, levels, strength, qty_precision, enforce_full_grid, long_pos_qty, short_pos_qty, side
         )
 
+    def issue_reduce_only_order(self, exchange, symbol, side, position_qty, stop_loss_pct, current_price, positionIdx):
+        """
+        Issue a reduce-only limit order for a stop loss based on the current price and stop loss percentage.
+
+        Parameters:
+        - exchange: ccxt exchange instance.
+        - symbol: Trading pair symbol (e.g., 'BTC/USDT').
+        - side: 'sell' for a long position stop loss, 'buy' for a short position stop loss.
+        - position_qty: Quantity of the position to reduce.
+        - stop_loss_pct: Percentage of price action at which the stop loss should trigger.
+        - current_price: The current market price of the asset.
+        - positionIdx: Position index for Bybit (1 for long, 2 for short).
+        """
+
+        try:
+            # Calculate the stop loss price based on the current price and the stop loss percentage
+            if side == 'sell':
+                stop_loss_price = current_price * (1 - stop_loss_pct / 100)
+            else:  # side == 'buy'
+                stop_loss_price = current_price * (1 + stop_loss_pct / 100)
+
+            logging.info(f"[{symbol}] Attempting to place a reduce-only {side} order at {stop_loss_price} for {position_qty} {symbol} with positionIdx {positionIdx}")
+
+            # Retry logic for placing the reduce-only limit order
+            max_retries = 5
+            retry_delay = 5  # seconds
+            for attempt in range(max_retries):
+                try:
+                    # Place the reduce-only limit order
+                    order = self.place_reduce_only_limit_order(exchange, symbol, side, position_qty, stop_loss_price, positionIdx)
+                    logging.info(f"[{symbol}] Stop loss order issued on attempt {attempt + 1}: {order}")
+                    
+                    # Check if the order was successful and break out of the retry loop
+                    if order:
+                        return order
+                except Exception as e:
+                    logging.error(f"[{symbol}] Failed to place reduce-only stop loss order on attempt {attempt + 1}: {e}")
+                    if attempt < max_retries - 1:
+                        logging.info(f"[{symbol}] Retrying in {retry_delay} seconds...")
+                        time.sleep(retry_delay)
+                    else:
+                        logging.error(f"[{symbol}] Exhausted retries for placing reduce-only stop loss order.")
+                        raise e
+
+        except Exception as e:
+            logging.error(f"[{symbol}] Failed to issue reduce-only stop loss order: {e}")
+            raise
+
+
+    # def handle_grid_trades(self, symbol, grid_levels_long, grid_levels_short, long_grid_active, short_grid_active,
+    #                     long_pos_qty, short_pos_qty, current_price, dynamic_outer_price_distance, min_outer_price_distance,
+    #                     max_outer_price_distance, buffer_percentage_long, buffer_percentage_short, 
+    #                     adjusted_grid_levels_long, adjusted_grid_levels_short, levels, amounts_long, amounts_short, 
+    #                     best_bid_price, best_ask_price, mfirsi_signal, open_orders, initial_entry_buffer_pct, 
+    #                     reissue_threshold, entry_during_autoreduce, min_qty, open_symbols, symbols_allowed, long_mode, 
+    #                     short_mode, long_pos_price, short_pos_price, graceful_stop_long, graceful_stop_short, 
+    #                     min_buffer_percentage, max_buffer_percentage, additional_entries_from_signal, 
+    #                     open_position_data, upnl_profit_pct, max_upnl_profit_pct, tp_order_counts):
+        
+    #     try:
     def handle_grid_trades(self, symbol, grid_levels_long, grid_levels_short, long_grid_active, short_grid_active,
                         long_pos_qty, short_pos_qty, current_price, dynamic_outer_price_distance, min_outer_price_distance,
                         max_outer_price_distance, buffer_percentage_long, buffer_percentage_short, 
@@ -5297,9 +5422,88 @@ class BybitStrategy(BaseStrategy):
                         reissue_threshold, entry_during_autoreduce, min_qty, open_symbols, symbols_allowed, long_mode, 
                         short_mode, long_pos_price, short_pos_price, graceful_stop_long, graceful_stop_short, 
                         min_buffer_percentage, max_buffer_percentage, additional_entries_from_signal, 
-                        open_position_data, upnl_profit_pct, max_upnl_profit_pct, tp_order_counts):
-        
+                        open_position_data, upnl_profit_pct, max_upnl_profit_pct, tp_order_counts, 
+                        stop_loss_long, stop_loss_short, stop_loss_enabled=True):
+
         try:
+            if stop_loss_enabled:
+                # Calculate stop-loss trigger prices based on the percentage underwater
+                stop_loss_price_long = long_pos_price * (1 - stop_loss_long / 100) if long_pos_qty > 0 else None
+                stop_loss_price_short = short_pos_price * (1 + stop_loss_short / 100) if short_pos_qty > 0 else None
+
+                logging.info(f"[{symbol}] Current Price: {current_price}")
+                if long_pos_qty > 0:
+                    logging.info(f"[{symbol}] Long Position Quantity: {long_pos_qty}, Entry Price: {long_pos_price}, Stop-Loss Price: {stop_loss_price_long}")
+                    if current_price > stop_loss_price_long:
+                        logging.info(f"[{symbol}] Long position safe. Current price is {current_price - stop_loss_price_long:.2f} above stop-loss price.")
+                if short_pos_qty > 0:
+                    logging.info(f"[{symbol}] Short Position Quantity: {short_pos_qty}, Entry Price: {short_pos_price}, Stop-Loss Price: {stop_loss_price_short}")
+                    if current_price < stop_loss_price_short:
+                        logging.info(f"[{symbol}] Short position safe. Current price is {stop_loss_price_short - current_price:.2f} below stop-loss price.")
+
+                # Stop-loss retry logic for long positions
+                if long_pos_qty > 0 and current_price <= stop_loss_price_long:
+                    logging.info(f"[{symbol}] Long position hit stop-loss level at {stop_loss_price_long}. Issuing reduce-only limit order.")
+                    retry_counter = 0
+                    max_retries = 50  # Maximum number of retries
+                    while long_pos_qty > 0.00001 and retry_counter < max_retries:
+                        try:
+                            self.issue_reduce_only_order(exchange=self.exchange, symbol=symbol, side='sell', 
+                                                        position_qty=long_pos_qty, stop_loss_pct=stop_loss_long, 
+                                                        current_price=current_price, positionIdx=1)
+                            logging.info(f"[{symbol}] Issued reduce-only limit order to sell {long_pos_qty} at {stop_loss_price_long}")
+                            time.sleep(5)  # Wait for some time to allow order to be filled
+
+                            long_pos_qty = self.get_position_qty(symbol, 'long')
+                            logging.info(f"[{symbol}] Long position quantity after stop-loss attempt: {long_pos_qty}, retry attempt: {retry_counter + 1}")
+
+                        except Exception as e:
+                            logging.error(f"[{symbol}] Error during stop-loss attempt for long position: {e}")
+                            break
+
+                        retry_counter += 1
+
+                    if long_pos_qty <= 0.00001:
+                        logging.info(f"[{symbol}] Long position fully closed at stop-loss.")
+                        self.clear_grid(symbol, 'buy')
+                        logging.info(f"[{symbol}] Cleared long grid for symbol {symbol}")
+                        self.active_long_grids.discard(symbol)
+                        logging.info(f"[{symbol}] Removed from active long grids")
+                else:
+                    logging.info(f"[{symbol}] Long position did not hit stop-loss level. Current price is {current_price}, stop-loss price is {stop_loss_price_long}.")
+
+                if short_pos_qty > 0 and current_price >= stop_loss_price_short:
+                    logging.info(f"[{symbol}] Short position hit stop-loss level at {stop_loss_price_short}. Issuing reduce-only limit order.")
+                    retry_counter = 0
+                    max_retries = 50
+                    while short_pos_qty > 0.00001 and retry_counter < max_retries:
+                        try:
+                            self.issue_reduce_only_order(exchange=self.exchange, symbol=symbol, side='buy', 
+                                                        position_qty=short_pos_qty, stop_loss_pct=stop_loss_short, 
+                                                        current_price=current_price, positionIdx=2)
+                            logging.info(f"[{symbol}] Issued reduce-only limit order to buy {short_pos_qty} at {stop_loss_price_short}")
+                            time.sleep(5)
+
+                            short_pos_qty = self.get_position_qty(symbol, 'short')
+                            logging.info(f"[{symbol}] Short position quantity after stop-loss attempt: {short_pos_qty}, retry attempt: {retry_counter + 1}")
+
+                        except Exception as e:
+                            logging.error(f"[{symbol}] Error during stop-loss attempt for short position: {e}")
+                            break
+
+                        retry_counter += 1
+
+                    if short_pos_qty <= 0.00001:
+                        logging.info(f"[{symbol}] Short position fully closed at stop-loss.")
+                        self.clear_grid(symbol, 'sell')
+                        logging.info(f"[{symbol}] Cleared short grid for symbol {symbol}")
+                        self.active_short_grids.discard(symbol)
+                        logging.info(f"[{symbol}] Removed from active short grids")
+                else:
+                    logging.info(f"[{symbol}] Short position did not hit stop-loss level. Current price is {current_price}, stop-loss price is {stop_loss_price_short}.")
+            else:
+                logging.info(f"[{symbol}] Stop-loss is disabled.")
+
             # Fetch open symbols for long and short positions
             open_symbols_long = self.get_open_symbols_long(open_position_data)
             open_symbols_short = self.get_open_symbols_short(open_position_data)
@@ -5399,6 +5603,10 @@ class BybitStrategy(BaseStrategy):
 
                     # Ensure grid_levels and amounts are lists
                     assert isinstance(grid_levels, list), f"Expected grid_levels to be a list, but got {type(grid_levels)}"
+                    
+                    # Convert amounts to a list if it's an integer
+                    if isinstance(amounts, int):
+                        amounts = [amounts] * len(grid_levels)
                     assert isinstance(amounts, list), f"Expected amounts to be a list, but got {type(amounts)}"
 
                     if symbol not in grid_set:
@@ -5409,6 +5617,40 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"[{symbol}] {side.capitalize()} grid already exists. Skipping grid creation.")
                 except Exception as e:
                     logging.error(f"Exception in issue_grid_safely: {e}")
+                    
+            # def issue_grid_safely(side: str, grid_levels: list, amounts: list):
+            #     """
+            #     Safely issue grid orders, ensuring no duplicates and handling errors gracefully.
+            #     """
+            #     try:
+            #         grid_set = self.active_long_grids if side == 'long' else self.active_short_grids
+            #         order_side = 'buy' if side == 'long' else 'sell'
+
+            #         # Cancel existing grids for the side before issuing new ones
+            #         self.clear_grid(symbol, order_side)
+
+            #         # Initialize filled_levels if not already done
+            #         if symbol not in self.filled_levels:
+            #             self.filled_levels[symbol] = {}
+            #         if order_side not in self.filled_levels[symbol]:
+            #             self.filled_levels[symbol][order_side] = set()  # Initialize as a set
+
+            #         # Add logging to verify types before passing to issue_grid_orders
+            #         logging.info(f"Inside issue_grid_safely - Type of grid_levels: {type(grid_levels)}, Value: {grid_levels}")
+            #         logging.info(f"Inside issue_grid_safely - Type of amounts: {type(amounts)}, Value: {amounts}")
+
+            #         # Ensure grid_levels and amounts are lists
+            #         assert isinstance(grid_levels, list), f"Expected grid_levels to be a list, but got {type(grid_levels)}"
+            #         assert isinstance(amounts, list), f"Expected amounts to be a list, but got {type(amounts)}"
+
+            #         if symbol not in grid_set:
+            #             logging.info(f"[{symbol}] Issuing new {side} grid orders.")
+            #             self.issue_grid_orders(symbol, order_side, grid_levels, amounts, side == 'long', self.filled_levels[symbol][order_side])
+            #             grid_set.add(symbol)
+            #         else:
+            #             logging.info(f"[{symbol}] {side.capitalize()} grid already exists. Skipping grid creation.")
+            #     except Exception as e:
+            #         logging.error(f"Exception in issue_grid_safely: {e}")
 
             # Determine whether to replace grids based on the updated buffer and outer price distance
             replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist_v2(

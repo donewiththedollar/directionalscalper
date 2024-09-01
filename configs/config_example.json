@@ -70,7 +70,10 @@
             "failsafe_enabled": false,
             "failsafe_start_pct": 0.07,
             "long_failsafe_upnl_pct": 10.0,
-            "short_failsafe_upnl_pct": 10.0
+            "short_failsafe_upnl_pct": 10.0,
+            "stop_loss_enabled": true,
+            "stop_loss_long": 15.0,
+            "stop_loss_short": 15.0
         },
         "hotkeys": {
             "hotkeys_enabled": false,
