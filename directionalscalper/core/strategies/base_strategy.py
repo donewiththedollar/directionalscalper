@@ -166,6 +166,8 @@ class BaseStrategy:
         self.max_trade_qty_per_symbol = {}
         self.last_auto_reduce_time = {}
         self.rate_limiter = RateLimit(10, 1)
+        self.general_rate_limiter = RateLimit(50, 1)
+        self.order_rate_limiter = RateLimit(5, 1) 
         self.last_known_mas = {}
 
         # self.bybit = self.Bybit(self)
@@ -500,33 +502,6 @@ class BaseStrategy:
 
         return atr if not np.isnan(atr) else None  # Return None if the result is NaN
 
-    # def fetch_historical_data(self, symbol, timeframe, limit=15):
-    #     ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
-    #     df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-    #     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-    #     return df
-
-    # def calculate_atr(self, df, period=14):
-    #     high_low = df['high'] - df['low']
-    #     high_close = np.abs(df['high'] - df['close'].shift())
-    #     low_close = np.abs(df['low'] - df['close'].shift())
-    #     tr = np.max([high_low, high_close, low_close], axis=0)
-        
-    #     if len(tr) < period:
-    #         return None  # Return None if there are not enough data points
-        
-    #     atr = np.nanmean(tr[-period:])  # Use np.nanmean to handle NaNs
-    #     return atr if not np.isnan(atr) else None  # Return None if the result is NaN
-
-    # def calculate_atr(self, df, period=14):
-    #     high_low = df['high'] - df['low']
-    #     high_close = np.abs(df['high'] - df['close'].shift())
-    #     low_close = np.abs(df['low'] - df['close'].shift())
-    #     tr = np.max([high_low, high_close, low_close], axis=0)
-    #     atr = np.mean(tr[-period:])
-    #     return atr
-
-
     def initialize_trade_quantities(self, symbol, total_equity, best_ask_price, max_leverage):
         if symbol in self.initialized_symbols:
             return
@@ -543,73 +518,46 @@ class BaseStrategy:
         logging.info(f"For symbol {symbol} Calculated max_long_trade_qty: {max_trade_qty}, max_short_trade_qty: {max_trade_qty}")
         self.initialized_symbols.add(symbol)
 
-    # def get_all_moving_averages(self, symbol, max_retries=3, delay=5):
-    #     for _ in range(max_retries):
-    #         m_moving_averages = self.manager.get_1m_moving_averages(symbol)
-    #         m5_moving_averages = self.manager.get_5m_moving_averages(symbol)
-
-    #         ma_6_high = m_moving_averages["MA_6_H"]
-    #         ma_6_low = m_moving_averages["MA_6_L"]
-    #         ma_3_low = m_moving_averages["MA_3_L"]
-    #         ma_3_high = m_moving_averages["MA_3_H"]
-    #         ma_1m_3_high = self.manager.get_1m_moving_averages(symbol)["MA_3_H"]
-    #         ma_5m_3_high = self.manager.get_5m_moving_averages(symbol)["MA_3_H"]
-
-    #         # Check if the data is correct
-    #         if all(isinstance(value, (float, int, np.number)) for value in [ma_6_high, ma_6_low, ma_3_low, ma_3_high, ma_1m_3_high, ma_5m_3_high]):
-    #             return {
-    #                 "ma_6_high": ma_6_high,
-    #                 "ma_6_low": ma_6_low,
-    #                 "ma_3_low": ma_3_low,
-    #                 "ma_3_high": ma_3_high,
-    #                 "ma_1m_3_high": ma_1m_3_high,
-    #                 "ma_5m_3_high": ma_5m_3_high,
-    #             }
-
-    #         # If the data is not correct, wait for a short delay
-    #         time.sleep(delay)
-
-    #     raise ValueError("Failed to fetch valid moving averages after multiple attempts.")
-
     def get_all_moving_averages(self, symbol, max_retries=3, delay=5):
-        for _ in range(max_retries):
-            try:
-                m_moving_averages = self.manager.get_1m_moving_averages(symbol)
-                m5_moving_averages = self.manager.get_5m_moving_averages(symbol)
+        with self.general_rate_limiter:
+            for _ in range(max_retries):
+                try:
+                    m_moving_averages = self.manager.get_1m_moving_averages(symbol)
+                    m5_moving_averages = self.manager.get_5m_moving_averages(symbol)
 
-                ma_6_high = m_moving_averages.get("MA_6_H")
-                ma_6_low = m_moving_averages.get("MA_6_L")
-                ma_3_low = m_moving_averages.get("MA_3_L")
-                ma_3_high = m_moving_averages.get("MA_3_H")
-                ma_1m_3_high = m_moving_averages.get("MA_3_H")
-                ma_5m_3_high = m5_moving_averages.get("MA_3_H")
+                    ma_6_high = m_moving_averages.get("MA_6_H")
+                    ma_6_low = m_moving_averages.get("MA_6_L")
+                    ma_3_low = m_moving_averages.get("MA_3_L")
+                    ma_3_high = m_moving_averages.get("MA_3_H")
+                    ma_1m_3_high = m_moving_averages.get("MA_3_H")
+                    ma_5m_3_high = m5_moving_averages.get("MA_3_H")
 
-                # Check if the data is correct
-                if all(isinstance(value, (float, int, np.number)) for value in [ma_6_high, ma_6_low, ma_3_low, ma_3_high, ma_1m_3_high, ma_5m_3_high]):
-                    self.last_known_mas[symbol] = {
-                        "ma_6_high": ma_6_high,
-                        "ma_6_low": ma_6_low,
-                        "ma_3_low": ma_3_low,
-                        "ma_3_high": ma_3_high,
-                        "ma_1m_3_high": ma_1m_3_high,
-                        "ma_5m_3_high": ma_5m_3_high,
-                    }
-                    return self.last_known_mas[symbol]
+                    # Check if the data is correct
+                    if all(isinstance(value, (float, int, np.number)) for value in [ma_6_high, ma_6_low, ma_3_low, ma_3_high, ma_1m_3_high, ma_5m_3_high]):
+                        self.last_known_mas[symbol] = {
+                            "ma_6_high": ma_6_high,
+                            "ma_6_low": ma_6_low,
+                            "ma_3_low": ma_3_low,
+                            "ma_3_high": ma_3_high,
+                            "ma_1m_3_high": ma_1m_3_high,
+                            "ma_5m_3_high": ma_5m_3_high,
+                        }
+                        return self.last_known_mas[symbol]
 
-                logging.warning(f"Invalid moving averages for {symbol}: {m_moving_averages}, {m5_moving_averages}. Retrying...")
+                    logging.warning(f"Invalid moving averages for {symbol}: {m_moving_averages}, {m5_moving_averages}. Retrying...")
 
-            except Exception as e:
-                logging.error(f"Error fetching moving averages for {symbol}: {e}. Retrying...")
+                except Exception as e:
+                    logging.error(f"Error fetching moving averages for {symbol}: {e}. Retrying...")
 
-            # If the data is not correct, wait for a short delay
-            time.sleep(delay)
+                # If the data is not correct, wait for a short delay
+                time.sleep(delay)
 
-        # If retries are exhausted, use the last known values
-        if symbol in self.last_known_mas:
-            logging.info(f"Using last known moving averages for {symbol}.")
-            return self.last_known_mas[symbol]
-        else:
-            raise ValueError(f"Failed to fetch valid moving averages for {symbol} after multiple attempts and no fallback available.")
+            # If retries are exhausted, use the last known values
+            if symbol in self.last_known_mas:
+                logging.info(f"Using last known moving averages for {symbol}.")
+                return self.last_known_mas[symbol]
+            else:
+                raise ValueError(f"Failed to fetch valid moving averages for {symbol} after multiple attempts and no fallback available.")
 
 
     def get_current_price(self, symbol):
