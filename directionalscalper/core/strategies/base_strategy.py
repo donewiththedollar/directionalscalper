@@ -166,6 +166,7 @@ class BaseStrategy:
         self.max_trade_qty_per_symbol = {}
         self.last_auto_reduce_time = {}
         self.rate_limiter = RateLimit(10, 1)
+        self.last_known_mas = {}
 
         # self.bybit = self.Bybit(self)
 
@@ -542,33 +543,74 @@ class BaseStrategy:
         logging.info(f"For symbol {symbol} Calculated max_long_trade_qty: {max_trade_qty}, max_short_trade_qty: {max_trade_qty}")
         self.initialized_symbols.add(symbol)
 
+    # def get_all_moving_averages(self, symbol, max_retries=3, delay=5):
+    #     for _ in range(max_retries):
+    #         m_moving_averages = self.manager.get_1m_moving_averages(symbol)
+    #         m5_moving_averages = self.manager.get_5m_moving_averages(symbol)
+
+    #         ma_6_high = m_moving_averages["MA_6_H"]
+    #         ma_6_low = m_moving_averages["MA_6_L"]
+    #         ma_3_low = m_moving_averages["MA_3_L"]
+    #         ma_3_high = m_moving_averages["MA_3_H"]
+    #         ma_1m_3_high = self.manager.get_1m_moving_averages(symbol)["MA_3_H"]
+    #         ma_5m_3_high = self.manager.get_5m_moving_averages(symbol)["MA_3_H"]
+
+    #         # Check if the data is correct
+    #         if all(isinstance(value, (float, int, np.number)) for value in [ma_6_high, ma_6_low, ma_3_low, ma_3_high, ma_1m_3_high, ma_5m_3_high]):
+    #             return {
+    #                 "ma_6_high": ma_6_high,
+    #                 "ma_6_low": ma_6_low,
+    #                 "ma_3_low": ma_3_low,
+    #                 "ma_3_high": ma_3_high,
+    #                 "ma_1m_3_high": ma_1m_3_high,
+    #                 "ma_5m_3_high": ma_5m_3_high,
+    #             }
+
+    #         # If the data is not correct, wait for a short delay
+    #         time.sleep(delay)
+
+    #     raise ValueError("Failed to fetch valid moving averages after multiple attempts.")
+
     def get_all_moving_averages(self, symbol, max_retries=3, delay=5):
         for _ in range(max_retries):
-            m_moving_averages = self.manager.get_1m_moving_averages(symbol)
-            m5_moving_averages = self.manager.get_5m_moving_averages(symbol)
+            try:
+                m_moving_averages = self.manager.get_1m_moving_averages(symbol)
+                m5_moving_averages = self.manager.get_5m_moving_averages(symbol)
 
-            ma_6_high = m_moving_averages["MA_6_H"]
-            ma_6_low = m_moving_averages["MA_6_L"]
-            ma_3_low = m_moving_averages["MA_3_L"]
-            ma_3_high = m_moving_averages["MA_3_H"]
-            ma_1m_3_high = self.manager.get_1m_moving_averages(symbol)["MA_3_H"]
-            ma_5m_3_high = self.manager.get_5m_moving_averages(symbol)["MA_3_H"]
+                ma_6_high = m_moving_averages.get("MA_6_H")
+                ma_6_low = m_moving_averages.get("MA_6_L")
+                ma_3_low = m_moving_averages.get("MA_3_L")
+                ma_3_high = m_moving_averages.get("MA_3_H")
+                ma_1m_3_high = m_moving_averages.get("MA_3_H")
+                ma_5m_3_high = m5_moving_averages.get("MA_3_H")
 
-            # Check if the data is correct
-            if all(isinstance(value, (float, int, np.number)) for value in [ma_6_high, ma_6_low, ma_3_low, ma_3_high, ma_1m_3_high, ma_5m_3_high]):
-                return {
-                    "ma_6_high": ma_6_high,
-                    "ma_6_low": ma_6_low,
-                    "ma_3_low": ma_3_low,
-                    "ma_3_high": ma_3_high,
-                    "ma_1m_3_high": ma_1m_3_high,
-                    "ma_5m_3_high": ma_5m_3_high,
-                }
+                # Check if the data is correct
+                if all(isinstance(value, (float, int, np.number)) for value in [ma_6_high, ma_6_low, ma_3_low, ma_3_high, ma_1m_3_high, ma_5m_3_high]):
+                    self.last_known_mas[symbol] = {
+                        "ma_6_high": ma_6_high,
+                        "ma_6_low": ma_6_low,
+                        "ma_3_low": ma_3_low,
+                        "ma_3_high": ma_3_high,
+                        "ma_1m_3_high": ma_1m_3_high,
+                        "ma_5m_3_high": ma_5m_3_high,
+                    }
+                    return self.last_known_mas[symbol]
+
+                logging.warning(f"Invalid moving averages for {symbol}: {m_moving_averages}, {m5_moving_averages}. Retrying...")
+
+            except Exception as e:
+                logging.error(f"Error fetching moving averages for {symbol}: {e}. Retrying...")
 
             # If the data is not correct, wait for a short delay
             time.sleep(delay)
 
-        raise ValueError("Failed to fetch valid moving averages after multiple attempts.")
+        # If retries are exhausted, use the last known values
+        if symbol in self.last_known_mas:
+            logging.info(f"Using last known moving averages for {symbol}.")
+            return self.last_known_mas[symbol]
+        else:
+            raise ValueError(f"Failed to fetch valid moving averages for {symbol} after multiple attempts and no fallback available.")
+
 
     def get_current_price(self, symbol):
         return self.exchange.get_current_price(symbol)

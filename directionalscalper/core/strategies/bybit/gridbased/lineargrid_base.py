@@ -733,6 +733,24 @@ class LinearGridBaseFutures(BybitStrategy):
                     logging.info(f"Short take profit for {symbol}: {short_take_profit}")
                     logging.info(f"Long take profit for {symbol}: {long_take_profit}")
 
+                    # Handling best ask price
+                    if 'asks' in order_book and len(order_book['asks']) > 0:
+                        best_ask_price = order_book['asks'][0][0]
+                        self.last_known_ask[symbol] = best_ask_price  # Update last known ask price
+                    else:
+                        best_ask_price = self.last_known_ask.get(symbol)  # Use last known ask price
+                        if best_ask_price is None:
+                            logging.warning(f"Best ask price is not available for {symbol}. Defaulting to last known ask price, which is also None.")
+
+                    # Handling best bid price
+                    if 'bids' in order_book and len(order_book['bids']) > 0:
+                        best_bid_price = order_book['bids'][0][0]
+                        self.last_known_bid[symbol] = best_bid_price  # Update last known bid price
+                    else:
+                        best_bid_price = self.last_known_bid.get(symbol)  # Use last known bid price
+                        if best_bid_price is None:
+                            logging.warning(f"Best bid price is not available for {symbol}. Defaulting to last known bid price, which is also None.")
+
                     should_short = self.short_trade_condition(best_ask_price, moving_averages["ma_3_high"])
                     should_long = self.long_trade_condition(best_bid_price, moving_averages["ma_3_low"])
                     should_add_to_short = False
