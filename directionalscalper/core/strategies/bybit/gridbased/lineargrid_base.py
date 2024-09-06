@@ -33,6 +33,7 @@ class LinearGridBaseFutures(BybitStrategy):
         self.running_short = False
         self.last_known_equity = 0.0
         self.last_known_upnl = {}
+        self.last_known_mas = {}
         ConfigInitializer.initialize_config_attributes(self, config)
         self._initialize_symbol_locks(rotator_symbols_standardized)
 
@@ -369,21 +370,45 @@ class LinearGridBaseFutures(BybitStrategy):
                 # best_ask_price = self.exchange.get_orderbook(symbol)['asks'][0][0]
                 # best_bid_price = self.exchange.get_orderbook(symbol)['bids'][0][0]
 
-                # Handling best ask price
+                # Handling best ask price with fallback mechanism
                 if 'asks' in order_book and len(order_book['asks']) > 0:
                     best_ask_price = order_book['asks'][0][0]
                     self.last_known_ask[symbol] = best_ask_price  # Update last known ask price
                 else:
                     best_ask_price = self.last_known_ask.get(symbol)  # Use last known ask price
+                    if best_ask_price is None:
+                        logging.warning(f"Best ask price is not available for {symbol}. Defaulting to last known ask price, which is also None.")
 
-                # Handling best bid price
+                # Handling best bid price with fallback mechanism
                 if 'bids' in order_book and len(order_book['bids']) > 0:
                     best_bid_price = order_book['bids'][0][0]
                     self.last_known_bid[symbol] = best_bid_price  # Update last known bid price
                 else:
                     best_bid_price = self.last_known_bid.get(symbol)  # Use last known bid price
-                                
-                moving_averages = self.get_all_moving_averages(symbol)
+                    if best_bid_price is None:
+                        logging.warning(f"Best bid price is not available for {symbol}. Defaulting to last known bid price, which is also None.")
+
+
+                # Fetch moving averages with fallback mechanism
+                try:
+                    moving_averages = self.get_all_moving_averages(symbol)
+                except ValueError as e:
+                    logging.info(f"Failed to get new moving averages for {symbol}, using last known values: {e}")
+                    moving_averages = self.last_known_mas.get(symbol)  # Continue using last known values
+
+
+                # Ensure the moving averages are valid, fallback to last known if not present
+                ma_3_high = moving_averages.get("ma_3_high", self.last_known_mas.get(symbol, {}).get("ma_3_high"))
+                ma_3_low = moving_averages.get("ma_3_low", self.last_known_mas.get(symbol, {}).get("ma_3_low"))
+                ma_6_high = moving_averages.get("ma_6_high", self.last_known_mas.get(symbol, {}).get("ma_6_high"))
+                ma_6_low = moving_averages.get("ma_6_low", self.last_known_mas.get(symbol, {}).get("ma_6_low"))
+
+                # Log warnings if any of the moving averages are missing
+                if None in [ma_3_high, ma_3_low, ma_6_high, ma_6_low]:
+                    logging.info(f"Missing moving averages for {symbol}. Using fallback values.")
+
+
+                # moving_averages = self.get_all_moving_averages(symbol)
 
                 logging.info(f"Open symbols: {open_symbols}")
                 logging.info(f"Current rotator symbols: {rotator_symbols_standardized}")
@@ -751,17 +776,18 @@ class LinearGridBaseFutures(BybitStrategy):
                         if best_bid_price is None:
                             logging.warning(f"Best bid price is not available for {symbol}. Defaulting to last known bid price, which is also None.")
 
-                    should_short = self.short_trade_condition(best_ask_price, moving_averages["ma_3_high"])
-                    should_long = self.long_trade_condition(best_bid_price, moving_averages["ma_3_low"])
+                    should_short = self.short_trade_condition(best_ask_price, ma_3_high)
+                    should_long = self.long_trade_condition(best_bid_price, ma_3_low)
                     should_add_to_short = False
                     should_add_to_long = False
 
+                    # Determine if additional shorts should be added
                     if short_pos_price is not None:
-                        should_add_to_short = short_pos_price < moving_averages["ma_6_low"] and self.short_trade_condition(best_ask_price, moving_averages["ma_6_high"])
+                        should_add_to_short = short_pos_price < ma_6_low and self.short_trade_condition(best_ask_price, ma_6_high)
 
+                    # Determine if additional longs should be added
                     if long_pos_price is not None:
-                        should_add_to_long = long_pos_price > moving_averages["ma_6_high"] and self.long_trade_condition(best_bid_price, moving_averages["ma_6_low"])
-
+                        should_add_to_long = long_pos_price > ma_6_high and self.long_trade_condition(best_bid_price, ma_6_low)
 
                     logging.info(f"Five minute volume for {symbol} : {five_minute_volume}")
                         
