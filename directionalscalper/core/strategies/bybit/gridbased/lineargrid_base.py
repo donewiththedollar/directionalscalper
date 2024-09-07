@@ -13,6 +13,7 @@ from directionalscalper.core.strategies.bybit.bybit_strategy import BybitStrateg
 from directionalscalper.core.exchanges.bybit import BybitExchange
 from directionalscalper.core.strategies.logger import Logger
 from live_table_manager import shared_symbols_data
+from rate_limit import RateLimit
 logging = Logger(logger_name="LinearGridBase", filename="LinearGridBase.log", stream=True)
 
 symbol_locks = {}
@@ -20,6 +21,9 @@ symbol_locks = {}
 class LinearGridBaseFutures(BybitStrategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None, rotator_symbols_standardized=None, mfirsi_signal=None):
         super().__init__(exchange, config, manager, symbols_allowed)
+        self.rate_limiter = RateLimit(10, 1)
+        self.general_rate_limiter = RateLimit(50, 1)
+        self.order_rate_limiter = RateLimit(5, 1) 
         self.mfirsi_signal = mfirsi_signal
         self.is_order_history_populated = False
         self.last_health_check_time = time.time()
@@ -378,6 +382,10 @@ class LinearGridBaseFutures(BybitStrategy):
                     best_ask_price = self.last_known_ask.get(symbol)  # Use last known ask price
                     if best_ask_price is None:
                         logging.warning(f"Best ask price is not available for {symbol}. Defaulting to last known ask price, which is also None.")
+                        best_ask_price = 0.0  # Default to 0.0 if None
+
+                # Convert best_ask_price to float to ensure no type mismatches
+                best_ask_price = float(best_ask_price)
 
                 # Handling best bid price with fallback mechanism
                 if 'bids' in order_book and len(order_book['bids']) > 0:
@@ -387,21 +395,34 @@ class LinearGridBaseFutures(BybitStrategy):
                     best_bid_price = self.last_known_bid.get(symbol)  # Use last known bid price
                     if best_bid_price is None:
                         logging.warning(f"Best bid price is not available for {symbol}. Defaulting to last known bid price, which is also None.")
+                        best_bid_price = 0.0  # Default to 0.0 if None
 
+                # Convert best_bid_price to float to ensure no type mismatches
+                best_bid_price = float(best_bid_price)
+                best_ask_price = float(best_ask_price)
+
+                logging.info(f"Best bid price: {best_bid_price}")
+                logging.info(f"Best ask price: {best_ask_price}")
 
                 # Fetch moving averages with fallback mechanism
                 try:
                     moving_averages = self.get_all_moving_averages(symbol)
                 except ValueError as e:
                     logging.info(f"Failed to get new moving averages for {symbol}, using last known values: {e}")
-                    moving_averages = self.last_known_mas.get(symbol)  # Continue using last known values
+                    moving_averages = self.last_known_mas.get(symbol, {})  # Continue using last known values if an error occurs
 
 
                 # Ensure the moving averages are valid, fallback to last known if not present
-                ma_3_high = moving_averages.get("ma_3_high", self.last_known_mas.get(symbol, {}).get("ma_3_high"))
-                ma_3_low = moving_averages.get("ma_3_low", self.last_known_mas.get(symbol, {}).get("ma_3_low"))
-                ma_6_high = moving_averages.get("ma_6_high", self.last_known_mas.get(symbol, {}).get("ma_6_high"))
-                ma_6_low = moving_averages.get("ma_6_low", self.last_known_mas.get(symbol, {}).get("ma_6_low"))
+                ma_3_high = moving_averages.get("ma_3_high", self.last_known_mas.get(symbol, {}).get("ma_3_high", 0.0))
+                ma_3_low = moving_averages.get("ma_3_low", self.last_known_mas.get(symbol, {}).get("ma_3_low", 0.0))
+                ma_6_high = moving_averages.get("ma_6_high", self.last_known_mas.get(symbol, {}).get("ma_6_high", 0.0))
+                ma_6_low = moving_averages.get("ma_6_low", self.last_known_mas.get(symbol, {}).get("ma_6_low", 0.0))
+
+                # Convert moving averages to float to ensure no type mismatches
+                ma_3_high = float(ma_3_high)
+                ma_3_low = float(ma_3_low)
+                ma_6_high = float(ma_6_high)
+                ma_6_low = float(ma_6_low)
 
                 # Log warnings if any of the moving averages are missing
                 if None in [ma_3_high, ma_3_low, ma_6_high, ma_6_low]:
@@ -758,34 +779,35 @@ class LinearGridBaseFutures(BybitStrategy):
                     logging.info(f"Short take profit for {symbol}: {short_take_profit}")
                     logging.info(f"Long take profit for {symbol}: {long_take_profit}")
 
-                    # Handling best ask price
+                    # Handling best ask price with fallback and type conversion
                     if 'asks' in order_book and len(order_book['asks']) > 0:
-                        best_ask_price = order_book['asks'][0][0]
+                        best_ask_price = float(order_book['asks'][0][0])
                         self.last_known_ask[symbol] = best_ask_price  # Update last known ask price
                     else:
-                        best_ask_price = self.last_known_ask.get(symbol)  # Use last known ask price
-                        if best_ask_price is None:
-                            logging.warning(f"Best ask price is not available for {symbol}. Defaulting to last known ask price, which is also None.")
+                        best_ask_price = self.last_known_ask.get(symbol, 0.0)  # Fallback to 0.0 if not available
+                        if best_ask_price == 0.0:
+                            logging.warning(f"Best ask price is not available for {symbol}. Defaulting to 0.0.")
 
-                    # Handling best bid price
+                    # Handling best bid price with fallback and type conversion
                     if 'bids' in order_book and len(order_book['bids']) > 0:
-                        best_bid_price = order_book['bids'][0][0]
+                        best_bid_price = float(order_book['bids'][0][0])
                         self.last_known_bid[symbol] = best_bid_price  # Update last known bid price
                     else:
-                        best_bid_price = self.last_known_bid.get(symbol)  # Use last known bid price
-                        if best_bid_price is None:
-                            logging.warning(f"Best bid price is not available for {symbol}. Defaulting to last known bid price, which is also None.")
+                        best_bid_price = self.last_known_bid.get(symbol, 0.0)  # Fallback to 0.0 if not available
+                        if best_bid_price == 0.0:
+                            logging.warning(f"Best bid price is not available for {symbol}. Defaulting to 0.0.")
 
+                    # Ensure valid decisions on whether to short or long based on conditions
                     should_short = self.short_trade_condition(best_ask_price, ma_3_high)
                     should_long = self.long_trade_condition(best_bid_price, ma_3_low)
-                    should_add_to_short = False
-                    should_add_to_long = False
 
                     # Determine if additional shorts should be added
+                    should_add_to_short = False
                     if short_pos_price is not None:
                         should_add_to_short = short_pos_price < ma_6_low and self.short_trade_condition(best_ask_price, ma_6_high)
 
                     # Determine if additional longs should be added
+                    should_add_to_long = False
                     if long_pos_price is not None:
                         should_add_to_long = long_pos_price > ma_6_high and self.long_trade_condition(best_bid_price, ma_6_low)
 
