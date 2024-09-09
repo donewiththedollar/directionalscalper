@@ -5744,7 +5744,7 @@ class BybitStrategy(BaseStrategy):
                                 self.clear_grid(symbol, 'buy')
                                 modified_grid_levels_long[0] = best_bid_price
                                 issue_grid_safely('long', modified_grid_levels_long, amounts_long)
-                                time.sleep(2)
+                                time.sleep(4)
                             else:
                                 logging.info(f"[{symbol}] Long position filled or max retries reached, exiting loop.")
                                 break  # Exit loop once the order is filled or max retries are reached
@@ -5784,7 +5784,7 @@ class BybitStrategy(BaseStrategy):
                                 self.clear_grid(symbol, 'sell')
                                 modified_grid_levels_short[0] = best_ask_price
                                 issue_grid_safely('short', modified_grid_levels_short, amounts_short)
-                                time.sleep(2)
+                                time.sleep(4)
                             else:
                                 logging.info(f"[{symbol}] Short position filled or max retries reached, exiting loop.")
                                 break  # Exit loop once the order is filled or max retries are reached
@@ -5864,7 +5864,7 @@ class BybitStrategy(BaseStrategy):
                                     # Call issue_grid_safely with the modified grid levels
                                     issue_grid_safely('long', modified_grid_levels_long, amounts_long)
 
-                                    time.sleep(2)
+                                    time.sleep(4)
 
                                     # Update the last signal time and reset the MFIRSI signal
                                     self.last_signal_time[symbol] = current_time
@@ -5897,7 +5897,7 @@ class BybitStrategy(BaseStrategy):
                                     # Call issue_grid_safely with the modified grid levels
                                     issue_grid_safely('short', modified_grid_levels_short, amounts_short)
 
-                                    time.sleep(2)
+                                    time.sleep(4)
                                     
                                     # Update the last signal time and reset the MFIRSI signal
                                     self.last_signal_time[symbol] = current_time
