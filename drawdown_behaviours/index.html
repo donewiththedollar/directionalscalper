@@ -20,7 +20,7 @@
     
     
       
-        <title>Grid behaviours - Directional Scalper Documentation</title>
+        <title>Drawdown behaviours - Directional Scalper Documentation</title>
       
     
     
@@ -72,7 +72,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#grid-behaviors" class="md-skip">
+        <a href="#drawdown-behaviours" class="md-skip">
           Skip to content
         </a>
       
@@ -106,7 +106,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Grid behaviours
+              Drawdown behaviours
             
           </span>
         </div>
@@ -293,7 +293,7 @@
   
     
   
-  Grid behaviours
+  Drawdown behaviours
 
       </a>
     </li>
@@ -538,7 +538,7 @@
           
   
   <span class="md-ellipsis">
-    Grid behaviours
+    Drawdown behaviours
   </span>
   
 
@@ -549,7 +549,7 @@
         
   
   <span class="md-ellipsis">
-    Grid behaviours
+    Drawdown behaviours
   </span>
   
 
@@ -589,9 +589,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-infinite" class="md-nav__link">
+  <a href="#3-max-qty-percent" class="md-nav__link">
     <span class="md-ellipsis">
-      3. Infinite
+      3. Max qty percent
     </span>
   </a>
   
@@ -608,9 +608,9 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#example-configuration" class="md-nav__link">
+  <a href="#example-configuration-for-one-coin" class="md-nav__link">
     <span class="md-ellipsis">
-      Example Configuration
+      Example Configuration for one coin
     </span>
   </a>
   
@@ -774,9 +774,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-infinite" class="md-nav__link">
+  <a href="#3-max-qty-percent" class="md-nav__link">
     <span class="md-ellipsis">
-      3. Infinite
+      3. Max qty percent
     </span>
   </a>
   
@@ -793,9 +793,9 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#example-configuration" class="md-nav__link">
+  <a href="#example-configuration-for-one-coin" class="md-nav__link">
     <span class="md-ellipsis">
-      Example Configuration
+      Example Configuration for one coin
     </span>
   </a>
   
@@ -821,8 +821,8 @@
                   
 
 
-<h1 id="grid-behaviors">Grid Behaviors</h1>
-<p>In our grid trading strategy, we have multiple behaviors that determine how the bot places orders and distributes amounts across different grid levels. This section will explain the three primary grid behaviors: Full Distribution, Progressive Drawdown, and Infinite.</p>
+<h1 id="drawdown-behaviours">Drawdown behaviours</h1>
+<p>In our grid trading strategy, we have multiple behaviors that determine how the bot places orders and distributes amounts across different grid levels. This section will explain the three primary drawdown behaviors: Full Distribution, Progressive Drawdown, and MaxQtyPercent.</p>
 <h2 id="1-full-distribution">1. Full Distribution</h2>
 <p>Full Distribution aggressively distributes the maximum position value across all grid levels. This strategy ensures that each subsequent grid level will have an order size greater than the previous one. It aims to stay "sticky" to price action, making it ideal for high-frequency trading.</p>
 <p><strong>Objective:</strong> To distribute the entire position value across the specified number of grid levels, ensuring that each level is larger than the previous.</p>
@@ -848,8 +848,8 @@
 </code></pre>
 <p><strong>Application:</strong>
 - Used when the configuration specifies <code>drawdown_behavior = "progressive_drawdown"</code>.</p>
-<h2 id="3-infinite">3. Infinite</h2>
-<p>Infinite grid behavior is designed for grid setups that are continually re-issued based on the current market price. This behavior is much more flexible and does not adhere to a strict drawdown behavior. The grid strategy will continue placing orders based on the grid configuration until either the grid or position limits are hit.</p>
+<h2 id="3-max-qty-percent">3. Max qty percent</h2>
+<p>Max qty percent drawdown behavior is designed for grid setups that are continually re-issued based on the current market price. This behavior is much more flexible and does not adhere to a strict drawdown behavior. The grid strategy will continue placing orders based on the grid configuration until either the grid or position limits are hit.</p>
 <p><strong>Objective:</strong> To continually issue grid orders based on the market price without a fixed drawdown behavior, allowing the strategy to function indefinitely.</p>
 <p><strong>Behavior:</strong>
 - The total grid orders are issued based on the user's settings, but there is no aggressive or progressive drawdown.
@@ -864,13 +864,13 @@
 )
 </code></pre>
 <p><strong>Application:</strong>
-- This behavior is used when <code>grid_behavior = "infinite"</code>.</p>
+- This behavior is used when <code>grid_behavior = "maxqtypercent"</code>.</p>
 <h2 id="how-to-use">How to Use</h2>
 <ol>
 <li><strong>Configure Drawdown Behaviors:</strong></li>
 <li>To use Full Distribution or Progressive Drawdown, configure the <code>drawdown_behavior</code> parameter in your settings.</li>
 <li>
-<p>To use the Infinite behavior, configure the <code>grid_behavior</code> parameter as "infinite".</p>
+<p>To use the Infinite behavior, configure the <code>drawdown_behaviour</code> parameter as "maxqtypercent".</p>
 </li>
 <li>
 <p><strong>Adjusting Levels:</strong></p>
@@ -878,13 +878,13 @@
 <li>You can adjust the number of levels and strength in the strategy configuration to change the aggressiveness of the grid strategy for both Full Distribution and Progressive Drawdown behaviors.</li>
 </ol>
 <p>This structure allows you to choose between different levels of aggressiveness or continuous grid management depending on market conditions and your risk tolerance.</p>
-<h3 id="example-configuration">Example Configuration</h3>
-<pre><code>drawdown_behavior: "progressive_drawdown"
-grid_behavior: "infinite"
-levels: 5
-strength: 1.2
+<h3 id="example-configuration-for-one-coin">Example Configuration for one coin</h3>
+<pre><code>drawdown_behavior: "dbscanalgo"
+grid_behavior: "progressive_drawdown"
+levels: 4
+strength: 1.4
 wallet_exposure_limit_long: 0.5
-wallet_exposure_limit_short: 0.1
+wallet_exposure_limit_short: 0.001
 enforce_full_grid: true
 </code></pre>
 
