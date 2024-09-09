@@ -9,10 +9,10 @@
       
       
       
-        <link rel="prev" href="../api_reference/">
+        <link rel="prev" href="../strategies/">
       
       
-        <link rel="next" href="../telegram_alerts/">
+        <link rel="next" href="../risk_management/">
       
       
       <link rel="icon" href="../assets/images/favicon.png">
@@ -20,7 +20,7 @@
     
     
       
-        <title>Docker - Directional Scalper Documentation</title>
+        <title>Grid behaviours - Directional Scalper Documentation</title>
       
     
     
@@ -71,6 +71,11 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
+        
+        <a href="#grid-behaviors" class="md-skip">
+          Skip to content
+        </a>
+      
     </div>
     <div data-md-component="announce">
       
@@ -101,7 +106,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Docker
+              Grid behaviours
             
           </span>
         </div>
@@ -279,9 +284,11 @@
         
   
   
+    
   
-    <li class="md-tabs__item">
-      <a href="../grid_behaviours/" class="md-tabs__link">
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
         
   
     
@@ -347,11 +354,9 @@
         
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../docker/" class="md-tabs__link">
         
   
     
@@ -517,10 +522,30 @@
       
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../grid_behaviours/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Grid behaviours
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   <span class="md-ellipsis">
@@ -529,6 +554,77 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-full-distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Full Distribution
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-progressive-drawdown" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Progressive Drawdown
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-infinite" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Infinite
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-to-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      How to Use
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="How to Use">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example Configuration
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -597,17 +693,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../docker/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -616,7 +705,6 @@
   
 
       </a>
-      
     </li>
   
 
@@ -658,6 +746,67 @@
   
   
   
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-full-distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Full Distribution
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-progressive-drawdown" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Progressive Drawdown
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-infinite" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Infinite
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-to-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      How to Use
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="How to Use">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example Configuration
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
   
 </nav>
                   </div>
@@ -672,9 +821,72 @@
                   
 
 
-  <h1>Docker</h1>
-
-
+<h1 id="grid-behaviors">Grid Behaviors</h1>
+<p>In our grid trading strategy, we have multiple behaviors that determine how the bot places orders and distributes amounts across different grid levels. This section will explain the three primary grid behaviors: Full Distribution, Progressive Drawdown, and Infinite.</p>
+<h2 id="1-full-distribution">1. Full Distribution</h2>
+<p>Full Distribution aggressively distributes the maximum position value across all grid levels. This strategy ensures that each subsequent grid level will have an order size greater than the previous one. It aims to stay "sticky" to price action, making it ideal for high-frequency trading.</p>
+<p><strong>Objective:</strong> To distribute the entire position value across the specified number of grid levels, ensuring that each level is larger than the previous.</p>
+<p><strong>Behavior:</strong>
+- It does not subtract the open position from the max position value, ensuring that each order is larger than the open position.
+- The maximum wallet exposure for the side (long or short) is respected.
+- If the position is already open, the initial entry is placed at the best bid or ask, and subsequent levels ensure larger amounts.</p>
+<p><strong>Function:</strong> <code>calculate_order_amounts_aggressive_drawdown</code></p>
+<p><strong>Key Formula:</strong></p>
+<pre><code>adjusted_max_position_value = max_position_value - current_pos_value
+</code></pre>
+<p><strong>Application:</strong>
+- Used when the configuration specifies <code>drawdown_behavior = "full_distribution"</code>.</p>
+<h2 id="2-progressive-drawdown">2. Progressive Drawdown</h2>
+<p>The Progressive Drawdown behavior ensures that each subsequent level progressively increases in order size, but in a less aggressive manner than Full Distribution. This strategy is more conservative and focuses on ensuring that orders are progressively larger without immediately distributing the full position.</p>
+<p><strong>Objective:</strong> To progressively increase the size of orders across levels, making sure that each level is larger than the previous one while respecting wallet exposure and position limits.</p>
+<p><strong>Behavior:</strong>
+- The total position value is distributed more gradually across levels, ensuring progressively larger grid entries.
+- If the current position is already open, each new order ensures a meaningful increase in size.</p>
+<p><strong>Function:</strong> <code>calculate_order_amounts_progressive_distribution</code></p>
+<p><strong>Key Formula:</strong></p>
+<pre><code>quantity = max(cumulative_position_value / current_price + (i + 1) * qty_precision, amounts[-1] + (i + 1) * qty_precision)
+</code></pre>
+<p><strong>Application:</strong>
+- Used when the configuration specifies <code>drawdown_behavior = "progressive_drawdown"</code>.</p>
+<h2 id="3-infinite">3. Infinite</h2>
+<p>Infinite grid behavior is designed for grid setups that are continually re-issued based on the current market price. This behavior is much more flexible and does not adhere to a strict drawdown behavior. The grid strategy will continue placing orders based on the grid configuration until either the grid or position limits are hit.</p>
+<p><strong>Objective:</strong> To continually issue grid orders based on the market price without a fixed drawdown behavior, allowing the strategy to function indefinitely.</p>
+<p><strong>Behavior:</strong>
+- The total grid orders are issued based on the user's settings, but there is no aggressive or progressive drawdown.
+- The position size can be dynamically recalculated based on market conditions.
+- Works in conjunction with the <code>calculate_total_amount_refactor</code> function to ensure position sizing is done properly.</p>
+<p><strong>Function:</strong> <code>calculate_total_amount_refactor</code></p>
+<p><strong>Key Formula:</strong></p>
+<pre><code>total_amount = calculate_total_amount_notional_ls_properdca(
+    symbol, total_equity, best_ask_price, best_bid_price,
+    wallet_exposure_limit_long, wallet_exposure_limit_short,
+    side, levels, enforce_full_grid, long_pos_qty, short_pos_qty
+)
+</code></pre>
+<p><strong>Application:</strong>
+- This behavior is used when <code>grid_behavior = "infinite"</code>.</p>
+<h2 id="how-to-use">How to Use</h2>
+<ol>
+<li><strong>Configure Drawdown Behaviors:</strong></li>
+<li>To use Full Distribution or Progressive Drawdown, configure the <code>drawdown_behavior</code> parameter in your settings.</li>
+<li>
+<p>To use the Infinite behavior, configure the <code>grid_behavior</code> parameter as "infinite".</p>
+</li>
+<li>
+<p><strong>Adjusting Levels:</strong></p>
+</li>
+<li>You can adjust the number of levels and strength in the strategy configuration to change the aggressiveness of the grid strategy for both Full Distribution and Progressive Drawdown behaviors.</li>
+</ol>
+<p>This structure allows you to choose between different levels of aggressiveness or continuous grid management depending on market conditions and your risk tolerance.</p>
+<h3 id="example-configuration">Example Configuration</h3>
+<pre><code>drawdown_behavior: "progressive_drawdown"
+grid_behavior: "infinite"
+levels: 5
+strength: 1.2
+wallet_exposure_limit_long: 0.5
+wallet_exposure_limit_short: 0.1
+enforce_full_grid: true
+</code></pre>
 
 
 
