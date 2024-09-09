@@ -5023,6 +5023,7 @@ class BybitStrategy(BaseStrategy):
 
             qty_precision, min_qty = self.get_precision_and_min_qty(symbol)
 
+            # Apply drawdown behavior based on configuration
             if drawdown_behavior == "full_distribution":
                 logging.info(f"Activating full distribution drawdown behavior for {symbol}")
 
@@ -5037,7 +5038,26 @@ class BybitStrategy(BaseStrategy):
                     wallet_exposure_limit_long, wallet_exposure_limit_short,
                     levels, qty_precision, side='sell', strength=strength, short_pos_qty=short_pos_qty
                 )
+
+            elif drawdown_behavior == "progressive_drawdown":
+                logging.info(f"Activating progressive drawdown behavior for {symbol}")
+
+                # Calculate order amounts for progressive drawdown using progressive distribution
+                amounts_long = self.calculate_order_amounts_progressive_distribution(
+                    symbol, total_equity, best_ask_price, best_bid_price,
+                    wallet_exposure_limit_long, wallet_exposure_limit_short,
+                    levels, qty_precision, side='buy', strength=strength, long_pos_qty=long_pos_qty
+                )
+                amounts_short = self.calculate_order_amounts_progressive_distribution(
+                    symbol, total_equity, best_ask_price, best_bid_price,
+                    wallet_exposure_limit_long, wallet_exposure_limit_short,
+                    levels, qty_precision, side='sell', strength=strength, short_pos_qty=short_pos_qty
+                )
+
             else:
+                logging.info(f"Applying standard grid behavior for {symbol}")
+
+                # Calculate the total amounts without aggressive or progressive drawdown behaviors
                 total_amount_long = self.calculate_total_amount_refactor(
                     symbol,
                     total_equity,
@@ -5091,6 +5111,7 @@ class BybitStrategy(BaseStrategy):
                     short_pos_qty,
                     'sell'
                 )
+
 
             self.handle_grid_trades(
                 symbol,
@@ -13355,6 +13376,69 @@ class BybitStrategy(BaseStrategy):
     def get_min_qty(self, symbol):
         market_data = self.get_market_data_with_retry(symbol, max_retries=5, retry_delay=5)
         return float(market_data["min_qty"])
+
+    def calculate_order_amounts_progressive_distribution(self, symbol: str, total_equity: float, 
+                                                    best_ask_price: float, best_bid_price: float,
+                                                    wallet_exposure_limit_long: float, 
+                                                    wallet_exposure_limit_short: float, 
+                                                    levels: int, qty_precision: float, 
+                                                    side: str, strength: float, long_pos_qty=0, short_pos_qty=0) -> List[float]:
+        logging.info(f"Calculating progressive drawdown order amounts for {symbol} with full position value distribution across {levels} levels.")
+        
+        # Determine the wallet exposure limit based on the side
+        wallet_exposure_limit = wallet_exposure_limit_long if side == 'buy' else wallet_exposure_limit_short
+        
+        # Calculate the maximum position value for the symbol (no subtraction of current position)
+        max_position_value = total_equity * wallet_exposure_limit
+        logging.info(f"Maximum position value for {symbol}: {max_position_value}")
+        
+        # Get the minimum notional and quantity
+        min_qty = self.get_min_qty(symbol)
+        min_notional = self.min_notional(symbol)  # Use self.min_notional(symbol) here
+
+        # Track the cumulative position value to ensure progressively larger orders
+        cumulative_position_value = long_pos_qty * best_ask_price if side == 'buy' else short_pos_qty * best_bid_price
+
+        # Distribute the full max position value across the specified number of levels
+        amounts = []
+        
+        # Calculate the weighted distribution based on strength
+        total_ratio = sum([(i + 1) ** strength for i in range(levels)])
+        level_notional_factors = [(i + 1) ** strength / total_ratio for i in range(levels)]
+        
+        current_price = best_ask_price if side == 'buy' else best_bid_price
+
+        for i in range(levels):
+            # Calculate the notional amount for this level
+            level_notional = max_position_value * level_notional_factors[i]
+            quantity = level_notional / current_price
+            
+            # Ensure that the grid levels are larger than the current open position or previous levels
+            if i == 0:
+                # Ensure the first level is larger than the open position
+                quantity = max(quantity, cumulative_position_value / current_price + (i + 1) * qty_precision)
+            else:
+                # Ensure each subsequent level is larger than the previous one
+                if quantity <= amounts[-1]:
+                    quantity = amounts[-1] + (i + 1) * qty_precision
+
+            # Enforce the minimum notional or quantity
+            notional_value = quantity * current_price
+            if notional_value < min_notional:
+                logging.info(f"Level {i+1}: Adjusting order to respect minimum notional requirement.")
+                quantity = max(min_notional / current_price, min_qty)  # Ensure min_qty is respected
+            
+            # Round the quantity based on precision and ensure it's above the minimum quantity
+            rounded_quantity = max(round(quantity / qty_precision) * qty_precision, min_qty)
+            
+            # Add the calculated and rounded quantity to the amounts list
+            amounts.append(rounded_quantity)
+            logging.info(f"Level {i+1} - Progressive drawdown order quantity: {rounded_quantity}")
+            
+            # Update cumulative position value after adding the order
+            cumulative_position_value += rounded_quantity * current_price
+
+        return amounts
 
     def calculate_order_amounts_aggressive_drawdown(self, symbol: str, total_equity: float, 
                                                     best_ask_price: float, best_bid_price: float,
