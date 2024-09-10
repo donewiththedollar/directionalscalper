@@ -85,6 +85,7 @@ class Exchange:
             exchange_params['options'] = {
                 'defaultType': self.market_type,
                 'adjustForTimeDifference': True,
+                "recvWindow": 10000,
             }
         else:
             exchange_params['options'] = {
