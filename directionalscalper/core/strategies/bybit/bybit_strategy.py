@@ -13611,14 +13611,17 @@ class BybitStrategy(BaseStrategy):
         return total_notional_amount
 
     def calculate_order_amounts_notional_properdca(self, symbol: str, total_amount: float, levels: int, 
-                                                strength: float, qty_precision: float, enforce_full_grid: bool,
-                                                long_pos_qty=0, short_pos_qty=0, side='buy') -> List[float]:
+                                                    strength: float, qty_precision: float, enforce_full_grid: bool,
+                                                    long_pos_qty=0, short_pos_qty=0, side='buy') -> List[float]:
         # Logging the start of the calculation with details
         logging.info(f"Calculating order amounts for {symbol} with total_amount: {total_amount}, levels: {levels}, strength: {strength}, qty_precision: {qty_precision}, enforce_full_grid: {enforce_full_grid}")
 
         try:
+            # Ensure qty_precision is a float
+            qty_precision = float(qty_precision)
+
             # Get the current price of the symbol
-            current_price = self.exchange.get_current_price(symbol)
+            current_price = float(self.exchange.get_current_price(symbol))
             
             # Initialize the list to hold the calculated amounts
             amounts = []
@@ -13628,16 +13631,16 @@ class BybitStrategy(BaseStrategy):
             level_notional = [(i + 1) ** strength for i in range(levels)]
 
             # Set the base notional amount
-            base_notional = total_amount
+            base_notional = float(total_amount)
 
-            # Retrieve the minimum quantity for the symbol
-            min_qty = self.get_min_qty(symbol)  # Retrieve the min_qty for the symbol
+            # Retrieve the minimum quantity for the symbol and ensure it's a float
+            min_qty = float(self.get_min_qty(symbol))
 
             # Determine the current position quantity based on the side (long or short)
             if side == 'buy':
-                current_position_qty = long_pos_qty
+                current_position_qty = float(long_pos_qty)
             else:
-                current_position_qty = short_pos_qty
+                current_position_qty = float(short_pos_qty)
 
             # Adjust the total amount based on the current position
             total_amount_adjusted = total_amount + (current_position_qty * current_price)
@@ -13686,90 +13689,10 @@ class BybitStrategy(BaseStrategy):
             return amounts
         
         except Exception as e:
-            # Log any exception that occurs during the calculation process
-            logging.info(f"Exception caught in calculate_order_amounts_notional_properdca for {symbol}: {e}")
-            logging.info(traceback.format_exc())
+            # Log any exception that occurs during the calculation process, including the full traceback
+            logging.error(f"Exception caught in calculate_order_amounts_notional_properdca for {symbol}: {e}")
+            logging.error(traceback.format_exc())
             return 0  # Return 0 if an exception occurs
-        
-    # def calculate_order_amounts_notional_properdca(self, symbol: str, total_amount: float, levels: int, 
-    #                                             strength: float, qty_precision: float, enforce_full_grid: bool,
-    #                                             long_pos_qty=0, short_pos_qty=0, side='buy') -> List[float]:
-    #     # Logging the start of the calculation with details
-    #     logging.info(f"Calculating order amounts for {symbol} with total_amount: {total_amount}, levels: {levels}, strength: {strength}, qty_precision: {qty_precision}, enforce_full_grid: {enforce_full_grid}")
-
-    #     try:
-    #         # Get the current price of the symbol
-    #         current_price = self.exchange.get_current_price(symbol)
-            
-    #         # Initialize the list to hold the calculated amounts
-    #         amounts = []
-            
-    #         # Calculate the ratio for distributing the amounts across the levels
-    #         total_ratio = sum([(i + 1) ** strength for i in range(levels)])
-    #         level_notional = [(i + 1) ** strength for i in range(levels)]
-
-    #         # Set the base notional amount
-    #         base_notional = total_amount
-
-    #         # Retrieve the minimum quantity for the symbol
-    #         min_qty = self.get_min_qty(symbol)  # Retrieve the min_qty for the symbol
-
-    #         # Determine the current position quantity based on the side (long or short)
-    #         if side == 'buy':
-    #             current_position_qty = long_pos_qty
-    #         else:
-    #             current_position_qty = short_pos_qty
-
-    #         # Adjust the total amount based on the current position
-    #         total_amount_adjusted = total_amount + (current_position_qty * current_price)
-    #         logging.info(f"Total amount adjusted for current position: {total_amount_adjusted}")
-
-    #         # Return 0 if the adjusted total amount is negative
-    #         if total_amount_adjusted < 0:
-    #             logging.info(f"Negative total_amount_adjusted for {symbol}: {total_amount_adjusted}. Side: {side}, total_amount: {total_amount}, current_position_qty: {current_position_qty}, current_price: {current_price}")
-    #             return 0  # Return 0 if no further orders should be issued
-
-    #         # Log the types and values of important variables for debugging
-    #         logging.info(f"Type of total_amount: {type(total_amount)}, Value: {total_amount}")
-    #         logging.info(f"Type of current_price: {type(current_price)}, Value: {current_price}")
-    #         logging.info(f"Type of min_qty: {type(min_qty)}, Value: {min_qty}")
-
-    #         # Loop through the levels to calculate the order amounts
-    #         for i in range(levels):
-    #             # Calculate the notional amount for the current level
-    #             notional_amount = (level_notional[i] / total_ratio) * total_amount_adjusted
-    #             # Calculate the quantity for the current level
-    #             quantity = notional_amount / current_price
-    #             logging.info(f"Level {i+1} - Initial quantity: {quantity}")
-                
-    #             # Determine the minimum quantity to use (either min_notional or min_qty)
-    #             min_quantity = max(base_notional / current_price, min_qty)
-                
-    #             # Apply the minimum quantity requirement and round the quantity
-    #             rounded_quantity = max(round(quantity / qty_precision) * qty_precision, min_quantity)
-    #             logging.info(f"Level {i+1} - Rounded quantity: {rounded_quantity}")
-                
-    #             # Append the calculated quantity to the amounts list
-    #             amounts.append(rounded_quantity)
-
-    #         # Log the calculated amounts for the symbol
-    #         logging.info(f"Calculated order amounts for {symbol}: {amounts}")
-            
-    #         # If enforce_full_grid is True and all amounts are the same, adjust them to ensure variation
-    #         if enforce_full_grid and len(set(amounts)) == 1:
-    #             logging.info("Adjusting amounts to ensure variation in enforce_full_grid mode")
-    #             increment = qty_precision
-    #             for i in range(1, levels):
-    #                 amounts[i] += increment
-    #                 increment += qty_precision
-
-    #         # Return the final calculated amounts
-    #         return amounts
-        
-    #     except Exception as e:
-    #         # Log any exception that occurs during the calculation process
-    #         logging.info(f"Exception caught in calculate_order_amounts_notional_properdca for {symbol}: {e}")
-    #         return 0  # Return 0 if an exception occurs
         
     # def calculate_order_amounts_notional_properdca(self, symbol: str, total_amount: float, levels: int, 
     #                                                 strength: float, qty_precision: float, enforce_full_grid: bool,
