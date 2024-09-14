@@ -1258,7 +1258,7 @@ class BybitStrategy(BaseStrategy):
                 raise ValueError(f"Invalid side: {side}")
 
             params = {"reduceOnly": reduce_only}
-            return self.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
+            return self.exchange.create_limit_order_bybit(symbol, side, amount, price, positionIdx=positionIdx, params=params)
         else:
             raise ValueError(f"Unsupported order type: {order_type}")
 
@@ -12838,14 +12838,23 @@ class BybitStrategy(BaseStrategy):
             # Retrieve the last reissue prices, ensure they are floats
             last_reissue_price_long = self.last_reissue_price_long.get(symbol, long_pos_price)
             last_reissue_price_short = self.last_reissue_price_short.get(symbol, short_pos_price)
-            
+
+            # Safeguard against None values
+            if last_reissue_price_long is None:
+                logging.warning(f"[{symbol}] Last reissue price (long) is None, setting it to long_pos_price: {long_pos_price}")
+                last_reissue_price_long = long_pos_price
+
+            if last_reissue_price_short is None:
+                logging.warning(f"[{symbol}] Last reissue price (short) is None, setting it to short_pos_price: {short_pos_price}")
+                last_reissue_price_short = short_pos_price
+
             logging.info(f"[{symbol}] Last reissue price (long): {last_reissue_price_long}")
             logging.info(f"[{symbol}] Last reissue price (short): {last_reissue_price_short}")
 
             replace_long_grid = False
             replace_short_grid = False
 
-            if long_pos_qty > 0:
+            if long_pos_qty > 0 and last_reissue_price_long is not None:
                 required_price_move_long_pct = dynamic_outer_price_distance * 100.0
                 price_change_pct_long = abs(current_price - last_reissue_price_long) / last_reissue_price_long * 100.0
 
@@ -12861,7 +12870,7 @@ class BybitStrategy(BaseStrategy):
                     logging.info(f"[{symbol}] Price change exceeds dynamic outer price distance percentage for long position. Replacing long grid.")
                     self.last_reissue_price_long[symbol] = current_price  # Update last reissue price for long
 
-            if short_pos_qty > 0:
+            if short_pos_qty > 0 and last_reissue_price_short is not None:
                 required_price_move_short_pct = dynamic_outer_price_distance * 100.0
                 price_change_pct_short = abs(current_price - last_reissue_price_short) / last_reissue_price_short * 100.0
 
@@ -12885,6 +12894,7 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.exception(f"Exception caught in should_replace_grid_updated_buffer_min_outerpricedist_v2: {e}")
             return False, False
+
             
     def should_replace_grid_updated_buffer_min_outerpricedist(self, symbol: str, long_pos_price: float, short_pos_price: float, long_pos_qty: float, short_pos_qty: float, min_outer_price_distance: float) -> tuple:
         try:
