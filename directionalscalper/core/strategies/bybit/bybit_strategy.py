@@ -12841,11 +12841,11 @@ class BybitStrategy(BaseStrategy):
 
             # Safeguard against None values
             if last_reissue_price_long is None:
-                logging.warning(f"[{symbol}] Last reissue price (long) is None, setting it to long_pos_price: {long_pos_price}")
+                logging.info(f"[{symbol}] Last reissue price (long) is None, setting it to long_pos_price: {long_pos_price}")
                 last_reissue_price_long = long_pos_price
 
             if last_reissue_price_short is None:
-                logging.warning(f"[{symbol}] Last reissue price (short) is None, setting it to short_pos_price: {short_pos_price}")
+                logging.info(f"[{symbol}] Last reissue price (short) is None, setting it to short_pos_price: {short_pos_price}")
                 last_reissue_price_short = short_pos_price
 
             logging.info(f"[{symbol}] Last reissue price (long): {last_reissue_price_long}")
