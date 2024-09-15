@@ -5723,11 +5723,11 @@ class BybitStrategy(BaseStrategy):
 
             logging.info(f"[{symbol}] Number of open symbols: {len(open_symbols)}, Symbols allowed: {symbols_allowed}")
 
-            # Separate handling for new positions
             if unique_open_symbols <= symbols_allowed or symbol in open_symbols:
                 fresh_signal = self.generate_l_signals(symbol)
 
                 try:
+                    # Handling for Long Positions
                     if fresh_signal.lower() == "long" and long_mode and not has_open_long_position and not graceful_stop_long and symbol not in self.active_long_grids and symbol not in self.max_qty_reached_symbol_long:
                         logging.info(f"[{symbol}] Creating new long position based on MFIRSI long signal")
                         self.clear_grid(symbol, 'buy')
@@ -5739,6 +5739,7 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"[{symbol}] Setting first level of modified grid to best_bid_price: {best_bid_price}")
                         modified_grid_levels_long[0] = best_bid_price
 
+                        # Issue the grid only once initially
                         issue_grid_safely('long', modified_grid_levels_long, amounts_long)
 
                         retry_counter = 0
@@ -5755,19 +5756,19 @@ class BybitStrategy(BaseStrategy):
                             retry_counter += 1
                             logging.info(f"[{symbol}] Long position quantity after waiting: {long_pos_qty}, retry attempt: {retry_counter}")
 
-                            if long_pos_qty < 0.00001 and retry_counter < max_retries:
-                                logging.info(f"[{symbol}] Retrying long grid orders due to MFIRSI signal long.")
+                            # Retry placing the grid every 10 retries (every 50 seconds)
+                            if retry_counter % 10 == 0 and long_pos_qty < 0.00001:
+                                logging.info(f"[{symbol}] Retrying long grid orders due to MFIRSI signal long after {retry_counter} retries.")
                                 self.clear_grid(symbol, 'buy')
                                 modified_grid_levels_long[0] = best_bid_price
                                 issue_grid_safely('long', modified_grid_levels_long, amounts_long)
                                 time.sleep(4)
-                            else:
-                                logging.info(f"[{symbol}] Long position filled or max retries reached, exiting loop.")
-                                break  # Exit loop once the order is filled or max retries are reached
 
+                        logging.info(f"[{symbol}] Long position filled or max retries reached, exiting loop.")
                         self.last_signal_time[symbol] = current_time
                         self.last_mfirsi_signal[symbol] = "neutral"  # Reset to neutral after processing
 
+                    # Handling for Short Positions
                     elif fresh_signal.lower() == "short" and short_mode and not has_open_short_position and not graceful_stop_short and symbol not in self.active_short_grids and symbol not in self.max_qty_reached_symbol_short:
                         logging.info(f"[{symbol}] Creating new short position based on MFIRSI short signal")
                         self.clear_grid(symbol, 'sell')
@@ -5779,6 +5780,7 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"[{symbol}] Setting first level of modified grid to best_ask_price: {best_ask_price}")
                         modified_grid_levels_short[0] = best_ask_price
 
+                        # Issue the grid only once initially
                         issue_grid_safely('short', modified_grid_levels_short, amounts_short)
 
                         retry_counter = 0
@@ -5795,21 +5797,21 @@ class BybitStrategy(BaseStrategy):
                             retry_counter += 1
                             logging.info(f"[{symbol}] Short position quantity after waiting: {short_pos_qty}, retry attempt: {retry_counter}")
 
-                            if short_pos_qty < 0.00001 and retry_counter < max_retries:
-                                logging.info(f"[{symbol}] Retrying short grid orders due to MFIRSI signal short.")
+                            # Retry placing the grid every 10 retries (every 50 seconds)
+                            if retry_counter % 10 == 0 and short_pos_qty < 0.00001:
+                                logging.info(f"[{symbol}] Retrying short grid orders due to MFIRSI signal short after {retry_counter} retries.")
                                 self.clear_grid(symbol, 'sell')
                                 modified_grid_levels_short[0] = best_ask_price
                                 issue_grid_safely('short', modified_grid_levels_short, amounts_short)
                                 time.sleep(4)
-                            else:
-                                logging.info(f"[{symbol}] Short position filled or max retries reached, exiting loop.")
-                                break  # Exit loop once the order is filled or max retries are reached
 
+                        logging.info(f"[{symbol}] Short position filled or max retries reached, exiting loop.")
                         self.last_signal_time[symbol] = current_time
                         self.last_mfirsi_signal[symbol] = "neutral"  # Reset to neutral after processing
                 except Exception as e:
-                    logging.info(f"Exception caught in placing orders initial orders {e}")
+                    logging.info(f"Exception caught in placing orders: {e}")
                     logging.info("Traceback: %s", traceback.format_exc())
+
 
             if additional_entries_from_signal:
                 if symbol in open_symbols:
