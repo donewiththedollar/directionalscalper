@@ -551,6 +551,7 @@ def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
 
                         if action_taken:
                             logging.info(f"Action taken for whitelisted symbol {whitelisted_symbol}.")
+                            unique_active_symbols.add(whitelisted_symbol)
                         else:
                             logging.info(f"No action taken for whitelisted symbol {whitelisted_symbol}.")
 
@@ -624,6 +625,7 @@ def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
                                 signal_futures.append(signal_executor.submit(process_signal, symbol, args, market_maker, manager, symbols_allowed, open_position_data, False, can_open_long, can_open_short, graceful_stop_long, graceful_stop_short))
                                 logging.info(f"Submitted signal processing for new symbol {symbol}.")
                                 processed_symbols.add(symbol)
+                                unique_active_symbols.add(symbol)  # Immediately update unique_active_symbols
                                 time.sleep(2)
                 else:
                     logging.info(f"Unique active symbols are at or above the allowed limit, not processing new symbols")
