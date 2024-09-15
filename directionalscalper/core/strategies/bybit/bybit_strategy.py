@@ -5813,6 +5813,7 @@ class BybitStrategy(BaseStrategy):
                     logging.info("Traceback: %s", traceback.format_exc())
 
 
+
             if additional_entries_from_signal:
                 if symbol in open_symbols:
                     logging.info(f"Allowed symbol: {symbol}")
