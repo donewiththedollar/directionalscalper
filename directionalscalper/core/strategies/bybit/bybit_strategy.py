@@ -5492,7 +5492,7 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"[{symbol}] Long position fully closed at stop-loss.")
                         self.clear_grid(symbol, 'buy')
                         logging.info(f"[{symbol}] Cleared long grid for symbol {symbol}")
-                        self.active_long_grids.discard(symbol)
+                        # self.active_long_grids.discard(symbol)
                         logging.info(f"[{symbol}] Removed from active long grids")
                 else:
                     logging.info(f"[{symbol}] Long position did not hit stop-loss level. Current price is {current_price}, stop-loss price is {stop_loss_price_long}.")
@@ -5524,7 +5524,7 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"[{symbol}] Short position fully closed at stop-loss.")
                         self.clear_grid(symbol, 'sell')
                         logging.info(f"[{symbol}] Cleared short grid for symbol {symbol}")
-                        self.active_short_grids.discard(symbol)
+                        #self.active_short_grids.discard(symbol)
                         logging.info(f"[{symbol}] Removed from active short grids")
                 else:
                     logging.info(f"[{symbol}] Short position did not hit stop-loss level. Current price is {current_price}, stop-loss price is {stop_loss_price_short}.")
@@ -5559,14 +5559,14 @@ class BybitStrategy(BaseStrategy):
             if self.auto_reduce_active_long.get(symbol, False):
                 logging.info(f"Auto-reduce for long position on {symbol} is active")
                 self.clear_grid(symbol, 'buy')
-                self.active_long_grids.discard(symbol)
+                #self.active_long_grids.discard(symbol)
             else:
                 logging.info(f"Auto-reduce for long position on {symbol} is not active")
 
             if self.auto_reduce_active_short.get(symbol, False):
                 logging.info(f"Auto-reduce for short position on {symbol} is active")
                 self.clear_grid(symbol, 'sell')
-                self.active_short_grids.discard(symbol)
+                #self.active_short_grids.discard(symbol)
             else:
                 logging.info(f"Auto-reduce for short position on {symbol} is not active")
 
@@ -5966,13 +5966,13 @@ class BybitStrategy(BaseStrategy):
                         if not self.auto_reduce_active_long.get(symbol, False) or entry_during_autoreduce:
                             logging.info(f"[{symbol}] Placing long grid orders for existing open position.")
                             self.clear_grid(symbol, 'buy')
-                            self.active_long_grids.discard(symbol)
+                            #self.active_long_grids.discard(symbol)
                             issue_grid_safely('long', grid_levels_long, amounts_long)
                     if short_pos_qty > 0 and not short_grid_active and symbol not in self.max_qty_reached_symbol_short:
                         if not self.auto_reduce_active_short.get(symbol, False) or entry_during_autoreduce:
                             logging.info(f"[{symbol}] Placing short grid orders for existing open position.")
                             self.clear_grid(symbol, 'sell')
-                            self.active_short_grids.discard(symbol)
+                            #self.active_short_grids.discard(symbol)
                             issue_grid_safely('short', grid_levels_short, amounts_short)
 
                 current_time = time.time()
@@ -5983,8 +5983,8 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"[{symbol}] No open positions and time interval passed. Canceling leftover grid orders.")
                         self.clear_grid(symbol, 'buy')
                         self.clear_grid(symbol, 'sell')
-                        self.active_long_grids.discard(symbol)
-                        self.active_short_grids.discard(symbol)
+                        # self.active_long_grids.discard(symbol)
+                        # self.active_short_grids.discard(symbol)
                         self.last_cleared_time[symbol] = current_time
                     else:
                         logging.info(f"[{symbol}] No open positions, but time interval not passed. Skipping grid clearing.")
@@ -13060,11 +13060,11 @@ class BybitStrategy(BaseStrategy):
         if side == 'buy':
             self.cancel_grid_orders(symbol, "buy")
             self.filled_levels[symbol]["buy"].clear()
-            self.active_long_grids.discard(symbol)  # Remove the symbol from active long grids
+            #self.active_long_grids.discard(symbol)  # Remove the symbol from active long grids
         elif side == 'sell':
             self.cancel_grid_orders(symbol, "sell")
             self.filled_levels[symbol]["sell"].clear()
-            self.active_short_grids.discard(symbol)  # Remove the symbol from active short grids
+            #self.active_short_grids.discard(symbol)  # Remove the symbol from active short grids
         
         logging.info(f"Cleared {side} grid for {symbol}.")
     
@@ -13155,13 +13155,13 @@ class BybitStrategy(BaseStrategy):
             if orders_canceled > 0:
                 logging.info(f"Canceled {orders_canceled} {side} grid orders for {symbol}")
             else:
-                logging.info(f"No {side} grid orders found for {symbol}")
+                logging.info(f"No {side} grid orders found to cancel for {symbol}")
 
             # Remove the symbol from active grids
-            if side.lower() == 'buy':
+            if side.lower() == 'buy' and orders_canceled > 0:
                 self.active_long_grids.discard(symbol)
                 logging.info(f"Removed {symbol} from active long grids")
-            elif side.lower() == 'sell':
+            elif side.lower() == 'sell' and orders_canceled > 0:
                 self.active_short_grids.discard(symbol)
                 logging.info(f"Removed {symbol} from active short grids")
 
