@@ -5724,7 +5724,7 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"[{symbol}] Number of open symbols: {len(open_symbols)}, Symbols allowed: {symbols_allowed}")
 
             # Separate handling for new positions
-            if unique_open_symbols < symbols_allowed or symbol in open_symbols:
+            if unique_open_symbols <= symbols_allowed or symbol in open_symbols:
                 fresh_signal = self.generate_l_signals(symbol)
 
                 try:
