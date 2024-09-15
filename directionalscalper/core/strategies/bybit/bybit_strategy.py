@@ -5186,7 +5186,7 @@ class BybitStrategy(BaseStrategy):
 
     def check_grid_active(self, symbol, open_orders):
         logging.info(f"Checking grid active for {symbol}")
-        logging.info(f"Open orders test: {open_orders}")
+        #logging.info(f"Open orders test: {open_orders}")
         # Check for grid replacement conditions
         has_open_long_order = any(order['info']['symbol'] == symbol and order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
         has_open_short_order = any(order['info']['symbol'] == symbol and order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
