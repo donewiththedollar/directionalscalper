@@ -829,9 +829,13 @@ def handle_signal(symbol, args, manager, signal, open_position_data, symbols_all
     action_taken_long = False
     action_taken_short = False
 
-    # Determine if the bot can add a new long/short symbol
-    can_add_new_long_symbol = current_long_positions < symbols_allowed
-    can_add_new_short_symbol = current_short_positions < symbols_allowed
+    # # Determine if the bot can add a new long/short symbol
+    # can_add_new_long_symbol = current_long_positions < symbols_allowed
+    # can_add_new_short_symbol = current_short_positions < symbols_allowed
+
+    # Determine if the bot can add a new long/short symbol based on unique active symbols
+    can_add_new_long_symbol = len(unique_active_symbols) < symbols_allowed
+    can_add_new_short_symbol = len(unique_active_symbols) < symbols_allowed
 
     # Handle long signals
     if signal_long and long_mode:
