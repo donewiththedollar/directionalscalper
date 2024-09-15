@@ -786,16 +786,22 @@ def process_signal(symbol, args, market_maker, manager, symbols_allowed, open_po
 def handle_signal(symbol, args, manager, signal, open_position_data, symbols_allowed, is_open_position, long_mode, short_mode, graceful_stop_long, graceful_stop_short):
     global unique_active_symbols, active_long_symbols, active_short_symbols
 
-    # Log receipt of the signal and handle neutral signals early
-    if signal == "neutral":
-        logging.info(f"Received neutral signal for symbol {symbol}. Checking open positions.")
-        action_taken = start_thread_for_open_symbol(symbol, args, manager, signal, 
-                                                    has_open_long=symbol in active_long_symbols, 
-                                                    has_open_short=symbol in active_short_symbols, 
-                                                    long_mode=long_mode, short_mode=short_mode, 
-                                                    graceful_stop_long=graceful_stop_long, 
-                                                    graceful_stop_short=graceful_stop_short)
-        return action_taken
+    # Log receipt of the signal and handle neutral signals for open positions early
+    if signal == "neutral" and is_open_position:
+        logging.info(f"Received neutral signal for symbol {symbol} with open position. Checking open positions and starting threads.")
+        
+        # # Start the thread for the open long or short positions
+        has_open_long = symbol in active_long_symbols
+        has_open_short = symbol in active_short_symbols
+
+        if has_open_long and not (symbol in long_threads and long_threads[symbol][0].is_alive()):
+            logging.info(f"Starting thread for open long position on symbol {symbol}.")
+            start_thread_for_symbol(symbol, args, manager, signal="long", has_open_long=True, has_open_short=False)
+        if has_open_short and not (symbol in short_threads and short_threads[symbol][0].is_alive()):
+            logging.info(f"Starting thread for open short position on symbol {symbol}.")
+            start_thread_for_symbol(symbol, args, manager, signal="short", has_open_long=False, has_open_short=True)
+        
+        return True  # Indicate that action was taken for the open position
 
     # Gather open position symbols and log the current state
     open_position_symbols = {standardize_symbol(pos['symbol']) for pos in open_position_data}
@@ -829,39 +835,49 @@ def handle_signal(symbol, args, manager, signal, open_position_data, symbols_all
     action_taken_long = False
     action_taken_short = False
 
-    # # Determine if the bot can add a new long/short symbol
-    # can_add_new_long_symbol = current_long_positions < symbols_allowed
-    # can_add_new_short_symbol = current_short_positions < symbols_allowed
+    # If it's an open position, we handle it directly without checking symbols_allowed
+    if is_open_position:
+        # Handle open long positions
+        if signal_long and long_mode and not has_open_long:
+            logging.info(f"Starting long thread for open symbol {symbol}.")
+            action_taken_long = start_thread_for_symbol(symbol, args, manager, signal, "long", has_open_long, has_open_short)
 
-    # Determine if the bot can add a new long/short symbol based on unique active symbols
-    can_add_new_long_symbol = len(unique_active_symbols) < symbols_allowed
-    can_add_new_short_symbol = len(unique_active_symbols) < symbols_allowed
+        # Handle open short positions
+        if signal_short and short_mode and not has_open_short:
+            logging.info(f"Starting short thread for open symbol {symbol}.")
+            action_taken_short = start_thread_for_symbol(symbol, args, manager, signal, "short", has_open_long, has_open_short)
 
-    # Handle long signals
-    if signal_long and long_mode:
-        if (can_add_new_long_symbol or symbol in unique_active_symbols) and not has_open_long:
-            if graceful_stop_long and not is_open_position:
-                logging.info(f"Skipping long signal for {symbol} due to graceful stop long enabled and no open long position.")
-            elif not (symbol in long_threads and long_threads[symbol][0].is_alive()):
-                logging.info(f"Starting long thread for symbol {symbol}.")
-                action_taken_long = start_thread_for_symbol(symbol, args, manager, signal, "long", has_open_long, has_open_short)
+    # For new symbols, we respect the symbols_allowed limit
+    else:
+        # Determine if the bot can add a new long/short symbol based on unique active symbols
+        can_add_new_long_symbol = len(unique_active_symbols) < symbols_allowed
+        can_add_new_short_symbol = len(unique_active_symbols) < symbols_allowed
+
+        # Handle long signals for new symbols
+        if signal_long and long_mode:
+            if (can_add_new_long_symbol or symbol in unique_active_symbols) and not has_open_long:
+                if graceful_stop_long:
+                    logging.info(f"Skipping long signal for {symbol} due to graceful stop long enabled and no open long position.")
+                elif not (symbol in long_threads and long_threads[symbol][0].is_alive()):
+                    logging.info(f"Starting long thread for symbol {symbol}.")
+                    action_taken_long = start_thread_for_symbol(symbol, args, manager, signal, "long", has_open_long, has_open_short)
+                else:
+                    logging.info(f"Long thread already running for symbol {symbol}. Skipping.")
             else:
-                logging.info(f"Long thread already running for symbol {symbol}. Skipping.")
-        else:
-            logging.info(f"Cannot open long position for {symbol}. Long positions limit reached or position already exists.")
+                logging.info(f"Cannot open long position for {symbol}. Long positions limit reached or position already exists.")
 
-    # Handle short signals
-    if signal_short and short_mode:
-        if (can_add_new_short_symbol or symbol in unique_active_symbols) and not has_open_short:
-            if graceful_stop_short and not is_open_position:
-                logging.info(f"Skipping short signal for {symbol} due to graceful stop short enabled and no open short position.")
-            elif not (symbol in short_threads and short_threads[symbol][0].is_alive()):
-                logging.info(f"Starting short thread for symbol {symbol}.")
-                action_taken_short = start_thread_for_symbol(symbol, args, manager, signal, "short", has_open_long, has_open_short)
+        # Handle short signals for new symbols
+        if signal_short and short_mode:
+            if (can_add_new_short_symbol or symbol in unique_active_symbols) and not has_open_short:
+                if graceful_stop_short:
+                    logging.info(f"Skipping short signal for {symbol} due to graceful stop short enabled and no open short position.")
+                elif not (symbol in short_threads and short_threads[symbol][0].is_alive()):
+                    logging.info(f"Starting short thread for symbol {symbol}.")
+                    action_taken_short = start_thread_for_symbol(symbol, args, manager, signal, "short", has_open_long, has_open_short)
+                else:
+                    logging.info(f"Short thread already running for symbol {symbol}. Skipping.")
             else:
-                logging.info(f"Short thread already running for symbol {symbol}. Skipping.")
-        else:
-            logging.info(f"Cannot open short position for {symbol}. Short positions limit reached or position already exists.")
+                logging.info(f"Cannot open short position for {symbol}. Short positions limit reached or position already exists.")
 
     # Update active symbols based on actions taken
     if action_taken_long or action_taken_short:
