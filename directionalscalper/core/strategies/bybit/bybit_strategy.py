@@ -13028,18 +13028,53 @@ class BybitStrategy(BaseStrategy):
             logging.exception(f"Exception caught in should_reissue_orders: {e}")
             return False
 
-    def clear_grid(self, symbol, side):
-        """Clear all orders and internal states for a specific grid side."""
-        if side == 'buy':
-            self.cancel_grid_orders(symbol, "buy")
-            self.filled_levels[symbol]["buy"].clear()
-            #self.active_long_grids.discard(symbol)  # Remove the symbol from active long grids
-        elif side == 'sell':
-            self.cancel_grid_orders(symbol, "sell")
-            self.filled_levels[symbol]["sell"].clear()
-            #self.active_short_grids.discard(symbol)  # Remove the symbol from active short grids
+    def clear_grid(self, symbol, side, max_retries=5, delay=2):
+        """Clear all orders and internal states for a specific grid side with retries, excluding reduce-only orders."""
+        logging.info(f"Clearing {side} grid for {symbol}")
+
+        retry_counter = 0
+        while retry_counter < max_retries:
+            if side == 'buy':
+                self.cancel_grid_orders(symbol, "buy")
+            elif side == 'sell':
+                self.cancel_grid_orders(symbol, "sell")
+
+            # Re-fetch the open orders and filter out reduce-only orders
+            open_orders_after_clear = self.retry_api_call(self.exchange.get_open_orders, symbol)
+            lingering_orders = [o for o in open_orders_after_clear if o['info']['side'].lower() == side and not o['info'].get('reduceOnly', False)]
+
+            if not lingering_orders:
+                # Clear filled levels for the side when no more lingering orders
+                if side == 'buy':
+                    self.filled_levels[symbol]["buy"].clear()
+                    logging.info(f"Successfully cleared long grid for {symbol}")
+                elif side == 'sell':
+                    self.filled_levels[symbol]["sell"].clear()
+                    logging.info(f"Successfully cleared short grid for {symbol}")
+                logging.info(f"{side.capitalize()} grid fully cleared for {symbol}.")
+                break
+            else:
+                logging.warning(f"Lingering {side} orders detected for {symbol} (non-reduce-only): {lingering_orders}. Retrying...")
+                retry_counter += 1
+                time.sleep(delay)  # Wait before retrying
+
+        if retry_counter == max_retries:
+            logging.error(f"Failed to clear all {side} grid orders for {symbol} after {max_retries} attempts.")
+        else:
+            logging.info(f"{side.capitalize()} grid cleared after {retry_counter} retries for {symbol}.")
+
+    # def clear_grid(self, symbol, side):
+    #     """Clear all orders and internal states for a specific grid side."""
+    #     if side == 'buy':
+    #         self.cancel_grid_orders(symbol, "buy")
+    #         self.filled_levels[symbol]["buy"].clear()
+    #         #self.active_long_grids.discard(symbol)  # Remove the symbol from active long grids
+    #     elif side == 'sell':
+    #         self.cancel_grid_orders(symbol, "sell")
+    #         self.filled_levels[symbol]["sell"].clear()
+    #         #self.active_short_grids.discard(symbol)  # Remove the symbol from active short grids
         
-        logging.info(f"Cleared {side} grid for {symbol}.")
+    #     logging.info(f"Cleared {side} grid for {symbol}.")
     
 
     def generate_order_link_id(self, symbol, side, level):
