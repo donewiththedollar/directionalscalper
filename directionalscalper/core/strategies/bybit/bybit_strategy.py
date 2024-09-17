@@ -5645,7 +5645,6 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"[{symbol}] Issuing new {side} grid orders.")
                         self.clear_grid(symbol, order_side)
                         logging.info(f"Cleared grid orders for {symbol} and {order_side}")
-                        time.sleep(2)
                         self.issue_grid_orders(symbol, order_side, grid_levels, amounts, side == 'long', self.filled_levels[symbol][order_side])
                         grid_set.add(symbol)
                     else:
@@ -5764,7 +5763,7 @@ class BybitStrategy(BaseStrategy):
                                 self.clear_grid(symbol, 'buy')
                                 modified_grid_levels_long[0] = best_bid_price
                                 issue_grid_safely('long', modified_grid_levels_long, amounts_long)
-                                time.sleep(4)
+                                # time.sleep(4)
 
                         logging.info(f"[{symbol}] Long position filled or max retries reached, exiting loop.")
                         self.last_signal_time[symbol] = current_time
@@ -5805,7 +5804,7 @@ class BybitStrategy(BaseStrategy):
                                 self.clear_grid(symbol, 'sell')
                                 modified_grid_levels_short[0] = best_ask_price
                                 issue_grid_safely('short', modified_grid_levels_short, amounts_short)
-                                time.sleep(4)
+                                # time.sleep(4)
 
                         logging.info(f"[{symbol}] Short position filled or max retries reached, exiting loop.")
                         self.last_signal_time[symbol] = current_time
