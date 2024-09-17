@@ -5645,6 +5645,7 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"[{symbol}] Issuing new {side} grid orders.")
                         self.clear_grid(symbol, order_side)
                         logging.info(f"Cleared grid orders for {symbol} and {order_side}")
+                        time.sleep(2)
                         self.issue_grid_orders(symbol, order_side, grid_levels, amounts, side == 'long', self.filled_levels[symbol][order_side])
                         grid_set.add(symbol)
                     else:
@@ -5657,132 +5658,38 @@ class BybitStrategy(BaseStrategy):
                 symbol, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
                 dynamic_outer_price_distance=dynamic_outer_price_distance
             )
-
-            # # Replace long grid if conditions are met
-            # if replace_long_grid and not has_open_long_order:
-            #     if symbol not in self.max_qty_reached_symbol_long:
-            #         logging.info(f"[{symbol}] Replacing long grid orders due to updated buffer or empty grid timeout.")
-            #         buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
-            #         buffer_distance_long = current_price * buffer_percentage_long
-            #         self.clear_grid(symbol, "buy")
-            #         issue_grid_safely('long', grid_levels_long, amounts_long)
-            #         self.last_empty_grid_time[symbol]['long'] = current_time
-            #         logging.info(f"[{symbol}] Recalculated long grid levels with updated buffer: {grid_levels_long}")
-            #     else:
-            #         logging.info(f"{symbol} is in max qty reached symbol long, cannot replace grid")
-
-            # # Replace short grid if conditions are met
-            # if replace_short_grid and not has_open_short_order:
-            #     if symbol not in self.max_qty_reached_symbol_short:
-            #         logging.info(f"[{symbol}] Replacing short grid orders due to updated buffer or empty grid timeout.")
-            #         buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - short_pos_price) / short_pos_price)
-            #         buffer_distance_short = current_price * buffer_percentage_short
-            #         self.clear_grid(symbol, "sell")
-            #         issue_grid_safely('short', grid_levels_short, amounts_short)
-            #         self.last_empty_grid_time[symbol]['short'] = current_time
-            #         logging.info(f"[{symbol}] Recalculated short grid levels with updated buffer: {grid_levels_short}")
-            #     else:
-            #         logging.info(f"{symbol} is in max qty reached symbol short, cannot replace grid")
-
-            # Replace long grid if conditions are met
-            if not has_open_long_order and long_pos_price is not None and long_pos_price > 0:
+            
+            # Replace long grid if conditions are met and there is no long signal
+            if not has_open_long_order and long_pos_price is not None and long_pos_price > 0 and not mfi_signal_long:
                 if symbol not in self.max_qty_reached_symbol_long:
                     logging.info(f"[{symbol}] Replacing long grid orders due to updated buffer or empty grid timeout.")
                     
                     buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
                     buffer_distance_long = current_price * buffer_percentage_long
-                    self.clear_grid(symbol, "buy")
+                    # self.clear_grid(symbol, "buy")
                     issue_grid_safely('long', grid_levels_long, amounts_long)
                     self.last_empty_grid_time[symbol]['long'] = current_time
                     logging.info(f"[{symbol}] Recalculated long grid levels with updated buffer: {grid_levels_long}")
                 else:
                     logging.info(f"{symbol} is in max qty reached symbol long, cannot replace grid")
             else:
-                logging.warning(f"Cannot calculate buffer for {symbol} long position due to zero or invalid long_pos_price: {long_pos_price}")
+                logging.warning(f"Cannot calculate buffer for {symbol} long position due to invalid conditions: long_pos_price: {long_pos_price}, mfi_signal_long: {mfi_signal_long}")
 
-            # Replace short grid if conditions are met
-            if not has_open_short_order and short_pos_price is not None and short_pos_price > 0:
+            # Replace short grid if conditions are met and there is no short signal
+            if not has_open_short_order and short_pos_price is not None and short_pos_price > 0 and not mfi_signal_short:
                 if symbol not in self.max_qty_reached_symbol_short:
                     logging.info(f"[{symbol}] Replacing short grid orders due to updated buffer or empty grid timeout.")
                     
                     buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - short_pos_price) / short_pos_price)
                     buffer_distance_short = current_price * buffer_percentage_short
-                    self.clear_grid(symbol, "sell")
+                    # self.clear_grid(symbol, "sell")
                     issue_grid_safely('short', grid_levels_short, amounts_short)
                     self.last_empty_grid_time[symbol]['short'] = current_time
                     logging.info(f"[{symbol}] Recalculated short grid levels with updated buffer: {grid_levels_short}")
                 else:
                     logging.info(f"{symbol} is in max qty reached symbol short, cannot replace grid")
             else:
-                logging.warning(f"Cannot calculate buffer for {symbol} short position due to zero or invalid short_pos_price: {short_pos_price}")
-
-            # # Replace long grid if conditions are met
-            # if not has_open_long_order and long_pos_price > 0:
-            #     if symbol not in self.max_qty_reached_symbol_long:
-            #         logging.info(f"[{symbol}] Replacing long grid orders due to updated buffer or empty grid timeout.")
-                    
-            #         buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
-            #         buffer_distance_long = current_price * buffer_percentage_long
-            #         self.clear_grid(symbol, "buy")
-            #         issue_grid_safely('long', grid_levels_long, amounts_long)
-            #         self.last_empty_grid_time[symbol]['long'] = current_time
-            #         logging.info(f"[{symbol}] Recalculated long grid levels with updated buffer: {grid_levels_long}")
-            #     else:
-            #         logging.info(f"{symbol} is in max qty reached symbol long, cannot replace grid")
-            # else:
-            #     logging.warning(f"Cannot calculate buffer for {symbol} long position due to zero or invalid long_pos_price: {long_pos_price}")
-
-            # # Replace short grid if conditions are met
-            # if not has_open_short_order and short_pos_price > 0:
-            #     if symbol not in self.max_qty_reached_symbol_short:
-            #         logging.info(f"[{symbol}] Replacing short grid orders due to updated buffer or empty grid timeout.")
-                    
-            #         buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - short_pos_price) / short_pos_price)
-            #         buffer_distance_short = current_price * buffer_percentage_short
-            #         self.clear_grid(symbol, "sell")
-            #         issue_grid_safely('short', grid_levels_short, amounts_short)
-            #         self.last_empty_grid_time[symbol]['short'] = current_time
-            #         logging.info(f"[{symbol}] Recalculated short grid levels with updated buffer: {grid_levels_short}")
-            #     else:
-            #         logging.info(f"{symbol} is in max qty reached symbol short, cannot replace grid")
-            # else:
-            #     logging.warning(f"Cannot calculate buffer for {symbol} short position due to zero or invalid short_pos_price: {short_pos_price}")
-
-            # # Replace long grid if conditions are met
-            # if not has_open_long_order:
-            #     if symbol not in self.max_qty_reached_symbol_long:
-            #         logging.info(f"[{symbol}] Replacing long grid orders due to updated buffer or empty grid timeout.")
-                    
-            #         # Check if long_pos_price is valid (non-zero)
-            #         if long_pos_price > 0:
-            #             buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
-            #             buffer_distance_long = current_price * buffer_percentage_long
-            #             self.clear_grid(symbol, "buy")
-            #             issue_grid_safely('long', grid_levels_long, amounts_long)
-            #             self.last_empty_grid_time[symbol]['long'] = current_time
-            #             logging.info(f"[{symbol}] Recalculated long grid levels with updated buffer: {grid_levels_long}")
-            #         else:
-            #             logging.warning(f"Cannot calculate buffer for {symbol} long position due to zero or invalid long_pos_price: {long_pos_price}")
-            #     else:
-            #         logging.info(f"{symbol} is in max qty reached symbol long, cannot replace grid")
-
-            # # Replace short grid if conditions are met
-            # if not has_open_short_order:
-            #     if symbol not in self.max_qty_reached_symbol_short:
-            #         logging.info(f"[{symbol}] Replacing short grid orders due to updated buffer or empty grid timeout.")
-                    
-            #         # Check if short_pos_price is valid (non-zero)
-            #         if short_pos_price > 0:
-            #             buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - short_pos_price) / short_pos_price)
-            #             buffer_distance_short = current_price * buffer_percentage_short
-            #             self.clear_grid(symbol, "sell")
-            #             issue_grid_safely('short', grid_levels_short, amounts_short)
-            #             self.last_empty_grid_time[symbol]['short'] = current_time
-            #             logging.info(f"[{symbol}] Recalculated short grid levels with updated buffer: {grid_levels_short}")
-            #         else:
-            #             logging.warning(f"Cannot calculate buffer for {symbol} short position due to zero or invalid short_pos_price: {short_pos_price}")
-            #     else:
-            #         logging.info(f"{symbol} is in max qty reached symbol short, cannot replace grid")
+                logging.warning(f"Cannot calculate buffer for {symbol} short position due to invalid conditions: short_pos_price: {short_pos_price}, mfi_signal_short: {mfi_signal_short}")
 
             # # Replace long grid if conditions are met
             # if not has_open_long_order:
