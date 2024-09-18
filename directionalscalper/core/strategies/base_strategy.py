@@ -2552,6 +2552,50 @@ class BaseStrategy:
             else:
                 logging.info(f"Volume or distance conditions not met for {symbol}, skipping entry.")
 
+    def get_best_bid_price(self, symbol):
+        """Fetch the best bid price for a given symbol, with a fallback to last known bid price."""
+        try:
+            order_book = self.exchange.get_orderbook(symbol)
+            
+            # Check for bids in the order book and fetch the best bid price
+            if 'bids' in order_book and len(order_book['bids']) > 0:
+                best_bid_price = order_book['bids'][0][0]
+                self.last_known_bid[symbol] = best_bid_price  # Update last known bid price
+            else:
+                best_bid_price = self.last_known_bid.get(symbol)  # Use last known bid price
+                if best_bid_price is None:
+                    logging.warning(f"Best bid price is not available for {symbol}. Defaulting to 0.0.")
+                    best_bid_price = 0.0  # Default to 0.0 if no known bid price
+            
+            # Ensure the bid price is a float
+            return float(best_bid_price)
+        
+        except Exception as e:
+            logging.error(f"Error fetching best bid price for {symbol}: {e}")
+            return 0.0  # Return 0.0 in case of failure
+    
+    def get_best_ask_price(self, symbol):
+        """Fetch the best ask price for a given symbol, with a fallback to last known ask price."""
+        try:
+            order_book = self.exchange.get_orderbook(symbol)
+            
+            # Check for asks in the order book and fetch the best ask price
+            if 'asks' in order_book and len(order_book['asks']) > 0:
+                best_ask_price = order_book['asks'][0][0]
+                self.last_known_ask[symbol] = best_ask_price  # Update last known ask price
+            else:
+                best_ask_price = self.last_known_ask.get(symbol)  # Use last known ask price
+                if best_ask_price is None:
+                    logging.warning(f"Best ask price is not available for {symbol}. Defaulting to 0.0.")
+                    best_ask_price = 0.0  # Default to 0.0 if no known ask price
+            
+            # Ensure the ask price is a float
+            return float(best_ask_price)
+        
+        except Exception as e:
+            logging.error(f"Error fetching best ask price for {symbol}: {e}")
+            return 0.0  # Return 0.0 in case of failure
+            
     def get_mfirsi_ema_secondary_ema_bollinger(self, symbol: str, limit: int = 100, lookback: int = 1, ema_period: int = 5, secondary_ema_period: int = 3) -> str:
         # Fetch OHLCV data
         ohlcv_data = self.exchange.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
