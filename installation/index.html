@@ -869,56 +869,47 @@
 </li>
 </ol>
 <h2 id="installing-python-311">Installing Python 3.11</h2>
-<p>To install Python 3.11 on your system, follow these steps:</p>
-<ol>
-<li>Update the package list and install the necessary dependencies</li>
-</ol>
+<h1 id="update-the-package-list-and-install-the-necessary-dependencies">Update the package list and install the necessary dependencies</h1>
 <pre><code>sudo apt update
-</code></pre>
-<pre><code>sudo apt install -y wget build-essential libssl-dev zlib1g-dev \
+sudo apt install -y wget build-essential libssl-dev zlib1g-dev \
 libncurses5-dev libncursesw5-dev libreadline-dev libsqlite3-dev \
 libgdbm-dev libdb5.3-dev libbz2-dev libexpat1-dev liblzma-dev \
 libffi-dev uuid-dev libnss3-dev libgdbm-compat-dev
 </code></pre>
-<ol>
-<li>Download the Python 3.11.0 source code</li>
-</ol>
+<h1 id="download-the-python-3110-source-code">Download the Python 3.11.0 source code:</h1>
 <pre><code>cd /opt
 </code></pre>
 <pre><code>wget https://www.python.org/ftp/python/3.11.0/Python-3.11.0.tgz
 </code></pre>
-<ol>
-<li>Extract the downloaded archive</li>
-</ol>
+<h1 id="extract-the-downloaded-archive">Extract the downloaded archive:</h1>
 <pre><code>sudo tar -xzf Python-3.11.0.tgz
 </code></pre>
-<ol>
-<li>Change to the extracted directory</li>
-</ol>
+<h1 id="change-to-the-extracted-directory">Change to the extracted directory:</h1>
 <pre><code>cd Python-3.11.0
 </code></pre>
-<ol>
-<li>Configure the build with optimizations</li>
-</ol>
-<pre><code>sudo ./configure --enable-optimizations --prefix=/usr/local
+<h1 id="configure-the-build-with-optimizations-and-ensure-pip-installation">Configure the build with optimizations and ensure pip installation:</h1>
+<pre><code>sudo ./configure --enable-optimizations --prefix=/usr/local --with-ensurepip=install
 </code></pre>
-<ol>
-<li>Compile Python</li>
-</ol>
+<h1 id="compile-python">Compile Python:</h1>
 <pre><code>sudo make -j 2
 </code></pre>
-<ol>
-<li>Install Python 3.11</li>
-</ol>
+<h1 id="install-python-311">Install Python 3.11:</h1>
 <pre><code>sudo make altinstall
 </code></pre>
-<ol>
-<li>Verify the installation</li>
-</ol>
+<h1 id="verify-the-python-installation">Verify the Python installation:</h1>
 <pre><code>python3.11 --version
 </code></pre>
 <p>You should see the installed Python version displayed.</p>
-<p>That's it! You have now installed Python 3.11 on your system.</p>
+<h1 id="verify-pip-installation">Verify pip installation:</h1>
+<pre><code>python3.11 -m pip --version
+</code></pre>
+<p>This should display the pip version associated with Python 3.11.</p>
+<p>If pip is not installed for some reason, you can install it manually using the get-pip.py script:</p>
+<pre><code>wget https://bootstrap.pypa.io/get-pip.py
+</code></pre>
+<pre><code>python3.11 get-pip.py
+</code></pre>
+<p>That's it! You have now installed Python 3.11 with pip on your system.</p>
 
 
 
