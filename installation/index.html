@@ -844,6 +844,9 @@
 <code>cd directionalscalper</code></p>
 </li>
 <li>
+<p>Install Python 3.11 (see below)</p>
+</li>
+<li>
 <p>Install the required dependencies:
    <code>pip3.11 install -r requirements.txt</code></p>
 </li>
@@ -868,44 +871,52 @@
 <h2 id="installing-python-311">Installing Python 3.11</h2>
 <p>To install Python 3.11 on your system, follow these steps:</p>
 <ol>
-<li>Update the package list and install the necessary dependencies:
-   <code>sudo apt update</code></li>
+<li>Update the package list and install the necessary dependencies</li>
 </ol>
-<p><code>sudo apt install -y wget build-essential libssl-dev zlib1g-dev \
-   libncurses5-dev libncursesw5-dev libreadline-dev libsqlite3-dev \
-   libgdbm-dev libdb5.3-dev libbz2-dev libexpat1-dev liblzma-dev \
-   libffi-dev uuid-dev libnss3-dev libgdbm-compat-dev</code></p>
+<pre><code>sudo apt update
+</code></pre>
+<pre><code>sudo apt install -y wget build-essential libssl-dev zlib1g-dev \
+libncurses5-dev libncursesw5-dev libreadline-dev libsqlite3-dev \
+libgdbm-dev libdb5.3-dev libbz2-dev libexpat1-dev liblzma-dev \
+libffi-dev uuid-dev libnss3-dev libgdbm-compat-dev
+</code></pre>
 <ol>
-<li>
-<p>Download the Python 3.11.0 source code:
-   <code>cd /opt
-   wget https://www.python.org/ftp/python/3.11.0/Python-3.11.0.tgz</code></p>
-</li>
-<li>
-<p>Extract the downloaded archive:
-   <code>sudo tar -xzf Python-3.11.0.tgz</code></p>
-</li>
-<li>
-<p>Change to the extracted directory:
-   <code>cd Python-3.11.0</code></p>
-</li>
-<li>
-<p>Configure the build with optimizations:
-   <code>sudo ./configure --enable-optimizations --prefix=/usr/local</code></p>
-</li>
-<li>
-<p>Compile Python:
-   <code>sudo make -j 2</code></p>
-</li>
-<li>
-<p>Install Python 3.11:
-   <code>sudo make altinstall</code></p>
-</li>
-<li>
-<p>Verify the installation:
-   <code>python3.11 --version</code></p>
-</li>
+<li>Download the Python 3.11.0 source code</li>
 </ol>
+<pre><code>cd /opt
+</code></pre>
+<pre><code>wget https://www.python.org/ftp/python/3.11.0/Python-3.11.0.tgz
+</code></pre>
+<ol>
+<li>Extract the downloaded archive</li>
+</ol>
+<pre><code>sudo tar -xzf Python-3.11.0.tgz
+</code></pre>
+<ol>
+<li>Change to the extracted directory</li>
+</ol>
+<pre><code>cd Python-3.11.0
+</code></pre>
+<ol>
+<li>Configure the build with optimizations</li>
+</ol>
+<pre><code>sudo ./configure --enable-optimizations --prefix=/usr/local
+</code></pre>
+<ol>
+<li>Compile Python</li>
+</ol>
+<pre><code>sudo make -j 2
+</code></pre>
+<ol>
+<li>Install Python 3.11</li>
+</ol>
+<pre><code>sudo make altinstall
+</code></pre>
+<ol>
+<li>Verify the installation</li>
+</ol>
+<pre><code>python3.11 --version
+</code></pre>
 <p>You should see the installed Python version displayed.</p>
 <p>That's it! You have now installed Python 3.11 on your system.</p>
 
