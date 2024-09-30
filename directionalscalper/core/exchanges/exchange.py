@@ -1370,19 +1370,12 @@ class Exchange:
         :param max_retries: Maximum number of retries for API calls.
         :param base_delay: Base delay for exponential backoff.
         :param max_delay: Maximum delay for exponential backoff.
-        :return: DataFrame with OHLCV data.
+        :return: DataFrame with OHLCV data or an empty DataFrame on error.
         """
         retries = 0
 
         while retries < max_retries:
             try:
-                # Check if the symbol exists in the market
-                if symbol not in self.exchange.markets:
-                    logging.info(f"Symbol {symbol} not found in markets. Retrying...")
-                    time.sleep(base_delay)  # Wait before retrying
-                    retries += 1
-                    continue
-
                 with self.rate_limiter:
                     # Fetch the OHLCV data from the exchange
                     ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, limit=limit)  # Pass the limit parameter
@@ -1404,19 +1397,23 @@ class Exchange:
                 logging.info(f"Rate limit exceeded: {e}. Retrying in {delay:.2f} seconds...")
                 time.sleep(delay)
 
+            except ccxt.BadSymbol as e:
+                # Handle the BadSymbol error gracefully and exit the loop
+                logging.info(f"Bad symbol: {symbol}. Error: {e}")
+                break  # Exit the retry loop as the symbol is invalid
+
             except ccxt.BaseError as e:
                 # Log the error message
                 logging.info(f"Failed to fetch OHLCV data: {self.exchange.id} {e}")
-                # Log the traceback for further debugging
                 logging.error(traceback.format_exc())
-                return pd.DataFrame()
+                return pd.DataFrame()  # Return empty DataFrame for other base errors
 
             except Exception as e:
                 # Log the error message and traceback
                 logging.info(f"Unexpected error occurred while fetching OHLCV data: {e}")
-                logging.info(traceback.format_exc())
+                logging.error(traceback.format_exc())
                 
-                # Handle specific errors as before
+                # Handle specific error scenarios
                 if isinstance(e, TypeError) and 'string indices must be integers' in str(e):
                     logging.info(f"TypeError occurred: {e}")
                     logging.info(f"Response content: {self.exchange.last_http_response}")
@@ -1426,11 +1423,12 @@ class Exchange:
                         logging.info(f"Parsed response into a dictionary: {response}")
                     except json.JSONDecodeError as json_error:
                         logging.info(f"Failed to parse response: {json_error}")
-
-                return pd.DataFrame()
+                
+                return pd.DataFrame()  # Return empty DataFrame on unexpected errors
 
         logging.error(f"Failed to fetch OHLCV data after {max_retries} retries.")
         return pd.DataFrame()
+
 
 
     # def fetch_ohlcv(self, symbol, timeframe='1d', limit=None, max_retries=100, base_delay=10, max_delay=60):
