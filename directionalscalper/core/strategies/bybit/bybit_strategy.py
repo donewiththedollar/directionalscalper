@@ -4947,7 +4947,7 @@ class BybitStrategy(BaseStrategy):
 
     def lineargrid_base(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
                         short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
-                        strength: float, outer_price_distance: float, min_outer_price_distance: float, max_outer_price_distance: float, reissue_threshold: float, 
+                        strength: float, outer_price_distance: float, min_outer_price_distance: float, max_outer_price_distance: float, max_outer_price_distance_long: float, max_outer_price_distance_short: float, reissue_threshold: float, 
                         wallet_exposure_limit_long: float, wallet_exposure_limit_short: float, long_mode: bool,
                         short_mode: bool, initial_entry_buffer_pct: float, min_buffer_percentage: float, max_buffer_percentage: float,
                         symbols_allowed: int, enforce_full_grid: bool, mfirsi_signal: str, upnl_profit_pct: float,
@@ -4960,7 +4960,11 @@ class BybitStrategy(BaseStrategy):
             short_pos_qty = short_pos_qty if short_pos_qty is not None else 0
 
             spread, current_price = self.get_spread_and_price(symbol)
-            dynamic_outer_price_distance = self.calculate_dynamic_outer_price_distance(spread, min_outer_price_distance, max_outer_price_distance)
+            # dynamic_outer_price_distance = self.calculate_dynamic_outer_price_distance(spread, min_outer_price_distance, max_outer_price_distance)
+
+            dynamic_outer_price_distance_long, dynamic_outer_price_distance_short = self.calculate_dynamic_outer_price_distance(
+                spread, min_outer_price_distance, max_outer_price_distance_long, max_outer_price_distance_short
+            )
 
             should_reissue_long, should_reissue_short = self.should_reissue_orders_revised(symbol, reissue_threshold, long_pos_qty, short_pos_qty, initial_entry_buffer_pct)
             open_orders = self.retry_api_call(self.exchange.get_open_orders, symbol)
@@ -5016,12 +5020,27 @@ class BybitStrategy(BaseStrategy):
 
             else:
                 initial_entry_long, initial_entry_short = self.calculate_initial_entries(current_price, buffer_distance_long, buffer_distance_short)
-                grid_levels_long, grid_levels_short = self.calculate_grid_levels(long_pos_qty, short_pos_qty, levels, initial_entry_long, initial_entry_short, current_price, buffer_distance_long, buffer_distance_short, max_outer_price_distance)
+                # grid_levels_long, grid_levels_short = self.calculate_grid_levels(long_pos_qty, short_pos_qty, levels, initial_entry_long, initial_entry_short, current_price, buffer_distance_long, buffer_distance_short, max_outer_price_distance)
+                grid_levels_long, grid_levels_short = self.calculate_grid_levels(
+                    long_pos_qty, short_pos_qty, levels, 
+                    initial_entry_long, initial_entry_short, 
+                    current_price, 
+                    buffer_distance_long, buffer_distance_short, 
+                    max_outer_price_distance_long, max_outer_price_distance_short
+                )
 
             adjusted_grid_levels_long = self.adjust_grid_levels(grid_levels_long, significant_levels_long, tolerance=0.01, min_outer_price_distance=min_outer_price_distance, max_outer_price_distance=max_outer_price_distance, current_price=current_price, levels=levels)
             adjusted_grid_levels_short = self.adjust_grid_levels(grid_levels_short, significant_levels_short, tolerance=0.01, min_outer_price_distance=min_outer_price_distance, max_outer_price_distance=max_outer_price_distance, current_price=current_price, levels=levels)
 
-            grid_levels_long, grid_levels_short = self.finalize_grid_levels(adjusted_grid_levels_long, adjusted_grid_levels_short, levels, current_price, buffer_distance_long, buffer_distance_short, max_outer_price_distance, initial_entry_long, initial_entry_short)
+            # grid_levels_long, grid_levels_short = self.finalize_grid_levels(adjusted_grid_levels_long, adjusted_grid_levels_short, levels, current_price, buffer_distance_long, buffer_distance_short, max_outer_price_distance, initial_entry_long, initial_entry_short)
+
+            grid_levels_long, grid_levels_short = self.finalize_grid_levels(
+                adjusted_grid_levels_long, adjusted_grid_levels_short, 
+                levels, current_price, 
+                buffer_distance_long, buffer_distance_short, 
+                max_outer_price_distance_long, max_outer_price_distance_short, 
+                initial_entry_long, initial_entry_short
+            )
 
             qty_precision, min_qty = self.get_precision_and_min_qty(symbol)
 
@@ -5124,7 +5143,8 @@ class BybitStrategy(BaseStrategy):
                 long_pos_qty,
                 short_pos_qty,
                 current_price,
-                dynamic_outer_price_distance,
+                dynamic_outer_price_distance_long,
+                dynamic_outer_price_distance_short,
                 min_outer_price_distance,
                 max_outer_price_distance,
                 buffer_percentage_long,
@@ -5177,10 +5197,14 @@ class BybitStrategy(BaseStrategy):
 
         return spread, current_price
 
-    def calculate_dynamic_outer_price_distance(self, spread, min_outer_price_distance, max_outer_price_distance):
-        dynamic_outer_price_distance = max(min_outer_price_distance, min(max_outer_price_distance, spread))
-        logging.info(f"Dynamic outer price distance: {dynamic_outer_price_distance}")
-        return dynamic_outer_price_distance
+    def calculate_dynamic_outer_price_distance(self, spread, min_outer_price_distance, max_outer_price_distance_long, max_outer_price_distance_short):
+        dynamic_outer_price_distance_long = max(min_outer_price_distance, min(max_outer_price_distance_long, spread))
+        dynamic_outer_price_distance_short = max(min_outer_price_distance, min(max_outer_price_distance_short, spread))
+        
+        logging.info(f"Dynamic outer price distance (Long): {dynamic_outer_price_distance_long}")
+        logging.info(f"Dynamic outer price distance (Short): {dynamic_outer_price_distance_short}")
+        
+        return dynamic_outer_price_distance_long, dynamic_outer_price_distance_short
 
     def initialize_filled_levels(self, symbol):
         if symbol not in self.filled_levels:
@@ -5281,29 +5305,32 @@ class BybitStrategy(BaseStrategy):
         initial_entry_long = current_price - buffer_distance_long
         initial_entry_short = current_price + buffer_distance_short
         return initial_entry_long, initial_entry_short
-
-    def calculate_grid_levels(self, long_pos_qty, short_pos_qty, levels, initial_entry_long, initial_entry_short, current_price, buffer_distance_long, buffer_distance_short, max_outer_price_distance):
+    
+    def calculate_grid_levels(self, long_pos_qty, short_pos_qty, levels, initial_entry_long, initial_entry_short, 
+                            current_price, buffer_distance_long, buffer_distance_short, 
+                            max_outer_price_distance_long, max_outer_price_distance_short):
         if long_pos_qty == 0:
             grid_levels_long = [initial_entry_long] + [
-                current_price - buffer_distance_long - i * ((max_outer_price_distance * current_price - buffer_distance_long) / (levels - 1)) 
+                current_price - buffer_distance_long - i * ((max_outer_price_distance_long * current_price - buffer_distance_long) / (levels - 1)) 
                 for i in range(1, levels)
             ]
         else:
             grid_levels_long = [
-                current_price - buffer_distance_long - i * ((max_outer_price_distance * current_price - buffer_distance_long) / levels) 
+                current_price - buffer_distance_long - i * ((max_outer_price_distance_long * current_price - buffer_distance_long) / levels) 
                 for i in range(levels)
             ]
 
         if short_pos_qty == 0:
             grid_levels_short = [initial_entry_short] + [
-                current_price + buffer_distance_short + i * ((max_outer_price_distance * current_price - buffer_distance_short) / (levels - 1)) 
+                current_price + buffer_distance_short + i * ((max_outer_price_distance_short * current_price - buffer_distance_short) / (levels - 1)) 
                 for i in range(1, levels)
             ]
         else:
             grid_levels_short = [
-                current_price + buffer_distance_short + i * ((max_outer_price_distance * current_price - buffer_distance_short) / levels) 
+                current_price + buffer_distance_short + i * ((max_outer_price_distance_short * current_price - buffer_distance_short) / levels) 
                 for i in range(levels)
             ]
+        
         return grid_levels_long, grid_levels_short
 
     def adjust_grid_levels(self, grid_levels, significant_levels, tolerance, min_outer_price_distance, max_outer_price_distance, current_price, levels):
@@ -5332,12 +5359,12 @@ class BybitStrategy(BaseStrategy):
 
         return adjusted_grid_levels
 
-    def finalize_grid_levels(self, adjusted_grid_levels_long, adjusted_grid_levels_short, levels, current_price, buffer_distance_long, buffer_distance_short, max_outer_price_distance, initial_entry_long, initial_entry_short):
+    def finalize_grid_levels(self, adjusted_grid_levels_long, adjusted_grid_levels_short, levels, current_price, buffer_distance_long, buffer_distance_short, max_outer_price_distance_long, max_outer_price_distance_short, initial_entry_long, initial_entry_short):
         if len(adjusted_grid_levels_long) < levels:
             remaining_levels = levels - len(adjusted_grid_levels_long)
             additional_levels_long = np.linspace(
                 adjusted_grid_levels_long[-1] if adjusted_grid_levels_long else current_price - buffer_distance_long,
-                current_price - max_outer_price_distance * current_price,
+                current_price - max_outer_price_distance_long * current_price,
                 remaining_levels + 1
             )[1:]
             adjusted_grid_levels_long = np.concatenate((adjusted_grid_levels_long, additional_levels_long))
@@ -5346,7 +5373,7 @@ class BybitStrategy(BaseStrategy):
             remaining_levels = levels - len(adjusted_grid_levels_short)
             additional_levels_short = np.linspace(
                 adjusted_grid_levels_short[-1] if adjusted_grid_levels_short else current_price + buffer_distance_short,
-                current_price + max_outer_price_distance * current_price,
+                current_price + max_outer_price_distance_short * current_price,
                 remaining_levels + 1
             )[1:]
             adjusted_grid_levels_short = np.concatenate((adjusted_grid_levels_short, additional_levels_short))
@@ -5360,6 +5387,7 @@ class BybitStrategy(BaseStrategy):
         logging.info(f"Short grid levels: {adjusted_grid_levels_short}")
 
         return adjusted_grid_levels_long, adjusted_grid_levels_short
+
 
     def get_precision_and_min_qty(self, symbol):
         qty_precision = self.exchange.get_symbol_precision_bybit(symbol)[1]
@@ -5441,7 +5469,7 @@ class BybitStrategy(BaseStrategy):
             raise
 
     def handle_grid_trades(self, symbol, grid_levels_long, grid_levels_short, long_grid_active, short_grid_active,
-                        long_pos_qty, short_pos_qty, current_price, dynamic_outer_price_distance, min_outer_price_distance,
+                        long_pos_qty, short_pos_qty, current_price, dynamic_outer_price_distance_long, dynamic_outer_price_distance_short, min_outer_price_distance,
                         max_outer_price_distance, buffer_percentage_long, buffer_percentage_short, 
                         adjusted_grid_levels_long, adjusted_grid_levels_short, levels, amounts_long, amounts_short, 
                         best_bid_price, best_ask_price, mfirsi_signal, open_orders, initial_entry_buffer_pct, 
@@ -5654,12 +5682,23 @@ class BybitStrategy(BaseStrategy):
                 except Exception as e:
                     logging.error(f"Exception in issue_grid_safely: {e}")
                     
-            # Determine whether to replace grids based on the updated buffer and outer price distance
-            replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist_v2(
-                symbol, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
-                dynamic_outer_price_distance=dynamic_outer_price_distance
-            )
+            # # Determine whether to replace grids based on the updated buffer and outer price distance
+            # replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist_v2(
+            #     symbol, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
+            #     dynamic_outer_price_distance=dynamic_outer_price_distance
+            # )
             
+            replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist_v2(
+                symbol, 
+                long_pos_price, 
+                short_pos_price, 
+                long_pos_qty, 
+                short_pos_qty,
+                dynamic_outer_price_distance_long=dynamic_outer_price_distance_long,
+                dynamic_outer_price_distance_short=dynamic_outer_price_distance_short
+            )
+
+
             # Replace long grid if conditions are met and there is no long signal
             if not has_open_long_order and long_pos_price is not None and long_pos_price > 0 and not mfi_signal_long:
                 if symbol not in self.max_qty_reached_symbol_long:
@@ -6799,49 +6838,6 @@ class BybitStrategy(BaseStrategy):
                     else:
                         break  # Exit loop once the order is filled
                     
-            # # Skip if the signal is the same as the last processed signal
-            # if not hasattr(self, 'last_attempted_signal'):
-            #     self.last_attempted_signal = None
-
-            # if self.last_attempted_signal == mfirsi_signal and (long_pos_qty > 0.00001 or short_pos_qty > 0.00001):
-            #     logging.info(f"Skipping processing for {symbol} as the mfirsi_signal is the same as the last attempted signal: {mfirsi_signal}")
-            #     return
-
-            # # Handle long and short grid replacement based on mfirsi_signal
-            # if mfirsi_signal.lower() == "long" and long_mode and not self.auto_reduce_active_long.get(symbol, False):
-            #     logging.info(f"[{symbol}] Replacing long grid orders due to MFIRSI signal long.")
-            #     self.clear_grid(symbol, 'buy')
-            #     self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-            #     self.active_grids.add(symbol)
-            #     self.last_attempted_signal = mfirsi_signal  # Set the attempted signal
-            #     while long_pos_qty < 0.00001:
-            #         time.sleep(5)  # Wait for some time to allow order to be filled
-            #         # Re-fetch the long position quantity from the exchange or update it elsewhere
-            #         if long_pos_qty < 0.00001:
-            #             logging.info(f"[{symbol}] Retrying long grid orders due to MFIRSI signal long.")
-            #             self.clear_grid(symbol, 'buy')
-            #             self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-            #             self.active_grids.add(symbol)
-            #         else:
-            #             break  # Exit loop once the order is filled
-
-            # elif mfirsi_signal.lower() == "short" and short_mode and not self.auto_reduce_active_short.get(symbol, False):
-            #     logging.info(f"[{symbol}] Replacing short grid orders due to MFIRSI signal short.")
-            #     self.clear_grid(symbol, 'sell')
-            #     self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-            #     self.active_grids.add(symbol)
-            #     self.last_attempted_signal = mfirsi_signal  # Set the attempted signal
-            #     while short_pos_qty < 0.00001:
-            #         time.sleep(5)  # Wait for some time to allow order to be filled
-            #         # Re-fetch the short position quantity from the exchange or update it elsewhere
-            #         if short_pos_qty < 0.00001:
-            #             logging.info(f"[{symbol}] Retrying short grid orders due to MFIRSI signal short.")
-            #             self.clear_grid(symbol, 'sell')
-            #             self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-            #             self.active_grids.add(symbol)
-            #         else:
-            #             break  # Exit loop once the order is filled
-
             if self.auto_reduce_active_long.get(symbol, False):
                 logging.info(f"Auto-reduce for long position on {symbol} is active")
                 self.clear_grid(symbol, 'buy')
@@ -8515,70 +8511,6 @@ class BybitStrategy(BaseStrategy):
                     self.active_grids.add(symbol)
                     logging.info(f"[{symbol}] Recalculated short grid levels with updated buffer: {grid_levels_short}")
                     self.last_empty_grid_time[symbol]['short'] = current_time
-
-
-            # has_open_long_order = any(order['side'].lower() == 'buy' and not order['reduceOnly'] for order in open_orders)
-            # has_open_short_order = any(order['side'].lower() == 'sell' and not order['reduceOnly'] for order in open_orders)
-
-            # replace_empty_long_grid = (long_pos_qty > 0 and not has_open_long_order)
-            # replace_empty_short_grid = (short_pos_qty > 0 and not has_open_short_order)
-
-            # if (replace_long_grid or replace_empty_long_grid) and not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
-            #     logging.info(f"[{symbol}] Replacing long grid orders due to updated buffer or empty grid for open position.")
-            #     self.clear_grid(symbol, 'buy')
-            #     buffer_percentage_long = min_buffer_percentage + (average_spread * (max_buffer_percentage - min_buffer_percentage))
-            #     buffer_percentage_long = min(max(buffer_percentage_long, min_buffer_percentage), max_buffer_percentage)
-            #     buffer_distance_long = current_price * buffer_percentage_long
-            #     outer_price_distance_long = current_price * outer_price_distance
-            #     grid_levels_long = self.calculate_grid_levels_orderbook_based(
-            #         symbol, current_price, buffer_distance_long, levels, 'buy', min_outer_price_distance, max_outer_price_distance, strength
-            #     )
-            #     self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-            #     self.active_grids.add(symbol)
-            #     logging.info(f"[{symbol}] Recalculated long grid levels with updated buffer: {grid_levels_long}")
-
-            # if (replace_short_grid or replace_empty_short_grid) and not self.auto_reduce_active_short.get(symbol, False) and symbol not in self.max_qty_reached_symbol_short:
-            #     logging.info(f"[{symbol}] Replacing short grid orders due to updated buffer or empty grid for open position.")
-            #     self.clear_grid(symbol, 'sell')
-            #     buffer_percentage_short = min_buffer_percentage + (average_spread * (max_buffer_percentage - min_buffer_percentage))
-            #     buffer_percentage_short = min(max(buffer_percentage_short, min_buffer_percentage), max_buffer_percentage)
-            #     buffer_distance_short = current_price * buffer_percentage_short
-            #     outer_price_distance_short = current_price * outer_price_distance
-            #     grid_levels_short = self.calculate_grid_levels_orderbook_based(
-            #         symbol, current_price, buffer_distance_short, levels, 'sell', min_outer_price_distance, max_outer_price_distance, strength
-            #     )
-            #     self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-            #     self.active_grids.add(symbol)
-            #     logging.info(f"[{symbol}] Recalculated short grid levels with updated buffer: {grid_levels_short}")
-
-
-            # if replace_long_grid and not self.auto_reduce_active_long.get(symbol, False) and symbol not in self.max_qty_reached_symbol_long:
-            #     logging.info(f"[{symbol}] Replacing long grid orders due to updated buffer.")
-            #     self.clear_grid(symbol, 'buy')
-            #     buffer_percentage_long = min_buffer_percentage + (average_spread * (max_buffer_percentage - min_buffer_percentage))
-            #     buffer_percentage_long = min(max(buffer_percentage_long, min_buffer_percentage), max_buffer_percentage)
-            #     buffer_distance_long = current_price * buffer_percentage_long
-            #     outer_price_distance_long = current_price * outer_price_distance
-            #     grid_levels_long = self.calculate_grid_levels_orderbook_based(
-            #         symbol, current_price, buffer_distance_long, levels, 'buy', min_outer_price_distance, max_outer_price_distance, strength
-            #     )
-            #     self.issue_grid_orders(symbol, "buy", grid_levels_long, amounts_long, True, self.filled_levels[symbol]["buy"])
-            #     self.active_grids.add(symbol)
-            #     logging.info(f"[{symbol}] Recalculated long grid levels with updated buffer: {grid_levels_long}")
-
-            # if replace_short_grid and not self.auto_reduce_active_short.get(symbol, False) and symbol not in self.max_qty_reached_symbol_short:
-            #     logging.info(f"[{symbol}] Replacing short grid orders due to updated buffer.")
-            #     self.clear_grid(symbol, 'sell')
-            #     buffer_percentage_short = min_buffer_percentage + (average_spread * (max_buffer_percentage - min_buffer_percentage))
-            #     buffer_percentage_short = min(max(buffer_percentage_short, min_buffer_percentage), max_buffer_percentage)
-            #     buffer_distance_short = current_price * buffer_percentage_short
-            #     outer_price_distance_short = current_price * outer_price_distance
-            #     grid_levels_short = self.calculate_grid_levels_orderbook_based(
-            #         symbol, current_price, buffer_distance_short, levels, 'sell', min_outer_price_distance, max_outer_price_distance, strength
-            #     )
-            #     self.issue_grid_orders(symbol, "sell", grid_levels_short, amounts_short, False, self.filled_levels[symbol]["sell"])
-            #     self.active_grids.add(symbol)
-            #     logging.info(f"[{symbol}] Recalculated short grid levels with updated buffer: {grid_levels_short}")
 
             open_symbols = list(set(open_symbols))
             logging.info(f"Open symbols {open_symbols}")
@@ -12893,7 +12825,16 @@ class BybitStrategy(BaseStrategy):
             logging.exception(f"Exception caught in should_replace_grid_updated_buffer: {e}")
             return False, False
 
-    def should_replace_grid_updated_buffer_min_outerpricedist_v2(self, symbol: str, long_pos_price: float, short_pos_price: float, long_pos_qty: float, short_pos_qty: float, dynamic_outer_price_distance: float) -> tuple:
+    def should_replace_grid_updated_buffer_min_outerpricedist_v2(
+        self, 
+        symbol: str, 
+        long_pos_price: float, 
+        short_pos_price: float, 
+        long_pos_qty: float, 
+        short_pos_qty: float, 
+        dynamic_outer_price_distance_long: float, 
+        dynamic_outer_price_distance_short: float
+    ) -> tuple:
         try:
             current_price = self.exchange.get_current_price(symbol)
             logging.info(f"[{symbol}] Current price: {current_price}")
@@ -12918,11 +12859,11 @@ class BybitStrategy(BaseStrategy):
             replace_short_grid = False
 
             if long_pos_qty > 0 and last_reissue_price_long is not None:
-                required_price_move_long_pct = dynamic_outer_price_distance * 100.0
+                required_price_move_long_pct = dynamic_outer_price_distance_long * 100.0
                 price_change_pct_long = abs(current_price - last_reissue_price_long) / last_reissue_price_long * 100.0
 
                 logging.info(f"[{symbol}] Long position info:")
-                logging.info(f"Dynamic outer price distance: {dynamic_outer_price_distance * 100.0:.2f}%")
+                logging.info(f"Dynamic outer price distance: {dynamic_outer_price_distance_long * 100.0:.2f}%")
                 logging.info(f"  - Long position price: {long_pos_price}")
                 logging.info(f"  - Long position quantity: {long_pos_qty}")
                 logging.info(f"  - Required price move for reissue (long): {required_price_move_long_pct:.2f}%")
@@ -12934,11 +12875,11 @@ class BybitStrategy(BaseStrategy):
                     self.last_reissue_price_long[symbol] = current_price  # Update last reissue price for long
 
             if short_pos_qty > 0 and last_reissue_price_short is not None:
-                required_price_move_short_pct = dynamic_outer_price_distance * 100.0
+                required_price_move_short_pct = dynamic_outer_price_distance_short * 100.0
                 price_change_pct_short = abs(current_price - last_reissue_price_short) / last_reissue_price_short * 100.0
 
                 logging.info(f"[{symbol}] Short position info:")
-                logging.info(f"Dynamic outer price distance: {dynamic_outer_price_distance * 100.0:.2f}%")
+                logging.info(f"Dynamic outer price distance: {dynamic_outer_price_distance_short * 100.0:.2f}%")
                 logging.info(f"  - Short position price: {short_pos_price}")
                 logging.info(f"  - Short position quantity: {short_pos_qty}")
                 logging.info(f"  - Required price move for reissue (short): {required_price_move_short_pct:.2f}%")
@@ -12957,7 +12898,6 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.exception(f"Exception caught in should_replace_grid_updated_buffer_min_outerpricedist_v2: {e}")
             return False, False
-
             
     def should_replace_grid_updated_buffer_min_outerpricedist(self, symbol: str, long_pos_price: float, short_pos_price: float, long_pos_qty: float, short_pos_qty: float, min_outer_price_distance: float) -> tuple:
         try:
