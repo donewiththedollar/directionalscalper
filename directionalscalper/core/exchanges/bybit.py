@@ -15,7 +15,17 @@ from rate_limit import RateLimit
 logging = Logger(logger_name="BybitExchange", filename="BybitExchange.log", stream=True)
 
 class BybitExchange(Exchange):
-    def __init__(self, api_key, secret_key, passphrase=None, market_type='swap'):
+    def __init__(self, api_key, secret_key, passphrase=None, market_type='swap', collateral_currency='USDT'):
+        """
+        Initialize the BybitExchange class.
+
+        :param api_key: API key for authentication with Bybit.
+        :param secret_key: Secret key for authentication with Bybit.
+        :param passphrase
+        :param market_type: Type of market ('swap' or 'spot'). Default is 'swap'.
+        :param collateral_currency: Currency used as collateral for trading. Default is 'USDT'. If set to 'all', it will use the total available balance.
+        """
+
         if market_type == 'spot':
             super().__init__('bybit', api_key, secret_key, passphrase, market_type)
         else:
@@ -29,6 +39,7 @@ class BybitExchange(Exchange):
         self.rate_limiter = RateLimit(10, 1)
         self.general_rate_limiter = RateLimit(50, 1)
         self.order_rate_limiter = RateLimit(5, 1) 
+        self.collateral_currency = collateral_currency
 
     def log_order_active_times(self):
         try:
@@ -199,7 +210,7 @@ class BybitExchange(Exchange):
 
         return None
 
-    def get_available_balance_bybit(self, quote):
+    def get_available_balance_bybit(self):
         if self.exchange.has['fetchBalance']:
             try:
                 # Fetch the balance with params to specify the account type
@@ -208,12 +219,18 @@ class BybitExchange(Exchange):
                 # Log the raw response for debugging purposes
                 #logging.info(f"Raw available balance response from Bybit: {balance_response}")
 
+                if self.collateral_currency == 'all' and 'info' in balance_response:
+                    logging.info("quote is not set - pulling available balance from total available")
+
+                    available_balance = balance_response['info']['result']['list'][0]['totalAvailableBalance']
+                    return float(available_balance)
+
                 # Check for the required keys in the response
-                if 'free' in balance_response and quote in balance_response['free']:
+                if 'free' in balance_response and self.collateral_currency in balance_response['free']:
                     # Return the available balance for the specified currency
-                    return float(balance_response['free'][quote])
+                    return float(balance_response['free'][self.collateral_currency])
                 else:
-                    logging.warning(f"Available balance for {quote} not found in the response.")
+                    logging.warning(f"Available balance for {self.collateral_currency} not found in the response.")
 
             except Exception as e:
                 logging.info(f"Error fetching available balance from Bybit: {e}")
@@ -503,7 +520,7 @@ class BybitExchange(Exchange):
             logging.info(f"Error occurred while fetching Bybit wallet balance: {e}")
             return None
 
-    def get_futures_balance_bybit(self, quote):
+    def get_futures_balance_bybit(self):
         if self.exchange.has['fetchBalance']:
             try:
                 # Fetch the balance with params to specify the account type if needed
@@ -512,12 +529,18 @@ class BybitExchange(Exchange):
                 # Log the raw response for debugging purposes
                 #logging.info(f"Raw balance response from Bybit: {balance_response}")
 
+                if self.collateral_currency == 'all' and 'info' in balance_response:
+                    logging.info("quote is not set - pulling total balance from total equity")
+
+                    total_balance = balance_response['info']['result']['list'][0]['totalEquity']
+                    return total_balance
+
                 # Parse the balance
-                if quote in balance_response['total']:
-                    total_balance = balance_response['total'][quote]
+                if self.collateral_currency in balance_response['total']:
+                    total_balance = balance_response['total'][self.collateral_currency]
                     return total_balance
                 else:
-                    logging.info(f"Balance for {quote} not found in the response.")
+                    logging.info(f"Balance for {self.collateral_currency} not found in the response.")
             except Exception as e:
                 logging.info(f"Error fetching balance from Bybit: {e}")
 
