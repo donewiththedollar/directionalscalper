@@ -532,7 +532,7 @@ class BybitExchange(Exchange):
                 if self.collateral_currency == 'all' and 'info' in balance_response:
                     logging.info("quote is not set - pulling total balance from total equity")
 
-                    total_balance = balance_response['info']['result']['list'][0]['totalEquity']
+                    total_balance = balance_response['info']['result']['list'][0]['totalWalletBalance']
                     return total_balance
 
                 # Parse the balance
