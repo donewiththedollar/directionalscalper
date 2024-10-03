@@ -55,6 +55,8 @@
             "outer_price_distance": 0.059,
             "min_outer_price_distance": 0.019,
             "max_outer_price_distance": 0.049,
+            "max_outer_price_distance_long": 0.049,
+            "max_outer_price_distance_short": 0.059,
             "long_mode": true,
             "short_mode": true,
             "reissue_threshold": 0.001,
