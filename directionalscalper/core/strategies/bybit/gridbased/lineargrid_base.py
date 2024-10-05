@@ -143,7 +143,6 @@ class LinearGridBaseFutures(BybitStrategy):
 
             levels = self.config.linear_grid['levels']
             strength = self.config.linear_grid['strength']
-            outer_price_distance = self.config.linear_grid['outer_price_distance']
             long_mode = self.config.linear_grid['long_mode']
             short_mode = self.config.linear_grid['short_mode']
             reissue_threshold = self.config.linear_grid['reissue_threshold']

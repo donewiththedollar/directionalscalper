@@ -4,7 +4,6 @@ class ConfigInitializer:
         try:
             strategy_instance.levels = config.linear_grid['levels']
             strategy_instance.strength = config.linear_grid['strength']
-            strategy_instance.outer_price_distance = config.linear_grid['outer_price_distance']
             strategy_instance.long_mode = config.linear_grid['long_mode']
             strategy_instance.short_mode = config.linear_grid['short_mode']
             strategy_instance.reissue_threshold = config.linear_grid['reissue_threshold']

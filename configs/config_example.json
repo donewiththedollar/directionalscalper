@@ -52,7 +52,6 @@
             "wallet_exposure_limit_short": 0.001,
             "levels": 4,
             "strength": 1.4,
-            "outer_price_distance": 0.059,
             "min_outer_price_distance": 0.019,
             "max_outer_price_distance_long": 0.049,
             "max_outer_price_distance_short": 0.059,
