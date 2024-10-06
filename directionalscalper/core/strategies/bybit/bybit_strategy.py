@@ -79,6 +79,7 @@ class BybitStrategy(BaseStrategy):
         self.invalid_short_condition_time = {}
         self.next_long_tp_update = datetime.now() - timedelta(seconds=10)
         self.next_short_tp_update = datetime.now() - timedelta(seconds=10)
+        self.grid_cleared_status = defaultdict(lambda: {"long": False, "short": False})
         ConfigInitializer.initialize_config_attributes(self, config)
 
         try:
@@ -5505,6 +5506,8 @@ class BybitStrategy(BaseStrategy):
                 stop_loss_price_long = long_pos_price * (1 - stop_loss_long / 100) if long_pos_qty > 0 else None
                 stop_loss_price_short = short_pos_price * (1 + stop_loss_short / 100) if short_pos_qty > 0 else None
 
+                logging.debug(f"[{symbol}] stop_loss_short value: {stop_loss_short}, Calculated stop-loss price (short): {stop_loss_price_short}")
+
                 logging.info(f"[{symbol}] Current Price: {current_price}")
                 if long_pos_qty > 0:
                     logging.info(f"[{symbol}] Long Position Quantity: {long_pos_qty}, Entry Price: {long_pos_price}, Stop-Loss Price: {stop_loss_price_long}")
@@ -5522,13 +5525,17 @@ class BybitStrategy(BaseStrategy):
                     max_retries = 50  # Maximum number of retries
                     while long_pos_qty > 0.00001 and retry_counter < max_retries:
                         try:
-                            # Place a stop-loss order using create_normal_stop_loss_order_bybit
-                            self.create_normal_stop_loss_order_bybit(symbol, order_type='limit', side='sell', 
-                                                                    amount=long_pos_qty, price=stop_loss_price_long, 
-                                                                    positionIdx=1, reduce_only=True)
-                            logging.info(f"[{symbol}] Issued stop-loss limit order to sell {long_pos_qty} at {stop_loss_price_long}")
-                            time.sleep(5)  # Wait for some time to allow order to be filled
+                            # Fetch the latest best bid price to ensure fast execution
+                            best_bid_price = self.get_best_bid_price(symbol)
 
+                            # Place a stop-loss order using create_normal_stop_loss_order_bybit at the best bid price
+                            self.create_normal_stop_loss_order_bybit(symbol, order_type='limit', side='sell', 
+                                                                    amount=long_pos_qty, price=best_bid_price, 
+                                                                    positionIdx=1, reduce_only=True)
+                            logging.info(f"[{symbol}] Issued stop-loss limit order to sell {long_pos_qty} at {best_bid_price}")
+                            time.sleep(5)  # Wait for some time to allow the order to be filled
+
+                            # Re-fetch the long position quantity to see if it has been closed
                             long_pos_qty = self.get_position_qty(symbol, 'long')
                             logging.info(f"[{symbol}] Long position quantity after stop-loss attempt: {long_pos_qty}, retry attempt: {retry_counter + 1}")
 
@@ -5542,7 +5549,6 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"[{symbol}] Long position fully closed at stop-loss.")
                         self.clear_grid(symbol, 'buy')
                         logging.info(f"[{symbol}] Cleared long grid for symbol {symbol}")
-                        # self.active_long_grids.discard(symbol)
                         logging.info(f"[{symbol}] Removed from active long grids")
                 else:
                     logging.info(f"[{symbol}] Long position did not hit stop-loss level. Current price is {current_price}, stop-loss price is {stop_loss_price_long}.")
@@ -5554,13 +5560,17 @@ class BybitStrategy(BaseStrategy):
                     max_retries = 50
                     while short_pos_qty > 0.00001 and retry_counter < max_retries:
                         try:
-                            # Place a stop-loss order using create_normal_stop_loss_order_bybit
-                            self.create_normal_stop_loss_order_bybit(symbol, order_type='limit', side='buy', 
-                                                                    amount=short_pos_qty, price=stop_loss_price_short, 
-                                                                    positionIdx=2, reduce_only=True)
-                            logging.info(f"[{symbol}] Issued stop-loss limit order to buy {short_pos_qty} at {stop_loss_price_short}")
-                            time.sleep(5)
+                            # Fetch the latest best ask price to ensure fast execution
+                            best_ask_price = self.get_best_ask_price(symbol)
 
+                            # Place a stop-loss order using create_normal_stop_loss_order_bybit at the best ask price
+                            self.create_normal_stop_loss_order_bybit(symbol, order_type='limit', side='buy', 
+                                                                    amount=short_pos_qty, price=best_ask_price, 
+                                                                    positionIdx=2, reduce_only=True)
+                            logging.info(f"[{symbol}] Issued stop-loss limit order to buy {short_pos_qty} at {best_ask_price}")
+                            time.sleep(5)  # Wait for some time to allow the order to be filled
+
+                            # Re-fetch the short position quantity to see if it has been closed
                             short_pos_qty = self.get_position_qty(symbol, 'short')
                             logging.info(f"[{symbol}] Short position quantity after stop-loss attempt: {short_pos_qty}, retry attempt: {retry_counter + 1}")
 
@@ -5574,7 +5584,6 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"[{symbol}] Short position fully closed at stop-loss.")
                         self.clear_grid(symbol, 'sell')
                         logging.info(f"[{symbol}] Cleared short grid for symbol {symbol}")
-                        #self.active_short_grids.discard(symbol)
                         logging.info(f"[{symbol}] Removed from active short grids")
                 else:
                     logging.info(f"[{symbol}] Short position did not hit stop-loss level. Current price is {current_price}, stop-loss price is {stop_loss_price_short}.")
@@ -5662,26 +5671,13 @@ class BybitStrategy(BaseStrategy):
 
             logging.info(f"MFIRSI SIGNAL FOR {symbol}: {mfirsi_signal}")
 
-            def issue_grid_safely(side: str, grid_levels: list, amounts: list):
+            def issue_grid_safely(symbol: str, side: str, grid_levels: list, amounts: list):
                 """
                 Safely issue grid orders, ensuring no duplicates and handling errors gracefully.
                 """
                 try:
                     grid_set = self.active_long_grids if side == 'long' else self.active_short_grids
                     order_side = 'buy' if side == 'long' else 'sell'
-
-                    # Cancel existing grids for the side before issuing new ones
-                    # self.clear_grid(symbol, order_side)
-
-                    # Initialize filled_levels if not already done
-                    if symbol not in self.filled_levels:
-                        self.filled_levels[symbol] = {}
-                    if order_side not in self.filled_levels[symbol]:
-                        self.filled_levels[symbol][order_side] = set()  # Initialize as a set
-
-                    # Add logging to verify types before passing to issue_grid_orders
-                    logging.info(f"Inside issue_grid_safely - Type of grid_levels: {type(grid_levels)}, Value: {grid_levels}")
-                    logging.info(f"Inside issue_grid_safely - Type of amounts: {type(amounts)}, Value: {amounts}")
 
                     # Ensure grid_levels and amounts are lists
                     assert isinstance(grid_levels, list), f"Expected grid_levels to be a list, but got {type(grid_levels)}"
@@ -5691,16 +5687,61 @@ class BybitStrategy(BaseStrategy):
                         amounts = [amounts] * len(grid_levels)
                     assert isinstance(amounts, list), f"Expected amounts to be a list, but got {type(amounts)}"
 
-                    if symbol not in grid_set:
+                    # Only issue a new grid if the grid has been cleared
+                    if self.grid_cleared_status.get(symbol, {}).get(side, False):
                         logging.info(f"[{symbol}] Issuing new {side} grid orders.")
-                        self.clear_grid(symbol, order_side)
-                        logging.info(f"Cleared grid orders for {symbol} and {order_side}")
+
+                        # Clear grid cleared status before issuing new orders
+                        self.grid_cleared_status[symbol][side] = False
+
                         self.issue_grid_orders(symbol, order_side, grid_levels, amounts, side == 'long', self.filled_levels[symbol][order_side])
                         grid_set.add(symbol)
+
+                        logging.info(f"[{symbol}] Successfully issued {side} grid orders.")
                     else:
-                        logging.info(f"[{symbol}] {side.capitalize()} grid already exists. Skipping grid creation.")
+                        logging.warning(f"[{symbol}] Attempted to issue {side} grid orders, but grid clearance not confirmed. Skipping grid creation.")
                 except Exception as e:
-                    logging.error(f"Exception in issue_grid_safely: {e}")
+                    logging.error(f"Exception in issue_grid_safely for {symbol} - {side}: {e}")
+
+            # def issue_grid_safely(side: str, grid_levels: list, amounts: list):
+            #     """
+            #     Safely issue grid orders, ensuring no duplicates and handling errors gracefully.
+            #     """
+            #     try:
+            #         grid_set = self.active_long_grids if side == 'long' else self.active_short_grids
+            #         order_side = 'buy' if side == 'long' else 'sell'
+
+            #         # Cancel existing grids for the side before issuing new ones
+            #         # self.clear_grid(symbol, order_side)
+
+            #         # Initialize filled_levels if not already done
+            #         if symbol not in self.filled_levels:
+            #             self.filled_levels[symbol] = {}
+            #         if order_side not in self.filled_levels[symbol]:
+            #             self.filled_levels[symbol][order_side] = set()  # Initialize as a set
+
+            #         # Add logging to verify types before passing to issue_grid_orders
+            #         logging.info(f"Inside issue_grid_safely - Type of grid_levels: {type(grid_levels)}, Value: {grid_levels}")
+            #         logging.info(f"Inside issue_grid_safely - Type of amounts: {type(amounts)}, Value: {amounts}")
+
+            #         # Ensure grid_levels and amounts are lists
+            #         assert isinstance(grid_levels, list), f"Expected grid_levels to be a list, but got {type(grid_levels)}"
+                    
+            #         # Convert amounts to a list if it's an integer
+            #         if isinstance(amounts, int):
+            #             amounts = [amounts] * len(grid_levels)
+            #         assert isinstance(amounts, list), f"Expected amounts to be a list, but got {type(amounts)}"
+
+            #         if symbol not in grid_set:
+            #             logging.info(f"[{symbol}] Issuing new {side} grid orders.")
+            #             self.clear_grid(symbol, order_side)
+            #             logging.info(f"Cleared grid orders for {symbol} and {order_side}")
+            #             self.issue_grid_orders(symbol, order_side, grid_levels, amounts, side == 'long', self.filled_levels[symbol][order_side])
+            #             grid_set.add(symbol)
+            #         else:
+            #             logging.info(f"[{symbol}] {side.capitalize()} grid already exists. Skipping grid creation.")
+            #     except Exception as e:
+            #         logging.error(f"Exception in issue_grid_safely: {e}")
                     
             # # Determine whether to replace grids based on the updated buffer and outer price distance
             # replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist_v2(
@@ -5727,7 +5768,7 @@ class BybitStrategy(BaseStrategy):
                     buffer_percentage_long = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - long_pos_price) / long_pos_price)
                     buffer_distance_long = current_price * buffer_percentage_long
                     # self.clear_grid(symbol, "buy")
-                    issue_grid_safely('long', grid_levels_long, amounts_long)
+                    issue_grid_safely(symbol, 'long', grid_levels_long, amounts_long)
                     self.last_empty_grid_time[symbol]['long'] = current_time
                     logging.info(f"[{symbol}] Recalculated long grid levels with updated buffer: {grid_levels_long}")
                 else:
@@ -5743,7 +5784,7 @@ class BybitStrategy(BaseStrategy):
                     buffer_percentage_short = min_buffer_percentage + (max_buffer_percentage - min_buffer_percentage) * (abs(current_price - short_pos_price) / short_pos_price)
                     buffer_distance_short = current_price * buffer_percentage_short
                     # self.clear_grid(symbol, "sell")
-                    issue_grid_safely('short', grid_levels_short, amounts_short)
+                    issue_grid_safely(symbol, 'short', grid_levels_short, amounts_short)
                     self.last_empty_grid_time[symbol]['short'] = current_time
                     logging.info(f"[{symbol}] Recalculated short grid levels with updated buffer: {grid_levels_short}")
                 else:
@@ -5777,7 +5818,7 @@ class BybitStrategy(BaseStrategy):
                         modified_grid_levels_long[0] = best_bid_price
 
                         # Issue the grid only once initially
-                        issue_grid_safely('long', modified_grid_levels_long, amounts_long)
+                        issue_grid_safely(symbol, 'long', modified_grid_levels_long, amounts_long)
 
                         retry_counter = 0
                         max_retries = 100  # Set a maximum number of retries
@@ -5804,7 +5845,7 @@ class BybitStrategy(BaseStrategy):
                                 # Clear and re-issue the grid with updated best bid price
                                 self.clear_grid(symbol, 'buy')
                                 modified_grid_levels_long[0] = best_bid_price
-                                issue_grid_safely('long', modified_grid_levels_long, amounts_long)
+                                issue_grid_safely(symbol, 'long', modified_grid_levels_long, amounts_long)
 
                         logging.info(f"[{symbol}] Long position filled or max retries reached, exiting loop.")
                         self.last_signal_time[symbol] = current_time
@@ -5824,7 +5865,7 @@ class BybitStrategy(BaseStrategy):
                         modified_grid_levels_short[0] = best_ask_price
 
                         # Issue the grid only once initially
-                        issue_grid_safely('short', modified_grid_levels_short, amounts_short)
+                        issue_grid_safely(symbol, 'short', modified_grid_levels_short, amounts_short)
 
                         retry_counter = 0
                         max_retries = 50  # Set a maximum number of retries
@@ -5851,7 +5892,7 @@ class BybitStrategy(BaseStrategy):
                                 # Clear and re-issue the grid with updated best ask price
                                 self.clear_grid(symbol, 'sell')
                                 modified_grid_levels_short[0] = best_ask_price
-                                issue_grid_safely('short', modified_grid_levels_short, amounts_short)
+                                issue_grid_safely(symbol, 'short', modified_grid_levels_short, amounts_short)
 
                         logging.info(f"[{symbol}] Short position filled or max retries reached, exiting loop.")
                         self.last_signal_time[symbol] = current_time
@@ -5907,7 +5948,7 @@ class BybitStrategy(BaseStrategy):
 
                                     modified_grid_levels_long = grid_levels_long.copy()
                                     modified_grid_levels_long[0] = best_bid_price
-                                    issue_grid_safely('long', modified_grid_levels_long, amounts_long)
+                                    issue_grid_safely(symbol, 'long', modified_grid_levels_long, amounts_long)
 
                                     retry_counter = 0
                                     max_retries = 50
@@ -5927,7 +5968,7 @@ class BybitStrategy(BaseStrategy):
                                             logging.info(f"[{symbol}] Retrying long grid orders.")
                                             self.clear_grid(symbol, 'buy')
                                             modified_grid_levels_long[0] = best_bid_price
-                                            issue_grid_safely('long', modified_grid_levels_long, amounts_long)
+                                            issue_grid_safely(symbol, 'long', modified_grid_levels_long, amounts_long)
                                             time.sleep(4)
                                         else:
                                             logging.info(f"[{symbol}] Long position filled or max retries reached, exiting loop.")
@@ -5947,7 +5988,7 @@ class BybitStrategy(BaseStrategy):
 
                                     modified_grid_levels_short = grid_levels_short.copy()
                                     modified_grid_levels_short[0] = best_ask_price
-                                    issue_grid_safely('short', modified_grid_levels_short, amounts_short)
+                                    issue_grid_safely(symbol, 'short', modified_grid_levels_short, amounts_short)
 
                                     retry_counter = 0
                                     max_retries = 50
@@ -5967,7 +6008,7 @@ class BybitStrategy(BaseStrategy):
                                             logging.info(f"[{symbol}] Retrying short grid orders.")
                                             self.clear_grid(symbol, 'sell')
                                             modified_grid_levels_short[0] = best_ask_price
-                                            issue_grid_safely('short', modified_grid_levels_short, amounts_short)
+                                            issue_grid_safely(symbol, 'short', modified_grid_levels_short, amounts_short)
                                             time.sleep(4)
                                         else:
                                             logging.info(f"[{symbol}] Short position filled or max retries reached, exiting loop.")
@@ -6016,13 +6057,13 @@ class BybitStrategy(BaseStrategy):
                             logging.info(f"[{symbol}] Placing long grid orders for existing open position.")
                             self.clear_grid(symbol, 'buy')
                             #self.active_long_grids.discard(symbol)
-                            issue_grid_safely('long', grid_levels_long, amounts_long)
+                            issue_grid_safely(symbol, 'long', grid_levels_long, amounts_long)
                     if short_pos_qty > 0 and not short_grid_active and symbol not in self.max_qty_reached_symbol_short:
                         if not self.auto_reduce_active_short.get(symbol, False) or entry_during_autoreduce:
                             logging.info(f"[{symbol}] Placing short grid orders for existing open position.")
                             self.clear_grid(symbol, 'sell')
                             #self.active_short_grids.discard(symbol)
-                            issue_grid_safely('short', grid_levels_short, amounts_short)
+                            issue_grid_safely(symbol, 'short', grid_levels_short, amounts_short)
 
                 current_time = time.time()
 
@@ -12572,10 +12613,8 @@ class BybitStrategy(BaseStrategy):
 
         retry_counter = 0
         while retry_counter < max_retries:
-            if side == 'buy':
-                self.cancel_grid_orders(symbol, "buy")
-            elif side == 'sell':
-                self.cancel_grid_orders(symbol, "sell")
+            # Cancel all orders for the specified side
+            self.cancel_grid_orders(symbol, side)
 
             # Re-fetch the open orders and filter out reduce-only orders
             open_orders_after_clear = self.retry_api_call(self.exchange.get_open_orders, symbol)
@@ -12583,13 +12622,15 @@ class BybitStrategy(BaseStrategy):
 
             if not lingering_orders:
                 # Clear filled levels for the side when no more lingering orders
+                self.filled_levels[symbol][side].clear()
+                logging.info(f"Successfully cleared {side} grid for {symbol}.")
+                
+                # Mark the grid as cleared
                 if side == 'buy':
-                    self.filled_levels[symbol]["buy"].clear()
-                    logging.info(f"Successfully cleared long grid for {symbol}")
+                    self.grid_cleared_status[symbol]['long'] = True
                 elif side == 'sell':
-                    self.filled_levels[symbol]["sell"].clear()
-                    logging.info(f"Successfully cleared short grid for {symbol}")
-                logging.info(f"{side.capitalize()} grid fully cleared for {symbol}.")
+                    self.grid_cleared_status[symbol]['short'] = True
+
                 break
             else:
                 logging.warning(f"Lingering {side} orders detected for {symbol} (non-reduce-only): {lingering_orders}. Retrying...")
@@ -12600,6 +12641,42 @@ class BybitStrategy(BaseStrategy):
             logging.error(f"Failed to clear all {side} grid orders for {symbol} after {max_retries} attempts.")
         else:
             logging.info(f"{side.capitalize()} grid cleared after {retry_counter} retries for {symbol}.")
+
+
+    # def clear_grid(self, symbol, side, max_retries=50, delay=2):
+    #     """Clear all orders and internal states for a specific grid side with retries, excluding reduce-only orders."""
+    #     logging.info(f"Clearing {side} grid for {symbol}")
+
+    #     retry_counter = 0
+    #     while retry_counter < max_retries:
+    #         if side == 'buy':
+    #             self.cancel_grid_orders(symbol, "buy")
+    #         elif side == 'sell':
+    #             self.cancel_grid_orders(symbol, "sell")
+
+    #         # Re-fetch the open orders and filter out reduce-only orders
+    #         open_orders_after_clear = self.retry_api_call(self.exchange.get_open_orders, symbol)
+    #         lingering_orders = [o for o in open_orders_after_clear if o['info']['side'].lower() == side and not o['info'].get('reduceOnly', False)]
+
+    #         if not lingering_orders:
+    #             # Clear filled levels for the side when no more lingering orders
+    #             if side == 'buy':
+    #                 self.filled_levels[symbol]["buy"].clear()
+    #                 logging.info(f"Successfully cleared long grid for {symbol}")
+    #             elif side == 'sell':
+    #                 self.filled_levels[symbol]["sell"].clear()
+    #                 logging.info(f"Successfully cleared short grid for {symbol}")
+    #             logging.info(f"{side.capitalize()} grid fully cleared for {symbol}.")
+    #             break
+    #         else:
+    #             logging.warning(f"Lingering {side} orders detected for {symbol} (non-reduce-only): {lingering_orders}. Retrying...")
+    #             retry_counter += 1
+    #             time.sleep(delay)  # Wait before retrying
+
+    #     if retry_counter == max_retries:
+    #         logging.error(f"Failed to clear all {side} grid orders for {symbol} after {max_retries} attempts.")
+    #     else:
+    #         logging.info(f"{side.capitalize()} grid cleared after {retry_counter} retries for {symbol}.")
 
     # def clear_grid(self, symbol, side):
     #     """Clear all orders and internal states for a specific grid side."""
