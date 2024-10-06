@@ -5702,52 +5702,6 @@ class BybitStrategy(BaseStrategy):
                         logging.warning(f"[{symbol}] Attempted to issue {side} grid orders, but grid clearance not confirmed. Skipping grid creation.")
                 except Exception as e:
                     logging.error(f"Exception in issue_grid_safely for {symbol} - {side}: {e}")
-
-            # def issue_grid_safely(side: str, grid_levels: list, amounts: list):
-            #     """
-            #     Safely issue grid orders, ensuring no duplicates and handling errors gracefully.
-            #     """
-            #     try:
-            #         grid_set = self.active_long_grids if side == 'long' else self.active_short_grids
-            #         order_side = 'buy' if side == 'long' else 'sell'
-
-            #         # Cancel existing grids for the side before issuing new ones
-            #         # self.clear_grid(symbol, order_side)
-
-            #         # Initialize filled_levels if not already done
-            #         if symbol not in self.filled_levels:
-            #             self.filled_levels[symbol] = {}
-            #         if order_side not in self.filled_levels[symbol]:
-            #             self.filled_levels[symbol][order_side] = set()  # Initialize as a set
-
-            #         # Add logging to verify types before passing to issue_grid_orders
-            #         logging.info(f"Inside issue_grid_safely - Type of grid_levels: {type(grid_levels)}, Value: {grid_levels}")
-            #         logging.info(f"Inside issue_grid_safely - Type of amounts: {type(amounts)}, Value: {amounts}")
-
-            #         # Ensure grid_levels and amounts are lists
-            #         assert isinstance(grid_levels, list), f"Expected grid_levels to be a list, but got {type(grid_levels)}"
-                    
-            #         # Convert amounts to a list if it's an integer
-            #         if isinstance(amounts, int):
-            #             amounts = [amounts] * len(grid_levels)
-            #         assert isinstance(amounts, list), f"Expected amounts to be a list, but got {type(amounts)}"
-
-            #         if symbol not in grid_set:
-            #             logging.info(f"[{symbol}] Issuing new {side} grid orders.")
-            #             self.clear_grid(symbol, order_side)
-            #             logging.info(f"Cleared grid orders for {symbol} and {order_side}")
-            #             self.issue_grid_orders(symbol, order_side, grid_levels, amounts, side == 'long', self.filled_levels[symbol][order_side])
-            #             grid_set.add(symbol)
-            #         else:
-            #             logging.info(f"[{symbol}] {side.capitalize()} grid already exists. Skipping grid creation.")
-            #     except Exception as e:
-            #         logging.error(f"Exception in issue_grid_safely: {e}")
-                    
-            # # Determine whether to replace grids based on the updated buffer and outer price distance
-            # replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist_v2(
-            #     symbol, long_pos_price, short_pos_price, long_pos_qty, short_pos_qty,
-            #     dynamic_outer_price_distance=dynamic_outer_price_distance
-            # )
             
             replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist_v2(
                 symbol, 
