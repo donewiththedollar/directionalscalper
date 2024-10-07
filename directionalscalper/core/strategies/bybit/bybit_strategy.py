@@ -5490,6 +5490,34 @@ class BybitStrategy(BaseStrategy):
             logging.error(f"[{symbol}] Failed to issue reduce-only stop loss order: {e}")
             raise
 
+    def trigger_stop_loss(self, symbol, pos_qty, side, stop_loss_price, best_price):
+        try:
+            logging.info(f"[{symbol}] {side.capitalize()} position hit stop-loss at {stop_loss_price}. Issuing reduce-only limit order.")
+            
+            retry_counter = 0
+            max_retries = 50  # Maximum retries
+
+            while pos_qty > 0.00001 and retry_counter < max_retries:
+                best_price = self.get_best_bid_price(symbol) if side == 'long' else self.get_best_ask_price(symbol)
+
+                self.create_normal_stop_loss_order_bybit(
+                    symbol, order_type='limit', side='sell' if side == 'long' else 'buy', 
+                    amount=pos_qty, price=best_price, positionIdx=1 if side == 'long' else 2, reduce_only=True
+                )
+
+                logging.info(f"[{symbol}] Issued stop-loss order to {side} {pos_qty} at {best_price}")
+                time.sleep(5)
+
+                pos_qty = self.get_position_qty(symbol, side)
+                retry_counter += 1
+
+            if pos_qty <= 0.00001:
+                self.clear_grid(symbol, 'buy' if side == 'long' else 'sell')
+                logging.info(f"[{symbol}] {side.capitalize()} position fully closed at stop-loss.")
+
+        except Exception as e:
+            logging.error(f"[{symbol}] Error in trigger_stop_loss for {side}: {e}")
+
     def handle_grid_trades(self, symbol, grid_levels_long, grid_levels_short, long_grid_active, short_grid_active,
                         long_pos_qty, short_pos_qty, current_price, dynamic_outer_price_distance_long, dynamic_outer_price_distance_short, min_outer_price_distance, 
                         buffer_percentage_long, buffer_percentage_short, adjusted_grid_levels_long, adjusted_grid_levels_short, levels, amounts_long, amounts_short, 
@@ -5501,94 +5529,160 @@ class BybitStrategy(BaseStrategy):
                         stop_loss_long, stop_loss_short, stop_loss_enabled=True):
 
         try:
+            # Determine if there is an open long or short position
+            has_open_long_position = long_pos_qty > 0
+            has_open_short_position = short_pos_qty > 0
+
+            # Store previous state of long and short positions for comparison
+            if not hasattr(self, 'previous_position_state'):
+                self.previous_position_state = {}
+
+            # Initialize symbol if not present in previous_position_state
+            if symbol not in self.previous_position_state:
+                self.previous_position_state[symbol] = {
+                    'long': False,
+                    'short': False,
+                    'long_initial_entry': None,  # Initialize long_initial_entry
+                    'short_initial_entry': None  # Initialize short_initial_entry
+                }
+
+            # Check for changes in position state (open -> closed)
+            long_position_closed = self.previous_position_state[symbol]['long'] and not has_open_long_position
+            short_position_closed = self.previous_position_state[symbol]['short'] and not has_open_short_position
+
+            # Reset initial entry prices if positions have closed
+            if long_position_closed:
+                logging.info(f"[{symbol}] Long position closed. Resetting initial entry price for long.")
+                self.previous_position_state[symbol]['long_initial_entry'] = None
+            
+            if short_position_closed:
+                logging.info(f"[{symbol}] Short position closed. Resetting initial entry price for short.")
+                self.previous_position_state[symbol]['short_initial_entry'] = None
+
+            # Update position state tracking
+            self.previous_position_state[symbol]['long'] = has_open_long_position
+            self.previous_position_state[symbol]['short'] = has_open_short_position
+
+            # Set initial entry price when a position is opened
+            if has_open_long_position and not self.previous_position_state[symbol]['long_initial_entry']:
+                self.previous_position_state[symbol]['long_initial_entry'] = long_pos_price
+                logging.info(f"[{symbol}] Long position opened. Recording initial entry price for stop-loss: {long_pos_price}")
+
+            if has_open_short_position and not self.previous_position_state[symbol]['short_initial_entry']:
+                self.previous_position_state[symbol]['short_initial_entry'] = short_pos_price
+                logging.info(f"[{symbol}] Short position opened. Recording initial entry price for stop-loss: {short_pos_price}")
+
+            # Handle stop-loss logic using the initial entry prices
             if stop_loss_enabled:
-                # Calculate stop-loss trigger prices based on the percentage underwater
-                stop_loss_price_long = long_pos_price * (1 - stop_loss_long / 100) if long_pos_qty > 0 else None
-                stop_loss_price_short = short_pos_price * (1 + stop_loss_short / 100) if short_pos_qty > 0 else None
+                stop_loss_price_long = self.previous_position_state[symbol]['long_initial_entry'] * (1 - stop_loss_long / 100) if has_open_long_position else None
+                stop_loss_price_short = self.previous_position_state[symbol]['short_initial_entry'] * (1 + stop_loss_short / 100) if has_open_short_position else None
 
-                logging.debug(f"[{symbol}] stop_loss_short value: {stop_loss_short}, Calculated stop-loss price (short): {stop_loss_price_short}")
+                logging.info(f"[{symbol}] Calculated stop-loss prices: Long - {stop_loss_price_long}, Short - {stop_loss_price_short}")
 
-                logging.info(f"[{symbol}] Current Price: {current_price}")
-                if long_pos_qty > 0:
+                # Long position stop-loss check
+                if has_open_long_position:
                     logging.info(f"[{symbol}] Long Position Quantity: {long_pos_qty}, Entry Price: {long_pos_price}, Stop-Loss Price: {stop_loss_price_long}")
-                    if current_price > stop_loss_price_long:
-                        logging.info(f"[{symbol}] Long position safe. Current price is {current_price - stop_loss_price_long:.2f} above stop-loss price.")
-                if short_pos_qty > 0:
+                    if current_price <= stop_loss_price_long:
+                        logging.info(f"[{symbol}] Long position hit stop-loss at {stop_loss_price_long}. Triggering stop-loss.")
+                        self.trigger_stop_loss(symbol, long_pos_qty, 'long', stop_loss_price_long, best_bid_price)
+
+                # Short position stop-loss check
+                if has_open_short_position:
                     logging.info(f"[{symbol}] Short Position Quantity: {short_pos_qty}, Entry Price: {short_pos_price}, Stop-Loss Price: {stop_loss_price_short}")
-                    if current_price < stop_loss_price_short:
-                        logging.info(f"[{symbol}] Short position safe. Current price is {stop_loss_price_short - current_price:.2f} below stop-loss price.")
-
-                # Stop-loss logic for long positions
-                if long_pos_qty > 0 and current_price <= stop_loss_price_long:
-                    logging.info(f"[{symbol}] Long position hit stop-loss level at {stop_loss_price_long}. Issuing reduce-only limit order.")
-                    retry_counter = 0
-                    max_retries = 50  # Maximum number of retries
-                    while long_pos_qty > 0.00001 and retry_counter < max_retries:
-                        try:
-                            # Fetch the latest best bid price to ensure fast execution
-                            best_bid_price = self.get_best_bid_price(symbol)
-
-                            # Place a stop-loss order using create_normal_stop_loss_order_bybit at the best bid price
-                            self.create_normal_stop_loss_order_bybit(symbol, order_type='limit', side='sell', 
-                                                                    amount=long_pos_qty, price=best_bid_price, 
-                                                                    positionIdx=1, reduce_only=True)
-                            logging.info(f"[{symbol}] Issued stop-loss limit order to sell {long_pos_qty} at {best_bid_price}")
-                            time.sleep(5)  # Wait for some time to allow the order to be filled
-
-                            # Re-fetch the long position quantity to see if it has been closed
-                            long_pos_qty = self.get_position_qty(symbol, 'long')
-                            logging.info(f"[{symbol}] Long position quantity after stop-loss attempt: {long_pos_qty}, retry attempt: {retry_counter + 1}")
-
-                        except Exception as e:
-                            logging.error(f"[{symbol}] Error during stop-loss attempt for long position: {e}")
-                            break
-
-                        retry_counter += 1
-
-                    if long_pos_qty <= 0.00001:
-                        logging.info(f"[{symbol}] Long position fully closed at stop-loss.")
-                        self.clear_grid(symbol, 'buy')
-                        logging.info(f"[{symbol}] Cleared long grid for symbol {symbol}")
-                        logging.info(f"[{symbol}] Removed from active long grids")
-                else:
-                    logging.info(f"[{symbol}] Long position did not hit stop-loss level. Current price is {current_price}, stop-loss price is {stop_loss_price_long}.")
-
-                # Stop-loss logic for short positions
-                if short_pos_qty > 0 and current_price >= stop_loss_price_short:
-                    logging.info(f"[{symbol}] Short position hit stop-loss level at {stop_loss_price_short}. Issuing reduce-only limit order.")
-                    retry_counter = 0
-                    max_retries = 50
-                    while short_pos_qty > 0.00001 and retry_counter < max_retries:
-                        try:
-                            # Fetch the latest best ask price to ensure fast execution
-                            best_ask_price = self.get_best_ask_price(symbol)
-
-                            # Place a stop-loss order using create_normal_stop_loss_order_bybit at the best ask price
-                            self.create_normal_stop_loss_order_bybit(symbol, order_type='limit', side='buy', 
-                                                                    amount=short_pos_qty, price=best_ask_price, 
-                                                                    positionIdx=2, reduce_only=True)
-                            logging.info(f"[{symbol}] Issued stop-loss limit order to buy {short_pos_qty} at {best_ask_price}")
-                            time.sleep(5)  # Wait for some time to allow the order to be filled
-
-                            # Re-fetch the short position quantity to see if it has been closed
-                            short_pos_qty = self.get_position_qty(symbol, 'short')
-                            logging.info(f"[{symbol}] Short position quantity after stop-loss attempt: {short_pos_qty}, retry attempt: {retry_counter + 1}")
-
-                        except Exception as e:
-                            logging.error(f"[{symbol}] Error during stop-loss attempt for short position: {e}")
-                            break
-
-                        retry_counter += 1
-
-                    if short_pos_qty <= 0.00001:
-                        logging.info(f"[{symbol}] Short position fully closed at stop-loss.")
-                        self.clear_grid(symbol, 'sell')
-                        logging.info(f"[{symbol}] Cleared short grid for symbol {symbol}")
-                        logging.info(f"[{symbol}] Removed from active short grids")
-                else:
-                    logging.info(f"[{symbol}] Short position did not hit stop-loss level. Current price is {current_price}, stop-loss price is {stop_loss_price_short}.")
+                    if current_price >= stop_loss_price_short:
+                        logging.info(f"[{symbol}] Short position hit stop-loss at {stop_loss_price_short}. Triggering stop-loss.")
+                        self.trigger_stop_loss(symbol, short_pos_qty, 'short', stop_loss_price_short, best_ask_price)
             else:
-                logging.info(f"[{symbol}] Stop-loss is disabled.")
+                logging.info(f"Stop-loss disabled")
+
+            # if stop_loss_enabled:
+            #     # Calculate stop-loss trigger prices based on the percentage underwater
+            #     stop_loss_price_long = long_pos_price * (1 - stop_loss_long / 100) if long_pos_qty > 0 else None
+            #     stop_loss_price_short = short_pos_price * (1 + stop_loss_short / 100) if short_pos_qty > 0 else None
+
+            #     logging.debug(f"[{symbol}] stop_loss_short value: {stop_loss_short}, Calculated stop-loss price (short): {stop_loss_price_short}")
+
+            #     logging.info(f"[{symbol}] Current Price: {current_price}")
+            #     if long_pos_qty > 0:
+            #         logging.info(f"[{symbol}] Long Position Quantity: {long_pos_qty}, Entry Price: {long_pos_price}, Stop-Loss Price: {stop_loss_price_long}")
+            #         if current_price > stop_loss_price_long:
+            #             logging.info(f"[{symbol}] Long position safe. Current price is {current_price - stop_loss_price_long:.2f} above stop-loss price.")
+            #     if short_pos_qty > 0:
+            #         logging.info(f"[{symbol}] Short Position Quantity: {short_pos_qty}, Entry Price: {short_pos_price}, Stop-Loss Price: {stop_loss_price_short}")
+            #         if current_price < stop_loss_price_short:
+            #             logging.info(f"[{symbol}] Short position safe. Current price is {stop_loss_price_short - current_price:.2f} below stop-loss price.")
+
+            #     # Stop-loss logic for long positions
+            #     if long_pos_qty > 0 and current_price <= stop_loss_price_long:
+            #         logging.info(f"[{symbol}] Long position hit stop-loss level at {stop_loss_price_long}. Issuing reduce-only limit order.")
+            #         retry_counter = 0
+            #         max_retries = 50  # Maximum number of retries
+            #         while long_pos_qty > 0.00001 and retry_counter < max_retries:
+            #             try:
+            #                 # Fetch the latest best bid price to ensure fast execution
+            #                 best_bid_price = self.get_best_bid_price(symbol)
+
+            #                 # Place a stop-loss order using create_normal_stop_loss_order_bybit at the best bid price
+            #                 self.create_normal_stop_loss_order_bybit(symbol, order_type='limit', side='sell', 
+            #                                                         amount=long_pos_qty, price=best_bid_price, 
+            #                                                         positionIdx=1, reduce_only=True)
+            #                 logging.info(f"[{symbol}] Issued stop-loss limit order to sell {long_pos_qty} at {best_bid_price}")
+            #                 time.sleep(5)  # Wait for some time to allow the order to be filled
+
+            #                 # Re-fetch the long position quantity to see if it has been closed
+            #                 long_pos_qty = self.get_position_qty(symbol, 'long')
+            #                 logging.info(f"[{symbol}] Long position quantity after stop-loss attempt: {long_pos_qty}, retry attempt: {retry_counter + 1}")
+
+            #             except Exception as e:
+            #                 logging.error(f"[{symbol}] Error during stop-loss attempt for long position: {e}")
+            #                 break
+
+            #             retry_counter += 1
+
+            #         if long_pos_qty <= 0.00001:
+            #             logging.info(f"[{symbol}] Long position fully closed at stop-loss.")
+            #             self.clear_grid(symbol, 'buy')
+            #             logging.info(f"[{symbol}] Cleared long grid for symbol {symbol}")
+            #             logging.info(f"[{symbol}] Removed from active long grids")
+            #     else:
+            #         logging.info(f"[{symbol}] Long position did not hit stop-loss level. Current price is {current_price}, stop-loss price is {stop_loss_price_long}.")
+
+            #     # Stop-loss logic for short positions
+            #     if short_pos_qty > 0 and current_price >= stop_loss_price_short:
+            #         logging.info(f"[{symbol}] Short position hit stop-loss level at {stop_loss_price_short}. Issuing reduce-only limit order.")
+            #         retry_counter = 0
+            #         max_retries = 50
+            #         while short_pos_qty > 0.00001 and retry_counter < max_retries:
+            #             try:
+            #                 # Fetch the latest best ask price to ensure fast execution
+            #                 best_ask_price = self.get_best_ask_price(symbol)
+
+            #                 # Place a stop-loss order using create_normal_stop_loss_order_bybit at the best ask price
+            #                 self.create_normal_stop_loss_order_bybit(symbol, order_type='limit', side='buy', 
+            #                                                         amount=short_pos_qty, price=best_ask_price, 
+            #                                                         positionIdx=2, reduce_only=True)
+            #                 logging.info(f"[{symbol}] Issued stop-loss limit order to buy {short_pos_qty} at {best_ask_price}")
+            #                 time.sleep(5)  # Wait for some time to allow the order to be filled
+
+            #                 # Re-fetch the short position quantity to see if it has been closed
+            #                 short_pos_qty = self.get_position_qty(symbol, 'short')
+            #                 logging.info(f"[{symbol}] Short position quantity after stop-loss attempt: {short_pos_qty}, retry attempt: {retry_counter + 1}")
+
+            #             except Exception as e:
+            #                 logging.error(f"[{symbol}] Error during stop-loss attempt for short position: {e}")
+            #                 break
+
+            #             retry_counter += 1
+
+            #         if short_pos_qty <= 0.00001:
+            #             logging.info(f"[{symbol}] Short position fully closed at stop-loss.")
+            #             self.clear_grid(symbol, 'sell')
+            #             logging.info(f"[{symbol}] Cleared short grid for symbol {symbol}")
+            #             logging.info(f"[{symbol}] Removed from active short grids")
+            #     else:
+            #         logging.info(f"[{symbol}] Short position did not hit stop-loss level. Current price is {current_price}, stop-loss price is {stop_loss_price_short}.")
+            # else:
+            #     logging.info(f"[{symbol}] Stop-loss is disabled.")
 
             # Fetch open symbols for long and short positions
             open_symbols_long = self.get_open_symbols_long(open_position_data)
