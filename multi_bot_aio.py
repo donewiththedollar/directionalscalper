@@ -192,7 +192,7 @@ class DirectionalMarketMaker:
 
         # Initialize the exchange based on whether a passphrase is required
         if exchange_name.lower() in ['bybit', 'binance']:  # Add other exchanges here that do not require a passphrase
-            self.exchange = exchange_class(api_key, secret_key)
+            self.exchange = exchange_class(api_key, secret_key, collateral_currency=exchange_config.collateral_currency)
         elif exchange_name.lower() == 'bybit_spot':
             self.exchange = exchange_class(api_key, secret_key, 'spot')
         else:

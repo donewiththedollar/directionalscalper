@@ -186,8 +186,9 @@ class Exchange(BaseModel):
     account_name: str
     api_key: str
     api_secret: str
-    passphrase: Optional[str] = None
     symbols_allowed: int = 12
+    passphrase: Optional[str] = None
+    collateral_currency: Optional[str] = "USDT"
 
 class Logger(BaseModel):
     level: str = "info"

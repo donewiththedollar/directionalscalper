@@ -119,7 +119,7 @@ class BybitSpotGridStrategy(BybitStrategy):
                 iteration_start_time = time.time()
 
                 total_equity = self.retry_api_call(self.exchange.get_balance_bybit, quote_currency)
-                available_equity = self.retry_api_call(self.exchange.get_available_balance_bybit, quote_currency)
+                available_equity = self.retry_api_call(self.exchange.get_available_balance_bybit)
                 last_equity_fetch_time = current_time
 
                 logging.info(f"Total equity: {total_equity}")

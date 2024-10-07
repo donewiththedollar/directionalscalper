@@ -133,7 +133,6 @@ class LinearGridBaseFutures(BybitStrategy):
             logging.info(f"Running for symbol (inside run_single_symbol method): {symbol}")
 
             # Definitions
-            quote_currency = "USDT"
             max_retries = 5
             retry_delay = 5
 
@@ -325,7 +324,7 @@ class LinearGridBaseFutures(BybitStrategy):
                 # logging.info(f"{symbol} last update time: {position_last_update_time}")
 
                 # Fetch equity data
-                fetched_total_equity = self.retry_api_call(self.exchange.get_futures_balance_bybit, quote_currency)
+                fetched_total_equity = self.retry_api_call(self.exchange.get_futures_balance_bybit)
 
                 logging.info(f"Fetched total equity: {fetched_total_equity}")
 
@@ -345,7 +344,7 @@ class LinearGridBaseFutures(BybitStrategy):
                         logging.warning("Failed to fetch valid total_equity or received 0.0. Using last known value.")
                         total_equity = self.last_known_equity  # Use last known equity
 
-                    available_equity = self.retry_api_call(self.exchange.get_available_balance_bybit, quote_currency)
+                    available_equity = self.retry_api_call(self.exchange.get_available_balance_bybit)
                     last_equity_fetch_time = current_time
 
                     logging.info(f"Total equity: {total_equity}")
