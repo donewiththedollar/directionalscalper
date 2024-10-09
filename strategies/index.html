@@ -595,12 +595,36 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Long and Short Auto-Rotating Futures Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#this-configuration-is-giga-safe-and-has-had-a-100-winrate-over-6month-period-on-live" class="md-nav__link">
+    <span class="md-ellipsis">
+      This configuration is "giga safe" and has had a 100% winrate over 6month period on live
+    </span>
+  </a>
+  
 </li>
         
           <li class="md-nav__item">
-  <a href="#long-only-grid-targeting-one-symbol-or-more-via-whitelist-and-target_coins_mode" class="md-nav__link">
+  <a href="#this-strategy-is-utilizing-high-frequency-machine-learning-logic-warning-medium-high-risk" class="md-nav__link">
     <span class="md-ellipsis">
-      Long only grid targeting one symbol or more via whitelist and target_coins_mode
+      This strategy is utilizing high frequency machine learning logic (WARNING: MEDIUM-HIGH RISK)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#long-and-short-grid-targeting-one-symbol-or-more-via-whitelist-and-target_coins_mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      Long and short grid targeting one symbol or more via whitelist and target_coins_mode
     </span>
   </a>
   
@@ -815,12 +839,36 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Long and Short Auto-Rotating Futures Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#this-configuration-is-giga-safe-and-has-had-a-100-winrate-over-6month-period-on-live" class="md-nav__link">
+    <span class="md-ellipsis">
+      This configuration is "giga safe" and has had a 100% winrate over 6month period on live
+    </span>
+  </a>
+  
 </li>
         
           <li class="md-nav__item">
-  <a href="#long-only-grid-targeting-one-symbol-or-more-via-whitelist-and-target_coins_mode" class="md-nav__link">
+  <a href="#this-strategy-is-utilizing-high-frequency-machine-learning-logic-warning-medium-high-risk" class="md-nav__link">
     <span class="md-ellipsis">
-      Long only grid targeting one symbol or more via whitelist and target_coins_mode
+      This strategy is utilizing high frequency machine learning logic (WARNING: MEDIUM-HIGH RISK)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#long-and-short-grid-targeting-one-symbol-or-more-via-whitelist-and-target_coins_mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      Long and short grid targeting one symbol or more via whitelist and target_coins_mode
     </span>
   </a>
   
@@ -990,6 +1038,7 @@
 </table>
 <h3 id="example-configurations">Example Configurations</h3>
 <h4 id="long-and-short-auto-rotating-futures-configuration">Long and Short Auto-Rotating Futures Configuration</h4>
+<h5 id="this-configuration-is-giga-safe-and-has-had-a-100-winrate-over-6month-period-on-live">This configuration is "giga safe" and has had a 100% winrate over 6month period on live</h5>
 <p>This configuration utilizes machine learning-based signals and implements a grid with proper DCA (Dollar Cost Averaging) to ensure each grid level meaningfully adjusts the position to the current market price.</p>
 <pre><code class="language-json">{
     &quot;api&quot;: {
@@ -1003,7 +1052,7 @@
         &quot;volume_check&quot;: false,
         &quot;min_distance&quot;: 0.15,
         &quot;min_volume&quot;: 10000,
-        &quot;upnl_profit_pct&quot;: 0.0029,
+        &quot;upnl_profit_pct&quot;: 0.0024,
         &quot;max_upnl_profit_pct&quot;: 0.0040,
         &quot;auto_reduce_enabled&quot;: false,
         &quot;auto_reduce_start_pct&quot;: 0.068,
@@ -1119,7 +1168,8 @@
   }
 </code></pre>
 <p>This configuration utilizes machine learning-based signals and implements a grid with proper DCA (Dollar Cost Averaging) to ensure each grid level meaningfully adjusts the position to the current market price.</p>
-<h4 id="long-only-grid-targeting-one-symbol-or-more-via-whitelist-and-target_coins_mode">Long only grid targeting one symbol or more via whitelist and target_coins_mode</h4>
+<h5 id="this-strategy-is-utilizing-high-frequency-machine-learning-logic-warning-medium-high-risk">This strategy is utilizing high frequency machine learning logic (WARNING: MEDIUM-HIGH RISK)</h5>
+<h4 id="long-and-short-grid-targeting-one-symbol-or-more-via-whitelist-and-target_coins_mode">Long and short grid targeting one symbol or more via whitelist and target_coins_mode</h4>
 <pre><code class="language-json">{
     &quot;api&quot;: {
         &quot;filename&quot;: &quot;quantdatav2_bybit.json&quot;,
@@ -1172,13 +1222,13 @@
             &quot;max_qty_percent_short&quot;: 10000,
             &quot;auto_reduce_cooldown_enabled&quot;: false,
             &quot;auto_reduce_cooldown_start_pct&quot;: 0.051,
-            &quot;wallet_exposure_limit_long&quot;: 0.25,
+            &quot;wallet_exposure_limit_long&quot;: 0.10,
             &quot;wallet_exposure_limit_short&quot;: 0.001,
             &quot;levels&quot;: 3,
             &quot;strength&quot;: 1.4,
             &quot;min_outer_price_distance&quot;: 0.019,
-            &quot;max_outer_price_distance_long&quot;: 0.039,
-            &quot;max_outer_price_distance_short&quot;: 0.049,
+            &quot;max_outer_price_distance_long&quot;: 0.049,
+            &quot;max_outer_price_distance_short&quot;: 0.059,
             &quot;long_mode&quot;: true,
             &quot;short_mode&quot;: true,
             &quot;reissue_threshold&quot;: 0.001,
@@ -1195,8 +1245,8 @@
             &quot;failsafe_start_pct&quot;: 0.05,
             &quot;long_failsafe_upnl_pct&quot;: 10.0,
             &quot;short_failsafe_upnl_pct&quot;: 10.0,
-            &quot;stop_loss_enabled&quot;: false,
-            &quot;stop_loss_long&quot;: 15.0,
+            &quot;stop_loss_enabled&quot;: true,
+            &quot;stop_loss_long&quot;: 8.9,
             &quot;stop_loss_short&quot;: 15.0
         },
         &quot;hotkeys&quot;: {
