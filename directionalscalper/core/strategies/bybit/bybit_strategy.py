@@ -4960,6 +4960,19 @@ class BybitStrategy(BaseStrategy):
             long_pos_qty = long_pos_qty if long_pos_qty is not None else 0
             short_pos_qty = short_pos_qty if short_pos_qty is not None else 0
 
+            # Ensure long_pos_qty and short_pos_qty are floats
+            try:
+                long_pos_qty = float(long_pos_qty)
+            except (ValueError, TypeError) as e:
+                logging.error(f"Invalid value for long_pos_qty: {long_pos_qty}, Error: {e}")
+                long_pos_qty = 0
+
+            try:
+                short_pos_qty = float(short_pos_qty)
+            except (ValueError, TypeError) as e:
+                logging.error(f"Invalid value for short_pos_qty: {short_pos_qty}, Error: {e}")
+                short_pos_qty = 0
+
             spread, current_price = self.get_spread_and_price(symbol)
             # dynamic_outer_price_distance = self.calculate_dynamic_outer_price_distance(spread, min_outer_price_distance, max_outer_price_distance)
 
