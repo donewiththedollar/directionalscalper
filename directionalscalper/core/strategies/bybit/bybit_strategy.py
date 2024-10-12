@@ -33,6 +33,8 @@ from rate_limit import RateLimit
 
 logging = Logger(logger_name="BybitBaseStrategy", filename="BybitBaseStrategy.log", stream=True)
 
+grid_lock = threading.Lock()
+
 class BybitStrategy(BaseStrategy):
     def __init__(self, exchange, config, manager, symbols_allowed=None):
         super().__init__(exchange, config, manager, symbols_allowed)
@@ -5690,36 +5692,65 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"MFIRSI SIGNAL FOR {symbol}: {mfirsi_signal}")
 
             def issue_grid_safely(symbol: str, side: str, grid_levels: list, amounts: list):
-                """
-                Safely issue grid orders, ensuring no duplicates and handling errors gracefully.
-                """
-                try:
-                    grid_set = self.active_long_grids if side == 'long' else self.active_short_grids
-                    order_side = 'buy' if side == 'long' else 'sell'
+                with grid_lock:  # Lock to ensure no simultaneous grid issuance
+                    try:
+                        # Use class-level attributes like self.active_long_grids or self.active_short_grids
+                        grid_set = self.active_long_grids if side == 'long' else self.active_short_grids
+                        order_side = 'buy' if side == 'long' else 'sell'
 
-                    # Ensure grid_levels and amounts are lists
-                    assert isinstance(grid_levels, list), f"Expected grid_levels to be a list, but got {type(grid_levels)}"
+                        # Check if the grid is already active for this symbol, prevent double grid issuance
+                        if symbol in grid_set:
+                            logging.warning(f"[{symbol}] {side.capitalize()} grid already active. Skipping grid issuance.")
+                            return  # Exit if the grid is already active
+
+                        assert isinstance(grid_levels, list), f"Expected grid_levels to be a list, but got {type(grid_levels)}"
+                        
+                        if isinstance(amounts, int):
+                            amounts = [amounts] * len(grid_levels)
+                        assert isinstance(amounts, list), f"Expected amounts to be a list, but got {type(amounts)}"
+
+                        if self.grid_cleared_status.get(symbol, {}).get(side, False):
+                            logging.info(f"[{symbol}] Issuing new {side} grid orders.")
+                            self.grid_cleared_status[symbol][side] = False  # Reset grid cleared status
+                            self.issue_grid_orders(symbol, order_side, grid_levels, amounts, side == 'long', self.filled_levels[symbol][order_side])
+                            grid_set.add(symbol)  # Add symbol to the active grid set
+                            logging.info(f"[{symbol}] Successfully issued {side} grid orders.")
+                        else:
+                            logging.warning(f"[{symbol}] Attempted to issue {side} grid orders, but grid clearance not confirmed. Skipping grid creation.")
+                    except Exception as e:
+                        logging.error(f"Exception in issue_grid_safely for {symbol} - {side}: {e}")
+
+            # def issue_grid_safely(symbol: str, side: str, grid_levels: list, amounts: list):
+            #     """
+            #     Safely issue grid orders, ensuring no duplicates and handling errors gracefully.
+            #     """
+            #     try:
+            #         grid_set = self.active_long_grids if side == 'long' else self.active_short_grids
+            #         order_side = 'buy' if side == 'long' else 'sell'
+
+            #         # Ensure grid_levels and amounts are lists
+            #         assert isinstance(grid_levels, list), f"Expected grid_levels to be a list, but got {type(grid_levels)}"
                     
-                    # Convert amounts to a list if it's an integer
-                    if isinstance(amounts, int):
-                        amounts = [amounts] * len(grid_levels)
-                    assert isinstance(amounts, list), f"Expected amounts to be a list, but got {type(amounts)}"
+            #         # Convert amounts to a list if it's an integer
+            #         if isinstance(amounts, int):
+            #             amounts = [amounts] * len(grid_levels)
+            #         assert isinstance(amounts, list), f"Expected amounts to be a list, but got {type(amounts)}"
 
-                    # Only issue a new grid if the grid has been cleared
-                    if self.grid_cleared_status.get(symbol, {}).get(side, False):
-                        logging.info(f"[{symbol}] Issuing new {side} grid orders.")
+            #         # Only issue a new grid if the grid has been cleared
+            #         if self.grid_cleared_status.get(symbol, {}).get(side, False):
+            #             logging.info(f"[{symbol}] Issuing new {side} grid orders.")
 
-                        # Clear grid cleared status before issuing new orders
-                        self.grid_cleared_status[symbol][side] = False
+            #             # Clear grid cleared status before issuing new orders
+            #             self.grid_cleared_status[symbol][side] = False
 
-                        self.issue_grid_orders(symbol, order_side, grid_levels, amounts, side == 'long', self.filled_levels[symbol][order_side])
-                        grid_set.add(symbol)
+            #             self.issue_grid_orders(symbol, order_side, grid_levels, amounts, side == 'long', self.filled_levels[symbol][order_side])
+            #             grid_set.add(symbol)
 
-                        logging.info(f"[{symbol}] Successfully issued {side} grid orders.")
-                    else:
-                        logging.warning(f"[{symbol}] Attempted to issue {side} grid orders, but grid clearance not confirmed. Skipping grid creation.")
-                except Exception as e:
-                    logging.error(f"Exception in issue_grid_safely for {symbol} - {side}: {e}")
+            #             logging.info(f"[{symbol}] Successfully issued {side} grid orders.")
+            #         else:
+            #             logging.warning(f"[{symbol}] Attempted to issue {side} grid orders, but grid clearance not confirmed. Skipping grid creation.")
+            #     except Exception as e:
+            #         logging.error(f"Exception in issue_grid_safely for {symbol} - {side}: {e}")
             
             replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist_v2(
                 symbol, 
