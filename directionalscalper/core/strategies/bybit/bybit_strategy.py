@@ -5779,100 +5779,113 @@ class BybitStrategy(BaseStrategy):
                     # Handling for Long Positions
                     if fresh_signal.lower() == "long" and long_mode and not has_open_long_position and not graceful_stop_long and symbol not in self.active_long_grids and symbol not in self.max_qty_reached_symbol_long:
                         logging.info(f"[{symbol}] Creating new long position based on MFIRSI long signal")
-                        self.clear_grid(symbol, 'buy')
 
-                        # Make a copy of grid_levels_long to safely modify
-                        modified_grid_levels_long = grid_levels_long.copy()
+                        # Check if there are no open long orders to avoid double grids
+                        has_open_long_order = any(order['info']['symbol'] == symbol and order['info']['side'].lower() == 'buy' and not order['info']['reduceOnly'] for order in open_orders)
 
-                        # Set the first grid level to the best bid price for initial entry
-                        best_bid_price = self.get_best_bid_price(symbol)  # Fetch the latest best bid price
-                        logging.info(f"[{symbol}] Setting first level of modified grid to best_bid_price: {best_bid_price}")
-                        modified_grid_levels_long[0] = best_bid_price
+                        if not has_open_long_order:
+                            self.clear_grid(symbol, 'buy')
 
-                        # Issue the grid only once initially
-                        issue_grid_safely(symbol, 'long', modified_grid_levels_long, amounts_long)
+                            # Make a copy of grid_levels_long to safely modify
+                            modified_grid_levels_long = grid_levels_long.copy()
 
-                        retry_counter = 0
-                        max_retries = 100  # Set a maximum number of retries
+                            # Set the first grid level to the best bid price for initial entry
+                            best_bid_price = self.get_best_bid_price(symbol)  # Fetch the latest best bid price
+                            logging.info(f"[{symbol}] Setting first level of modified grid to best_bid_price: {best_bid_price}")
+                            modified_grid_levels_long[0] = best_bid_price
 
-                        while long_pos_qty < 0.00001 and retry_counter < max_retries:
-                            time.sleep(3)  # Wait for some time to allow order to be filled
-                            try:
-                                long_pos_qty = self.get_position_qty(symbol, 'long')  # Re-fetch the long position quantity
-                            except Exception as e:
-                                logging.error(f"[{symbol}] Error fetching long position quantity: {e}")
-                                break
+                            # Issue the grid only once initially
+                            issue_grid_safely(symbol, 'long', modified_grid_levels_long, amounts_long)
 
-                            retry_counter += 1
-                            logging.info(f"[{symbol}] Long position quantity after waiting: {long_pos_qty}, retry attempt: {retry_counter}")
+                            retry_counter = 0
+                            max_retries = 100  # Set a maximum number of retries
 
-                            # Retry placing the grid every 10 retries (every 50 seconds)
-                            if retry_counter % 10 == 0 and long_pos_qty < 0.00001:
-                                logging.info(f"[{symbol}] Retrying long grid orders due to MFIRSI signal long after {retry_counter} retries.")
-                                
-                                # Fetch the latest best bid price before retrying
-                                best_bid_price = self.get_best_bid_price(symbol)
-                                logging.info(f"[{symbol}] Updated best bid price on retry: {best_bid_price}")
-                                
-                                # Clear and re-issue the grid with updated best bid price
-                                self.clear_grid(symbol, 'buy')
-                                modified_grid_levels_long[0] = best_bid_price
-                                issue_grid_safely(symbol, 'long', modified_grid_levels_long, amounts_long)
+                            # Retry loop for issuing the grid
+                            while long_pos_qty < 0.00001 and retry_counter < max_retries:
+                                time.sleep(3)  # Wait for some time to allow order to be filled
+                                try:
+                                    long_pos_qty = self.get_position_qty(symbol, 'long')  # Re-fetch the long position quantity
+                                except Exception as e:
+                                    logging.error(f"[{symbol}] Error fetching long position quantity: {e}")
+                                    break
 
-                        logging.info(f"[{symbol}] Long position filled or max retries reached, exiting loop.")
-                        self.last_signal_time[symbol] = current_time
-                        self.last_mfirsi_signal[symbol] = "neutral"  # Reset to neutral after processing
+                                retry_counter += 1
+                                logging.info(f"[{symbol}] Long position quantity after waiting: {long_pos_qty}, retry attempt: {retry_counter}")
+
+                                # Retry placing the grid every 10 retries (every 30 seconds)
+                                if retry_counter % 10 == 0 and long_pos_qty < 0.00001:
+                                    logging.info(f"[{symbol}] Retrying long grid orders due to MFIRSI signal long after {retry_counter} retries.")
+                                    
+                                    # Fetch the latest best bid price before retrying
+                                    best_bid_price = self.get_best_bid_price(symbol)
+                                    logging.info(f"[{symbol}] Updated best bid price on retry: {best_bid_price}")
+                                    
+                                    # Clear and re-issue the grid with updated best bid price
+                                    self.clear_grid(symbol, 'buy')
+                                    modified_grid_levels_long[0] = best_bid_price
+                                    issue_grid_safely(symbol, 'long', modified_grid_levels_long, amounts_long)
+
+                            logging.info(f"[{symbol}] Long position filled or max retries reached, exiting loop.")
+                            self.last_signal_time[symbol] = current_time
+                            self.last_mfirsi_signal[symbol] = "neutral"  # Reset to neutral after processing
 
                     # Handling for Short Positions
                     elif fresh_signal.lower() == "short" and short_mode and not has_open_short_position and not graceful_stop_short and symbol not in self.active_short_grids and symbol not in self.max_qty_reached_symbol_short:
                         logging.info(f"[{symbol}] Creating new short position based on MFIRSI short signal")
-                        self.clear_grid(symbol, 'sell')
 
-                        # Make a copy of grid_levels_short to safely modify
-                        modified_grid_levels_short = grid_levels_short.copy()
+                        # Check if there are no open short orders to avoid double grids
+                        has_open_short_order = any(order['info']['symbol'] == symbol and order['info']['side'].lower() == 'sell' and not order['info']['reduceOnly'] for order in open_orders)
 
-                        # Set the first grid level to the best ask price for initial entry
-                        best_ask_price = self.get_best_ask_price(symbol)  # Fetch the latest best ask price
-                        logging.info(f"[{symbol}] Setting first level of modified grid to best_ask_price: {best_ask_price}")
-                        modified_grid_levels_short[0] = best_ask_price
+                        if not has_open_short_order:
+                            self.clear_grid(symbol, 'sell')
 
-                        # Issue the grid only once initially
-                        issue_grid_safely(symbol, 'short', modified_grid_levels_short, amounts_short)
+                            # Make a copy of grid_levels_short to safely modify
+                            modified_grid_levels_short = grid_levels_short.copy()
 
-                        retry_counter = 0
-                        max_retries = 50  # Set a maximum number of retries
+                            # Set the first grid level to the best ask price for initial entry
+                            best_ask_price = self.get_best_ask_price(symbol)  # Fetch the latest best ask price
+                            logging.info(f"[{symbol}] Setting first level of modified grid to best_ask_price: {best_ask_price}")
+                            modified_grid_levels_short[0] = best_ask_price
 
-                        while short_pos_qty < 0.00001 and retry_counter < max_retries:
-                            time.sleep(5)  # Wait for some time to allow order to be filled
-                            try:
-                                short_pos_qty = self.get_position_qty(symbol, 'short')  # Re-fetch the short position quantity
-                            except Exception as e:
-                                logging.error(f"[{symbol}] Error fetching short position quantity: {e}")
-                                break
+                            # Issue the grid only once initially
+                            issue_grid_safely(symbol, 'short', modified_grid_levels_short, amounts_short)
 
-                            retry_counter += 1
-                            logging.info(f"[{symbol}] Short position quantity after waiting: {short_pos_qty}, retry attempt: {retry_counter}")
+                            retry_counter = 0
+                            max_retries = 50  # Set a maximum number of retries
 
-                            # Retry placing the grid every 10 retries (every 50 seconds)
-                            if retry_counter % 10 == 0 and short_pos_qty < 0.00001:
-                                logging.info(f"[{symbol}] Retrying short grid orders due to MFIRSI signal short after {retry_counter} retries.")
-                                
-                                # Fetch the latest best ask price before retrying
-                                best_ask_price = self.get_best_ask_price(symbol)
-                                logging.info(f"[{symbol}] Updated best ask price on retry: {best_ask_price}")
-                                
-                                # Clear and re-issue the grid with updated best ask price
-                                self.clear_grid(symbol, 'sell')
-                                modified_grid_levels_short[0] = best_ask_price
-                                issue_grid_safely(symbol, 'short', modified_grid_levels_short, amounts_short)
+                            # Retry loop for issuing the grid
+                            while short_pos_qty < 0.00001 and retry_counter < max_retries:
+                                time.sleep(5)  # Wait for some time to allow order to be filled
+                                try:
+                                    short_pos_qty = self.get_position_qty(symbol, 'short')  # Re-fetch the short position quantity
+                                except Exception as e:
+                                    logging.error(f"[{symbol}] Error fetching short position quantity: {e}")
+                                    break
 
-                        logging.info(f"[{symbol}] Short position filled or max retries reached, exiting loop.")
-                        self.last_signal_time[symbol] = current_time
-                        self.last_mfirsi_signal[symbol] = "neutral"  # Reset to neutral after processing
+                                retry_counter += 1
+                                logging.info(f"[{symbol}] Short position quantity after waiting: {short_pos_qty}, retry attempt: {retry_counter}")
+
+                                # Retry placing the grid every 10 retries (every 50 seconds)
+                                if retry_counter % 10 == 0 and short_pos_qty < 0.00001:
+                                    logging.info(f"[{symbol}] Retrying short grid orders due to MFIRSI signal short after {retry_counter} retries.")
+                                    
+                                    # Fetch the latest best ask price before retrying
+                                    best_ask_price = self.get_best_ask_price(symbol)
+                                    logging.info(f"[{symbol}] Updated best ask price on retry: {best_ask_price}")
+                                    
+                                    # Clear and re-issue the grid with updated best ask price
+                                    self.clear_grid(symbol, 'sell')
+                                    modified_grid_levels_short[0] = best_ask_price
+                                    issue_grid_safely(symbol, 'short', modified_grid_levels_short, amounts_short)
+
+                            logging.info(f"[{symbol}] Short position filled or max retries reached, exiting loop.")
+                            self.last_signal_time[symbol] = current_time
+                            self.last_mfirsi_signal[symbol] = "neutral"  # Reset to neutral after processing
+
                 except Exception as e:
                     logging.info(f"Exception caught in placing orders: {e}")
                     logging.info("Traceback: %s", traceback.format_exc())
-
+                    
             if additional_entries_from_signal:
                 if symbol in open_symbols:
                     logging.info(f"Allowed symbol: {symbol}")
