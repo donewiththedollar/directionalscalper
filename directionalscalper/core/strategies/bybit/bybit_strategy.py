@@ -6077,11 +6077,11 @@ class BybitStrategy(BaseStrategy):
                             # Clear existing long grid
                             self.clear_grid(symbol, 'buy')
 
-                            # Adjust the first grid level 0.05% below the best bid price
+                            # Adjust the first grid level 0.5% below the best bid price
                             modified_grid_levels_long = grid_levels_long.copy()
                             best_bid_price = self.get_best_bid_price(symbol)
-                            modified_grid_levels_long[0] = best_bid_price * 0.9995  # 0.05% lower than the best bid price
-                            logging.info(f"[{symbol}] Setting first level of modified long grid to best_bid_price - 0.05%: {modified_grid_levels_long[0]}")
+                            modified_grid_levels_long[0] = best_bid_price * 0.995  # 0.5% lower than the best bid price
+                            logging.info(f"[{symbol}] Setting first level of modified long grid to best_bid_price - 0.5%: {modified_grid_levels_long[0]}")
                             
                             # Issue long grid safely
                             issue_grid_safely(symbol, 'long', modified_grid_levels_long, amounts_long)
@@ -6094,11 +6094,11 @@ class BybitStrategy(BaseStrategy):
                             # Clear existing short grid
                             self.clear_grid(symbol, 'sell')
 
-                            # Adjust the first grid level 0.05% above the best ask price
+                            # Adjust the first grid level 0.5% above the best ask price
                             modified_grid_levels_short = grid_levels_short.copy()
                             best_ask_price = self.get_best_ask_price(symbol)
-                            modified_grid_levels_short[0] = best_ask_price * 1.0005  # 0.05% higher than the best ask price
-                            logging.info(f"[{symbol}] Setting first level of modified short grid to best_ask_price + 0.05%: {modified_grid_levels_short[0]}")
+                            modified_grid_levels_short[0] = best_ask_price * 1.005  # 0.5% higher than the best ask price
+                            logging.info(f"[{symbol}] Setting first level of modified short grid to best_ask_price + 0.5%: {modified_grid_levels_short[0]}")
                             
                             # Issue short grid safely
                             issue_grid_safely(symbol, 'short', modified_grid_levels_short, amounts_short)
