@@ -13002,6 +13002,19 @@ class BybitStrategy(BaseStrategy):
                                                     side: str, strength: float, long_pos_qty=0, short_pos_qty=0) -> List[float]:
         logging.info(f"Calculating aggressive drawdown order amounts for {symbol} with full position value distribution across {levels} levels.")
         
+        # Convert long_pos_qty and short_pos_qty to float to ensure correct arithmetic
+        try:
+            long_pos_qty = float(long_pos_qty)
+        except (ValueError, TypeError):
+            logging.error(f"Invalid long_pos_qty value for {symbol}: {long_pos_qty}, setting to 0.")
+            long_pos_qty = 0
+
+        try:
+            short_pos_qty = float(short_pos_qty)
+        except (ValueError, TypeError):
+            logging.error(f"Invalid short_pos_qty value for {symbol}: {short_pos_qty}, setting to 0.")
+            short_pos_qty = 0
+
         # Determine the wallet exposure limit based on the side
         wallet_exposure_limit = wallet_exposure_limit_long if side == 'buy' else wallet_exposure_limit_short
         
@@ -13009,11 +13022,13 @@ class BybitStrategy(BaseStrategy):
         max_position_value = total_equity * wallet_exposure_limit
         logging.info(f"Maximum position value for {symbol}: {max_position_value}")
 
-        # Calculate the current position value
+        # Calculate the current position value based on the side
         if side == 'buy':
             current_pos_value = long_pos_qty * best_ask_price
         else:
             current_pos_value = short_pos_qty * best_bid_price
+
+        logging.info(f"Current position value for {symbol} on side {side}: {current_pos_value}")
 
         # Adjust the maximum position value by subtracting the current position value
         adjusted_max_position_value = max_position_value - current_pos_value
