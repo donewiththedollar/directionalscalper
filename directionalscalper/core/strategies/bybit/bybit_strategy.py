@@ -503,9 +503,9 @@ class BybitStrategy(BaseStrategy):
         self.exchange.cancel_all_orders_for_symbol_bybit(symbol)
 
     def calculate_next_update_time(self):
-        """Returns the time for the next TP update, which is 30 seconds from the current time."""
+        """Returns the time for the next TP update, which is 3 seconds from the current time."""
         now = datetime.now()
-        next_update_time = now + timedelta(seconds=10)
+        next_update_time = now + timedelta(seconds=1)
         return next_update_time.replace(microsecond=0)
 
     # Bybit cancel all entries
@@ -6068,29 +6068,50 @@ class BybitStrategy(BaseStrategy):
             if symbol in open_symbols: 
                 if (long_pos_qty > 0 and not long_grid_active and not has_open_long_order) or (short_pos_qty > 0 and not short_grid_active and not has_open_short_order):
                     logging.info(f"[{symbol}] Open positions found without active grids. Issuing grid orders.")
+                    
+                    # Long Grid Logic
                     if long_pos_qty > 0 and not long_grid_active and symbol not in self.max_qty_reached_symbol_long:
                         if not self.auto_reduce_active_long.get(symbol, False) or entry_during_autoreduce:
                             logging.info(f"[{symbol}] Placing long grid orders for existing open position.")
+                            
+                            # Clear existing long grid
                             self.clear_grid(symbol, 'buy')
-                            #self.active_long_grids.discard(symbol)
-                            issue_grid_safely(symbol, 'long', grid_levels_long, amounts_long)
+
+                            # Adjust the first grid level 0.05% below the best bid price
+                            modified_grid_levels_long = grid_levels_long.copy()
+                            best_bid_price = self.get_best_bid_price(symbol)
+                            modified_grid_levels_long[0] = best_bid_price * 0.9995  # 0.05% lower than the best bid price
+                            logging.info(f"[{symbol}] Setting first level of modified long grid to best_bid_price - 0.05%: {modified_grid_levels_long[0]}")
+                            
+                            # Issue long grid safely
+                            issue_grid_safely(symbol, 'long', modified_grid_levels_long, amounts_long)
+
+                    # Short Grid Logic
                     if short_pos_qty > 0 and not short_grid_active and symbol not in self.max_qty_reached_symbol_short:
                         if not self.auto_reduce_active_short.get(symbol, False) or entry_during_autoreduce:
                             logging.info(f"[{symbol}] Placing short grid orders for existing open position.")
+                            
+                            # Clear existing short grid
                             self.clear_grid(symbol, 'sell')
-                            #self.active_short_grids.discard(symbol)
-                            issue_grid_safely(symbol, 'short', grid_levels_short, amounts_short)
+
+                            # Adjust the first grid level 0.05% above the best ask price
+                            modified_grid_levels_short = grid_levels_short.copy()
+                            best_ask_price = self.get_best_ask_price(symbol)
+                            modified_grid_levels_short[0] = best_ask_price * 1.0005  # 0.05% higher than the best ask price
+                            logging.info(f"[{symbol}] Setting first level of modified short grid to best_ask_price + 0.05%: {modified_grid_levels_short[0]}")
+                            
+                            # Issue short grid safely
+                            issue_grid_safely(symbol, 'short', modified_grid_levels_short, amounts_short)
 
                 current_time = time.time()
 
+                # Grid clearing logic if no positions are open
                 if not long_pos_qty and not short_pos_qty and symbol in self.active_long_grids | self.active_short_grids:
                     last_cleared = self.last_cleared_time.get(symbol, datetime.min)
                     if current_time - last_cleared > self.clear_interval:
                         logging.info(f"[{symbol}] No open positions and time interval passed. Canceling leftover grid orders.")
                         self.clear_grid(symbol, 'buy')
                         self.clear_grid(symbol, 'sell')
-                        # self.active_long_grids.discard(symbol)
-                        # self.active_short_grids.discard(symbol)
                         self.last_cleared_time[symbol] = current_time
                     else:
                         logging.info(f"[{symbol}] No open positions, but time interval not passed. Skipping grid clearing.")
