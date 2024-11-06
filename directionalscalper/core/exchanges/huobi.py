@@ -2,9 +2,17 @@ import uuid
 from .exchange import Exchange
 import logging
 import time
-import ccxt
-from ccxt.base.errors import RateLimitExceeded, NetworkError
+import random
+from datetime import datetime, timedelta
 from typing import Optional, Tuple, List
+from ccxt.base.errors import RateLimitExceeded, NetworkError
+import ccxt
+import traceback
+from directionalscalper.core.strategies.logger import Logger
+
+from rate_limit import RateLimit
+
+logging = Logger(logger_name="HuobiExchange", filename="HuobiExchange.log", stream=True)
 
 class HuobiExchange(Exchange):
     def __init__(self, api_key, secret_key, passphrase=None, market_type='swap'):
