@@ -1276,8 +1276,18 @@ def hyperliquid_auto_rotation(args, market_maker, manager, symbols_allowed):
     logging.info(f"Open position symbols: {open_position_symbols}")
 
 def huobi_auto_rotation(args, market_maker, manager, symbols_allowed):
-    open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_huobi()}
-    logging.info(f"Open position symbols: {open_position_symbols}")
+    try:
+        # Fetch and print the balance as a test
+        #balance = market_maker.exchange.fetch_balance_huobi()  # Assuming fetch_balance_huobi is defined in HuobiExchange
+        balance = market_maker.exchange.fetch_total_usdt_balance_huobi()
+        logging.info(f"Fetched balance from Huobi: {balance}")
+        print(f"Fetched balance from Huobi: {balance}")
+        
+        # # Placeholder for additional logic
+        # open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_huobi()}
+        # logging.info(f"Open position symbols: {open_position_symbols}")
+    except Exception as e:
+        logging.error(f"Error during Huobi auto-rotation: {e}")
 
 def bitget_auto_rotation(args, market_maker, manager, symbols_allowed):
     open_position_symbols = {standardize_symbol(pos['symbol']) for pos in market_maker.exchange.get_all_open_positions_bitget()}

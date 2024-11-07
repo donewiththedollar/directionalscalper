@@ -18,15 +18,28 @@ class HuobiExchange(Exchange):
     def __init__(self, api_key, secret_key, passphrase=None, market_type='swap'):
         super().__init__('huobi', api_key, secret_key, passphrase, market_type)
 
-    def fetch_balance_huobi(self, params={}):
-        try:
-            balance = self.exchange.fetch_balance(params)
-            logging.info(f"Fetched balance from Huobi: {balance}")
-            return balance
-        except Exception as e:
-            logging.error(f"Error occurred while fetching balance from Huobi: {e}")
-            return None
-        
+    # def fetch_balance_huobi(self, params={}):
+    #     try:
+    #         # Set parameters for USDT-M futures (linear futures)
+    #         params.update({'type': 'future', 'subType': 'linear'})
+
+    #         # Fetch balance with the specified parameters
+    #         balance = self.exchange.fetch_balance(params)
+            
+    #         # Extract relevant USDT-M futures data
+    #         futures_balance = {
+    #             symbol: data
+    #             for symbol, data in balance.get('info', {}).get('data', [])[0].get('futures_contract_detail', [])
+    #             if data.get('business_type') == 'futures' and data.get('trade_partition') == 'USDT'
+    #         }
+            
+    #         logging.info(f"Fetched USDT-M futures balance from Huobi: {futures_balance}")
+    #         return futures_balance
+
+    #     except Exception as e:
+    #         logging.error(f"Error occurred while fetching USDT-M futures balance from Huobi: {e}")
+    #         return None
+
     def cancel_close_huobi(self, symbol: str, side: str, offset: str) -> None:
         side_map = {"long": "buy", "short": "sell"}
         try:
@@ -181,9 +194,9 @@ class HuobiExchange(Exchange):
         response = self.exchange.private_get_margin_accounts_balance(params)
         return self._parse_huobi_balance(response)
 
-    def fetch_futures_balance_huobi(self, params={}):
-        response = self.exchange.linearGetV2AccountInfo(params)
-        return self._parse_huobi_balance(response)
+    # def fetch_futures_balance_huobi(self, params={}):
+    #     response = self.exchange.linearGetV2AccountInfo(params)
+    #     return self._parse_huobi_balance(response)
 
     def fetch_swaps_balance_huobi(self, params={}):
         response = self.exchange.swapGetSwapBalance(params)
@@ -320,37 +333,64 @@ class HuobiExchange(Exchange):
             }
             return self.exchange.fetch_orders(params)
         return None
-    
+
     def fetch_balance_huobi(self, params={}):
-        # Call base class's fetch_balance for spot balances
-        spot_balance = self.exchange.fetch_balance(params)
-        print("Spot Balance:", spot_balance)
+        try:
+            # Initialize a dictionary to store USDT balances
+            usdt_balance = {'free': 0.0, 'used': 0.0, 'total': 0.0}
 
-        # Fetch margin balances
-        margin_balance = self.fetch_margin_balance_huobi(params)
-        print("Margin Balance:", margin_balance)
+            # Define balance types to check (spot, margin, futures, swap)
+            balance_types = [
+                {'type': 'spot'},
+                {'type': 'margin', 'marginMode': 'cross'},
+                {'type': 'future', 'subType': 'linear'},
+                {'type': 'swap'}
+            ]
 
-        # Fetch futures balances
-        futures_balance = self.fetch_futures_balance_huobi(params)
-        print("Futures Balance:", futures_balance)
+            # Iterate through each balance type and fetch only the USDT balance
+            for balance_type in balance_types:
+                # Fetch balance for the specified type
+                balance = self.exchange.fetch_balance(balance_type)
+                # Extract USDT balance if available
+                if 'USDT' in balance:
+                    usdt_balance['free'] += balance['USDT'].get('free', 0.0)
+                    usdt_balance['used'] += balance['USDT'].get('used', 0.0)
+                    usdt_balance['total'] += balance['USDT'].get('total', 0.0)
 
-        # Fetch swap balances
-        swaps_balance = self.fetch_swaps_balance_huobi(params)
-        print("Swaps Balance:", swaps_balance)
+            # Return the aggregated USDT balance across all types
+            return usdt_balance
 
-        # Combine balances
-        total_balance = self.exchange.deep_extend(spot_balance, margin_balance, futures_balance, swaps_balance)
+        except Exception as e:
+            logging.error(f"Error occurred while fetching USDT balance from Huobi: {e}")
+            return None
 
-        # Remove the unnecessary information
-        parsed_balance = {}
-        for currency in total_balance:
-            parsed_balance[currency] = {
-                'free': total_balance[currency]['free'],
-                'used': total_balance[currency]['used'],
-                'total': total_balance[currency]['total']
-            }
+    def fetch_total_usdt_balance_huobi(self, params={}):
+        try:
+            # Initialize total USDT balance
+            total_usdt_balance = 0.0
 
-        return parsed_balance
+            # Define balance types to check (spot, margin, futures, swap)
+            balance_types = [
+                {'type': 'spot'},
+                {'type': 'margin', 'marginMode': 'cross'},
+                {'type': 'future', 'subType': 'linear'},
+                {'type': 'swap'}
+            ]
+
+            # Iterate through each balance type and fetch only the USDT balance
+            for balance_type in balance_types:
+                # Fetch balance for the specified type
+                balance = self.exchange.fetch_balance(balance_type)
+                # Extract USDT balance if available
+                if 'USDT' in balance:
+                    total_usdt_balance += balance['USDT'].get('total', 0.0)
+
+            # Return the aggregated total USDT balance
+            return total_usdt_balance
+
+        except Exception as e:
+            logging.error(f"Error occurred while fetching USDT balance from Huobi: {e}")
+            return None
 
     def get_available_balance_huobi(self, symbol):
         try:

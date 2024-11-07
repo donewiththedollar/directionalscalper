@@ -80,3 +80,5 @@ class HuobiStrategy(BaseStrategy):
             return None
 
     # Additional methods for Huobi-specific trading logic, such as leverage settings, margin, etc.
+    
+    # Override other Bybit-specific methods with Huobi logic if needed
