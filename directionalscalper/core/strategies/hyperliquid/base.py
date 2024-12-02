@@ -289,7 +289,7 @@ class HyperLiquidBaseStrategy(Strategy):
 
                 # Fetch equity data less frequently or if it's not available yet
                 if current_time - last_equity_fetch_time > equity_refresh_interval or total_equity is None:
-                    total_equity = self.retry_api_call(self.exchange.get_futures_balance_bybit, quote_currency)
+                    total_equity = self.retry_api_call(self.exchange.get_futures_balance_bybit)
                     available_equity = self.retry_api_call(self.exchange.get_available_balance_bybit, quote_currency)
                     last_equity_fetch_time = current_time
 
