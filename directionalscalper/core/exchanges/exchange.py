@@ -86,6 +86,7 @@ class Exchange:
                 'defaultType': self.market_type,
                 'adjustForTimeDifference': True,
                 "recvWindow": 10000,
+                'timeout': 30000,
             }
         else:
             exchange_params['options'] = {

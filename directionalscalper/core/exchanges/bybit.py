@@ -546,26 +546,57 @@ class BybitExchange(Exchange):
 
         return None
 
-    def get_symbol_precision_bybit(self, symbol):
-        try:
-            # Use fetch_markets to retrieve data for all markets
-            all_markets = self.exchange.fetch_markets()
+    # def get_symbol_precision_bybit(self, symbol):
+    #     try:
+    #         # Use fetch_markets to retrieve data for all markets
+    #         all_markets = self.exchange.fetch_markets()
 
-            # Find the market data for the specific symbol
-            market_data = next((market for market in all_markets if market['id'] == symbol), None)
+    #         # Find the market data for the specific symbol
+    #         market_data = next((market for market in all_markets if market['id'] == symbol), None)
 
-            if market_data:
-                # Extract precision data
-                amount_precision = market_data['precision']['amount']
-                price_precision = market_data['precision']['price']
-                return amount_precision, price_precision
-            else:
-                print(f"Market data not found for {symbol}")
-                return None, None
-        except Exception as e:
-            logging.info(f"An error occurred in get_symbol_precision_bybit: {e}")
-            logging.info("Traceback: %s", traceback.format_exc())
-            return None, None
+    #         if market_data:
+    #             # Extract precision data
+    #             amount_precision = market_data['precision']['amount']
+    #             price_precision = market_data['precision']['price']
+    #             return amount_precision, price_precision
+    #         else:
+    #             print(f"Market data not found for {symbol}")
+    #             return None, None
+    #     except Exception as e:
+    #         logging.info(f"An error occurred in get_symbol_precision_bybit: {e}")
+    #         logging.info("Traceback: %s", traceback.format_exc())
+    #         return None, None
+
+    def get_symbol_precision_bybit(self, symbol, max_retries=3, retry_delay=5):
+        for attempt in range(max_retries):
+            try:
+                # Use fetch_markets to retrieve data for all markets
+                all_markets = self.exchange.fetch_markets()
+
+                # Find the market data for the specific symbol
+                market_data = next((market for market in all_markets if market['id'] == symbol), None)
+
+                if market_data:
+                    # Extract precision data
+                    amount_precision = market_data['precision']['amount']
+                    price_precision = market_data['precision']['price']
+                    return amount_precision, price_precision
+                else:
+                    logging.info(f"Market data not found for {symbol}")
+                    return None, None
+
+            except Exception as e:
+                logging.info(f"Attempt {attempt + 1}/{max_retries} failed in get_symbol_precision_bybit: {e}")
+                logging.info("Traceback: %s", traceback.format_exc())
+
+                if attempt < max_retries - 1:
+                    # Wait before retrying
+                    time.sleep(retry_delay)
+                else:
+                    # All attempts failed
+                    logging.info(f"All retry attempts failed for get_symbol_precision_bybit({symbol}).")
+                    return None, None
+
 
     def get_positions_bybit(self, symbol, max_retries=100, retry_delay=5) -> dict:
         values = {

@@ -53,6 +53,8 @@
             "levels": 4,
             "strength": 1.4,
             "min_outer_price_distance": 0.019,
+            "min_outer_price_distance_long": 0.019,
+            "min_outer_price_distance_short": 0.039,
             "max_outer_price_distance_long": 0.049,
             "max_outer_price_distance_short": 0.059,
             "long_mode": true,
