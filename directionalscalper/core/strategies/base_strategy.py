@@ -1529,7 +1529,7 @@ class BaseStrategy:
 
         if symbols_allowed is None:
             logging.info(f"Symbols alloweed is none, defaulting to 10")
-            symbols_allowed = 10  # Use a default value if symbols_allowed is not specified
+            symbols_allowed = 1  # Use a default value if symbols_allowed is not specified
 
         # If we haven't reached the symbol limit or the current symbol is already being traded, allow the trade
         if self.open_symbols_count < symbols_allowed or current_symbol in unique_open_symbols:
