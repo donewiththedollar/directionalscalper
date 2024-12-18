@@ -165,8 +165,6 @@ class LinearGridBaseFutures(BybitStrategy):
             max_qty_percent_long = self.config.linear_grid['max_qty_percent_long']
             max_qty_percent_short = self.config.linear_grid['max_qty_percent_short']
             min_outer_price_distance = self.config.linear_grid['min_outer_price_distance']
-            min_outer_price_distance_long = self.config.linear_grid['min_outer_price_distance_long']
-            min_outer_price_distance_short = self.config.linear_grid['min_outer_price_distance_short']
             max_outer_price_distance_long = self.config.linear_grid['max_outer_price_distance_long']
             max_outer_price_distance_short = self.config.linear_grid['max_outer_price_distance_short']
             graceful_stop_long = self.config.linear_grid['graceful_stop_long']
@@ -189,29 +187,10 @@ class LinearGridBaseFutures(BybitStrategy):
             upnl_profit_pct = self.config.upnl_profit_pct
             max_upnl_profit_pct = self.config.max_upnl_profit_pct
 
-            # Stop loss
-            stoploss_enabled = self.config.stoploss_enabled
-            stoploss_upnl_pct = self.config.stoploss_upnl_pct
-            # Liq based stop loss
-            liq_stoploss_enabled = self.config.liq_stoploss_enabled
-            liq_price_stop_pct = self.config.liq_price_stop_pct
-
-            # Auto reduce
-            auto_reduce_enabled = self.config.auto_reduce_enabled
-            auto_reduce_start_pct = self.config.auto_reduce_start_pct
-
-            auto_reduce_maxloss_pct = self.config.auto_reduce_maxloss_pct
 
             entry_during_autoreduce = self.config.entry_during_autoreduce
 
-            auto_reduce_marginbased_enabled = self.config.auto_reduce_marginbased_enabled
-
-            auto_reduce_wallet_exposure_pct = self.config.auto_reduce_wallet_exposure_pct
-
-            percentile_auto_reduce_enabled = self.config.percentile_auto_reduce_enabled
         
-            max_pos_balance_pct = self.config.max_pos_balance_pct
-
             # Funding
             MaxAbsFundingRate = self.config.MaxAbsFundingRate
             
@@ -683,92 +662,6 @@ class LinearGridBaseFutures(BybitStrategy):
                     except Exception as e:
                         logging.info(f"Hardened grid AR exception caught {e}")
 
-                    try:
-                        self.auto_reduce_logic_grid_hardened(
-                            symbol,
-                            min_qty,
-                            long_pos_price,
-                            short_pos_price,
-                            long_pos_qty,
-                            short_pos_qty,
-                            long_upnl,
-                            short_upnl,
-                            auto_reduce_enabled,
-                            total_equity,
-                            current_price,
-                            long_dynamic_amount,
-                            short_dynamic_amount,
-                            auto_reduce_start_pct,
-                            min_buffer_percentage_ar,
-                            max_buffer_percentage_ar,
-                            upnl_auto_reduce_threshold_long,
-                            upnl_auto_reduce_threshold_short,
-                            self.current_leverage
-                        )
-                    except Exception as e:
-                        logging.info(f"Hardened grid AR exception caught {e}")
-                        
-                    self.auto_reduce_percentile_logic(
-                        symbol,
-                        long_pos_qty,
-                        long_pos_price,
-                        short_pos_qty,
-                        short_pos_price,
-                        percentile_auto_reduce_enabled,
-                        auto_reduce_start_pct,
-                        auto_reduce_maxloss_pct,
-                        long_dynamic_amount,
-                        short_dynamic_amount
-                    )
-
-                    self.liq_stop_loss_logic(
-                        long_pos_qty,
-                        long_pos_price,
-                        long_liquidation_price,
-                        short_pos_qty,
-                        short_pos_price,
-                        short_liquidation_price,
-                        liq_stoploss_enabled,
-                        symbol,
-                        liq_price_stop_pct
-                    )
-
-                    self.stop_loss_logic(
-                        long_pos_qty,
-                        long_pos_price,
-                        short_pos_qty,
-                        short_pos_price,
-                        stoploss_enabled,
-                        symbol,
-                        stoploss_upnl_pct
-                    )
-
-                    self.auto_reduce_marginbased_logic(
-                        auto_reduce_marginbased_enabled,
-                        long_pos_qty,
-                        short_pos_qty,
-                        long_pos_price,
-                        short_pos_price,
-                        symbol,
-                        total_equity,
-                        auto_reduce_wallet_exposure_pct,
-                        open_position_data,
-                        current_price,
-                        long_dynamic_amount,
-                        short_dynamic_amount,
-                        auto_reduce_start_pct,
-                        auto_reduce_maxloss_pct
-                    )
-
-                    self.cancel_auto_reduce_orders_bybit(
-                        symbol,
-                        total_equity,
-                        max_pos_balance_pct,
-                        open_position_data,
-                        long_pos_qty,
-                        short_pos_qty
-                    )
-
 
                     # short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, one_minute_distance, previous_one_minute_distance, short_take_profit, long_take_profit)
                     #short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, five_minute_distance, previous_five_minute_distance, short_take_profit, long_take_profit)
@@ -867,8 +760,7 @@ class LinearGridBaseFutures(BybitStrategy):
                             short_pos_qty,
                             levels,
                             strength,
-                            min_outer_price_distance_long,
-                            min_outer_price_distance_short,
+                            min_outer_price_distance,
                             max_outer_price_distance_long,
                             max_outer_price_distance_short,
                             reissue_threshold,

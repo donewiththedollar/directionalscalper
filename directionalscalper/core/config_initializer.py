@@ -27,8 +27,6 @@ class ConfigInitializer:
             strategy_instance.max_qty_percent_long = config.linear_grid['max_qty_percent_long']
             strategy_instance.max_qty_percent_short = config.linear_grid['max_qty_percent_short']
             strategy_instance.min_outer_price_distance = config.linear_grid['min_outer_price_distance']
-            strategy_instance.min_outer_price_distance_long = config.linear_grid['min_outer_price_distance_long']
-            strategy_instance.min_outer_price_distance_short = config.linear_grid['min_outer_price_distance_short']
             strategy_instance.max_outer_price_distance_long = config.linear_grid['max_outer_price_distance_long']
             strategy_instance.max_outer_price_distance_short = config.linear_grid['max_outer_price_distance_short']
             strategy_instance.graceful_stop_long = config.linear_grid['graceful_stop_long']
@@ -49,17 +47,6 @@ class ConfigInitializer:
             strategy_instance.test_orders_enabled = getattr(config, 'test_orders_enabled', False)
             strategy_instance.upnl_profit_pct = config.upnl_profit_pct
             strategy_instance.max_upnl_profit_pct = config.max_upnl_profit_pct
-            strategy_instance.stoploss_enabled = config.stoploss_enabled
-            strategy_instance.stoploss_upnl_pct = config.stoploss_upnl_pct
-            strategy_instance.liq_stoploss_enabled = config.liq_stoploss_enabled
-            strategy_instance.liq_price_stop_pct = config.liq_price_stop_pct
-            strategy_instance.auto_reduce_enabled = config.auto_reduce_enabled
-            strategy_instance.auto_reduce_start_pct = config.auto_reduce_start_pct
-            strategy_instance.auto_reduce_maxloss_pct = config.auto_reduce_maxloss_pct
-            strategy_instance.entry_during_autoreduce = config.entry_during_autoreduce
-            strategy_instance.auto_reduce_marginbased_enabled = config.auto_reduce_marginbased_enabled
-            strategy_instance.auto_reduce_wallet_exposure_pct = config.auto_reduce_wallet_exposure_pct
-            strategy_instance.percentile_auto_reduce_enabled = config.percentile_auto_reduce_enabled
             strategy_instance.max_pos_balance_pct = config.max_pos_balance_pct
         except AttributeError as e:
             strategy_instance.logger.error(f"Failed to initialize attributes from config: {e}")
