@@ -1536,7 +1536,7 @@ class BaseStrategy:
             logging.info(f"New symbol is allowed : Symbols allowed: {symbols_allowed} Open symbol count: {self.open_symbols_count}")
             return True
         else:
-            logging.inof(f"New symbol not allowed: Symbols_allowed: {symbols_allowed} open symbol count: {self.open_symbols_count}")
+            logging.info(f"New symbol not allowed: Symbols_allowed: {symbols_allowed} open symbol count: {self.open_symbols_count}")
             return False
             
     # def can_trade_new_symbol(self, open_symbols: list, symbols_allowed: int, current_symbol: str) -> bool:
