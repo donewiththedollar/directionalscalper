@@ -567,7 +567,7 @@ class BybitExchange(Exchange):
     #         logging.info("Traceback: %s", traceback.format_exc())
     #         return None, None
 
-    def get_symbol_precision_bybit(self, symbol, max_retries=3, retry_delay=5):
+    def get_symbol_precision_bybit(self, symbol, max_retries=1000, retry_delay=5):
         for attempt in range(max_retries):
             try:
                 # Use fetch_markets to retrieve data for all markets
@@ -596,7 +596,6 @@ class BybitExchange(Exchange):
                     # All attempts failed
                     logging.info(f"All retry attempts failed for get_symbol_precision_bybit({symbol}).")
                     return None, None
-
 
     def get_positions_bybit(self, symbol, max_retries=100, retry_delay=5) -> dict:
         values = {
