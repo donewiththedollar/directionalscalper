@@ -35,7 +35,7 @@
             "target_coins_mode": false,
             "auto_graceful_stop": false,
             "entry_signal_type": "lorentzian",
-            "additional_entries_from_signal": true,
+            "additional_entries_from_signal": false,
             "graceful_stop_long": false,
             "graceful_stop_short": false,
             "max_qty_percent_long": 30,
