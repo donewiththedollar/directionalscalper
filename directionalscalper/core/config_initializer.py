@@ -53,6 +53,8 @@ class ConfigInitializer:
             strategy_instance.disable_grid_on_hedge_side = config.linear_grid.get('disable_grid_on_hedge_side', False)
             strategy_instance.hedge_with_grid = config.linear_grid.get('hedge_with_grid', False)
 
+            strategy_instance.forcibly_close_hedge = config.linear_grid.get('forcibly_close_hedge', False)
+
             # Non-linear-grid config
             strategy_instance.upnl_threshold_pct = config.upnl_threshold_pct
             strategy_instance.volume_check = config.volume_check
