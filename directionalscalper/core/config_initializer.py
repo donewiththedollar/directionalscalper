@@ -42,6 +42,13 @@ class ConfigInitializer:
             strategy_instance.stop_loss_long = config.linear_grid['stop_loss_long']
             strategy_instance.stop_loss_short = config.linear_grid['stop_loss_short']
             strategy_instance.drawdown_behavior = config.linear_grid.get('drawdown_behavior', 'maxqtypercent')
+
+            # >>> New auto-hedge fields <<<
+            strategy_instance.auto_hedge_enabled = config.linear_grid['auto_hedge_enabled']
+            strategy_instance.auto_hedge_ratio = config.linear_grid['auto_hedge_ratio']
+            strategy_instance.auto_hedge_min_position_size = config.linear_grid['auto_hedge_min_position_size']
+            strategy_instance.auto_hedge_price_diff_threshold = config.linear_grid['auto_hedge_price_diff_threshold']
+
             strategy_instance.upnl_threshold_pct = config.upnl_threshold_pct
             strategy_instance.volume_check = config.volume_check
             strategy_instance.max_usd_value = config.max_usd_value
@@ -50,5 +57,6 @@ class ConfigInitializer:
             strategy_instance.upnl_profit_pct = config.upnl_profit_pct
             strategy_instance.max_upnl_profit_pct = config.max_upnl_profit_pct
             strategy_instance.max_pos_balance_pct = config.max_pos_balance_pct
+
         except AttributeError as e:
             strategy_instance.logger.error(f"Failed to initialize attributes from config: {e}")
