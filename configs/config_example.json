@@ -70,10 +70,12 @@
             "stop_loss_enabled": true,
             "stop_loss_long": 15.0,
             "stop_loss_short": 15.0,
-            "auto_hedge_enabled": false,
+            "auto_hedge_enabled": true,
             "auto_hedge_ratio": 0.3,
             "auto_hedge_min_position_size": 0.001,
-            "auto_hedge_price_diff_threshold": 0.002
+            "auto_hedge_price_diff_threshold": 0.002,
+            "hedge_with_grid": true,
+            "disable_grid_on_hedge_side": false
         },
         "hotkeys": {
             "hotkeys_enabled": false,

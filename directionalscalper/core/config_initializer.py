@@ -49,6 +49,11 @@ class ConfigInitializer:
             strategy_instance.auto_hedge_min_position_size = config.linear_grid['auto_hedge_min_position_size']
             strategy_instance.auto_hedge_price_diff_threshold = config.linear_grid['auto_hedge_price_diff_threshold']
 
+            # >>> Additional new toggles for hedging and grid logic <<<
+            strategy_instance.disable_grid_on_hedge_side = config.linear_grid.get('disable_grid_on_hedge_side', False)
+            strategy_instance.hedge_with_grid = config.linear_grid.get('hedge_with_grid', False)
+
+            # Non-linear-grid config
             strategy_instance.upnl_threshold_pct = config.upnl_threshold_pct
             strategy_instance.volume_check = config.volume_check
             strategy_instance.max_usd_value = config.max_usd_value

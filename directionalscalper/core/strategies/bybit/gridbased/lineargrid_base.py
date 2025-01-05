@@ -179,6 +179,8 @@ class LinearGridBaseFutures(BybitStrategy):
             auto_hedge_ratio = self.config.linear_grid['auto_hedge_ratio']
             auto_hedge_min_position_size = self.config.linear_grid['auto_hedge_min_position_size']
             auto_hedge_price_diff_threshold = self.config.linear_grid['auto_hedge_price_diff_threshold']
+            disable_grid_on_hedge_side = self.config.linear_grid['disable_grid_on_hedge_side']
+            hedge_with_grid = self.config.linear_grid['hedge_with_grid']
 
             grid_behavior = self.config.linear_grid.get('grid_behavior', 'infinite')
             drawdown_behavior = self.config.linear_grid.get('drawdown_behavior', 'maxqtypercent')
@@ -799,7 +801,9 @@ class LinearGridBaseFutures(BybitStrategy):
                             auto_hedge_enabled,
                             auto_hedge_ratio,
                             auto_hedge_min_position_size,
-                            auto_hedge_price_diff_threshold
+                            auto_hedge_price_diff_threshold,
+                            disable_grid_on_hedge_side,
+                            hedge_with_grid
                         )
                     except Exception as e:
                         logging.info(f"Something is up with variables for the grid {e}")
