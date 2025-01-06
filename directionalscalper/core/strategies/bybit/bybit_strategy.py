@@ -4959,7 +4959,7 @@ class BybitStrategy(BaseStrategy):
                         max_qty_percent_long: float, max_qty_percent_short: float, graceful_stop_long: bool, graceful_stop_short: bool,
                         additional_entries_from_signal: bool, open_position_data: list, drawdown_behavior: str, grid_behavior: str,
                         stop_loss_long: float, stop_loss_short: float, stop_loss_enabled: bool, auto_hedge_enabled, auto_hedge_ratio, auto_hedge_min_position_size,
-                        auto_hedge_price_diff_threshold, disable_grid_on_hedge_side, hedge_with_grid, forcibly_close_hedge):
+                        auto_hedge_price_diff_threshold, disable_grid_on_hedge_side, hedge_with_grid, forcibly_close_hedge, auto_shift_hedge):
         try:
             long_pos_qty = long_pos_qty if long_pos_qty is not None else 0
             short_pos_qty = short_pos_qty if short_pos_qty is not None else 0
