@@ -76,7 +76,8 @@
             "auto_hedge_price_diff_threshold": 0.002,
             "hedge_with_grid": true,
             "disable_grid_on_hedge_side": false,
-            "forcibly_close_hedge": false
+            "forcibly_close_hedge": false,
+            "auto_shift_hedge": false
         },
         "hotkeys": {
             "hotkeys_enabled": false,
