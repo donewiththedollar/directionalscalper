@@ -5837,8 +5837,30 @@ class BybitStrategy(BaseStrategy):
             # Determine the active position and adjust the hedge side
             if auto_hedge_enabled:
                 try:
+                    # Check if both long and short positions exist
+                    if has_open_long_position and has_open_short_position:
+                        # At startup or when both sides are open, determine the larger side
+                        if auto_shift_hedge:
+                            if long_pos_qty > short_pos_qty:
+                                desired_hedge_qty = short_pos_qty * auto_hedge_ratio
+                                if current_hedge_side != 'short' or abs(current_hedge_qty - desired_hedge_qty) > 1e-6:
+                                    logging.info(f"[AUTO-HEDGE] {symbol}: Long > Short. Setting short as hedge.")
+                                    self.open_or_adjust_hedge(symbol, 'short', desired_hedge_qty, forcibly_close_hedge)
+                                    self.hedge_positions[symbol] = {'side': 'short', 'qty': desired_hedge_qty}
+                            elif short_pos_qty > long_pos_qty:
+                                desired_hedge_qty = long_pos_qty * auto_hedge_ratio
+                                if current_hedge_side != 'long' or abs(current_hedge_qty - desired_hedge_qty) > 1e-6:
+                                    logging.info(f"[AUTO-HEDGE] {symbol}: Short > Long. Setting long as hedge.")
+                                    self.open_or_adjust_hedge(symbol, 'long', desired_hedge_qty, forcibly_close_hedge)
+                                    self.hedge_positions[symbol] = {'side': 'long', 'qty': desired_hedge_qty}
+                            else:
+                                logging.info(f"[AUTO-HEDGE] {symbol}: Long and short positions are equal. No hedge adjustment needed.")
+                                self.hedge_positions[symbol] = {'side': None, 'qty': 0.0}
+                        else:
+                            logging.info(f"[AUTO-HEDGE] {symbol}: auto_shift_hedge=False. Retaining current hedge side.")
+
                     # Check for long-only position
-                    if has_open_long_position and not has_open_short_position:
+                    elif has_open_long_position and not has_open_short_position:
                         desired_hedge_qty = long_pos_qty * auto_hedge_ratio
                         if auto_shift_hedge:
                             # Automatically shift hedge to short side
@@ -5858,28 +5880,6 @@ class BybitStrategy(BaseStrategy):
                                 logging.info(f"[AUTO-HEDGE] {symbol}: Adjusting hedge to long side for short position.")
                                 self.open_or_adjust_hedge(symbol, 'long', desired_hedge_qty, forcibly_close_hedge)
                                 self.hedge_positions[symbol] = {'side': 'long', 'qty': desired_hedge_qty}
-                        else:
-                            logging.info(f"[AUTO-HEDGE] {symbol}: auto_shift_hedge=False. Retaining current hedge side.")
-
-                    # Check for both long and short positions
-                    elif has_open_long_position and has_open_short_position:
-                        if auto_shift_hedge:
-                            # Determine smaller side to hedge
-                            if long_pos_qty > short_pos_qty:
-                                desired_hedge_qty = short_pos_qty * auto_hedge_ratio
-                                if current_hedge_side != 'short' or abs(current_hedge_qty - desired_hedge_qty) > 1e-6:
-                                    logging.info(f"[AUTO-HEDGE] {symbol}: Long > Short. Adjusting hedge to short side.")
-                                    self.open_or_adjust_hedge(symbol, 'short', desired_hedge_qty, forcibly_close_hedge)
-                                    self.hedge_positions[symbol] = {'side': 'short', 'qty': desired_hedge_qty}
-                            elif short_pos_qty > long_pos_qty:
-                                desired_hedge_qty = long_pos_qty * auto_hedge_ratio
-                                if current_hedge_side != 'long' or abs(current_hedge_qty - desired_hedge_qty) > 1e-6:
-                                    logging.info(f"[AUTO-HEDGE] {symbol}: Short > Long. Adjusting hedge to long side.")
-                                    self.open_or_adjust_hedge(symbol, 'long', desired_hedge_qty, forcibly_close_hedge)
-                                    self.hedge_positions[symbol] = {'side': 'long', 'qty': desired_hedge_qty}
-                            else:
-                                logging.info(f"[AUTO-HEDGE] {symbol}: Long and short positions are equal. No hedge adjustment needed.")
-                                self.hedge_positions[symbol] = {'side': None, 'qty': 0.0}
                         else:
                             logging.info(f"[AUTO-HEDGE] {symbol}: auto_shift_hedge=False. Retaining current hedge side.")
 
@@ -6602,102 +6602,177 @@ class BybitStrategy(BaseStrategy):
     # -----------------------------------------------------------------
 
     def open_or_adjust_hedge(self, symbol, hedge_side, desired_qty, forcibly_close_hedge=True):
-        """
-        Open or adjust a hedge position on the SAME symbol using post-only limit orders.
-        Dynamically fetches current hedge position from the exchange and verifies every time.
-        """
-        # Fetch current position data directly from the exchange
-        current_long_qty = self.get_position_qty(symbol, 'long')  # Replace with actual API call
-        current_short_qty = self.get_position_qty(symbol, 'short')  # Replace with actual API call
+        """Open or adjust hedge position using post-only limit orders."""
+        # Fetch current positions
+        current_long_qty = self.get_position_qty(symbol, 'long')
+        current_short_qty = self.get_position_qty(symbol, 'short')
 
-        # Determine the current hedge side and quantity
-        current_hedge_side = 'long' if current_long_qty > 0 else 'short' if current_short_qty > 0 else None
-        current_hedge_qty = current_long_qty if current_hedge_side == 'long' else current_short_qty if current_hedge_side == 'short' else 0
+        # Get quantity of current hedge position (if it exists)
+        current_hedge_qty = (
+            current_long_qty if hedge_side == 'long'
+            else current_short_qty if hedge_side == 'short'
+            else 0
+        )
 
-        logging.info(f"[AUTO-HEDGE] {symbol}: Fetched current hedge side={current_hedge_side}, qty={current_hedge_qty}")
+        logging.info(f"[AUTO-HEDGE] {symbol}: Current {hedge_side} hedge qty={current_hedge_qty}")
 
-        # If the current hedge side differs, close the old hedge side if forcibly_close_hedge=True
-        if current_hedge_side and (current_hedge_side != hedge_side):
-            if forcibly_close_hedge:
-                logging.info(f"[AUTO-HEDGE] {symbol}: Hedge side mismatch => closing old side {current_hedge_side}")
-                self.close_hedge_position(symbol)  # Close the current hedge
-            else:
-                logging.info(
-                    f"[AUTO-HEDGE] {symbol}: Hedge side mismatch but forcibly_close_hedge=False => keeping old side {current_hedge_side}."
-                )
-                return  # Do nothing, keep the old side
-
-        # Calculate the difference needed to adjust the hedge
+        # Calculate needed adjustment
         qty_diff = desired_qty - current_hedge_qty
         if abs(qty_diff) < 1e-6:
-            logging.info(f"[AUTO-HEDGE] {symbol}: Hedge already at {desired_qty:.4f}, no change needed.")
+            logging.info(f"[AUTO-HEDGE] {symbol}: Hedge already at desired qty={desired_qty:.4f}")
             return
 
-        # Place or adjust the hedge order
+        # Place hedge orders
         if hedge_side == 'short':
-            position_idx = 2  # Short side in Hedge Mode
+            position_idx = 2
             if qty_diff > 0:
                 best_ask_price = self.get_best_ask_price(symbol)
-                final_qty = abs(qty_diff)
-                logging.info(
-                    f"[AUTO-HEDGE] Opening/Expanding short hedge on {symbol}, qty={desired_qty:.4f}, ask={best_ask_price}"
-                )
+                logging.info(f"[AUTO-HEDGE] {symbol}: Opening short hedge {qty_diff:.4f} @ {best_ask_price:.4f}")
                 self.postonly_limit_order_bybit(
                     symbol=symbol,
                     side="sell",
-                    amount=final_qty,
+                    amount=abs(qty_diff),
                     price=best_ask_price,
                     positionIdx=position_idx,
                     reduceOnly=False
                 )
             else:
                 best_bid_price = self.get_best_bid_price(symbol)
-                final_qty = abs(qty_diff)
-                logging.info(
-                    f"[AUTO-HEDGE] Reducing short hedge on {symbol}, qty={final_qty:.4f}, bid={best_bid_price}"
-                )
+                logging.info(f"[AUTO-HEDGE] {symbol}: Reducing short hedge {abs(qty_diff):.4f} @ {best_bid_price:.4f}")
                 self.postonly_limit_order_bybit(
                     symbol=symbol,
-                    side="buy",
-                    amount=final_qty,
+                    side="buy", 
+                    amount=abs(qty_diff),
                     price=best_bid_price,
                     positionIdx=position_idx,
                     reduceOnly=False
                 )
-        else:
-            # hedge_side == 'long'
+
+        else:  # hedge_side == 'long'
             position_idx = 1
             if qty_diff > 0:
                 best_bid_price = self.get_best_bid_price(symbol)
-                final_qty = abs(qty_diff)
-                logging.info(
-                    f"[AUTO-HEDGE] Opening/Expanding long hedge on {symbol}, qty={desired_qty:.4f}, bid={best_bid_price}"
-                )
+                logging.info(f"[AUTO-HEDGE] {symbol}: Opening long hedge {qty_diff:.4f} @ {best_bid_price:.4f}")
                 self.postonly_limit_order_bybit(
                     symbol=symbol,
                     side="buy",
-                    amount=final_qty,
+                    amount=abs(qty_diff),
                     price=best_bid_price,
                     positionIdx=position_idx,
                     reduceOnly=False
                 )
             else:
                 best_ask_price = self.get_best_ask_price(symbol)
-                final_qty = abs(qty_diff)
-                logging.info(
-                    f"[AUTO-HEDGE] Reducing long hedge on {symbol}, qty={final_qty:.4f}, ask={best_ask_price}"
-                )
+                logging.info(f"[AUTO-HEDGE] {symbol}: Reducing long hedge {abs(qty_diff):.4f} @ {best_ask_price:.4f}")
                 self.postonly_limit_order_bybit(
-                    symbol=symbol,
+                    symbol=symbol, 
                     side="sell",
-                    amount=final_qty,
+                    amount=abs(qty_diff),
                     price=best_ask_price,
                     positionIdx=position_idx,
                     reduceOnly=False
                 )
 
-        # Log the result
-        logging.info(f"[AUTO-HEDGE] {symbol}: Hedge adjustment completed. Desired qty={desired_qty:.4f}")
+        logging.info(f"[AUTO-HEDGE] {symbol}: Hedge adjustment completed. New qty={desired_qty:.4f}, side={hedge_side}")
+    
+
+    # def open_or_adjust_hedge(self, symbol, hedge_side, desired_qty, forcibly_close_hedge=True):
+    #     """
+    #     Open or adjust a hedge position on the SAME symbol using post-only limit orders.
+    #     Dynamically fetches current hedge position from the exchange and verifies every time.
+    #     """
+    #     # Fetch current position data directly from the exchange
+    #     current_long_qty = self.get_position_qty(symbol, 'long')  # Replace with actual API call
+    #     current_short_qty = self.get_position_qty(symbol, 'short')  # Replace with actual API call
+
+    #     # Determine the current hedge side and quantity
+    #     current_hedge_side = 'long' if current_long_qty > 0 else 'short' if current_short_qty > 0 else None
+    #     current_hedge_qty = current_long_qty if current_hedge_side == 'long' else current_short_qty if current_hedge_side == 'short' else 0
+
+    #     logging.info(f"[AUTO-HEDGE] {symbol}: Fetched current hedge side={current_hedge_side}, qty={current_hedge_qty}")
+
+    #     # If the current hedge side differs, close the old hedge side if forcibly_close_hedge=True
+    #     if current_hedge_side and (current_hedge_side != hedge_side):
+    #         if forcibly_close_hedge:
+    #             logging.info(f"[AUTO-HEDGE] {symbol}: Hedge side mismatch => closing old side {current_hedge_side}")
+    #             self.close_hedge_position(symbol)  # Close the current hedge
+    #         else:
+    #             logging.info(
+    #                 f"[AUTO-HEDGE] {symbol}: Hedge side mismatch but forcibly_close_hedge=False => keeping old side {current_hedge_side}."
+    #             )
+    #             return  # Do nothing, keep the old side
+
+    #     # Calculate the difference needed to adjust the hedge
+    #     qty_diff = desired_qty - current_hedge_qty
+    #     if abs(qty_diff) < 1e-6:
+    #         logging.info(f"[AUTO-HEDGE] {symbol}: Hedge already at {desired_qty:.4f}, no change needed.")
+    #         return
+
+    #     # Place or adjust the hedge order
+    #     if hedge_side == 'short':
+    #         position_idx = 2  # Short side in Hedge Mode
+    #         if qty_diff > 0:
+    #             best_ask_price = self.get_best_ask_price(symbol)
+    #             final_qty = abs(qty_diff)
+    #             logging.info(
+    #                 f"[AUTO-HEDGE] Opening/Expanding short hedge on {symbol}, qty={desired_qty:.4f}, ask={best_ask_price}"
+    #             )
+    #             self.postonly_limit_order_bybit(
+    #                 symbol=symbol,
+    #                 side="sell",
+    #                 amount=final_qty,
+    #                 price=best_ask_price,
+    #                 positionIdx=position_idx,
+    #                 reduceOnly=False
+    #             )
+    #         else:
+    #             best_bid_price = self.get_best_bid_price(symbol)
+    #             final_qty = abs(qty_diff)
+    #             logging.info(
+    #                 f"[AUTO-HEDGE] Reducing short hedge on {symbol}, qty={final_qty:.4f}, bid={best_bid_price}"
+    #             )
+    #             self.postonly_limit_order_bybit(
+    #                 symbol=symbol,
+    #                 side="buy",
+    #                 amount=final_qty,
+    #                 price=best_bid_price,
+    #                 positionIdx=position_idx,
+    #                 reduceOnly=False
+    #             )
+    #     else:
+    #         # hedge_side == 'long'
+    #         position_idx = 1
+    #         if qty_diff > 0:
+    #             best_bid_price = self.get_best_bid_price(symbol)
+    #             final_qty = abs(qty_diff)
+    #             logging.info(
+    #                 f"[AUTO-HEDGE] Opening/Expanding long hedge on {symbol}, qty={desired_qty:.4f}, bid={best_bid_price}"
+    #             )
+    #             self.postonly_limit_order_bybit(
+    #                 symbol=symbol,
+    #                 side="buy",
+    #                 amount=final_qty,
+    #                 price=best_bid_price,
+    #                 positionIdx=position_idx,
+    #                 reduceOnly=False
+    #             )
+    #         else:
+    #             best_ask_price = self.get_best_ask_price(symbol)
+    #             final_qty = abs(qty_diff)
+    #             logging.info(
+    #                 f"[AUTO-HEDGE] Reducing long hedge on {symbol}, qty={final_qty:.4f}, ask={best_ask_price}"
+    #             )
+    #             self.postonly_limit_order_bybit(
+    #                 symbol=symbol,
+    #                 side="sell",
+    #                 amount=final_qty,
+    #                 price=best_ask_price,
+    #                 positionIdx=position_idx,
+    #                 reduceOnly=False
+    #             )
+
+    #     # Log the result
+    #     logging.info(f"[AUTO-HEDGE] {symbol}: Hedge adjustment completed. Desired qty={desired_qty:.4f}")
 
 
     # def open_or_adjust_hedge(self, symbol, hedge_side, desired_qty, forcibly_close_hedge=True):
