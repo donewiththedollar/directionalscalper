@@ -5819,9 +5819,8 @@ class BybitStrategy(BaseStrategy):
             else:
                 logging.info("Stop-loss disabled")
 
-
             # -------------------------------------
-            # 2) AUTO-HEDGE LOGIC (Enhanced with grid cancellation)
+            # (2) AUTO-HEDGE LOGIC
             # -------------------------------------
             if not hasattr(self, 'hedge_positions'):
                 self.hedge_positions = {}
@@ -5830,7 +5829,7 @@ class BybitStrategy(BaseStrategy):
                 self.hedge_positions[symbol] = {
                     'side': None,  # 'long' or 'short'
                     'qty': 0.0,
-                    'adjustment_pending': False  # Track if hedge adjustment is pending
+                    'adjustment_pending': False
                 }
 
             current_hedge_side = self.hedge_positions[symbol]['side']
@@ -5839,7 +5838,6 @@ class BybitStrategy(BaseStrategy):
 
             if auto_hedge_enabled:
                 try:
-                    # Recalculate desired hedge side based on active positions
                     if has_open_long_position and not has_open_short_position:
                         desired_hedge_side = 'short'
                         desired_hedge_qty = long_pos_qty * auto_hedge_ratio
@@ -5857,42 +5855,41 @@ class BybitStrategy(BaseStrategy):
                         desired_hedge_side = None
                         desired_hedge_qty = 0.0
 
-                    # ----------------------------------------------------------------
-                    # FORCE-CANCEL the opposite side’s grid **every loop** if desired
-                    # ----------------------------------------------------------------
+                    # Cancel the hedged side if needed
                     if disable_grid_on_hedge_side and desired_hedge_side:
                         if desired_hedge_side == 'long':
-                            # Always cancel short grid orders
-                            logging.info(f"[AUTO-HEDGE] (FORCED) Canceling short grids for {symbol}, hedge side=long.")
-                            #self.cancel_grid_orders(symbol, "sell")
-                            self.cancel_grid_orders(symbol, "buy")
+                            # Hedge side=long => cancel any 'buy' grids
+                            has_open_buy = any(
+                                o['info']['symbol'] == symbol
+                                and o['info']['side'].lower() == 'buy'
+                                and not o['info']['reduceOnly']
+                                for o in open_orders
+                            )
+                            if has_open_buy:
+                                logging.info(f"[AUTO-HEDGE] Canceling LONG grid => side=long.")
+                                self.cancel_grid_orders(symbol, 'buy')
 
                         elif desired_hedge_side == 'short':
-                            # Always cancel long grid orders
-                            logging.info(f"[AUTO-HEDGE] (FORCED) Canceling long grids for {symbol}, hedge side=short.")
-                            self.cancel_grid_orders(symbol, "sell")
+                            # Hedge side=short => cancel any 'sell' grids
+                            has_open_sell = any(
+                                o['info']['symbol'] == symbol
+                                and o['info']['side'].lower() == 'sell'
+                                and not o['info']['reduceOnly']
+                                for o in open_orders
+                            )
+                            if has_open_sell:
+                                logging.info(f"[AUTO-HEDGE] Canceling SHORT grid => side=short.")
+                                self.cancel_grid_orders(symbol, 'sell')
 
-                    # ----------------------------------------------------------------
-                    # If you *also* want the “side changed” logic, you can keep it. 
-                    # But usually, it's redundant if you're always canceling anyway:
-                    # ----------------------------------------------------------------
-                    # if disable_grid_on_hedge_side and desired_hedge_side:
-                    #     if desired_hedge_side == 'long' and current_hedge_side != 'long':
-                    #         logging.info(f"[AUTO-HEDGE] Canceling short grids for {symbol} as hedge side shifts to long.")
-                    #         self.cancel_grid_orders(symbol, "sell")
-                    #     elif desired_hedge_side == 'short' and current_hedge_side != 'short':
-                    #         logging.info(f"[AUTO-HEDGE] Canceling long grids for {symbol} as hedge side shifts to short.")
-                    #         self.cancel_grid_orders(symbol, "buy")
-
-                    # Retry hedge adjustment if pending or hedge state is incorrect
+                    # Hedge adjustment
                     if hedge_adjustment_pending or (
                         desired_hedge_side and (
-                            current_hedge_side != desired_hedge_side or current_hedge_qty < desired_hedge_qty
+                            current_hedge_side != desired_hedge_side
+                            or current_hedge_qty < desired_hedge_qty
                         )
                     ):
                         logging.info(
-                            f"[AUTO-HEDGE] {symbol}: Adjusting hedge to {desired_hedge_side} "
-                            f"with qty {desired_hedge_qty:.4f}."
+                            f"[AUTO-HEDGE] {symbol}: Adjust => side={desired_hedge_side}, qty={desired_hedge_qty}"
                         )
                         success = self.open_or_adjust_hedge(
                             symbol,
@@ -5908,31 +5905,32 @@ class BybitStrategy(BaseStrategy):
                             }
                         else:
                             self.hedge_positions[symbol]['adjustment_pending'] = True
-                            logging.info(
-                                f"[AUTO-HEDGE] {symbol}: Hedge adjustment failed. "
-                                f"Retrying in the next cycle."
-                            )
+                            logging.info(f"[AUTO-HEDGE] {symbol}: Hedge adjust failed => next loop")
 
-                    # Set grid skip flags
+                    # Set skip flags **here only** based on the desired hedge side
                     skip_long_side = (desired_hedge_side == 'long') if disable_grid_on_hedge_side else False
                     skip_short_side = (desired_hedge_side == 'short') if disable_grid_on_hedge_side else False
-
-                    logging.info(f"{symbol} skip_long_side={skip_long_side}, skip_short_side={skip_short_side}")
+                    logging.info(f"[{symbol}] skip_long_side={skip_long_side}, skip_short_side={skip_short_side}")
 
                 except Exception as hedge_err:
-                    logging.info(f"[AUTO-HEDGE] {symbol}: Error during hedge logic: {hedge_err}")
+                    logging.info(f"[AUTO-HEDGE] {symbol}: Hedge logic error => {hedge_err}")
                     logging.info("Traceback: %s", traceback.format_exc())
             else:
-                logging.info(f"[AUTO-HEDGE] {symbol}: Auto-hedge is disabled.")
+                logging.info(f"[AUTO-HEDGE] {symbol}: disabled.")
+                skip_long_side = False
+                skip_short_side = False
+
+                # If a hedge was open but 'auto_hedge_enabled' is now False
                 if self.hedge_positions[symbol]['side']:
                     if hedge_with_grid:
-                        logging.info(
-                            f"[AUTO-HEDGE] {symbol}: Hedge disabled but 'hedge_with_grid=True' => keeping hedge."
-                        )
+                        logging.info(f"[AUTO-HEDGE] {symbol}: Hedge disabled but hedge_with_grid=True => keep hedge.")
                     else:
                         logging.info(f"[AUTO-HEDGE] {symbol}: Hedge disabled => closing existing hedge.")
                         self.close_hedge_position(symbol)
                         self.hedge_positions[symbol] = {'side': None, 'qty': 0.0}
+
+
+
 
 
             # -----------------------------------------------------------
@@ -6066,14 +6064,14 @@ class BybitStrategy(BaseStrategy):
                     except Exception as e:
                         logging.error(f"Exception in issue_grid_safely for {symbol} - {side}: {e}")
 
-            current_hedge_side = self.hedge_positions[symbol]['side']
-            skip_long_side = False
-            skip_short_side = False
-            if disable_grid_on_hedge_side:
-                if current_hedge_side == 'long':
-                    skip_long_side = True
-                elif current_hedge_side == 'short':
-                    skip_short_side = True
+            # current_hedge_side = self.hedge_positions[symbol]['side']
+            # skip_long_side = False
+            # skip_short_side = False
+            # if disable_grid_on_hedge_side:
+            #     if current_hedge_side == 'long':
+            #         skip_long_side = True
+            #     elif current_hedge_side == 'short':
+            #         skip_short_side = True
 
             replace_long_grid, replace_short_grid = self.should_replace_grid_updated_buffer_min_outerpricedist_v2(
                 symbol,
@@ -6465,44 +6463,44 @@ class BybitStrategy(BaseStrategy):
                 )
 
             # Update TP for long position
-            # if long_pos_qty > 0:
-            #     new_long_tp_min, new_long_tp_max = self.calculate_quickscalp_long_take_profit_dynamic_distance(
-            #         long_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
-            #     )
-            #     if (new_long_tp_min is not None) and (new_long_tp_max is not None):
-            #         self.next_long_tp_update = self.update_quickscalp_tp_dynamic(
-            #             symbol=symbol,
-            #             pos_qty=long_pos_qty,
-            #             upnl_profit_pct=upnl_profit_pct,
-            #             max_upnl_profit_pct=max_upnl_profit_pct,
-            #             short_pos_price=None,
-            #             long_pos_price=long_pos_price,
-            #             positionIdx=1,
-            #             order_side="sell",
-            #             last_tp_update=self.next_long_tp_update,
-            #             tp_order_counts=tp_order_counts,
-            #             open_orders=open_orders
-            #         )
+            if long_pos_qty > 0:
+                new_long_tp_min, new_long_tp_max = self.calculate_quickscalp_long_take_profit_dynamic_distance(
+                    long_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
+                )
+                if (new_long_tp_min is not None) and (new_long_tp_max is not None):
+                    self.next_long_tp_update = self.update_quickscalp_tp_dynamic(
+                        symbol=symbol,
+                        pos_qty=long_pos_qty,
+                        upnl_profit_pct=upnl_profit_pct,
+                        max_upnl_profit_pct=max_upnl_profit_pct,
+                        short_pos_price=None,
+                        long_pos_price=long_pos_price,
+                        positionIdx=1,
+                        order_side="sell",
+                        last_tp_update=self.next_long_tp_update,
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
+                    )
 
-            # # Update TP for short position
-            # if short_pos_qty > 0:
-            #     new_short_tp_min, new_short_tp_max = self.calculate_quickscalp_short_take_profit_dynamic_distance(
-            #         short_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
-            #     )
-            #     if (new_short_tp_min is not None) and (new_short_tp_max is not None):
-            #         self.next_short_tp_update = self.update_quickscalp_tp_dynamic(
-            #             symbol=symbol,
-            #             pos_qty=short_pos_qty,
-            #             upnl_profit_pct=upnl_profit_pct,
-            #             max_upnl_profit_pct=max_upnl_profit_pct,
-            #             short_pos_price=short_pos_price,
-            #             long_pos_price=None,
-            #             positionIdx=2,
-            #             order_side="buy",
-            #             last_tp_update=self.next_short_tp_update,
-            #             tp_order_counts=tp_order_counts,
-            #             open_orders=open_orders
-            #         )
+            # Update TP for short position
+            if short_pos_qty > 0:
+                new_short_tp_min, new_short_tp_max = self.calculate_quickscalp_short_take_profit_dynamic_distance(
+                    short_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
+                )
+                if (new_short_tp_min is not None) and (new_short_tp_max is not None):
+                    self.next_short_tp_update = self.update_quickscalp_tp_dynamic(
+                        symbol=symbol,
+                        pos_qty=short_pos_qty,
+                        upnl_profit_pct=upnl_profit_pct,
+                        max_upnl_profit_pct=max_upnl_profit_pct,
+                        short_pos_price=short_pos_price,
+                        long_pos_price=None,
+                        positionIdx=2,
+                        order_side="buy",
+                        last_tp_update=self.next_short_tp_update,
+                        tp_order_counts=tp_order_counts,
+                        open_orders=open_orders
+                    )
 
             # Clear long grid if conditions are met
             if (
