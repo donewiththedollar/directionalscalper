@@ -6383,56 +6383,62 @@ class BybitStrategy(BaseStrategy):
 
             # If symbol is in open_symbols, attempt re-issuing grids for existing positions
             if symbol in open_symbols:
-                # e.g. if (long_pos_qty>0 but no grid => place grid)
+                # e.g. if (long_pos_qty > 0 but no grid => place grid)
                 if (
                     (long_pos_qty > 0 and not long_grid_active and not self.has_active_grid(symbol, 'long', open_orders))
                     or (short_pos_qty > 0 and not short_grid_active and not self.has_active_grid(symbol, 'short', open_orders))
                 ):
-                    logging.info(
-                        f"[{symbol}] Open positions found without active grids. Issuing grid orders."
-                    )
+                    logging.info(f"[{symbol}] Open positions found without active grids. Issuing grid orders.")
 
-                    # Long Grid Logic
+                    # ---------------------
+                    # LONG GRID LOGIC
+                    # ---------------------
                     if (long_pos_qty > 0 and not long_grid_active and symbol not in self.max_qty_reached_symbol_long):
-                        if (not self.auto_reduce_active_long.get(symbol, False)) or entry_during_autoreduce:
-                            if skip_long_side:
-                                logging.info(
-                                    f"[{symbol}] skip_long_side=True => skipping reissue of LONG grid."
-                                )
-                            else:
-                                logging.info(
-                                    f"[{symbol}] Placing long grid orders for existing open position."
-                                )
+                        # If not skip_long_side, we can place (reissue) long grids
+                        if not skip_long_side:
+                            if (not self.auto_reduce_active_long.get(symbol, False)) or entry_during_autoreduce:
+                                logging.info(f"[{symbol}] Placing long grid orders for existing open position.")
                                 self.clear_grid(symbol, 'buy')
 
                                 modified_grid_levels_long = grid_levels_long.copy()
                                 best_bid_price = self.get_best_bid_price(symbol)
+                                # Example tweak: offset the first level by 0.995
                                 modified_grid_levels_long[0] = best_bid_price * 0.995
                                 logging.info(
-                                    f"[{symbol}] Setting first level of modified long grid => best_bid_price*0.995 => {modified_grid_levels_long[0]}"
+                                    f"[{symbol}] Setting first level of modified long grid => "
+                                    f"best_bid_price*0.995 => {modified_grid_levels_long[0]}"
                                 )
                                 issue_grid_safely(symbol, 'long', modified_grid_levels_long, amounts_long)
+                        else:
+                            # If skip_long_side = True, log a message and do nothing
+                            logging.info(
+                                f"[{symbol}] skip_long_side=True => skipping reissue of LONG grid."
+                            )
 
-                    # Short Grid Logic
+                    # ---------------------
+                    # SHORT GRID LOGIC
+                    # ---------------------
                     if (short_pos_qty > 0 and not short_grid_active and symbol not in self.max_qty_reached_symbol_short):
-                        if (not self.auto_reduce_active_short.get(symbol, False)) or entry_during_autoreduce:
-                            if skip_short_side:
-                                logging.info(
-                                    f"[{symbol}] skip_short_side=True => skipping reissue of SHORT grid."
-                                )
-                            else:
-                                logging.info(
-                                    f"[{symbol}] Placing short grid orders for existing open position."
-                                )
+                        # If not skip_short_side, we can place (reissue) short grids
+                        if not skip_short_side:
+                            if (not self.auto_reduce_active_short.get(symbol, False)) or entry_during_autoreduce:
+                                logging.info(f"[{symbol}] Placing short grid orders for existing open position.")
                                 self.clear_grid(symbol, 'sell')
 
                                 modified_grid_levels_short = grid_levels_short.copy()
                                 best_ask_price = self.get_best_ask_price(symbol)
+                                # Example tweak: offset the first level by 1.005
                                 modified_grid_levels_short[0] = best_ask_price * 1.005
                                 logging.info(
-                                    f"[{symbol}] Setting first level of modified short grid => best_ask_price+0.5% => {modified_grid_levels_short[0]}"
+                                    f"[{symbol}] Setting first level of modified short grid => "
+                                    f"best_ask_price+0.5% => {modified_grid_levels_short[0]}"
                                 )
                                 issue_grid_safely(symbol, 'short', modified_grid_levels_short, amounts_short)
+                        else:
+                            # If skip_short_side = True, log a message and do nothing
+                            logging.info(
+                                f"[{symbol}] skip_short_side=True => skipping reissue of SHORT grid."
+                            )
 
                 current_time = time.time()
                 # Grid clearing logic if no positions
