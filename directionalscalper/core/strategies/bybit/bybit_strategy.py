@@ -6363,7 +6363,7 @@ class BybitStrategy(BaseStrategy):
                 logging.info("Additional entries from signal are disabled entirely.")
 
             # Sleep a bit
-            time.sleep(5)
+            #time.sleep(5)
 
             # Check grid active
             logging.info(f"Symbol type for grid active check: {symbol}")
@@ -6465,44 +6465,44 @@ class BybitStrategy(BaseStrategy):
                 )
 
             # Update TP for long position
-            if long_pos_qty > 0:
-                new_long_tp_min, new_long_tp_max = self.calculate_quickscalp_long_take_profit_dynamic_distance(
-                    long_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
-                )
-                if (new_long_tp_min is not None) and (new_long_tp_max is not None):
-                    self.next_long_tp_update = self.update_quickscalp_tp_dynamic(
-                        symbol=symbol,
-                        pos_qty=long_pos_qty,
-                        upnl_profit_pct=upnl_profit_pct,
-                        max_upnl_profit_pct=max_upnl_profit_pct,
-                        short_pos_price=None,
-                        long_pos_price=long_pos_price,
-                        positionIdx=1,
-                        order_side="sell",
-                        last_tp_update=self.next_long_tp_update,
-                        tp_order_counts=tp_order_counts,
-                        open_orders=open_orders
-                    )
+            # if long_pos_qty > 0:
+            #     new_long_tp_min, new_long_tp_max = self.calculate_quickscalp_long_take_profit_dynamic_distance(
+            #         long_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
+            #     )
+            #     if (new_long_tp_min is not None) and (new_long_tp_max is not None):
+            #         self.next_long_tp_update = self.update_quickscalp_tp_dynamic(
+            #             symbol=symbol,
+            #             pos_qty=long_pos_qty,
+            #             upnl_profit_pct=upnl_profit_pct,
+            #             max_upnl_profit_pct=max_upnl_profit_pct,
+            #             short_pos_price=None,
+            #             long_pos_price=long_pos_price,
+            #             positionIdx=1,
+            #             order_side="sell",
+            #             last_tp_update=self.next_long_tp_update,
+            #             tp_order_counts=tp_order_counts,
+            #             open_orders=open_orders
+            #         )
 
-            # Update TP for short position
-            if short_pos_qty > 0:
-                new_short_tp_min, new_short_tp_max = self.calculate_quickscalp_short_take_profit_dynamic_distance(
-                    short_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
-                )
-                if (new_short_tp_min is not None) and (new_short_tp_max is not None):
-                    self.next_short_tp_update = self.update_quickscalp_tp_dynamic(
-                        symbol=symbol,
-                        pos_qty=short_pos_qty,
-                        upnl_profit_pct=upnl_profit_pct,
-                        max_upnl_profit_pct=max_upnl_profit_pct,
-                        short_pos_price=short_pos_price,
-                        long_pos_price=None,
-                        positionIdx=2,
-                        order_side="buy",
-                        last_tp_update=self.next_short_tp_update,
-                        tp_order_counts=tp_order_counts,
-                        open_orders=open_orders
-                    )
+            # # Update TP for short position
+            # if short_pos_qty > 0:
+            #     new_short_tp_min, new_short_tp_max = self.calculate_quickscalp_short_take_profit_dynamic_distance(
+            #         short_pos_price, symbol, upnl_profit_pct, max_upnl_profit_pct
+            #     )
+            #     if (new_short_tp_min is not None) and (new_short_tp_max is not None):
+            #         self.next_short_tp_update = self.update_quickscalp_tp_dynamic(
+            #             symbol=symbol,
+            #             pos_qty=short_pos_qty,
+            #             upnl_profit_pct=upnl_profit_pct,
+            #             max_upnl_profit_pct=max_upnl_profit_pct,
+            #             short_pos_price=short_pos_price,
+            #             long_pos_price=None,
+            #             positionIdx=2,
+            #             order_side="buy",
+            #             last_tp_update=self.next_short_tp_update,
+            #             tp_order_counts=tp_order_counts,
+            #             open_orders=open_orders
+            #         )
 
             # Clear long grid if conditions are met
             if (
