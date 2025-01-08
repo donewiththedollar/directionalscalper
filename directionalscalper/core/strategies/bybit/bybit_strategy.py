@@ -5908,7 +5908,7 @@ class BybitStrategy(BaseStrategy):
                             }
                         else:
                             self.hedge_positions[symbol]['adjustment_pending'] = True
-                            logging.warning(
+                            logging.info(
                                 f"[AUTO-HEDGE] {symbol}: Hedge adjustment failed. "
                                 f"Retrying in the next cycle."
                             )
@@ -5920,8 +5920,8 @@ class BybitStrategy(BaseStrategy):
                     logging.info(f"{symbol} skip_long_side={skip_long_side}, skip_short_side={skip_short_side}")
 
                 except Exception as hedge_err:
-                    logging.warning(f"[AUTO-HEDGE] {symbol}: Error during hedge logic: {hedge_err}")
-                    logging.warning("Traceback: %s", traceback.format_exc())
+                    logging.info(f"[AUTO-HEDGE] {symbol}: Error during hedge logic: {hedge_err}")
+                    logging.info("Traceback: %s", traceback.format_exc())
             else:
                 logging.info(f"[AUTO-HEDGE] {symbol}: Auto-hedge is disabled.")
                 if self.hedge_positions[symbol]['side']:
@@ -6031,7 +6031,7 @@ class BybitStrategy(BaseStrategy):
                         order_side = 'buy' if side == 'long' else 'sell'
 
                         if self.has_active_grid(symbol, side, open_orders):
-                            logging.warning(
+                            logging.info(
                                 f"[{symbol}] {side.capitalize()} grid already active or existing order found."
                             )
                             return
@@ -6060,7 +6060,7 @@ class BybitStrategy(BaseStrategy):
                                 f"[{symbol}] Successfully issued {side} grid orders."
                             )
                         else:
-                            logging.warning(
+                            logging.info(
                                 f"[{symbol}] Attempted to issue {side} grid orders, but no clearance set."
                             )
                     except Exception as e:
