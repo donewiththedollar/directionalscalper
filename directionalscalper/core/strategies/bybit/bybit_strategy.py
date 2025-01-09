@@ -5820,7 +5820,7 @@ class BybitStrategy(BaseStrategy):
                 logging.info("Stop-loss disabled")
 
             # -------------------------------------
-            # (2) AUTO-HEDGE LOGIC
+            # (2) AUTO-HEDGE LOGIC (With Price Diff Check)
             # -------------------------------------
             if not hasattr(self, 'hedge_positions'):
                 self.hedge_positions = {}
@@ -5836,29 +5836,73 @@ class BybitStrategy(BaseStrategy):
             current_hedge_qty = self.hedge_positions[symbol]['qty']
             hedge_adjustment_pending = self.hedge_positions[symbol].get('adjustment_pending', False)
 
+            # Helper function to check if we've moved enough from a reference entry
+            def price_diff_satisfied(ref_price, current_price, threshold):
+                """
+                Return True if the absolute % difference between current_price
+                and ref_price >= threshold; else False.
+                """
+                if not ref_price or ref_price <= 0:
+                    return False  # Can't measure properly
+                diff_ratio = abs(current_price - ref_price) / ref_price
+                return (diff_ratio >= threshold)
+
             if auto_hedge_enabled:
                 try:
+                    desired_hedge_side = None
+                    desired_hedge_qty = 0.0
+
+                    # CASE 1: Net-Long only (long_pos_qty > 0, short_pos_qty = 0)
                     if has_open_long_position and not has_open_short_position:
-                        desired_hedge_side = 'short'
-                        desired_hedge_qty = long_pos_qty * auto_hedge_ratio
-                    elif has_open_short_position and not has_open_long_position:
-                        desired_hedge_side = 'long'
-                        desired_hedge_qty = short_pos_qty * auto_hedge_ratio
-                    elif has_open_long_position and has_open_short_position:
-                        if long_pos_qty > short_pos_qty:
+                        # Only proceed if we've moved enough from the long position's entry
+                        if price_diff_satisfied(long_pos_price, current_price, auto_hedge_price_diff_threshold):
                             desired_hedge_side = 'short'
+                            desired_hedge_qty = long_pos_qty * auto_hedge_ratio
+                        else:
+                            # Price not moved enough => no hedge adjustment
+                            desired_hedge_side = None
+                            desired_hedge_qty = 0.0
+
+                    # CASE 2: Net-Short only (short_pos_qty > 0, long_pos_qty = 0)
+                    elif has_open_short_position and not has_open_long_position:
+                        if price_diff_satisfied(short_pos_price, current_price, auto_hedge_price_diff_threshold):
+                            desired_hedge_side = 'long'
                             desired_hedge_qty = short_pos_qty * auto_hedge_ratio
                         else:
-                            desired_hedge_side = 'long'
-                            desired_hedge_qty = long_pos_qty * auto_hedge_ratio
+                            desired_hedge_side = None
+                            desired_hedge_qty = 0.0
+
+                    # CASE 3: Both sides open
+                    elif has_open_long_position and has_open_short_position:
+                        # Decide which side is "main" (larger)
+                        if long_pos_qty > short_pos_qty:
+                            # Main side is long => potential hedge is short
+                            if price_diff_satisfied(long_pos_price, current_price, auto_hedge_price_diff_threshold):
+                                desired_hedge_side = 'short'
+                                # Hedge sized off the smaller side's quantity * ratio
+                                desired_hedge_qty = short_pos_qty * auto_hedge_ratio
+                            else:
+                                desired_hedge_side = None
+                                desired_hedge_qty = 0.0
+                        else:
+                            # Main side is short => potential hedge is long
+                            if price_diff_satisfied(short_pos_price, current_price, auto_hedge_price_diff_threshold):
+                                desired_hedge_side = 'long'
+                                desired_hedge_qty = long_pos_qty * auto_hedge_ratio
+                            else:
+                                desired_hedge_side = None
+                                desired_hedge_qty = 0.0
                     else:
+                        # No positions open
                         desired_hedge_side = None
                         desired_hedge_qty = 0.0
 
-                    # Cancel the hedged side if needed
+                    # -------------------------------------------------
+                    # Existing logic that cancels grid if hedge side is set
+                    # (Only if disable_grid_on_hedge_side is True, etc.)
+                    # -------------------------------------------------
                     if disable_grid_on_hedge_side and desired_hedge_side:
                         if desired_hedge_side == 'long':
-                            # Hedge side=long => cancel any 'buy' grids
                             has_open_buy = any(
                                 o['info']['symbol'] == symbol
                                 and o['info']['side'].lower() == 'buy'
@@ -5870,7 +5914,6 @@ class BybitStrategy(BaseStrategy):
                                 self.cancel_grid_orders(symbol, 'buy')
 
                         elif desired_hedge_side == 'short':
-                            # Hedge side=short => cancel any 'sell' grids
                             has_open_sell = any(
                                 o['info']['symbol'] == symbol
                                 and o['info']['side'].lower() == 'sell'
@@ -5881,7 +5924,9 @@ class BybitStrategy(BaseStrategy):
                                 logging.info(f"[AUTO-HEDGE] Canceling SHORT grid => side=short.")
                                 self.cancel_grid_orders(symbol, 'sell')
 
-                    # Hedge adjustment
+                    # -------------------------------------------------
+                    # Attempt the hedge adjustment if conditions allow
+                    # -------------------------------------------------
                     if hedge_adjustment_pending or (
                         desired_hedge_side and (
                             current_hedge_side != desired_hedge_side
@@ -5907,14 +5952,21 @@ class BybitStrategy(BaseStrategy):
                             self.hedge_positions[symbol]['adjustment_pending'] = True
                             logging.info(f"[AUTO-HEDGE] {symbol}: Hedge adjust failed => next loop")
 
-                    # Set skip flags **here only** based on the desired hedge side
+                    # -------------------------------------------------
+                    # Finally, set skip flags based on the hedge side
+                    # -------------------------------------------------
                     skip_long_side = (desired_hedge_side == 'long') if disable_grid_on_hedge_side else False
                     skip_short_side = (desired_hedge_side == 'short') if disable_grid_on_hedge_side else False
-                    logging.info(f"[{symbol}] skip_long_side={skip_long_side}, skip_short_side={skip_short_side}")
+
+                    logging.info(
+                        f"[AUTO-HEDGE] {symbol}: desired_hedge_side={desired_hedge_side}, "
+                        f"qty={desired_hedge_qty}, skip_long_side={skip_long_side}, skip_short_side={skip_short_side}"
+                    )
 
                 except Exception as hedge_err:
                     logging.info(f"[AUTO-HEDGE] {symbol}: Hedge logic error => {hedge_err}")
                     logging.info("Traceback: %s", traceback.format_exc())
+
             else:
                 logging.info(f"[AUTO-HEDGE] {symbol}: disabled.")
                 skip_long_side = False
@@ -5928,9 +5980,6 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"[AUTO-HEDGE] {symbol}: Hedge disabled => closing existing hedge.")
                         self.close_hedge_position(symbol)
                         self.hedge_positions[symbol] = {'side': None, 'qty': 0.0}
-
-
-
 
 
             # -----------------------------------------------------------
