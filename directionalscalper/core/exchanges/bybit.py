@@ -210,32 +210,108 @@ class BybitExchange(Exchange):
 
         return None
 
+    # def get_available_balance_bybit(self):
+    #     if self.exchange.has['fetchBalance']:
+    #         try:
+    #             # Fetch the balance with params to specify the account type
+    #             balance_response = self.exchange.fetch_balance({'type': 'swap'})
+
+    #             # Log the raw response for debugging purposes
+    #             #logging.info(f"Raw available balance response from Bybit: {balance_response}")
+
+    #             if self.collateral_currency == 'all' and 'info' in balance_response:
+    #                 logging.info("quote is not set - pulling available balance from total available")
+
+    #                 available_balance = balance_response['info']['result']['list'][0]['totalAvailableBalance']
+    #                 return float(available_balance)
+
+    #             # Check for the required keys in the response
+    #             if 'free' in balance_response and self.collateral_currency in balance_response['free']:
+    #                 # Return the available balance for the specified currency
+    #                 return float(balance_response['free'][self.collateral_currency])
+    #             else:
+    #                 logging.warning(f"Available balance for {self.collateral_currency} not found in the response.")
+
+    #         except Exception as e:
+    #             logging.info(f"Error fetching available balance from Bybit: {e}")
+
+    #     return None
+
     def get_available_balance_bybit(self):
-        if self.exchange.has['fetchBalance']:
-            try:
-                # Fetch the balance with params to specify the account type
-                balance_response = self.exchange.fetch_balance({'type': 'swap'})
+        """
+        Fetch the available balance for either:
+        - 'all' (i.e. total USD available for a Unified Account),
+        - or a specific coin (e.g. 'USDT', 'BTC').
 
-                # Log the raw response for debugging purposes
-                #logging.info(f"Raw available balance response from Bybit: {balance_response}")
+        This method handles the possibility that Bybit's 'free' dictionary
+        may be None or missing for unified margin accounts, requiring us
+        to parse 'coin' array from the raw 'info' section.
+        """
+        if not self.exchange.has.get('fetchBalance', False):
+            logging.warning("Exchange does not support fetchBalance")
+            return None
 
-                if self.collateral_currency == 'all' and 'info' in balance_response:
-                    logging.info("quote is not set - pulling available balance from total available")
+        try:
+            # Choose 'swap' or 'unified' depending on your Bybit account type.
+            # If 'swap' doesn't return the fields you need, try 'unified'.
+            balance_response = self.exchange.fetch_balance({'type': 'swap'})
+            #
+            # Example raw data for Bybit v5 is inside:
+            # balance_response['info']['result']['list'][0]
+            #
 
-                    available_balance = balance_response['info']['result']['list'][0]['totalAvailableBalance']
-                    return float(available_balance)
+            # 1) If user wants the *aggregate* USD balance from Bybit's unified endpoint
+            if self.collateral_currency == 'all':
+                info = balance_response.get('info', {})
+                result = info.get('result', {})
+                list_data = result.get('list', [])
+                if list_data:
+                    # Bybit’s totalAvailableBalance is in USD
+                    total_available_balance = list_data[0].get('totalAvailableBalance')
+                    if total_available_balance is not None:
+                        # Safely convert to float
+                        return float(total_available_balance)
+                    else:
+                        logging.warning("Could not find totalAvailableBalance in Bybit response.")
+                return None
 
-                # Check for the required keys in the response
-                if 'free' in balance_response and self.collateral_currency in balance_response['free']:
-                    # Return the available balance for the specified currency
-                    return float(balance_response['free'][self.collateral_currency])
-                else:
-                    logging.warning(f"Available balance for {self.collateral_currency} not found in the response.")
+            # 2) If user wants a specific coin like 'USDT' or 'BTC'
+            # a) Try the CCXT-standard 'free' dictionary first
+            free_balances = balance_response.get('free', {})
+            coin_value = free_balances.get(self.collateral_currency)
 
-            except Exception as e:
-                logging.info(f"Error fetching available balance from Bybit: {e}")
+            # b) If CCXT didn't populate 'free' or it's None, check raw 'info' under "coin" array
+            if coin_value is None:
+                info = balance_response.get('info', {})
+                result = info.get('result', {})
+                list_data = result.get('list', [])
+                if list_data:
+                    coins_array = list_data[0].get('coin', [])
+                    # Loop through each coin object to find the matching currency
+                    for coin_obj in coins_array:
+                        if coin_obj.get('coin') == self.collateral_currency:
+                            # For Unified/UTA2.0, 'walletBalance' might be the best field to use
+                            # Check the docs/print the coin_obj to confirm
+                            coin_value = coin_obj.get('walletBalance')
+                            break
 
-        return None
+            # c) If we found a numeric or string value in coin_value, return it as float
+            if coin_value is not None:
+                try:
+                    return float(coin_value)
+                except ValueError:
+                    logging.warning(f"Could not convert {coin_value!r} to float for {self.collateral_currency} balance.")
+                    return None
+
+            # If we reach here, we didn't find a valid numeric value for the coin
+            logging.warning(
+                f"Available balance for {self.collateral_currency} is missing or None in both 'free' and 'coin' array."
+            )
+            return None
+
+        except Exception as e:
+            logging.error(f"Error fetching available balance from Bybit: {str(e)}")
+            return None
     
 
     def get_balance_bybit_unified(self, quote):
