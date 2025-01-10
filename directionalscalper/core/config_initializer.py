@@ -57,6 +57,8 @@ class ConfigInitializer:
 
             strategy_instance.auto_shift_hedge = config.linear_grid.get('auto_shift_hedge', False)
 
+            strategy_instance.side_with_grid = config.linear_grid.get('side_with_grid', False)
+
             # Non-linear-grid config
             strategy_instance.upnl_threshold_pct = config.upnl_threshold_pct
             strategy_instance.volume_check = config.volume_check

@@ -183,6 +183,7 @@ class LinearGridBaseFutures(BybitStrategy):
             hedge_with_grid = self.config.linear_grid['hedge_with_grid']
             forcibly_close_hedge = self.config.linear_grid['forcibly_close_hedge']
             auto_shift_hedge = self.config.linear_grid['auto_shift_hedge']
+            side_with_grid = self.config.linear_grid['side_with_grid']
 
             grid_behavior = self.config.linear_grid.get('grid_behavior', 'infinite')
             drawdown_behavior = self.config.linear_grid.get('drawdown_behavior', 'maxqtypercent')
@@ -807,7 +808,8 @@ class LinearGridBaseFutures(BybitStrategy):
                             disable_grid_on_hedge_side,
                             hedge_with_grid,
                             forcibly_close_hedge,
-                            auto_shift_hedge
+                            auto_shift_hedge,
+                            side_with_grid
                         )
                     except Exception as e:
                         logging.info(f"Something is up with variables for the grid {e}")

@@ -77,7 +77,8 @@
             "hedge_with_grid": true,
             "disable_grid_on_hedge_side": false,
             "forcibly_close_hedge": false,
-            "auto_shift_hedge": false
+            "auto_shift_hedge": false,
+            "side_with_grid": "both"
         },
         "hotkeys": {
             "hotkeys_enabled": false,
