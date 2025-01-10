@@ -4948,6 +4948,64 @@ class BybitStrategy(BaseStrategy):
             return position_details.get(symbol, {}).get('short', {}).get('qty', 0)
         return 0
 
+    def clear_leftover_grids_if_no_positions(self, open_symbols, open_orders):
+        """
+        Clears leftover grid orders for any symbol that has open orders
+        but is NOT in our 'open_symbols' list (meaning: no actual position).
+        
+        Args:
+            open_symbols (list): E.g. ['STMXUSDT', 'POPCATUSDT', ...] 
+                                from get_open_symbols_long() + get_open_symbols_short().
+            open_orders (list):  E.g. the entire list of open orders 
+                                (like the large sample you provided).
+        """
+
+        # 1) Convert open_symbols to a set for quick membership checks
+        symbols_with_positions = set(open_symbols)
+
+        # 2) Gather all symbols that actually have open orders, ignoring reduceOnly if you want
+        #    to clear only "grid" style orders. But here's a general approach:
+        symbols_with_open_orders = set()
+        for order in open_orders:
+            # Typically 'symbol' in order['info'] or order might be 
+            # in a format like "ICPUSDT" or "ICP/USDT:USDT". Adapt as needed.
+            info_symbol = order['info'].get('symbol', '')  # e.g. "ICPUSDT"
+            if info_symbol:
+                # If you only want to consider *non-reduceOnly* "grid" orders:
+                if not order['info'].get('reduceOnly', False):
+                    symbols_with_open_orders.add(info_symbol)
+                # else: if reduceOnly orders are leftover TPs/stops, you might skip or handle differently
+            # else: skip malformed
+
+        # 3) leftover_symbols = those with open orders but NOT in open_positions
+        leftover_symbols = symbols_with_open_orders - symbols_with_positions
+
+        if leftover_symbols:
+            logging.info(f"[CLEANUP] Leftover symbols => {list(leftover_symbols)}")
+
+        # 4) For each leftover symbol, clear the leftover grid orders
+        for symbol in leftover_symbols:
+            logging.info(f"[{symbol}] => No open position, but found leftover open orders => clearing grids.")
+            
+            # Clear buy + sell grids
+            self.clear_grid(symbol, 'buy')
+            self.clear_grid(symbol, 'sell')
+            
+            # Optionally remove them from local sets
+            if symbol in self.active_long_grids:
+                self.active_long_grids.discard(symbol)
+            if symbol in self.active_short_grids:
+                self.active_short_grids.discard(symbol)
+            
+            # Also reset hedge state if needed
+            if symbol in self.hedge_positions:
+                self.hedge_positions[symbol]['side'] = None
+                self.hedge_positions[symbol]['qty']  = 0
+                self.hedge_positions[symbol]['dominant_side'] = None
+            
+            logging.info(f"[{symbol}] => Grids cleared, local state reset.")
+
+
     def lineargrid_base(self, symbol: str, open_symbols: list, total_equity: float, long_pos_price: float,
                         short_pos_price: float, long_pos_qty: float, short_pos_qty: float, levels: int,
                         strength: float, min_outer_price_distance_long: float, min_outer_price_distance_short: float,
@@ -5270,6 +5328,8 @@ class BybitStrategy(BaseStrategy):
                 auto_shift_hedge,
                 side_with_grid
             )
+
+            self.clear_leftover_grids_if_no_positions(open_symbols, open_orders)
 
         except Exception as e:
             logging.error(f"Error in executing gridstrategy: {e}")
@@ -8253,7 +8313,6 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.error(f"[{symbol}] handle_grid_trades => Exception: {e}")
             logging.error("Traceback: %s", traceback.format_exc())
-
 
 
     # -----------------------------------------------------------------
