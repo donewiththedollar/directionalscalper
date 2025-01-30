@@ -41,6 +41,7 @@ class ConfigInitializer:
             strategy_instance.stop_loss_enabled = config.linear_grid['stop_loss_enabled']
             strategy_instance.stop_loss_long = config.linear_grid['stop_loss_long']
             strategy_instance.stop_loss_short = config.linear_grid['stop_loss_short']
+            strategy_instance.hedge_stop_loss = config.linear_grid['hedge_stop_loss']
             strategy_instance.drawdown_behavior = config.linear_grid.get('drawdown_behavior', 'maxqtypercent')
 
             # >>> New auto-hedge fields <<<
