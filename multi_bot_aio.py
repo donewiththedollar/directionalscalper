@@ -455,7 +455,7 @@ def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
     config_graceful_stop_short = config.bot.linear_grid.get('graceful_stop_short', False)
     config_auto_graceful_stop = config.bot.linear_grid.get('auto_graceful_stop', False)
     target_coins_mode = config.bot.linear_grid.get('target_coins_mode', False)
-    whitelist = set(config.bot.whitelist) if target_coins_mode else None
+    whitelist = set(config.bot.whitelist) if len(config.bot.whitelist) > 0 else None
 
     logging.info(f"Target coins mode is {'enabled' if target_coins_mode else 'disabled'}")
 
