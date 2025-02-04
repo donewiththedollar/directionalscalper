@@ -549,7 +549,7 @@ def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
                 logging.info(f"Unique active symbols: {unique_active_symbols}")
 
                 # Always process the whitelisted symbol(s)
-                if target_coins_mode and whitelist:
+                if len(whitelist) > 0:
                     for whitelisted_symbol in whitelist:
                         with general_rate_limiter:
                             mfirsi_signal = market_maker.get_signal(whitelisted_symbol)
@@ -615,7 +615,7 @@ def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
                 logging.info(f"Updated unique active symbols ({len(unique_active_symbols)}): {unique_active_symbols}")
 
                 if startup_complete and len(unique_active_symbols) < symbols_allowed:
-                    symbols_to_process = whitelist if target_coins_mode else latest_rotator_symbols
+                    symbols_to_process = whitelist if len(whitelist) > 0 else latest_rotator_symbols
                     logging.info(f"Unique active symbols are less than allowed, processing symbols from {'whitelist' if target_coins_mode else 'latest rotator symbols'}")
                     logging.info(f"Symbols to process: {symbols_to_process}")
 
