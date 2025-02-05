@@ -358,7 +358,7 @@ class Manager:
                             logging.debug(f"Skipping {symbol} as it's in blacklist")
                             continue
 
-                        if whitelist and symbol not in whitelist:
+                        if len(whitelist) > 0 and symbol not in whitelist:
                             logging.debug(f"Skipping {symbol} as it's not in whitelist")
                             continue
 
