@@ -79,7 +79,7 @@
             "forcibly_close_hedge": false,
             "auto_shift_hedge": false,
             "side_with_grid": "both",
-            "hedge_stop_Loss": 0
+            "hedge_stop_loss": 0
         },
         "hotkeys": {
             "hotkeys_enabled": false,
