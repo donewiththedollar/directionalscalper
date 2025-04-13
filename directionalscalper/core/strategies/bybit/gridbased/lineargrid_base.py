@@ -190,6 +190,11 @@ class LinearGridBaseFutures(BybitStrategy):
 
             hedge_stop_loss = self.config.linear_grid['hedge_stop_loss']
 
+            dynamic_grid = self.config.linear_grid['dynamic_grid']
+
+            max_qty_percent_long_stop_loss = self.config.linear_grid['max_qty_percent_long_stop_loss']
+            max_qty_percent_short_stop_loss = self.config.linear_grid['max_qty_percent_short_stop_loss']
+
             # reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
 
             volume_check = self.config.volume_check
@@ -812,7 +817,10 @@ class LinearGridBaseFutures(BybitStrategy):
                             forcibly_close_hedge,
                             auto_shift_hedge,
                             side_with_grid,
-                            hedge_stop_loss
+                            hedge_stop_loss,
+                            dynamic_grid,
+                            max_qty_percent_long_stop_loss,
+                            max_qty_percent_short_stop_loss
                         )
                     except Exception as e:
                         logging.info(f"Something is up with variables for the grid {e}")
