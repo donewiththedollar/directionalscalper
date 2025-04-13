@@ -64,6 +64,7 @@ class Bot(BaseModel):
     whitelist: List[str] = []
     dashboard_enabled: bool = False
     shared_data_path: Optional[str] = None
+    hedge_positions_db_path: Optional[str] = "hedge_positions.json"
     linear_grid: Optional[dict] = None
     hotkeys: Hotkeys
 
