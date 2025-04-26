@@ -192,6 +192,8 @@ class LinearGridBaseFutures(BybitStrategy):
 
             dynamic_grid = self.config.linear_grid['dynamic_grid']
 
+            enable_max_qty_stop_loss = self.config.linear_grid['enable_max_qty_stop_loss']
+
             max_qty_percent_long_stop_loss = self.config.linear_grid['max_qty_percent_long_stop_loss']
             max_qty_percent_short_stop_loss = self.config.linear_grid['max_qty_percent_short_stop_loss']
 
@@ -818,9 +820,10 @@ class LinearGridBaseFutures(BybitStrategy):
                             auto_shift_hedge,
                             side_with_grid,
                             hedge_stop_loss,
-                            dynamic_grid,
+                            enable_max_qty_stop_loss,
                             max_qty_percent_long_stop_loss,
-                            max_qty_percent_short_stop_loss
+                            max_qty_percent_short_stop_loss,
+                            dynamic_grid,
                         )
                     except Exception as e:
                         logging.info(f"Something is up with variables for the grid {e}")
