@@ -42,6 +42,7 @@ class ConfigInitializer:
             strategy_instance.stop_loss_long = config.linear_grid['stop_loss_long']
             strategy_instance.stop_loss_short = config.linear_grid['stop_loss_short']
             strategy_instance.hedge_stop_loss = config.linear_grid['hedge_stop_loss']
+            strategy_instance.enable_max_qty_stop_loss = config.linear_grid['enable_max_qty_stop_loss']
             strategy_instance.max_qty_percent_long_stop_loss = config.linear_grid['max_qty_percent_long_stop_loss']
             strategy_instance.max_qty_percent_short_stop_loss = config.linear_grid['max_qty_percent_short_stop_loss']
             strategy_instance.drawdown_behavior = config.linear_grid.get('drawdown_behavior', 'maxqtypercent')
@@ -63,6 +64,9 @@ class ConfigInitializer:
             strategy_instance.side_with_grid = config.linear_grid.get('side_with_grid', False)
 
             strategy_instance.dynamic_grid = config.linear_grid.get('dynamic_grid', False)
+
+            strategy_instance.reduce_opposing_side_by_20 = config.linear_grid.get('reduce_opposing_side_by_20', False)
+
             
             # Non-linear-grid config
             strategy_instance.upnl_threshold_pct = config.upnl_threshold_pct
