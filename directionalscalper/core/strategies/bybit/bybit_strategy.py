@@ -5406,14 +5406,26 @@ class BybitStrategy(BaseStrategy):
         dynamic_grid: bool
     ):
         """
-        Main entry for the linear grid logic, now with an additional "high_frequency" grid_behavior.
+        Main entry for the linear grid logic, plus new ATR-based market-making modes:
+          - atr_market_making_long
+          - atr_market_making_short
+          - atr_market_making_both
+
         If grid_behavior == "high_frequency":
-            - We forcibly override drawdown_behavior to "progressive_drawdown_safe".
-            - We forcibly override min/max outer price distances to extremely tight market-making style (0.0005–0.005).
-            - Grid levels are derived from the top of the order book (bids for longs, asks for shorts).
+            - forcibly override drawdown_behavior to "progressive_drawdown_safe".
+            - forcibly set min/max outer distances very tight (0.0005–0.005).
+            - build grid from top N orderbook levels.
+
+        If grid_behavior in ("atr_market_making_long","atr_market_making_short","atr_market_making_both"):
+            - override normal drawdown logic (set to "none")
+            - fetch ATR% from self.get_atrp(...)
+            - convert to absolute ATR => absolute_atr = (atrp_value/100.0)*current_price
+            - spacing = max(0.3 * spread, absolute_atr)
+            - place multiple buy orders below best_bid (for long) or sell above best_ask (for short).
+            - skip the other side entirely in handle_grid_trades.
         """
         try:
-            # 0) Load hedge positions
+            # 0) Possibly load hedge positions
             self.load_hedge_positions()
 
             # (A) Sanitize position quantities
@@ -5437,10 +5449,8 @@ class BybitStrategy(BaseStrategy):
                 )
 
             # (C) Check for high_frequency override on distances
-            #     (Happens AFTER we've done dynamic checks so we forcibly set these.)
             if grid_behavior == "high_frequency":
                 logging.info(f"[{symbol}] Overriding min/max outer distances for high_frequency market making.")
-                # Example extremely tight distances for perps market making
                 min_outer_price_distance_long = 0.0005
                 min_outer_price_distance_short = 0.0005
                 max_outer_price_distance_long = 0.005
@@ -5449,7 +5459,7 @@ class BybitStrategy(BaseStrategy):
             # (D) Get current price and spread
             spread, current_price = self.get_spread_and_price(symbol)
 
-            # (E) Possibly adjust scaling dynamically again with updated distances
+            # (E) Possibly adjust scaling for dynamic
             if dynamic_grid and grid_behavior != "high_frequency":
                 (dynamic_outer_price_distance_long,
                  dynamic_outer_price_distance_short) = self.calculate_dynamic_outer_price_distance(
@@ -5464,11 +5474,10 @@ class BybitStrategy(BaseStrategy):
                     f"SHORT={dynamic_outer_price_distance_short:.4f}"
                 )
             else:
-                # If high_frequency, we just keep the forced min/max above
                 dynamic_outer_price_distance_long = min_outer_price_distance_long
                 dynamic_outer_price_distance_short = min_outer_price_distance_short
 
-            # (F) Reissue logic
+            # (F) Reissue logic, etc.
             should_reissue_long, should_reissue_short = self.should_reissue_orders_revised(
                 symbol,
                 reissue_threshold,
@@ -5483,7 +5492,7 @@ class BybitStrategy(BaseStrategy):
             logging.info(f"Long grid active: {long_grid_active}")
             logging.info(f"Short grid active: {short_grid_active}")
 
-            # (G) Check and manage positions vs. max-qty usage
+            # (G) Check vs. max-qty usage
             self.check_and_manage_positions(
                 long_pos_qty,
                 short_pos_qty,
@@ -5513,16 +5522,18 @@ class BybitStrategy(BaseStrategy):
                 buffer_pct_short
             )
 
+            # fetch orderbook data
             order_book, best_ask_price, best_bid_price = self.get_order_book_prices(symbol, current_price)
-
-            (min_price_long,
-             max_price_long,
-             price_range_long,
-             volume_histogram_long,
-             min_price_short,
-             max_price_short,
-             price_range_short,
-             volume_histogram_short) = self.calculate_price_range_and_volume_histograms(
+            (
+                min_price_long,
+                max_price_long,
+                price_range_long,
+                volume_histogram_long,
+                min_price_short,
+                max_price_short,
+                price_range_short,
+                volume_histogram_short
+            ) = self.calculate_price_range_and_volume_histograms(
                 order_book,
                 current_price,
                 max_outer_price_distance_long,
@@ -5538,81 +5549,56 @@ class BybitStrategy(BaseStrategy):
                 price_range_short
             )
 
-            # (I) Generate grid levels
-            init_long, init_short = self.calculate_initial_entries(
-                current_price,
-                buffer_dist_long,
-                buffer_dist_short
-            )
+            # ----------------------------------------------------------------
+            #  ATR MARKET-MAKING BEHAVIOR
+            # ----------------------------------------------------------------
+            if grid_behavior in ("atr_market_making_long", "atr_market_making_short", "atr_market_making_both"):
+                logging.info(f"[{symbol}] Using ATR-based market-making approach => overriding drawdown_behavior.")
+                drawdown_behavior = "none"  # ignore normal drawdowns
 
-            if grid_behavior == "high_frequency":
-                logging.info(f"[{symbol}] Using HIGH-FREQUENCY grid approach. Forcing progressive_drawdown_safe.")
-                # Force the drawdown behavior to progressive_drawdown_safe
-                drawdown_behavior = "progressive_drawdown_safe"
+                best_bid = best_bid_price
+                best_ask = best_ask_price
+                if best_ask <= best_bid:
+                    logging.warning(f"[{symbol}] ATR mm => invalid spread => skip.")
+                    grid_levels_long = []
+                    grid_levels_short = []
+                else:
+                    actual_spread = best_ask - best_bid
 
-                # Retrieve full orderbook data
-                ob_data = self.get_orderbook(symbol)
-                bids = ob_data["bids"]
-                asks = ob_data["asks"]
+                    # 2) get ATR% from your get_atrp(...) => e.g. 2.3 => 2.3%
+                    atrp_value = self.get_atrp(symbol, timeframe='1m', period=14, limit=1000)
+                    if atrp_value is None or atrp_value <= 0.0:
+                        logging.warning(f"[{symbol}] get_atrp returned <=0 => fallback to half spread.")
+                        absolute_atr = actual_spread * 0.5
+                    else:
+                        # Convert ATR% => absolute ATR at current_price
+                        absolute_atr = (atrp_value / 100.0) * current_price
+                        logging.info(f"[{symbol}] ATR%={atrp_value:.2f} => absolute_atr={absolute_atr:.4f}")
 
-                grid_levels_long = []
-                grid_levels_short = []
+                    # spacing = max(0.3 * spread, absolute_atr)
+                    spacing = max(0.3 * actual_spread, absolute_atr)
 
-                # Build grid levels for Long side from top N bids
-                max_bid_levels = min(levels, len(bids))
-                for i in range(max_bid_levels):
-                    bid_price = bids[i][0]
-                    dist = abs(current_price - bid_price) / current_price
-                    if dist >= min_outer_price_distance_long and dist <= max_outer_price_distance_long:
-                        grid_levels_long.append(bid_price)
-                grid_levels_long = sorted(grid_levels_long)
+                    grid_levels_long = []
+                    grid_levels_short = []
 
-                # Build grid levels for Short side from top N asks
-                max_ask_levels = min(levels, len(asks))
-                for i in range(max_ask_levels):
-                    ask_price = asks[i][0]
-                    dist = abs(current_price - ask_price) / current_price
-                    if dist >= min_outer_price_distance_short and dist <= max_outer_price_distance_short:
-                        grid_levels_short.append(ask_price)
-                grid_levels_short = sorted(grid_levels_short)
+                    if grid_behavior in ("atr_market_making_long", "atr_market_making_both"):
+                        # place N buy levels below best_bid
+                        for i in range(1, levels + 1):
+                            buy_price = best_bid - (spacing * i)
+                            if buy_price <= 0:
+                                continue
+                            grid_levels_long.append(buy_price)
+                        grid_levels_long = sorted(grid_levels_long)
 
-                # If we didn't get enough levels on either side, fill up missing ones with standard approach
-                if len(grid_levels_long) < levels:
-                    missing_long = levels - len(grid_levels_long)
-                    extra_long, _ = self.calculate_grid_levels(
-                        long_pos_qty,
-                        short_pos_qty,
-                        missing_long,
-                        init_long,
-                        init_short,
-                        current_price,
-                        buffer_dist_long,
-                        buffer_dist_short,
-                        max_outer_price_distance_long,
-                        max_outer_price_distance_short
-                    )
-                    grid_levels_long.extend(extra_long)
-                    grid_levels_long = sorted(set(grid_levels_long))
-
-                if len(grid_levels_short) < levels:
-                    missing_short = levels - len(grid_levels_short)
-                    _, extra_short = self.calculate_grid_levels(
-                        long_pos_qty,
-                        short_pos_qty,
-                        missing_short,
-                        init_long,
-                        init_short,
-                        current_price,
-                        buffer_dist_long,
-                        buffer_dist_short,
-                        max_outer_price_distance_long,
-                        max_outer_price_distance_short
-                    )
-                    grid_levels_short.extend(extra_short)
-                    grid_levels_short = sorted(set(grid_levels_short))
+                    if grid_behavior in ("atr_market_making_short", "atr_market_making_both"):
+                        # place N sell levels above best_ask
+                        for i in range(1, levels + 1):
+                            sell_price = best_ask + (spacing * i)
+                            grid_levels_short.append(sell_price)
+                        grid_levels_short = sorted(grid_levels_short)
 
             elif grid_behavior == "dbscanalgo":
-                # Example DBSCAN-based approach
+                # existing DBSCAN logic
                 ohlcv_data = self.exchange.fetch_ohlcv_data(symbol, timeframe='5m', limit=5000)
                 zigzag = self.exchange.calculate_zigzag(ohlcv_data)
                 significant_levels_dbscan = self.exchange.get_significant_levels_dbscan(zigzag, ohlcv_data)
@@ -5656,8 +5642,8 @@ class BybitStrategy(BaseStrategy):
                         long_pos_qty,
                         short_pos_qty,
                         missing,
-                        init_long,
-                        init_short,
+                        None,
+                        None,
                         current_price,
                         buffer_dist_long,
                         buffer_dist_short,
@@ -5674,8 +5660,8 @@ class BybitStrategy(BaseStrategy):
                         long_pos_qty,
                         short_pos_qty,
                         missing,
-                        init_long,
-                        init_short,
+                        None,
+                        None,
                         current_price,
                         buffer_dist_long,
                         buffer_dist_short,
@@ -5686,8 +5672,74 @@ class BybitStrategy(BaseStrategy):
                     grid_levels_short = sorted(set(grid_levels_short))
                     grid_levels_short = self.select_spaced_levels(grid_levels_short, min_distance, levels)
 
+            elif grid_behavior == "high_frequency":
+                logging.info(f"[{symbol}] Using HIGH-FREQUENCY grid approach. Forcing progressive_drawdown_safe.")
+                drawdown_behavior = "progressive_drawdown_safe"
+
+                ob_data = self.get_orderbook(symbol)
+                bids = ob_data["bids"]
+                asks = ob_data["asks"]
+
+                grid_levels_long = []
+                grid_levels_short = []
+
+                max_bid_levels = min(levels, len(bids))
+                for i in range(max_bid_levels):
+                    bid_price = bids[i][0]
+                    dist = abs(current_price - bid_price) / current_price
+                    if dist >= min_outer_price_distance_long and dist <= max_outer_price_distance_long:
+                        grid_levels_long.append(bid_price)
+                grid_levels_long = sorted(grid_levels_long)
+
+                max_ask_levels = min(levels, len(asks))
+                for i in range(max_ask_levels):
+                    ask_price = asks[i][0]
+                    dist = abs(current_price - ask_price) / current_price
+                    if dist >= min_outer_price_distance_short and dist <= max_outer_price_distance_short:
+                        grid_levels_short.append(ask_price)
+                grid_levels_short = sorted(grid_levels_short)
+
+                if len(grid_levels_long) < levels:
+                    missing_long = levels - len(grid_levels_long)
+                    extra_long, _ = self.calculate_grid_levels(
+                        long_pos_qty,
+                        short_pos_qty,
+                        missing_long,
+                        None,
+                        None,
+                        current_price,
+                        buffer_dist_long,
+                        buffer_dist_short,
+                        max_outer_price_distance_long,
+                        max_outer_price_distance_short
+                    )
+                    grid_levels_long.extend(extra_long)
+                    grid_levels_long = sorted(set(grid_levels_long))
+
+                if len(grid_levels_short) < levels:
+                    missing_short = levels - len(grid_levels_short)
+                    _, extra_short = self.calculate_grid_levels(
+                        long_pos_qty,
+                        short_pos_qty,
+                        missing_short,
+                        None,
+                        None,
+                        current_price,
+                        buffer_dist_long,
+                        buffer_dist_short,
+                        max_outer_price_distance_long,
+                        max_outer_price_distance_short
+                    )
+                    grid_levels_short.extend(extra_short)
+                    grid_levels_short = sorted(set(grid_levels_short))
+
             else:
                 # Regular approach
+                init_long, init_short = self.calculate_initial_entries(
+                    current_price,
+                    buffer_dist_long,
+                    buffer_dist_short
+                )
                 grid_levels_long, grid_levels_short = self.calculate_grid_levels(
                     long_pos_qty,
                     short_pos_qty,
@@ -5702,6 +5754,12 @@ class BybitStrategy(BaseStrategy):
                 )
 
             # (J) Adjust grid levels
+            if grid_behavior not in ("atr_market_making_long", "atr_market_making_short", "atr_market_making_both"):
+                init_long, init_short = self.calculate_initial_entries(current_price, buffer_dist_long, buffer_dist_short)
+            else:
+                init_long = None
+                init_short = None
+
             adjusted_grid_levels_long = self.adjust_grid_levels(
                 grid_levels_long,
                 significant_levels_long,
@@ -5887,7 +5945,7 @@ class BybitStrategy(BaseStrategy):
                     'sell'
                 )
 
-            # (K - OVERRIDE) If both sides open & one side is at max => skip that side, use full distro for smaller side
+            # (K - OVERRIDE) If both sides open & one side at max => skip that side
             if has_open_long and has_open_short:
                 bigger_side_is_long = (long_pos_qty > short_pos_qty)
                 bigger_side_is_short = (short_pos_qty > long_pos_qty)
@@ -5923,7 +5981,9 @@ class BybitStrategy(BaseStrategy):
                         long_pos_qty=long_pos_qty
                     )
 
-            # (L) Hand off final parameters to execute grid trades
+            # (L) Hand off final parameters to place the actual grid trades
+            # 
+            # === [MOD] We pass 'grid_behavior' to handle_grid_trades so it can skip short if in atr_market_making_long, etc. ===
             self.handle_grid_trades(
                 symbol,
                 final_grid_lvls_long,
@@ -5982,7 +6042,8 @@ class BybitStrategy(BaseStrategy):
                 hedge_stop_loss,
                 enable_max_qty_stop_loss=enable_max_qty_stop_loss,
                 max_qty_percent_long_stop_loss=max_qty_percent_long_stop_loss,
-                max_qty_percent_short_stop_loss=max_qty_percent_short_stop_loss
+                max_qty_percent_short_stop_loss=max_qty_percent_short_stop_loss,
+                grid_behavior=grid_behavior  # pass it so we can skip the undesired side
             )
 
             self.clear_leftover_grids_if_no_positions(open_symbols, open_orders)
@@ -5990,6 +6051,7 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.error(f"Error in executing gridstrategy for {symbol}: {e}")
             logging.error("Traceback: %s", traceback.format_exc())
+
 
     def get_spread_and_price(self, symbol):
         spread = self.get_4h_candle_spread(symbol)
@@ -6511,11 +6573,17 @@ class BybitStrategy(BaseStrategy):
         # --- NEW special SL for side that hit max qty threshold ---
         enable_max_qty_stop_loss: bool = False,
         max_qty_percent_long_stop_loss: float = 60.0,
-        max_qty_percent_short_stop_loss: float = 60.0
+        max_qty_percent_short_stop_loss: float = 60.0,
+        # === [MOD] pass the grid_behavior so we can skip short/long if needed ===
+        grid_behavior: str = "normal"
     ):
         """
-        Executes the actual grid logic, skipping new orders on any side that’s 
-        at max position, and placing progressive/full distribution on the smaller side. 
+        Executes the actual grid logic, skipping new orders on any side that’s at max position, 
+        and placing progressive/full distribution on the smaller side, etc.
+        Also handles partial auto-hedge logic, initial entries, reissues, etc.
+        
+        [MOD] If grid_behavior == "atr_market_making_long", we skip short side entirely.
+              If "atr_market_making_short", skip long side entirely.
         """
         try:
             initial_entry_recheck_seconds = 5
@@ -6529,7 +6597,22 @@ class BybitStrategy(BaseStrategy):
                     'short': None
                 }
 
-            # (A) Fallback if pos_price <= 0
+            # Quick helper: forcibly skip short side if 'atr_market_making_long', skip long side if 'atr_market_making_short'
+            skip_long_side  = False
+            skip_short_side = False
+
+            if grid_behavior == "atr_market_making_long":
+                # Clear all short grids forcibly
+                self.clear_grid(symbol, 'sell')
+                skip_short_side = True
+                logging.info(f"[{symbol}] grid_behavior=atr_market_making_long => skipping short side, clearing short grids.")
+            elif grid_behavior == "atr_market_making_short":
+                # Clear all long grids forcibly
+                self.clear_grid(symbol, 'buy')
+                skip_long_side = True
+                logging.info(f"[{symbol}] grid_behavior=atr_market_making_short => skipping long side, clearing long grids.")
+
+            # If pos_price <= 0, override
             if not long_pos_price or long_pos_price <= 0:
                 logging.info(f"[{symbol}] Overriding long_pos_price=0.0 because it was None/<=0.")
                 long_pos_price = 0.0
@@ -6567,9 +6650,8 @@ class BybitStrategy(BaseStrategy):
             if has_open_short and not self.previous_position_state[symbol]['short_initial_entry']:
                 self.previous_position_state[symbol]['short_initial_entry'] = short_pos_price
 
-            # (1a) Perform stop-loss checks if enabled
             if stop_loss_enabled:
-                # Long side stop loss
+                # Long side SL
                 if has_open_long:
                     init_l = self.previous_position_state[symbol]['long_initial_entry']
                     if init_l and init_l > 0:
@@ -6589,7 +6671,7 @@ class BybitStrategy(BaseStrategy):
                                 self.best_bid_price_cache.get(symbol, current_price)
                             )
 
-                # Short side stop loss
+                # Short side SL
                 if has_open_short:
                     init_s = self.previous_position_state[symbol]['short_initial_entry']
                     if init_s and init_s > 0:
@@ -6622,10 +6704,7 @@ class BybitStrategy(BaseStrategy):
             hedge_long  = self.hedge_positions[symbol]['long']
             hedge_short = self.hedge_positions[symbol]['short']
 
-            skip_long_side  = False
-            skip_short_side = False
-
-            # If both sides open, skip placing new grids on whichever side is at max
+            # If both sides open, skip new grids on whichever side is at max
             if has_open_long and has_open_short:
                 if (long_pos_qty > short_pos_qty) and (symbol in self.max_qty_reached_symbol_long):
                     skip_long_side = True
@@ -6647,7 +6726,6 @@ class BybitStrategy(BaseStrategy):
                         logging.info(f"[AUTO-HEDGE] {symbol}: LONG hedge STOP-LOSS triggered @ {sl_trigger_long:.4f}")
                         self.retry_close_hedge_position(symbol, 'long', max_tries=3, sleep_seconds=2.0)
 
-            # (3) Possibly open/adjust each hedge side
             def price_diff_satisfied(ref_price, curr_price, threshold):
                 if ref_price <= 0.0:
                     return False
@@ -6690,7 +6768,7 @@ class BybitStrategy(BaseStrategy):
                         self.close_specific_hedge(symbol, 'long')
 
                     if disable_grid_on_hedge_side:
-                        if hedge_short['qty'] > 0: 
+                        if hedge_short['qty'] > 0:
                             skip_short_side = True
                         if hedge_long['qty'] > 0:
                             skip_long_side = True
@@ -6993,7 +7071,6 @@ class BybitStrategy(BaseStrategy):
             logging.error("Traceback: %s", traceback.format_exc())
         finally:
             self.save_hedge_positions()
-
 
 
     # -----------------------------------------------------------------
