@@ -5982,8 +5982,6 @@ class BybitStrategy(BaseStrategy):
                     )
 
             # (L) Hand off final parameters to place the actual grid trades
-            # 
-            # === [MOD] We pass 'grid_behavior' to handle_grid_trades so it can skip short if in atr_market_making_long, etc. ===
             self.handle_grid_trades(
                 symbol,
                 final_grid_lvls_long,
@@ -6051,6 +6049,7 @@ class BybitStrategy(BaseStrategy):
         except Exception as e:
             logging.error(f"Error in executing gridstrategy for {symbol}: {e}")
             logging.error("Traceback: %s", traceback.format_exc())
+
 
 
     def get_spread_and_price(self, symbol):
@@ -6584,6 +6583,10 @@ class BybitStrategy(BaseStrategy):
         
         [MOD] If grid_behavior == "atr_market_making_long", we skip short side entirely.
               If "atr_market_making_short", skip long side entirely.
+              If "atr_market_making_both", place on both sides. 
+              
+        [MOD 2] Force a constant re-issue (cancel+replace) in ATR market-making modes 
+                so that new best_bid/best_ask and ATR changes are reflected regularly.
         """
         try:
             initial_entry_recheck_seconds = 5
@@ -6837,15 +6840,15 @@ class BybitStrategy(BaseStrategy):
                     order_side = 'buy' if side == 'long' else 'sell'
                     if self.grid_cleared_status.get(sym, {}).get(side, False):
                         self.grid_cleared_status[sym][side] = False
-                        self.issue_grid_orders(
-                            sym,
-                            order_side,
-                            grid_lvls,
-                            amounts,
-                            (side == 'long'),
-                            self.filled_levels[sym][order_side]
-                        )
-                        grid_set.add(sym)
+                    self.issue_grid_orders(
+                        sym,
+                        order_side,
+                        grid_lvls,
+                        amounts,
+                        (side == 'long'),
+                        self.filled_levels[sym][order_side]
+                    )
+                    grid_set.add(sym)
 
             # (4a) Place new grids if conditions are met
             if (unique_open_syms <= symbols_allowed) or (symbol in all_open_symbols):
@@ -7065,6 +7068,31 @@ class BybitStrategy(BaseStrategy):
             if hedge_short["qty"] > 0 and (not hedge_short["entry_price"] or hedge_short["entry_price"] <= 0):
                 logging.info(f"[{symbol}] Hedge SHORT entry_price missing => using main short_pos_price={short_pos_price:.4f}")
                 hedge_short["entry_price"] = short_pos_price
+
+            # ------------------------------------------------------------
+            # [MOD 2] For ATR MARKET-MAKING: forcibly cancel & replace
+            #          so it's "almost constantly" re-placing orders.
+            # ------------------------------------------------------------
+            # If user wants even more frequent replacement, you could add
+            # a time-based check. But here's the simplest approach:
+            if grid_behavior in ("atr_market_making_long", "atr_market_making_both"):
+                if not skip_long_side:
+                    logging.info(f"[{symbol}] Forcing re-issue of LONG side for ATR market-making.")
+                    self.clear_grid(symbol, 'buy')  # Cancel existing
+                    # Re-issue fresh levels (the user’s logic calculates them at the top):
+                    re_lvls_long = grid_levels_long.copy()
+                    if re_lvls_long:
+                        re_lvls_long[0] = best_bid_price  # or just use what was there
+                    issue_grid_safely(symbol, 'long', re_lvls_long, amounts_long)
+
+            if grid_behavior in ("atr_market_making_short", "atr_market_making_both"):
+                if not skip_short_side:
+                    logging.info(f"[{symbol}] Forcing re-issue of SHORT side for ATR market-making.")
+                    self.clear_grid(symbol, 'sell')  # Cancel existing
+                    re_lvls_short = grid_levels_short.copy()
+                    if re_lvls_short:
+                        re_lvls_short[0] = best_ask_price
+                    issue_grid_safely(symbol, 'short', re_lvls_short, amounts_short)
 
         except Exception as e:
             logging.error(f"[{symbol}] handle_grid_trades => Exception: {e}")
