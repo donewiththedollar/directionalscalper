@@ -5347,7 +5347,8 @@ class BybitStrategy(BaseStrategy):
 
     # ---------------------------------------------------------------------------
     # Main lineargrid_base entry
-    # ---------------------------------------------------------------------------
+    # --------------------------------------------------------------------------
+
     def lineargrid_base(
         self,
         symbol: str,
@@ -5504,6 +5505,19 @@ class BybitStrategy(BaseStrategy):
                 max_qty_percent_long,
                 max_qty_percent_short
             )
+
+            # ----------------------------------------------------------------
+            # (G2) Optionally clear the existing orders on any side
+            #      that reached max usage.
+            # ----------------------------------------------------------------
+            if symbol in self.max_qty_reached_symbol_long:
+                logging.info(f"[{symbol}] Reached max LONG usage => clearing existing LONG orders.")
+                self.clear_grid(symbol, 'buy')
+
+            if symbol in self.max_qty_reached_symbol_short:
+                logging.info(f"[{symbol}] Reached max SHORT usage => clearing existing SHORT orders.")
+                self.clear_grid(symbol, 'sell')
+            # ----------------------------------------------------------------
 
             # (H) Calculate buffers
             buffer_pct_long, buffer_pct_short = self.calculate_buffer_percentages(
@@ -5714,7 +5728,7 @@ class BybitStrategy(BaseStrategy):
                         max_outer_price_distance_short
                     )
                     grid_levels_long.extend(extra_long)
-                    grid_levels_long = sorted(set(grid_levels_long))
+                    grid_levels_long = sorted(grid_levels_long)
 
                 if len(grid_levels_short) < levels:
                     missing_short = levels - len(grid_levels_short)
@@ -5755,7 +5769,11 @@ class BybitStrategy(BaseStrategy):
 
             # (J) Adjust grid levels
             if grid_behavior not in ("atr_market_making_long", "atr_market_making_short", "atr_market_making_both"):
-                init_long, init_short = self.calculate_initial_entries(current_price, buffer_dist_long, buffer_dist_short)
+                init_long, init_short = self.calculate_initial_entries(
+                    current_price,
+                    buffer_dist_long,
+                    buffer_dist_short
+                )
             else:
                 init_long = None
                 init_short = None
@@ -6510,7 +6528,8 @@ class BybitStrategy(BaseStrategy):
                 break
         
         return symbol in grid_set or has_open_order
-        
+    
+
     def handle_grid_trades(
         self,
         symbol,
@@ -6716,7 +6735,7 @@ class BybitStrategy(BaseStrategy):
                     skip_short_side = True
                     logging.info(f"[{symbol}] (handle_grid_trades) SHORT at max => skipping new SHORT grids.")
 
-            # (2a) Hedge STOP-LOSS if auto-hedge is enabled
+            # (2a) Hedge STOP-LOSS if auto_hedge is enabled
             if auto_hedge_enabled and hedge_stop_loss > 0:
                 if hedge_short['qty'] > 0 and hedge_short['entry_price']:
                     sl_trigger_short = hedge_short['entry_price'] * (1 + hedge_stop_loss / 100.0)
@@ -7073,16 +7092,13 @@ class BybitStrategy(BaseStrategy):
             # [MOD 2] For ATR MARKET-MAKING: forcibly cancel & replace
             #          so it's "almost constantly" re-placing orders.
             # ------------------------------------------------------------
-            # If user wants even more frequent replacement, you could add
-            # a time-based check. But here's the simplest approach:
             if grid_behavior in ("atr_market_making_long", "atr_market_making_both"):
                 if not skip_long_side:
                     logging.info(f"[{symbol}] Forcing re-issue of LONG side for ATR market-making.")
                     self.clear_grid(symbol, 'buy')  # Cancel existing
-                    # Re-issue fresh levels (the user’s logic calculates them at the top):
                     re_lvls_long = grid_levels_long.copy()
                     if re_lvls_long:
-                        re_lvls_long[0] = best_bid_price  # or just use what was there
+                        re_lvls_long[0] = best_bid_price
                     issue_grid_safely(symbol, 'long', re_lvls_long, amounts_long)
 
             if grid_behavior in ("atr_market_making_short", "atr_market_making_both"):
@@ -7099,7 +7115,6 @@ class BybitStrategy(BaseStrategy):
             logging.error("Traceback: %s", traceback.format_exc())
         finally:
             self.save_hedge_positions()
-
 
     # -----------------------------------------------------------------
     # NEW HELPER METHOD FOR "highfrequency" grid behavior
