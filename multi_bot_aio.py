@@ -39,8 +39,8 @@ from rate_limit import RateLimit
 
 from collections import deque
 
-general_rate_limiter = RateLimit(50, 1)
-order_rate_limiter = RateLimit(5, 1) 
+general_rate_limiter = RateLimit(50, 1)  # Reduced from 100 to 50 req/sec
+order_rate_limiter = RateLimit(10, 1)   # Reduced from 20 to 10 req/sec 
 
 thread_management_lock = threading.Lock()
 thread_to_symbol = {}
@@ -75,32 +75,78 @@ logging = Logger(logger_name="MultiBot", filename="MultiBot.log", stream=True)
 
 colorama.init()
 
+# Global flag to ensure banner is shown only once
+banner_shown = False
+
 def print_cool_trading_info(symbol, exchange_name, strategy_name, account_name):
+    global banner_shown
+    
+    # Only show the banner once
+    if banner_shown:
+        return
+    
+    banner_shown = True
+    
     ascii_art = r"""
-    ____  _               _   _                   _  ____            _                
-   |  _ \(_)_ __ ___  ___| |_(_) ___  _ __   __ _| |/ ___|  ___ __ _| |_ __   ___ _ __ 
-   | | | | | '__/ _ \/ __| __| |/ _ \| '_ \ / _` | |\___ \ / __/ _` | | '_ \ / _ \ '__|
-   | |_| | | | |  __/ (__| |_| | (_) | | | | (_| | | ___) | (_| (_| | | |_) |  __/ |   
-   |____/|_|_|  \___|\___|___|_|\___/|_| |_|\__,_|_||____/ \___\__,_|_| .__/ \___|_|   
-                                                                       |_|              
-    ╔═══════════════════════════════════════════════════════════════════════════╗
-    ║          Created by Tyler Simpson and contributors at QVL                 ║
-    ╚═══════════════════════════════════════════════════════════════════════════╝
+    ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+    ║                                                                                                                                                                                                                                                                           ║
+    ║            ██████╗ ██╗██████╗ ███████╗ ██████╗████████╗██╗ ██████╗ ███╗   ██╗ █████╗ ██╗         ███████╗ ██████╗ █████╗ ██╗     ██████╗ ███████╗██████╗                                                                                                           ║
+    ║            ██╔══██╗██║██╔══██╗██╔════╝██╔════╝╚══██╔══╝██║██╔═══██╗████╗  ██║██╔══██╗██║         ██╔════╝██╔════╝██╔══██╗██║     ██╔══██╗██╔════╝██╔══██╗                                                                                                          ║
+    ║            ██║  ██║██║██████╔╝█████╗  ██║        ██║   ██║██║   ██║██╔██╗ ██║███████║██║         ███████╗██║     ███████║██║     ██████╔╝█████╗  ██████╔╝                                                                                                          ║
+    ║            ██║  ██║██║██╔══██╗██╔══╝  ██║        ██║   ██║██║   ██║██║╚██╗██║██╔══██║██║         ╚════██║██║     ██╔══██║██║     ██╔═══╝ ██╔══╝  ██╔══██╗                                                                                                          ║
+    ║            ██████╔╝██║██║  ██║███████╗╚██████╗   ██║   ██║╚██████╔╝██║ ╚████║██║  ██║███████╗    ███████║╚██████╗██║  ██║███████╗██║     ███████╗██║  ██║                                                                                                          ║
+    ║            ╚═════╝ ╚═╝╚═╝  ╚═╝╚══════╝ ╚═════╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝    ╚══════╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝                                                                                                          ║
+    ║                                                                                                                                                                                                                                                                           ║
+    ║                                                                              ┌─────────────────── ⚡ XGrid High-Frequency Engine ───────────────────┐                                                                                                                  ║
+    ║                                                                              │                                                                      │                                                                                                                  ║
+    ║                                                                              │  🧠 Intelligent Orderbook Analysis                                  │                                                                                                                  ║
+    ║                                                                              │  🎯 Volume-Based Grid Placement                                     │                                                                                                                  ║
+    ║                                                                              │  🚀 5-7 Second Lightning Refresh Cycles                            │                                                                                                                  ║
+    ║                                                                              │  📊 Real-Time XSignal Integration                                   │                                                                                                                  ║
+    ║                                                                              │  💎 Advanced Momentum Scalping                                      │                                                                                                                  ║
+    ║                                                                              │  ⚡ 100 req/s Rate Limiting                                         │                                                                                                                  ║
+    ║                                                                              │  🔥 Sub-second Order Execution                                      │                                                                                                                  ║
+    ║                                                                              │                                                                      │                                                                                                                  ║
+    ║                                                                              └──────────────────────────────────────────────────────────────────────┘                                                                                                                  ║
+    ║                                                                                                                                                                                                                                                                           ║
+    ║                                                                                        Created by Tyler Simpson and contributors at QVL                                                                                                                                   ║
+    ║                                                                                                   🎯 May the grids be ever in your favor                                                                                                                              ║
+    ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
     """
-    print(Fore.CYAN + ascii_art)
-    print(Style.BRIGHT + Fore.YELLOW + "DirectionalScalper is trading..")
-    print(Fore.GREEN + f"Trading symbol: {symbol}")
-    print(Fore.MAGENTA + f"Exchange name: {exchange_name}")
-    print(Fore.BLUE + f"Strategy name: {strategy_name}")
-    print(Fore.RED + f"Account name: {account_name}")
-    print(Style.RESET_ALL)
+    print(Fore.CYAN + Style.BRIGHT + ascii_art)
+    
+    # Ultra-wide system info display
+    print(f"\n{Fore.WHITE}{'═'*200}")
+    print(f"{' '*85}{Fore.YELLOW}{Style.BRIGHT}🚀 SYSTEM STATUS 🚀{Style.RESET_ALL}")
+    print(f"{Fore.WHITE}{'═'*200}")
+    
+    # Create wide formatted info display
+    info_width = 180
+    
+    def format_info_line(label, value, color, emoji):
+        return f"{' '*20}{color}{emoji} {label:<25} {Style.BRIGHT}{Fore.WHITE}{value}{Style.RESET_ALL}"
+    
+    print(format_info_line("First Symbol:", symbol, Fore.GREEN, "📈"))
+    print(format_info_line("Exchange:", exchange_name.upper(), Fore.MAGENTA, "🏛️"))
+    print(format_info_line("Strategy:", strategy_name, Fore.BLUE, "⚙️"))
+    print(format_info_line("Account:", account_name, Fore.RED, "👤"))
+    print(format_info_line("Version:", VERSION, Fore.CYAN, "🔢"))
+    
+    print(f"\n{' '*20}{Fore.GREEN}{Style.BRIGHT}✅ DirectionalScalper 3.0 is live and trading...{Style.RESET_ALL}")
+    print(f"{' '*20}{Fore.YELLOW}⚡ High-frequency grid optimization enabled{Style.RESET_ALL}")
+    print(f"{' '*20}{Fore.CYAN}📊 Orderbook depth analysis active{Style.RESET_ALL}")
+    print(f"{' '*20}{Fore.MAGENTA}🎯 Signal persistence through neutral periods{Style.RESET_ALL}")
+    print(f"{' '*20}{Fore.BLUE}🔥 Ultra-fast 0.1-0.3s loop times{Style.RESET_ALL}")
+    
+    print(f"\n{Fore.WHITE}{'═'*200}{Style.RESET_ALL}\n")
 
 def standardize_symbol(symbol):
     return symbol.replace('/', '').split(':')[0]
 
 def get_available_strategies():
     return [
-        'qsgridob'
+        'qsgridob',
+        'qsgridob_nosignal'
         # 'qsgridob',
         # 'qsgridoblsignal',
         # 'qstrendobdynamictp',
@@ -198,10 +244,23 @@ class DirectionalMarketMaker:
         else:
             self.exchange = exchange_class(api_key, secret_key, passphrase)
 
-    def run_strategy(self, symbol, strategy_name, config, account_name, symbols_to_trade=None, rotator_symbols_standardized=None, mfirsi_signal=None, action=None):
+    def run_strategy(self,
+                    symbol,
+                    strategy_name,
+                    config,
+                    account_name,
+                    symbols_to_trade=None,
+                    rotator_symbols_standardized=None,
+                    mfirsi_signal=None,
+                    action=None):
         logging.info(f"Received rotator symbols in run_strategy for {symbol}: {rotator_symbols_standardized}")
         
-        symbols_allowed = next((exch.symbols_allowed for exch in config.exchanges if exch.name == self.exchange_name and exch.account_name == account_name), None)
+        symbols_allowed = next(
+            (exch.symbols_allowed
+            for exch in config.exchanges
+            if exch.name == self.exchange_name and exch.account_name == account_name),
+            None
+        )
 
         logging.info(f"Matched exchange: {self.exchange_name}, account: {account_name}. Symbols allowed: {symbols_allowed}")
         
@@ -214,8 +273,9 @@ class DirectionalMarketMaker:
                 logging.error(f"Error in printing info: {e}")
 
         strategy_classes = {
-            'qstrendobdynamictp': gridbased.BybitQuickScalpTrendDynamicTP,
-            'qsgridob': gridbased.LinearGridBaseFutures
+            'qstrendobdynamictp':    gridbased.BybitQuickScalpTrendDynamicTP,
+            'qsgridob':              gridbased.LinearGridBaseFutures,
+            'qsgridob_nosignal':     gridbased.LinearGridBaseFutures,  # ← added no-signal mode
         }
 
         strategy_class = strategy_classes.get(strategy_name.lower())
@@ -225,25 +285,46 @@ class DirectionalMarketMaker:
                 logging.info(f"Running strategy for symbol {symbol} with action {action}")
                 if action == "long":
                     future_long = Future()
-                    Thread(target=self.run_with_future, args=(strategy, symbol, rotator_symbols_standardized, mfirsi_signal, "long", future_long)).start()
+                    Thread(
+                        target=self.run_with_future,
+                        args=(strategy,
+                            symbol,
+                            rotator_symbols_standardized,
+                            mfirsi_signal,
+                            "long",
+                            future_long)
+                    ).start()
                     return future_long
+
                 elif action == "short":
                     future_short = Future()
-                    Thread(target=self.run_with_future, args=(strategy, symbol, rotator_symbols_standardized, mfirsi_signal, "short", future_short)).start()
+                    Thread(
+                        target=self.run_with_future,
+                        args=(strategy,
+                            symbol,
+                            rotator_symbols_standardized,
+                            mfirsi_signal,
+                            "short",
+                            future_short)
+                    ).start()
                     return future_short
+
                 else:
                     future = Future()
                     future.set_result(True)
                     return future
+
             except Exception as e:
                 future = Future()
                 future.set_exception(e)
                 return future
+
         else:
             logging.error(f"Strategy {strategy_name} not found.")
             future = Future()
             future.set_exception(ValueError(f"Strategy {strategy_name} not found."))
             return future
+
 
 
     def run_with_future(self, strategy, symbol, rotator_symbols_standardized, mfirsi_signal, action, future):
@@ -322,6 +403,12 @@ class DirectionalMarketMaker:
         elif self.entry_signal_type == 'lorentzian':
             logging.info(f"Using lorentzian signals for symbol {symbol}")
             signal = self.generate_l_signals(symbol)
+        elif self.entry_signal_type == 'xgrid':
+            logging.info(f"Using xgrid signals for symbol {symbol}")
+            signal = self.generate_xgridt_signal(symbol)
+            logging.info(f"XSIGNAL - {symbol} {signal}")
+            if signal == "":
+                signal = "neutral"
         else:
             raise ValueError(f"Unknown entry signal type: {self.entry_signal_type}")
 
@@ -341,6 +428,12 @@ class DirectionalMarketMaker:
         # Retrieve the MFI/RSI signal
         with general_rate_limiter:
             return self.exchange.get_mfirsi_ema_secondary_ema(symbol, limit=100, lookback=1, ema_period=5, secondary_ema_period=3)
+
+    def generate_xgridt_signal(self, symbol):
+        # Retrieve the XGrid Signal
+        with general_rate_limiter:
+            return self.exchange.generate_xgridt_signal(symbol)
+
 
 BALANCE_REFRESH_INTERVAL = 600  # in seconds
 
@@ -410,7 +503,7 @@ def run_bot(symbol, args, market_maker, manager, account_name, symbols_allowed, 
         logging.info(f"Rotator symbols in run_bot: {rotator_symbols_standardized}")
         logging.info(f"Latest rotator symbols in run bot: {latest_rotator_symbols}")
 
-        time.sleep(2)
+        time.sleep(0.1)
 
         with general_rate_limiter:
             signal = market_maker.get_signal(symbol)  # Use the appropriate signal based on the entry_signal_type
@@ -565,7 +658,7 @@ def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
                         active_long_symbols.add(symbol)
                         unique_active_symbols.add(symbol)
                         logging.info(f"Submitted long thread for open symbol {symbol}. Has open long: {has_open_long}.")
-                        time.sleep(2)
+                        time.sleep(0.2)
 
                     if has_open_short and not short_thread_running:
                         logging.info(f"Open symbol {symbol} has open short: {has_open_short} and short thread not running {short_thread_running}")
@@ -577,13 +670,26 @@ def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
                         active_short_symbols.add(symbol)
                         unique_active_symbols.add(symbol)
                         logging.info(f"Submitted short thread for open symbol {symbol}. Has open short: {has_open_short}.")
-                        time.sleep(2)
+                        time.sleep(0.2)
 
                 # Process new symbols after open positions
                 if len(unique_active_symbols) < symbols_allowed:
                     symbols_to_process = whitelist if whitelist and len(whitelist) > 0 else latest_rotator_symbols
                     logging.info(f"Unique active symbols are less than allowed, processing symbols from {'whitelist' if whitelist and len(whitelist) > 0 else 'latest rotator symbols'}")
                     logging.info(f"Symbols to process: {symbols_to_process}")
+
+                    # Immediate-entry mode: skip signal checks and launch qsgridob_nosignal directly
+                    if args.strategy.lower() == 'qsgridob_nosignal':
+                        for symbol in symbols_to_process:
+                            if symbol in unique_active_symbols or len(unique_active_symbols) >= symbols_allowed:
+                                continue
+                            logging.info(f"[IMMEDIATE] Starting {args.strategy} on {symbol}")
+                            # launch as a long by default; adjust 'action' if needed
+                            start_thread_for_symbol(symbol, args, manager, mfirsi_signal=None, action="long", has_open_long=False, has_open_short=False)
+                            unique_active_symbols.add(symbol)
+                        time.sleep(0.1)
+                        # jump to next iteration of the while loop
+                        continue
 
                     for symbol in symbols_to_process:
                         if symbol not in processed_symbols and symbol not in unique_active_symbols:
@@ -602,7 +708,21 @@ def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
                                 logging.info(f"Submitted signal processing for new symbol {symbol}.")
                                 processed_symbols.add(symbol)
                                 unique_active_symbols.add(symbol)  # Immediately update unique_active_symbols
-                                time.sleep(2)
+                                time.sleep(0.2)
+
+                # Always process signals for all whitelist symbols regardless of positions
+                if whitelist and len(whitelist) > 0:
+                    for symbol in whitelist:
+                        if symbol not in open_position_symbols:  # Only process whitelist symbols without open positions
+                            signal_futures.append(signal_executor.submit(
+                                process_signal, 
+                                symbol, args, market_maker, manager, symbols_allowed, open_position_data, False, 
+                                len(active_long_symbols) < symbols_allowed and not graceful_stop_long, 
+                                len(active_short_symbols) < symbols_allowed and not graceful_stop_short, 
+                                graceful_stop_long, graceful_stop_short
+                            ))
+                            logging.info(f"Submitted signal processing for whitelist symbol without position {symbol}.")
+                            time.sleep(0.1)
 
                 logging.info(f"Submitted signal processing for open position symbols: {open_position_symbols}.")
                 process_futures(open_position_futures + signal_futures)
@@ -628,7 +748,7 @@ def bybit_auto_rotation(args, market_maker, manager, symbols_allowed):
             logging.info(f"Exception caught in bybit_auto_rotation: {str(e)}")
             logging.info(traceback.format_exc())
 
-        time.sleep(1)
+        time.sleep(0.1)
 
 
 def bybit_auto_rotation_spot(args, market_maker, manager, symbols_allowed):
@@ -705,7 +825,7 @@ def bybit_auto_rotation_spot(args, market_maker, manager, symbols_allowed):
                     for symbol in latest_rotator_symbols:
                         signal_futures.append(signal_executor.submit(process_signal_spot, symbol, args, manager, symbols_allowed, open_position_data, False, long_mode, short_mode))
                         logging.info(f"Submitted signal processing for new rotator symbol {symbol}.")
-                        time.sleep(2)
+                        time.sleep(0.2)
 
                 process_futures(open_position_futures + signal_futures)
 
@@ -724,7 +844,7 @@ def bybit_auto_rotation_spot(args, market_maker, manager, symbols_allowed):
         except Exception as e:
             logging.error(f"Exception caught in bybit_auto_rotation_spot: {str(e)}")
             logging.debug(traceback.format_exc())
-        time.sleep(1)
+        time.sleep(0.1)
 
 def process_signal_for_open_position(symbol, args, market_maker, manager, symbols_allowed, open_position_data, long_mode, short_mode, graceful_stop_long, graceful_stop_short):
     market_maker.manager = manager

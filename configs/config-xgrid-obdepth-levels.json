@@ -17,13 +17,13 @@
         "test_orders_enabled": false,
         "max_usd_value": 50,
         "blacklist": ["ETHUSDT", "USTCUSDT", "USDCUSDT", "BTCUSDT"],
-        "whitelist": ["1000PEPEUSDT"],
+        "whitelist": ["SAHARAUSDT"],
         "dashboard_enabled": true,
         "shared_data_path": "data/",
         "hedge_positions_db_path": "configs/hedge_positions.json",
         "linear_grid": {
             "target_coins_mode": true,
-            "grid_behavior": "xgridt",
+            "grid_behavior": "xgrid_highfrequency",
             "drawdown_behavior": "momentum_scalping",
             "entry_signal_type": "xgrid",
             "levels": 3,
@@ -71,13 +71,7 @@
             "drawdown_close_threshold": 50,
             "max_usd_position_value_long": null,
             "max_usd_position_value_short": null,
-            "one_symbol_optimization": false,
-            "sticky_size_enabled": false,
-            "sticky_size_aggressiveness": 1.5,
-            "sticky_size_max_multiplier": 3.0,
-            "sticky_size_target_profit": 0.0015,
-            "sticky_size_use_orderbook": true,
-            "sticky_size_min_volume_ratio": 0.25
+            "one_symbol_optimization": false
         },
         "hotkeys": {
             "hotkeys_enabled": false,

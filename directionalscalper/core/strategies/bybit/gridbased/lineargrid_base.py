@@ -21,9 +21,9 @@ symbol_locks = {}
 class LinearGridBaseFutures(BybitStrategy):
     def __init__(self, exchange, manager, config, symbols_allowed=None, rotator_symbols_standardized=None, mfirsi_signal=None):
         super().__init__(exchange, config, manager, symbols_allowed)
-        self.rate_limiter = RateLimit(10, 1)
-        self.general_rate_limiter = RateLimit(50, 1)
-        self.order_rate_limiter = RateLimit(5, 1) 
+        self.rate_limiter = RateLimit(25, 1)
+        self.general_rate_limiter = RateLimit(100, 1)
+        self.order_rate_limiter = RateLimit(20, 1) 
         self.mfirsi_signal = mfirsi_signal
         self.is_order_history_populated = False
         self.last_health_check_time = time.time()
@@ -48,29 +48,46 @@ class LinearGridBaseFutures(BybitStrategy):
                 symbol_locks[standardized_symbol] = {'long': threading.Lock(), 'short': threading.Lock()}
 
     def run(self, symbol, rotator_symbols_standardized=None, mfirsi_signal=None, action=None):
+        standardized_symbol = symbol.upper()
+        logging.info(f"[{standardized_symbol}] Entering run() with action='{action}'")
+
+        # # ── EARLY EXIT FOR XGRIDT ────────────────────────────────────────────────
+        # try:
+        #     grid_behavior = self.config.linear_grid.get("grid_behavior", "")
+        #     if grid_behavior == "xgridt":
+        #         sig = self.generate_xgridt_signal(symbol)
+        #         logging.info(f"[{symbol}] xgridt early-check: signal='{sig}' vs action='{action}'")
+        #         if sig != action:
+        #             logging.info(f"[{symbol}] xgridt → no matching signal, skipping run()")
+        #             return
+        #         # else—we’ll proceed under the lock
+        # except Exception as e:
+        #     logging.error(f"[{symbol}] xgridt early-check error: {e}", exc_info=True)
+        #     return
+
+        # ── LOCKING & DISPATCH ────────────────────────────────────────────────────
+        current_thread_id = threading.get_ident()
+        if standardized_symbol not in symbol_locks:
+            symbol_locks[standardized_symbol] = {'long': threading.Lock(), 'short': threading.Lock()}
+
+        lock = symbol_locks[standardized_symbol][action]
+        if not lock.acquire(blocking=False):
+            logging.info(f"[{symbol}] Failed to acquire lock for action='{action}' by thread {current_thread_id}")
+            return
+
+        logging.info(f"[{symbol}] Lock acquired for action='{action}' by thread {current_thread_id}")
         try:
-            standardized_symbol = symbol.upper()
-            logging.info(f"Standardized symbol: {standardized_symbol}")
-            current_thread_id = threading.get_ident()
-
-            if standardized_symbol not in symbol_locks:
-                symbol_locks[standardized_symbol] = {'long': threading.Lock(), 'short': threading.Lock()}
-
-            if symbol_locks[standardized_symbol][action].acquire(blocking=False):
-                logging.info(f"Lock acquired for symbol {standardized_symbol} action {action} by thread {current_thread_id}")
-                try:
-                    if action == "long":
-                        self.run_long_trades(standardized_symbol, rotator_symbols_standardized, mfirsi_signal)
-                    elif action == "short":
-                        self.run_short_trades(standardized_symbol, rotator_symbols_standardized, mfirsi_signal)
-                finally:
-                    symbol_locks[standardized_symbol][action].release()
-                    logging.info(f"Lock released for symbol {standardized_symbol} action {action} by thread {current_thread_id}")
+            if action == "long":
+                self.running_long = True
+                self.run_single_symbol(standardized_symbol, rotator_symbols_standardized, mfirsi_signal, "long")
+            elif action == "short":
+                self.running_short = True
+                self.run_single_symbol(standardized_symbol, rotator_symbols_standardized, mfirsi_signal, "short")
             else:
-                logging.info(f"Failed to acquire lock for symbol {standardized_symbol} action {action}")
-        except Exception as e:
-            logging.error(f"Exception in run function: {e}")
-            logging.debug(traceback.format_exc())
+                logging.warning(f"[{symbol}] Unknown action '{action}' passed to run()")
+        finally:
+            lock.release()
+            logging.info(f"[{symbol}] Lock released for action='{action}' by thread {current_thread_id}")
 
     def run_long_trades(self, symbol, rotator_symbols_standardized=None, mfirsi_signal=None):
         self.running_long = True
@@ -82,6 +99,9 @@ class LinearGridBaseFutures(BybitStrategy):
 
     def run_single_symbol(self, symbol, rotator_symbols_standardized=None, mfirsi_signal=None, action=None):
         try:
+
+            current_signal = mfirsi_signal
+
             logging.info(f"Starting to process symbol: {symbol}")
             logging.info(f"Initializing default values for symbol: {symbol}")
 
@@ -106,6 +126,13 @@ class LinearGridBaseFutures(BybitStrategy):
             cum_realised_pnl_short = 0
             long_pos_price = None
             short_pos_price = None
+            
+            # Track whether a position was ever opened for each side (to fix thread exit bug)
+            long_position_ever_opened = False
+            short_position_ever_opened = False
+            
+            # Track iterations to allow proper order placement before breaking
+            iteration_count = 0
 
             # Initializing time trackers for less frequent API calls
             last_equity_fetch_time = 0
@@ -147,23 +174,18 @@ class LinearGridBaseFutures(BybitStrategy):
             reissue_threshold = self.config.linear_grid['reissue_threshold']
             buffer_percentage = self.config.linear_grid['buffer_percentage']
             enforce_full_grid = self.config.linear_grid['enforce_full_grid']
+            auto_graceful_stop = self.config.linear_grid['auto_graceful_stop']
+            target_coins_mode = self.config.linear_grid['target_coins_mode']
             initial_entry_buffer_pct = self.config.linear_grid['initial_entry_buffer_pct']
             min_buffer_percentage = self.config.linear_grid['min_buffer_percentage']
             max_buffer_percentage = self.config.linear_grid['max_buffer_percentage']
             wallet_exposure_limit_long = self.config.linear_grid['wallet_exposure_limit_long']
             wallet_exposure_limit_short = self.config.linear_grid['wallet_exposure_limit_short']
-            min_buffer_percentage_ar = self.config.linear_grid['min_buffer_percentage_ar']
-            max_buffer_percentage_ar = self.config.linear_grid['max_buffer_percentage_ar']
-            upnl_auto_reduce_threshold_long = self.config.linear_grid['upnl_auto_reduce_threshold_long']
-            upnl_auto_reduce_threshold_short = self.config.linear_grid['upnl_auto_reduce_threshold_short']
-            failsafe_enabled = self.config.linear_grid['failsafe_enabled']
-            long_failsafe_upnl_pct = self.config.linear_grid['long_failsafe_upnl_pct']
-            short_failsafe_upnl_pct = self.config.linear_grid['short_failsafe_upnl_pct']
-            failsafe_start_pct = self.config.linear_grid['failsafe_start_pct']
-            auto_reduce_cooldown_enabled = self.config.linear_grid['auto_reduce_cooldown_enabled']
-            auto_reduce_cooldown_start_pct = self.config.linear_grid['auto_reduce_cooldown_start_pct']
             max_qty_percent_long = self.config.linear_grid['max_qty_percent_long']
             max_qty_percent_short = self.config.linear_grid['max_qty_percent_short']
+            max_usd_position_value_long = self.config.linear_grid.get('max_usd_position_value_long', None)
+            max_usd_position_value_short = self.config.linear_grid.get('max_usd_position_value_short', None)
+            one_symbol_optimization = self.config.linear_grid.get('one_symbol_optimization', False)
             min_outer_price_distance = self.config.linear_grid['min_outer_price_distance']
             min_outer_price_distance_long = self.config.linear_grid['min_outer_price_distance_long']
             min_outer_price_distance_short = self.config.linear_grid['min_outer_price_distance_short']
@@ -199,6 +221,18 @@ class LinearGridBaseFutures(BybitStrategy):
 
             # reissue_threshold_inposition = self.config.linear_grid['reissue_threshold_inposition']
 
+            signal_flip_close_at_loss = self.config.linear_grid['signal_flip_close_at_loss']
+
+            DRAWDOWN_CLOSE_THRESHOLD = self.config.linear_grid['drawdown_close_threshold']
+
+            # Sticky size parameters
+            sticky_size_enabled = self.config.linear_grid.get('sticky_size_enabled', False)
+            sticky_size_aggressiveness = self.config.linear_grid.get('sticky_size_aggressiveness', 1.0)
+            sticky_size_max_multiplier = self.config.linear_grid.get('sticky_size_max_multiplier', 5.0)
+            sticky_size_target_profit = self.config.linear_grid.get('sticky_size_target_profit', 0.001)
+            sticky_size_use_orderbook = self.config.linear_grid.get('sticky_size_use_orderbook', True)
+            sticky_size_min_volume_ratio = self.config.linear_grid.get('sticky_size_min_volume_ratio', 0.2)
+
             volume_check = self.config.volume_check
             min_dist = self.config.min_distance
             min_vol = self.config.min_volume
@@ -219,6 +253,8 @@ class LinearGridBaseFutures(BybitStrategy):
 
             # Hedge price diff
             price_difference_threshold = self.config.hedge_price_difference_threshold
+
+
                     
             logging.info("Setting up exchange")
             self.exchange.setup_exchange_bybit(symbol)
@@ -240,9 +276,8 @@ class LinearGridBaseFutures(BybitStrategy):
 
 
             while self.running_long or self.running_short:
-
-                logging.info(f"Trading {symbol} in while loop in obstrategy with long: {self.running_long}")
-                logging.info(f"Trading {symbol} in while loop in obstrategy with short: {self.running_short}")
+                iteration_count += 1
+                logging.info(f"Trading {symbol} in while loop iteration {iteration_count} with long: {self.running_long}, short: {self.running_short}")
 
                 # Example condition to stop the loop
                 if action == "long" and not self.running_long:
@@ -464,6 +499,12 @@ class LinearGridBaseFutures(BybitStrategy):
 
                 long_pos_qty = position_details.get(symbol, {}).get('long', {}).get('qty', 0)
                 short_pos_qty = position_details.get(symbol, {}).get('short', {}).get('qty', 0)
+                
+                # Track if positions were ever opened (to fix thread exit bug)
+                if long_pos_qty > 0:
+                    long_position_ever_opened = True
+                if short_pos_qty > 0:
+                    short_position_ever_opened = True
 
 
                 # Position side for symbol recently closed
@@ -473,9 +514,35 @@ class LinearGridBaseFutures(BybitStrategy):
                 logging.info(f"Current long pos qty for {symbol} {long_pos_qty}")
                 logging.info(f"Current short pos qty for {symbol} {short_pos_qty}")
             
+                # if previous_long_pos_qty > 0 and long_pos_qty == 0:
+                #     logging.info(f"Long position closed for {symbol}. Canceling long grid orders.")
+                #     self.cancel_grid_orders(symbol, "buy")
+                #     self.active_long_grids.discard(symbol)
+                #     if short_pos_qty == 0:
+                #         logging.info(f"No open positions for {symbol}. Removing from shared symbols data.")
+                #         shared_symbols_data.pop(symbol, None)
+                #     # don’t break here—keep the thread alive to reissue on neutral
+                #     continue
+
+                # elif previous_short_pos_qty > 0 and short_pos_qty == 0:
+                #     logging.info(f"Short position closed for {symbol}. Canceling short grid orders.")
+                #     self.cancel_grid_orders(symbol, "sell")
+                #     self.active_short_grids.discard(symbol)
+                #     if long_pos_qty == 0:
+                #         logging.info(f"No open positions for {symbol}. Removing from shared symbols data.")
+                #         shared_symbols_data.pop(symbol, None)
+                #     # don’t break here either
+                #     continue
+
+
                 if previous_long_pos_qty > 0 and long_pos_qty == 0:
                     logging.info(f"Long position closed for {symbol}. Canceling long grid orders.")
-                    self.cancel_grid_orders(symbol, "buy")
+                    if grid_behavior == "xgridt" or grid_behavior == "xgrid_highfrequency":
+                        # Force cancel all grid orders immediately, bypassing timing protection
+                        self.force_cancel_grid_orders(symbol, "buy")
+                        logging.info(f"Force canceled {grid_behavior} orders for {symbol} long side (position closed)")
+                    else:
+                        self.cancel_grid_orders(symbol, "buy")
                     self.active_long_grids.discard(symbol)
                     if short_pos_qty == 0:
                         logging.info(f"No open positions for {symbol}. Removing from shared symbols data.")
@@ -484,7 +551,12 @@ class LinearGridBaseFutures(BybitStrategy):
 
                 elif previous_short_pos_qty > 0 and short_pos_qty == 0:
                     logging.info(f"Short position closed for {symbol}. Canceling short grid orders.")
-                    self.cancel_grid_orders(symbol, "sell")
+                    if grid_behavior == "xgridt" or grid_behavior == "xgrid_highfrequency":
+                        # Force cancel all grid orders immediately, bypassing timing protection
+                        self.force_cancel_grid_orders(symbol, "sell")
+                        logging.info(f"Force canceled {grid_behavior} orders for {symbol} short side (position closed)")
+                    else:
+                        self.cancel_grid_orders(symbol, "sell")
                     self.active_short_grids.discard(symbol)
                     if long_pos_qty == 0:
                         logging.info(f"No open positions for {symbol}. Removing from shared symbols data.")
@@ -535,7 +607,11 @@ class LinearGridBaseFutures(BybitStrategy):
                     logging.info("Both long and short operations have ended. Preparing to exit loop.")
                     shared_symbols_data.pop(symbol, None)  # Remove the symbol from shared_symbols_data
 
-                time.sleep(2)
+                # Reduced sleep for xgrid high-frequency trading
+                if self.config.linear_grid.get("grid_behavior") == "xgridt":
+                    time.sleep(0.1)
+                else:
+                    time.sleep(2)
 
                 # If the symbol is in rotator_symbols and either it's already being traded or trading is allowed.
                 if symbol in rotator_symbols_standardized or (symbol in open_symbols or trading_allowed): # and instead of or
@@ -558,7 +634,9 @@ class LinearGridBaseFutures(BybitStrategy):
                     #mfirsi_signal = self.get_mfirsi_ema(symbol, limit=100, lookback=5, ema_period=5)
                     #mfirsi_signal = self.get_mfirsi_ema_secondary_ema(symbol, limit=100, lookback=1, ema_period=5, secondary_ema_period=3)
 
-                    mfirsi_signal = self.exchange.generate_l_signals(symbol)
+                    # mfirsi_signal = self.exchange.generate_l_signals(symbol)
+
+
 
                     funding_rate = metrics['Funding']
                     hma_trend = metrics['HMA Trend']
@@ -640,47 +718,17 @@ class LinearGridBaseFutures(BybitStrategy):
                     initial_short_stop_loss = None
                     initial_long_stop_loss = None
 
+                    # Failsafe method disabled for xgrid + momentum_scalping
                     try:
-                        self.failsafe_method_leveraged(symbol,
-                                             long_pos_qty,
-                                             short_pos_qty,
-                                             long_pos_price,
-                                             short_pos_price,
-                                             long_upnl,
-                                             short_upnl,
-                                             total_equity,
-                                             current_price,
-                                             failsafe_enabled,
-                                             long_failsafe_upnl_pct,
-                                             short_failsafe_upnl_pct,
-                                             failsafe_start_pct)
+                        pass  # Failsafe functionality removed
                     except Exception as e:
                         logging.info(f"Failsafe failed: {e}")
 
+                    # Auto-reduce logic disabled for xgrid + momentum_scalping
                     try:
-                        self.auto_reduce_logic_grid_hardened_cooldown(
-                            symbol,
-                            min_qty,
-                            long_pos_price,
-                            short_pos_price,
-                            long_pos_qty,
-                            short_pos_qty,
-                            long_upnl,
-                            short_upnl,
-                            auto_reduce_cooldown_enabled,
-                            total_equity,
-                            current_price,
-                            long_dynamic_amount,
-                            short_dynamic_amount,
-                            auto_reduce_cooldown_start_pct,
-                            min_buffer_percentage_ar,
-                            max_buffer_percentage_ar,
-                            upnl_auto_reduce_threshold_long,
-                            upnl_auto_reduce_threshold_short,
-                            self.current_leverage
-                        )
+                        pass  # Auto-reduce functionality removed
                     except Exception as e:
-                        logging.info(f"Hardened grid AR exception caught {e}")
+                        logging.info(f"Auto-reduce exception caught {e}")
 
 
                     # short_take_profit, long_take_profit = self.calculate_take_profits_based_on_spread(short_pos_price, long_pos_price, symbol, one_minute_distance, previous_one_minute_distance, short_take_profit, long_take_profit)
@@ -769,6 +817,8 @@ class LinearGridBaseFutures(BybitStrategy):
                     long_tp_counts = tp_order_counts['long_tp_count']
                     short_tp_counts = tp_order_counts['short_tp_count']
 
+                    # ────────────────────────────────────────────────────────────────
+                    # 1) Run one full grid pass
                     try:
                         self.lineargrid_base(
                             symbol,
@@ -794,13 +844,15 @@ class LinearGridBaseFutures(BybitStrategy):
                             max_buffer_percentage,
                             self.symbols_allowed,
                             enforce_full_grid,
-                            mfirsi_signal,
+                            current_signal,
                             upnl_profit_pct,
                             max_upnl_profit_pct,
                             tp_order_counts,
                             entry_during_autoreduce,
                             max_qty_percent_long,
                             max_qty_percent_short,
+                            max_usd_position_value_long,
+                            max_usd_position_value_short,
                             graceful_stop_long,
                             graceful_stop_short,
                             additional_entries_from_signal,
@@ -824,10 +876,85 @@ class LinearGridBaseFutures(BybitStrategy):
                             max_qty_percent_long_stop_loss,
                             max_qty_percent_short_stop_loss,
                             dynamic_grid,
+                            signal_flip_close_at_loss,
+                            DRAWDOWN_CLOSE_THRESHOLD,
+                            one_symbol_optimization,
+                            sticky_size_enabled,
+                            sticky_size_aggressiveness,
+                            sticky_size_max_multiplier,
+                            sticky_size_target_profit,
+                            sticky_size_use_orderbook,
+                            sticky_size_min_volume_ratio
                         )
                     except Exception as e:
-                        logging.info(f"Something is up with variables for the grid {e}")
+                        logging.info(f"Something went wrong in lineargrid_base: {e}")
 
+                    # ────────────────────────────────────────────────────────────────
+                    # 2) Build and publish the table row *before* any break
+                    symbol_data = {
+                        'symbol':         symbol,
+                        'min_qty':        min_qty,
+                        'current_price':  current_price,
+                        'balance':        total_equity,
+                        'available_bal':  available_equity,
+                        'volume':         five_minute_volume,
+                        'spread':         five_minute_distance,
+                        'ma_trend':       ma_trend,
+                        'ema_trend':      ema_trend,
+                        'long_pos_qty':   long_pos_qty,
+                        'short_pos_qty':  short_pos_qty,
+                        'long_upnl':      long_upnl,
+                        'short_upnl':     short_upnl,
+                        'long_cum_pnl':   cum_realised_pnl_long,
+                        'short_cum_pnl':  cum_realised_pnl_short,
+                        'long_pos_price': long_pos_price,
+                        'short_pos_price':short_pos_price
+                    }
+                    shared_symbols_data[symbol] = symbol_data
+                    self.update_shared_data(symbol_data, open_position_data, len(open_symbols))
+
+                    # ────────────────────────────────────────────────────────────────
+                    # 3) xgridt/xgrid_highfrequency mode: handle individual side exits for fresh signal entry
+                    if self.config.linear_grid.get("grid_behavior") in ["xgridt", "xgrid_highfrequency"]:
+                        # If running specific action and that side WAS opened but is NOW closed, exit to allow fresh entry
+                        if action == "long" and long_position_ever_opened and long_pos_qty == 0:
+                            logging.info(f"[{symbol}] {grid_behavior} mode: long position was opened but now closed, canceling orders and exiting long thread for fresh signal entry")
+                            self.force_cancel_grid_orders(symbol, "buy")
+                            self.active_long_grids.discard(symbol)
+                            break
+                        elif action == "short" and short_position_ever_opened and short_pos_qty == 0:
+                            logging.info(f"[{symbol}] {grid_behavior} mode: short position was opened but now closed, canceling orders and exiting short thread for fresh signal entry")
+                            self.force_cancel_grid_orders(symbol, "sell")
+                            self.active_short_grids.discard(symbol)
+                            break
+                        # If both sides were opened but are now closed, exit completely
+                        elif long_position_ever_opened and short_position_ever_opened and long_pos_qty == 0 and short_pos_qty == 0:
+                            logging.info(f"[{symbol}] {grid_behavior} mode: all positions were opened but now closed, canceling all orders and exiting thread for fresh signal entry")
+                            self.force_cancel_grid_orders(symbol, "buy")
+                            self.force_cancel_grid_orders(symbol, "sell")
+                            self.active_long_grids.discard(symbol)
+                            self.active_short_grids.discard(symbol)
+                            shared_symbols_data.pop(symbol, None)
+                            break
+                        # NEW: In xgridt mode with single-sided action, allow few iterations then exit if no position opened
+                        elif iteration_count > 10:  # Allow at least 10 iterations for order placement and fills
+                            if action == "long" and not long_position_ever_opened and long_pos_qty == 0:
+                                # If we're running long action but no long position ever opened after sufficient iterations, exit
+                                logging.info(f"[{symbol}] {grid_behavior} mode: long action but no long position opened after {iteration_count} iterations, exiting long thread for fresh signal entry")
+                                self.force_cancel_grid_orders(symbol, "buy")
+                                self.active_long_grids.discard(symbol)
+                                break
+                            elif action == "short" and not short_position_ever_opened and short_pos_qty == 0:
+                                # If we're running short action but no short position ever opened after sufficient iterations, exit
+                                logging.info(f"[{symbol}] {grid_behavior} mode: short action but no short position opened after {iteration_count} iterations, exiting short thread for fresh signal entry")
+                                self.force_cancel_grid_orders(symbol, "sell")
+                                self.active_short_grids.discard(symbol)
+                                break
+                        else:
+                            if long_pos_qty == 0 and short_pos_qty == 0:
+                                logging.info(f"[{symbol}] {grid_behavior} mode: no positions opened yet, continuing to monitor for fills (long_ever_opened: {long_position_ever_opened}, short_ever_opened: {short_position_ever_opened})")
+                            else:
+                                logging.info(f"[{symbol}] {grid_behavior} mode: completed one grid pass, continuing to monitor open positions (long: {long_pos_qty}, short: {short_pos_qty})")
 
                     logging.info(f"Long tp counts: {long_tp_counts}")
                     logging.info(f"Short tp counts: {short_tp_counts}")
@@ -911,7 +1038,11 @@ class LinearGridBaseFutures(BybitStrategy):
                     # self.cancel_entries_bybit(symbol, best_ask_price, moving_averages["ma_1m_3_high"], moving_averages["ma_5m_3_high"])
                     # self.cancel_stale_orders_bybit(symbol)
                     
-                time.sleep(5)
+                # Reduced sleep for xgrid high-frequency trading
+                if self.config.linear_grid.get("grid_behavior") == "xgridt":
+                    time.sleep(0.5)
+                else:
+                    time.sleep(5)
 
                 dashboard_path = os.path.join(self.config.shared_data_path, "shared_data.json")
                 
@@ -982,7 +1113,19 @@ class LinearGridBaseFutures(BybitStrategy):
                 iteration_duration = iteration_end_time - iteration_start_time
                 logging.info(f"Iteration for symbol {symbol} took {iteration_duration:.2f} seconds")
 
-                time.sleep(3)
+                # # ────────────────────────────────────────────────────────────────
+                # # after we've updated the dashboard for this symbol,
+                # # if we're in xgridt mode we can now safely exit
+                # if self.config.linear_grid.get("grid_behavior") == "xgridt":
+                #     logging.info(f"[{symbol}] xgridt mode: final table update done → exiting thread")
+                #     break
+                # # ────────────────────────────────────────────────────────────────
+
+                # Reduced sleep for xgrid high-frequency trading
+                if self.config.linear_grid.get("grid_behavior") == "xgridt":
+                    time.sleep(0.3)
+                else:
+                    time.sleep(3)
         except Exception as e:
             traceback_info = traceback.format_exc()  # Get the full traceback
             logging.info(f"Exception caught in quickscalp strategy '{symbol}': {e}\nTraceback:\n{traceback_info}")

@@ -6,8 +6,9 @@
         "data_source_exchange": "bybit"
     },
     "bot": {
-        "bot_name": "your_bot_name",
+        "bot_name": "StickySize_Grid_Bot",
         "volume_check": false,
+        "websocket_mode": false,
         "min_distance": 0.15,
         "min_volume": 10000,
         "upnl_profit_pct": 0.0020,
@@ -17,21 +18,21 @@
         "test_orders_enabled": false,
         "max_usd_value": 50,
         "blacklist": ["ETHUSDT", "USTCUSDT", "USDCUSDT", "BTCUSDT"],
-        "whitelist": ["1000PEPEUSDT"],
+        "whitelist": ["SAHARAUSDT"],
         "dashboard_enabled": true,
         "shared_data_path": "data/",
         "hedge_positions_db_path": "configs/hedge_positions.json",
         "linear_grid": {
             "target_coins_mode": true,
-            "grid_behavior": "xgridt",
+            "grid_behavior": "xgrid_highfrequency",
             "drawdown_behavior": "momentum_scalping",
             "entry_signal_type": "xgrid",
-            "levels": 3,
-            "strength": 1.5,
+            "levels": 7,
+            "strength": 2.0,
             "long_mode": true,
             "short_mode": true,
-            "wallet_exposure_limit_long": 0.0025,
-            "wallet_exposure_limit_short": 0.0015,
+            "wallet_exposure_limit_long": 0.15,
+            "wallet_exposure_limit_short": 0.15,
             "max_qty_percent_long": 60,
             "max_qty_percent_short": 60,
             "min_outer_price_distance": 0.019,
@@ -39,11 +40,11 @@
             "min_outer_price_distance_short": 0.12,
             "max_outer_price_distance_long": 0.12,
             "max_outer_price_distance_short": 0.12,
-            "reissue_threshold": 0.0005,
-            "buffer_percentage": 0.10,
-            "initial_entry_buffer_pct": 0.0005,
-            "min_buffer_percentage": 0.012,
-            "max_buffer_percentage": 0.018,
+            "reissue_threshold": 0.0001,
+            "buffer_percentage": 0.05,
+            "initial_entry_buffer_pct": 0.0001,
+            "min_buffer_percentage": 0.005,
+            "max_buffer_percentage": 0.008,
             "enforce_full_grid": true,
             "additional_entries_from_signal": false,
             "auto_graceful_stop": false,
@@ -71,8 +72,8 @@
             "drawdown_close_threshold": 50,
             "max_usd_position_value_long": null,
             "max_usd_position_value_short": null,
-            "one_symbol_optimization": false,
-            "sticky_size_enabled": false,
+            "one_symbol_optimization": true,
+            "sticky_size_enabled": true,
             "sticky_size_aggressiveness": 1.5,
             "sticky_size_max_multiplier": 3.0,
             "sticky_size_target_profit": 0.0015,
@@ -91,17 +92,7 @@
         {
             "name": "bybit",
             "account_name": "account_1",
-            "symbols_allowed": 20
-        },
-        {
-            "name": "bybit_spot",
-            "account_name": "account_2",
-            "symbols_allowed": 5
-        },
-        {
-            "name": "bybit_unified",
-            "account_name": "account_3",
-            "symbols_allowed": 5
+            "symbols_allowed": 1
         }
     ],
     "logger": {

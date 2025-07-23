@@ -23,6 +23,7 @@ from ..strategies.logger import Logger
 from requests.exceptions import HTTPError
 from datetime import datetime, timedelta
 from ccxt.base.errors import NetworkError
+from scipy.signal import find_peaks 
 
 logging = Logger(logger_name="Exchange", filename="Exchange.log", stream=True)
 
@@ -166,7 +167,27 @@ class Exchange:
 
     # Fetch OHLCV data for calculating ZigZag
     def fetch_ohlcv_data(self, symbol, timeframe='5m', limit=5000):
-        return self.exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
+        max_retries = 3
+        base_delay = 1
+        max_delay = 10
+        
+        for retries in range(max_retries):
+            try:
+                # Add rate limiting delay
+                time.sleep(0.1)  # 100ms delay between OHLCV requests
+                return self.exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
+            except ccxt.RateLimitExceeded as e:
+                delay = min(base_delay * (2 ** retries) + random.uniform(0, 0.1 * (2 ** retries)), max_delay)
+                logging.info(f"[{symbol}] Rate limit exceeded: {e}. Retrying in {delay:.2f} seconds...")
+                time.sleep(delay)
+                if retries == max_retries - 1:
+                    logging.error(f"[{symbol}] Max retries reached for OHLCV fetch")
+                    raise
+            except Exception as e:
+                logging.error(f"[{symbol}] Error fetching OHLCV data: {e}")
+                if retries == max_retries - 1:
+                    raise
+                time.sleep(base_delay)
 
     # Calculate ZigZag indicator
     def calculate_zigzag(self, ohlcv, length=4):
@@ -341,7 +362,7 @@ class Exchange:
     def generate_l_signals(self, symbol, limit=3000, neighbors_count=8, use_adx_filter=False, adx_threshold=20):
         try:
             # Fetch OHLCV data
-            ohlcv_data = self.fetch_ohlcv(symbol=symbol, timeframe='3m', limit=limit)
+            ohlcv_data = self.fetch_ohlcv(symbol=symbol, timeframe='1m', limit=limit)
             df = pd.DataFrame(ohlcv_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
             df.set_index('timestamp', inplace=True)
 
@@ -1431,161 +1452,406 @@ class Exchange:
         logging.error(f"Failed to fetch OHLCV data after {max_retries} retries.")
         return pd.DataFrame()
 
-    # def fetch_ohlcv(self, symbol, timeframe='1d', limit=None, max_retries=100, base_delay=10, max_delay=60):
+    # def generate_xgridt_signal(
+    #     self,
+    #     symbol: str,
+    #     timeframe: str = "1m",
+    #     *,
+    #     donch_len: int = 50,
+    #     breakout_tol_pct: float = 0.30,
+    #     natr_len: int = 60,
+    #     natr_mult: float = 1.1,
+    #     min_natr_abs: float = 0.02,
+    #     prominence_pct: float = 0.008,       # ← 0.8 %
+    #     peak_min_distance: int = 15,         # closer swings OK
+    # ) -> str:
     #     """
-    #     Fetch OHLCV data for the given symbol and timeframe.
-        
-    #     :param symbol: Trading symbol.
-    #     :param timeframe: Timeframe string.
-    #     :param limit: Limit the number of returned data points.
-    #     :param max_retries: Maximum number of retries for API calls.
-    #     :param base_delay: Base delay for exponential backoff.
-    #     :param max_delay: Maximum delay for exponential backoff.
-    #     :return: DataFrame with OHLCV data or an empty DataFrame on error.
+    # def generate_xgridt_signal(
+    #     self,
+    #     symbol: str,
+    #     timeframe: str = "1m",
+    #     *,
+    #     donch_len: int = 50,
+    #     breakout_tol_pct: float = 0.0,
+    #     natr_len: int = 100,
+    #     natr_mult: float = 2.0,
+    #     prominence_pct: float = 0.05,
+    #     peak_min_distance: int = 100,
+    # ) -> str:
     #     """
-    #     retries = 0
-
-    #     while retries < max_retries:
-    #         try:
-    #             with self.rate_limiter:
-    #                 # Fetch the OHLCV data from the exchange
-    #                 ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, limit=limit)  # Pass the limit parameter
-                    
-    #                 # Create a DataFrame from the OHLCV data
-    #                 df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-                    
-    #                 # Convert the timestamp to datetime
-    #                 df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-                    
-    #                 # Set the timestamp as the index
-    #                 df.set_index('timestamp', inplace=True)
-                    
-    #                 return df
-
-    #         except ccxt.RateLimitExceeded as e:
-    #             retries += 1
-    #             delay = min(base_delay * (2 ** retries) + random.uniform(0, 0.1 * (2 ** retries)), max_delay)
-    #             logging.info(f"Rate limit exceeded: {e}. Retrying in {delay:.2f} seconds...")
-    #             time.sleep(delay)
-
-    #         except ccxt.BadSymbol as e:
-    #             # Handle the BadSymbol error gracefully and exit the loop
-    #             logging.info(f"Bad symbol: {symbol}. Error: {e}")
-    #             break  # Exit the retry loop as the symbol is invalid
-
-    #         except ccxt.BaseError as e:
-    #             # Log the error message
-    #             logging.info(f"Failed to fetch OHLCV data: {self.exchange.id} {e}")
-    #             logging.error(traceback.format_exc())
-    #             return pd.DataFrame()  # Return empty DataFrame for other base errors
-
-    #         except Exception as e:
-    #             # Log the error message and traceback
-    #             logging.info(f"Unexpected error occurred while fetching OHLCV data: {e}")
-    #             logging.error(traceback.format_exc())
-                
-    #             # Handle specific error scenarios
-    #             if isinstance(e, TypeError) and 'string indices must be integers' in str(e):
-    #                 logging.info(f"TypeError occurred: {e}")
-    #                 logging.info(f"Response content: {self.exchange.last_http_response}")
-                    
-    #                 try:
-    #                     response = json.loads(self.exchange.last_http_response)
-    #                     logging.info(f"Parsed response into a dictionary: {response}")
-    #                 except json.JSONDecodeError as json_error:
-    #                     logging.info(f"Failed to parse response: {json_error}")
-                
-    #             return pd.DataFrame()  # Return empty DataFrame on unexpected errors
-
-    #     logging.error(f"Failed to fetch OHLCV data after {max_retries} retries.")
-    #     return pd.DataFrame()
-
-    # def fetch_ohlcv(self, symbol, timeframe='1d', limit=None):
-    #     """
-    #     Fetch OHLCV data for the given symbol and timeframe.
-        
-    #     :param symbol: Trading symbol.
-    #     :param timeframe: Timeframe string.
-    #     :param limit: Limit the number of returned data points.
-    #     :return: DataFrame with OHLCV data.
+    #     xgridt – 1-minute breakout/momentum signal per PNUT config.
+    #     Returns "long", "short" or "" (neutral). Logs each veto reason.
     #     """
     #     try:
-    #         # Fetch the OHLCV data from the exchange
-    #         ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, limit=limit)  # Pass the limit parameter
-            
-    #         # Create a DataFrame from the OHLCV data
-    #         df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-            
-    #         # Convert the timestamp to datetime
-    #         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-            
-    #         # Set the timestamp as the index
-    #         df.set_index('timestamp', inplace=True)
-            
-    #         return df
-        
-    #     except ccxt.BaseError as e:
-    #         # Log the error message
-    #         logging.error(f"Failed to fetch OHLCV data: {self.exchange.id} {e}")
-            
-    #         # Log the traceback for further debugging
-    #         logging.error(traceback.format_exc())
-            
-    #         # Return an empty DataFrame in case of an error
-    #         return pd.DataFrame()
-        
-    #     except Exception as e:
-    #         # Check if the error is related to response parsing
-    #         if 'response' in locals() and isinstance(response, str):
-    #             logging.info(f"Response is a string: {response}")
-    #             try:
-    #                 # Attempt to parse the response
-    #                 response = json.loads(response)
-    #                 logging.info("Parsed response into a dictionary")
-    #             except json.JSONDecodeError as json_error:
-    #                 logging.error(f"Failed to parse response: {json_error}")
-            
-    #         # Log any other unexpected errors
-    #         logging.info(f"Unexpected error occurred while fetching OHLCV data: {e}")
-    #         logging.info(traceback.format_exc())
-            
-    #         return pd.DataFrame()
+    #         # 0) Data fetch & prep
+    #         candles = self.fetch_ohlcv_data(symbol, timeframe=timeframe, limit=1500)
+    #         if not candles or len(candles) < max(natr_len, 120):
+    #             logging.info(f"[{symbol}] xgridt-signal: insufficient candles → got {len(candles) if candles else 0}, need ≥ {max(natr_len,120)}")
+    #             return ""
+    #         df = pd.DataFrame(candles, columns=["ts","open","high","low","close","volume"])
+    #         df = df.astype({"high":"float64","low":"float64","close":"float64"})
+    #         closes, high, low = df["close"], df["high"], df["low"]
 
-    def get_orderbook(self, symbol, max_retries=3, retry_delay=5) -> dict:
+    #         # 1) Triple-EMA Trend Detection
+    #         ema11 = closes.ewm(span=11, adjust=False).mean().iat[-1]
+    #         ema23 = closes.ewm(span=23, adjust=False).mean().iat[-1]
+    #         ema37 = closes.ewm(span=37, adjust=False).mean().iat[-1]
+    #         if ema11 > ema23 > ema37:
+    #             trend = "long"
+    #         elif ema11 < ema23 < ema37:
+    #             trend = "short"
+    #         else:
+    #             logging.info(f"[{symbol}] xgridt-signal: trend ambiguous → EMA11={ema11:.6f}, EMA23={ema23:.6f}, EMA37={ema37:.6f}")
+    #             return ""
+
+    #         # 2) Donchian breakout
+    #         donch_hi = high.rolling(donch_len).max().iat[-2]
+    #         donch_lo = low.rolling(donch_len).min().iat[-2]
+    #         last     = closes.iat[-1]
+    #         if trend == "long" and last <= donch_hi:
+    #             logging.info(f"[{symbol}] xgridt-signal: failed Donchian breakout (long): last={last:.6f} ≤ high={donch_hi:.6f}")
+    #             return ""
+    #         if trend == "short" and last >= donch_lo:
+    #             logging.info(f"[{symbol}] xgridt-signal: failed Donchian breakout (short): last={last:.6f} ≥ low={donch_lo:.6f}")
+    #             return ""
+
+    #         # 3) Volatility filter (dynamic only)
+    #         pc    = closes.shift()
+    #         tr    = np.maximum(high - low, np.maximum((high - pc).abs(), (low - pc).abs()))
+    #         natr  = (tr.rolling(natr_len, min_periods=natr_len).mean() / closes) * 100
+    #         cur   = natr.iat[-1]
+    #         base  = natr[:-1].mean()
+    #         threshold = natr_mult * base
+    #         if cur < threshold:
+    #             logging.info(f"[{symbol}] xgridt-signal: NATR too low: cur={cur:.4f}% < 2×base={threshold:.4f}%")
+    #             return ""
+
+    #         # 4) Peak/trough confirmation
+    #         fast_atr = (high - low).rolling(14).mean().iat[-1]
+    #         prom     = max(prominence_pct * last, 0.8 * fast_atr)
+    #         peaks, _   = find_peaks(closes.values,   prominence=prom, distance=peak_min_distance)
+    #         troughs, _ = find_peaks(-closes.values,  prominence=prom, distance=peak_min_distance)
+
+    #         if trend == "long" and peaks.size:
+    #             last_peak = closes.iloc[peaks[-1]]
+    #             if last < last_peak:
+    #                 logging.info(f"[{symbol}] xgridt-signal: peak confirm failed (long): last={last:.6f} < peak={last_peak:.6f}")
+    #                 return ""
+    #         if trend == "short" and troughs.size:
+    #             last_trough = closes.iloc[troughs[-1]]
+    #             if last > last_trough:
+    #                 logging.info(f"[{symbol}] xgridt-signal: trough confirm failed (short): last={last:.6f} > trough={last_trough:.6f}")
+    #                 return ""
+
+    #         # SUCCESS
+    #         logging.info(f"[{symbol}] xgridt-signal: SIGNAL {trend.upper()}")
+    #         return trend
+
+    #     except Exception as e:
+    #         logging.error(f"[{symbol}] generate_xgridt_signal error → {e}", exc_info=True)
+    #         return ""
+
+
+
+    def generate_xgridt_signal(
+        self,
+        symbol: str,
+        timeframe: str = "1m",
+        *,
+        donch_len: int = 50,
+        breakout_tol_pct: float = 0.0,
+        natr_len: int = 80,
+        natr_mult: float = 1.5,
+        min_natr_abs: float = 0.02,
+        prominence_pct: float = 0.05,       # ← 0.8 %
+        peak_min_distance: int = 90,         # closer swings OK
+    ) -> str:
+        """
+        xgridt – 1-minute breakout / momentum signal (relaxed peak filter)
+        Returns "long", "short" or "".
+        """
+        try:
+            # ── 0) Data
+            candles = self.fetch_ohlcv_data(symbol, timeframe=timeframe, limit=1500)
+            if not candles or len(candles) < max(natr_len, 120):
+                logging.info(f"[{symbol}] xgridt-signal: not enough candles → no signal")
+                return ""
+
+            df = (pd.DataFrame(candles,
+                            columns=["ts","open","high","low","close","volume"])
+                .astype({"high":"float64","low":"float64","close":"float64"}))
+            closes = df["close"]
+            high   = df["high"]
+            low    = df["low"]
+
+            # ── 1) Triple-EMA Trend Detection (11, 23, 37)
+            ema11 = closes.ewm(span=11, adjust=False).mean().iat[-1]
+            ema23 = closes.ewm(span=23, adjust=False).mean().iat[-1]
+            ema37 = closes.ewm(span=37, adjust=False).mean().iat[-1]
+            if ema11 > ema23 > ema37:
+                trend = "long"
+            elif ema11 < ema23 < ema37:
+                trend = "short"
+            else:
+                logging.info(
+                    f"[{symbol}] xgridt-signal: trend unclear → "
+                    f"EMA11={ema11:.5f}, EMA23={ema23:.5f}, EMA37={ema37:.5f}"
+                )
+                return ""
+
+            # ── 2) Donchian close breakout
+            donch_hi = high.rolling(donch_len).max().iat[-2]
+            donch_lo = low.rolling(donch_len).min().iat[-2]
+            last     = closes.iat[-1]
+
+            hi_band = donch_hi * (1 - breakout_tol_pct/100)
+            lo_band = donch_lo * (1 + breakout_tol_pct/100)
+            if trend == "long" and last < hi_band:
+                logging.info(f"[{symbol}] xgridt-signal: close {last:.5g} < tolHi {hi_band:.5g} → reject long")
+                return ""
+            if trend == "short" and last > lo_band:
+                logging.info(f"[{symbol}] xgridt-signal: close {last:.5g} > tolLo {lo_band:.5g} → reject short")
+                return ""
+
+            # ── 3) Volatility filter (NATR)
+            pc  = closes.shift()
+            tr  = np.maximum(high - low, np.maximum((high - pc).abs(), (low - pc).abs()))
+            natr= (tr.rolling(natr_len, min_periods=natr_len).mean() / closes) * 100
+            cur, base = natr.iat[-1], natr[:-1].mean()
+            if not (cur >= min_natr_abs or cur >= natr_mult * base):
+                logging.info(
+                    f"[{symbol}] xgridt-signal: NATR {cur:.3f}% < "
+                    f"{min_natr_abs:.2f}% & < {natr_mult}×{base:.3f}% → reject"
+                )
+                return ""
+
+            # ── 4) Relaxed peak / trough confirmation
+            fast_atr = (high - low).rolling(14).mean().iat[-1]
+            prom     = max(prominence_pct * last, 0.8 * fast_atr)  # ← looser
+
+            peaks,  _ = find_peaks(closes.values,   prominence=prom, distance=peak_min_distance)
+            troughs,_ = find_peaks(-closes.values,  prominence=prom, distance=peak_min_distance)
+
+            peak_ok = (
+                peaks.size == 0 or
+                last >= closes.iloc[peaks[-1]] * (1 - breakout_tol_pct/100)
+            )
+            trough_ok = (
+                troughs.size == 0 or
+                last <= closes.iloc[troughs[-1]] * (1 + breakout_tol_pct/100)
+            )
+
+            if trend == "long" and not peak_ok:
+                logging.info(f"[{symbol}] xgridt-signal: no peak confirmation → reject long")
+                return ""
+            if trend == "short" and not trough_ok:
+                logging.info(f"[{symbol}] xgridt-signal: no trough confirmation → reject short")
+                return ""
+
+            # ── 5) SUCCESS
+            logging.info(
+                f"[{symbol}] xgridt-signal: {trend.upper()} ✔ "
+                f"EMA11={ema11:.5g} EMA23={ema23:.5g} EMA37={ema37:.5g} | "
+                f"NATR={cur:.3f}% (base {base:.3f}%) | prom={prom:.5g}"
+            )
+            return trend
+
+        except Exception as e:
+            logging.error(f"[{symbol}] generate_xgridt_signal → {e}", exc_info=True)
+            return ""
+
+
+    # def generate_xgridt_signal(
+    #     self,
+    #     symbol: str,
+    #     timeframe: str = "1m",
+    #     *,
+    #     donch_len: int = 15,
+    #     breakout_tol_pct: float = 0.30,
+    #     natr_len: int = 60,
+    #     natr_mult: float = 1.1,
+    #     min_natr_abs: float = 0.02,
+    #     prominence_pct: float = 0.008,       # ← 0.8 %
+    #     peak_min_distance: int = 15,         # closer swings OK
+    # ) -> str:
+    #     """
+    #     xgridt – 1-minute breakout / momentum signal (relaxed peak filter)
+    #     Returns "long", "short" or "".
+    #     """
+    #     try:
+    #         # ── 0) Data
+    #         candles = self.fetch_ohlcv_data(symbol, timeframe=timeframe, limit=1500)
+    #         if not candles or len(candles) < max(natr_len, 120):
+    #             logging.info(f"[{symbol}] xgridt-signal: not enough candles → no signal")
+    #             return ""
+
+    #         df = (pd.DataFrame(candles,
+    #                         columns=["ts","open","high","low","close","volume"])
+    #             .astype({"high":"float64","low":"float64","close":"float64"}))
+    #         closes = df["close"]
+    #         high   = df["high"]
+    #         low    = df["low"]
+
+    #         # ── 1) EMA trend
+    #         ema11 = closes.ewm(span=11, adjust=False).mean().iat[-1]
+    #         ema23 = closes.ewm(span=23, adjust=False).mean().iat[-1]
+    #         if ema11 > ema23:
+    #             trend = "long"
+    #         elif ema11 < ema23:
+    #             trend = "short"
+    #         else:
+    #             logging.info(f"[{symbol}] xgridt-signal: EMA11 ≈ EMA23 → no signal")
+    #             return ""
+
+    #         # ── 2) Donchian close breakout
+    #         donch_hi = high.rolling(donch_len).max().iat[-2]
+    #         donch_lo = low.rolling(donch_len).min().iat[-2]
+    #         last     = closes.iat[-1]
+
+    #         hi_band = donch_hi * (1 - breakout_tol_pct/100)
+    #         lo_band = donch_lo * (1 + breakout_tol_pct/100)
+    #         if trend == "long" and last < hi_band:
+    #             logging.info(f"[{symbol}] xgridt-signal: close {last:.5g} < tolHi {hi_band:.5g} → reject long")
+    #             return ""
+    #         if trend == "short" and last > lo_band:
+    #             logging.info(f"[{symbol}] xgridt-signal: close {last:.5g} > tolLo {lo_band:.5g} → reject short")
+    #             return ""
+
+    #         # ── 3) Volatility filter (NATR)
+    #         pc  = closes.shift()
+    #         tr  = np.maximum(high - low, np.maximum((high - pc).abs(), (low - pc).abs()))
+    #         natr= (tr.rolling(natr_len, min_periods=natr_len).mean() / closes) * 100
+    #         cur, base = natr.iat[-1], natr[:-1].mean()
+    #         if not (cur >= min_natr_abs or cur >= natr_mult * base):
+    #             logging.info(
+    #                 f"[{symbol}] xgridt-signal: NATR {cur:.3f}% < "
+    #                 f"{min_natr_abs:.2f}% & < {natr_mult}×{base:.3f}% → reject"
+    #             )
+    #             return ""
+
+    #         # ── 4) Relaxed peak / trough confirmation
+    #         fast_atr = (high - low).rolling(14).mean().iat[-1]
+    #         prom     = max(prominence_pct * last, 0.8 * fast_atr)  # ← looser
+
+    #         peaks,  _ = find_peaks(closes.values,   prominence=prom, distance=peak_min_distance)
+    #         troughs,_ = find_peaks(-closes.values,  prominence=prom, distance=peak_min_distance)
+
+    #         peak_ok = (
+    #             peaks.size == 0 or
+    #             last >= closes.iloc[peaks[-1]] * (1 - breakout_tol_pct/100)
+    #         )
+    #         trough_ok = (
+    #             troughs.size == 0 or
+    #             last <= closes.iloc[troughs[-1]] * (1 + breakout_tol_pct/100)
+    #         )
+
+    #         if trend == "long" and not peak_ok:
+    #             logging.info(f"[{symbol}] xgridt-signal: no peak confirmation → reject long")
+    #             return ""
+    #         if trend == "short" and not trough_ok:
+    #             logging.info(f"[{symbol}] xgridt-signal: no trough confirmation → reject short")
+    #             return ""
+
+    #         # ── 5) SUCCESS
+    #         logging.info(
+    #             f"[{symbol}] xgridt-signal: {trend.upper()} ✔ "
+    #             f"EMA11={ema11:.5g} EMA23={ema23:.5g} | "
+    #             f"NATR={cur:.3f}% (base {base:.3f}%) | prom={prom:.5g}"
+    #         )
+    #         return trend
+
+    #     except Exception as e:
+    #         logging.error(f"[{symbol}] generate_xgridt_signal → {e}", exc_info=True)
+    #         return ""
+
+    def get_orderbook(self, symbol, max_retries: int = 3, retry_delay: int = 5) -> dict:
+        """
+        Robust order‑book fetcher that ALSO filters‑out rows whose price
+        is None or 0.  Emits detailed diagnostics when that happens.
+        """
         values = {"bids": [], "asks": []}
 
         for attempt in range(max_retries):
             try:
-                data = self.exchange.fetch_order_book(symbol)
-                if "bids" in data and "asks" in data:
-                    if len(data["bids"]) > 0 and len(data["asks"]) > 0:
-                        if len(data["bids"][0]) > 0 and len(data["asks"][0]) > 0:
-                            values["bids"] = data["bids"]
-                            values["asks"] = data["asks"]
-                break  # if the fetch was successful, break out of the loop
+                raw = self.exchange.fetch_order_book(symbol)
+                bids = raw.get("bids", [])
+                asks = raw.get("asks", [])
+
+                # ─────────── ① validate shape ───────────
+                if not bids or not asks:
+                    logging.warning(f"[{symbol}] Empty book received (attempt {attempt+1})")
+
+                # ─────────── ② filter invalid rows ───────
+                good_bids = [row for row in bids if row and row[0]]
+                good_asks = [row for row in asks if row and row[0]]
+
+                bad_bid_rows = len(bids) - len(good_bids)
+                bad_ask_rows = len(asks) - len(good_asks)
+                if bad_bid_rows or bad_ask_rows:
+                    logging.debug(
+                        f"[{symbol}] Dropped {bad_bid_rows} bid‐rows "
+                        f"and {bad_ask_rows} ask‐rows with None/0 prices"
+                    )
+
+                values["bids"], values["asks"] = good_bids, good_asks
+                break  # success → exit retry‑loop
 
             except HTTPError as http_err:
-                print(f"HTTP error occurred: {http_err} - {http_err.response.text}")
-
-                if "Too many visits" in str(http_err) or (http_err.response.status_code == 429):
+                logging.error(f"[{symbol}] HTTP error in get_orderbook(): {http_err}")
+                if "Too many visits" in str(http_err) or http_err.response.status_code == 429:
                     if attempt < max_retries - 1:
-                        delay = retry_delay * (attempt + 1)  # Variable delay
-                        logging.info(f"Rate limit error in get_orderbook(). Retrying in {delay} seconds...")
+                        delay = retry_delay * (attempt + 1)
+                        logging.info(f"[{symbol}] Rate limit; retrying in {delay}s …")
                         time.sleep(delay)
                         continue
-                else:
-                    logging.error(f"HTTP error in get_orderbook(): {http_err.response.text}")
-                    raise http_err
+                raise  # re‑throw on non‑retryable HTTP errors
 
             except Exception as e:
-                if attempt < max_retries - 1:  # if not the last attempt
-                    logging.info(f"An unknown error occurred in get_orderbook(): {e}. Retrying in {retry_delay} seconds...")
+                if attempt < max_retries - 1:
+                    logging.info(f"[{symbol}] Err {e}; retrying in {retry_delay}s …")
                     time.sleep(retry_delay)
                 else:
-                    logging.error(f"Failed to fetch order book after {max_retries} attempts: {e}")
-                    raise e  # If it's still failing after max_retries, re-raise the exception.
+                    logging.error(f"[{symbol}] Unrecoverable error in get_orderbook(): {e}")
+                    raise
 
         return values
+
+
+    # def get_orderbook(self, symbol, max_retries=3, retry_delay=5) -> dict:
+    #     values = {"bids": [], "asks": []}
+
+    #     for attempt in range(max_retries):
+    #         try:
+    #             data = self.exchange.fetch_order_book(symbol)
+    #             if "bids" in data and "asks" in data:
+    #                 if len(data["bids"]) > 0 and len(data["asks"]) > 0:
+    #                     if len(data["bids"][0]) > 0 and len(data["asks"][0]) > 0:
+    #                         values["bids"] = data["bids"]
+    #                         values["asks"] = data["asks"]
+    #             break  # if the fetch was successful, break out of the loop
+
+    #         except HTTPError as http_err:
+    #             print(f"HTTP error occurred: {http_err} - {http_err.response.text}")
+
+    #             if "Too many visits" in str(http_err) or (http_err.response.status_code == 429):
+    #                 if attempt < max_retries - 1:
+    #                     delay = retry_delay * (attempt + 1)  # Variable delay
+    #                     logging.info(f"Rate limit error in get_orderbook(). Retrying in {delay} seconds...")
+    #                     time.sleep(delay)
+    #                     continue
+    #             else:
+    #                 logging.error(f"HTTP error in get_orderbook(): {http_err.response.text}")
+    #                 raise http_err
+
+    #         except Exception as e:
+    #             if attempt < max_retries - 1:  # if not the last attempt
+    #                 logging.info(f"An unknown error occurred in get_orderbook(): {e}. Retrying in {retry_delay} seconds...")
+    #                 time.sleep(retry_delay)
+    #             else:
+    #                 logging.error(f"Failed to fetch order book after {max_retries} attempts: {e}")
+    #                 raise e  # If it's still failing after max_retries, re-raise the exception.
+
+    #     return values
     
     # Huobi debug
     def get_positions_debug(self):
