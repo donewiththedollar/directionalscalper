@@ -67,6 +67,7 @@ class Bot(BaseModel):
     shared_data_path: Optional[str] = None
     hedge_positions_db_path: Optional[str] = "hedge_positions.json"
     linear_grid: Optional[dict] = None
+    breathing_grid: Optional[dict] = None
     hotkeys: Hotkeys
 
     @field_validator('hotkeys')
@@ -79,6 +80,13 @@ class Bot(BaseModel):
     def validate_linear_grid(cls, value):
         if value is None:
             raise ValueError("linear_grid must be a dictionary - check example config")
+        return value
+
+    @field_validator('breathing_grid')
+    def validate_breathing_grid(cls, value):
+        # optional: only the breathing-grid strategy requires it
+        if value is not None and not isinstance(value, dict):
+            raise ValueError("breathing_grid must be a dictionary when provided")
         return value
 
     @field_validator("upnl_profit_pct")

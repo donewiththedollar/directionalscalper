@@ -148,7 +148,8 @@ def standardize_symbol(symbol):
 def get_available_strategies():
     return [
         'qsgridob',
-        'qsgridob_nosignal'
+        'qsgridob_nosignal',
+        'breathinggrid',
         # 'qsgridob',
         # 'qsgridoblsignal',
         # 'qstrendobdynamictp',
@@ -278,6 +279,7 @@ class DirectionalMarketMaker:
             'qstrendobdynamictp':    gridbased.BybitQuickScalpTrendDynamicTP,
             'qsgridob':              gridbased.LinearGridBaseFutures,
             'qsgridob_nosignal':     gridbased.LinearGridBaseFutures,  # ← added no-signal mode
+            'breathinggrid':         gridbased.BreathingGridFutures,   # volume-farm breathing grid (mantis port)
         }
 
         strategy_class = strategy_classes.get(strategy_name.lower())
