@@ -13,7 +13,7 @@
             "api_secret": "your_api_secret"
         },
         {
-            "name": "bybit",
+            "name": "bybit_unified",
             "account_name": "account_3",
             "api_key": "your_api_key",
             "api_secret": "your_api_secret"

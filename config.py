@@ -6,7 +6,8 @@ from pathlib import Path
 import json
 from enum import Enum
 
-from pydantic import BaseModel, HttpUrl, ValidationError, validator, DirectoryPath
+from pydantic import BaseModel, HttpUrl, ValidationError, DirectoryPath
+from pydantic import field_validator
 
 from directionalscalper.core.strategies.logger import Logger
 logging = Logger(logger_name="Configuration", filename="Configuration.log", stream=True)
@@ -68,115 +69,115 @@ class Bot(BaseModel):
     linear_grid: Optional[dict] = None
     hotkeys: Hotkeys
 
-    @validator('hotkeys')
+    @field_validator('hotkeys')
     def validate_hotkeys(cls, value):
         if not value:
             raise ValueError("hotkeys must be provided and valid")
         return value
 
-    @validator('linear_grid')
+    @field_validator('linear_grid')
     def validate_linear_grid(cls, value):
         if value is None:
             raise ValueError("linear_grid must be a dictionary - check example config")
         return value
 
-    @validator("upnl_profit_pct")
+    @field_validator("upnl_profit_pct")
     def minimum_upnl_profit_pct(cls, v):
         if v < 0.0:
             raise ValueError("upnl_profit_pct must be greater than 0")
         return v
     
-    @validator("max_upnl_profit_pct")
+    @field_validator("max_upnl_profit_pct")
     def minimum_max_upnl_profit_pct(cls, v):
         if v < 0.0:
             raise ValueError("max_upnl_profit_pct must be greater than 0")
         return v
     
-    @validator("min_volume")
+    @field_validator("min_volume")
     def minimum_min_volume(cls, v):
         if v < 0.0:
             raise ValueError("min_volume must be greater than 0")
         return v
 
-    @validator("min_distance")
+    @field_validator("min_distance")
     def minimum_min_distance(cls, v):
         if v < 0.0:
             raise ValueError("min_distance must be greater than 0")
         return v
 
-    @validator('test_orders_enabled')
+    @field_validator('test_orders_enabled')
     def check_test_orders_enabled_is_bool(cls, v):
         if not isinstance(v, bool):
             raise ValueError("test_orders_enabled must be a boolean")
         return v
     
-    @validator('auto_reduce_enabled')
+    @field_validator('auto_reduce_enabled')
     def check_auto_reduce_enabled_is_bool(cls, v):
         if not isinstance(v, bool):
             raise ValueError("auto_reduce_enabled must be a boolean")
         return v
 
-    @validator('liq_stoploss_enabled')
+    @field_validator('liq_stoploss_enabled')
     def check_liq_stoploss_enabled_is_bool(cls, v):
         if not isinstance(v, bool):
             raise ValueError("liq_stoploss_enabled must be a boolean")
         return v
 
-    @validator('liq_price_stop_pct')
+    @field_validator('liq_price_stop_pct')
     def validate_liq_price_stop_pct(cls, v):
         if v < 0.0 or v > 1.0:
             raise ValueError("liq_price_stop_pct must be between 0.0 and 1.0")
         return v
 
-    @validator('auto_reduce_start_pct')
+    @field_validator('auto_reduce_start_pct')
     def validate_auto_reduce_start_pct(cls, v):
         if v < 0.0 or v > 1.0:
             raise ValueError("auto_reduce_start_pct must be between 0.0 and 1.0")
         return v
     
-    @validator('upnl_threshold_pct')
+    @field_validator('upnl_threshold_pct')
     def validate_upnl_threshold_pct(cls, v):
         if v < 0.0 or v > 1.0:
             raise ValueError("upnl_threshold_pct must be between 0.0 and 1.0")
         return v
     
-    @validator('auto_reduce_maxloss_pct')
+    @field_validator('auto_reduce_maxloss_pct')
     def validate_auto_reduce_maxloss_pct(cls, v):
         if v < 0.0 or v > 1.0:
             raise ValueError("auto_reduce_maxloss_pct must be between 0.0 and 1.0")
         return v
 
-    @validator('entry_during_autoreduce')
+    @field_validator('entry_during_autoreduce')
     def check_entry_during_autoreduce_is_bool(cls, v):
         if not isinstance(v, bool):
             raise ValueError("entry_during_autoreduce must be a boolean")
         return v
 
-    @validator('auto_reduce_marginbased_enabled')
+    @field_validator('auto_reduce_marginbased_enabled')
     def check_auto_reduce_marginbased_enabled_is_bool(cls, v):
         if not isinstance(v, bool):
             raise ValueError("auto_reduce_marginbased_enabled must be a boolean")
         return v
 
-    @validator('auto_reduce_wallet_exposure_pct')
+    @field_validator('auto_reduce_wallet_exposure_pct')
     def validate_auto_reduce_wallet_exposure_pct(cls, v):
         if v < 0.0 or v > 1.0:
             raise ValueError("auto_reduce_wallet_exposure_pct must be between 0.0 and 1.0")
         return v
 
-    @validator('percentile_auto_reduce_enabled')
+    @field_validator('percentile_auto_reduce_enabled')
     def check_percentile_auto_reduce_enabled_is_bool(cls, v):
         if not isinstance(v, bool):
             raise ValueError("percentile_auto_reduce_enabled must be a boolean")
         return v
 
-    @validator('max_pos_balance_pct')
+    @field_validator('max_pos_balance_pct')
     def validate_max_pos_balance_pct(cls, v):
         if v < 0.0:
             raise ValueError("max_pos_balance_pct must be between 0.0 and 1.0")
         return v
 
-    @validator('volume_check')
+    @field_validator('volume_check')
     def check_volume_check_is_bool(cls, v):
         if not isinstance(v, bool):
             raise ValueError("volume_check must be a boolean")
@@ -194,7 +195,7 @@ class Exchange(BaseModel):
 class Logger(BaseModel):
     level: str = "info"
 
-    @validator("level")
+    @field_validator("level")
     def check_level(cls, v):
         levels = ["notset", "debug", "info", "warn", "error", "critical"]
         if v not in levels:
@@ -207,7 +208,7 @@ class Discord(BaseModel):
     messenger_type: str = Messengers.DISCORD.value  # type: ignore
     webhook_url: HttpUrl
 
-    @validator("webhook_url")
+    @field_validator("webhook_url")
     def minimum_divider(cls, v):
         if not str(v).startswith("https://discord.com/api/webhooks/"):
             raise ValueError(

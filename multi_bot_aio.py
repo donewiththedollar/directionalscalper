@@ -141,7 +141,9 @@ def print_cool_trading_info(symbol, exchange_name, strategy_name, account_name):
     print(f"\n{Fore.WHITE}{'═'*200}{Style.RESET_ALL}\n")
 
 def standardize_symbol(symbol):
-    return symbol.replace('/', '').split(':')[0]
+    """Canonical internal symbol form; delegates to directionalscalper.core.symbols."""
+    from directionalscalper.core.symbols import standardize_symbol as _std
+    return _std(symbol)
 
 def get_available_strategies():
     return [

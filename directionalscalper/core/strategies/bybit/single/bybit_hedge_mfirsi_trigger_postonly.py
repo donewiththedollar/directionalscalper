@@ -1,6 +1,6 @@
 import time
 import math
-from ...strategy import Strategy
+from directionalscalper.core.strategies.base_strategy import BaseStrategy as Strategy
 from datetime import datetime, timedelta
 from typing import Tuple
 from rich.console import Console

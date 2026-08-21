@@ -1,5 +1,5 @@
 import time
-from ..strategy import Strategy
+from directionalscalper.core.strategies.base_strategy import BaseStrategy as Strategy
 
 class PhemexHedgeStrategy(Strategy):
     def __init__(self, exchange, manager, config):

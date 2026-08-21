@@ -1,16 +1,20 @@
-colorama
-ccxt==4.4.52
-pandas
-pydantic
-python-pidfile
-requests
-rich
-ta
-streamlit
-plotly
-inquirer
-pytz
-uuid
-keyboard
-scikit-learn
-asyncio
+# Runtime dependencies (authoritative — used by Dockerfile)
+# Python >= 3.11 (Docker image: python:3.14)
+colorama==0.4.6
+ccxt==4.5.75
+pandas==3.0.5
+pydantic==2.13.4
+python-pidfile==3.1.1
+requests==2.34.2
+rich==15.0.0
+ta==0.11.0
+streamlit==1.62.0
+plotly==6.9.0
+inquirer==3.4.1
+pytz==2026.3.post1
+keyboard==0.13.5
+scikit-learn==1.9.0
+aiohttp==3.14.3
+
+# Note: removed "uuid" and "asyncio" — both are Python stdlib modules;
+# the PyPI packages by those names are unmaintained placeholders/squatting risks.

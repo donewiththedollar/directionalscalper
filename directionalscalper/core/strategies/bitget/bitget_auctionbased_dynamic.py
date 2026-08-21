@@ -1,6 +1,6 @@
 import time, math, datetime
 from decimal import Decimal, ROUND_HALF_UP
-from ..strategy import Strategy
+from directionalscalper.core.strategies.base_strategy import BaseStrategy as Strategy
 
 class BitgetDynamicAuctionBasedStrategy(Strategy):
     def __init__(self, exchange, manager, config):

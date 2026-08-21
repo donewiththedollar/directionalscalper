@@ -4,15 +4,22 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-charset_normalizer = "*"
-colorama = "*"
-ccxt = "==4.5.74"
-pandas = "*"
-pydantic = "*"
-python-pidfile = "*"
-requests = "*"
-rich = "*"
-ta = "*"
+# keep in sync with requirements.txt (the authoritative runtime manifest)
+aiohttp = "==3.14.3"
+ccxt = "==4.5.75"
+colorama = "==0.4.6"
+inquirer = "==3.4.1"
+keyboard = "==0.13.5"
+pandas = "==3.0.5"
+plotly = "==6.9.0"
+pydantic = "==2.13.4"
+python-pidfile = "==3.1.1"
+pytz = "==2026.3.post1"
+requests = "==2.34.2"
+rich = "==15.0.0"
+scikit-learn = "==1.9.0"
+streamlit = "==1.62.0"
+ta = "==0.11.0"
 
 [dev-packages]
 bandit = "*"
@@ -25,4 +32,4 @@ pre-commit = "*"
 pytest = "*"
 
 [requires]
-python_version = "3.11"
+python_version = "3.14"

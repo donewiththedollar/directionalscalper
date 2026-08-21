@@ -1,6 +1,6 @@
 import time, math
 from decimal import Decimal, ROUND_HALF_UP, ROUND_HALF_DOWN, ROUND_DOWN
-from ..strategy import Strategy
+from directionalscalper.core.strategies.base_strategy import BaseStrategy as Strategy
 from rich.console import Console
 from rich.table import Table
 from rich.live import Live

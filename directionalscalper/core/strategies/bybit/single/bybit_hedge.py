@@ -1,7 +1,7 @@
 import time
 import math
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, ROUND_DOWN
-from ...strategy import Strategy
+from directionalscalper.core.strategies.base_strategy import BaseStrategy as Strategy
 from typing import Tuple
 import threading
 import os

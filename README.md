@@ -27,7 +27,7 @@ Directional Scalper        |  API Scraper               |  Dashboard            
 
 ### Docker
 To run the bot inside docker container use the following command:
-> docker-compose run directional-scalper python3.11 bot.py --symbol SUIUSDT --strategy bybit_hedge_mfirsi_maker --config config_main.json
+> docker-compose run directional-scalper python3 bot.py --symbol SUIUSDT --strategy qsgridob --config configs/config_example.json
 
 ### Proxy
 If you need to use a proxy to access the Exchange API, you can set the environment variables as shown in the following example:

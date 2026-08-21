@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 
 from directionalscalper.core.exchanges.hyperliquid import HyperLiquidExchange
-from directionalscalper.core.strategies.strategy import Strategy
+from directionalscalper.core.strategies.base_strategy import BaseStrategy as Strategy
 from directionalscalper.core.strategies.logger import Logger
 from live_table_manager import shared_symbols_data
 logging = Logger(logger_name="HyperLiquidBaseStrategy", filename="HyperLiquidBaseStrategy.log", stream=True)
