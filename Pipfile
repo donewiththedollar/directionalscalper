@@ -6,7 +6,7 @@ name = "pypi"
 [packages]
 charset_normalizer = "*"
 colorama = "*"
-ccxt = "==3.0.78"
+ccxt = "==4.5.74"
 pandas = "*"
 pydantic = "*"
 python-pidfile = "*"
