@@ -127,3 +127,34 @@ def test_executor_config_rejects_unknown_keys():
 
     unknown = {"budget_usdd": 100}
     assert set(unknown) - set(DEFAULT_CONFIG), "sanity check on the check itself"
+
+
+def test_venue_adapters_share_one_core():
+    """mantis-style modularity: one core executor, thin venue adapters."""
+    from directionalscalper.core.strategies.bybit.gridbased.breathing_grid import (
+        BreathingGridCore,
+        BreathingGridFutures,
+    )
+    from directionalscalper.core.strategies.blofin import BreathingGridBloFin
+
+    for adapter in (BreathingGridFutures, BreathingGridBloFin):
+        assert issubclass(adapter, BreathingGridCore)
+        for hook in (
+            "_venue_set_leverage",
+            "_venue_mid_price",
+            "_venue_closes",
+            "_venue_positions",
+            "_venue_equity_usd",
+            "_venue_place_limit",
+            "_venue_cancel_order",
+            "_venue_open_order_ids",
+            "_venue_flatten",
+        ):
+            assert hook in vars(adapter), f"{adapter.__name__} must implement {hook} itself"
+
+
+def test_blofin_broker_id_default():
+    """Order flow must be attributed via the mantis broker code by default."""
+    from directionalscalper.core.exchanges.blofin import BlofinExchange
+
+    assert BlofinExchange.DEFAULT_BROKER_ID == "cc84bbde7d4b8a8c"

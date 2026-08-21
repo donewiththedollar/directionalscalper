@@ -39,7 +39,7 @@ class Exchange:
     last_open_positions_time_shared = None
     open_positions_semaphore = threading.Semaphore()
 
-    def __init__(self, exchange_id, api_key, secret_key, passphrase=None, market_type='swap'):
+    def __init__(self, exchange_id, api_key, secret_key, passphrase=None, market_type='swap', broker_id=None):
         self.order_timestamps = None
         self.exchange_id = exchange_id
         self.api_key = api_key
@@ -47,6 +47,7 @@ class Exchange:
         self.passphrase = passphrase
         self.market_type = market_type  # Store the market type
         self.name = exchange_id
+        self.broker_id = broker_id
         self.initialise()
         self.symbols = self._get_symbols()
         self.market_precisions = {}
@@ -114,6 +115,10 @@ class Exchange:
                 'defaultType': self.market_type,
                 'adjustForTimeDifference': True,
             }
+            # Broker/affiliate code attached to orders (mantis convention:
+            # ccxt blofin option 'brokerId'); None or the placeholder disables it.
+            if self.broker_id and self.broker_id != 'YOUR_BROKER_ID':
+                exchange_params['options']['brokerId'] = self.broker_id
             
         # Initializing the exchange object
         self.exchange = exchange_class(exchange_params)

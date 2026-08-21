@@ -15,8 +15,14 @@ from rate_limit import RateLimit
 logging = Logger(logger_name="BlofinExchange", filename="BlofinExchange.log", stream=True)
 
 class BlofinExchange(Exchange):
-    def __init__(self, api_key, secret_key, passphrase=None, market_type='swap'):
-        super().__init__('blofin', api_key, secret_key, passphrase, market_type)
+    # Default broker/affiliate code credited on order flow (mantis convention).
+    DEFAULT_BROKER_ID = "cc84bbde7d4b8a8c"
+
+    def __init__(self, api_key, secret_key, passphrase=None, market_type='swap', broker_id=None):
+        if broker_id is None:
+            import os
+            broker_id = os.getenv("BLOFIN_BROKER_ID", self.DEFAULT_BROKER_ID)
+        super().__init__('blofin', api_key, secret_key, passphrase, market_type, broker_id=broker_id)
         
         self.max_retries = 100  # Maximum retries for rate-limited requests
         self.retry_wait = 5  # Seconds to wait between retries
@@ -102,6 +108,33 @@ class BlofinExchange(Exchange):
         except Exception as e:
             logging.info(f"An error occurred while fetching all open orders: {e}")
             return []
+
+    def get_all_open_positions_blofin(self):
+        """All open swap positions, normalized to the same 'info' shape used by Bybit."""
+        try:
+            positions = self.exchange.fetch_positions()
+            result = []
+            for pos in positions or []:
+                contracts = float(pos.get('contracts', 0) or 0)
+                if contracts == 0:
+                    continue
+                side = (pos.get('side') or '').lower()
+                result.append({
+                    'symbol': pos.get('symbol', ''),
+                    'side': side,
+                    'size': contracts,
+                    'avgPrice': float(pos.get('entryPrice', 0) or 0),
+                })
+            return result
+        except Exception as e:
+            logging.info(f"An error occurred in get_all_open_positions_blofin(): {e}")
+            return []
+
+    def set_leverage_blofin(self, leverage, symbol):
+        try:
+            return self.exchange.set_leverage(int(leverage), symbol)
+        except Exception as e:
+            logging.info(f"Error setting leverage for {symbol} on Blofin: {e}")
 
     def get_balance_blofin(self, quote):
         if self.exchange.has['fetchBalance']:

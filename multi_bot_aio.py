@@ -27,6 +27,7 @@ from api.manager import Manager
 from directionalscalper.core.exchanges import *
 
 import directionalscalper.core.strategies.bybit.gridbased as gridbased
+import directionalscalper.core.strategies.blofin as blofin_strats
 import directionalscalper.core.strategies.bybit.hedging as bybit_hedging
 from directionalscalper.core.strategies.binance import *
 from directionalscalper.core.strategies.huobi import *
@@ -279,8 +280,14 @@ class DirectionalMarketMaker:
             'qstrendobdynamictp':    gridbased.BybitQuickScalpTrendDynamicTP,
             'qsgridob':              gridbased.LinearGridBaseFutures,
             'qsgridob_nosignal':     gridbased.LinearGridBaseFutures,  # ← added no-signal mode
-            'breathinggrid':         gridbased.BreathingGridFutures,   # volume-farm breathing grid (mantis port)
         }
+
+        # venue-modular strategies: same name, per-exchange adapter class
+        # (mantis-style: one core executor, thin venue adapters)
+        if self.exchange_name.lower() == 'blofin':
+            strategy_classes['breathinggrid'] = blofin_strats.BreathingGridBloFin
+        else:
+            strategy_classes['breathinggrid'] = gridbased.BreathingGridFutures  # volume-farm breathing grid (mantis port)
 
         strategy_class = strategy_classes.get(strategy_name.lower())
         if strategy_class:
