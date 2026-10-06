@@ -6,7 +6,7 @@ name = "pypi"
 [packages]
 # keep in sync with requirements.txt (the authoritative runtime manifest)
 aiohttp = "==3.14.3"
-ccxt = "==4.5.75"
+ccxt = "==4.5.85"
 colorama = "==0.4.6"
 inquirer = "==3.4.1"
 keyboard = "==0.13.5"
